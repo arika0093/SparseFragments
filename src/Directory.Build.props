@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <ConfiglueUtility>true</ConfiglueUtility>
+  </PropertyGroup>
+  <!--
+    Projects under src are single-target netstandard2.0 libraries. The shared
+    root props target conditions never fire for single-target projects
+    (TargetFramework is still empty when that file is evaluated), so reference
+    Polyfill here instead. This keeps the polyfill dependency consistent
+    without pulling runtime shims these projects do not use.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="all" />
+  </ItemGroup>
+  <Import Project="../Directory.Build.props" />
+  <!--
+    Libraries ship as independently discoverable NuGet packages with their own
+    READMEs. Remove the repository-root README packed by the shared props so
+    SparseFragments packages never present repo-oriented docs.
+    Each packable project packs its local README.md instead.
+  -->
+  <ItemGroup>
+    <None Remove="$(MSBuildThisFileDirectory)../README.md" />
+  </ItemGroup>
+</Project>

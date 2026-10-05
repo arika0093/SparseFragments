@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SparseFragments.Generator</AssemblyName>
+    <RootNamespace>SparseFragments.Generator</RootNamespace>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>false</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageDescription>Standalone source generator for SparseFragments models.</PackageDescription>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.6.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.1" PrivateAssets="all" />
+    <PackageReference
+      Include="Microsoft.CodeAnalysis.Analyzers"
+      Version="3.3.4"
+      PrivateAssets="all"
+    />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Local sources win while the Shared folder ships in-repo. Once
+      consumers move off the monorepo/submodule layout, the PackageReference
+      below takes over with the same sources from NuGet. -->
+    <Compile
+      Include="..\SparseFragments.Generator.Shared\**\*.cs"
+      Exclude="..\SparseFragments.Generator.Shared\obj\**;..\SparseFragments.Generator.Shared\bin\**"
+      LinkBase="Shared"
+      Condition="Exists('..\SparseFragments.Generator.Shared\SparseModelDiscovery.cs')"
+    />
+    <PackageReference
+      Include="SparseFragments.Generator.Shared"
+      Version="0.1.*"
+      PrivateAssets="all"
+      Condition="!Exists('..\SparseFragments.Generator.Shared\SparseModelDiscovery.cs')"
+    />
+  </ItemGroup>
+</Project>

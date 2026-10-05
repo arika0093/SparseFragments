@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SparseFragments/SparseFragments.csproj" />
+    <Project Path="src/SparseFragments.Generator/SparseFragments.Generator.csproj" />
+    <Project Path="src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
+    <Project Path="tests/SparseFragments.JsonPatch.Tests/SparseFragments.JsonPatch.Tests.csproj" />
+  </Folder>
+</Solution>
