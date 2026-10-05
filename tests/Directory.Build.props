@@ -12,7 +12,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.66.27" />
+    <PackageReference Include="TUnit" Version="1.72.16" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup>
