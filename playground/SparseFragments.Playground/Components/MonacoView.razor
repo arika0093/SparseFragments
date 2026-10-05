@@ -1,0 +1,67 @@
+@using BlazorMonaco.Editor
+
+<div class="pg-monaco" style="height: @Height;">
+    <StandaloneCodeEditor @ref="_editor"
+        Id="@EditorId"
+        ConstructionOptions="GetOptions"
+        OnDidInit="HandleInit"
+        CssClass="pg-monaco-editor" />
+</div>
+
+@code {
+    private StandaloneCodeEditor? _editor;
+    private string? _lastValue;
+    private bool _initialized;
+
+    [Parameter, EditorRequired]
+    public string Content { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Language { get; set; } = "json";
+
+    [Parameter]
+    public string Height { get; set; } = "220px";
+
+    private string EditorId { get; } = $"monaco-{Guid.NewGuid():N}";
+
+    private StandaloneEditorConstructionOptions GetOptions(StandaloneCodeEditor editor)
+    {
+        _lastValue = Content;
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = Language,
+            Value = Content,
+            ReadOnly = true,
+            Minimap = new EditorMinimapOptions { Enabled = false },
+            ScrollBeyondLastLine = false,
+            RenderLineHighlight = "all",
+            Theme = "vs",
+        };
+    }
+
+    private async Task HandleInit()
+    {
+        _initialized = true;
+        await SyncValueAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await SyncValueAsync();
+    }
+
+    private async Task SyncValueAsync()
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+        if (_lastValue == Content)
+        {
+            return;
+        }
+        _lastValue = Content;
+        await _editor.SetValue(Content);
+    }
+}

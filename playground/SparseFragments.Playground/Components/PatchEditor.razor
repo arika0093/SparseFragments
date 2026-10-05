@@ -1,88 +1,117 @@
 @using SparseFragments.Playground.Models
 
-<div class="pg-card">
+<FluentCard Class="pg-fluent-card">
     <div class="pg-card-head">
         <h3>@Title</h3>
-        <button class="pg-btn" @onclick="OnReset">Reset</button>
+        <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="HandleReset">Reset</FluentButton>
     </div>
 
-    <div class="pg-row">
-        <span class="pg-name">Enabled <small>bool</small></span>
-        <select class="pg-input" @bind="State.EnabledOp">
-            <option value="@PatchKind.Unchanged">unchanged</option>
-            <option value="@PatchKind.Set">set</option>
-            <option value="@PatchKind.Unset">unset</option>
-        </select>
-        <label class="pg-check"><input type="checkbox" @bind="State.EnabledValue" disabled="@(State.EnabledOp != PatchKind.Set)" /> true</label>
-    </div>
-
-    <div class="pg-row">
-        <span class="pg-name">RetryCount <small>int</small></span>
-        <select class="pg-input" @bind="State.RetryOp">
-            <option value="@PatchKind.Unchanged">unchanged</option>
-            <option value="@PatchKind.Set">set</option>
-            <option value="@PatchKind.Unset">unset</option>
-        </select>
-        <input type="number" class="pg-input" @bind="State.RetryValue" disabled="@(State.RetryOp != PatchKind.Set)" />
-    </div>
-
-    <div class="pg-row">
-        <span class="pg-name">Label <small>string?</small></span>
-        <select class="pg-input" @bind="State.LabelOp">
-            <option value="@NullPatchKind.Unchanged">unchanged</option>
-            <option value="@NullPatchKind.Set">set</option>
-            <option value="@NullPatchKind.SetNull">set null</option>
-            <option value="@NullPatchKind.Unset">unset</option>
-        </select>
-        <input class="pg-input" @bind="State.LabelValue" disabled="@(State.LabelOp != NullPatchKind.Set)" placeholder="label text" />
-    </div>
-
-    <div class="pg-row">
-        <span class="pg-name">Nested <small>nested patch</small></span>
-        <select class="pg-input" @bind="State.NestedOp">
-            <option value="@NestedPatchKind.Unchanged">unchanged</option>
-            <option value="@NestedPatchKind.Set">set members below</option>
-            <option value="@NestedPatchKind.SetNull">set null</option>
-            <option value="@NestedPatchKind.Unset">unset</option>
-        </select>
-    </div>
-
-    @if (State.NestedOp == NestedPatchKind.Set)
-    {
-        <div class="pg-nested">
-            <div class="pg-row">
-                <span class="pg-name">Nested.Host <small>string</small></span>
-                <select class="pg-input" @bind="State.HostOp">
-                    <option value="@PatchKind.Unchanged">unchanged</option>
-                    <option value="@PatchKind.Set">set</option>
-                    <option value="@PatchKind.Unset">unset</option>
-                </select>
-                <input class="pg-input" @bind="State.HostValue" disabled="@(State.HostOp != PatchKind.Set)" placeholder="host" />
-            </div>
-            <div class="pg-row">
-                <span class="pg-name">Nested.Port <small>int</small></span>
-                <select class="pg-input" @bind="State.PortOp">
-                    <option value="@PatchKind.Unchanged">unchanged</option>
-                    <option value="@PatchKind.Set">set</option>
-                    <option value="@PatchKind.Unset">unset</option>
-                </select>
-                <input type="number" class="pg-input" @bind="State.PortValue" disabled="@(State.PortOp != PatchKind.Set)" />
-            </div>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+        <div class="pg-row">
+            <span class="pg-name">Enabled <small>bool</small></span>
+            <FluentSelect TOption="string"
+                Items="@PatchKindNames"
+                OptionValue="@(v => v)"
+                OptionText="@(v => v)"
+                Value="@State.EnabledOp.ToString()"
+                ValueChanged="@OnEnabledOpChanged" />
+            <FluentCheckbox Label="true"
+                Value="@State.EnabledValue"
+                ValueChanged="@(async v => { State.EnabledValue = v; await NotifyAsync(); })"
+                Disabled="@(State.EnabledOp != PatchKind.Set)" />
         </div>
-    }
 
-    <div class="pg-row">
-        <span class="pg-name">Plugins <small>whole value</small></span>
-        <select class="pg-input" @bind="State.PluginsOp">
-            <option value="@PatchKind.Unchanged">unchanged</option>
-            <option value="@PatchKind.Set">set</option>
-            <option value="@PatchKind.Unset">unset</option>
-        </select>
-        <input class="pg-input" @bind="State.PluginsText" disabled="@(State.PluginsOp != PatchKind.Set)" placeholder="comma separated" />
-    </div>
-</div>
+        <div class="pg-row">
+            <span class="pg-name">RetryCount <small>int</small></span>
+            <FluentSelect TOption="string"
+                Items="@PatchKindNames"
+                OptionValue="@(v => v)"
+                OptionText="@(v => v)"
+                Value="@State.RetryOp.ToString()"
+                ValueChanged="@OnRetryOpChanged" />
+            <FluentNumberField TValue="int"
+                Value="@State.RetryValue"
+                ValueChanged="@(async v => { State.RetryValue = v; await NotifyAsync(); })"
+                Disabled="@(State.RetryOp != PatchKind.Set)" />
+        </div>
+
+        <div class="pg-row">
+            <span class="pg-name">Label <small>string?</small></span>
+            <FluentSelect TOption="string"
+                Items="@NullPatchKindNames"
+                OptionValue="@(v => v)"
+                OptionText="@(v => v)"
+                Value="@State.LabelOp.ToString()"
+                ValueChanged="@OnLabelOpChanged" />
+            <FluentTextField Placeholder="label text"
+                Value="@State.LabelValue"
+                ValueChanged="@(async v => { State.LabelValue = v; await NotifyAsync(); })"
+                Disabled="@(State.LabelOp != NullPatchKind.Set)" />
+        </div>
+
+        <div class="pg-row">
+            <span class="pg-name">Nested <small>nested patch</small></span>
+            <FluentSelect TOption="string"
+                Items="@NestedPatchKindNames"
+                OptionValue="@(v => v)"
+                OptionText="@(v => v)"
+                Value="@State.NestedOp.ToString()"
+                ValueChanged="@OnNestedOpChanged" />
+        </div>
+
+        @if (State.NestedOp == NestedPatchKind.Set)
+        {
+            <div class="pg-nested">
+                <div class="pg-row">
+                    <span class="pg-name">Nested.Host <small>string</small></span>
+                    <FluentSelect TOption="string"
+                        Items="@PatchKindNames"
+                        OptionValue="@(v => v)"
+                        OptionText="@(v => v)"
+                        Value="@State.HostOp.ToString()"
+                        ValueChanged="@OnHostOpChanged" />
+                    <FluentTextField Placeholder="host"
+                        Value="@State.HostValue"
+                        ValueChanged="@(async v => { State.HostValue = v; await NotifyAsync(); })"
+                        Disabled="@(State.HostOp != PatchKind.Set)" />
+                </div>
+                <div class="pg-row">
+                    <span class="pg-name">Nested.Port <small>int</small></span>
+                    <FluentSelect TOption="string"
+                        Items="@PatchKindNames"
+                        OptionValue="@(v => v)"
+                        OptionText="@(v => v)"
+                        Value="@State.PortOp.ToString()"
+                        ValueChanged="@OnPortOpChanged" />
+                    <FluentNumberField TValue="int"
+                        Value="@State.PortValue"
+                        ValueChanged="@(async v => { State.PortValue = v; await NotifyAsync(); })"
+                        Disabled="@(State.PortOp != PatchKind.Set)" />
+                </div>
+            </div>
+        }
+
+        <div class="pg-row">
+            <span class="pg-name">Plugins <small>whole value</small></span>
+            <FluentSelect TOption="string"
+                Items="@PatchKindNames"
+                OptionValue="@(v => v)"
+                OptionText="@(v => v)"
+                Value="@State.PluginsOp.ToString()"
+                ValueChanged="@OnPluginsOpChanged" />
+            <FluentTextField Placeholder="comma separated"
+                Value="@State.PluginsText"
+                ValueChanged="@(async v => { State.PluginsText = v; await NotifyAsync(); })"
+                Disabled="@(State.PluginsOp != PatchKind.Set)" />
+        </div>
+    </FluentStack>
+</FluentCard>
 
 @code {
+    private static readonly List<string> PatchKindNames = Enum.GetNames<PatchKind>().ToList();
+    private static readonly List<string> NullPatchKindNames = Enum.GetNames<NullPatchKind>().ToList();
+    private static readonly List<string> NestedPatchKindNames = Enum.GetNames<NestedPatchKind>().ToList();
+
     [Parameter, EditorRequired]
     public string Title { get; set; } = string.Empty;
 
@@ -91,4 +120,78 @@
 
     [Parameter]
     public EventCallback OnReset { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private async Task OnEnabledOpChanged(string value)
+    {
+        if (Enum.TryParse<PatchKind>(value, out var parsed))
+        {
+            State.EnabledOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnRetryOpChanged(string value)
+    {
+        if (Enum.TryParse<PatchKind>(value, out var parsed))
+        {
+            State.RetryOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnLabelOpChanged(string value)
+    {
+        if (Enum.TryParse<NullPatchKind>(value, out var parsed))
+        {
+            State.LabelOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnNestedOpChanged(string value)
+    {
+        if (Enum.TryParse<NestedPatchKind>(value, out var parsed))
+        {
+            State.NestedOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnHostOpChanged(string value)
+    {
+        if (Enum.TryParse<PatchKind>(value, out var parsed))
+        {
+            State.HostOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnPortOpChanged(string value)
+    {
+        if (Enum.TryParse<PatchKind>(value, out var parsed))
+        {
+            State.PortOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task OnPluginsOpChanged(string value)
+    {
+        if (Enum.TryParse<PatchKind>(value, out var parsed))
+        {
+            State.PluginsOp = parsed;
+            await NotifyAsync();
+        }
+    }
+
+    private async Task HandleReset()
+    {
+        await OnReset.InvokeAsync();
+        await NotifyAsync();
+    }
+
+    private Task NotifyAsync() => OnChanged.InvokeAsync();
 }
