@@ -6,6 +6,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
-    <Project Path="tests/SparseFragments.JsonPatch.Tests/SparseFragments.JsonPatch.Tests.csproj" />
   </Folder>
 </Solution>
