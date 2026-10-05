@@ -1,0 +1,157 @@
+﻿@page "/"
+@using System.Text
+@using SparseFragments
+@using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
+
+<PageTitle>SparseFragments Playground</PageTitle>
+
+<h1>SparseFragments Playground</h1>
+<p class="pg-lead">
+    Typed partial state for C#: <strong>missing</strong> falls through to lower layers,
+    while an explicit <strong>null</strong> wins.
+    Edit the layers, reset anytime, and watch fragments, patches, and RFC 6902 JSON Patch update.
+    See <a href="https://github.com/arika0093/SparseFragments" target="_blank">arika0093/SparseFragments</a>.
+</p>
+
+<div class="pg-toolbar">
+    <button class="pg-btn" @onclick="ResetAll">Reset everything</button>
+</div>
+
+<h2>1. Layers: merge <code>Lower</code> + <code>Higher</code></h2>
+<p class="pg-hint">Only <em>present</em> members of the higher layer override. Missing members keep the lower layer's values. <code>Plugins</code> uses append-merge.</p>
+<div class="pg-grid">
+    <FragmentEditor Title="Lower (baseline)" State="Lower" OnReset="ResetLower" />
+    <FragmentEditor Title="Higher (overlay)" State="Higher" OnReset="ResetHigher" />
+</div>
+<div class="pg-grid pg-grid-3">
+    <JsonView Title="Merged model" Content="@MergedModelJson" />
+    <JsonView Title="Merged fragment (canonical JSON)" Content="@MergedFragmentJson" Badge="@($"IsEmpty: {MergedFragment.IsEmpty}")" />
+    <JsonView Title="Diff fragment (Lower model → Merged model)" Content="@MergeDiffJson" />
+</div>
+
+<h2>2. Typed patch applied to the merged fragment</h2>
+<p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
+<div class="pg-grid">
+    <PatchEditor Title="Patch edits" State="PatchState" OnReset="ResetPatch" />
+    <div class="pg-stack">
+        <JsonView Title="Patched model" Content="@PatchedModelJson" />
+        <JsonView Title="Patched fragment (canonical JSON)" Content="@PatchedFragmentJson" Badge="@($"Patch IsEmpty: {TypedPatch.IsEmpty}")" />
+        <JsonView Title="Diff fragment (Merged model → Patched model)" Content="@PatchDiffJson" />
+    </div>
+</div>
+
+<h2>3. RFC 6902 JSON Patch bridge</h2>
+<p class="pg-hint">Export the typed patch above against the merged baseline, or import any JSON Patch document against the same baseline.</p>
+<div class="pg-grid">
+    <div class="pg-card">
+        <div class="pg-card-head">
+            <h3>Export</h3>
+            <button class="pg-btn" @onclick="CopyExportToImport">Copy to import box</button>
+        </div>
+        <pre>@ExportText</pre>
+    </div>
+    <div class="pg-card">
+        <div class="pg-card-head">
+            <h3>Import</h3>
+            <button class="pg-btn" @onclick="ImportJsonPatch">Apply to merged baseline</button>
+        </div>
+        <textarea class="pg-textarea" rows="8" @bind="ImportText" placeholder='[{"op":"replace","path":"/Label","value":"..."}]'></textarea>
+        @if (ImportError is not null)
+        {
+            <JsonView Title="Import error" Content="@ImportError" IsError="true" />
+        }
+        @if (ImportResult is not null)
+        {
+            <JsonView Title="Import result" Content="@ImportResult" />
+        }
+    </div>
+</div>
+
+@code {
+    private FragmentEditState Lower = FragmentEditState.LowerDefaults();
+    private FragmentEditState Higher = FragmentEditState.HigherDefaults();
+    private PatchEditState PatchState = PatchEditState.Defaults();
+    private string ImportText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+    private string? ImportError;
+    private string? ImportResult;
+
+    private PlaygroundSettings.Fragment LowerFragment => Lower.Build();
+    private PlaygroundSettings.Fragment HigherFragment => Higher.Build();
+    private PlaygroundSettings.Fragment MergedFragment => LowerFragment.Merge(HigherFragment);
+    private PlaygroundSettings.Patch TypedPatch => PatchState.Build();
+    private PlaygroundSettings.Fragment PatchedFragment => MergedFragment.Apply(TypedPatch);
+
+    private string MergedModelJson => Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
+    private string MergedFragmentJson => Try(() => PlaygroundJson.WriteFragment(MergedFragment));
+    private string MergeDiffJson => Try(() => PlaygroundJson.WriteFragment(
+        PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
+    private string PatchedModelJson => Try(() => PlaygroundJson.WriteModel(PatchedFragment.ToModel()));
+    private string PatchedFragmentJson => Try(() => PlaygroundJson.WriteFragment(PatchedFragment));
+    private string PatchDiffJson => Try(() => PlaygroundJson.WriteFragment(
+        PlaygroundSettings.Fragment.Diff(MergedFragment.ToModel(), PatchedFragment.ToModel())));
+
+    private string ExportText => Try(() =>
+    {
+        var exported = TypedPatch.ToJsonPatch(
+            Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment),
+            PlaygroundJson.BridgeOptions());
+        return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
+    });
+
+    private void ResetLower() => Lower = FragmentEditState.LowerDefaults();
+
+    private void ResetHigher() => Higher = FragmentEditState.HigherDefaults();
+
+    private void ResetPatch() => PatchState = PatchEditState.Defaults();
+
+    private void ResetAll()
+    {
+        ResetLower();
+        ResetHigher();
+        ResetPatch();
+        ImportText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+        ImportError = null;
+        ImportResult = null;
+    }
+
+    private void CopyExportToImport()
+    {
+        ImportText = ExportText;
+        ImportError = null;
+        ImportResult = null;
+    }
+
+    private void ImportJsonPatch()
+    {
+        ImportError = null;
+        ImportResult = null;
+        try
+        {
+            var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
+            var patch = PlaygroundSettings.Patch.FromJsonPatch(
+                baseline,
+                Encoding.UTF8.GetBytes(ImportText),
+                PlaygroundJson.BridgeOptions());
+            var applied = MergedFragment.Apply(patch);
+            ImportResult =
+                $"IsEmpty: {patch.IsEmpty}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
+        }
+        catch (Exception ex)
+        {
+            ImportError = $"{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    private static string Try(Func<string> render)
+    {
+        try
+        {
+            return render();
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.GetType().Name}: {ex.Message}";
+        }
+    }
+}

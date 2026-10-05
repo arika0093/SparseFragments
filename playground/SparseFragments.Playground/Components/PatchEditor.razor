@@ -1,0 +1,94 @@
+@using SparseFragments.Playground.Models
+
+<div class="pg-card">
+    <div class="pg-card-head">
+        <h3>@Title</h3>
+        <button class="pg-btn" @onclick="OnReset">Reset</button>
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Enabled <small>bool</small></span>
+        <select class="pg-input" @bind="State.EnabledOp">
+            <option value="@PatchKind.Unchanged">unchanged</option>
+            <option value="@PatchKind.Set">set</option>
+            <option value="@PatchKind.Unset">unset</option>
+        </select>
+        <label class="pg-check"><input type="checkbox" @bind="State.EnabledValue" disabled="@(State.EnabledOp != PatchKind.Set)" /> true</label>
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">RetryCount <small>int</small></span>
+        <select class="pg-input" @bind="State.RetryOp">
+            <option value="@PatchKind.Unchanged">unchanged</option>
+            <option value="@PatchKind.Set">set</option>
+            <option value="@PatchKind.Unset">unset</option>
+        </select>
+        <input type="number" class="pg-input" @bind="State.RetryValue" disabled="@(State.RetryOp != PatchKind.Set)" />
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Label <small>string?</small></span>
+        <select class="pg-input" @bind="State.LabelOp">
+            <option value="@NullPatchKind.Unchanged">unchanged</option>
+            <option value="@NullPatchKind.Set">set</option>
+            <option value="@NullPatchKind.SetNull">set null</option>
+            <option value="@NullPatchKind.Unset">unset</option>
+        </select>
+        <input class="pg-input" @bind="State.LabelValue" disabled="@(State.LabelOp != NullPatchKind.Set)" placeholder="label text" />
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Nested <small>nested patch</small></span>
+        <select class="pg-input" @bind="State.NestedOp">
+            <option value="@NestedPatchKind.Unchanged">unchanged</option>
+            <option value="@NestedPatchKind.Set">set members below</option>
+            <option value="@NestedPatchKind.SetNull">set null</option>
+            <option value="@NestedPatchKind.Unset">unset</option>
+        </select>
+    </div>
+
+    @if (State.NestedOp == NestedPatchKind.Set)
+    {
+        <div class="pg-nested">
+            <div class="pg-row">
+                <span class="pg-name">Nested.Host <small>string</small></span>
+                <select class="pg-input" @bind="State.HostOp">
+                    <option value="@PatchKind.Unchanged">unchanged</option>
+                    <option value="@PatchKind.Set">set</option>
+                    <option value="@PatchKind.Unset">unset</option>
+                </select>
+                <input class="pg-input" @bind="State.HostValue" disabled="@(State.HostOp != PatchKind.Set)" placeholder="host" />
+            </div>
+            <div class="pg-row">
+                <span class="pg-name">Nested.Port <small>int</small></span>
+                <select class="pg-input" @bind="State.PortOp">
+                    <option value="@PatchKind.Unchanged">unchanged</option>
+                    <option value="@PatchKind.Set">set</option>
+                    <option value="@PatchKind.Unset">unset</option>
+                </select>
+                <input type="number" class="pg-input" @bind="State.PortValue" disabled="@(State.PortOp != PatchKind.Set)" />
+            </div>
+        </div>
+    }
+
+    <div class="pg-row">
+        <span class="pg-name">Plugins <small>whole value</small></span>
+        <select class="pg-input" @bind="State.PluginsOp">
+            <option value="@PatchKind.Unchanged">unchanged</option>
+            <option value="@PatchKind.Set">set</option>
+            <option value="@PatchKind.Unset">unset</option>
+        </select>
+        <input class="pg-input" @bind="State.PluginsText" disabled="@(State.PluginsOp != PatchKind.Set)" placeholder="comma separated" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public PatchEditState State { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnReset { get; set; }
+}

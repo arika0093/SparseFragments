@@ -1,0 +1,73 @@
+name: Playground (GitHub Pages)
+
+# Builds the Blazor WebAssembly playground and deploys it to GitHub Pages.
+# Enable Pages once in the repository settings (Settings -> Pages ->
+# Source: GitHub Actions); afterwards every push touching the playground
+# (or the library it demonstrates) redeploys automatically.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - playground/**
+      - src/**
+      - .github/workflows/playground.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-playground-nuget-${{ hashFiles('playground/**/*.csproj', 'src/**/*.csproj', '**/*.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playground-nuget-
+
+      - name: Publish playground
+        run: dotnet publish playground/SparseFragments.Playground/SparseFragments.Playground.csproj --configuration Release --output dist
+
+      - name: Prepare Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's|<base href="/" />|<base href="/SparseFragments/" />|' dist/wwwroot/index.html
+          cp dist/wwwroot/index.html dist/wwwroot/404.html
+          touch dist/wwwroot/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/wwwroot
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

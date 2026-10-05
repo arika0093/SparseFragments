@@ -1,0 +1,72 @@
+@using SparseFragments.Playground.Models
+
+<div class="pg-card">
+    <div class="pg-card-head">
+        <h3>@Title</h3>
+        <button class="pg-btn" @onclick="OnReset">Reset</button>
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Enabled <small>bool</small></span>
+        <label class="pg-check"><input type="checkbox" @bind="State.EnabledPresent" /> present</label>
+        <label class="pg-check"><input type="checkbox" @bind="State.EnabledValue" disabled="@(!State.EnabledPresent)" /> true</label>
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">RetryCount <small>int</small></span>
+        <label class="pg-check"><input type="checkbox" @bind="State.RetryPresent" /> present</label>
+        <input type="number" class="pg-input" @bind="State.RetryValue" disabled="@(!State.RetryPresent)" />
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Label <small>string?</small></span>
+        <select class="pg-input" @bind="State.LabelMode">
+            <option value="@NullPresence.Missing">missing (fall through)</option>
+            <option value="@NullPresence.Null">null (explicit)</option>
+            <option value="@NullPresence.Value">value</option>
+        </select>
+        <input class="pg-input" @bind="State.LabelValue" disabled="@(State.LabelMode != NullPresence.Value)" placeholder="label text" />
+    </div>
+
+    <div class="pg-row">
+        <span class="pg-name">Nested <small>nested model?</small></span>
+        <select class="pg-input" @bind="State.NestedMode">
+            <option value="@NullPresence.Missing">missing (fall through)</option>
+            <option value="@NullPresence.Null">null (explicit)</option>
+            <option value="@NullPresence.Value">value (edit below)</option>
+        </select>
+    </div>
+
+    @if (State.NestedMode == NullPresence.Value)
+    {
+        <div class="pg-nested">
+            <div class="pg-row">
+                <span class="pg-name">Nested.Host <small>string</small></span>
+                <label class="pg-check"><input type="checkbox" @bind="State.HostPresent" /> present</label>
+                <input class="pg-input" @bind="State.HostValue" disabled="@(!State.HostPresent)" placeholder="host" />
+            </div>
+            <div class="pg-row">
+                <span class="pg-name">Nested.Port <small>int</small></span>
+                <label class="pg-check"><input type="checkbox" @bind="State.PortPresent" /> present</label>
+                <input type="number" class="pg-input" @bind="State.PortValue" disabled="@(!State.PortPresent)" />
+            </div>
+        </div>
+    }
+
+    <div class="pg-row">
+        <span class="pg-name">Plugins <small>append list</small></span>
+        <label class="pg-check"><input type="checkbox" @bind="State.PluginsPresent" /> present</label>
+        <input class="pg-input" @bind="State.PluginsText" disabled="@(!State.PluginsPresent)" placeholder="comma separated" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public FragmentEditState State { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnReset { get; set; }
+}

@@ -5,6 +5,8 @@ Distinguish missing, null, and values. Generate fragments, merge, diff, and type
 
 Annotate a partial class with `[SparseFragmentModel]`, and the generator emits a typed **Fragment** — a presence-aware view where each member tracks whether it was specified — plus merge, semantic diff, and typed patch operations over that partial state. Targets netstandard2.0.
 
+Try it live in the browser: **SparseFragments Playground** — https://arika0093.github.io/SparseFragments/ — edit layers, reset, and watch fragments, patches, and RFC 6902 JSON Patch update.
+
 ## The Problem: Missing Is Not Null
 
 Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`/`default`". That distinction becomes essential the moment data is layered:

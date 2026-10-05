@@ -8,4 +8,10 @@
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
   </Folder>
+  <Folder Name="/playground/">
+    <Project Path="playground/SparseFragments.Playground/SparseFragments.Playground.csproj" />
+  </Folder>
+  <Folder Name="/playground/">
+    <Project Path="playground/SparseFragments.Playground/SparseFragments.Playground.csproj" />
+  </Folder>
 </Solution>

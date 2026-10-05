@@ -1,0 +1,21 @@
+<div class="pg-json">
+    <h4>@Title @if (!string.IsNullOrEmpty(Badge))
+    {
+        <span class="pg-badge">@Badge</span>
+    }</h4>
+    <pre class="@(IsError ? "pg-error" : null)">@Content</pre>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Content { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Badge { get; set; }
+
+    [Parameter]
+    public bool IsError { get; set; }
+}
