@@ -1,7 +1,6 @@
 # SparseFragments.Generator.Shared
 
-Source-only generator infrastructure shared by `SparseFragments.Generator`
-and downstream generators (such as `Configlue.Generator`).
+Source-only generator infrastructure shared by `SparseFragments.Generator` and downstream generators.
 
 This package ships C# sources only — there is no runtime assembly.
 Referencing it adds the shared sources to the consuming generator via
