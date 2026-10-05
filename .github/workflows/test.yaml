@@ -88,11 +88,14 @@ jobs:
           retention-days: 7
 
       - name: Pack NuGet packages
+        # NOTE: no --no-build/--no-restore here. The unit job only restores
+        # tests/SparseFragments.Tests, so Generator.Shared never gets an
+        # obj/project.assets.json. Let pack restore/build itself instead.
         run: >
-          dotnet pack src/SparseFragments/SparseFragments.csproj --no-build --no-restore
+          dotnet pack src/SparseFragments/SparseFragments.csproj
           --configuration Release --output artifacts
           && dotnet pack src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj
-          --no-build --no-restore --configuration Release --output artifacts
+          --configuration Release --output artifacts
 
       - name: Verify packed target assets
         if: matrix.os == 'ubuntu-latest'
