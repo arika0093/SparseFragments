@@ -6,6 +6,8 @@
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <!-- No public API surface to document. -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Demo app only: never ship as a NuGet package via slnx pack. -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

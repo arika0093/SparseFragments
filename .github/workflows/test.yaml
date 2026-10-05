@@ -10,7 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  # Regular unit tests (TUnit). Builds only the test project and its
+  # src references so the Blazor playground never affects this job.
+  unit:
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -42,17 +44,89 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: dotnet tool restore
 
-      - name: Restore dependencies
-        run: dotnet restore SparseFragments.slnx
+      - name: Restore unit test dependencies
+        run: dotnet restore tests/SparseFragments.Tests/SparseFragments.Tests.csproj
 
-      - name: Build
-        run: dotnet build SparseFragments.slnx --no-restore --configuration Release
+      - name: Build unit tests
+        run: dotnet build tests/SparseFragments.Tests/SparseFragments.Tests.csproj --no-restore --configuration Release
 
-      - name: Run tests
+      - name: Run unit tests
         run: >
-          dotnet test --solution SparseFragments.slnx --no-build --no-restore
-          --configuration Release --framework net10.0
-          -- --timeout 5m --report-trx --results-directory TestResults --no-progress
+          dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj
+          --no-build --no-restore --configuration Release --framework net10.0
+          --results-directory TestResults --no-progress
+          -- --timeout 5m --report-trx
+
+      - name: Collect code coverage (observation)
+        if: matrix.os == 'ubuntu-latest'
+        run: >
+          dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj
+          --no-build --no-restore --configuration Release --framework net10.0
+          --results-directory TestResults/coverage --no-progress
+          -- --timeout 5m --coverage --coverage-settings tests/coverage.config
+          --coverage-output coverage.cobertura.xml --coverage-output-format cobertura
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: TestResults/coverage/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload failure test artifacts
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strict-unit-results-${{ matrix.os }}
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/*.xml
+            tests/**/TestResults/**/*.trx
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Pack NuGet packages
+        run: >
+          dotnet pack src/SparseFragments/SparseFragments.csproj --no-build --no-restore
+          --configuration Release --output artifacts
+          && dotnet pack src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj
+          --no-build --no-restore --configuration Release --output artifacts
+
+      - name: Verify packed target assets
+        if: matrix.os == 'ubuntu-latest'
+        run: bash ./.github/workflows/scripts/verify-packages.sh artifacts
+
+  # True NativeAOT publish gate. Independent from `unit` (no `needs:`) so
+  # GitHub Actions schedules both jobs in parallel across the OS matrix.
+  nativeaot:
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Install NativeAOT prerequisites (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -80,42 +154,13 @@ jobs:
             ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke
           fi
 
-      - name: Collect code coverage (observation)
-        if: matrix.os == 'ubuntu-latest'
-        run: >
-          dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj
-          --no-build --no-restore --configuration Release --framework net10.0
-          -- --timeout 5m --coverage --coverage-settings tests/coverage.config
-          --coverage-output coverage.cobertura.xml --coverage-output-format cobertura
-          --results-directory TestResults/coverage --no-progress
-
-      - name: Upload coverage report
-        if: matrix.os == 'ubuntu-latest' && !cancelled()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report
-          path: TestResults/coverage/**
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload failure test artifacts
+      - name: Upload failure NativeAOT artifacts
         if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
-          name: strict-test-results-${{ matrix.os }}
+          name: strict-nativeaot-results-${{ matrix.os }}
           path: |
-            TestResults/**/*.trx
-            TestResults/**/*.xml
             TestResults/nativeaot-publish.log
-            tests/**/TestResults/**/*.trx
+            TestResults/nativeaot-smoke/**
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Pack NuGet packages
-        run: >
-          dotnet pack SparseFragments.slnx --no-build --no-restore
-          --configuration Release --output artifacts
-
-      - name: Verify packed target assets
-        if: matrix.os == 'ubuntu-latest'
-        run: bash ./.github/workflows/scripts/verify-packages.sh artifacts
