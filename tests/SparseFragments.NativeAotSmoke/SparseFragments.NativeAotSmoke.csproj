@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>SparseFragments.NativeAotSmoke</RootNamespace>
+    <AssemblyName>SparseFragments.NativeAotSmoke</AssemblyName>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <!-- True NativeAOT publish gate: IL trimming + AOT compile run in CI. -->
+    <PublishAot>true</PublishAot>
+    <!-- No reflection fallback: the smoke test must prove the source-generated path. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+  <!-- tests/Directory.Build.props assumes a TUnit test project; this is a plain
+    NativeAOT console app, so drop the test-only references. -->
+  <ItemGroup>
+    <PackageReference Remove="TUnit" />
+    <PackageReference Remove="Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="SparseFragments" />
+  </ItemGroup>
+</Project>

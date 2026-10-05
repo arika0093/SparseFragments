@@ -54,6 +54,32 @@ jobs:
           --configuration Release --framework net10.0
           -- --timeout 5m --report-trx --results-directory TestResults --no-progress
 
+      - name: Install NativeAOT prerequisites (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish NativeAOT smoke test
+        shell: bash
+        run: |
+          mkdir -p TestResults
+          dotnet publish tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj \
+            --configuration Release --framework net10.0 \
+            --output TestResults/nativeaot-smoke --verbosity normal 2>&1 \
+            | tee TestResults/nativeaot-publish.log
+
+      - name: Assert NativeAOT diagnostics are clean
+        shell: bash
+        run: bash ./.github/workflows/scripts/assert-sparse-aot-diagnostics.sh TestResults/nativeaot-publish.log
+
+      - name: Run NativeAOT smoke test
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke.exe
+          else
+            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke
+          fi
+
       - name: Collect code coverage (observation)
         if: matrix.os == 'ubuntu-latest'
         run: >
@@ -80,6 +106,7 @@ jobs:
           path: |
             TestResults/**/*.trx
             TestResults/**/*.xml
+            TestResults/nativeaot-publish.log
             tests/**/TestResults/**/*.trx
           if-no-files-found: ignore
           retention-days: 7
