@@ -7,9 +7,7 @@
     <MSBuildTreatAllWarningsAsErrors>true</MSBuildTreatAllWarningsAsErrors>
     <RestoreTreatWarningsAsErrors>true</RestoreTreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
-    <GenerateDocumentationFile
-      Condition="'$(ConfiglueTooling)' != 'true' and '$(SparseSharedOnly)' != 'true'"
-      >true</GenerateDocumentationFile>
+    <GenerateDocumentationFile Condition="'$(SparseSharedOnly)' != 'true'">true</GenerateDocumentationFile>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/arika0093/SparseFragments</RepositoryUrl>
     <PackageProjectUrl>https://github.com/arika0093/SparseFragments</PackageProjectUrl>

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!--
       Source-only package: ships the generator-shared sources, not a binary.
-      Consumers (SparseFragments.Generator, Configlue.Generator) compile these
+      Consumers (SparseFragments.Generator) compile these
       sources directly. Keep the TFM surface minimal (netstandard2.0) so the
       contentFiles path is stable across consumers.
     -->

@@ -1,33 +1,16 @@
 using System.Collections;
 using System.ComponentModel;
-#if CONFIGLUE_FRAGMENT_RUNTIME
-using Configlue.CompilerServices;
-using ModelSchema = Configlue.ConfiglueModelSchema;
-using MemberSchema = Configlue.ConfiglueMemberSchema;
-using Fragment = Configlue.IConfiglueFragment;
-using RebaseOutcome = Configlue.ConfiglueRebaseResult;
-using RebaseConflict = Configlue.ConfiglueRebaseConflict;
-using ConflictKind = Configlue.ConfiglueRebaseConflictKind;
-using CollectionRebase = Configlue.ConfiglueCollectionRebase;
-using MergeStrategy = Configlue.IConfiglueMergeStrategy;
-using MergeRebaseStrategy = Configlue.IConfiglueMergeRebaseStrategy;
-
-namespace Configlue;
-
-#else
-using ModelSchema = SparseFragments.SparseFragmentSchema;
-using MemberSchema = SparseFragments.SparseFragmentMemberSchema;
-using Fragment = SparseFragments.ISparseFragment;
-using RebaseOutcome = SparseFragments.RebaseResult<SparseFragments.ISparseFragment>;
-using RebaseConflict = SparseFragments.SparsePatchConflict;
-using ConflictKind = SparseFragments.SparsePatchConflictKind;
 using CollectionRebase = SparseFragments.SparseCollectionRebase;
-using MergeStrategy = SparseFragments.ISparseMergeStrategy;
+using ConflictKind = SparseFragments.SparsePatchConflictKind;
+using Fragment = SparseFragments.ISparseFragment;
+using MemberSchema = SparseFragments.SparseFragmentMemberSchema;
 using MergeRebaseStrategy = SparseFragments.ISparseMergeRebaseStrategy;
+using MergeStrategy = SparseFragments.ISparseMergeStrategy;
+using ModelSchema = SparseFragments.SparseFragmentSchema;
+using RebaseConflict = SparseFragments.SparsePatchConflict;
+using RebaseOutcome = SparseFragments.RebaseResult<SparseFragments.ISparseFragment>;
 
 namespace SparseFragments;
-
-#endif
 
 /// <summary>
 /// Domain-neutral three-way rebase of a model edit. The algorithm depends only on generated schema metadata
@@ -35,11 +18,7 @@ namespace SparseFragments;
 /// </summary>
 /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
-#if CONFIGLUE_FRAGMENT_RUNTIME
-public static class ConfiglueFragmentRebase
-#else
 public static class SparseModelRebase
-#endif
 {
     /// <summary>Rebases a changes fragment from <paramref name="before"/>-to-<paramref name="desired"/> onto <paramref name="current"/>.</summary>
     /// <param name="schema">The generated model schema.</param>
@@ -172,11 +151,7 @@ public static class SparseModelRebase
                     }
 
                     if (
-#if CONFIGLUE_FRAGMENT_RUNTIME
                         rebaseStrategy.TryRebaseObject(
-#else
-                        rebaseStrategy.TryRebaseObject(
-#endif
                             beforeValue,
                             desiredValue,
                             currentValue,
@@ -358,11 +333,7 @@ public static class SparseModelRebase
     }
 
     private static MergeStrategy? GetMergeStrategy(MemberSchema member) =>
-#if CONFIGLUE_FRAGMENT_RUNTIME
-        member.MergeStrategy;
-#else
         member.CollectionMergeStrategy;
-#endif
 
     private static RebaseConflict CreateConflict(
         IEnumerable<string> path,
@@ -372,9 +343,6 @@ public static class SparseModelRebase
         object? current,
         string? reason
     ) =>
-#if CONFIGLUE_FRAGMENT_RUNTIME
-        new(path, kind, before, desired, current, reason);
-#else
         new(
             path,
             kind,
@@ -383,5 +351,4 @@ public static class SparseModelRebase
             Optional<object?>.Present(current),
             reason
         );
-#endif
 }

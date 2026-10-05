@@ -3,9 +3,7 @@ using SparseFragments;
 
 namespace SparseFragments.JsonPatch.Tests;
 
-// Standalone RFC 6902 interop models. Configlue-side mirrors
-// (ConfigluePatchWidget et al.) live in the Configlue repository's
-// integration tests, not here.
+// RFC 6902 interop models.
 [SparseFragmentModel]
 public partial class PatchWidget
 {

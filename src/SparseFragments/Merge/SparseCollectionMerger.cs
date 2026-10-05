@@ -1,20 +1,10 @@
 using System.ComponentModel;
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-namespace Configlue;
-
-#else
 namespace SparseFragments;
-
-#endif
 
 /// <summary>Collection operations used by generated sparse fragments.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-#if CONFIGLUE_FRAGMENT_RUNTIME
-public static class ConfiglueCollectionMerger
-#else
 public static class SparseCollectionMerger
-#endif
 {
     /// <summary>Merges ordered contributions, retaining the first occurrence of each value.</summary>
     public static T[] MergeDistinctArray<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>

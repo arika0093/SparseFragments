@@ -402,9 +402,7 @@ internal static class SparseCloneAnalysis
                         .GetAttributes()
                         .Any(attribute =>
                             attribute.AttributeClass?.ToDisplayString()
-                                == "SparseFragments.SparseCloneReferenceSafeAttribute"
-                            || attribute.AttributeClass?.ToDisplayString()
-                                == "Configlue.ConfiglueCloneReferenceSafeAttribute"
+                            == "SparseFragments.SparseCloneReferenceSafeAttribute"
                         )
                     && !IsSafeToCopyValue(property.Type, visited)
                 );

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Shared JSON converter and JSON Patch bridge emission for both generators.</summary>
+/// <summary>Shared JSON converter and JSON Patch bridge emission.</summary>
 internal static class SparseJsonPatchEmitter
 {
     private static string FragmentValueType(SparseMemberModel member) =>
@@ -608,113 +608,6 @@ internal static class SparseJsonPatchEmitter
             3,
             "return " + toJsonPatch + "(" + optional + "<Fragment?>.Present(baseline), options);"
         );
-        code.AppendLineAt(2, "}");
-    }
-
-    /// <summary>Emits the Configlue fragment-pair diff used by the JSON Patch import bridge.</summary>
-    /// <remarks>
-    /// Configlue patches have no public <c>Between</c>; this internal helper derives the same
-    /// semantic patch member-wise. Whole-contribution transitions use the whole operation,
-    /// nested members recurse, and scalar members use ordinal default equality (over-setting
-    /// is semantically harmless, under-setting never happens).
-    /// </remarks>
-    public static void AppendConfiglueJsonBetween(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members,
-        System.Func<SparseMemberModel, string> backingField,
-        System.Func<SparseMemberModel, string> valueType,
-        System.Func<SparseMemberModel, string> nestedPatchBetween
-    )
-    {
-        code.CancellationToken.ThrowIfCancellationRequested();
-        code.AppendLineAt(
-            2,
-            "/// <summary>Derives a semantic patch between two sparse contribution states.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "internal static Patch __ConfiglueJsonBetween(global::Configlue.Optional<Fragment?> before, global::Configlue.Optional<Fragment?> after)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var patch = new Patch();");
-        code.AppendLineAt(3, "if (before.IsPresent != after.IsPresent)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "patch.__configlue_whole_operation = after.IsPresent ? global::Configlue.FragmentOperation<Fragment?>.Set(after.Value) : global::Configlue.FragmentOperation<Fragment?>.Unset;"
-        );
-        code.AppendLineAt(4, "return patch;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "if (!before.IsPresent) return patch;");
-        code.AppendLineAt(
-            3,
-            "if (global::System.Object.ReferenceEquals(before.Value, after.Value)) return patch;"
-        );
-        code.AppendLineAt(3, "if (before.Value is null || after.Value is null)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "patch.__configlue_whole_operation = global::Configlue.FragmentOperation<Fragment?>.Set(after.Value);"
-        );
-        code.AppendLineAt(4, "return patch;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "var beforeFragment = before.Value!;");
-        code.AppendLineAt(3, "var afterFragment = after.Value!;");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            if (member.ChildModel is null)
-            {
-                var operation = "global::Configlue.FragmentOperation<" + valueType(member) + ">";
-                code.AppendLineAt(3, "if (!afterFragment." + name + ".IsPresent)");
-                code.AppendLineAt(
-                    4,
-                    "patch."
-                        + name
-                        + " = beforeFragment."
-                        + name
-                        + ".IsPresent ? "
-                        + operation
-                        + ".Unset : default;"
-                );
-                code.AppendLineAt(3, "else if (!beforeFragment." + name + ".IsPresent)");
-                code.AppendLineAt(
-                    4,
-                    "patch." + name + " = " + operation + ".Set(afterFragment." + name + ".Value);"
-                );
-                code.AppendLineAt(
-                    3,
-                    "else if (!global::System.Collections.Generic.EqualityComparer<"
-                        + valueType(member)
-                        + ">.Default.Equals(beforeFragment."
-                        + name
-                        + ".Value!, afterFragment."
-                        + name
-                        + ".Value!))"
-                );
-                code.AppendLineAt(
-                    4,
-                    "patch." + name + " = " + operation + ".Set(afterFragment." + name + ".Value);"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    3,
-                    "patch."
-                        + backingField(member)
-                        + " = "
-                        + nestedPatchBetween(member)
-                        + "(beforeFragment."
-                        + name
-                        + ", afterFragment."
-                        + name
-                        + ");"
-                );
-            }
-        }
-
-        code.AppendLineAt(3, "return patch;");
         code.AppendLineAt(2, "}");
     }
 }

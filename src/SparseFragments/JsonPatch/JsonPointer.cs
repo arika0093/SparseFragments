@@ -1,13 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-namespace Configlue;
-
-#else
 namespace SparseFragments;
-
-#endif
 
 /// <summary>RFC 6901 JSON Pointer parsing and escaping.</summary>
 [EditorBrowsable(EditorBrowsableState.Advanced)]

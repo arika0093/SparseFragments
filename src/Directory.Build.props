@@ -1,7 +1,4 @@
 <Project>
-  <PropertyGroup>
-    <ConfiglueUtility>true</ConfiglueUtility>
-  </PropertyGroup>
   <!--
     Projects under src are single-target netstandard2.0 libraries. The shared
     root props target conditions never fire for single-target projects

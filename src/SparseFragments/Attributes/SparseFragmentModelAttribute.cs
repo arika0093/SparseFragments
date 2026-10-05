@@ -1,6 +1,6 @@
 namespace SparseFragments;
 
-/// <summary>Marks a partial class or struct for sparse-fragment generation without Configlue.</summary>
+/// <summary>Marks a partial class or struct for sparse-fragment generation.</summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
 public sealed class SparseFragmentModelAttribute : Attribute
 {

@@ -1,19 +1,10 @@
 using System.Collections;
-#if CONFIGLUE_FRAGMENT_RUNTIME
-using ElementProvenance = Configlue.ConfiglueCollectionElementProvenance;
-using ValueComparer = Configlue.ConfiglueValueComparer;
-
-namespace Configlue;
-
-#else
 using ElementProvenance = SparseFragments.SparseMergeElementProvenance;
 using ValueComparer = SparseFragments.SparseValueComparer;
 
 namespace SparseFragments;
 
-#endif
-
-/// <summary>Collection provenance rules shared by standalone traces and host metadata adapters.</summary>
+/// <summary>Collection provenance rules for merge traces.</summary>
 internal static class CollectionProvenance
 {
     public static IReadOnlyList<ElementProvenance> Explain(
@@ -73,13 +64,7 @@ internal static class CollectionProvenance
         return Array.AsReadOnly(
             Enumerable
                 .Range(0, elements.Length)
-                .Select(index =>
-#if CONFIGLUE_FRAGMENT_RUNTIME
-                new ElementProvenance(index, elements[index], sources[index])
-#else
-                new ElementProvenance(index, sources[index])
-#endif
-                )
+                .Select(index => new ElementProvenance(index, sources[index]))
                 .ToArray()
         );
     }

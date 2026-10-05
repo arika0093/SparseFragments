@@ -3,20 +3,11 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-namespace Configlue;
-
-#else
 namespace SparseFragments;
-
-#endif
 
 /// <summary>Allocation-friendly structural comparison shared by fragment equality.</summary>
 /// <remarks>
-/// This file is compiled into both the standalone SparseFragments runtime and Configlue's
-/// embedded fragment runtime (as <c>ConfiglueComparisonPrimitives</c>), so collection and
-/// fragment semantics cannot drift between the two. It is internal so the public APIs stay
-/// uncoupled.
+/// Collection and fragment semantics live here so equality stays consistent.
 /// The typed native delegates below close generic helpers over runtime collection element
 /// types, which needs dynamic code. They are created only when dynamic code is supported
 /// (and cached per shape, preserving the non-allocating steady state); trimming and
@@ -98,18 +89,6 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-        if (left is IConfiglueFragment leftFragment)
-        {
-            return right is IConfiglueFragment rightFragment
-                && ConfiglueFragmentComparer.AreEqual(leftFragment, rightFragment);
-        }
-
-        if (right is IConfiglueFragment)
-        {
-            return false;
-        }
-#else
         if (left is ISparseFragment leftFragment)
         {
             return right is ISparseFragment rightFragment
@@ -120,7 +99,6 @@ internal static class FragmentComparisonPrimitives
         {
             return false;
         }
-#endif
 
         if (left is string || right is string)
         {
@@ -534,13 +512,8 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-        return typeof(IEnumerable).IsAssignableFrom(elementType)
-            || typeof(IConfiglueFragment).IsAssignableFrom(elementType);
-#else
         return typeof(IEnumerable).IsAssignableFrom(elementType)
             || typeof(ISparseFragment).IsAssignableFrom(elementType);
-#endif
     }
 
     private static int? TryCollectionCount(object value) =>

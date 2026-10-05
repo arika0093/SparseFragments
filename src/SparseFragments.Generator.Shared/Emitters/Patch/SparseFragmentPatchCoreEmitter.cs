@@ -271,7 +271,7 @@ internal static class SparseFragmentPatchCoreEmitter
         code.AppendLineAt(2, "};");
     }
 
-    /// <summary>Emits the Optional apply path; standalone uses explicit contract, Configlue uses internal ApplyNested.</summary>
+    /// <summary>Emits the Optional apply path.</summary>
     public static void AppendPatchOptionalApply(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,

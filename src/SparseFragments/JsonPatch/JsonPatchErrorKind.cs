@@ -1,12 +1,6 @@
 using System.ComponentModel;
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-namespace Configlue;
-
-#else
 namespace SparseFragments;
-
-#endif
 
 /// <summary>Distinguishes JSON Patch interop failures.</summary>
 [EditorBrowsable(EditorBrowsableState.Advanced)]

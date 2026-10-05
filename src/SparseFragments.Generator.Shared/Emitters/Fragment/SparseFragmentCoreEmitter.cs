@@ -5,9 +5,9 @@ namespace SparseFragments.Generator.Shared;
 
 /// <summary>Product-neutral fragment algebra emission, configured with runtime names.</summary>
 /// <remarks>
-/// This type is the shared entry point used by the SparseFragments and Configlue
-/// generators. Each generation concept is owned by a focused stage emitter; this
-/// class only wires them together so both products keep consuming one surface.
+/// This type is the shared entry point used by the SparseFragments
+/// generator. Each generation concept is owned by a focused stage emitter; this
+/// class only wires them together so generation concepts share one surface.
 /// </remarks>
 internal sealed class SparseFragmentCoreEmitter
 {

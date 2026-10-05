@@ -1,13 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 
-#if CONFIGLUE_FRAGMENT_RUNTIME
-namespace Configlue;
-
-#else
 namespace SparseFragments;
-
-#endif
 
 /// <summary>A parsed RFC 6902 document.</summary>
 [EditorBrowsable(EditorBrowsableState.Advanced)]

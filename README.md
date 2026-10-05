@@ -211,11 +211,11 @@ clone.Child!.Count = 42;                                       // original.Child
 
 ### 9. Exchange patches as RFC 6902 JSON Patch (opt-in boundary interop)
 
-Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for standalone `[SparseFragmentModel]` types and for Configlue `[ConfiglueModel]` types.
+Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for every `[SparseFragmentModel]` type.
 
 #### 9.1. No extra package needed
 
-`FromJsonPatch` / `ToJsonPatch` are generated alongside `Fragment` / `Patch` and the runtime ships inside `SparseFragments` itself (Configlue models use the embedded `Configlue` runtime). The implementation has no ASP.NET dependencies.
+`FromJsonPatch` / `ToJsonPatch` are generated alongside `Fragment` / `Patch` and the runtime ships inside `SparseFragments` itself. The implementation has no ASP.NET dependencies.
 
 #### 9.2. Import a JSON Patch document
 
