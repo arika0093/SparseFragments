@@ -161,16 +161,20 @@ var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory
 
 ## Documentation
 
-| Capability | Guide | Reference |
-| --- | --- | --- |
-| Layer defaults, environment settings, and user overrides | [Layered configuration](docs/layered-configuration.md) | [Merge strategies](docs/merge-strategies.md) |
-| Store only values that differ from defaults | [Layered configuration](docs/layered-configuration.md) | [Model shapes](docs/model-shapes.md) |
-| Apply partial updates while preserving absent vs null | [Partial updates](docs/partial-updates.md) | [JSON Patch](docs/json-patch.md) |
-| Track edits and produce semantic patches from UI models | [Editing models](docs/editing-models.md) | [UI frameworks](docs/ui-frameworks.md) |
-| Add, remove, edit, and reorder collection items by identity | [Updating collections](docs/updating-collections.md) | [Keyed collections](docs/keyed-collections.md) |
-| Reconcile edits made against an older version | [Concurrent edits](docs/concurrent-edits.md) | [Patch rebase](docs/rebase.md) |
-| Exchange patches with external systems using RFC 6902 | [JSON Patch](docs/json-patch.md) | [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) |
-| Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) | [Diagnostics](docs/analyzer.md) |
+| Capability | Documentation |
+| --- | --- |
+| Distinguish missing, null, and explicit values | [Fragments and patches](docs/fragments-and-patches.md) |
+| Layer defaults and overrides | [Fragments and patches](docs/fragments-and-patches.md) § layering |
+| Store only values that changed | [Fragments and patches](docs/fragments-and-patches.md) § diff |
+| Apply partial updates | [Fragments and patches](docs/fragments-and-patches.md) § patches |
+| Customize how members merge | [Merge strategies](docs/merge-strategies.md) |
+| Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
+| Reconcile concurrent edits | [Patch rebase](docs/rebase.md) |
+| Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
+| Exchange changes as RFC 6902 JSON Patch | [JSON Patch](docs/json-patch.md) |
+| Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
+| Check supported model shapes and constructors | [Model shapes](docs/model-shapes.md) |
+| Resolve generator errors | [Diagnostics](docs/analyzer.md) |
 
 ## Packages and Compatibility
 

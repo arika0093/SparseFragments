@@ -3,6 +3,23 @@
 SparseFragments derives a patch from a retained baseline and the current model. UI change tracking is used for binding/validation, not as the source of patch semantics.
 
 ```csharp
+var session = order.CreateEditSession();
+
+session.Model.Number = "ORD-2";
+session.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+
+if (session.HasChanges)
+{
+    var patch = session.CreatePatch();
+    ...
+}
+
+session.AcceptChanges();
+```
+
+Without a session, the same flow works manually — snapshot a baseline, let the UI mutate the plain model, and diff baseline against current state:
+
+```csharp
 var baseline = WidgetDto.Fragment.From(model); // snapshot, isolated copy
 // ...user edits `model` through the UI framework...
 var patch = WidgetDto.Patch.Between(baseline, WidgetDto.Fragment.From(model));

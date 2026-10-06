@@ -1,0 +1,84 @@
+@using SparseFragments.Playground.Models
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+    @for (var i = 0; i < State.Rows.Count; i++)
+    {
+        var index = i;
+        var row = State.Rows[index];
+        <div class="pg-roster-row">
+            <div class="pg-row">
+                <span class="pg-name notranslate" translate="no">Id <small>key</small></span>
+                <div class="pg-controls">
+                    <FluentTextField Placeholder="id" Style="flex: 1 1 9rem; min-width: 0;"
+                        Value="@row.Id"
+                        ValueChanged="@(async v => { row.Id = v; await NotifyAsync(); })" />
+                </div>
+                <div class="pg-actions">
+                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(index == 0)" @onclick="@(async () => await MoveAsync(index, -1))">↑</FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(index == State.Rows.Count - 1)" @onclick="@(async () => await MoveAsync(index, 1))">↓</FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(index))">✕</FluentButton>
+                </div>
+            </div>
+            <div class="pg-row">
+                <span class="pg-name notranslate" translate="no">Title <small>string</small></span>
+                <div class="pg-controls">
+                    <FluentTextField Placeholder="title" Style="flex: 1 1 9rem; min-width: 0;"
+                        Value="@row.Title"
+                        ValueChanged="@(async v => { row.Title = v; await NotifyAsync(); })" />
+                </div>
+            </div>
+            <div class="pg-row">
+                <span class="pg-name notranslate" translate="no">Points <small>int</small></span>
+                <div class="pg-controls">
+                    <FluentNumberField TValue="int" Style="flex: 1 1 9rem; min-width: 0;"
+                        Value="@row.Points"
+                        ValueChanged="@(async v => { row.Points = v; await NotifyAsync(); })" />
+                </div>
+            </div>
+            <div class="pg-row">
+                <span class="pg-name notranslate" translate="no">Scores <small>List&lt;int&gt; whole</small></span>
+                <div class="pg-controls">
+                    <FluentTextField Placeholder="10, 20" Style="flex: 1 1 9rem; min-width: 0;"
+                        Value="@row.ScoresText"
+                        ValueChanged="@(async v => { row.ScoresText = v; await NotifyAsync(); })" />
+                </div>
+            </div>
+        </div>
+    }
+    <div>
+        <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="AddAsync">Add quest</FluentButton>
+    </div>
+</FluentStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public RosterEditState State { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private Task AddAsync()
+    {
+        State.Rows.Add(new QuestRow { Id = $"q{State.Rows.Count + 1}", Title = "New", Points = 0, ScoresText = string.Empty });
+        return NotifyAsync();
+    }
+
+    private Task RemoveAsync(int index)
+    {
+        State.Rows.RemoveAt(index);
+        return NotifyAsync();
+    }
+
+    private Task MoveAsync(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= State.Rows.Count)
+        {
+            return Task.CompletedTask;
+        }
+        (State.Rows[target], State.Rows[index]) = (State.Rows[index], State.Rows[target]);
+        return NotifyAsync();
+    }
+
+    private Task NotifyAsync() => OnChanged.InvokeAsync();
+}

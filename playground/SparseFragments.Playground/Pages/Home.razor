@@ -63,6 +63,9 @@
         <h3>Merged result</h3>
     </div>
     <FluentTabs>
+        <FluentTab Label="Fragment (JSON)" Id="merged-fragment-json">
+            <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
+        </FluentTab>
         <FluentTab Label="Model (C#)" Id="merged-model-csharp">
             <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
         </FluentTab>
@@ -76,7 +79,7 @@
 </FluentCard>
 
 <h2>2. Typed patch applied to the merged fragment</h2>
-<p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
+<p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated. <em>Unset</em> removes that layer's contribution, so the member disappears from the patched <em>Fragment (JSON)</em> view; <em>Model</em> views always materialize a full object, so a missing member falls back to the <em>new()</em> default (e.g. Label → "default", Nested → default object) instead of disappearing.</p>
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Patch edits</h3>
@@ -98,13 +101,72 @@
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Baseline → Patched</h3>
+        <span class="pg-hint">IsEmpty: @TypedPatch.IsEmpty</span>
     </div>
     <FluentTabs>
+        <FluentTab Label="Fragment (JSON)" Id="patched-fragment-json">
+            <MonacoView Content="@PatchedFragmentJson" Language="json" Height="300px" />
+        </FluentTab>
         <FluentTab Label="Model (C#)" Id="patched-model-csharp">
             <MonacoDiffView Original="@MergedModelCSharp" Modified="@PatchedModelCSharp" Language="csharp" Height="300px" />
         </FluentTab>
         <FluentTab Label="Model (JSON)" Id="patched-model-json">
             <MonacoDiffView Original="@MergedModelJson" Modified="@PatchedModelJson" Language="json" Height="300px" />
+        </FluentTab>
+    </FluentTabs>
+</FluentCard>
+
+<h2>3. Keyed list: List&lt;Quest&gt; with List&lt;int&gt; inside</h2>
+<p class="pg-hint">Outer <em>List&lt;PlaygroundQuest&gt;</em> patches <em>by Id key</em>: add / remove / edit by key, reorder via the final key order (<em>SetOrder</em>). Inner <em>List&lt;int&gt; Scores</em> is a scalar sequence with no keys: even one element change replaces the <em>whole list</em> (order matters, duplicates allowed). Try: edit b's Title (nested edit), change b's Scores (whole-value), delete a, add d, drag c to the top with ↑.</p>
+<div class="pg-grid">
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Before</h3>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterBefore">Reset</FluentButton>
+        </div>
+        <RosterEditor State="RosterBefore" OnChanged="Refresh" />
+        <FluentTabs>
+            <FluentTab Label="Model (C#)" Id="roster-before-csharp">
+                <MonacoView Content="@RosterBeforeCSharp" Language="csharp" Height="270px" />
+            </FluentTab>
+            <FluentTab Label="Fragment (JSON)" Id="roster-before-json">
+                <MonacoView Content="@RosterBeforeFragmentJson" Language="json" Height="270px" />
+            </FluentTab>
+        </FluentTabs>
+    </FluentCard>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>After</h3>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterAfter">Reset</FluentButton>
+        </div>
+        <RosterEditor State="RosterAfter" OnChanged="Refresh" />
+        <FluentTabs>
+            <FluentTab Label="Model (C#)" Id="roster-after-csharp">
+                <MonacoView Content="@RosterAfterCSharp" Language="csharp" Height="270px" />
+            </FluentTab>
+            <FluentTab Label="Fragment (JSON)" Id="roster-after-json">
+                <MonacoView Content="@RosterAfterFragmentJson" Language="json" Height="270px" />
+            </FluentTab>
+        </FluentTabs>
+    </FluentCard>
+</div>
+<FluentCard Class="pg-fluent-card pg-section-card">
+    <div class="pg-card-head">
+        <h3>Before → After keyed diff</h3>
+        <span class="pg-hint">@RosterSummary</span>
+    </div>
+    <FluentTabs>
+        <FluentTab Label="Patch (Between C#)" Id="roster-patch-between">
+            <MonacoView Content="@RosterBetweenCSharp" Language="csharp" Height="270px" />
+        </FluentTab>
+        <FluentTab Label="Patch (manual C#)" Id="roster-patch-manual">
+            <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
+        </FluentTab>
+        <FluentTab Label="JSON Patch" Id="roster-json-patch">
+            <MonacoView Content="@RosterJsonPatch" Language="json" Height="270px" />
+        </FluentTab>
+        <FluentTab Label="Applied (JSON)" Id="roster-applied-json">
+            <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
         </FluentTab>
     </FluentTabs>
 </FluentCard>
@@ -143,6 +205,8 @@
     private FragmentEditState Lower = FragmentEditState.LowerDefaults();
     private FragmentEditState Higher = FragmentEditState.HigherDefaults();
     private PatchEditState PatchState = PatchEditState.Defaults();
+    private RosterEditState RosterBefore = RosterEditState.BeforeDefaults();
+    private RosterEditState RosterAfter = RosterEditState.AfterDefaults();
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
     private bool _importHidden = true;
@@ -162,10 +226,12 @@
 
     private string LowerFragmentJson => Try(() => PlaygroundJson.WriteFragment(LowerFragment));
     private string HigherFragmentJson => Try(() => PlaygroundJson.WriteFragment(HigherFragment));
+    private string MergedFragmentJson => Try(() => PlaygroundJson.WriteFragment(MergedFragment));
     private string MergedModelJson => Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
     private string MergedModelCSharp => Try(() => PlaygroundSnippets.ModelCSharp("model", MergedFragment.ToModel()));
     private string MergeDiffJson => Try(() => PlaygroundJson.WriteFragment(
         PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
+    private string PatchedFragmentJson => Try(() => PlaygroundJson.WriteFragment(PatchedFragment));
     private string PatchedModelJson => Try(() => PlaygroundJson.WriteModel(PatchedFragment.ToModel()));
     private string PatchedModelCSharp => Try(() => PlaygroundSnippets.ModelCSharp("model", PatchedFragment.ToModel()));
 
@@ -175,6 +241,51 @@
             Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment),
             PlaygroundJson.BridgeOptions());
         return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
+    });
+
+    private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
+        Optional<PlaygroundRoster.Fragment?>.Present(RosterBefore.BuildFragment());
+    private Optional<PlaygroundRoster.Fragment?> RosterAfterOpt =>
+        Optional<PlaygroundRoster.Fragment?>.Present(RosterAfter.BuildFragment());
+
+    private string RosterBeforeCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("before", RosterBefore.ToModel()));
+    private string RosterAfterCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("after", RosterAfter.ToModel()));
+    private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterBefore.BuildFragment()));
+    private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
+    private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
+    private string RosterBetweenCSharp => Try(() => PlaygroundSnippets.RosterBetweenCSharp(RosterBefore, RosterAfter));
+    private string RosterManualCSharp => Try(() => PlaygroundSnippets.RosterManualPatchCSharp("patch", RosterBefore, RosterAfter));
+    private string RosterSummary => Try(RosterDiffSummary);
+
+    private string RosterDiffSummary()
+    {
+        var beforeIds = RosterBefore.Rows.Select(r => r.Id).ToList();
+        var afterIds = RosterAfter.Rows.Select(r => r.Id).ToList();
+        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        var added = afterIds.Where(id => !beforeIds.Contains(id)).ToList();
+        var removed = beforeIds.Where(id => !afterIds.Contains(id)).ToList();
+        var beforeById = RosterBefore.Rows.ToDictionary(r => r.Id);
+        var edited = RosterAfter.Rows
+            .Where(r => beforeById.TryGetValue(r.Id, out var old) &&
+                (old.Title != r.Title || old.Points != r.Points || old.ScoresText != r.ScoresText))
+            .Select(r => r.Id)
+            .ToList();
+        var order = string.Join("→", afterIds);
+        return $"IsEmpty: {patch.IsEmpty} | add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{order}]";
+    }
+
+    private string RosterJsonPatch => Try(() =>
+    {
+        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        var exported = patch.ToJsonPatch(RosterBeforeOpt, PlaygroundJson.BridgeOptions());
+        return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
+    });
+
+    private string RosterAppliedModelJson => Try(() =>
+    {
+        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        var applied = patch.Apply(RosterBeforeOpt);
+        return PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
     });
 
     private void Refresh() => StateHasChanged();
@@ -204,11 +315,17 @@
 
     private void ResetPatch() => PatchState = PatchEditState.Defaults();
 
+    private void ResetRosterBefore() => RosterBefore = RosterEditState.BeforeDefaults();
+
+    private void ResetRosterAfter() => RosterAfter = RosterEditState.AfterDefaults();
+
     private void ResetAll()
     {
         ResetLower();
         ResetHigher();
         ResetPatch();
+        ResetRosterBefore();
+        ResetRosterAfter();
         LowerTabId = "lower-csharp";
         HigherTabId = "higher-csharp";
         _importHidden = true;
