@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+
 namespace SparseFragments;
 
 /// <summary>Domain-neutral collection rebase rules shared by generated append and set-union members.</summary>
@@ -123,6 +126,122 @@ internal static class SparseCollectionRebase
         rebased = result;
         reason = null;
         return true;
+    }
+
+    /// <summary>Reapplies a set-union edit onto a newer set without boxing or quadratic scans.</summary>
+    /// <remarks>
+    /// The element comparer is part of the set value (issue #5): equality gates reuse the
+    /// comparer-aware <see cref="SparseValueComparer.AreSetEqual{T}"/> semantics, while
+    /// difference and union run as O(n) expected-time hash operations under an effective
+    /// comparer discovered from the inputs. The removal-only result preserves the desired
+    /// set's comparer; the union result is rooted in the current set so concurrent elements
+    /// are never lost to a comparer change, preserving the current set's comparer.
+    /// </remarks>
+    /// <param name="before">The baseline set.</param>
+    /// <param name="desired">The locally edited set.</param>
+    /// <param name="current">The newer set.</param>
+    /// <param name="rebased">The rebased set on success.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    public static bool TryRebaseSetUnion<T>(
+        IEnumerable<T> before,
+        IEnumerable<T> desired,
+        IEnumerable<T> current,
+        out HashSet<T> rebased,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(desired);
+        ArgumentNullException.ThrowIfNull(current);
+
+        var localComparer =
+            TryGetSetComparer(desired) ?? TryGetSetComparer(before) ?? EqualityComparer<T>.Default;
+        var currentComparer =
+            TryGetSetComparer(current)
+            ?? TryGetSetComparer(desired)
+            ?? TryGetSetComparer(before)
+            ?? EqualityComparer<T>.Default;
+
+        var desiredLookup = new HashSet<T>(desired, localComparer);
+        var hasRemoved = before.Any(value => !desiredLookup.Contains(value));
+
+        if (hasRemoved)
+        {
+            if (
+                SparseValueComparer.AreSetEqual(current, before)
+                || SparseValueComparer.AreSetEqual(current, desired)
+            )
+            {
+                rebased = new HashSet<T>(desired, TryGetSetComparer(desired) ?? localComparer);
+                reason = null;
+                return true;
+            }
+
+            rebased = new HashSet<T>(currentComparer);
+            reason =
+                "The configuration edit conflicts with a concurrent change to a set-union member.";
+            return false;
+        }
+
+        var beforeLookup = new HashSet<T>(before, localComparer);
+        var result = new HashSet<T>(current, currentComparer);
+        foreach (var value in desired.Where(value => !beforeLookup.Contains(value)))
+        {
+            result.Add(value);
+        }
+
+        rebased = result;
+        reason = null;
+        return true;
+    }
+
+    private static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)
+    {
+        if (value is HashSet<T> hashSet)
+        {
+            return hashSet.Comparer;
+        }
+
+        return GetDeclaredComparer<T>(value);
+    }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2072",
+        Justification = "Only reads an optional public Comparer property; a trimmed property is treated as an undiscoverable comparer with a symmetric bidirectional fallback."
+    )]
+    private static IEqualityComparer<T>? GetDeclaredComparer<T>(object value)
+    {
+        PropertyInfo? property;
+        try
+        {
+            property = value
+                .GetType()
+                .GetProperty("Comparer", BindingFlags.Public | BindingFlags.Instance);
+        }
+        catch (AmbiguousMatchException)
+        {
+            return null;
+        }
+
+        if (
+            property is null
+            || !property.CanRead
+            || property.GetIndexParameters().Length != 0
+            || !typeof(IEqualityComparer<T>).IsAssignableFrom(property.PropertyType)
+        )
+        {
+            return null;
+        }
+
+        try
+        {
+            return (IEqualityComparer<T>?)property.GetValue(value, null);
+        }
+        catch (TargetInvocationException)
+        {
+            return null;
+        }
     }
 
     private static bool HasPrefix(

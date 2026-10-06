@@ -76,6 +76,17 @@ public static class SparseFragmentRuntime
             out reason
         );
 
+    /// <summary>Reapplies a set-union edit onto a newer set without boxing or quadratic scans.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryRebaseSetUnion<T>(
+        IEnumerable<T> before,
+        IEnumerable<T> desired,
+        IEnumerable<T> current,
+        out HashSet<T> rebased,
+        out string? reason
+    ) =>
+        SparseCollectionRebase.TryRebaseSetUnion(before, desired, current, out rebased, out reason);
+
     /// <summary>Creates a reference-identity clone context for generated deep-clone helpers.</summary>
     public static Dictionary<object, object> CreateCloneContext() =>
         new(SparseReferenceEqualityComparer.Instance);

@@ -440,47 +440,17 @@ internal static class SparseFragmentPatchRebaseEmitter
             );
             code.AppendLineAt(5, "{");
             code.AppendLineAt(6, "handled = true;");
-            code.AppendLineAt(
-                6,
-                "var beforeValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)"
-                    + baseMember
-                    + ".Value));"
-            );
-            code.AppendLineAt(
-                6,
-                "var currentValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)"
-                    + currentMember
-                    + ".Value));"
-            );
-            code.AppendLineAt(
-                6,
-                "var desiredValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)"
-                    + desiredMember
-                    + ".Value));"
-            );
-            code.AppendLineAt(
-                6,
-                "if ("
-                    + SparseWellKnownNames.CollectionRebaseType
-                    + "."
-                    + (member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion")
-                    + "(beforeValues, desiredValues, currentValues, (object? left, object? right) => "
-                    + SparseWellKnownNames.ValueComparerType
-                    + ".AreEqual(left, right), out var rebasedValues, out var reason))"
-            );
-            code.AppendLineAt(6, "{");
-            var operationType =
-                operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
-            var materialized = SparseFragmentExpressions.MaterializeCollection(
-                member,
-                "global::System.Linq.Enumerable.Cast<"
-                    + member.Collection.ElementType.Name
-                    + ">(rebasedValues)"
-            );
-            code.AppendLineAt(
-                7,
-                "result." + field + " = " + operationType + ".Set(" + materialized + ");"
-            );
+            if (
+                member.MergeMode == 3
+                && member.Collection.CloneKind == SparseCloneCollectionKind.Set
+            )
+            {
+                AppendTypedSetUnionRebase(code, member, field, operation);
+            }
+            else
+            {
+                AppendBoxedCollectionRebase(code, member, field, operation);
+            }
             code.AppendLineAt(6, "}");
             code.AppendLineAt(6, "else");
             code.AppendLineAt(6, "{");
@@ -543,6 +513,77 @@ internal static class SparseFragmentPatchRebaseEmitter
             );
             code.AppendLineAt(4, "}");
         }
+    }
+
+    private static void AppendTypedSetUnionRebase(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string field,
+        string operation
+    )
+    {
+        code.AppendLineAt(6, "var beforeValues = baseMember.Value!;");
+        code.AppendLineAt(6, "var currentValues = currentMember.Value!;");
+        code.AppendLineAt(6, "var desiredValues = desiredMember.Value!;");
+        code.AppendLineAt(
+            6,
+            "if ("
+                + SparseWellKnownNames.CollectionRebaseType
+                + ".TryRebaseSetUnion<"
+                + member.Collection.ElementType.Name
+                + ">(beforeValues, desiredValues, currentValues, out var rebasedValues, out var reason))"
+        );
+        code.AppendLineAt(6, "{");
+        var operationType =
+            operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        code.AppendLineAt(
+            7,
+            "result." + field + " = " + operationType + ".Set(rebasedValues);"
+        );
+    }
+
+    private static void AppendBoxedCollectionRebase(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string field,
+        string operation
+    )
+    {
+        code.AppendLineAt(
+            6,
+            "var beforeValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)baseMember.Value));"
+        );
+        code.AppendLineAt(
+            6,
+            "var currentValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)currentMember.Value));"
+        );
+        code.AppendLineAt(
+            6,
+            "var desiredValues = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)desiredMember.Value));"
+        );
+        code.AppendLineAt(
+            6,
+            "if ("
+                + SparseWellKnownNames.CollectionRebaseType
+                + "."
+                + (member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion")
+                + "(beforeValues, desiredValues, currentValues, (object? left, object? right) => "
+                + SparseWellKnownNames.ValueComparerType
+                + ".AreEqual(left, right), out var rebasedValues, out var reason))"
+        );
+        code.AppendLineAt(6, "{");
+        var operationType =
+            operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        var materialized = SparseFragmentExpressions.MaterializeCollection(
+            member,
+            "global::System.Linq.Enumerable.Cast<"
+                + member.Collection.ElementType.Name
+                + ">(rebasedValues)"
+        );
+        code.AppendLineAt(
+            7,
+            "result." + field + " = " + operationType + ".Set(" + materialized + ");"
+        );
     }
 
     private static void AppendCustomStrategyMemberRebase(
