@@ -2581,54 +2581,16 @@ internal static class SparseKeyedCollectionEmitter
                 + "());"
         );
         // Per-key three-way (without nested rebase composition for brevity: nested edits rebase recursively when both edited).
-        code.AppendLineAt(
-            4,
-            "var baseDict = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">("
-                + comparer
-                + "); if (baseState.IsPresent && (object?)baseState.Value is not null) foreach (var kv in ("
-                + "global::System.Collections.Generic.IDictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">"
-                + ")baseState.Value!) baseDict[kv.Key] = kv.Value;"
+        EmitRebaseDictionarySnapshot(code, "baseState", "baseDict", keyType, valueType, comparer);
+        EmitRebaseDictionarySnapshot(
+            code,
+            "currentState",
+            "currentDict",
+            keyType,
+            valueType,
+            comparer
         );
-        code.AppendLineAt(
-            4,
-            "var currentDict = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">("
-                + comparer
-                + "); if (currentState.IsPresent && (object?)currentState.Value is not null) foreach (var kv in ("
-                + "global::System.Collections.Generic.IDictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">"
-                + ")currentState.Value!) currentDict[kv.Key] = kv.Value;"
-        );
-        code.AppendLineAt(
-            4,
-            "var desiredDict = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">("
-                + comparer
-                + "); if (desired.IsPresent && (object?)desired.Value is not null) foreach (var kv in ("
-                + "global::System.Collections.Generic.IDictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">"
-                + ")desired.Value!) desiredDict[kv.Key] = kv.Value;"
-        );
+        EmitRebaseDictionarySnapshot(code, "desired", "desiredDict", keyType, valueType, comparer);
         code.AppendLineAt(
             4,
             "var keys = new global::System.Collections.Generic.HashSet<"
@@ -2805,6 +2767,35 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
+    }
+
+    private static void EmitRebaseDictionarySnapshot(
+        SharedIndentedBuilder code,
+        string state,
+        string variable,
+        string keyType,
+        string valueType,
+        string comparer
+    )
+    {
+        var dictionaryType =
+            $"global::System.Collections.Generic.Dictionary<{keyType}, {valueType}>";
+        var interfaceType =
+            $"global::System.Collections.Generic.IDictionary<{keyType}, {valueType}>";
+        var direct = "__" + variable + "Direct";
+        // These indexes are read-only. Keep fallback assignment semantics for custom comparers.
+        code.AppendLineAt(
+            4,
+            $"var {variable} = {state}.IsPresent && {state}.Value is {dictionaryType} {direct} && global::System.Object.Equals({direct}.Comparer, {comparer}) ? {direct} : null;"
+        );
+        code.AppendLineAt(4, $"if ({variable} is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, $"{variable} = new {dictionaryType}({comparer});");
+        code.AppendLineAt(
+            5,
+            $"if ({state}.IsPresent && (object?){state}.Value is not null) foreach (var kv in ({interfaceType}){state}.Value!) {variable}[kv.Key] = kv.Value;"
+        );
+        code.AppendLineAt(4, "}");
     }
 
     private static string ConvertDictionaryToMember(SparseMemberModel member, string variable)
