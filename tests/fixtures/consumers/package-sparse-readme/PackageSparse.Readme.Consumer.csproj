@@ -10,7 +10,7 @@
     <PackageReference Remove="TUnit;Shouldly" />
     <Using Remove="Shouldly;Configlue.Codecs;Configlue.Migrations;Configlue.Resources;Configlue.Sources;Configlue.Extensibility;Configlue.State;Configlue.Transformers" />
   </ItemGroup>
-  <ItemGroup Condition="'$(ConfigluePackageVersion)' == ''">
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
     <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
     <ProjectReference
       Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
@@ -18,7 +18,7 @@
       ReferenceOutputAssembly="false"
     />
   </ItemGroup>
-  <ItemGroup Condition="'$(ConfigluePackageVersion)' != ''">
-    <PackageReference Include="SparseFragments" Version="$(ConfigluePackageVersion)" />
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
+    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
   </ItemGroup>
 </Project>

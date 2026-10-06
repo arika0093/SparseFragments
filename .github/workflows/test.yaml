@@ -4,15 +4,36 @@ on:
   workflow_call:
   push:
     branches: [main]
+    # Version-bump pushes are validated by release.yaml, which invokes this
+    # reusable workflow as its strict-test gate. Ignoring version.json here
+    # avoids running two identical job graphs for the same commit.
+    paths-ignore:
+      - version.json
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Every job below runs for direct push/pull_request/dispatch runs and for
+# caller invocations (release.yaml, dependabot-merge.yaml). The per-job guard
+# only skips the direct pull_request run for Dependabot PRs: those are already
+# validated by the dependabot-merge.yaml caller invocation of this same
+# workflow (the github context of a called workflow belongs to its caller, so
+# github.workflow names the caller there), and running both would duplicate
+# the whole job graph for the same commit. Ordinary PRs run here directly,
+# which keeps the required check names ("Strict tests / <job>") stable enough
+# for a branch-protection rule.
+
 jobs:
   # Regular unit tests (TUnit). Builds only the test project and its
   # src references so the Blazor playground never affects this job.
   unit:
+    if: >-
+      github.workflow != 'Strict tests' ||
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]'
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -87,10 +108,98 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Public API surface gate (#11). Approval snapshots plus audience
+  # classification must pass before merge and before any release.
+  public-api:
+    if: >-
+      github.workflow != 'Strict tests' ||
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore PublicApi test dependencies
+        run: dotnet restore tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj
+
+      - name: Build PublicApi tests
+        run: dotnet build tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj --no-restore --configuration Release
+
+      - name: Run PublicApi tests
+        run: >
+          dotnet test tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj
+          --no-build --no-restore --configuration Release
+          --results-directory TestResults/public-api --no-progress
+          -- --timeout 5m --report-trx
+
+      - name: Upload failure PublicApi artifacts
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strict-public-api-results
+          path: |
+            TestResults/public-api/**/*.trx
+            TestResults/public-api/**/*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Packed-package consumer gate (#11). Packs the release candidate packages
+  # once, verifies their integrity, then exercises them the way users consume
+  # them: a fixture installs the packed SparseFragments from a local feed
+  # (no ProjectReference fallback) and the README fixture runs through
+  # verify-sparsefragments-readme.sh. The same bytes validated here are what
+  # the consumer checks run against; nothing is rebuilt a second time.
+  package-consumers:
+    if: >-
+      github.workflow != 'Strict tests' ||
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Pack NuGet packages
-        # NOTE: no --no-build/--no-restore here. The unit job only restores
-        # tests/SparseFragments.Tests, so Generator.Shared never gets an
-        # obj/project.assets.json. Let pack restore/build itself instead.
+        # NOTE: no --no-build/--no-restore here. This job never restores the
+        # test projects, so Generator.Shared has no obj/project.assets.json
+        # yet. Let pack restore/build itself instead.
         run: >
           dotnet pack src/SparseFragments/SparseFragments.csproj
           --configuration Release --output artifacts
@@ -98,12 +207,21 @@ jobs:
           --configuration Release --output artifacts
 
       - name: Verify packed target assets
-        if: matrix.os == 'ubuntu-latest'
         run: bash ./.github/workflows/scripts/verify-packages.sh artifacts
+
+      - name: Verify packed package consumer
+        run: bash ./.github/workflows/scripts/verify-package-sparse-consumer.sh artifacts
+
+      - name: Verify README samples against packed packages
+        run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
 
   # True NativeAOT publish gate. Independent from `unit` (no `needs:`) so
   # GitHub Actions schedules both jobs in parallel across the OS matrix.
   nativeaot:
+    if: >-
+      github.workflow != 'Strict tests' ||
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]'
     timeout-minutes: 30
     strategy:
       fail-fast: false

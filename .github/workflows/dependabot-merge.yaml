@@ -96,11 +96,15 @@ jobs:
       - metadata
       - dotnet-strict
       - npm-build
+    # Each selected check must have succeeded; a selected check that was
+    # skipped instead of run blocks the merge loudly rather than merging
+    # without validation. Unselected ecosystems (run-*: false) pass
+    # vacuously because their jobs are legitimately skipped.
     if: >-
       always() &&
       needs.metadata.result == 'success' &&
-      (needs.dotnet-strict.result == 'success' || needs.dotnet-strict.result == 'skipped') &&
-      (needs.npm-build.result == 'success' || needs.npm-build.result == 'skipped')
+      (needs.metadata.outputs.run-dotnet != 'true' || needs.dotnet-strict.result == 'success') &&
+      (needs.metadata.outputs.run-npm != 'true' || needs.npm-build.result == 'success')
     steps:
       - name: Merge Dependabot PR
         shell: bash
