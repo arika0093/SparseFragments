@@ -48,10 +48,7 @@ internal static class JsonPointer
         {
             if (scan == pointer.Length || pointer[scan] == '/')
             {
-                tokens[tokenIndex++] = Unescape(
-                    pointer.Substring(segmentStart, scan - segmentStart),
-                    pointer
-                );
+                tokens[tokenIndex++] = Unescape(pointer, segmentStart, scan - segmentStart);
                 segmentStart = scan + 1;
             }
         }
@@ -88,18 +85,21 @@ internal static class JsonPointer
         return builder.ToString();
     }
 
-    private static string Unescape(string token, string pointer)
+    private static string Unescape(string pointer, int start, int length)
     {
-        if (token.IndexOf('~') < 0)
+        var firstEscape = pointer.IndexOf('~', start, length);
+        if (firstEscape < 0)
         {
-            return token;
+            return pointer.Substring(start, length);
         }
 
-        var builder = new StringBuilder(token.Length);
-        var index = 0;
-        while (index < token.Length)
+        var builder = new StringBuilder(length);
+        builder.Append(pointer, start, firstEscape - start);
+        var end = start + length;
+        var index = firstEscape;
+        while (index < end)
         {
-            var c = token[index];
+            var c = pointer[index];
             if (c != '~')
             {
                 builder.Append(c);
@@ -107,7 +107,7 @@ internal static class JsonPointer
                 continue;
             }
 
-            if (index + 1 >= token.Length)
+            if (index + 1 >= end)
             {
                 throw new JsonPatchException(
                     JsonPatchErrorKind.MalformedPointer,
@@ -115,7 +115,7 @@ internal static class JsonPointer
                 );
             }
 
-            var next = token[index + 1];
+            var next = pointer[index + 1];
             if (next == '0')
             {
                 builder.Append('~');
