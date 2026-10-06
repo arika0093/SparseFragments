@@ -7,6 +7,10 @@ replacement, nested objects often need member-wise composition, ordered collecti
 may want append semantics, and set-like data may want union semantics. The modes
 below are answers to those different composition requirements.
 
+Leave the member undecorated to take the default — `Replace` for scalars and
+collections, `Deep` for nested models. Reach for `[SparseMerge]` only when the
+default composition is wrong for the shape.
+
 ## Built-in Modes
 
 | `MergeMode` | Behavior | Applies to |

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using SparseFragments;
 using SparseFragments.Playground.Models;
 
 namespace SparseFragments.Playground.Models;
@@ -425,6 +426,121 @@ public sealed class RosterEditState
 
     /// <summary>Builds a fragment carrying the full list state.</summary>
     public PlaygroundRoster.Fragment BuildFragment() => PlaygroundRoster.Fragment.From(ToModel());
+}
+
+/// <summary>Per-row edit highlight for section 3, derived live from the keyed diff.</summary>
+public sealed class RosterRowHighlight
+{
+    /// <summary>Gets or sets whether the key exists only in After.</summary>
+    public bool IsAdded { get; set; }
+
+    /// <summary>Gets or sets whether the key exists only in Before.</summary>
+    public bool IsRemoved { get; set; }
+
+    /// <summary>Gets or sets whether Title differs between Before and After.</summary>
+    public bool TitleChanged { get; set; }
+
+    /// <summary>Gets or sets whether Points differs between Before and After.</summary>
+    public bool PointsChanged { get; set; }
+
+    /// <summary>Gets or sets whether Scores differs between Before and After.</summary>
+    public bool ScoresChanged { get; set; }
+
+    /// <summary>Gets or sets whether the position differs between Before and After.</summary>
+    public bool Moved { get; set; }
+}
+
+/// <summary>Builds before/after highlight maps keyed by row reference.</summary>
+public static class RosterHighlight
+{
+    /// <summary>
+    /// Compares both lists by key. Common keys are diffed through
+    /// <c>PlaygroundQuest.Patch.Between</c>, so formatting-only differences
+    /// (e.g. <c>"10,20"</c> vs <c>"10, 20"</c>) do not count as edits.
+    /// </summary>
+    public static (
+        Dictionary<QuestRow, RosterRowHighlight> Before,
+        Dictionary<QuestRow, RosterRowHighlight> After
+    ) Build(RosterEditState before, RosterEditState after)
+    {
+        var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        try
+        {
+            var beforeIndex = IndexById(before.Rows);
+            var afterIndex = IndexById(after.Rows);
+            if (beforeIndex is null || afterIndex is null)
+            {
+                return (beforeMap, afterMap);
+            }
+
+            var beforeById = before.Rows.ToDictionary(row => row.Id);
+            var afterById = after.Rows.ToDictionary(row => row.Id);
+            foreach (var row in after.Rows)
+            {
+                var highlight = new RosterRowHighlight();
+                if (!beforeById.TryGetValue(row.Id, out var old))
+                {
+                    highlight.IsAdded = true;
+                }
+                else
+                {
+                    var patch = PlaygroundQuest.Patch.Between(
+                        Optional<PlaygroundQuest.Fragment?>.Present(
+                            PlaygroundQuest.Fragment.From(old.ToModel())
+                        ),
+                        Optional<PlaygroundQuest.Fragment?>.Present(
+                            PlaygroundQuest.Fragment.From(row.ToModel())
+                        )
+                    );
+                    highlight.TitleChanged =
+                        patch.Title.Kind != FragmentOperationKind.Unchanged;
+                    highlight.PointsChanged =
+                        patch.Points.Kind != FragmentOperationKind.Unchanged;
+                    highlight.ScoresChanged =
+                        patch.Scores.Kind != FragmentOperationKind.Unchanged;
+                    highlight.Moved = beforeIndex[row.Id] != afterIndex[row.Id];
+                }
+
+                afterMap[row] = highlight;
+            }
+
+            foreach (var row in before.Rows)
+            {
+                var highlight = new RosterRowHighlight();
+                if (!afterById.ContainsKey(row.Id))
+                {
+                    highlight.IsRemoved = true;
+                }
+                else
+                {
+                    highlight.Moved = beforeIndex[row.Id] != afterIndex[row.Id];
+                }
+
+                beforeMap[row] = highlight;
+            }
+        }
+        catch
+        {
+            // Duplicate keys and friends: surface errors through the diff tabs, not here.
+        }
+
+        return (beforeMap, afterMap);
+    }
+
+    private static Dictionary<string, int>? IndexById(List<QuestRow> rows)
+    {
+        var map = new Dictionary<string, int>();
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (!map.TryAdd(rows[i].Id, i))
+            {
+                return null;
+            }
+        }
+
+        return map;
+    }
 }
 
 /// <summary>Trim-safe JSON helpers for the playground.</summary>

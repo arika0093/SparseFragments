@@ -4,7 +4,16 @@ A collection of structural elements patches *by element* instead of replacing th
 
 Element-wise diff requires stable identity. Positional identity breaks down when elements are inserted or reordered, so structural sequences require a key.
 
+<!-- sample: keyed-first-models -->
 ```csharp
+using SparseFragments;
+
+[SparseFragmentModel]
+public partial class Fleet
+{
+    public List<Server> Servers { get; set; } = new();
+}
+
 public partial class Server
 {
     [SparseKey]
@@ -12,13 +21,28 @@ public partial class Server
 
     public string Host { get; set; } = string.Empty;
 }
+```
+<!-- /sample -->
 
-var before = Fleet.Fragment.From(new Fleet { Servers = new() { oldServer } });
-var after = Fleet.Fragment.From(new Fleet { Servers = new() { editedServer, addedServer } });
+<!-- sample: keyed-first -->
+```csharp
+var before = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "a", Host = "old" } },
+});
+var after = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
+});
 
 var patch = Fleet.Patch.Between(before, after); // add/remove/edit by key
 var applied = patch.Apply(before);              // original untouched
+
+DocsCheck.Require(applied.Value!.Servers.Value!.Count == 2, "added element present");
+DocsCheck.Require(
+    applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new", "edit by key");
 ```
+<!-- /sample -->
 
 ## Atomic vs Keyed Collections
 

@@ -66,6 +66,20 @@ Require(
     session.EditContext.GetValidationMessages().Contains("Server rejected the order number."),
     "external error surfaces through AddValidationError");
 
+// sample: ui-session
+var uiOrder = new UiOrder { Number = "ORD-1" };
+var uiSession = uiOrder.CreateEditSession();
+
+uiSession.Model.Number = "ORD-2";
+DocsCheck.Require(uiSession.HasChanges, "scalar edit detected");
+
+var uiPatch = uiSession.CreatePatch();
+DocsCheck.Require(!uiPatch.IsEmpty, "semantic patch derived");
+
+uiSession.AcceptChanges();
+DocsCheck.Require(!uiSession.HasChanges, "re-baselined");
+// /sample
+
 Console.WriteLine("SparseFragments Blazor consumer passed.");
 
 static void Require(bool condition, string capability)
@@ -75,6 +89,25 @@ static void Require(bool condition, string capability)
         throw new InvalidOperationException("Failed: " + capability);
     }
 }
+
+internal static class DocsCheck
+{
+    public static void Require(bool condition, string capability)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException("Failed: " + capability);
+        }
+    }
+}
+
+// sample: ui-session-models
+[SparseFragmentModel]
+public partial class UiOrder
+{
+    public string Number { get; set; } = string.Empty;
+}
+// /sample
 
 [SparseFragmentModel]
 public partial class BlazorDocsOrderLine

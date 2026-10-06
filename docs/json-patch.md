@@ -1,5 +1,7 @@
 # JSON Patch
 
+Use the JSON Patch bridge when you need to receive or emit RFC 6902. If all code is in-process and uses SparseFragments, use the typed Patch API directly.
+
 The generated `Patch.FromJsonPatch` / `ToJsonPatch` bridge converts between typed patches and standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON Patch documents. Accept JSON Patch at the process boundary (HTTP PATCH endpoints, other services, stored JSON), work with it as a typed semantic patch in-process, and export it back out. In-process code should normally use the typed generated patch API directly; everything else — merge, diff, apply, rebase, edit sessions — operates on typed fragments and patches without JSON involved.
 
 The conversion is needed because the wire format and the patch model use different identity: RFC 6902 addresses array elements by position, while SparseFragments identifies structural elements by key and treats scalar sequences atomically. Import replays the document onto the baseline's canonical JSON and then derives the semantic patch, so positional edits normalize into keyed operations or whole-value replacements; export lowers the semantic difference back to wire operations without preserving the original operation sequence.
