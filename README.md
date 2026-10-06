@@ -209,6 +209,15 @@ clone.Child!.Count = 42;                                       // original.Child
 | `SetUnion` | Combine as an insertion-ordered set union |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation |
 
+### Set and dictionary equality
+
+Set and dictionary members compare order-independently, and the element/key comparer is part of the collection value, so the result never depends on operand order:
+
+* Same values with the same comparer are equal, regardless of enumeration order.
+* Same values with different comparers (for example `StringComparer.Ordinal` versus `StringComparer.OrdinalIgnoreCase`) are unequal, even if the entries would match under one side's comparer.
+* Reversing the operands never changes the result.
+* Custom `IReadOnlyDictionary<TKey, TValue>` implementations compare order-independently even when they do not implement non-generic `ICollection`. When a custom collection does not expose its comparer, equality requires lookups to succeed in both directions using each side's own semantics.
+
 ## Exchange patches as JSON Patch
 
 Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for every `[SparseFragmentModel]` type.
