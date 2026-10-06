@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF011)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF020)
 
 This is the list of diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -16,6 +16,15 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF009](#spf009-member-conflicts-with-generated-json-patch-api) | Member conflicts with generated JSON Patch API | Error |
 | [SPF010](#spf010-incompatible-promoted-fragment-model) | Incompatible promoted fragment model | Error |
 | [SPF011](#spf011-structural-sequence-without-usable-key) | Structural sequence without usable key | Error |
+| [SPF012](#spf012-conflicting-sparsekey-mechanisms) | Conflicting SparseKey mechanisms | Error |
+| [SPF013](#spf013-multiple-sparsekey-properties) | Multiple SparseKey properties | Error |
+| [SPF014](#spf014-invalid-sparsekey-declaration) | Invalid SparseKey declaration | Error |
+| [SPF015](#spf015-missing-sparsekey-component) | Missing SparseKey component | Error |
+| [SPF016](#spf016-duplicate-sparsekey-component) | Duplicate SparseKey component | Error |
+| [SPF017](#spf017-inaccessible-sparsekey-property) | Inaccessible SparseKey property | Error |
+| [SPF018](#spf018-nullable-sparsekey) | Nullable SparseKey | Error |
+| [SPF019](#spf019-unsupported-sparsekey-shape) | Unsupported SparseKey shape | Error |
+| [SPF020](#spf020-invalid-isparsekeyed-implementation) | Invalid ISparseKeyed implementation | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -163,14 +172,125 @@ public partial class Settings
 
 ## SPF011: Structural sequence without usable key
 
-* Message: `Member '{0}' is a structural sequence without a usable key; add [SparseKey] to the element type, or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
+* Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
 * Cause: A `List<T>`/array member whose element type is a fragment model (or promotable
   partial) has no stable key, so granular add/remove/edit/order semantics cannot be derived.
   Scalar sequences (`List<string>`, `int[]`, …) and dictionaries are unaffected: scalars stay
   atomic whole values and dictionaries are keyed by `TKey` inherently.
-* Fix: Declare keys on the element type — `[SparseKey]` on one property (or several with
-  `Order` for composite keys), or model-level `[SparseKey("TenantId", "Id")]` (model-level
-  wins when present). Key properties must be scalar. A key change through an element edit
+* Fix: Declare exactly one key on the element type — one property-level `[SparseKey]`,
+  one type-level `[SparseKey("TenantId", "Id")]` composite (component order is
+  significant), or one `ISparseKeyed<TKey>` implementation. There is no precedence
+  between mechanisms: conflicts are reported as SPF012 instead of silently picking a
+  winner. Key properties must be publicly readable instance properties with non-nullable,
+  non-collection types. A key change through an element edit
   is remove-old + add-new and never silently retargets. To keep legacy whole-collection
   semantics instead, select `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
   `FragmentMergeStrategy<T>` on the member.
+
+## SPF012: Conflicting SparseKey mechanisms
+
+* Message: `Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them`
+* Cause: The type combines two or more key-definition mechanisms (e.g. a property-level
+  `[SparseKey]` plus a type-level `[SparseKey(...)]`, or either plus `ISparseKeyed<TKey>`).
+  Conflicting declarations are generator errors; the generator never prefers one source
+  over another.
+* Fix: Keep exactly one mechanism and remove the others.
+
+```csharp
+// Does not compile: property-level key + type-level composite conflict (SPF012)
+[SparseKey(nameof(TenantId), nameof(Id))]
+public partial class Server
+{
+    [SparseKey]
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+}
+
+// OK: one mechanism
+[SparseKey(nameof(TenantId), nameof(Id))]
+public partial class Server
+{
+    public Guid TenantId { get; set; }
+    public Guid Id { get; set; }
+}
+```
+
+## SPF013: Multiple SparseKey properties
+
+* Message: `Type '{0}' marks more than one property with [SparseKey]; multiple property-level keys are not a composite key, use a single type-level [SparseKey(nameof(...), ...)] declaration instead`
+* Cause: More than one property carries parameterless `[SparseKey]`. Multiple
+  property-level markers are never interpreted as a composite key.
+* Fix: Keep a single `[SparseKey]` property, or replace the markers with one type-level
+  `[SparseKey(nameof(A), nameof(B))]` composite declaration.
+
+## SPF014: Invalid SparseKey declaration
+
+* Message: `SparseKey declaration on '{0}' is invalid; property-level [SparseKey] takes no arguments and type-level [SparseKey] requires at least one property name`
+* Cause: One of the following shapes was used.
+  * Parameterless `[SparseKey]` on a type (there are no components to build a key from).
+  * Property-name (or any constructor/named) arguments on a property-level `[SparseKey]`.
+  * An empty type-level component list.
+* Fix: Use parameterless `[SparseKey]` on exactly one property, or pass at least one
+  property name to a type-level `[SparseKey("TenantId", "Id")]`.
+
+## SPF015: Missing SparseKey component
+
+* Message: `Key component '{0}' does not resolve to a property of the model`
+* Cause: A type-level `[SparseKey(...)]` names a property that does not exist on the model
+  (or only exists as a static, indexer, or non-publicly-readable member — see SPF017).
+* Fix: Correct the name (component order is significant) or add the missing publicly
+  readable instance property.
+
+## SPF016: Duplicate SparseKey component
+
+* Message: `Duplicate key component '{0}'; type-level key components must resolve to distinct properties`
+* Cause: A type-level `[SparseKey(...)]` lists the same property more than once.
+* Fix: List each component once, in key order.
+
+## SPF017: Inaccessible SparseKey property
+
+* Message: `Key property '{0}' must be a publicly readable instance property; static, indexer, or non-publicly-readable properties cannot serve as stable identity`
+* Cause: A key property (property-level `[SparseKey]` or a resolved type-level component)
+  is static, an indexer, or not publicly readable. Computed/read-only properties are
+  valid as long as they are publicly readable instance properties
+  (e.g. `public ServerKey Key => new(TenantId, Id)`).
+* Fix: Expose the key through a publicly readable instance property.
+
+## SPF018: Nullable SparseKey
+
+* Message: `Key '{0}' must not be nullable; nullable key values/types are not supported for keyed collection identity`
+* Cause: A key property, composite component, or `ISparseKeyed<TKey>` key type is nullable
+  (`string?`, `int?`, …). Nullable keys cannot represent stable collection identity.
+* Fix: Use a non-nullable key type.
+
+## SPF019: Unsupported SparseKey shape
+
+* Message: `Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity`
+* Cause: A key property, composite component, or `ISparseKeyed<TKey>` key type is
+  collection-shaped (arrays, `List<T>`, dictionaries, sets, …). Key equality uses the
+  normal equality semantics of the key type (`EqualityComparer<T>.Default`); value-object
+  keys, records, record structs, enums, strings, GUIDs and ordinary scalar types are valid
+  when they provide appropriate stable equality.
+* Fix: Use a scalar/value-object key type.
+
+## SPF020: Invalid ISparseKeyed implementation
+
+* Message: `Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type`
+* Cause: The `ISparseKeyed<TKey>` escape hatch is unusable: more than one distinct `TKey`
+  is implemented (ambiguous), the key type is nullable or collection-shaped, or no
+  publicly readable instance `SparseKey` property is available (e.g. only an explicit
+  interface implementation, which generated `element.SparseKey` extraction cannot reach).
+  No separate provider SPI exists; a computed `[SparseKey]` property covers the other
+  advanced cases.
+* Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey` getter
+  and a valid key type.
+
+```csharp
+// OK
+public partial class Server : ISparseKeyed<ServerKey>
+{
+    public string Tenant { get; set; } = "";
+    public int Id { get; set; }
+    public ServerKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
+}
+```

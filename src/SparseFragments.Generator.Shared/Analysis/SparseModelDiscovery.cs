@@ -589,20 +589,22 @@ internal static class SparseModelDiscovery
         );
         var keyPropertyNames = ImmutableArray<string>.Empty;
         string? keyTypeName = null;
+        var keyKind = SparseKeyKind.None;
         if (
             semantic == SparseCollectionSemantic.KeyedSequence
             && collection.ElementType is INamedTypeSymbol namedElement
-            && SparseCollectionAnalyzer.TryDiscoverKeys(
+            && SparseCollectionAnalyzer.TryDiscoverKeyInfo(
                 namedElement,
                 config,
                 cancellationToken,
-                out var discoveredNames,
-                out var discoveredType
+                out var discovered
             )
+            && discovered is not null
         )
         {
-            keyPropertyNames = discoveredNames;
-            keyTypeName = discoveredType;
+            keyPropertyNames = discovered.PropertyNames;
+            keyTypeName = discovered.KeyTypeName;
+            keyKind = discovered.Kind;
         }
 
         return new SparseCollectionInfo(
@@ -613,7 +615,8 @@ internal static class SparseModelDiscovery
             collection.NamedType?.ConstructedFrom.ToDisplayString(),
             semantic,
             keyPropertyNames,
-            keyTypeName
+            keyTypeName,
+            keyKind
         );
     }
 

@@ -137,11 +137,101 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
         SparseDiagnosticIds.UnkeyedStructuralSequence,
         "Structural sequence without usable key",
-        "Member '{0}' is a structural sequence without a usable key; add [SparseKey] to the element type, or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
+        "Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
         "SparseFragments",
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf011-structural-sequence-without-usable-key"
+    );
+
+    private static readonly DiagnosticDescriptor ConflictingKeyMechanisms = new(
+        SparseDiagnosticIds.ConflictingKeyMechanisms,
+        "Conflicting SparseKey mechanisms",
+        "Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf012-conflicting-sparsekey-mechanisms"
+    );
+
+    private static readonly DiagnosticDescriptor MultiplePropertyKeys = new(
+        SparseDiagnosticIds.MultiplePropertyKeys,
+        "Multiple SparseKey properties",
+        "Type '{0}' marks more than one property with [SparseKey]; multiple property-level keys are not a composite key, use a single type-level [SparseKey(nameof(...), ...)] declaration instead",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf013-multiple-sparsekey-properties"
+    );
+
+    private static readonly DiagnosticDescriptor InvalidKeyAttributeShape = new(
+        SparseDiagnosticIds.InvalidKeyAttributeShape,
+        "Invalid SparseKey declaration",
+        "SparseKey declaration on '{0}' is invalid; property-level [SparseKey] takes no arguments and type-level [SparseKey] requires at least one property name",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf014-invalid-sparsekey-declaration"
+    );
+
+    private static readonly DiagnosticDescriptor MissingKeyComponent = new(
+        SparseDiagnosticIds.MissingKeyComponent,
+        "Missing SparseKey component",
+        "Key component '{0}' does not resolve to a property of the model",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf015-missing-sparsekey-component"
+    );
+
+    private static readonly DiagnosticDescriptor DuplicateKeyComponent = new(
+        SparseDiagnosticIds.DuplicateKeyComponent,
+        "Duplicate SparseKey component",
+        "Duplicate key component '{0}'; type-level key components must resolve to distinct properties",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf016-duplicate-sparsekey-component"
+    );
+
+    private static readonly DiagnosticDescriptor InaccessibleKeyProperty = new(
+        SparseDiagnosticIds.InaccessibleKeyProperty,
+        "Inaccessible SparseKey property",
+        "Key property '{0}' must be a publicly readable instance property; static, indexer, or non-publicly-readable properties cannot serve as stable identity",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf017-inaccessible-sparsekey-property"
+    );
+
+    private static readonly DiagnosticDescriptor NullableKey = new(
+        SparseDiagnosticIds.NullableKey,
+        "Nullable SparseKey",
+        "Key '{0}' must not be nullable; nullable key values/types are not supported for keyed collection identity",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf018-nullable-sparsekey"
+    );
+
+    private static readonly DiagnosticDescriptor UnsupportedKeyShape = new(
+        SparseDiagnosticIds.UnsupportedKeyShape,
+        "Unsupported SparseKey shape",
+        "Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf019-unsupported-sparsekey-shape"
+    );
+
+    private static readonly DiagnosticDescriptor InvalidKeyedInterface = new(
+        SparseDiagnosticIds.InvalidKeyedInterface,
+        "Invalid ISparseKeyed implementation",
+        "Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf020-invalid-isparsekeyed-implementation"
     );
 
     /// <inheritdoc />
@@ -346,6 +436,15 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseDiagnosticIds.GeneratedNameCollision => GeneratedNameCollision,
             SparseDiagnosticIds.IncompatiblePromotedModel => IncompatiblePromotedModel,
             SparseDiagnosticIds.UnkeyedStructuralSequence => UnkeyedStructuralSequence,
+            SparseDiagnosticIds.ConflictingKeyMechanisms => ConflictingKeyMechanisms,
+            SparseDiagnosticIds.MultiplePropertyKeys => MultiplePropertyKeys,
+            SparseDiagnosticIds.InvalidKeyAttributeShape => InvalidKeyAttributeShape,
+            SparseDiagnosticIds.MissingKeyComponent => MissingKeyComponent,
+            SparseDiagnosticIds.DuplicateKeyComponent => DuplicateKeyComponent,
+            SparseDiagnosticIds.InaccessibleKeyProperty => InaccessibleKeyProperty,
+            SparseDiagnosticIds.NullableKey => NullableKey,
+            SparseDiagnosticIds.UnsupportedKeyShape => UnsupportedKeyShape,
+            SparseDiagnosticIds.InvalidKeyedInterface => InvalidKeyedInterface,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

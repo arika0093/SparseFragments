@@ -112,7 +112,12 @@ internal static class SparseKeyedCollectionEmitter
             indent + 1,
             "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
         );
-        if (keys.Length == 1)
+        if (member.Collection.KeyKind == SparseKeyKind.Interface)
+        {
+            // ISparseKeyed<TKey>: computed/custom identity without reflection.
+            code.AppendLineAt(indent + 1, "return element.SparseKey;");
+        }
+        else if (keys.Length == 1)
         {
             code.AppendLineAt(
                 indent + 1,
@@ -121,6 +126,9 @@ internal static class SparseKeyedCollectionEmitter
         }
         else
         {
+            // Composite keys preserve type-level declaration order; the ValueTuple
+            // representation is strongly typed and collision-safe by construction,
+            // with component-wise EqualityComparer<T>.Default semantics.
             var tuple =
                 "("
                 + string.Join(
@@ -858,8 +866,22 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "if (edited is not null && edited.Count > 0) patch.__edited = edited;"
         );
-        code.AppendLineAt(4, "var beforeOrderKeys = new global::System.Collections.Generic.List<" + keyType + ">(); foreach (var item in before.Value!) beforeOrderKeys.Add(" + KeyOfMethod(member) + "(item));");
-        code.AppendLineAt(4, "if (!" + facade + ".KeyOrderEquals<" + keyType + ">(beforeOrderKeys, afterOrder)) patch.__order = afterOrder;");
+        code.AppendLineAt(
+            4,
+            "var beforeOrderKeys = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(); foreach (var item in before.Value!) beforeOrderKeys.Add("
+                + KeyOfMethod(member)
+                + "(item));"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!"
+                + facade
+                + ".KeyOrderEquals<"
+                + keyType
+                + ">(beforeOrderKeys, afterOrder)) patch.__order = afterOrder;"
+        );
         code.AppendLineAt(4, "return patch;");
         code.AppendLineAt(3, "}");
     }
@@ -892,7 +914,12 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Unchanged)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "if (__whole.Kind == " + kind + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");");
+        code.AppendLineAt(
+            5,
+            "if (__whole.Kind == "
+                + kind
+                + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");"
+        );
         code.AppendLineAt(
             5,
             "var applied = next.Apply("
@@ -1011,8 +1038,18 @@ internal static class SparseKeyedCollectionEmitter
                     + elementFragment
                     + ".From(kv.Value)));"
             );
-            code.AppendLineAt(6, "if (!applied.IsPresent || applied.Value is null) throw new global::System.InvalidOperationException(\"Element edit removed the element. Use Remove instead.\");");
-            code.AppendLineAt(6, "if (!" + comparer + ".Equals(" + KeyOfMethod(member) + "(applied.Value!.ToModel()), kv.Key)) throw new global::System.InvalidOperationException(\"Changing an element's identity through an edit is not allowed. Use remove-old + add-new instead.\");");
+            code.AppendLineAt(
+                6,
+                "if (!applied.IsPresent || applied.Value is null) throw new global::System.InvalidOperationException(\"Element edit removed the element. Use Remove instead.\");"
+            );
+            code.AppendLineAt(
+                6,
+                "if (!"
+                    + comparer
+                    + ".Equals("
+                    + KeyOfMethod(member)
+                    + "(applied.Value!.ToModel()), kv.Key)) throw new global::System.InvalidOperationException(\"Changing an element's identity through an edit is not allowed. Use remove-old + add-new instead.\");"
+            );
             code.AppendLineAt(6, "netAdded.Add(applied.Value!.ToModel());");
             code.AppendLineAt(5, "}");
             code.AppendLineAt(5, "else netAdded.Add(kv.Value);");
@@ -1063,10 +1100,7 @@ internal static class SparseKeyedCollectionEmitter
                 5,
                 "if (thisAdded.ContainsKey(kv.Key) || thisRemoved.Contains(kv.Key)) continue;"
             );
-            code.AppendLineAt(
-                5,
-                "if (kv.Value.__SparseIsEmpty()) continue;"
-            );
+            code.AppendLineAt(5, "if (kv.Value.__SparseIsEmpty()) continue;");
             code.AppendLineAt(
                 5,
                 "if (netEdited is not null && netEdited.ContainsKey(kv.Key)) continue;"
@@ -1226,10 +1260,7 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(
             4,
-            SparseFragmentPatchEmitter.Runtime
-                + "Optional<"
-                + listType
-                + "> desired;"
+            SparseFragmentPatchEmitter.Runtime + "Optional<" + listType + "> desired;"
         );
         code.AppendLineAt(4, "try { desired = local.Apply(baseState); }");
         code.AppendLineAt(
@@ -2163,7 +2194,12 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Unchanged)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "if (__whole.Kind == " + kind + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");");
+        code.AppendLineAt(
+            5,
+            "if (__whole.Kind == "
+                + kind
+                + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");"
+        );
         code.AppendLineAt(
             4,
             "var applied = next.Apply("

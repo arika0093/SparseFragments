@@ -16,6 +16,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.Optional`1",
         "SparseFragments.FragmentOperation`1",
         "SparseFragments.FragmentOperationKind",
+        "SparseFragments.ISparseKeyed`1",
         "SparseFragments.MergeMode",
         "SparseFragments.SparseFragmentModelAttribute",
         "SparseFragments.SparseKeyAttribute",

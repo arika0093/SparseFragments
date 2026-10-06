@@ -198,10 +198,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(5, "var __applyFailed" + member.Id + " = false;");
         code.AppendLineAt(5, "try");
         code.AppendLineAt(5, "{");
-        code.AppendLineAt(
-            6,
-            desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
-        );
+        code.AppendLineAt(6, desiredMember + " = local." + field + ".Apply(" + baseMember + ");");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
             5,
