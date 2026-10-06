@@ -79,7 +79,7 @@ internal sealed class SparseFragmentConversionEmitter
         {
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "value");
         }
-        if (modelIsReferenceType && requiresContext)
+        if (modelIsReferenceType)
         {
             code.AppendLineAt(3, "if (!__sparse_from_context.Add(value))");
             code.AppendLineAt(3, "{");

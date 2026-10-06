@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
+using SparseFragments.CompilerServices;
 
 [SparseFragmentModel]
 public partial struct BenchLeafValue
@@ -41,6 +42,30 @@ public class FragmentFromBenchmarks
         )
         {
             throw new InvalidOperationException("From must preserve leaf and nested model values.");
+        }
+
+        var active = SparseFragmentRuntime.CreateFromCycleContext();
+        active.Add(_leaf);
+        var rejectedActiveAncestor = false;
+        try
+        {
+            BenchKeyedServer.Fragment.From(
+                _leaf,
+                SparseFragmentRuntime.CreateCloneContext(),
+                active,
+                "Leaf"
+            );
+        }
+        catch (NotSupportedException)
+        {
+            rejectedActiveAncestor = true;
+        }
+
+        if (!rejectedActiveAncestor)
+        {
+            throw new InvalidOperationException(
+                "Internal From must reject an already active ancestor even for a leaf projection."
+            );
         }
 
         var cyclic = new BenchWidgetNested();
