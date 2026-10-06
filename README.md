@@ -371,6 +371,33 @@ All of these are uses of the same typed partial state: keep an edit, override, o
 * **Boundary exchange (secondary).** Accept standard JSON Patch documents at the edge with `Patch.FromJsonPatch`, work with them as typed semantic patches in-process, and send them back out with `patch.ToJsonPatch`. `test` operations validate before mutation, and the export stays minimal (recursive for objects, whole-value for arrays/scalars).
 * **Safe duplication (secondary).** `DeepClone` copies models with nested and mutable members (including collections and shared references) without handwritten copy constructors.
 
+## Blazor Forms
+
+The `SparseFragments.Extensions.Blazor` package bridges ordinary Blazor forms and
+semantic patches. A session keeps a fragment baseline alongside the live model and
+exposes an `EditContext` for normal form behavior; patches always come from
+baseline-versus-current comparison, never from `EditContext` field tracking, so keyed
+collection edits, reorder, and edit-then-restore behave correctly.
+
+```csharp
+var session = order.CreateEditSession(); // generated when the package is referenced
+
+<EditForm EditContext="@session.EditContext">...</EditForm>
+
+if (session.HasChanges)
+{
+    var patch = session.CreatePatch();
+    ...
+}
+
+session.AcceptChanges(); // re-baseline, clear Blazor modified flags
+```
+
+`CreateEditSession()` is generated for each `[SparseFragmentModel]` class when the
+Blazor package is referenced; projects without the reference generate byte-identical
+output. Server errors can be surfaced with `CreateValidationStore()` /
+`AddValidationError()` without taking a dependency on HTTP transport.
+
 ## License
 
 This project is licensed under the Apache-2.0 License.

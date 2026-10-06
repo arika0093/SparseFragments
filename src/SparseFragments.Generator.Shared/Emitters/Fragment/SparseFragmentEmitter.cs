@@ -22,6 +22,7 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
+        bool emitBlazorEditSession,
         CancellationToken cancellationToken
     )
     {
@@ -32,6 +33,7 @@ internal static class SparseFragmentEmitter
             structuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
+            emitBlazorEditSession,
             cancellationToken
         );
     }
@@ -50,6 +52,7 @@ internal static class SparseFragmentEmitter
             promoted.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
+            emitBlazorEditSession: false,
             cancellationToken
         );
     }
@@ -73,6 +76,7 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
+        bool emitBlazorEditSession,
         CancellationToken cancellationToken
     )
     {
@@ -144,8 +148,49 @@ internal static class SparseFragmentEmitter
             !pocoCloneModels.IsEmpty,
             constructor: model.Constructor
         );
+        if (emitBlazorEditSession && !model.IsStruct)
+        {
+            AppendEditSession(code, modelType, members);
+        }
+
         code.AppendLine("}");
         return code.ToString();
+    }
+
+    /// <summary>
+    /// Emits the Blazor edit-session factory. Only generated when the compilation
+    /// references <c>SparseFragments.Extensions.Blazor</c>; other consumers see
+    /// byte-identical output.
+    /// </summary>
+    private static void AppendEditSession(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        var memberNames = members.Select(static member => member.Property.Name);
+        var between = SparseNaming.PatchApiPrefix(memberNames) + "Between";
+        var isEmpty = SparseNaming.WholeApiPrefix(memberNames) + "IsEmpty";
+        var session =
+            "global::SparseFragments.Extensions.Blazor.SparseEditSession<"
+            + modelType
+            + ", Fragment, Patch>";
+        code.AppendLineAt(
+            1,
+            "/// <summary>Creates a Blazor edit session capturing the current model as its baseline.</summary>"
+        );
+        code.AppendLineAt(
+            1,
+            "public "
+                + session
+                + " CreateEditSession() => "
+                + session
+                + ".Create(this, Fragment.From, Patch."
+                + between
+                + ", static patch => patch."
+                + isEmpty
+                + ");"
+        );
     }
 
     private static ImmutableArray<SparseMemberModel> ApplyPortableSetView(

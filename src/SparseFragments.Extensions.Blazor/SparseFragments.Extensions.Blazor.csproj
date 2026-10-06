@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <AssemblyName>SparseFragments.Extensions.Blazor</AssemblyName>
+    <RootNamespace>SparseFragments.Extensions.Blazor</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageDescription>Blazor edit sessions for SparseFragments. Keeps a fragment baseline alongside the live model and derives semantic patches from before/after state.</PackageDescription>
+    <PackageTags>blazor;forms;editcontext;patch;sparse</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SparseFragments/SparseFragments.csproj" />
+  </ItemGroup>
+</Project>
