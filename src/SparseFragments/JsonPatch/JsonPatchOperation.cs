@@ -8,10 +8,32 @@ internal sealed class JsonPatchOperation
 {
     /// <summary>Initializes a new instance.</summary>
     public JsonPatchOperation(string op, string path, string? from, JsonNode? value, bool hasValue)
+        : this(
+            op,
+            path,
+            JsonPointer.Parse(path),
+            from,
+            from is null ? null : JsonPointer.Parse(from),
+            value,
+            hasValue
+        ) { }
+
+    /// <summary>Initializes a new instance with pre-parsed pointer tokens.</summary>
+    internal JsonPatchOperation(
+        string op,
+        string path,
+        string[] pathTokens,
+        string? from,
+        string[]? fromTokens,
+        JsonNode? value,
+        bool hasValue
+    )
     {
         Op = op;
         Path = path;
+        PathTokens = pathTokens;
         From = from;
+        FromTokens = fromTokens;
         Value = value;
         HasValue = hasValue;
     }
@@ -22,8 +44,14 @@ internal sealed class JsonPatchOperation
     /// <summary>The target pointer.</summary>
     public string Path { get; }
 
+    /// <summary>The parsed target pointer tokens, reused during apply.</summary>
+    public string[] PathTokens { get; }
+
     /// <summary>The source pointer for move/copy.</summary>
     public string? From { get; }
+
+    /// <summary>The parsed source pointer tokens for move/copy.</summary>
+    public string[]? FromTokens { get; }
 
     /// <summary>The operation value for add/replace/test.</summary>
     public JsonNode? Value { get; }
@@ -65,10 +93,12 @@ internal sealed class JsonPatchOperation
 
         var op = opElement.GetString()!;
         var path = pathElement.GetString()!;
-        // Validate pointer syntax eagerly so malformed pointers surface distinctly.
-        JsonPointer.Parse(path);
+        // Validate pointer syntax eagerly so malformed pointers surface distinctly,
+        // keeping the parsed tokens so apply does not tokenize them again.
+        var pathTokens = JsonPointer.Parse(path);
 
         string? from = null;
+        string[]? fromTokens = null;
         var hasFrom = false;
         if (element.TryGetProperty("from", out var fromElement))
         {
@@ -82,7 +112,7 @@ internal sealed class JsonPatchOperation
             }
 
             from = fromElement.GetString()!;
-            JsonPointer.Parse(from);
+            fromTokens = JsonPointer.Parse(from);
         }
 
         var hasValue = element.TryGetProperty("value", out var valueElement);
@@ -126,6 +156,6 @@ internal sealed class JsonPatchOperation
                 );
         }
 
-        return new JsonPatchOperation(op, path, from, value, hasValue);
+        return new JsonPatchOperation(op, path, pathTokens, from, fromTokens, value, hasValue);
     }
 }

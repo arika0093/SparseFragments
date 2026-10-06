@@ -147,7 +147,7 @@ internal static class JsonPatchEngine
             return null;
         }
 
-        return JsonNode.Parse(node.ToJsonString());
+        return node.DeepClone();
     }
 
 #pragma warning disable S1075 // RFC 6901 JSON Pointer uses slash delimiters.
@@ -230,19 +230,27 @@ internal static class JsonPatchEngine
                     ref current,
                     ref isAbsent,
                     operation.Path,
+                    operation.PathTokens,
                     Clone(operation.Value),
                     operation.HasValue,
                     propertyNameComparison
                 );
                 break;
             case "remove":
-                ApplyRemove(ref current, ref isAbsent, operation.Path, propertyNameComparison);
+                ApplyRemove(
+                    ref current,
+                    ref isAbsent,
+                    operation.Path,
+                    operation.PathTokens,
+                    propertyNameComparison
+                );
                 break;
             case "replace":
                 ApplyReplace(
                     ref current,
                     ref isAbsent,
                     operation.Path,
+                    operation.PathTokens,
                     Clone(operation.Value),
                     propertyNameComparison
                 );
@@ -252,7 +260,9 @@ internal static class JsonPatchEngine
                     ref current,
                     ref isAbsent,
                     operation.From!,
+                    operation.FromTokens!,
                     operation.Path,
+                    operation.PathTokens,
                     propertyNameComparison
                 );
                 break;
@@ -261,7 +271,9 @@ internal static class JsonPatchEngine
                     ref current,
                     ref isAbsent,
                     operation.From!,
+                    operation.FromTokens!,
                     operation.Path,
+                    operation.PathTokens,
                     propertyNameComparison
                 );
                 break;
@@ -270,6 +282,7 @@ internal static class JsonPatchEngine
                     current,
                     isAbsent,
                     operation.Path,
+                    operation.PathTokens,
                     operation.Value,
                     propertyNameComparison
                 );
@@ -286,6 +299,7 @@ internal static class JsonPatchEngine
         ref JsonNode? current,
         ref bool isAbsent,
         string path,
+        string[] tokens,
         JsonNode? value,
         bool hasValue,
         StringComparison propertyNameComparison
@@ -323,7 +337,6 @@ internal static class JsonPatchEngine
             );
         }
 
-        var tokens = JsonPointer.Parse(path);
         var parent = ResolveParent(current, tokens, isAdd: true, path, propertyNameComparison);
         SetChild(parent, tokens[tokens.Length - 1], value, path, propertyNameComparison);
     }
@@ -332,6 +345,7 @@ internal static class JsonPatchEngine
         ref JsonNode? current,
         ref bool isAbsent,
         string path,
+        string[] tokens,
         StringComparison propertyNameComparison
     )
     {
@@ -358,7 +372,6 @@ internal static class JsonPatchEngine
             );
         }
 
-        var tokens = JsonPointer.Parse(path);
         var parent = ResolveParent(current, tokens, isAdd: false, path, propertyNameComparison);
         RemoveChild(parent, tokens[tokens.Length - 1], path, propertyNameComparison);
     }
@@ -367,6 +380,7 @@ internal static class JsonPatchEngine
         ref JsonNode? current,
         ref bool isAbsent,
         string path,
+        string[] tokens,
         JsonNode? value,
         StringComparison propertyNameComparison
     )
@@ -393,7 +407,6 @@ internal static class JsonPatchEngine
             );
         }
 
-        var tokens = JsonPointer.Parse(path);
         var parent = ResolveParent(current, tokens, isAdd: false, path, propertyNameComparison);
         ReplaceChild(parent, tokens[tokens.Length - 1], value, path, propertyNameComparison);
     }
@@ -402,19 +415,22 @@ internal static class JsonPatchEngine
         ref JsonNode? current,
         ref bool isAbsent,
         string from,
+        string[] fromTokens,
         string path,
+        string[] pathTokens,
         StringComparison propertyNameComparison
     )
     {
-        var value = ReadValue(current, isAbsent, from, propertyNameComparison);
+        var value = ReadValue(current, isAbsent, from, fromTokens, propertyNameComparison);
         // Remove first so array indices shift per RFC semantics.
-        ApplyRemove(ref current, ref isAbsent, from, propertyNameComparison);
+        ApplyRemove(ref current, ref isAbsent, from, fromTokens, propertyNameComparison);
         try
         {
             ApplyAdd(
                 ref current,
                 ref isAbsent,
                 path,
+                pathTokens,
                 value,
                 hasValue: true,
                 propertyNameComparison
@@ -430,15 +446,18 @@ internal static class JsonPatchEngine
         ref JsonNode? current,
         ref bool isAbsent,
         string from,
+        string[] fromTokens,
         string path,
+        string[] pathTokens,
         StringComparison propertyNameComparison
     )
     {
-        var value = ReadValue(current, isAbsent, from, propertyNameComparison);
+        var value = ReadValue(current, isAbsent, from, fromTokens, propertyNameComparison);
         ApplyAdd(
             ref current,
             ref isAbsent,
             path,
+            pathTokens,
             Clone(value),
             hasValue: true,
             propertyNameComparison
@@ -449,11 +468,12 @@ internal static class JsonPatchEngine
         JsonNode? current,
         bool isAbsent,
         string path,
+        string[] tokens,
         JsonNode? expected,
         StringComparison propertyNameComparison
     )
     {
-        var actual = ReadValue(current, isAbsent, path, propertyNameComparison);
+        var actual = ReadValue(current, isAbsent, path, tokens, propertyNameComparison);
         if (!JsonNode.DeepEquals(actual, expected))
         {
             throw new JsonPatchException(
@@ -467,6 +487,7 @@ internal static class JsonPatchEngine
         JsonNode? current,
         bool isAbsent,
         string path,
+        string[] pathTokens,
         StringComparison propertyNameComparison
     )
     {
@@ -491,9 +512,8 @@ internal static class JsonPatchEngine
             );
         }
 
-        var tokens = JsonPointer.Parse(path);
         JsonNode? node = current;
-        foreach (var token in tokens)
+        foreach (var token in pathTokens)
         {
             node = GetChild(node, token, path, isAdd: false, propertyNameComparison);
         }
