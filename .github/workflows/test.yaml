@@ -25,10 +25,34 @@ permissions:
 # the whole job graph for the same commit. Ordinary PRs run here directly,
 # which keeps the required check names ("Strict tests / <job>") stable enough
 # for a branch-protection rule.
+#
+# Tiered OS policy (#20): pull_request runs (direct or via the
+# dependabot-merge caller, where github.event_name is still pull_request) use
+# a single-OS fast path, while push-to-main, workflow_dispatch, and
+# non-PR caller invocations (release.yaml) run the full OS matrix.
+# Job names never change between tiers, so branch protection stays stable.
+# Branch-protection tip: require the ubuntu legs ("Strict tests / unit
+# (ubuntu-latest)", "Strict tests / nativeaot (ubuntu-latest)") plus
+# public-api and package-consumers. Those four checks exist in both tiers;
+# the macos/windows legs only appear in the full-matrix tier.
+#
+# Failure-class map (which dimension catches what):
+# - unit matrix OS: managed TUnit logic is nearly OS-independent; the Linux
+#   PR leg catches regressions fast, and the full matrix on main/release
+#   catches OS-specific filesystem, path, casing, and line-ending behavior.
+# - public-api (Linux only): API surface approval/audience drift, fully
+#   OS-independent; one leg is sufficient in every tier.
+# - package-consumers (Linux only): pack integrity plus packed-feed consumer
+#   and README-sample drift; OS-independent packaging logic, one leg always.
+# - nativeaot matrix OS: the OS-sensitive tier. Each leg links against a
+#   distinct toolchain (Linux clang/zlib, macOS Xcode, Windows MSVC) and
+#   catches trimming/AOT diagnostics specific to that target. PRs run the
+#   Linux smoke leg; main/release run every supported OS before publish.
 
 jobs:
   # Regular unit tests (TUnit). Builds only the test project and its
   # src references so the Blazor playground never affects this job.
+  # PR tier: Linux only (fast signal). Main/release tier: full OS matrix.
   unit:
     if: >-
       github.workflow != 'Strict tests' ||
@@ -38,7 +62,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # PR fast path: Linux only. Main/dispatch/release-caller: full matrix.
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "macos-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -110,6 +135,7 @@ jobs:
 
   # Public API surface gate (#11). Approval snapshots plus audience
   # classification must pass before merge and before any release.
+  # Single-OS by design in every tier: API surface is OS-independent.
   public-api:
     if: >-
       github.workflow != 'Strict tests' ||
@@ -168,6 +194,7 @@ jobs:
   # (no ProjectReference fallback) and the README fixture runs through
   # verify-sparsefragments-readme.sh. The same bytes validated here are what
   # the consumer checks run against; nothing is rebuilt a second time.
+  # Single-OS by design in every tier: packing logic is OS-independent.
   package-consumers:
     if: >-
       github.workflow != 'Strict tests' ||
@@ -217,6 +244,9 @@ jobs:
 
   # True NativeAOT publish gate. Independent from `unit` (no `needs:`) so
   # GitHub Actions schedules both jobs in parallel across the OS matrix.
+  # PR tier: Linux smoke leg only (toolchain signal without 3x link cost).
+  # Main/release tier: full supported OS matrix (each OS links natively and
+  # catches target-specific trimming/AOT failures before publish).
   nativeaot:
     if: >-
       github.workflow != 'Strict tests' ||
@@ -226,7 +256,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # PR fast path: Linux only. Main/dispatch/release-caller: full matrix.
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "macos-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository

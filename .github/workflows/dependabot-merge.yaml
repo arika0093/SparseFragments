@@ -14,7 +14,6 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     outputs:
       run-dotnet: ${{ steps.checks.outputs.run-dotnet }}
-      run-npm: ${{ steps.checks.outputs.run-npm }}
     steps:
       - name: Dependabot metadata
         id: metadata
@@ -22,15 +21,14 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # Run only the necessary ones.
-      # Action updates can affect both the product CI and the docs CI.
+      # Action updates affect the product CI, so they run the same strict
+      # dotnet gate as NuGet updates.
       # NOTE: dependabot/fetch-metadata reports ecosystem names with
-      # underscores (npm_and_yarn, github_actions) and per-project
-      # directories for nuget (e.g. /src/devtools/... instead of /),
-      # so match on ecosystem with a directory wildcard where the
-      # selected checks are not directory-sensitive.
-      # Observed values: nuget:/src/..., npm_and_yarn:/docs-site,
-      # github_actions:/
+      # underscores (github_actions) and per-project directories for nuget
+      # (e.g. /src/devtools/... instead of /), so match on ecosystem with a
+      # directory wildcard where the selected checks are not
+      # directory-sensitive.
+      # Observed values: nuget:/src/..., github_actions:/
       - name: Select checks
         id: checks
         shell: bash
@@ -41,18 +39,13 @@ jobs:
           set -euo pipefail
 
           echo "run-dotnet=false" >> "$GITHUB_OUTPUT"
-          echo "run-npm=false" >> "$GITHUB_OUTPUT"
 
           case "$PACKAGE_ECOSYSTEM:$DIRECTORY" in
             nuget:*)
               echo "run-dotnet=true" >> "$GITHUB_OUTPUT"
               ;;
-            npm_and_yarn:/docs-site)
-              echo "run-npm=true" >> "$GITHUB_OUTPUT"
-              ;;
             github_actions:*)
               echo "run-dotnet=true" >> "$GITHUB_OUTPUT"
-              echo "run-npm=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "::error::Unsupported Dependabot target: $PACKAGE_ECOSYSTEM:$DIRECTORY"
@@ -65,46 +58,19 @@ jobs:
     if: needs.metadata.outputs.run-dotnet == 'true'
     uses: ./.github/workflows/test.yaml
 
-  npm-build:
-    needs: metadata
-    if: needs.metadata.outputs.run-npm == 'true'
-    runs-on: ubuntu-latest
-    env:
-      ASTRO_TELEMETRY_DISABLED: '1'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: docs-site/package-lock.json
-
-      - name: Install dependencies
-        working-directory: docs-site
-        run: npm ci
-
-      - name: Build docs (dry-run)
-        working-directory: docs-site
-        run: npm run build
-
   dependabot-merge:
     runs-on: ubuntu-latest
     needs:
       - metadata
       - dotnet-strict
-      - npm-build
-    # Each selected check must have succeeded; a selected check that was
+    # The selected check must have succeeded; a selected check that was
     # skipped instead of run blocks the merge loudly rather than merging
-    # without validation. Unselected ecosystems (run-*: false) pass
-    # vacuously because their jobs are legitimately skipped.
+    # without validation. An unselected ecosystem (run-dotnet: false) passes
+    # vacuously because its job is legitimately skipped.
     if: >-
       always() &&
       needs.metadata.result == 'success' &&
-      (needs.metadata.outputs.run-dotnet != 'true' || needs.dotnet-strict.result == 'success') &&
-      (needs.metadata.outputs.run-npm != 'true' || needs.npm-build.result == 'success')
+      (needs.metadata.outputs.run-dotnet != 'true' || needs.dotnet-strict.result == 'success')
     steps:
       - name: Merge Dependabot PR
         shell: bash
