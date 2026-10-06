@@ -137,7 +137,7 @@ public sealed class FragmentEditState
             HostPresent = false,
             HostValue = "localhost",
             PortPresent = true,
-            PortValue = 9,
+            PortValue = 8080,
             PluginsPresent = true,
             PluginsText = "extra-plugin",
         };
