@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.FluentUI.AspNetCore.Components;
 using SparseFragments.Playground;
+using SparseFragments.Playground.Models;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -12,5 +13,6 @@ builder.Services.AddScoped(sp => new HttpClient
     BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
 });
 builder.Services.AddFluentUIComponents();
+builder.Services.AddScoped<PlaygroundThemeState>();
 
 await builder.Build().RunAsync();

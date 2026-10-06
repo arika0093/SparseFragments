@@ -20,7 +20,7 @@
     <div class="pg-row">
         <span class="pg-name">RetryCount <small>int</small></span>
         <div class="pg-controls">
-            <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
+            <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.RetryValue"
                 ValueChanged="@(async v => { State.RetryValue = v; await NotifyAsync(); })"
                 Disabled="@(State.RetryOp != PatchKind.Set)" />
@@ -36,7 +36,7 @@
     <div class="pg-row">
         <span class="pg-name">Label <small>string?</small></span>
         <div class="pg-controls">
-            <FluentTextField Placeholder="label text" Style="width: 100%; min-width: 0;"
+            <FluentTextField Placeholder="label text" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.LabelValue"
                 ValueChanged="@(async v => { State.LabelValue = v; await NotifyAsync(); })"
                 Disabled="@(State.LabelOp != NullPatchKind.Set)" />
@@ -66,7 +66,7 @@
             <div class="pg-row">
                 <span class="pg-name">Nested.Host <small>string</small></span>
                 <div class="pg-controls">
-                    <FluentTextField Placeholder="host" Style="width: 100%; min-width: 0;"
+                    <FluentTextField Placeholder="host" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.HostValue"
                         ValueChanged="@(async v => { State.HostValue = v; await NotifyAsync(); })"
                         Disabled="@(State.HostOp != PatchKind.Set)" />
@@ -81,7 +81,7 @@
             <div class="pg-row">
                 <span class="pg-name">Nested.Port <small>int</small></span>
                 <div class="pg-controls">
-                    <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
+                    <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.PortValue"
                         ValueChanged="@(async v => { State.PortValue = v; await NotifyAsync(); })"
                         Disabled="@(State.PortOp != PatchKind.Set)" />
@@ -99,7 +99,7 @@
     <div class="pg-row">
         <span class="pg-name">Plugins <small>whole value</small></span>
         <div class="pg-controls">
-            <FluentTextField Placeholder="comma separated" Style="width: 100%; min-width: 0;"
+            <FluentTextField Placeholder="comma separated" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.PluginsText"
                 ValueChanged="@(async v => { State.PluginsText = v; await NotifyAsync(); })"
                 Disabled="@(State.PluginsOp != PatchKind.Set)" />

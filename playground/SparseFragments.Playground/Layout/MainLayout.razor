@@ -1,5 +1,14 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.FluentUI.AspNetCore.Components
+@using SparseFragments.Playground.Models
+@inject PlaygroundThemeState ThemeState
+@implements IDisposable
+
+<FluentDesignTheme Mode="@ThemeState.Mode"
+    ModeChanged="@OnModeChanged"
+    StorageName="pg-theme"
+    OnLoaded="@OnThemeLoaded"
+    OnLuminanceChanged="@OnLuminanceChanged" />
 <div class="pg-shell">
     @Body
 </div>
@@ -8,3 +17,17 @@
 <FluentTooltipProvider />
 <FluentMessageBarProvider />
 <FluentMenuProvider />
+
+@code {
+    protected override void OnInitialized() => ThemeState.Changed += OnThemeStateChanged;
+
+    private void OnThemeStateChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnModeChanged(DesignThemeModes mode) => ThemeState.SetMode(mode);
+
+    private void OnThemeLoaded(LoadedEventArgs args) => ThemeState.SetLuminance(args.IsDark);
+
+    private void OnLuminanceChanged(LuminanceChangedEventArgs args) => ThemeState.SetLuminance(args.IsDark);
+
+    public void Dispose() => ThemeState.Changed -= OnThemeStateChanged;
+}

@@ -126,7 +126,18 @@ code {
 }
 
 .pg-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     margin: 0.5rem 0 1rem;
+    flex-wrap: wrap;
+}
+
+.pg-theme {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
 }
 
 .pg-grid {
@@ -158,12 +169,23 @@ code {
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .pg-card-head h3 {
     font-size: 1.05rem;
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pg-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .pg-row {
@@ -207,6 +229,10 @@ code {
     min-width: 10rem;
     font-weight: 600;
     overflow-wrap: anywhere;
+}
+
+.pg-name-check label {
+    font-weight: 600;
 }
 
 .pg-name-check small {
@@ -253,4 +279,40 @@ code {
 .pg-monaco-editor {
     width: 100%;
     height: 100%;
+}
+
+.pg-grid > .pg-fluent-card {
+    height: 100%;
+}
+
+.pg-stretch {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.pg-stretch .fluent-tabs {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pg-stretch .fluent-tabs > div[role="tabpanel"] {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pg-stretch .pg-monaco {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.pg-stretch .pg-monaco > .pg-monaco-editor {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
 }

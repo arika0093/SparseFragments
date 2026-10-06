@@ -1,6 +1,11 @@
 @using BlazorMonaco.Editor
+@using Microsoft.JSInterop
+@using SparseFragments.Playground.Models
+@inject PlaygroundThemeState ThemeState
+@inject IJSRuntime JS
+@implements IDisposable
 
-<div class="pg-monaco" style="height: @Height;">
+<div class="pg-monaco" style="@WrapperStyle">
     <StandaloneCodeEditor @ref="_editor"
         Id="@EditorId"
         ConstructionOptions="GetOptions"
@@ -22,7 +27,17 @@
     [Parameter]
     public string Height { get; set; } = "220px";
 
+    /// <summary>Gets or sets whether the editor fills the available card height.</summary>
+    [Parameter]
+    public bool Fill { get; set; }
+
     private string EditorId { get; } = $"monaco-{Guid.NewGuid():N}";
+
+    private string CurrentTheme => ThemeState.IsDark ? "vs-dark" : "vs";
+
+    private string WrapperStyle => Fill ? "height: 100%; min-height: 220px;" : $"height: {Height};";
+
+    protected override void OnInitialized() => ThemeState.Changed += OnThemeChanged;
 
     private StandaloneEditorConstructionOptions GetOptions(StandaloneCodeEditor editor)
     {
@@ -36,7 +51,7 @@
             Minimap = new EditorMinimapOptions { Enabled = false },
             ScrollBeyondLastLine = false,
             RenderLineHighlight = "all",
-            Theme = "vs",
+            Theme = CurrentTheme,
         };
     }
 
@@ -49,6 +64,24 @@
     protected override async Task OnParametersSetAsync()
     {
         await SyncValueAsync();
+    }
+
+    private void OnThemeChanged()
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("blazorMonaco.editor.setTheme", CurrentTheme);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        });
     }
 
     private async Task SyncValueAsync()
@@ -64,4 +97,6 @@
         _lastValue = Content;
         await _editor.SetValue(Content);
     }
+
+    public void Dispose() => ThemeState.Changed -= OnThemeChanged;
 }

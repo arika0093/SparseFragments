@@ -22,7 +22,7 @@
             RetryCount <small>int</small>
         </FluentCheckbox>
         <div class="pg-controls">
-            <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
+            <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.RetryValue"
                 ValueChanged="@(async v => { State.RetryValue = v; await NotifyAsync(); })"
                 Disabled="@(!State.RetryPresent)" />
@@ -36,11 +36,11 @@
             Label <small>string?</small>
         </FluentCheckbox>
         <div class="pg-controls">
-            <FluentTextField Placeholder="label text" Style="width: 100%; min-width: 0;"
+            <FluentTextField Placeholder="label text" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.LabelValue"
                 ValueChanged="@(async v => { State.LabelValue = v; await NotifyAsync(); })"
                 Disabled="@(State.LabelMode != NullPresence.Value)" />
-            <FluentCheckbox Label="null"
+            <FluentCheckbox Label="null" Style="margin-left: auto;"
                 Value="@IsLabelNull"
                 ValueChanged="@OnLabelNullChanged"
                 Disabled="@(!IsLabelPresent)" />
@@ -54,7 +54,7 @@
             Nested <small>nested model?</small>
         </FluentCheckbox>
         <div class="pg-controls">
-            <FluentCheckbox Label="null"
+            <FluentCheckbox Label="null" Style="margin-left: auto;"
                 Value="@IsNestedNull"
                 ValueChanged="@OnNestedNullChanged"
                 Disabled="@(!IsNestedPresent)" />
@@ -71,7 +71,7 @@
                     Nested.Host <small>string</small>
                 </FluentCheckbox>
                 <div class="pg-controls">
-                    <FluentTextField Placeholder="host" Style="width: 100%; min-width: 0;"
+                    <FluentTextField Placeholder="host" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.HostValue"
                         ValueChanged="@(async v => { State.HostValue = v; await NotifyAsync(); })"
                         Disabled="@(!State.HostPresent)" />
@@ -84,7 +84,7 @@
                     Nested.Port <small>int</small>
                 </FluentCheckbox>
                 <div class="pg-controls">
-                    <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
+                    <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.PortValue"
                         ValueChanged="@(async v => { State.PortValue = v; await NotifyAsync(); })"
                         Disabled="@(!State.PortPresent)" />
@@ -100,7 +100,7 @@
             Plugins <small>append list</small>
         </FluentCheckbox>
         <div class="pg-controls">
-            <FluentTextField Placeholder="comma separated" Style="width: 100%; min-width: 0;"
+            <FluentTextField Placeholder="comma separated" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.PluginsText"
                 ValueChanged="@(async v => { State.PluginsText = v; await NotifyAsync(); })"
                 Disabled="@(!State.PluginsPresent)" />

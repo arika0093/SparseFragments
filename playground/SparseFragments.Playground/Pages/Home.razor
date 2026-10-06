@@ -3,6 +3,7 @@
 @using SparseFragments
 @using SparseFragments.Playground.Models
 @using SparseFragments.Playground.Components
+@inject PlaygroundThemeState ThemeState
 
 <PageTitle>SparseFragments Playground</PageTitle>
 
@@ -16,6 +17,15 @@
 
 <div class="pg-toolbar">
     <FluentButton Appearance="Appearance.Accent" @onclick="ResetAll">Reset everything</FluentButton>
+    <div class="pg-theme">
+        <span>Theme</span>
+        <FluentSelect TOption="string"
+            Items="@ThemeNames"
+            OptionValue="@(v => v)"
+            OptionText="@(v => v)"
+            Value="@ThemeState.Mode.ToString()"
+            ValueChanged="@OnThemeChanged" />
+    </div>
 </div>
 
 <h2>1. Layers: merge <code>Lower</code> + <code>Higher</code></h2>
@@ -74,21 +84,34 @@
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Patch edits</h3>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+        <div class="pg-actions">
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="OpenImport">Import JSON Patch…</FluentButton>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetPatch">Reset</FluentButton>
-        </FluentStack>
+        </div>
     </div>
     <PatchEditor State="PatchState" OnChanged="Refresh" />
-    <h4 class="pg-code-label">Patch (C#)</h4>
-    <MonacoView Content="@PatchCSharp" Language="csharp" Height="220px" />
+    <FluentTabs>
+        <FluentTab Label="C#" Id="patch-csharp">
+            <MonacoView Content="@PatchCSharp" Language="csharp" Height="220px" />
+        </FluentTab>
+        <FluentTab Label="JSON Patch" Id="patch-json-patch">
+            <MonacoView Content="@ExportText" Language="json" Height="220px" />
+        </FluentTab>
+    </FluentTabs>
 </FluentCard>
 <div class="pg-grid">
-    <FluentCard Class="pg-fluent-card">
+    <FluentCard Class="pg-fluent-card pg-stretch">
         <div class="pg-card-head">
             <h3>Baseline (merged)</h3>
         </div>
-        <MonacoView Content="@MergedModelJson" Language="json" Height="200px" />
+        <FluentTabs>
+            <FluentTab Label="Model (C#)" Id="baseline-model-csharp">
+                <MonacoView Content="@MergedModelCSharp" Language="csharp" Fill="true" />
+            </FluentTab>
+            <FluentTab Label="Model (JSON)" Id="baseline-model-json">
+                <MonacoView Content="@MergedModelJson" Language="json" Fill="true" />
+            </FluentTab>
+        </FluentTabs>
     </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
@@ -103,9 +126,6 @@
             </FluentTab>
             <FluentTab Label="Diff Merged→Patched (JSON)" Id="patched-diff-json">
                 <MonacoView Content="@PatchDiffJson" Language="json" Height="260px" />
-            </FluentTab>
-            <FluentTab Label="JSON Patch" Id="patched-json-patch">
-                <MonacoView Content="@ExportText" Language="json" Height="260px" />
             </FluentTab>
         </FluentTabs>
     </FluentCard>
@@ -139,6 +159,8 @@
 </FluentDialog>
 
 @code {
+    private static readonly List<string> ThemeNames = Enum.GetNames<DesignThemeModes>().ToList();
+
     private FragmentEditState Lower = FragmentEditState.LowerDefaults();
     private FragmentEditState Higher = FragmentEditState.HigherDefaults();
     private PatchEditState PatchState = PatchEditState.Defaults();
@@ -179,6 +201,14 @@
     });
 
     private void Refresh() => StateHasChanged();
+
+    private void OnThemeChanged(string value)
+    {
+        if (Enum.TryParse<DesignThemeModes>(value, out var mode))
+        {
+            ThemeState.SetMode(mode);
+        }
+    }
 
     private void OnLayerTabChanged(string? id)
     {
