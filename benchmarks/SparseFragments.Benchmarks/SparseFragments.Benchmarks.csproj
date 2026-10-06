@@ -15,7 +15,7 @@
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"
-      ReferenceOutputAssembly="false"
+      ReferenceOutputAssembly="true"
     />
   </ItemGroup>
 </Project>
