@@ -76,6 +76,7 @@ public class LargeFragmentBenchmarks
     private BenchLargeRecord _modelOneChange = null!;
     private BenchLargeRecord _modelManyChanges = null!;
     private BenchLargeRecord.Fragment _fragment = null!;
+    private BenchLargeRecord.Fragment _fragmentManyChanges = null!;
     private BenchLargeRecord.Fragment _fragmentLower = null!;
     private BenchLargeRecord.Fragment _fragmentHigher = null!;
     private BenchLargeRecord.Fragment _diffOneChange = null!;
@@ -124,6 +125,7 @@ public class LargeFragmentBenchmarks
         _modelManyChanges = BuildModel(Size, 2);
 
         _fragment = BenchLargeRecord.Fragment.From(_model);
+        _fragmentManyChanges = BenchLargeRecord.Fragment.From(_modelManyChanges);
         _fragmentState = Optional<BenchLargeRecord.Fragment?>.Present(_fragment);
 
         _fragmentLower = BenchLargeRecord.Fragment.From(_model);
@@ -137,6 +139,18 @@ public class LargeFragmentBenchmarks
 
         _diffOneChange = BenchLargeRecord.Fragment.Diff(_model, _modelOneChange);
         _diffManyChanges = BenchLargeRecord.Fragment.Diff(_model, _modelManyChanges);
+        if (
+            !_diffManyChanges.Label.IsPresent
+            || !_diffManyChanges.Items.IsPresent
+            || !_diffManyChanges.Tags.IsPresent
+            || !_diffManyChanges.Scores.IsPresent
+        )
+        {
+            throw new InvalidOperationException(
+                "The many-change diff fixture must contain each changed member."
+            );
+        }
+
         _patchManyChanges = BenchLargeRecord.Patch.Between(
             Optional<BenchLargeRecord.Fragment?>.Present(
                 BenchLargeRecord.Fragment.From(_model)
@@ -179,9 +193,7 @@ public class LargeFragmentBenchmarks
     public BenchLargeRecord.Patch PatchBetween_ManyChanges() =>
         BenchLargeRecord.Patch.Between(
             _fragmentState,
-            Optional<BenchLargeRecord.Fragment?>.Present(
-                BenchLargeRecord.Fragment.From(_modelManyChanges)
-            )
+            Optional<BenchLargeRecord.Fragment?>.Present(_fragmentManyChanges)
         );
 }
 
