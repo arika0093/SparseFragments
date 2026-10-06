@@ -46,7 +46,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Model '{0}' must be declared partial",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf001-sparse-fragment-model-must-be-partial"
     );
     private static readonly DiagnosticDescriptor UnsupportedModel = new(
         SparseDiagnosticIds.UnsupportedModel,
@@ -54,7 +55,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Model '{0}' must be a top-level, non-generic, non-abstract class or struct",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf002-unsupported-sparse-fragment-model"
     );
     private static readonly DiagnosticDescriptor MissingConstructor = new(
         SparseDiagnosticIds.MissingConstructor,
@@ -62,7 +64,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Class model '{0}' must have a parameterless constructor or a constructor whose parameters match public readable properties by name and type; a setter, when present, must be public",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf003-model-needs-a-supported-constructor"
     );
     private static readonly DiagnosticDescriptor InvalidMergeStrategy = new(
         SparseDiagnosticIds.InvalidMergeStrategy,
@@ -70,7 +73,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Merge strategy for member '{0}' must derive from FragmentMergeStrategy<TMember> and be a concrete, accessible type",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf004-invalid-custom-merge-strategy"
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
         SparseDiagnosticIds.UnsupportedMerge,
@@ -78,7 +82,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "The configured merge mode is not supported for member '{0}'",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf005-unsupported-merge-mode"
     );
     private static readonly DiagnosticDescriptor UnsupportedStructural = new(
         SparseDiagnosticIds.UnsupportedStructural,
@@ -86,7 +91,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Member '{0}' has an unsupported structural type; provide a supported public constructor and properties, decorate it as a fragment model, or explicitly select MergeMode.Replace",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf007-unsupported-structural-member-construction"
     );
     private static readonly DiagnosticDescriptor UnsupportedClone = new(
         SparseDiagnosticIds.UnsupportedClone,
@@ -94,7 +100,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Member '{0}' has a reference shape that cannot be deeply cloned safely (unsupported type or constructor-bound cycle); use a supported structural type or collection, or explicitly mark a reference-safe property with SparseCloneReferenceSafe",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf008-unsupported-deep-clone-member"
     );
 
     private static readonly DiagnosticDescriptor GeneratedNameCollision = new(
@@ -103,7 +110,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Member '{0}' conflicts with a name reserved by the generated JSON Patch API",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf009-member-conflicts-with-generated-json-patch-api"
     );
 
     private static readonly DiagnosticDescriptor UnsupportedRequired = new(
@@ -112,7 +120,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Required member '{0}' must be represented by an accessible public property in the fragment construction plan",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf006-required-member-cannot-be-constructed"
     );
 
     private static readonly DiagnosticDescriptor IncompatiblePromotedModel = new(
@@ -121,7 +130,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Promoted model '{0}' requires incompatible generated semantics from different roots",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf010-incompatible-promoted-fragment-model"
     );
 
     /// <inheritdoc />
