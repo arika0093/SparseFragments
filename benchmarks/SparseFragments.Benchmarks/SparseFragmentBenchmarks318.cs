@@ -1,29 +1,3 @@
-// Focused SparseFragments benchmarks for issue #318.
-//
-// Covers the representative operations named in the issue on a small but
-// realistic model (scalars, nested model, appended collection):
-// sparse construction, Fragment.From, shallow merge, nested merge,
-// diff, patch apply, and deep clone.
-//
-// Baselines are intentionally modest: straightforward hand-written merge and
-// deep-clone implementations over plain models, plus a minimal
-// reflection-based deep clone. They exist to establish realistic cost and
-// allocation profiles, not to manufacture a favorable comparison.
-//
-// All groups use MemoryDiagnoser so results include throughput/time (Mean)
-// and allocations (Allocated plus Gen0/Gen1/Gen2) where applicable.
-// This group is for local measurement only; it is not a CI performance gate.
-//
-// Run locally in Release mode:
-//
-//   dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --filter '*SparseFragmentBenchmarks318*'
-//
-// Fast smoke check (numbers are not publishable):
-//
-//   dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --filter '*SparseFragmentBenchmarks318*' --job dry
-//
-// Compare within the same machine, runtime, power mode, and configuration.
-// Do not transcribe BenchmarkDotNet numbers into unit-test thresholds.
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
 
