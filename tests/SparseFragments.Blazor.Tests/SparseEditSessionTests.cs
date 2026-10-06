@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace SparseFragments.Extensions.Blazor.Tests;
+namespace SparseFragments.Blazor.Tests;
 
 public sealed class SparseEditSessionTests
 {

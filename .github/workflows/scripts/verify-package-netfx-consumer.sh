@@ -19,7 +19,7 @@ if [[ -z "${package_directory}" ]]; then
 fi
 
 # The core glob pins the version digit so the Blazor package
-# (SparseFragments.Extensions.Blazor.*.nupkg) never resolves here.
+# (SparseFragments.Blazor.*.nupkg) never resolves here.
 package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseFragments package found in '${package_directory}'." >&2

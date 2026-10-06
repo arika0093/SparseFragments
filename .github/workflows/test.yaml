@@ -229,12 +229,12 @@ jobs:
         # NOTE: no --no-build/--no-restore here. This job never restores the
         # test projects, so let pack restore/build itself instead.
         # Two packages ship (#46): SparseFragments and
-        # SparseFragments.Extensions.Blazor. Generator.Shared is an
+        # SparseFragments.Blazor. Generator.Shared is an
         # internal-only source directory and is never packed (#21).
         run: >
           dotnet pack src/SparseFragments/SparseFragments.csproj
           --configuration Release --output artifacts &&
-          dotnet pack src/SparseFragments.Extensions.Blazor/SparseFragments.Extensions.Blazor.csproj
+          dotnet pack src/SparseFragments.Blazor/SparseFragments.Blazor.csproj
           --configuration Release --output artifacts
 
       - name: Verify packed target assets

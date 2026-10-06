@@ -3,7 +3,7 @@
 # IDs, target assets, and analyzer/build assets that packing can silently omit.
 #
 # Two packages ship (#46): SparseFragments (core runtime + generator analyzer)
-# and SparseFragments.Extensions.Blazor (Blazor edit sessions).
+# and SparseFragments.Blazor (Blazor edit sessions).
 # Generator.Shared is an internal-only source directory and is never packed
 # (#21). The Blazor package intentionally ships no README: it opts out of the
 # inherited PackageReadmeFile (#37), so verification asserts the nupkg neither
@@ -26,7 +26,7 @@ fi
 # Each shipped package must carry every asset in the target policy.
 declare -A portable_package_assets=(
     [SparseFragments]="netstandard2.0"
-    [SparseFragments.Extensions.Blazor]="net8.0 net10.0"
+    [SparseFragments.Blazor]="net8.0 net10.0"
 )
 
 expected_package_ids=(
@@ -111,9 +111,9 @@ for package_file in "${package_files[@]}"; do
             require_entry 'lib/netstandard2.0/SparseFragments.dll'
             require_readme 'README.md'
             ;;
-        SparseFragments.Extensions.Blazor)
-            require_entry 'lib/net8.0/SparseFragments.Extensions.Blazor.dll'
-            require_entry 'lib/net10.0/SparseFragments.Extensions.Blazor.dll'
+        SparseFragments.Blazor)
+            require_entry 'lib/net8.0/SparseFragments.Blazor.dll'
+            require_entry 'lib/net10.0/SparseFragments.Blazor.dll'
             require_no_readme
             require_dependency 'SparseFragments'
             ;;

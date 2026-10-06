@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SparseFragments.Extensions.Blazor.Tests;
+namespace SparseFragments.Blazor.Tests;
 
 [SparseFragmentModel]
 public partial class OrderLine

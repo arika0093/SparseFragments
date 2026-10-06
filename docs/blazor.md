@@ -1,6 +1,6 @@
 # Blazor Integration
 
-The `SparseFragments.Extensions.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic patches. The workflow centers on the generated `CreateEditSession()` method and the `SparseEditSession` type.
+The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic patches. The workflow centers on the generated `CreateEditSession()` method and the `SparseEditSession` type.
 
 Related pages: [Patch rebase](rebase.md) (for applications implementing concurrent editing), [Keyed collections](keyed-collections.md), [Model shapes](model-shapes.md).
 

@@ -273,7 +273,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             .CompilationProvider.Select(
                 static (compilation, _) =>
                     compilation.ReferencedAssemblyNames.Any(static name =>
-                        name.Name == "SparseFragments.Extensions.Blazor"
+                        name.Name == "SparseFragments.Blazor"
                     )
             )
             .WithComparer(EqualityComparer<bool>.Default)

@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>SparseFragments.Extensions.Blazor.Tests</RootNamespace>
-    <AssemblyName>SparseFragments.Extensions.Blazor.Tests</AssemblyName>
+    <RootNamespace>SparseFragments.Blazor.Tests</RootNamespace>
+    <AssemblyName>SparseFragments.Blazor.Tests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/SparseFragments.Extensions.Blazor/SparseFragments.Extensions.Blazor.csproj" />
+    <ProjectReference Include="../../src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
@@ -19,6 +19,6 @@
   <ItemGroup>
     <Using Include="Shouldly" />
     <Using Include="SparseFragments" />
-    <Using Include="SparseFragments.Extensions.Blazor" />
+    <Using Include="SparseFragments.Blazor" />
   </ItemGroup>
 </Project>

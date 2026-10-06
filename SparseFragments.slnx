@@ -1,13 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SparseFragments/SparseFragments.csproj" />
-    <Project Path="src/SparseFragments.Extensions.Blazor/SparseFragments.Extensions.Blazor.csproj" />
+    <Project Path="src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
     <Project Path="src/SparseFragments.Generator/SparseFragments.Generator.csproj" />
     <Project Path="src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
-    <Project Path="tests/SparseFragments.Extensions.Blazor.Tests/SparseFragments.Extensions.Blazor.Tests.csproj" />
+    <Project Path="tests/SparseFragments.Blazor.Tests/SparseFragments.Blazor.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
     <Project Path="tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj" />
   </Folder>

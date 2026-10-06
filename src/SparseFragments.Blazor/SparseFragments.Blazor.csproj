@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <AssemblyName>SparseFragments.Extensions.Blazor</AssemblyName>
-    <RootNamespace>SparseFragments.Extensions.Blazor</RootNamespace>
+    <AssemblyName>SparseFragments.Blazor</AssemblyName>
+    <RootNamespace>SparseFragments.Blazor</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageDescription>Blazor edit sessions for SparseFragments with semantic change tracking.</PackageDescription>
     <PackageTags>blazor;forms;patch;dotnet</PackageTags>

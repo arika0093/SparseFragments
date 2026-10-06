@@ -206,7 +206,7 @@ Round-tripping holds semantically: re-importing the export onto the same baselin
 
 * **Keyed collections.** Sequences of structural elements with stable identity (`[SparseKey]`) patch by element — add/remove/edit/reorder — instead of replacing the whole list. See [Keyed collections](docs/keyed-collections.md).
 * **Patch rebase.** Replay a patch authored against an older state onto a newer one; irreconcilable edits come back as structured conflicts. See [Patch rebase](docs/rebase.md).
-* **Blazor forms.** The `SparseFragments.Extensions.Blazor` package derives semantic patches from baseline-versus-current comparison behind an ordinary `EditForm`. See [Blazor](docs/blazor.md).
+* **Blazor forms.** The `SparseFragments.Blazor` package derives semantic patches from baseline-versus-current comparison behind an ordinary `EditForm`. See [Blazor](docs/blazor.md).
 
 ## Documentation
 
@@ -234,7 +234,7 @@ Every generated class model also nests an `Observable` proxy (`new OrderDto.Obse
 ## Packages and Compatibility
 
 * `SparseFragments` — core package (runtime `netstandard2.0`; samples verified on `net8.0` / `net10.0`).
-* `SparseFragments.Extensions.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
+* `SparseFragments.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
 
 Try it live: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
 
