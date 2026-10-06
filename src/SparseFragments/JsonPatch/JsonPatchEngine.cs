@@ -158,7 +158,7 @@ internal static class JsonPatchEngine
         List<JsonPatchOperation> ops
     )
     {
-        if (JsonNode.DeepEquals(before, after))
+        if (RfcJsonEquality.AreEqual(before, after))
         {
             return;
         }
@@ -421,6 +421,18 @@ internal static class JsonPatchEngine
         StringComparison propertyNameComparison
     )
     {
+        // RFC 6902 section 4.6: the 'from' location MUST NOT be a proper prefix of 'path'.
+        if (
+            fromTokens.Length < pathTokens.Length
+            && (fromTokens.Length == 0 || IsTokenPrefix(fromTokens, pathTokens))
+        )
+        {
+            throw new JsonPatchException(
+                JsonPatchErrorKind.MalformedPointer,
+                $"JSON Patch move 'from' location '{from}' must not be a proper prefix of '{path}'."
+            );
+        }
+
         var value = ReadValue(current, isAbsent, from, fromTokens, propertyNameComparison);
         // Remove first so array indices shift per RFC semantics.
         ApplyRemove(ref current, ref isAbsent, from, fromTokens, propertyNameComparison);
@@ -474,7 +486,7 @@ internal static class JsonPatchEngine
     )
     {
         var actual = ReadValue(current, isAbsent, path, tokens, propertyNameComparison);
-        if (!JsonNode.DeepEquals(actual, expected))
+        if (!RfcJsonEquality.AreEqual(actual, expected))
         {
             throw new JsonPatchException(
                 JsonPatchErrorKind.TestFailed,
@@ -779,6 +791,19 @@ internal static class JsonPatchEngine
                     $"Cannot replace '{path}' because its target does not exist."
                 );
         }
+    }
+
+    private static bool IsTokenPrefix(string[] prefix, string[] tokens)
+    {
+        for (var index = 0; index < prefix.Length; index++)
+        {
+            if (!string.Equals(prefix[index], tokens[index], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static int ParseIndex(string token, string path)
