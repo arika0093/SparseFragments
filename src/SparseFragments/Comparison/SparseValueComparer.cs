@@ -92,9 +92,9 @@ internal static class SparseValueComparer
 
         var leftDictionary = AsDictionary(left);
         var rightDictionary = AsDictionary(right);
-        if (leftDictionary is not null && rightDictionary is not null)
+        if (leftDictionary is { } leftView && rightDictionary is { } rightView)
         {
-            if (leftDictionary.Count != rightDictionary.Count)
+            if (leftView.Count != rightView.Count)
             {
                 return false;
             }
@@ -108,10 +108,10 @@ internal static class SparseValueComparer
                     return false;
                 }
 
-                return leftDictionary.ContainsAll(right);
+                return leftView.ContainsAll(right);
             }
 
-            return leftDictionary.ContainsAll(right) && rightDictionary.ContainsAll(left);
+            return leftView.ContainsAll(right) && rightView.ContainsAll(left);
         }
 
         return PairSequenceEquals(left.ToArray(), right.ToArray());
@@ -134,7 +134,7 @@ internal static class SparseValueComparer
         return null;
     }
 
-    private sealed class DictionaryView<TKey, TValue>
+    private readonly struct DictionaryView<TKey, TValue>
     {
         private readonly IReadOnlyDictionary<TKey, TValue>? _readOnly;
 
@@ -150,13 +150,26 @@ internal static class SparseValueComparer
         {
             foreach (var pair in entries)
             {
-                if (!TryGetValue(pair.Key, out var value) || !AreEqual(value, pair.Value))
+                if (
+                    !TryGetValue(pair.Key, out var value)
+                    || !AreDictionaryValuesEqual(value, pair.Value)
+                )
                 {
                     return false;
                 }
             }
 
             return true;
+        }
+
+        private static bool AreDictionaryValuesEqual(TValue left, TValue right)
+        {
+            // Avoid boxing common value types for every dictionary entry. Enumerable
+            // structs still use the structural comparison path to preserve semantics.
+            return
+                typeof(TValue).IsValueType && !typeof(IEnumerable).IsAssignableFrom(typeof(TValue))
+                ? EqualityComparer<TValue>.Default.Equals(left, right)
+                : AreEqual((object?)left, (object?)right);
         }
 
         private bool TryGetValue(TKey key, out TValue value)
