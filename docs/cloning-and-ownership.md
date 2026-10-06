@@ -1,8 +1,6 @@
 # Cloning and Ownership
 
-Most SparseFragments operations are cheap because they *share* references instead of copying. This page documents exactly which operations share and which snapshot, so callers know who owns mutation discipline. The rule of thumb: **assignment shares; construction from a model snapshots.**
-
-Related pages: [Model shapes](model-shapes.md) (which types participate), [Merge strategies](merge-strategies.md), [Keyed collections](keyed-collections.md).
+Assignment shares references; construction from a model snapshots. The table below is the complete rule set — callers own mutation discipline for shared references.
 
 ## Operation / Ownership Table
 
@@ -15,7 +13,7 @@ Related pages: [Model shapes](model-shapes.md) (which types participate), [Merge
 | `Patch.Apply` | Shares: the result aliases the patch's assigned values |
 | `ApplyChanges` | Shares (same rule as `Merge`/`Apply`) |
 | `ToModel` | Shares: the model aliases fragment member references |
-| `DeepClone` | Snapshots: fully independent graph |
+| `DeepClone` | Snapshots, except members marked `[SparseCloneReferenceSafe]`, which stay shared |
 | Whole-contribution `Set(model)` | Snapshots (goes through `From`) |
 | JSON Patch import | Snapshots (freshly deserialized values) |
 | Granular keyed-collection edits | New container, shared element references |
@@ -34,7 +32,7 @@ The original fragment is never mutated (`Apply` builds a new one), but the patch
 
 ## `DeepClone`
 
-`DeepClone` structurally clones supported models and fragments into a fully independent graph:
+`DeepClone` structurally clones supported models and fragments. Members marked `[SparseCloneReferenceSafe]` are carried over by reference; everything else becomes independent:
 
 ```csharp
 var clone = original.ToModel().DeepClone();  // or fragment.DeepClone()
@@ -62,9 +60,6 @@ Not every operation accepts cyclic object graphs:
 
 * `Fragment.From` and `Fragment.Diff` do **not** support cyclic object graphs. Shared (non-cyclic) references are allowed, but a cycle throws `NotSupportedException` naming the member path instead of overflowing the stack.
 * `DeepClone` **does** support cycles and preserves shared references, as described above.
+* Granular keyed-collection edits allocate a new container but still share element references; clone elements (or the whole graph via `DeepClone`) when the result must be independent.
 
 Keep graphs acyclic at the `From`/`Diff` boundary; clone freely once inside fragment state.
-
-## Keyed-Collection Ownership
-
-Granular keyed-collection edits allocate a new container but still share element references: after applying a keyed patch, the resulting list instance is fresh, while untouched elements alias the same element instances as before. Clone elements (or the whole graph via `DeepClone`) when the result must be fully independent. See [Keyed collections](keyed-collections.md).

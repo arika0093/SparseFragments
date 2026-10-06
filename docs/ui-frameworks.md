@@ -1,9 +1,6 @@
 # UI Framework Integration
 
-SparseFragments stays UI-agnostic: the patch always comes from comparing a retained
-baseline against the current model, never from UI change tracking. The UI binding
-mechanism is not the source of truth for patch generation, which is what makes
-nested edits, collection add/remove/reorder, and edit-then-restore behave correctly.
+SparseFragments derives a patch from a retained baseline and the current model. UI change tracking is used for binding/validation, not as the source of patch semantics.
 
 ```csharp
 var baseline = WidgetDto.Fragment.From(model); // snapshot, isolated copy
@@ -11,20 +8,9 @@ var baseline = WidgetDto.Fragment.From(model); // snapshot, isolated copy
 var patch = WidgetDto.Patch.Between(baseline, WidgetDto.Fragment.From(model));
 ```
 
-No framework-specific SparseFragments package is needed except for Blazor, whose
-editing model is centered on `EditContext`. Future framework integrations follow the
-`SparseFragments.<Framework>` naming convention.
-
 ## Blazor
 
-The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor
-forms and SparseFragments semantic patches. The workflow centers on the generated
-`CreateEditSession()` method and the `SparseEditSession` type.
-
-Reference the package; `CreateEditSession()` is then generated for each
-`[SparseFragmentModel]` class (projects without the reference generate byte-identical
-output). Create a session from the model and bind its `EditContext` to an ordinary
-`EditForm`:
+The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic patches through the generated `CreateEditSession()` method and the `SparseEditSession` type. Create a session from the model and bind its `EditContext` to an ordinary `EditForm`:
 
 ```csharp
 var session = order.CreateEditSession();
@@ -46,13 +32,7 @@ Bind the **original editable model `T`** to the `EditContext`:
 var editContext = new EditContext(model);
 ```
 
-Do not make the generated `T.Observable` proxy the `EditContext.Model`:
-
-- Blazor field tracking and validation are based on `EditContext`, `FieldIdentifier`,
-  and the actual model/property metadata;
-- DataAnnotations and other model metadata keep applying to `T`;
-- `INotifyPropertyChanged` is not the primary Blazor form-change mechanism;
-- the semantic patch still comes from baseline/current `T`, not from modified fields.
+Do not use the generated `T.Observable` proxy as `EditContext.Model`: Blazor field tracking and validation run on `EditContext`/`FieldIdentifier` and model metadata, so `DataAnnotations` keep applying to `T`, while the semantic patch still comes from baseline/current `T`.
 
 The session API:
 
@@ -106,20 +86,11 @@ session.EditContext.OnValidationRequested += (sender, _) =>
 };
 ```
 
-Server-side or conflict errors obtained elsewhere (for example structured rebase
-conflicts — see [Patch rebase](rebase.md)) can be surfaced the same way via
-`AddValidationError` without taking a dependency on HTTP transport.
-
-Boundaries: the package depends only on SparseFragments and Blazor forms
-abstractions; it defines no HTTP transport, ETag, or concurrency protocols
-(combine `CreatePatch()` with [Patch rebase](rebase.md) for concurrent editing).
-The model type must be a reference type.
+Errors obtained elsewhere (for example structured rebase conflicts) surface the same way via `AddValidationError`. The model type must be a reference type.
 
 ## WPF / WinForms / .NET MAUI / WinUI / Avalonia
 
-These frameworks bind the generated `T.Observable` proxy. It implements
-`INotifyPropertyChanged` over the live model instance with no extra runtime
-dependency:
+These frameworks bind the generated `T.Observable` proxy: an `INotifyPropertyChanged` adapter over the live `T` instance with no extra runtime dependency. Scalar members notify only on real change; nested models surface as cached child proxies that propagate to the root callback; replacing a nested member rebuilds its proxy; collections notify on replacement.
 
 ```csharp
 var baseline = WidgetDto.Fragment.From(model);
@@ -127,21 +98,10 @@ var observable = new WidgetDto.Observable(model, onChanged: () => HasUnsavedChan
 
 // bind the UI to `observable`; edits flow into the same live `model`
 observable.Title = "New title";
+observable.PropertyChanged += (_, args) => Console.WriteLine(args.PropertyName);
 
 var uiPatch = WidgetDto.Patch.Between(baseline, WidgetDto.Fragment.From(model));
 ```
-
-Responsibility split:
-
-- `T.Observable` — UI change notification and binding;
-- underlying `T` — the actual editable state;
-- baseline versus current `T` — the SparseFragments patch.
-
-Scalar members notify only on real change; nested models surface as cached child
-proxies that propagate to the root callback; replacing a nested member rebuilds its
-proxy; collections notify on replacement. Keyed collection add/remove/reorder still
-flows through `Patch.Between` with `SparseKey` semantics (see
-[Keyed collections](keyed-collections.md)).
 
 ### WPF example
 
@@ -154,6 +114,4 @@ flows through `Patch.Between` with `SparseKey` semantics (see
 DataContext = new WidgetDto.Observable(model, () => SaveCommand.NotifyCanExecuteChanged());
 ```
 
-The same shape works for WinForms (`INotifyPropertyChanged` binding), .NET MAUI,
-WinUI, and Avalonia: set the binding context to the observable and keep patching
-on the underlying model.
+The same shape works for WinForms (`INotifyPropertyChanged` binding), .NET MAUI, WinUI, and Avalonia: set the binding context to the observable and keep patching on the underlying model.

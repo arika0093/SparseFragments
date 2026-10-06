@@ -1,8 +1,6 @@
 # Merge Strategies
 
-`Merge` overlays a higher-priority fragment onto a lower-priority one: only *present* members override, while *missing* members keep the lower layer's values. `[SparseMerge]` selects the per-member algebra used when both layers carry a value. The defaults already cover the common cases — reach for this page only when a member needs its own algebra.
-
-Related pages: [Patch rebase](rebase.md) (the `TryRebase` hook and conflict model), [Keyed collections](keyed-collections.md), [Diagnostics](analyzer.md) (`SPF004`, `SPF005`).
+`Merge` overlays a higher-priority fragment onto a lower-priority one: only *present* members override, while *missing* members keep the lower layer's values. `[SparseMerge]` selects the per-member algebra used when both layers carry a value.
 
 ## Built-in Modes
 
@@ -37,7 +35,7 @@ Applicability constraints (enforced at generation time, `SPF005`):
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the default element-wise behavior either: they must declare identity (see [Keyed collections](keyed-collections.md)) or explicitly select `Append`, `SetUnion`, or a custom strategy (`SPF011`).
+Structural sequences without a key cannot use the default element-wise behavior either: they must declare identity or explicitly select `Append`, `SetUnion`, or a custom strategy (`SPF011`).
 
 ### `Append`
 
@@ -49,7 +47,7 @@ Present collections combine as an insertion-ordered set union: lower-priority en
 
 ## Custom Strategies
 
-A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional capability with a well-defined default — override it only when the member needs its own three-way reconciliation (contract details in [Patch rebase](rebase.md)).
+A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [Patch rebase](rebase.md)).
 
 ```csharp
 public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>

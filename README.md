@@ -2,9 +2,7 @@
 
 *Typed partial state for C#.*
 
-Distinguish missing, null, and values. Generate fragments, merge, diff, and typed patches from ordinary POCOs at compile time.
-
-Annotate a partial class with `[SparseFragmentModel]`, and the generator emits a typed **Fragment** — a presence-aware view where each member tracks whether it was specified — plus merge, semantic diff, and typed patch operations over that partial state.
+Annotate a partial POCO with `[SparseFragmentModel]` and the generator emits a presence-aware **Fragment** — each member tracks whether it was specified — plus `Merge`, `Diff`, and typed `Patch` operations over that partial state.
 
 Try it live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
 
@@ -12,14 +10,14 @@ Try it live in the browser: [*SparseFragments Playground*](https://arika0093.git
 
 Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`". That distinction matters as soon as data is layered: higher-priority sources must override only what they actually set, while an explicit `null` must win over a lower layer's value and a missing member must fall through.
 
-Hand-writing this per model is boilerplate-heavy and error-prone, and reflection-based solutions sacrifice startup performance and AOT/trim compatibility. SparseFragments generates it from your POCOs at compile time.
+Hand-writing this per model is boilerplate-heavy and error-prone. SparseFragments generates it from your POCOs at compile time with no runtime reflection, keeping startup cost flat and the output trim/AOT-friendly.
 
-## Is This For You?
+## When to Use It
 
-All of these are uses of the same typed partial state: keep an edit, override, or delta as a `Fragment`/`Patch` that remembers what was specified, then combine it with `Merge`, `Diff`, or `Apply`.
+Each scenario below keeps an edit, override, or delta as a `Fragment`/`Patch` that remembers what was specified, then combines it with `Merge`, `Diff`, or `Apply`:
 
 * **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered `Merge` produces the effective state.
-* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents — no reflection involved.
+* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents.
 * **Minimal persisted settings.** `Diff` the current settings against the defaults and persist only the resulting fragment.
 * **Edit sessions and dirty tracking.** Accumulate user edits in a `Patch`, check `IsEmpty`, apply for a preview, or drop to cancel. The original model is never mutated.
 
@@ -59,9 +57,9 @@ public partial class Child
 
 Reachable partial nested types (like `Child` here) automatically receive generated Fragment/Patch APIs. See [Model shapes](docs/model-shapes.md) for the full rules.
 
-### 2. The three states of `Optional<T>`
+### 2. Missing, null, and values
 
-At the heart of SparseFragments is `Optional<T>` — *missing*, *present null*, and *present value*:
+`Optional<T>` carries the three states — *missing*, *present null*, and *present value*:
 
 ```csharp
 Optional<string?> a = Optional<string?>.Missing;       // not specified (IsPresent == false)
@@ -88,34 +86,17 @@ defaults.Merge(clearsLabel).ToModel().Label; // null (explicit null wins)
 defaults.Merge(saysNothing).ToModel().Label; // "fallback" (missing falls through)
 ```
 
-### 3. Create fragments
-
-There are two ways to create a fragment:
-
-```csharp
-// (a) From a whole model — every member becomes present
-var full = Settings.Fragment.From(new Settings { Label = "base" });
-
-// (b) Sparse construction — only the members you set become present
-var sparse = new Settings.Fragment { Label = "base" };
-sparse.IsEmpty; // false
-```
-
-Option (b) is the core of SparseFragments: a minimal *contribution* whose unspecified members fall through to lower layers.
-
-### 4. Merge layered contributions
+### 3. Merge layered contributions
 
 `Merge` overlays a higher-priority fragment onto a lower-priority one. Only *present* members override; *missing* members keep the lower layer's values.
 
 ```csharp
-// A full model as the base layer.
 var lower = Settings.Fragment.From(new Settings
 {
     Label = "base",
     Child = new Child { Host = "db.local" },
     Plugins = ["base-plugin"],
 });
-// A sparse fragment carrying only what this layer overrides.
 var higher = new Settings.Fragment
 {
     Child = new Child.Fragment { Count = 9 },          // Host falls through to the lower layer
@@ -131,7 +112,7 @@ var merged = lower.Merge(higher).ToModel();
 
 Per-member rules (`Replace` / `Deep` / `Append` / `SetUnion`, or your own strategy) are covered in [Merge strategies](docs/merge-strategies.md).
 
-### 5. Diff and patch
+### 4. Diff and patch
 
 `Diff` captures the minimal delta between two states; a `Patch` represents "changes to apply to one layer".
 
@@ -162,45 +143,21 @@ toNull.Child.SetNull();                                        // explicit null,
 
 `Patch.IsEmpty` tells you at a glance whether the patch changes anything at all.
 
-### 6. Build and clone
+### 5. Beyond the basics
 
-Builders and `DeepClone` work around the same partial state when you need an edited copy or an isolated graph:
-
-```csharp
-var builder = original.ToBuilder();
-builder.Label = Optional<string?>.Missing;                     // copy without this member
-var edited = builder.Build();
-
-var clone = original.ToModel().DeepClone();                    // fully independent graph
-clone.Child!.Count = 42;                                       // original.Child.Count is still 7
-```
-
-Patch assignment shares references by default; `Fragment.From`, `DeepClone`, whole-contribution `Set(model)`, and JSON Patch import snapshot instead. Details: [Clone & ownership](docs/cloning-and-ownership.md).
-
-### 7. Exchange patches as JSON Patch
-
-Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document with the built-in `FromJsonPatch` / `ToJsonPatch` bridge:
+Builders, cloning, and the JSON Patch bridge follow the same partial state; the linked guides carry the full behavior:
 
 ```csharp
-using System.Text;
-using SparseFragments;
+var edited = original.ToBuilder().Build();                     // edited copy via the builder
+var clone = original.ToModel().DeepClone();                    // isolated graph (see Clone & ownership)
 
 var baseline = new Settings.Fragment { Label = "base" };
-var document = Encoding.UTF8.GetBytes(
-    """[{"op":"replace","path":"/Label","value":"patched"}]""");
-
-var patch = Settings.Patch.FromJsonPatch(
-    Optional<Settings.Fragment?>.Present(baseline),
-    document);
-
-var updated = baseline.Apply(patch);
-// updated.Label == "patched"
-
 var baselineOpt = Optional<Settings.Fragment?>.Present(baseline);
-var exported = patch.ToJsonPatch(baselineOpt); // ReadOnlyMemory<byte>, UTF-8 JSON
+var jsonPatch = Settings.Patch.FromJsonPatch(                  // RFC 6902 import (see JSON Patch)
+    baselineOpt,
+    System.Text.Encoding.UTF8.GetBytes("""[{"op":"replace","path":"/Label","value":"patched"}]"""));
+var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory<byte>, UTF-8 JSON
 ```
-
-Round-tripping holds semantically: re-importing the export onto the same baseline produces the same fragment. Pointers, options, NativeAOT setup, and typed failures are covered in [JSON Patch](docs/json-patch.md).
 
 ## Documentation
 
@@ -220,18 +177,6 @@ Round-tripping holds semantically: re-importing the export onto the same baselin
 * `SparseFragments` — core package (runtime `netstandard2.0`). Packed-package consumers are verified on `net48` (Windows-only execution), `net8.0`, and `net10.0`; the lowest compile-time surface is additionally covered by the `netstandard2.0` consumer. Framework support implied by the TFM is distinct from these executed environments.
 * `SparseFragments.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
 
-Try it live: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
-
 ## License
 
-This project is licensed under the Apache-2.0 License.
-
-```
-Copyright 2026- arika0093
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-```
+Licensed under the Apache-2.0 License — see [LICENSE](LICENSE).

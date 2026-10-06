@@ -1,16 +1,12 @@
 # JSON Patch
 
-The generated `Patch.FromJsonPatch` / `ToJsonPatch` bridge converts between typed patches and standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON Patch documents. It is a **process-boundary interoperability format**: accept JSON Patch at the edge (HTTP PATCH endpoints, other services, stored JSON), work with it as a typed semantic patch in-process, and export it back out. In-process code should normally use the typed generated patch API directly.
+The generated `Patch.FromJsonPatch` / `ToJsonPatch` bridge converts between typed patches and standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON Patch documents. Accept JSON Patch at the process boundary (HTTP PATCH endpoints, other services, stored JSON), work with it as a typed semantic patch in-process, and export it back out. In-process code should normally use the typed generated patch API directly; everything else — merge, diff, apply, rebase, edit sessions — operates on typed fragments and patches without JSON involved.
 
-Related pages: [Keyed collections](keyed-collections.md) (keyed vs positional identity), [Clone & ownership](cloning-and-ownership.md) (import snapshotting), [Model shapes](model-shapes.md).
-
-## When to Use the Bridge
+Typical boundary uses:
 
 * Accepting standard JSON Patch documents from clients that know nothing about SparseFragments.
 * Sending minimal change documents to non-.NET consumers.
 * Storing or logging changes as portable JSON.
-
-Everything else — merge, diff, apply, rebase, edit sessions — operates on typed fragments and patches without JSON involved.
 
 ## Import a JSON Patch Document
 
@@ -42,7 +38,7 @@ The baseline is presence-aware, so the mapping is exact:
 
 An overload taking a present `Fragment` directly (`FromJsonPatch(baseline, document, options)`) covers the common case. If a model happens to declare members named `FromJsonPatch` / `ToJsonPatch`, the bridge is emitted with a `Sparse` prefix instead (`SparseFromJsonPatch` / `SparseToJsonPatch`).
 
-Imported values are freshly deserialized, so the resulting patch owns isolated copies — see [Clone & ownership](cloning-and-ownership.md).
+Imported values are freshly deserialized, so the resulting patch owns isolated copies.
 
 ## Export a Typed Patch
 
@@ -68,7 +64,7 @@ Round-tripping holds **semantically**: applying the re-imported export to the sa
 
 ## Keyed Collections and Positional Identity
 
-RFC 6902 arrays are positional (`/Items/0`), while keyed structural collections are identity-based (see [Keyed collections](keyed-collections.md)). The bridge reconciles the two models through the baseline:
+RFC 6902 arrays are positional (`/Items/0`), while keyed structural collections are identity-based. The bridge reconciles the two models through the baseline:
 
 * On **import**, positional operations apply to the baseline's canonical array order, and the outcome is converted into a keyed semantic patch. Positional edits to a keyed collection therefore work, but they are interpreted against the baseline's order at import time.
 * On **export**, the before/after canonical JSON is diffed, so keyed add/remove/edit/reorder appears as array-level operations against the baseline order.

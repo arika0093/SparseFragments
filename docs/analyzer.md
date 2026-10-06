@@ -1,6 +1,6 @@
 # SparseFragments Analyzer Diagnostics (SPF001–SPF021)
 
-This is the list of diagnostics reported by the source generator `SparseFragments.Generator`.
+Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
 
 | ID | Title | Severity |
@@ -47,19 +47,17 @@ public partial class Settings { ... }
 ## SPF002: Unsupported sparse fragment model
 
 * Message: `Model '{0}' must be a top-level, non-generic, non-abstract class or struct`
-* Cause: The model is not a top-level, non-generic, non-`abstract` class or struct.
-  Nested types, generic types, `abstract` types, interfaces, and other type kinds are not supported.
-  `ref` structs and `file`-local types are likewise unsupported: generated code names the
-  model across partial declarations and cannot satisfy stack-only or file-scoped semantics.
+* Cause: The model is not a top-level, non-generic, non-`abstract` class or struct
+  (`ref` structs and `file`-local types are likewise unsupported).
 * Fix: Move the model to a top-level plain class/struct.
   If generics are needed, provide a materialized non-generic type instead.
 
 ## SPF003: Model needs a supported constructor
 
 * Message: `Class model '{0}' must have a parameterless constructor or a constructor whose parameters match public readable properties by name and type; a setter, when present, must be public`
-* Cause: The class model has no constructor that the generated code can call.
-  It needs either a parameterless constructor or a constructor whose parameters match the public readable properties by name and type
-  (a corresponding setter, when present, must be `public`).
+* Cause: The class model has no constructor that the generated code can call:
+  it needs either a parameterless constructor or a constructor whose parameters
+  match the public readable properties by name and type.
 * Fix: Add a parameterless constructor, or provide a constructor that corresponds to the properties.
 
 ```csharp
@@ -121,21 +119,17 @@ public partial class Settings
 ## SPF006: Required member cannot be constructed
 
 * Message: `Required member '{0}' must be represented by an accessible public property in the fragment construction plan`
-* Cause: A `required` member is missing from the fragment construction plan.
-  It must be readable as a public property and settable from the generated code
-  (e.g. a `public` setter, or `init` covered by constructor binding).
+* Cause: A `required` member cannot be set from the generated code
+  (no `public` setter and no constructor binding covering it).
 * Fix: Declare the `required` member as a public property so that constructor binding can resolve it.
   If that is not feasible, drop `required` or reconsider the model shape.
 
 ## SPF007: Unsupported structural member construction
 
 * Message: `Member '{0}' has an unsupported structural type; provide a supported public constructor and properties, decorate it as a fragment model, or explicitly select MergeMode.Replace`
-* Cause: A nested POCO cannot participate as a sparse member.
-  Non-partial nested types are treated as atomic replace values, so a nested type needs
-  independently sparse behavior (a `partial` type that the generator can promote, or an
-  explicit `[SparseFragmentModel]`), or the member must opt into whole-value replacement.
-  Framework types and types without a supported public constructor or public properties
-  are also unsupported as sparse members.
+* Cause: A nested member type cannot participate sparsely: it is not a `partial`
+  type the generator can promote (or an explicit `[SparseFragmentModel]`), and the
+  member does not opt into whole-value replacement.
 * Fix: Do one of the following.
   * Declare the nested type `partial` with a public constructor and public properties so it is promoted to a first-class fragment
   * Annotate the nested type itself with `[SparseFragmentModel]` to make it a fragment model
@@ -161,43 +155,32 @@ public partial class Settings
 
 * Message: `Member '{0}' conflicts with a name reserved by the generated JSON Patch API`
 * Cause: A model member is named `JsonConverter` or `FragmentJsonConverter`,
-  which collides with the generated JSON Patch bridge (e.g. `Fragment.FragmentJsonConverter`).
-  The check runs during analysis on the shared reserved-name primitive.
+  which collides with the generated JSON Patch bridge.
 * Fix: Rename the member.
 
 ## SPF010: Incompatible promoted fragment model
 
 * Message: `Promoted model '{0}' requires incompatible generated semantics from different roots`
 * Cause: A shared nested type without its own explicit `[SparseFragmentModel]` root is referenced
-  from multiple roots with different generated semantics (different member sets or merge settings).
-  The generator cannot settle on a single output, so promoted generation is skipped.
+  from multiple roots with different generated semantics.
 * Fix: Unify the nested type definition and merge settings, or annotate the nested type itself
   with `[SparseFragmentModel]` to promote it to an explicit root.
 
 ## SPF011: Structural sequence without usable key
 
 * Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
-* Cause: A `List<T>`/array member whose element type is a fragment model (or promotable
-  partial) has no stable key, so granular add/remove/edit/order semantics cannot be derived.
-  Scalar sequences (`List<string>`, `int[]`, …) and dictionaries are unaffected: scalars stay
-  atomic whole values and dictionaries are keyed by `TKey` inherently.
+* Cause: A structural sequence member (`List<T>`/array over a fragment model or
+  promotable partial) has no stable key, so per-element patch semantics cannot be derived.
 * Fix: Declare exactly one key on the element type — one property-level `[SparseKey]`,
-  one type-level `[SparseKey("TenantId", "Id")]` composite (component order is
-  significant), or one `ISparseKeyed<TKey>` implementation. There is no precedence
-  between mechanisms: conflicts are reported as SPF012 instead of silently picking a
-  winner. Key properties must be publicly readable instance properties with non-nullable,
-  non-collection types. A key change through an element edit
-  is remove-old + add-new and never silently retargets. To keep legacy whole-collection
-  semantics instead, select `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
-  `FragmentMergeStrategy<T>` on the member.
+  one type-level `[SparseKey("TenantId", "Id")]` composite, or one `ISparseKeyed<TKey>`
+  implementation. To keep whole-collection semantics instead, select `MergeMode.Append`,
+  `MergeMode.SetUnion`, or a custom `FragmentMergeStrategy<T>` on the member.
 
 ## SPF012: Conflicting SparseKey mechanisms
 
 * Message: `Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them`
-* Cause: The type combines two or more key-definition mechanisms (e.g. a property-level
-  `[SparseKey]` plus a type-level `[SparseKey(...)]`, or either plus `ISparseKeyed<TKey>`).
-  Conflicting declarations are generator errors; the generator never prefers one source
-  over another.
+* Cause: The type combines two or more key-definition mechanisms. The generator
+  never prefers one source over another.
 * Fix: Keep exactly one mechanism and remove the others.
 
 ```csharp
@@ -271,21 +254,16 @@ public partial class Server
 
 * Message: `Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity`
 * Cause: A key property, composite component, or `ISparseKeyed<TKey>` key type is
-  collection-shaped (arrays, `List<T>`, dictionaries, sets, …). Key equality uses the
-  normal equality semantics of the key type (`EqualityComparer<T>.Default`); value-object
-  keys, records, record structs, enums, strings, GUIDs and ordinary scalar types are valid
-  when they provide appropriate stable equality.
+  collection-shaped (arrays, `List<T>`, dictionaries, sets, …).
 * Fix: Use a scalar/value-object key type.
 
 ## SPF020: Invalid ISparseKeyed implementation
 
 * Message: `Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type`
-* Cause: The `ISparseKeyed<TKey>` escape hatch is unusable: more than one distinct `TKey`
+* Cause: The `ISparseKeyed<TKey>` implementation is unusable: more than one distinct `TKey`
   is implemented (ambiguous), the key type is nullable or collection-shaped, or no
-  publicly readable instance `SparseKey` property is available (e.g. only an explicit
-  interface implementation, which generated `element.SparseKey` extraction cannot reach).
-  No separate provider SPI exists; a computed `[SparseKey]` property covers the other
-  advanced cases.
+  publicly readable instance `SparseKey` property is available (explicit interface
+  implementations cannot be reached by generated code).
 * Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey` getter
   and a valid key type.
 
@@ -303,9 +281,7 @@ public partial class Server : ISparseKeyed<ServerKey>
 
 * Message: `Multiple members map to the same JSON property name '{0}'`
 * Cause: Two or more serialized members resolve to the same JSON wire name
-  (via `[JsonPropertyName]` or the property name itself). The generated fragment
-  converter could only honor this at runtime; it now fails during analysis.
-  Members marked `[JsonIgnore]` never participate.
+  (via `[JsonPropertyName]` or the property name itself).
 * Fix: Give each member a distinct explicit `[JsonPropertyName]`, or rename the
   .NET members so their wire names no longer collide.
 

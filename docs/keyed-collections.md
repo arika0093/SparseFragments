@@ -1,8 +1,6 @@
 # Keyed Collections
 
-SparseFragments can patch a collection of structural elements *by element* instead of replacing the whole collection — but only when the element type has a stable identity. This page explains when a collection is atomic versus keyed/structural, how to declare identity, and the resulting add/remove/edit/reorder semantics.
-
-Related pages: [Merge strategies](merge-strategies.md) (whole-collection `Append` / `SetUnion` alternatives), [Patch rebase](rebase.md), [JSON Patch](json-patch.md) (positional vs keyed identity), [Model shapes](model-shapes.md) (promotion rules), [Diagnostics](analyzer.md) (`SPF011`–`SPF020`).
+A collection of structural elements patches *by element* instead of replacing the whole collection only when the element type has a stable identity. Atomic collections patch as whole values; keyed structural collections diff per element.
 
 ## Atomic vs Keyed Collections
 
@@ -13,7 +11,7 @@ Related pages: [Merge strategies](merge-strategies.md) (whole-collection `Append
 | Structural sequence **with** a key | `List<Server>` where `Server` declares `[SparseKey]` | Keyed: add/remove/edit by element, reorder by key order |
 | Structural sequence **without** a key | `List<Server>` with no key declared | Generator error (`SPF011`): declare a key, or opt into `Append`, `SetUnion`, or a custom strategy on the member |
 
-"Structural" here means the element type is a fragment model (or a reachable partial type eligible for promotion — see [Model shapes](model-shapes.md)). A sequence of scalars is never structural, no matter what merge mode is configured.
+"Structural" here means the element type is a fragment model (or a reachable partial type eligible for promotion). A sequence of scalars is never structural, no matter what merge mode is configured.
 
 When no key is available and per-element patching is not needed, keep whole-collection semantics explicitly:
 
@@ -109,7 +107,7 @@ Keys must be stable and comparable:
 
 ## Add / Remove / Edit / Reorder
 
-`Patch.Between` derives per-element operations from the before/after key sets; `Apply` replays them. The final key order — not positional moves — determines the resulting order.
+`Patch.Between` derives per-element operations from the before/after key sets; `Apply` replays them. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `Between(applied, after).IsEmpty` holds).
 
 ```csharp
 var before = State(Holder(Server("a", "A"), Server("b", "B")));
@@ -128,30 +126,9 @@ Concretely:
 * **Replace the whole collection.** Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
 * **Reorder.** The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate "move identity".
 
-Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys.
+Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts.
 
 ## Duplicate Keys and Key Changes
 
 * **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
 * **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `Between`/`Apply`.
-
-## Interaction With Other Features
-
-* **`Patch.Between` / `Apply`.** The primary surface: diffs are keyed, replays reproduce the exact after-state (a follow-up `Between(applied, after).IsEmpty` holds).
-* **Composition / inversion.** Keyed patches compose (`second.Compose(first)`-style chaining) and invert relative to a baseline like any other patch; inversion needs the baseline because removed elements must be restored from it.
-* **Rebase.** Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts. See [Patch rebase](rebase.md).
-* **JSON Patch.** RFC 6902 arrays are positional while keyed collections are identity-based. Import (`FromJsonPatch`) applies positional operations to the baseline's canonical JSON and then converts the outcome into a keyed semantic patch; export (`ToJsonPatch`) diffs before/after canonical JSON. The typed round-trip is semantic, not positional. See [JSON Patch](json-patch.md).
-* **Merge.** Keyed structural members merge with the member's configured mode; whole-collection modes (`Append`, `SetUnion`) and custom strategies bypass keyed diffing for that member. See [Merge strategies](merge-strategies.md).
-* **Ownership.** Granular keyed edits allocate a new container but share element references; see [Clone & ownership](cloning-and-ownership.md).
-
-## Diagnostics
-
-Key declaration problems are generator errors with dedicated diagnostics; the full reference lives in [Diagnostics](analyzer.md):
-
-* `SPF011` — structural sequence without a usable key;
-* `SPF012` — more than one key mechanism on the same type;
-* `SPF013` — multiple property-level `[SparseKey]` markers;
-* `SPF014` — invalid declaration shape (arguments on property-level use, empty type-level list);
-* `SPF015`/`SPF016` — missing or duplicated composite component;
-* `SPF017`/`SPF018`/`SPF019` — inaccessible, nullable, or collection-shaped key;
-* `SPF020` — invalid or ambiguous `ISparseKeyed<TKey>` implementation.

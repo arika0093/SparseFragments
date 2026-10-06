@@ -1,11 +1,5 @@
 # Model Shapes
 
-This page is the user-facing reference for which C# model shapes SparseFragments supports and how nested types are treated. Individual diagnostic IDs and messages live in [Diagnostics](analyzer.md); the concepts live here.
-
-Related pages: [Keyed collections](keyed-collections.md) (element identity), [Clone & ownership](cloning-and-ownership.md) (graph semantics), [Merge strategies](merge-strategies.md).
-
-## Root Model Requirements
-
 Annotate the model with `[SparseFragmentModel]`:
 
 ```csharp
@@ -49,13 +43,11 @@ The rules:
 * **Shared nested types must agree.** A nested type without its own explicit `[SparseFragmentModel]` root that is referenced from multiple roots with different generated semantics (different member sets or merge settings) is an error (`SPF010`): unify the definitions and settings, or annotate the nested type itself with `[SparseFragmentModel]` to promote it to an explicit root.
 * **Structural collection element types are discovered the same way.** A `List<T>` member whose `T` is a fragment model (or a promotable partial) is a structural sequence and needs key identity (see [Keyed collections](keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
 
-## Keyed Identity Cross-link
-
-Element identity for structural collections is declared with `[SparseKey]` (single property or ordered type-level composite) or `ISparseKeyed<TKey>` — exactly one mechanism per structural type. Full semantics and examples: [Keyed collections](keyed-collections.md). Declaration problems surface as `SPF011`–`SPF020`.
+Element identity for structural collections is declared with `[SparseKey]` (single property or ordered type-level composite) or `ISparseKeyed<TKey>` — exactly one mechanism per structural type. Declaration problems surface as `SPF011`–`SPF020`.
 
 ## Constructors, Members, and Cycles
 
 * Prefer a parameterless constructor; constructor-bound properties (including `init` and `required`) resolve by name-and-type matching.
 * Members marked `[JsonIgnore]` never participate in JSON conversion; members that would collide on the same JSON wire name fail during analysis (`SPF021`) rather than at runtime.
 * Members named `JsonConverter` or `FragmentJsonConverter` collide with the generated JSON bridge (`SPF009`): rename the member.
-* Cyclic graph constraints follow the model shape: `From` / `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them — see [Clone & ownership](cloning-and-ownership.md).
+* `From` / `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them — see [Clone & ownership](cloning-and-ownership.md).
