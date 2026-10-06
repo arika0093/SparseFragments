@@ -1,53 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
-      Source-only package: ships the generator-shared sources, not a binary.
-      Consumers (SparseFragments.Generator) compile these
-      sources directly. Keep the TFM surface minimal (netstandard2.0) so the
-      contentFiles path is stable across consumers.
+      Internal-only source directory (#21): the shared generator sources are
+      compiled directly into SparseFragments.Generator via an in-repo Compile
+      glob. This project is not packed and no SparseFragments.Generator.Shared
+      NuGet package is shipped; keeping a single in-repo path guarantees the
+      shipped generator always matches the local sources.
     -->
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>SparseFragments.Generator.Shared</AssemblyName>
     <RootNamespace>SparseFragments.Generator.Shared</RootNamespace>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <SparseSharedOnly>true</SparseSharedOnly>
-    <PackageId>SparseFragments.Generator.Shared</PackageId>
-    <PackageDescription>Shared source-only generator infrastructure for SparseFragments-based source generators. Compile-time sources only; no runtime assembly.</PackageDescription>
-    <PackageTags>source-generator;shared;sparsefragments;source-only</PackageTags>
-    <DevelopmentDependency>true</DevelopmentDependency>
-    <!-- Source-only: no lib/ assets by design. Silence the empty-lib pack error. -->
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="/" />
-  </ItemGroup>
-  <!-- Pack every shared source under contentFiles (restored per-TFM) and the
-    legacy content/ fallback so old clients keep working. -->
-  <ItemGroup>
-    <Content
-      Include="**/*.cs"
-      Exclude="obj/**/*.cs;bin/**/*.cs"
-      Pack="true"
-      PackagePath="contentFiles/cs/netstandard2.0/%(Filename)%(Extension)"
-    >
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Content>
-    <Content
-      Include="**/*.cs"
-      Exclude="obj/**/*.cs;bin/**/*.cs"
-      Pack="true"
-      PackagePath="content/%(Filename)%(Extension)"
-    >
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Content>
-    <None Include="build/SparseFragments.Generator.Shared.props" Pack="true" PackagePath="build/" />
-    <None
-      Include="build/SparseFragments.Generator.Shared.props"
-      Pack="true"
-      PackagePath="buildTransitive/"
-    />
-  </ItemGroup>
 </Project>

@@ -225,12 +225,11 @@ jobs:
 
       - name: Pack NuGet packages
         # NOTE: no --no-build/--no-restore here. This job never restores the
-        # test projects, so Generator.Shared has no obj/project.assets.json
-        # yet. Let pack restore/build itself instead.
+        # test projects, so let pack restore/build itself instead.
+        # Only SparseFragments ships a package (#21): Generator.Shared is an
+        # internal-only source directory and is never packed.
         run: >
           dotnet pack src/SparseFragments/SparseFragments.csproj
-          --configuration Release --output artifacts
-          && dotnet pack src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj
           --configuration Release --output artifacts
 
       - name: Verify packed target assets
