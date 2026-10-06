@@ -586,6 +586,10 @@ internal static class SparseJsonPatchEmitter
         var toJsonPatch = jsonPrefix + "ToJsonPatch";
         code.AppendLineAt(
             2,
+            "private static readonly global::System.ReadOnlyMemory<byte> __sparse_empty_json_patch = new byte[] { 91, 93 };"
+        );
+        code.AppendLineAt(
+            2,
             "/// <summary>Exports a semantically equivalent RFC 6902 JSON Patch document.</summary>"
         );
         code.AppendLineAt(
@@ -597,6 +601,7 @@ internal static class SparseJsonPatchEmitter
                 + " baseline, global::System.Text.Json.JsonSerializerOptions? options = null)"
         );
         code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (__SparseIsEmpty()) return __sparse_empty_json_patch;");
         code.AppendLineAt(3, "var effective = __EffectiveOptions(options);");
         code.AppendLineAt(3, "var result = " + applyExpression + ";");
         code.AppendLineAt(
