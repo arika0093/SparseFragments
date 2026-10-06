@@ -2,7 +2,7 @@
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
     <div class="pg-row">
-        <span class="pg-name">Enabled <small>bool</small></span>
+        <span class="pg-name notranslate" translate="no">Enabled <small>bool</small></span>
         <div class="pg-controls">
             <FluentCheckbox Label="true"
                 Value="@State.EnabledValue"
@@ -18,7 +18,7 @@
     </div>
 
     <div class="pg-row">
-        <span class="pg-name">RetryCount <small>int</small></span>
+        <span class="pg-name notranslate" translate="no">RetryCount <small>int</small></span>
         <div class="pg-controls">
             <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.RetryValue"
@@ -34,7 +34,7 @@
     </div>
 
     <div class="pg-row">
-        <span class="pg-name">Label <small>string?</small></span>
+        <span class="pg-name notranslate" translate="no">Label <small>string?</small></span>
         <div class="pg-controls">
             <FluentTextField Placeholder="label text" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.LabelValue"
@@ -50,7 +50,7 @@
     </div>
 
     <div class="pg-row">
-        <span class="pg-name">Nested <small>nested patch</small></span>
+        <span class="pg-name notranslate" translate="no">Nested <small>nested patch</small></span>
         <div class="pg-controls" />
         <FluentSelect TOption="string" Style="max-width: 100%;"
             Items="@NestedPatchKindNames"
@@ -64,7 +64,7 @@
     {
         <div class="pg-nested">
             <div class="pg-row">
-                <span class="pg-name">Nested.Host <small>string</small></span>
+                <span class="pg-name notranslate" translate="no">Nested.Host <small>string</small></span>
                 <div class="pg-controls">
                     <FluentTextField Placeholder="host" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.HostValue"
@@ -79,7 +79,7 @@
                     ValueChanged="@OnHostOpChanged" />
             </div>
             <div class="pg-row">
-                <span class="pg-name">Nested.Port <small>int</small></span>
+                <span class="pg-name notranslate" translate="no">Nested.Port <small>int</small></span>
                 <div class="pg-controls">
                     <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
                         Value="@State.PortValue"
@@ -97,7 +97,7 @@
     }
 
     <div class="pg-row">
-        <span class="pg-name">Plugins <small>whole value</small></span>
+        <span class="pg-name notranslate" translate="no">Plugins <small>whole value</small></span>
         <div class="pg-controls">
             <FluentTextField Placeholder="comma separated" Style="flex: 1 1 12rem; min-width: 0;"
                 Value="@State.PluginsText"

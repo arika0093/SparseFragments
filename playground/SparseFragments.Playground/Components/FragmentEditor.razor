@@ -5,7 +5,7 @@
         <FluentCheckbox Class="pg-name-check"
             Value="@State.EnabledPresent"
             ValueChanged="@OnEnabledPresentChanged">
-            Enabled <small>bool</small>
+            <span class="notranslate" translate="no">Enabled <small>bool</small></span>
         </FluentCheckbox>
         <div class="pg-controls">
             <FluentCheckbox Label="true"
@@ -19,7 +19,7 @@
         <FluentCheckbox Class="pg-name-check"
             Value="@State.RetryPresent"
             ValueChanged="@OnRetryPresentChanged">
-            RetryCount <small>int</small>
+            <span class="notranslate" translate="no">RetryCount <small>int</small></span>
         </FluentCheckbox>
         <div class="pg-controls">
             <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
@@ -33,7 +33,7 @@
         <FluentCheckbox Class="pg-name-check"
             Value="@IsLabelPresent"
             ValueChanged="@OnLabelPresentChanged">
-            Label <small>string?</small>
+            <span class="notranslate" translate="no">Label <small>string?</small></span>
         </FluentCheckbox>
         <div class="pg-controls">
             <FluentTextField Placeholder="label text" Style="flex: 1 1 12rem; min-width: 0;"
@@ -51,7 +51,7 @@
         <FluentCheckbox Class="pg-name-check"
             Value="@IsNestedPresent"
             ValueChanged="@OnNestedPresentChanged">
-            Nested <small>nested model?</small>
+            <span class="notranslate" translate="no">Nested <small>nested model?</small></span>
         </FluentCheckbox>
         <div class="pg-controls">
             <FluentCheckbox Label="null" Style="margin-left: auto;"
@@ -68,7 +68,7 @@
                 <FluentCheckbox Class="pg-name-check"
                     Value="@State.HostPresent"
                     ValueChanged="@OnHostPresentChanged">
-                    Nested.Host <small>string</small>
+                    <span class="notranslate" translate="no">Nested.Host <small>string</small></span>
                 </FluentCheckbox>
                 <div class="pg-controls">
                     <FluentTextField Placeholder="host" Style="flex: 1 1 12rem; min-width: 0;"
@@ -81,7 +81,7 @@
                 <FluentCheckbox Class="pg-name-check"
                     Value="@State.PortPresent"
                     ValueChanged="@OnPortPresentChanged">
-                    Nested.Port <small>int</small>
+                    <span class="notranslate" translate="no">Nested.Port <small>int</small></span>
                 </FluentCheckbox>
                 <div class="pg-controls">
                     <FluentNumberField TValue="int" Style="flex: 1 1 12rem; min-width: 0;"
@@ -97,7 +97,7 @@
         <FluentCheckbox Class="pg-name-check"
             Value="@State.PluginsPresent"
             ValueChanged="@OnPluginsPresentChanged">
-            Plugins <small>append list</small>
+            <span class="notranslate" translate="no">Plugins <small>append list</small></span>
         </FluentCheckbox>
         <div class="pg-controls">
             <FluentTextField Placeholder="comma separated" Style="flex: 1 1 12rem; min-width: 0;"

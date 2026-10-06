@@ -138,6 +138,7 @@
     <FluentDialogBody>
         <p class="pg-hint">Applies an RFC 6902 document to the merged baseline and previews the result.</p>
         <FluentTextArea Rows="8" Placeholder='[{"op":"replace","path":"/Label","value":"..."}]'
+            translate="no"
             Value="@_importText"
             ValueChanged="@(v => _importText = v ?? string.Empty)"
             Style="width: 100%;" />

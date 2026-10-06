@@ -5,7 +5,7 @@
 @inject IJSRuntime JS
 @implements IDisposable
 
-<div class="pg-monaco" style="@WrapperStyle">
+<div class="pg-monaco notranslate" translate="no" style="@WrapperStyle">
     <StandaloneCodeEditor @ref="_editor"
         Id="@EditorId"
         ConstructionOptions="GetOptions"
