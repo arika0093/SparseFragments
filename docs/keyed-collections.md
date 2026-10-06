@@ -4,6 +4,22 @@ A collection of structural elements patches *by element* instead of replacing th
 
 Element-wise diff requires stable identity. Positional identity breaks down when elements are inserted or reordered, so structural sequences require a key.
 
+```csharp
+public partial class Server
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Host { get; set; } = string.Empty;
+}
+
+var before = Fleet.Fragment.From(new Fleet { Servers = new() { oldServer } });
+var after = Fleet.Fragment.From(new Fleet { Servers = new() { editedServer, addedServer } });
+
+var patch = Fleet.Patch.Between(before, after); // add/remove/edit by key
+var applied = patch.Apply(before);              // original untouched
+```
+
 ## Atomic vs Keyed Collections
 
 | Collection kind | Examples | Patch semantics |

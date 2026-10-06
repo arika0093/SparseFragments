@@ -211,4 +211,89 @@ public static class PlaygroundSnippets
 
     private static string StringArrayLiteral(IReadOnlyList<string> values) =>
         values.Count == 0 ? "[]" : $"[{string.Join(", ", values.Select(StringLiteral))}]";
+
+    /// <summary>Builds C# code constructing a roster model value.</summary>
+    public static string RosterModelCSharp(string variableName, PlaygroundRoster model)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"var {variableName} = new PlaygroundRoster");
+        sb.AppendLine("{");
+        sb.AppendLine("    Quests = new List<PlaygroundQuest>");
+        sb.AppendLine("    {");
+        foreach (var quest in model.Quests)
+        {
+            sb.AppendLine("        new()");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            Id = {StringLiteral(quest.Id)},");
+            sb.AppendLine($"            Title = {StringLiteral(quest.Title)},");
+            sb.AppendLine($"            Points = {quest.Points},");
+            sb.AppendLine($"            Scores = {IntListLiteral(quest.Scores)},");
+            sb.AppendLine("        },");
+        }
+        sb.AppendLine("    },");
+        sb.AppendLine("};");
+        return sb.ToString();
+    }
+
+    /// <summary>Builds C# code deriving a keyed patch via Between.</summary>
+    public static string RosterBetweenCSharp(RosterEditState before, RosterEditState after)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(RosterModelCSharp("before", before.ToModel()).TrimEnd());
+        sb.AppendLine(RosterModelCSharp("after", after.ToModel()).TrimEnd());
+        sb.AppendLine("var beforeOpt = Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before));");
+        sb.AppendLine("var afterOpt = Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after));");
+        sb.AppendLine("var patch = PlaygroundRoster.Patch.Between(beforeOpt, afterOpt);");
+        sb.AppendLine("var applied = patch.Apply(beforeOpt); // == afterOpt when IsEmpty is false-checked");
+        return sb.ToString();
+    }
+
+    /// <summary>Builds the manual Add/Remove/Edit/SetOrder equivalent for the before/after diff.</summary>
+    public static string RosterManualPatchCSharp(string variableName, RosterEditState before, RosterEditState after)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
+        var beforeById = before.Rows.ToDictionary(r => r.Id);
+        var afterById = after.Rows.ToDictionary(r => r.Id);
+        foreach (var row in after.Rows)
+        {
+            if (!beforeById.ContainsKey(row.Id))
+            {
+                var quest = row.ToModel();
+                sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }});");
+            }
+        }
+        foreach (var row in before.Rows)
+        {
+            if (!afterById.ContainsKey(row.Id))
+            {
+                sb.AppendLine($"{variableName}.Quests.Remove({StringLiteral(row.Id)});");
+            }
+        }
+        foreach (var row in after.Rows)
+        {
+            if (beforeById.TryGetValue(row.Id, out var old))
+            {
+                if (old.Title != row.Title)
+                {
+                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Title = {StringLiteral(row.Title)};");
+                }
+                if (old.Points != row.Points)
+                {
+                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Points = {row.Points};");
+                }
+                var oldScores = QuestRow.ParseScores(old.ScoresText);
+                var newScores = QuestRow.ParseScores(row.ScoresText);
+                if (!oldScores.SequenceEqual(newScores))
+                {
+                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Scores = {IntListLiteral(newScores)}; // whole value: one element change replaces the list");
+                }
+            }
+        }
+        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", after.Rows.Select(r => StringLiteral(r.Id)))} }}); // final key order, not moves");
+        return sb.ToString();
+    }
+
+    private static string IntListLiteral(IReadOnlyList<int> values) =>
+        values.Count == 0 ? "new List<int>()" : $"new List<int> {{ {string.Join(", ", values)} }}";
 }

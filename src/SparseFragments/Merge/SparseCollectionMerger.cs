@@ -12,22 +12,12 @@ internal static class SparseCollectionMerger
     {
         ArgumentNullException.ThrowIfNull(lower);
         ArgumentNullException.ThrowIfNull(higher);
-        var lowerCount = GetCount(lower);
-        var higherCount = GetCount(higher);
-        var capacity = checked(lowerCount + higherCount);
-#if NETSTANDARD2_0
         var seen = new HashSet<T>();
-#else
-        var seen = new HashSet<T>(capacity);
-#endif
-        var result = new List<T>(capacity);
+        var result = new List<T>();
         AddDistinct(lower, seen, result);
         AddDistinct(higher, seen, result);
         return result;
     }
-
-    private static int GetCount<T>(IEnumerable<T> values) =>
-        values is ICollection<T> collection ? collection.Count : 0;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Major Code Smell",
