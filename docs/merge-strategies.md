@@ -2,6 +2,11 @@
 
 `Merge` overlays a higher-priority fragment onto a lower-priority one: only *present* members override, while *missing* members keep the lower layer's values. `[SparseMerge]` selects the per-member algebra used when both layers carry a value.
 
+One rule cannot fit every member shape: scalar values usually want higher-priority
+replacement, nested objects often need member-wise composition, ordered collections
+may want append semantics, and set-like data may want union semantics. The modes
+below are answers to those different composition requirements.
+
 ## Built-in Modes
 
 | `MergeMode` | Behavior | Applies to |

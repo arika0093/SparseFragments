@@ -1,6 +1,6 @@
 # Patch Rebase
 
-Rebase replays a patch authored against an older state onto a newer state. Two writers start from the same baseline, one commits first, and the other's patch is reconciled against the committed state.
+Rebase replays a patch authored against an older state onto a newer state. Two writers start from the same baseline, one commits first, and the other's patch is reconciled against the committed state. Last-writer-wins would silently discard one side; rebase instead keeps both sides' compatible edits and reports only the irreconcilable ones as structured conflicts.
 
 ## The Base / Local / Current Model
 

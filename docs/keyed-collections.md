@@ -2,6 +2,8 @@
 
 A collection of structural elements patches *by element* instead of replacing the whole collection only when the element type has a stable identity. Atomic collections patch as whole values; keyed structural collections diff per element.
 
+Element-wise diff requires stable identity. Positional identity breaks down when elements are inserted or reordered, so structural sequences require a key.
+
 ## Atomic vs Keyed Collections
 
 | Collection kind | Examples | Patch semantics |
