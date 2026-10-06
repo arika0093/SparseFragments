@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Benchmarks are local measurement only (same as Configlue.Benchmarks):
+         no public API docs, no Sonar style gate. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
+    <NoWarn>$(NoWarn);CS1591;S3903;S3358;S101;S1144;S1854;S3267</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Remove="SonarAnalyzer.CSharp" />
+    <PackageReference Remove="CSharpier.MsBuild" />
+    <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+</Project>

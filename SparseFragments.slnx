@@ -7,6 +7,10 @@
   <Folder Name="/tests/">
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
+    <Project Path="tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/playground/">
     <Project Path="playground/SparseFragments.Playground/SparseFragments.Playground.csproj" />
