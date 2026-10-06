@@ -19,73 +19,80 @@
 </div>
 
 <h2>1. Layers: merge <code>Lower</code> + <code>Higher</code></h2>
-<p class="pg-hint">Only <em>present</em> members of the higher layer override. Missing members keep the lower layer's values. <code>Plugins</code> uses append-merge.</p>
+<p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. <code>Plugins</code> uses append-merge.</p>
 <div class="pg-grid">
-    <div class="pg-stack">
-        <FragmentEditor Title="Lower (baseline)" State="Lower" OnReset="ResetLower" OnChanged="Refresh" />
-        <FluentCard Class="pg-fluent-card">
-            <FluentTabs>
-                <FluentTab Label="C#" Id="lower-csharp">
-                    <MonacoView Content="@LowerCSharp" Language="csharp" Height="260px" />
-                </FluentTab>
-                <FluentTab Label="JSON" Id="lower-json">
-                    <MonacoView Content="@LowerFragmentJson" Language="json" Height="260px" />
-                </FluentTab>
-            </FluentTabs>
-        </FluentCard>
-    </div>
-    <div class="pg-stack">
-        <FragmentEditor Title="Higher (overlay)" State="Higher" OnReset="ResetHigher" OnChanged="Refresh" />
-        <FluentCard Class="pg-fluent-card">
-            <FluentTabs>
-                <FluentTab Label="C#" Id="higher-csharp">
-                    <MonacoView Content="@HigherCSharp" Language="csharp" Height="260px" />
-                </FluentTab>
-                <FluentTab Label="JSON" Id="higher-json">
-                    <MonacoView Content="@HigherFragmentJson" Language="json" Height="260px" />
-                </FluentTab>
-            </FluentTabs>
-        </FluentCard>
-    </div>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Lower (baseline)</h3>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetLower">Reset</FluentButton>
+        </div>
+        <FragmentEditor State="Lower" OnChanged="Refresh" />
+        <FluentTabs ActiveTabId="@LowerTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+            <FluentTab Label="C#" Id="lower-csharp">
+                <MonacoView Content="@LowerCSharp" Language="csharp" Height="220px" />
+            </FluentTab>
+            <FluentTab Label="JSON" Id="lower-json">
+                <MonacoView Content="@LowerFragmentJson" Language="json" Height="220px" />
+            </FluentTab>
+        </FluentTabs>
+    </FluentCard>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Higher (overlay)</h3>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetHigher">Reset</FluentButton>
+        </div>
+        <FragmentEditor State="Higher" OnChanged="Refresh" />
+        <FluentTabs ActiveTabId="@HigherTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+            <FluentTab Label="C#" Id="higher-csharp">
+                <MonacoView Content="@HigherCSharp" Language="csharp" Height="220px" />
+            </FluentTab>
+            <FluentTab Label="JSON" Id="higher-json">
+                <MonacoView Content="@HigherFragmentJson" Language="json" Height="220px" />
+            </FluentTab>
+        </FluentTabs>
+    </FluentCard>
 </div>
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Merged result</h3>
-        <FluentBadge Appearance="Appearance.Accent">@($"IsEmpty: {MergedFragment.IsEmpty}")</FluentBadge>
     </div>
     <FluentTabs>
         <FluentTab Label="Model (C#)" Id="merged-model-csharp">
-            <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="260px" />
+            <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="240px" />
         </FluentTab>
         <FluentTab Label="Model (JSON)" Id="merged-model-json">
-            <MonacoView Content="@MergedModelJson" Language="json" Height="260px" />
-        </FluentTab>
-        <FluentTab Label="Fragment (JSON)" Id="merged-fragment-json">
-            <MonacoView Content="@MergedFragmentJson" Language="json" Height="260px" />
+            <MonacoView Content="@MergedModelJson" Language="json" Height="240px" />
         </FluentTab>
         <FluentTab Label="Diff Lower→Merged (JSON)" Id="merged-diff-json">
-            <MonacoView Content="@MergeDiffJson" Language="json" Height="260px" />
+            <MonacoView Content="@MergeDiffJson" Language="json" Height="240px" />
         </FluentTab>
     </FluentTabs>
 </FluentCard>
 
 <h2>2. Typed patch applied to the merged fragment</h2>
 <p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
-<div class="pg-grid">
-    <div class="pg-stack">
-        <PatchEditor Title="Patch edits" State="PatchState" OnReset="ResetPatch" OnChanged="Refresh" />
-        <FluentCard Class="pg-fluent-card">
-            <FluentTabs>
-                <FluentTab Label="Patch (C#)" Id="patch-csharp">
-                    <MonacoView Content="@PatchCSharp" Language="csharp" Height="260px" />
-                </FluentTab>
-            </FluentTabs>
-        </FluentCard>
+<FluentCard Class="pg-fluent-card pg-section-card">
+    <div class="pg-card-head">
+        <h3>Patch edits</h3>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="OpenImport">Import JSON Patch…</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetPatch">Reset</FluentButton>
+        </FluentStack>
     </div>
+    <PatchEditor State="PatchState" OnChanged="Refresh" />
+    <h4 class="pg-code-label">Patch (C#)</h4>
+    <MonacoView Content="@PatchCSharp" Language="csharp" Height="220px" />
+</FluentCard>
+<div class="pg-grid">
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Baseline (merged)</h3>
+        </div>
+        <MonacoView Content="@MergedModelJson" Language="json" Height="200px" />
+    </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>Patched result</h3>
-            <FluentBadge Appearance="Appearance.Accent">@($"Patch IsEmpty: {TypedPatch.IsEmpty}")</FluentBadge>
         </div>
         <FluentTabs>
             <FluentTab Label="Model (C#)" Id="patched-model-csharp">
@@ -94,55 +101,53 @@
             <FluentTab Label="Model (JSON)" Id="patched-model-json">
                 <MonacoView Content="@PatchedModelJson" Language="json" Height="260px" />
             </FluentTab>
-            <FluentTab Label="Fragment (JSON)" Id="patched-fragment-json">
-                <MonacoView Content="@PatchedFragmentJson" Language="json" Height="260px" />
-            </FluentTab>
             <FluentTab Label="Diff Merged→Patched (JSON)" Id="patched-diff-json">
                 <MonacoView Content="@PatchDiffJson" Language="json" Height="260px" />
+            </FluentTab>
+            <FluentTab Label="JSON Patch" Id="patched-json-patch">
+                <MonacoView Content="@ExportText" Language="json" Height="260px" />
             </FluentTab>
         </FluentTabs>
     </FluentCard>
 </div>
 
-<h2>3. RFC 6902 JSON Patch bridge</h2>
-<p class="pg-hint">Export the typed patch above against the merged baseline, or import any JSON Patch document against the same baseline.</p>
-<div class="pg-grid">
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Export</h3>
-            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="CopyExportToImport">Copy to import box</FluentButton>
-        </div>
-        <MonacoView Content="@ExportText" Language="json" Height="220px" />
-    </FluentCard>
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Import</h3>
-            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ImportJsonPatch">Apply to merged baseline</FluentButton>
-        </div>
+<FluentDialog @bind-Hidden="_importHidden" Modal="true" TrapFocus="true" AriaLabel="Import JSON Patch">
+    <FluentDialogHeader>
+        <h3>Import JSON Patch</h3>
+    </FluentDialogHeader>
+    <FluentDialogBody>
+        <p class="pg-hint">Applies an RFC 6902 document to the merged baseline and previews the result.</p>
         <FluentTextArea Rows="8" Placeholder='[{"op":"replace","path":"/Label","value":"..."}]'
-            Value="@ImportText"
-            ValueChanged="@(async v => { ImportText = v; })"
+            Value="@_importText"
+            ValueChanged="@(v => _importText = v ?? string.Empty)"
             Style="width: 100%;" />
-        @if (ImportError is not null)
+        @if (_importError is not null)
         {
-            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 0.5rem;">@ImportError</FluentMessageBar>
+            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 0.5rem;">@_importError</FluentMessageBar>
         }
-        @if (ImportResult is not null)
+        @if (_importResult is not null)
         {
             <div style="margin-top: 0.5rem;">
-                <MonacoView Content="@ImportResult" Language="json" Height="220px" />
+                <MonacoView Content="@_importResult" Language="json" Height="220px" />
             </div>
         }
-    </FluentCard>
-</div>
+    </FluentDialogBody>
+    <FluentDialogFooter>
+        <FluentButton Appearance="Appearance.Accent" @onclick="ApplyImport">Apply to merged baseline</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" @onclick="CloseImport">Close</FluentButton>
+    </FluentDialogFooter>
+</FluentDialog>
 
 @code {
     private FragmentEditState Lower = FragmentEditState.LowerDefaults();
     private FragmentEditState Higher = FragmentEditState.HigherDefaults();
     private PatchEditState PatchState = PatchEditState.Defaults();
-    private string ImportText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
-    private string? ImportError;
-    private string? ImportResult;
+    private string LowerTabId = "lower-csharp";
+    private string HigherTabId = "higher-csharp";
+    private bool _importHidden = true;
+    private string _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+    private string? _importError;
+    private string? _importResult;
 
     private PlaygroundSettings.Fragment LowerFragment => Lower.Build();
     private PlaygroundSettings.Fragment HigherFragment => Higher.Build();
@@ -158,12 +163,10 @@
     private string HigherFragmentJson => Try(() => PlaygroundJson.WriteFragment(HigherFragment));
     private string MergedModelJson => Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
     private string MergedModelCSharp => Try(() => PlaygroundSnippets.ModelCSharp("merged", MergedFragment.ToModel()));
-    private string MergedFragmentJson => Try(() => PlaygroundJson.WriteFragment(MergedFragment));
     private string MergeDiffJson => Try(() => PlaygroundJson.WriteFragment(
         PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
     private string PatchedModelJson => Try(() => PlaygroundJson.WriteModel(PatchedFragment.ToModel()));
     private string PatchedModelCSharp => Try(() => PlaygroundSnippets.ModelCSharp("patched", PatchedFragment.ToModel()));
-    private string PatchedFragmentJson => Try(() => PlaygroundJson.WriteFragment(PatchedFragment));
     private string PatchDiffJson => Try(() => PlaygroundJson.WriteFragment(
         PlaygroundSettings.Fragment.Diff(MergedFragment.ToModel(), PatchedFragment.ToModel())));
 
@@ -177,6 +180,17 @@
 
     private void Refresh() => StateHasChanged();
 
+    private void OnLayerTabChanged(string? id)
+    {
+        if (id is null)
+        {
+            return;
+        }
+        var language = id.EndsWith("csharp", StringComparison.Ordinal) ? "csharp" : "json";
+        LowerTabId = $"lower-{language}";
+        HigherTabId = $"higher-{language}";
+    }
+
     private void ResetLower() => Lower = FragmentEditState.LowerDefaults();
 
     private void ResetHigher() => Higher = FragmentEditState.HigherDefaults();
@@ -188,36 +202,42 @@
         ResetLower();
         ResetHigher();
         ResetPatch();
-        ImportText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
-        ImportError = null;
-        ImportResult = null;
+        LowerTabId = "lower-csharp";
+        HigherTabId = "higher-csharp";
+        _importHidden = true;
+        _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+        _importError = null;
+        _importResult = null;
     }
 
-    private void CopyExportToImport()
+    private void OpenImport()
     {
-        ImportText = ExportText;
-        ImportError = null;
-        ImportResult = null;
+        _importText = ExportText;
+        _importError = null;
+        _importResult = null;
+        _importHidden = false;
     }
 
-    private void ImportJsonPatch()
+    private void CloseImport() => _importHidden = true;
+
+    private void ApplyImport()
     {
-        ImportError = null;
-        ImportResult = null;
+        _importError = null;
+        _importResult = null;
         try
         {
             var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
             var patch = PlaygroundSettings.Patch.FromJsonPatch(
                 baseline,
-                Encoding.UTF8.GetBytes(ImportText),
+                Encoding.UTF8.GetBytes(_importText),
                 PlaygroundJson.BridgeOptions());
             var applied = MergedFragment.Apply(patch);
-            ImportResult =
+            _importResult =
                 $"IsEmpty: {patch.IsEmpty}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
         }
         catch (Exception ex)
         {
-            ImportError = $"{ex.GetType().Name}: {ex.Message}";
+            _importError = $"{ex.GetType().Name}: {ex.Message}";
         }
     }
 

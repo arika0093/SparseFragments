@@ -1,142 +1,183 @@
 @using SparseFragments.Playground.Models
 
-<FluentCard Class="pg-fluent-card">
-    <div class="pg-card-head">
-        <h3>@Title</h3>
-        <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="HandleReset">Reset</FluentButton>
-    </div>
-
-    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-        <div class="pg-row">
-            <span class="pg-name">Enabled <small>bool</small></span>
-            <FluentCheckbox Label="present"
-                Value="@State.EnabledPresent"
-                ValueChanged="@(async v => { State.EnabledPresent = v; await NotifyAsync(); })" />
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@State.EnabledPresent"
+            ValueChanged="@OnEnabledPresentChanged">
+            Enabled <small>bool</small>
+        </FluentCheckbox>
+        <div class="pg-controls">
             <FluentCheckbox Label="true"
                 Value="@State.EnabledValue"
                 ValueChanged="@(async v => { State.EnabledValue = v; await NotifyAsync(); })"
                 Disabled="@(!State.EnabledPresent)" />
         </div>
+    </div>
 
-        <div class="pg-row">
-            <span class="pg-name">RetryCount <small>int</small></span>
-            <FluentCheckbox Label="present"
-                Value="@State.RetryPresent"
-                ValueChanged="@(async v => { State.RetryPresent = v; await NotifyAsync(); })" />
-            <FluentNumberField TValue="int"
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@State.RetryPresent"
+            ValueChanged="@OnRetryPresentChanged">
+            RetryCount <small>int</small>
+        </FluentCheckbox>
+        <div class="pg-controls">
+            <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
                 Value="@State.RetryValue"
                 ValueChanged="@(async v => { State.RetryValue = v; await NotifyAsync(); })"
                 Disabled="@(!State.RetryPresent)" />
         </div>
+    </div>
 
-        <div class="pg-row">
-            <span class="pg-name">Label <small>string?</small></span>
-            <FluentSelect TOption="string"
-                Items="@NullPresenceNames"
-                OptionValue="@(v => v)"
-                OptionText="@(v => LabelText(v))"
-                Value="@State.LabelMode.ToString()"
-                ValueChanged="@OnLabelModeChanged" />
-            <FluentTextField Placeholder="label text"
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@IsLabelPresent"
+            ValueChanged="@OnLabelPresentChanged">
+            Label <small>string?</small>
+        </FluentCheckbox>
+        <div class="pg-controls">
+            <FluentTextField Placeholder="label text" Style="width: 100%; min-width: 0;"
                 Value="@State.LabelValue"
                 ValueChanged="@(async v => { State.LabelValue = v; await NotifyAsync(); })"
                 Disabled="@(State.LabelMode != NullPresence.Value)" />
+            <FluentCheckbox Label="null"
+                Value="@IsLabelNull"
+                ValueChanged="@OnLabelNullChanged"
+                Disabled="@(!IsLabelPresent)" />
         </div>
+    </div>
 
-        <div class="pg-row">
-            <span class="pg-name">Nested <small>nested model?</small></span>
-            <FluentSelect TOption="string"
-                Items="@NullPresenceNames"
-                OptionValue="@(v => v)"
-                OptionText="@(v => LabelText(v))"
-                Value="@State.NestedMode.ToString()"
-                ValueChanged="@OnNestedModeChanged" />
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@IsNestedPresent"
+            ValueChanged="@OnNestedPresentChanged">
+            Nested <small>nested model?</small>
+        </FluentCheckbox>
+        <div class="pg-controls">
+            <FluentCheckbox Label="null"
+                Value="@IsNestedNull"
+                ValueChanged="@OnNestedNullChanged"
+                Disabled="@(!IsNestedPresent)" />
         </div>
+    </div>
 
-        @if (State.NestedMode == NullPresence.Value)
-        {
-            <div class="pg-nested">
-                <div class="pg-row">
-                    <span class="pg-name">Nested.Host <small>string</small></span>
-                    <FluentCheckbox Label="present"
-                        Value="@State.HostPresent"
-                        ValueChanged="@(async v => { State.HostPresent = v; await NotifyAsync(); })" />
-                    <FluentTextField Placeholder="host"
+    @if (State.NestedMode == NullPresence.Value)
+    {
+        <div class="pg-nested">
+            <div class="pg-row">
+                <FluentCheckbox Class="pg-name-check"
+                    Value="@State.HostPresent"
+                    ValueChanged="@OnHostPresentChanged">
+                    Nested.Host <small>string</small>
+                </FluentCheckbox>
+                <div class="pg-controls">
+                    <FluentTextField Placeholder="host" Style="width: 100%; min-width: 0;"
                         Value="@State.HostValue"
                         ValueChanged="@(async v => { State.HostValue = v; await NotifyAsync(); })"
                         Disabled="@(!State.HostPresent)" />
                 </div>
-                <div class="pg-row">
-                    <span class="pg-name">Nested.Port <small>int</small></span>
-                    <FluentCheckbox Label="present"
-                        Value="@State.PortPresent"
-                        ValueChanged="@(async v => { State.PortPresent = v; await NotifyAsync(); })" />
-                    <FluentNumberField TValue="int"
+            </div>
+            <div class="pg-row">
+                <FluentCheckbox Class="pg-name-check"
+                    Value="@State.PortPresent"
+                    ValueChanged="@OnPortPresentChanged">
+                    Nested.Port <small>int</small>
+                </FluentCheckbox>
+                <div class="pg-controls">
+                    <FluentNumberField TValue="int" Style="width: 100%; min-width: 0;"
                         Value="@State.PortValue"
                         ValueChanged="@(async v => { State.PortValue = v; await NotifyAsync(); })"
                         Disabled="@(!State.PortPresent)" />
                 </div>
             </div>
-        }
+        </div>
+    }
 
-        <div class="pg-row">
-            <span class="pg-name">Plugins <small>append list</small></span>
-            <FluentCheckbox Label="present"
-                Value="@State.PluginsPresent"
-                ValueChanged="@(async v => { State.PluginsPresent = v; await NotifyAsync(); })" />
-            <FluentTextField Placeholder="comma separated"
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@State.PluginsPresent"
+            ValueChanged="@OnPluginsPresentChanged">
+            Plugins <small>append list</small>
+        </FluentCheckbox>
+        <div class="pg-controls">
+            <FluentTextField Placeholder="comma separated" Style="width: 100%; min-width: 0;"
                 Value="@State.PluginsText"
                 ValueChanged="@(async v => { State.PluginsText = v; await NotifyAsync(); })"
                 Disabled="@(!State.PluginsPresent)" />
         </div>
-    </FluentStack>
-</FluentCard>
+    </div>
+</FluentStack>
 
 @code {
-    private static readonly List<string> NullPresenceNames = Enum.GetNames<NullPresence>().ToList();
-
-    [Parameter, EditorRequired]
-    public string Title { get; set; } = string.Empty;
-
     [Parameter, EditorRequired]
     public FragmentEditState State { get; set; } = null!;
 
     [Parameter]
-    public EventCallback OnReset { get; set; }
-
-    [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private static string LabelText(string name) => name switch
-    {
-        nameof(NullPresence.Missing) => "missing (fall through)",
-        nameof(NullPresence.Null) => "null (explicit)",
-        nameof(NullPresence.Value) => "value",
-        _ => name,
-    };
+    private bool IsLabelPresent => State.LabelMode != NullPresence.Missing;
+    private bool IsLabelNull => State.LabelMode == NullPresence.Null;
+    private bool IsNestedPresent => State.NestedMode != NullPresence.Missing;
+    private bool IsNestedNull => State.NestedMode == NullPresence.Null;
 
-    private async Task OnLabelModeChanged(string value)
+    private Task OnEnabledPresentChanged(bool present)
     {
-        if (Enum.TryParse<NullPresence>(value, out var parsed))
-        {
-            State.LabelMode = parsed;
-            await NotifyAsync();
-        }
+        State.EnabledPresent = present;
+        return NotifyAsync();
     }
 
-    private async Task OnNestedModeChanged(string value)
+    private Task OnRetryPresentChanged(bool present)
     {
-        if (Enum.TryParse<NullPresence>(value, out var parsed))
-        {
-            State.NestedMode = parsed;
-            await NotifyAsync();
-        }
+        State.RetryPresent = present;
+        return NotifyAsync();
     }
 
-    private async Task HandleReset()
+    private Task OnPluginsPresentChanged(bool present)
     {
-        await OnReset.InvokeAsync();
-        await NotifyAsync();
+        State.PluginsPresent = present;
+        return NotifyAsync();
+    }
+
+    private Task OnHostPresentChanged(bool present)
+    {
+        State.HostPresent = present;
+        return NotifyAsync();
+    }
+
+    private Task OnPortPresentChanged(bool present)
+    {
+        State.PortPresent = present;
+        return NotifyAsync();
+    }
+
+    private Task OnLabelPresentChanged(bool present)
+    {
+        State.LabelMode = present ? NullPresence.Value : NullPresence.Missing;
+        return NotifyAsync();
+    }
+
+    private Task OnLabelNullChanged(bool isNull)
+    {
+        if (IsLabelPresent)
+        {
+            State.LabelMode = isNull ? NullPresence.Null : NullPresence.Value;
+        }
+        return NotifyAsync();
+    }
+
+    private Task OnNestedPresentChanged(bool present)
+    {
+        State.NestedMode = present ? NullPresence.Value : NullPresence.Missing;
+        return NotifyAsync();
+    }
+
+    private Task OnNestedNullChanged(bool isNull)
+    {
+        if (IsNestedPresent)
+        {
+            State.NestedMode = isNull ? NullPresence.Null : NullPresence.Value;
+        }
+        return NotifyAsync();
     }
 
     private Task NotifyAsync() => OnChanged.InvokeAsync();
