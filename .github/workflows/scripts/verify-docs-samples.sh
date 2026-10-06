@@ -128,7 +128,7 @@ check_sample "blazor" "docs/blazor.md" "${blazor_fixture_dir}/Program.cs" \
 
 # 2. Compile and run the canonical fixtures against the packed packages.
 # The core glob pins the version digit so the Blazor package
-# (SparseFragments.Extensions.Blazor.*.nupkg, #46) never resolves here.
+# (SparseFragments.Blazor.*.nupkg, #46) never resolves here.
 package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseFragments package found in '${package_directory}'." >&2
@@ -139,9 +139,9 @@ if [[ -z "${version}" ]]; then
     echo "Could not resolve package version from '$(basename "${package}")'." >&2
     exit 1
 fi
-blazor_package="$(ls "${package_directory}"/SparseFragments.Extensions.Blazor.*.nupkg 2>/dev/null | head -n 1 || true)"
+blazor_package="$(ls "${package_directory}"/SparseFragments.Blazor.*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${blazor_package}" ]]; then
-    echo "No SparseFragments.Extensions.Blazor package found in '${package_directory}'." >&2
+    echo "No SparseFragments.Blazor package found in '${package_directory}'." >&2
     exit 1
 fi
 feed="$(realpath "${package_directory}")"

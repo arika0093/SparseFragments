@@ -17,7 +17,7 @@
     single version property pins the whole candidate set under test. -->
   <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
     <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
-    <ProjectReference Include="../../../../src/SparseFragments.Extensions.Blazor/SparseFragments.Extensions.Blazor.csproj" />
+    <ProjectReference Include="../../../../src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
     <ProjectReference
       Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"
@@ -27,7 +27,7 @@
   <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
     <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
     <PackageReference
-      Include="SparseFragments.Extensions.Blazor"
+      Include="SparseFragments.Blazor"
       Version="$(SparseFragmentsPackageVersion)"
     />
   </ItemGroup>

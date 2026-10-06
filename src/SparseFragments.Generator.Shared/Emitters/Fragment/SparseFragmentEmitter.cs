@@ -164,7 +164,7 @@ internal static class SparseFragmentEmitter
 
     /// <summary>
     /// Emits the Blazor edit-session factory. Only generated when the compilation
-    /// references <c>SparseFragments.Extensions.Blazor</c>; other consumers see
+    /// references <c>SparseFragments.Blazor</c>; other consumers see
     /// byte-identical output.
     /// </summary>
     private static void AppendEditSession(
@@ -177,7 +177,7 @@ internal static class SparseFragmentEmitter
         var between = SparseNaming.PatchApiPrefix(memberNames) + "Between";
         var isEmpty = SparseNaming.WholeApiPrefix(memberNames) + "IsEmpty";
         var session =
-            "global::SparseFragments.Extensions.Blazor.SparseEditSession<"
+            "global::SparseFragments.Blazor.SparseEditSession<"
             + modelType
             + ", Fragment, Patch>";
         code.AppendLineAt(

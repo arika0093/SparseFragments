@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace SparseFragments.Extensions.Blazor;
+namespace SparseFragments.Blazor;
 
 /// <summary>
 /// Bridges ordinary Blazor forms and SparseFragments semantic patches.

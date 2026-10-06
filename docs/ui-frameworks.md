@@ -31,7 +31,7 @@ Do not make the generated `T.Observable` proxy the `EditContext.Model`:
 - `INotifyPropertyChanged` is not the primary Blazor form-change mechanism;
 - the semantic patch still comes from baseline/current `T`, not from modified fields.
 
-The `SparseFragments.Extensions.Blazor` package composes this into
+The `SparseFragments.Blazor` package composes this into
 `SparseEditSession<TModel, TFragment, TPatch>`, created per model via the generated
 `CreateEditSession()`:
 
