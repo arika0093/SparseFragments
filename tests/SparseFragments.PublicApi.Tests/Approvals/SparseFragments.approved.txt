@@ -34,6 +34,14 @@ namespace SparseFragments
         public abstract SparseFragments.Optional<T> Merge(SparseFragments.Optional<T> lowerPriority, SparseFragments.Optional<T> higherPriority);
         public virtual bool TryRebase(SparseFragments.Optional<T> editBase, SparseFragments.Optional<T> desired, SparseFragments.Optional<T> current, out SparseFragments.Optional<T> rebased, out string? reason) { }
     }
+    public static class FragmentOperationExtensions
+    {
+        public static void CopyFrom<T>(ref this SparseFragments.FragmentOperation<T> target, SparseFragments.FragmentOperation<T> source) { }
+        public static void CopyFrom<TSource, TDestination>(ref this SparseFragments.FragmentOperation<TDestination> target, SparseFragments.FragmentOperation<TSource> source, System.Func<TSource?, TDestination?> map) { }
+        public static void Set<T>(ref this SparseFragments.FragmentOperation<T> target, T? value) { }
+        public static void SetUnchanged<T>(ref this SparseFragments.FragmentOperation<T> target) { }
+        public static void Unset<T>(ref this SparseFragments.FragmentOperation<T> target) { }
+    }
     public enum FragmentOperationKind
     {
         Unchanged = 0,
@@ -79,6 +87,13 @@ namespace SparseFragments
         Append = 2,
         SetUnion = 3,
         Custom = 4,
+    }
+    public static class OptionalExtensions
+    {
+        public static void CopyFrom<T>(ref this SparseFragments.Optional<T> target, SparseFragments.Optional<T> source) { }
+        public static void CopyFrom<TSource, TDestination>(ref this SparseFragments.Optional<TDestination> target, SparseFragments.Optional<TSource> source, System.Func<TSource?, TDestination?> map) { }
+        public static void Set<T>(ref this SparseFragments.Optional<T> target, T? value) { }
+        public static void Unset<T>(ref this SparseFragments.Optional<T> target) { }
     }
     public readonly struct Optional<T> : System.IEquatable<SparseFragments.Optional<T>>
     {
