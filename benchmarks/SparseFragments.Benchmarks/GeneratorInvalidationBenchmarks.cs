@@ -6,8 +6,17 @@ using SparseFragments.Generator;
 
 /// <summary>
 /// Incremental-generator scale benchmarks for the promoted-model pipeline
-/// (issue #18). Distinguishes cold generation from one-file incremental
-/// edits over 10 / 100 / 1000 roots sharing a single promoted partial type.
+/// (issue #18, extended by #61). Distinguishes cold generation from one-file
+/// incremental edits over 10 / 100 / 1000 roots sharing a single promoted
+/// partial type, and additionally records incremental step caching:
+/// <c>CachedSteps</c> counts tracked outputs that stay cached after an
+/// unrelated-root edit (higher is better), while <c>RecomputedSteps</c> counts
+/// tracked outputs that recompute after a shared promoted-type edit.
+/// Model-shape dimensions beyond root count (properties per root, nesting
+/// depth/fan-out, keyed collections, dictionary members, promoted-model count)
+/// live in <c>GeneratorModelShapeBenchmarks</c>; per-stage cached-vs-recomputed
+/// expectations are pinned by deterministic tests in
+/// <c>GeneratorStepTrackingTests</c>.
 /// </summary>
 [MemoryDiagnoser]
 public class GeneratorInvalidationBenchmarks
@@ -20,8 +29,14 @@ public class GeneratorInvalidationBenchmarks
     private CSharpCompilation _unrelatedCompilation = null!;
     private GeneratorDriver _sharedDriver = null!;
     private CSharpCompilation _sharedCompilation = null!;
+    private GeneratorDriver _unrelatedTrackedDriver = null!;
+    private CSharpCompilation _unrelatedTrackedCompilation = null!;
+    private GeneratorDriver _sharedTrackedDriver = null!;
+    private CSharpCompilation _sharedTrackedCompilation = null!;
     private int _unrelatedEdits;
     private int _sharedEdits;
+    private int _unrelatedTrackedEdits;
+    private int _sharedTrackedEdits;
     private int _preparedFor = -1;
 
     [GlobalSetup]
@@ -43,8 +58,18 @@ public class GeneratorInvalidationBenchmarks
         _sharedDriver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
+        _unrelatedTrackedCompilation = _baseCompilation;
+        _unrelatedTrackedDriver = GeneratorStepTracking
+            .CreateTrackedDriver()
+            .RunGenerators(_baseCompilation);
+        _sharedTrackedCompilation = _baseCompilation;
+        _sharedTrackedDriver = GeneratorStepTracking
+            .CreateTrackedDriver()
+            .RunGenerators(_baseCompilation);
         _unrelatedEdits = 0;
         _sharedEdits = 0;
+        _unrelatedTrackedEdits = 0;
+        _sharedTrackedEdits = 0;
         _preparedFor = RootCount;
     }
 
@@ -77,6 +102,38 @@ public class GeneratorInvalidationBenchmarks
         _sharedDriver = _sharedDriver.RunGenerators(updated);
         _sharedCompilation = updated;
         return _sharedDriver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Count();
+    }
+
+    [Benchmark(Description = "Generator steps: cached tracked outputs after an unrelated-root edit")]
+    public int IncrementalUnrelatedEdit_CachedSteps()
+    {
+        EnsurePrepared();
+        _unrelatedTrackedEdits++;
+        var updated = ScaleCompilations.WithUnrelatedEdit(
+            _unrelatedTrackedCompilation,
+            _unrelatedTrackedEdits
+        );
+        _unrelatedTrackedDriver = _unrelatedTrackedDriver.RunGenerators(updated);
+        _unrelatedTrackedCompilation = updated;
+        return GeneratorStepTracking.CachedOutputs(
+            _unrelatedTrackedDriver.GetRunResult().Results.Single()
+        );
+    }
+
+    [Benchmark(Description = "Generator steps: recomputed tracked outputs after a shared-type edit")]
+    public int IncrementalSharedEdit_RecomputedSteps()
+    {
+        EnsurePrepared();
+        _sharedTrackedEdits++;
+        var updated = ScaleCompilations.WithSharedEdit(
+            _sharedTrackedCompilation,
+            _sharedTrackedEdits
+        );
+        _sharedTrackedDriver = _sharedTrackedDriver.RunGenerators(updated);
+        _sharedTrackedCompilation = updated;
+        return GeneratorStepTracking.RecomputedOutputs(
+            _sharedTrackedDriver.GetRunResult().Results.Single()
+        );
     }
 
     private static class ScaleCompilations
