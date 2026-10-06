@@ -4,8 +4,8 @@
     <AssemblyName>SparseFragments</AssemblyName>
     <RootNamespace>SparseFragments</RootNamespace>
     <IsPackable>true</IsPackable>
-    <PackageDescription>Typed partial state for C#. Distinguish missing, null, and values with source-generated fragments from ordinary POCOs, then merge, diff, and patch without reflection.</PackageDescription>
-    <PackageTags>partial-update;optional;patch;diff;merge;source-generator;poco;json-patch;aot</PackageTags>
+    <PackageDescription>Typed partial state for C# with source-generated fragments and patches.</PackageDescription>
+    <PackageTags>dotnet;source-generator;patch;merge;json-patch;nativeaot</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.6.3" />
