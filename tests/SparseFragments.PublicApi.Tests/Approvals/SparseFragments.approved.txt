@@ -30,7 +30,7 @@ namespace SparseFragments
         protected FragmentMergeStrategy() { }
         public abstract bool AreEqual(T? left, T? right);
         public abstract SparseFragments.Optional<T> Merge(SparseFragments.Optional<T> lowerPriority, SparseFragments.Optional<T> higherPriority);
-        public virtual bool TryRebase(T? editBase, T? desired, T? current, out T? rebased, out string? reason) { }
+        public virtual bool TryRebase(SparseFragments.Optional<T> editBase, SparseFragments.Optional<T> desired, SparseFragments.Optional<T> current, out SparseFragments.Optional<T> rebased, out string? reason) { }
     }
     public enum FragmentOperationKind
     {
