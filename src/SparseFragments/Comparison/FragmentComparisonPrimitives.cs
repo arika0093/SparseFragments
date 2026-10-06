@@ -583,24 +583,27 @@ internal static class FragmentComparisonPrimitives
         object? keyComparer
     )
     {
-        var rightEntries = MaterializeEntries(right);
-
         var keyEquality = AsNonGenericEquality(keyComparer);
         if (keyEquality is not null)
         {
             // Bounded fast path (issue #60): index the right entries by key
             // through the same discovered key comparer, turning the nested
-            // scan into hash lookups while streaming the left side instead of
-            // materializing both. Duplicate keys defeat indexing and fall back
-            // to the multiset scan below; keys without a usable comparer stay
-            // on the structural scan by design (no safe hash exists).
-            var hashed = HashDictionariesStreamed(left, rightEntries, keyEquality);
+            // scan into hash lookups while streaming both sides. Duplicate keys
+            // defeat indexing and fall back to the multiset scan below; keys
+            // without a usable comparer stay on the structural scan by design.
+            var hashed = HashDictionariesStreamed(
+                left,
+                right,
+                TryDictionaryCount(right),
+                keyEquality
+            );
             if (hashed.HasValue)
             {
                 return hashed.Value;
             }
         }
 
+        var rightEntries = MaterializeEntries(right);
         var leftEntries = MaterializeEntries(left);
         if (leftEntries.Count != rightEntries.Count)
         {
@@ -648,18 +651,22 @@ internal static class FragmentComparisonPrimitives
     /// </summary>
     private static bool? HashDictionariesStreamed(
         IEnumerable left,
-        List<(object? Key, object? Value)> rightEntries,
+        IEnumerable right,
+        int? rightCapacity,
         IEqualityComparer keyEquality
     )
     {
         var rightMap = new Dictionary<object, object?>(
-            rightEntries.Count,
+            rightCapacity ?? 0,
             new NonGenericEqualityAdapter(keyEquality)
         );
         var hasNullKey = false;
         object? nullValue = null;
-        foreach (var (key, value) in rightEntries)
+        var rightCount = 0;
+        foreach (var item in right)
         {
+            ExtractEntry(item, out var key, out var value);
+            rightCount++;
             if (key is null)
             {
                 if (hasNullKey)
@@ -705,13 +712,13 @@ internal static class FragmentComparisonPrimitives
             }
 
             streamed++;
-            if (streamed > rightEntries.Count)
+            if (streamed > rightCount)
             {
                 return false;
             }
         }
 
-        return streamed == rightEntries.Count;
+        return streamed == rightCount;
     }
 
     private static List<(object? Key, object? Value)> MaterializeEntries(IEnumerable entries)
