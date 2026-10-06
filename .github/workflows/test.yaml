@@ -242,8 +242,10 @@ jobs:
       - name: Verify README samples against packed packages
         run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
 
-  # True NativeAOT publish gate. Independent from `unit` (no `needs:`) so
-  # GitHub Actions schedules both jobs in parallel across the OS matrix.
+  # True NativeAOT publish gate (#9, #19). Publishes the NativeAOT TUnit
+  # project and executes the native test binary directly. Independent from
+  # `unit` (no `needs:`) so GitHub Actions schedules both jobs in parallel
+  # across the OS matrix.
   # PR tier: Linux smoke leg only (toolchain signal without 3x link cost).
   # Main/release tier: full supported OS matrix (each OS links natively and
   # catches target-specific trimming/AOT failures before publish).
@@ -284,7 +286,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
-      - name: Publish NativeAOT smoke test
+      - name: Publish NativeAOT tests
         shell: bash
         run: |
           mkdir -p TestResults
@@ -297,13 +299,13 @@ jobs:
         shell: bash
         run: bash ./.github/workflows/scripts/assert-sparse-aot-diagnostics.sh TestResults/nativeaot-publish.log
 
-      - name: Run NativeAOT smoke test
+      - name: Run NativeAOT tests
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke.exe
+            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke.exe --report-trx --results-directory TestResults/nativeaot-results
           else
-            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke
+            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke --report-trx --results-directory TestResults/nativeaot-results
           fi
 
       - name: Upload failure NativeAOT artifacts
@@ -314,5 +316,6 @@ jobs:
           path: |
             TestResults/nativeaot-publish.log
             TestResults/nativeaot-smoke/**
+            TestResults/nativeaot-results/**
           if-no-files-found: ignore
           retention-days: 7

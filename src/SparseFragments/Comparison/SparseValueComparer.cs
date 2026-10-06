@@ -205,6 +205,11 @@ internal static class SparseValueComparer
         "IL2072",
         Justification = "Only reads an optional public Comparer property; a trimmed property is treated as an undiscoverable comparer with a symmetric bidirectional fallback."
     )]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "Only reads an optional public Comparer property via object.GetType(); a trimmed property is treated as an undiscoverable comparer with a symmetric bidirectional fallback."
+    )]
     private static object? GetDeclaredComparer(object value)
     {
         PropertyInfo? property;

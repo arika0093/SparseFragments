@@ -8,12 +8,13 @@ namespace SparseFragments;
 /// <summary>Allocation-friendly structural comparison shared by fragment equality.</summary>
 /// <remarks>
 /// Collection and fragment semantics live here so equality stays consistent.
-/// The typed native delegates below close generic helpers over runtime collection element
-/// types, which needs dynamic code. They are created only when dynamic code is supported
-/// (and cached per shape, preserving the non-allocating steady state); trimming and
-/// NativeAOT callers use the structural comparisons instead, so the whole closure stays
-/// warning-clean. Shape classification itself only compares generic type definitions and
-/// reads element types for assignability tests.
+/// The runtime package ships only a netstandard2.0 asset, so this path never
+/// attempts runtime generic code generation (no MakeGenericMethod/CreateDelegate):
+/// all collection comparisons below are statically reachable and trim/NativeAOT
+/// clean. Shape classification only compares generic type definitions and reads
+/// element types for assignability tests. Where a collection exposes its
+/// comparer, the non-generic comparer interfaces are used so custom comparers
+/// keep working without generic closures.
 /// </remarks>
 internal static class FragmentComparisonPrimitives
 {
@@ -29,53 +30,11 @@ internal static class FragmentComparisonPrimitives
         public CollectionKind Kind;
 
         public Type? ElementType;
-
-        public Func<object, IEnumerable, bool?>? TrySetEquals;
-
-        public Func<object, object, bool?>? TryDictionariesEqual;
-
-        public Func<object, object, bool?>? TrySequencesEqual;
     }
 
     private const string ReadOnlySetDefinitionName = "System.Collections.Generic.IReadOnlySet`1";
 
     private static readonly ConcurrentDictionary<Type, CollectionShape> ShapeCache = new();
-
-    private static readonly MethodInfo SetEqualsOpenMethod =
-        typeof(FragmentComparisonPrimitives).GetMethod(nameof(SetEqualsTyped))!;
-
-    private static readonly MethodInfo DictionariesEqualOpenMethod =
-        typeof(FragmentComparisonPrimitives).GetMethod(nameof(DictionariesEqualTyped))!;
-
-    private static readonly MethodInfo SequencesEqualOpenMethod =
-        typeof(FragmentComparisonPrimitives).GetMethod(nameof(SequencesEqualTyped))!;
-
-#if NETSTANDARD
-    // RuntimeFeature.IsDynamicCodeSupported is unavailable on .NET Standard targets, which
-    // never publish NativeAOT themselves. Assume JIT behavior there; NativeAOT hosts
-    // consume the .NET 8+ asset where the check below is exact.
-    private static bool IsDynamicCodeSupported => true;
-#else
-    private static bool IsDynamicCodeSupported =>
-        System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
-#endif
-
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2060",
-        Justification = "Native delegates are created only when dynamic code is supported. Trimming and NativeAOT callers use the structural comparisons instead."
-    )]
-    [UnconditionalSuppressMessage(
-        "Aot",
-        "IL3050",
-        Justification = "Native delegates are created only when dynamic code is supported. NativeAOT callers use the structural comparisons instead."
-    )]
-    private static TDelegate CreateNativeDelegate<TDelegate>(
-        MethodInfo openMethod,
-        Type[] typeArguments
-    )
-        where TDelegate : Delegate =>
-        (TDelegate)openMethod.MakeGenericMethod(typeArguments).CreateDelegate(typeof(TDelegate));
 
     internal static bool AreValuesEqual(object? left, object? right)
     {
@@ -126,7 +85,7 @@ internal static class FragmentComparisonPrimitives
                 return false;
             }
 
-            return AreDictionariesEqual(left, right, leftShape, rightShape);
+            return AreDictionariesEqual(left, right);
         }
 
         if (leftKind == CollectionKind.Set || rightKind == CollectionKind.Set)
@@ -139,86 +98,7 @@ internal static class FragmentComparisonPrimitives
             return AreSetsEqual(left, right, leftShape, rightShape);
         }
 
-        var sequencesFast =
-            leftShape?.TrySequencesEqual?.Invoke(left, right)
-            ?? rightShape?.TrySequencesEqual?.Invoke(right, left);
-        if (sequencesFast.HasValue)
-        {
-            return sequencesFast.Value;
-        }
-
         return SequencesEqualOrdered(leftItems, rightItems);
-    }
-
-    // Public so the open method resolves through public-only reflection (no
-    // accessibility bypass); the containing type is internal.
-    public static bool? SequencesEqualTyped<T>(object left, object right)
-    {
-        if (left is IList<T> leftList && right is IList<T> rightList)
-        {
-            if (leftList.Count != rightList.Count)
-            {
-                return false;
-            }
-
-            if (MayNeedDeepComparison(typeof(T)))
-            {
-                for (var index = 0; index < leftList.Count; index++)
-                {
-                    if (!AreValuesEqual(leftList[index], rightList[index]))
-                    {
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                var comparer = EqualityComparer<T>.Default;
-                for (var index = 0; index < leftList.Count; index++)
-                {
-                    if (!comparer.Equals(leftList[index], rightList[index]))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        if (left is IReadOnlyList<T> leftReadOnly && right is IReadOnlyList<T> rightReadOnly)
-        {
-            if (leftReadOnly.Count != rightReadOnly.Count)
-            {
-                return false;
-            }
-
-            if (MayNeedDeepComparison(typeof(T)))
-            {
-                for (var index = 0; index < leftReadOnly.Count; index++)
-                {
-                    if (!AreValuesEqual(leftReadOnly[index], rightReadOnly[index]))
-                    {
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                var comparer = EqualityComparer<T>.Default;
-                for (var index = 0; index < leftReadOnly.Count; index++)
-                {
-                    if (!comparer.Equals(leftReadOnly[index], rightReadOnly[index]))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        return null;
     }
 
     private static bool SequencesEqualOrdered(IEnumerable left, IEnumerable right)
@@ -282,12 +162,7 @@ internal static class FragmentComparisonPrimitives
         }
     }
 
-    private static bool AreDictionariesEqual(
-        object left,
-        object right,
-        CollectionShape? leftShape,
-        CollectionShape? rightShape
-    )
+    private static bool AreDictionariesEqual(object left, object right)
     {
         var leftCount = TryDictionaryCount(left);
         var rightCount = TryDictionaryCount(right);
@@ -295,7 +170,11 @@ internal static class FragmentComparisonPrimitives
         {
             // Dictionaries never fall back to enumeration-order equality; exotic
             // shapes without a readable count still compare order-independently.
-            return DictionariesEqualUnordered((IEnumerable)left, (IEnumerable)right);
+            return DictionariesEqualUnordered(
+                (IEnumerable)left,
+                (IEnumerable)right,
+                TryCollectionComparer(left) ?? TryCollectionComparer(right)
+            );
         }
 
         if (leftCount.Value != rightCount.Value)
@@ -317,26 +196,20 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        // The typed path avoids per-entry boxing for scalar values.
-        var forward = leftShape?.TryDictionariesEqual?.Invoke(left, right);
-        var backward = rightShape?.TryDictionariesEqual?.Invoke(right, left);
-        if (forward.HasValue && backward.HasValue)
-        {
-            return forward.Value && backward.Value;
-        }
-
-        if (forward.HasValue || backward.HasValue)
-        {
-            return (forward ?? backward)!.Value;
-        }
-
         if (left is IDictionary leftDictionary && right is IDictionary rightDictionary)
         {
+            // Non-generic IDictionary lookups honor each dictionary's own key
+            // comparer, so no generic closure is needed for the common shapes
+            // (including Dictionary<string, int> and its interface variants).
             return DictionaryContainsAll(leftDictionary, rightDictionary)
                 && DictionaryContainsAll(rightDictionary, leftDictionary);
         }
 
-        return DictionariesEqualUnordered((IEnumerable)left, (IEnumerable)right);
+        return DictionariesEqualUnordered(
+            (IEnumerable)left,
+            (IEnumerable)right,
+            leftComparer ?? rightComparer
+        );
     }
 
     private static bool DictionaryContainsAll(IDictionary pairs, IDictionary lookup)
@@ -344,94 +217,6 @@ internal static class FragmentComparisonPrimitives
         foreach (DictionaryEntry entry in pairs)
         {
             if (!lookup.Contains(entry.Key) || !AreValuesEqual(entry.Value, lookup[entry.Key]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // Public so the open methods resolve through public-only reflection (no
-    // accessibility bypass); the containing type is internal.
-    public static bool? DictionariesEqualTyped<TKey, TValue>(object pairs, object lookup)
-    {
-        if (pairs is not IEnumerable<KeyValuePair<TKey, TValue>> entries)
-        {
-            return null;
-        }
-
-        if (lookup is IDictionary<TKey, TValue> dictionary)
-        {
-            return DictionaryEntriesEqual(entries, dictionary);
-        }
-
-        if (lookup is IReadOnlyDictionary<TKey, TValue> readOnly)
-        {
-            return DictionaryEntriesEqual(entries, readOnly);
-        }
-
-        return null;
-    }
-
-    private static bool DictionaryEntriesEqual<TKey, TValue>(
-        IEnumerable<KeyValuePair<TKey, TValue>> entries,
-        IDictionary<TKey, TValue> lookup
-    )
-    {
-        if (MayNeedDeepComparison(typeof(TValue)))
-        {
-            foreach (var pair in entries)
-            {
-                if (
-                    !lookup.TryGetValue(pair.Key, out var value)
-                    || !AreValuesEqual(pair.Value, value)
-                )
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        var comparer = EqualityComparer<TValue>.Default;
-        foreach (var pair in entries)
-        {
-            if (!lookup.TryGetValue(pair.Key, out var value) || !comparer.Equals(pair.Value, value))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool DictionaryEntriesEqual<TKey, TValue>(
-        IEnumerable<KeyValuePair<TKey, TValue>> entries,
-        IReadOnlyDictionary<TKey, TValue> lookup
-    )
-    {
-        if (MayNeedDeepComparison(typeof(TValue)))
-        {
-            foreach (var pair in entries)
-            {
-                if (
-                    !lookup.TryGetValue(pair.Key, out var value)
-                    || !AreValuesEqual(pair.Value, value)
-                )
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        var comparer = EqualityComparer<TValue>.Default;
-        foreach (var pair in entries)
-        {
-            if (!lookup.TryGetValue(pair.Key, out var value) || !comparer.Equals(pair.Value, value))
             {
                 return false;
             }
@@ -467,32 +252,58 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        var forward = leftShape?.TrySetEquals?.Invoke(left, (IEnumerable)right);
-        var backward = rightShape?.TrySetEquals?.Invoke(right, (IEnumerable)left);
-        if (forward.HasValue && backward.HasValue)
-        {
-            return forward.Value && backward.Value;
-        }
-
-        if (forward.HasValue || backward.HasValue)
-        {
-            return (forward ?? backward)!.Value;
-        }
-
-        return SlowSetEquals(left, right);
+        // No generic closure: match members with the discovered non-generic
+        // comparer when one is available (e.g. HashSet<string> with
+        // OrdinalIgnoreCase), otherwise fall back to structural equality.
+        // This keeps HashSet<int> and its ISet<int>/IReadOnlySet<int> variants
+        // correct under NativeAOT without MakeGenericMethod/CreateDelegate.
+        return ComparerAwareSetEquals(left, right, leftComparer ?? rightComparer);
     }
 
-    // Public so the open method resolves through public-only reflection (no
-    // accessibility bypass); the containing type is internal.
-    public static bool? SetEqualsTyped<T>(object candidate, IEnumerable other)
+    private static bool ComparerAwareSetEquals(object left, object right, object? comparer)
     {
-        if (candidate is ISet<T> set && other is IEnumerable<T> items)
+        var leftCount = TryDictionaryCount(left);
+        var rightCount = TryDictionaryCount(right);
+        if (leftCount.HasValue && rightCount.HasValue && leftCount.Value != rightCount.Value)
         {
-            return set.SetEquals(items);
+            return false;
         }
 
-        return null;
+        var remaining = new List<object?>();
+        foreach (var item in (IEnumerable)left)
+        {
+            remaining.Add(item);
+        }
+
+        var keyEquality = AsNonGenericEquality(comparer);
+        foreach (var item in (IEnumerable)right)
+        {
+            var match = -1;
+            for (var index = 0; index < remaining.Count; index++)
+            {
+                var matched = keyEquality is not null
+                    ? keyEquality.Equals(remaining[index], item)
+                    : AreValuesEqual(remaining[index], item);
+                if (matched)
+                {
+                    match = index;
+                    break;
+                }
+            }
+
+            if (match < 0)
+            {
+                return false;
+            }
+
+            remaining.RemoveAt(match);
+        }
+
+        return remaining.Count == 0;
     }
+
+    private static IEqualityComparer? AsNonGenericEquality(object? comparer) =>
+        comparer as IEqualityComparer;
 
     private static bool SlowSetEquals(object left, object right)
     {
@@ -551,12 +362,17 @@ internal static class FragmentComparisonPrimitives
             return collection.Count;
         }
 
-        // Custom IReadOnlyDictionary implementations may not implement non-generic
+        // Custom read-only collections may not implement non-generic
         // ICollection; read Count structurally so they still compare
         // order-independently instead of falling back to enumeration order.
         return GetIntProperty(GetCachedProperty(CountProperties, value.GetType(), "Count"), value);
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2070",
+        Justification = "Only reads optional public Comparer/Count/Key/Value properties; a trimmed property is treated as undiscoverable with a symmetric structural fallback."
+    )]
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2072",
@@ -620,7 +436,11 @@ internal static class FragmentComparisonPrimitives
     private static int? GetIntProperty(PropertyInfo? property, object value) =>
         GetPropertyValue(property, value) is int count ? count : null;
 
-    private static bool DictionariesEqualUnordered(IEnumerable left, IEnumerable right)
+    private static bool DictionariesEqualUnordered(
+        IEnumerable left,
+        IEnumerable right,
+        object? keyComparer
+    )
     {
         var leftEntries = MaterializeEntries(left);
         var rightEntries = MaterializeEntries(right);
@@ -629,6 +449,7 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
+        var keyEquality = AsNonGenericEquality(keyComparer);
         var used = new bool[rightEntries.Count];
         foreach (var (key, value) in leftEntries)
         {
@@ -640,10 +461,10 @@ internal static class FragmentComparisonPrimitives
                     continue;
                 }
 
-                if (
-                    !AreValuesEqual(key, rightEntries[index].Key)
-                    || !AreValuesEqual(value, rightEntries[index].Value)
-                )
+                var keysEqual = keyEquality is not null
+                    ? keyEquality.Equals(key, rightEntries[index].Key)
+                    : AreValuesEqual(key, rightEntries[index].Key);
+                if (!keysEqual || !AreValuesEqual(value, rightEntries[index].Value))
                 {
                     continue;
                 }
@@ -724,34 +545,13 @@ internal static class FragmentComparisonPrimitives
         var dictionaryArguments = FindDictionaryArguments(type);
         if (dictionaryArguments is not null || typeof(IDictionary).IsAssignableFrom(type))
         {
-            var dictionaryShape = new CollectionShape { Kind = CollectionKind.Dictionary };
-            if (dictionaryArguments is not null && IsDynamicCodeSupported)
-            {
-                dictionaryShape.TryDictionariesEqual = CreateNativeDelegate<
-                    Func<object, object, bool?>
-                >(DictionariesEqualOpenMethod, [dictionaryArguments[0], dictionaryArguments[1]]);
-            }
-
-            return dictionaryShape;
+            return new CollectionShape { Kind = CollectionKind.Dictionary };
         }
 
-        var setElement = FindSetElementType(type, out var hasNativeSet);
+        var setElement = FindSetElementType(type);
         if (setElement is not null)
         {
-            var setShape = new CollectionShape
-            {
-                Kind = CollectionKind.Set,
-                ElementType = setElement,
-            };
-            if (hasNativeSet && IsDynamicCodeSupported)
-            {
-                setShape.TrySetEquals = CreateNativeDelegate<Func<object, IEnumerable, bool?>>(
-                    SetEqualsOpenMethod,
-                    [setElement]
-                );
-            }
-
-            return setShape;
+            return new CollectionShape { Kind = CollectionKind.Set, ElementType = setElement };
         }
 
         return CreateSequenceShape(type);
@@ -761,18 +561,11 @@ internal static class FragmentComparisonPrimitives
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type
     )
     {
-        var sequenceShape = new CollectionShape { Kind = CollectionKind.Sequence };
-        var elementType = FindSequenceElementType(type);
-        sequenceShape.ElementType = elementType;
-        if (elementType is not null && IsDynamicCodeSupported)
+        return new CollectionShape
         {
-            sequenceShape.TrySequencesEqual = CreateNativeDelegate<Func<object, object, bool?>>(
-                SequencesEqualOpenMethod,
-                [elementType]
-            );
-        }
-
-        return sequenceShape;
+            Kind = CollectionKind.Sequence,
+            ElementType = FindSequenceElementType(type),
+        };
     }
 
     private static Type[]? FindDictionaryArguments(
@@ -815,8 +608,7 @@ internal static class FragmentComparisonPrimitives
     }
 
     private static Type? FindSetElementType(
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type,
-        out bool hasNativeSet
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type
     )
     {
         if (type.IsGenericType)
@@ -824,7 +616,6 @@ internal static class FragmentComparisonPrimitives
             var definition = type.GetGenericTypeDefinition();
             if (definition == typeof(ISet<>))
             {
-                hasNativeSet = true;
                 return type.GetGenericArguments()[0];
             }
         }
@@ -840,7 +631,6 @@ internal static class FragmentComparisonPrimitives
             var definition = implemented.GetGenericTypeDefinition();
             if (definition == typeof(ISet<>))
             {
-                hasNativeSet = true;
                 return implemented.GetGenericArguments()[0];
             }
 
@@ -850,7 +640,6 @@ internal static class FragmentComparisonPrimitives
             }
         }
 
-        hasNativeSet = false;
         return readOnlyElement;
     }
 
