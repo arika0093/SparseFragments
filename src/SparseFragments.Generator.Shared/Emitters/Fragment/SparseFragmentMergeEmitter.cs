@@ -253,13 +253,31 @@ internal sealed class SparseFragmentMergeEmitter
         {
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "before");
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "after");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(before, after)) { return new Fragment(); }"
+            );
         }
 
-        code.AppendLineAt(
-            3,
-            "var __sparse_diff_context = " + ReferenceComparer + ".CreateDiffCycleContext();"
+        var requiresDiffContext = members.Any(static member =>
+            member.ChildModel is not null && member.MergeStrategyType is null
         );
-        code.AppendLineAt(3, "return Diff(before, after, __sparse_diff_context, \"\");");
+        if (requiresDiffContext)
+        {
+            code.AppendLineAt(
+                3,
+                "var __sparse_diff_context = " + ReferenceComparer + ".CreateDiffCycleContext();"
+            );
+            code.AppendLineAt(
+                3,
+                "return __SparseDiffCore(before, after, __sparse_diff_context, \"\");"
+            );
+        }
+        else
+        {
+            // Internal calls retain their ancestor guard even for leaf projections.
+            AppendDiffBody(code, members, 3);
+        }
         code.AppendLineAt(2, "}");
         code.AppendLine();
         code.AppendIndent(2)
@@ -279,6 +297,25 @@ internal sealed class SparseFragmentMergeEmitter
                 3,
                 "if (global::System.Object.ReferenceEquals(before, after)) { return new Fragment(); }"
             );
+        }
+
+        code.AppendLineAt(
+            3,
+            "return __SparseDiffCore(before, after, __sparse_diff_context, __sparse_diff_path);"
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+        code.AppendIndent(2)
+            .Append("private static Fragment __SparseDiffCore(")
+            .Append(modelType)
+            .Append(" before, ")
+            .Append(modelType)
+            .Append(" after, ")
+            .Append(diffContextType)
+            .AppendLine(" __sparse_diff_context, string __sparse_diff_path)");
+        code.AppendLineAt(2, "{");
+        if (modelIsReferenceType)
+        {
             code.AppendLineAt(
                 3,
                 "var __sparse_diff_pair = new global::System.Collections.Generic.KeyValuePair<object, object>((object)before, (object)after);"
