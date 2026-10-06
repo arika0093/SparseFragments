@@ -55,9 +55,8 @@ public partial class Settings { ... }
 ## SPF003: Model needs a supported constructor
 
 * Message: `Class model '{0}' must have a parameterless constructor or a constructor whose parameters match public readable properties by name and type; a setter, when present, must be public`
-* Cause: The class model has no constructor that the generated code can call:
-  it needs either a parameterless constructor or a constructor whose parameters
-  match the public readable properties by name and type.
+* Cause: The generator found no constructor it can call: neither a parameterless
+  constructor nor one whose parameters match the public readable properties by name and type.
 * Fix: Add a parameterless constructor, or provide a constructor that corresponds to the properties.
 
 ```csharp
@@ -72,11 +71,12 @@ public partial class Settings
 ## SPF004: Invalid custom merge strategy
 
 * Message: `Merge strategy for member '{0}' must derive from FragmentMergeStrategy<TMember> and be a concrete, accessible type`
-* Cause: The type passed to `[SparseMerge(typeof(Strategy))]` is invalid. All of the following are required.
-  * It targets a member that is not a nested model
-  * It derives from `FragmentMergeStrategy<TMember>` where `TMember` exactly matches the member type
-  * It is a non-`abstract`, non-generic `class`, and both the type and its parameterless constructor are `public` or `internal`
-* Fix: Correct the strategy class accordingly.
+* Cause: The generator checked the strategy type against each requirement and at
+  least one failed: member is a nested model, base type or `TMember` mismatch,
+  or the strategy is `abstract`, generic, or not accessibly constructible.
+* Fix: Derive from `FragmentMergeStrategy<TMember>` with `TMember` exactly matching
+  the member type, and make the strategy a concrete class with an accessible
+  parameterless constructor. See [Merge strategies](merge-strategies.md).
 
 ```csharp
 public sealed class SumMergeStrategy : FragmentMergeStrategy<List<int>>
@@ -97,12 +97,10 @@ public partial class StrategySettings
 ## SPF005: Unsupported merge mode
 
 * Message: `The configured merge mode is not supported for member '{0}'`
-* Cause: The combination of the `[SparseMerge]` mode and the member kind is invalid.
-  * `Deep` is only available for nested models (`[SparseFragmentModel]` or structural types)
-  * `Append` cannot be used on set types (use an ordered collection or `SetUnion`) nor on non-collections
-  * `SetUnion` cannot be used on non-collections
-  * Out-of-range numeric values (anything outside `MergeMode` 0–4) are also rejected
-* Fix: Select a mode that matches the member kind.
+* Cause: The mode does not apply to this member kind:
+  `Deep` needs a nested generated model, `Append` needs an ordered collection,
+  `SetUnion` needs a collection, and numeric values outside `MergeMode` 0–4 are rejected.
+* Fix: Select a mode that matches the member kind. See [Merge strategies](merge-strategies.md).
 
 ```csharp
 [SparseFragmentModel]
@@ -119,28 +117,29 @@ public partial class Settings
 ## SPF006: Required member cannot be constructed
 
 * Message: `Required member '{0}' must be represented by an accessible public property in the fragment construction plan`
-* Cause: A `required` member cannot be set from the generated code
-  (no `public` setter and no constructor binding covering it).
-* Fix: Declare the `required` member as a public property so that constructor binding can resolve it.
-  If that is not feasible, drop `required` or reconsider the model shape.
+* Cause: The generator found no way to assign the member: no `public` setter
+  and no constructor parameter matching it.
+* Fix: Give the member a `public` setter or a matching constructor parameter;
+  otherwise drop `required`. See [Model shapes](model-shapes.md).
 
 ## SPF007: Unsupported structural member construction
 
 * Message: `Member '{0}' has an unsupported structural type; provide a supported public constructor and properties, decorate it as a fragment model, or explicitly select MergeMode.Replace`
-* Cause: A nested member type cannot participate sparsely: it is not a `partial`
-  type the generator can promote (or an explicit `[SparseFragmentModel]`), and the
-  member does not opt into whole-value replacement.
-* Fix: Do one of the following.
-  * Declare the nested type `partial` with a public constructor and public properties so it is promoted to a first-class fragment
-  * Annotate the nested type itself with `[SparseFragmentModel]` to make it a fragment model
-  * Mark the member with `[SparseMerge(MergeMode.Replace)]` to replace it as a whole
+* Cause: The generator patches inside a nested value only through generated
+  member-level APIs, which need the nested type to be `partial` (or an explicit
+  fragment model). The member also lacks an explicit `Replace` opt-in, so the
+  generator refuses to guess.
+* Fix: Declare the nested type `partial`, annotate it with `[SparseFragmentModel]`,
+  or mark the member `[SparseMerge(MergeMode.Replace)]`. See [Model shapes](model-shapes.md).
 
 ## SPF008: Unsupported deep clone member
 
 * Message: `Member '{0}' has a reference shape that cannot be deeply cloned safely (unsupported type or constructor-bound cycle); use a supported structural type or collection, or explicitly mark a reference-safe property with SparseCloneReferenceSafe`
-* Cause: The member has a reference shape that `DeepClone()` cannot copy safely.
-  It contains an unsupported type or a constructor-bound reference cycle.
-* Fix: Switch to a supported structural type or collection, or mark properties that may share references with `[SparseCloneReferenceSafe]`.
+* Cause: `DeepClone` must copy the member's object graph, but the member's type
+  is outside the supported cloneable shapes or closes a constructor-bound cycle
+  the cloner cannot rebuild.
+* Fix: Switch to a supported structural type or collection, or mark the property
+  `[SparseCloneReferenceSafe]`. See [Cloning and ownership](cloning-and-ownership.md).
 
 ```csharp
 [SparseFragmentModel]
@@ -161,26 +160,25 @@ public partial class Settings
 ## SPF010: Incompatible promoted fragment model
 
 * Message: `Promoted model '{0}' requires incompatible generated semantics from different roots`
-* Cause: A shared nested type without its own explicit `[SparseFragmentModel]` root is referenced
-  from multiple roots with different generated semantics.
-* Fix: Unify the nested type definition and merge settings, or annotate the nested type itself
-  with `[SparseFragmentModel]` to promote it to an explicit root.
+* Cause: The same nested type is reached from multiple roots whose member sets or
+  merge settings disagree, so one shared generated API cannot satisfy both.
+* Fix: Unify the definitions and settings, or annotate the nested type itself
+  with `[SparseFragmentModel]` to make it an explicit root.
 
 ## SPF011: Structural sequence without usable key
 
 * Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
-* Cause: A structural sequence member (`List<T>`/array over a fragment model or
-  promotable partial) has no stable key, so per-element patch semantics cannot be derived.
-* Fix: Declare exactly one key on the element type — one property-level `[SparseKey]`,
-  one type-level `[SparseKey("TenantId", "Id")]` composite, or one `ISparseKeyed<TKey>`
-  implementation. To keep whole-collection semantics instead, select `MergeMode.Append`,
-  `MergeMode.SetUnion`, or a custom `FragmentMergeStrategy<T>` on the member.
+* Cause: The generator found no stable key on the element type, so it cannot
+  derive per-element patch behavior for the sequence.
+* Fix: Declare exactly one key on the element type, or select `MergeMode.Append`,
+  `MergeMode.SetUnion`, or a custom strategy for whole-collection semantics.
+  See [Keyed collections](keyed-collections.md).
 
 ## SPF012: Conflicting SparseKey mechanisms
 
 * Message: `Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them`
-* Cause: The type combines two or more key-definition mechanisms. The generator
-  never prefers one source over another.
+* Cause: The generator observed two or more key-definition mechanisms on the type
+  and never prefers one over another.
 * Fix: Keep exactly one mechanism and remove the others.
 
 ```csharp
@@ -205,67 +203,59 @@ public partial class Server
 ## SPF013: Multiple SparseKey properties
 
 * Message: `Type '{0}' marks more than one property with [SparseKey]; multiple property-level keys are not a composite key, use a single type-level [SparseKey(nameof(...), ...)] declaration instead`
-* Cause: More than one property carries parameterless `[SparseKey]`. Multiple
-  property-level markers are never interpreted as a composite key.
-* Fix: Keep a single `[SparseKey]` property, or replace the markers with one type-level
-  `[SparseKey(nameof(A), nameof(B))]` composite declaration.
+* Cause: The generator found parameterless `[SparseKey]` on several properties,
+  which it never reads as a composite key.
+* Fix: Keep one `[SparseKey]` property or use a single type-level composite.
 
 ## SPF014: Invalid SparseKey declaration
 
 * Message: `SparseKey declaration on '{0}' is invalid; property-level [SparseKey] takes no arguments and type-level [SparseKey] requires at least one property name`
-* Cause: One of the following shapes was used.
-  * Parameterless `[SparseKey]` on a type (there are no components to build a key from).
-  * Property-name (or any constructor/named) arguments on a property-level `[SparseKey]`.
-  * An empty type-level component list.
-* Fix: Use parameterless `[SparseKey]` on exactly one property, or pass at least one
+* Cause: The declaration matches none of the supported shapes: parameterless on a
+  type, arguments on a property-level marker, or an empty type-level component list.
+* Fix: Use parameterless `[SparseKey]` on one property, or pass at least one
   property name to a type-level `[SparseKey("TenantId", "Id")]`.
 
 ## SPF015: Missing SparseKey component
 
 * Message: `Key component '{0}' does not resolve to a property of the model`
-* Cause: A type-level `[SparseKey(...)]` names a property that does not exist on the model
-  (or only exists as a static, indexer, or non-publicly-readable member — see SPF017).
-* Fix: Correct the name (component order is significant) or add the missing publicly
-  readable instance property.
+* Cause: The named component resolves to no usable instance property on the model.
+* Fix: Correct the name (component order is significant) or add the missing property.
 
 ## SPF016: Duplicate SparseKey component
 
 * Message: `Duplicate key component '{0}'; type-level key components must resolve to distinct properties`
-* Cause: A type-level `[SparseKey(...)]` lists the same property more than once.
+* Cause: The same property appears twice in one type-level component list.
 * Fix: List each component once, in key order.
 
 ## SPF017: Inaccessible SparseKey property
 
 * Message: `Key property '{0}' must be a publicly readable instance property; static, indexer, or non-publicly-readable properties cannot serve as stable identity`
-* Cause: A key property (property-level `[SparseKey]` or a resolved type-level component)
-  is static, an indexer, or not publicly readable. Computed/read-only properties are
-  valid as long as they are publicly readable instance properties
-  (e.g. `public ServerKey Key => new(TenantId, Id)`).
+* Cause: The key property is static, an indexer, or not publicly readable, so
+  generated code cannot reach it. Computed read-only properties are valid when public.
 * Fix: Expose the key through a publicly readable instance property.
 
 ## SPF018: Nullable SparseKey
 
 * Message: `Key '{0}' must not be nullable; nullable key values/types are not supported for keyed collection identity`
-* Cause: A key property, composite component, or `ISparseKeyed<TKey>` key type is nullable
-  (`string?`, `int?`, …). Nullable keys cannot represent stable collection identity.
+* Cause: The generator found a nullable key (`string?`, `int?`, …), which cannot
+  serve as stable collection identity.
 * Fix: Use a non-nullable key type.
 
 ## SPF019: Unsupported SparseKey shape
 
 * Message: `Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity`
-* Cause: A key property, composite component, or `ISparseKeyed<TKey>` key type is
-  collection-shaped (arrays, `List<T>`, dictionaries, sets, …).
+* Cause: The generator found a collection-shaped key (array, `List<T>`,
+  dictionary, set, …).
 * Fix: Use a scalar/value-object key type.
 
 ## SPF020: Invalid ISparseKeyed implementation
 
 * Message: `Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type`
-* Cause: The `ISparseKeyed<TKey>` implementation is unusable: more than one distinct `TKey`
-  is implemented (ambiguous), the key type is nullable or collection-shaped, or no
-  publicly readable instance `SparseKey` property is available (explicit interface
-  implementations cannot be reached by generated code).
-* Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey` getter
-  and a valid key type.
+* Cause: The generator cannot use the implementation: ambiguous `TKey`s, a
+  nullable or collection-shaped key type, or no reachable instance `SparseKey`
+  getter (explicit interface implementations are invisible to generated code).
+* Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey`
+  getter and a valid key type. See [Keyed collections](keyed-collections.md).
 
 ```csharp
 // OK

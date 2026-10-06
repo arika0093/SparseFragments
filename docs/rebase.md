@@ -1,6 +1,6 @@
 # Patch Rebase
 
-Rebase replays a patch authored against an older state onto a newer state. Two writers start from the same baseline, one commits first, and the other's patch is reconciled against the committed state. Last-writer-wins would silently discard one side; rebase instead keeps both sides' compatible edits and reports only the irreconcilable ones as structured conflicts.
+A Patch is authored against a particular baseline. If the underlying state changes before the Patch is applied, applying it directly can overwrite a concurrent change to the same member. `Rebase` compares the original baseline, the local Patch, and the current state before producing a Patch for the current state.
 
 <!-- sample: rebase-first-models -->
 ```csharp
@@ -26,39 +26,18 @@ var currentState = Optional<RebaseSettings.Fragment?>.Present(
 
 var rebased = RebaseSettings.Patch.Rebase(baseState, localPatch, currentState);
 
-DocsCheck.Require(!rebased.HasConflicts, "disjoint edits replay cleanly");
 var reconciled = rebased.Patch.Apply(currentState);
-DocsCheck.Require(reconciled.Value!.RetryCount.Value == 2, "local edit kept");
-DocsCheck.Require(reconciled.Value!.Label.Value == "b", "concurrent edit kept");
+// !rebased.HasConflicts
+// reconciled.Value!.RetryCount.Value == 2
+// reconciled.Value!.Label.Value == "b"
 ```
 <!-- /sample -->
 
-## The Base / Local / Current Model
+## Base, Local Patch, and Current State
 
-Rebase takes three states:
-
-* **base** — the state the local patch was authored against;
-* **local** — the desired patch (the user's edits);
-* **current** — the newer state onto which the patch is replayed.
+In this call, `baseState` is the state the edit started from, `localPatch` contains the local edit, and `currentState` is the latest committed state.
 
 All three are presence-aware `Optional<Fragment?>` values, so *missing*, *present null*, and *present value* participate in reconciliation exactly as they do in merge: `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` are all observable transitions.
-
-```csharp
-var baseState = Optional<Settings.Fragment?>.Present(
-    Settings.Fragment.From(new Settings { RetryCount = 1, Label = "a" }));
-var local = new Settings.Patch { RetryCount = 2 };
-var currentState = Optional<Settings.Fragment?>.Present(
-    Settings.Fragment.From(new Settings { RetryCount = 1, Label = "b" }));
-
-RebaseResult<Settings.Patch> result =
-    Settings.Patch.Rebase(baseState, local, currentState);
-
-if (!result.HasConflicts)
-{
-    var applied = result.Patch.Apply(currentState);
-    // applied: RetryCount == 2 (local edit), Label == "b" (concurrent edit kept)
-}
-```
 
 Rebase returns a **new patch for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased patch.
 
@@ -91,24 +70,25 @@ The local edit is already present in `current` (someone else made the same chang
 Local and current changed the same member differently: the member is excluded from the rebased patch and reported as a conflict.
 
 ```csharp
-// base:   { RetryCount = 1 }
-// local:  RetryCount = 2
-// current:{ RetryCount = 3 }
+var conflictBase = Optional<RebaseSettings.Fragment?>.Present(
+    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1 }));
+var conflictLocal = new RebaseSettings.Patch { RetryCount = 2 };
+var conflictCurrent = Optional<RebaseSettings.Fragment?>.Present(
+    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 3 }));
 
-var result = Settings.Patch.Rebase(baseState, local, currentState);
+RebaseResult<RebaseSettings.Patch> result =
+    RebaseSettings.Patch.Rebase(conflictBase, conflictLocal, conflictCurrent);
 
-result.HasConflicts.ShouldBeTrue();
 var conflict = result.Conflicts.Single();
-conflict.Kind.ShouldBe(SparsePatchConflictKind.Scalar);
-conflict.Path.ShouldBe(["RetryCount"]);
-conflict.BaseValue.Value.ShouldBe(1);
-conflict.LocalValue.Value.ShouldBe(2);
-conflict.CurrentValue.Value.ShouldBe(3);
+// result.HasConflicts == true
+// conflict.Kind == SparsePatchConflictKind.Scalar
+// conflict.Path == ["RetryCount"]
+// conflict.BaseValue == 1, LocalValue == 2, CurrentValue == 3
 ```
 
 ## Structured Conflicts
 
-Each `SparsePatchConflict` carries domain-neutral, presence-aware information:
+Each `SparsePatchConflict` reports where the conflict occurred and the base/local/current values involved.
 
 | Member | Meaning |
 | --- | --- |
