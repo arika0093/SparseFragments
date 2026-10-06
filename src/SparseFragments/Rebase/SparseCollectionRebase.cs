@@ -195,6 +195,164 @@ internal static class SparseCollectionRebase
         return true;
     }
 
+    /// <summary>
+    /// Reapplies an append edit (a suffix of added elements) onto a newer sequence
+    /// without boxing or delegate dispatch.
+    /// </summary>
+    /// <remarks>
+    /// Typed counterpart of the <c>object?</c> append helper for sequence members whose
+    /// element equality is the member comparer (issue #59). Prefix semantics are
+    /// unchanged: the local edit must preserve the baseline as a prefix, and the
+    /// concurrent state must do the same, otherwise the edit conflicts.
+    /// </remarks>
+    /// <param name="before">The baseline sequence.</param>
+    /// <param name="desired">The locally edited sequence.</param>
+    /// <param name="current">The newer sequence.</param>
+    /// <param name="comparer">Element equality. Defaults to <see cref="EqualityComparer{T}.Default"/>.</param>
+    /// <param name="rebased">The rebased sequence on success.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    public static bool TryRebaseSequenceAppend<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out List<T> rebased,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(desired);
+        ArgumentNullException.ThrowIfNull(current);
+
+        comparer ??= EqualityComparer<T>.Default;
+
+        if (SequenceEqual(current, desired, comparer) || SequenceEqual(desired, before, comparer))
+        {
+            rebased = new List<T>(current);
+            reason = null;
+            return true;
+        }
+
+        if (!HasPrefix(desired, before, comparer))
+        {
+            if (
+                !SequenceEqual(current, before, comparer)
+                && !SequenceEqual(current, desired, comparer)
+            )
+            {
+                rebased = [];
+                reason =
+                    "The configuration edit conflicts with a concurrent change to an append-merged member.";
+                return false;
+            }
+
+            rebased = new List<T>(desired);
+            reason = null;
+            return true;
+        }
+
+        if (!HasPrefix(current, before, comparer))
+        {
+            rebased = [];
+            reason =
+                "The configuration edit cannot reapply its append because the existing collection prefix changed.";
+            return false;
+        }
+
+        var result = new List<T>(current);
+        for (var index = before.Count; index < desired.Count; index++)
+        {
+            result.Add(desired[index]);
+        }
+
+        rebased = result;
+        reason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Reapplies a sequence set-union edit (added and removed elements) onto a newer
+    /// sequence without boxing, delegate dispatch, or quadratic scans.
+    /// </summary>
+    /// <remarks>
+    /// Typed counterpart of the <c>object?</c> set-union helper for sequence members
+    /// whose element equality is the member comparer (issue #59). Conflict behavior,
+    /// removal handling, and duplicate handling are unchanged: a removal edit
+    /// conflicts with any concurrent change, while a pure addition replays the
+    /// locally added elements (first occurrence wins) beside the current sequence.
+    /// Membership uses comparer-aware hash lookups instead of per-element scans.
+    /// </remarks>
+    /// <param name="before">The baseline sequence.</param>
+    /// <param name="desired">The locally edited sequence.</param>
+    /// <param name="current">The newer sequence.</param>
+    /// <param name="comparer">Element equality. Defaults to <see cref="EqualityComparer{T}.Default"/>.</param>
+    /// <param name="rebased">The rebased sequence on success.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit loops combine comparer-aware hash membership with early exit and result-bound dedup; LINQ would reintroduce per-element delegate scans."
+    )]
+    public static bool TryRebaseSequenceSetUnion<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out List<T> rebased,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(desired);
+        ArgumentNullException.ThrowIfNull(current);
+
+        comparer ??= EqualityComparer<T>.Default;
+
+        var desiredLookup = new HashSet<T>(desired, comparer);
+        var hasRemoved = false;
+        foreach (var value in before)
+        {
+            if (!desiredLookup.Contains(value))
+            {
+                hasRemoved = true;
+                break;
+            }
+        }
+
+        if (hasRemoved)
+        {
+            if (
+                !SequenceEqual(current, before, comparer)
+                && !SequenceEqual(current, desired, comparer)
+            )
+            {
+                rebased = [];
+                reason =
+                    "The configuration edit conflicts with a concurrent change to a set-union member.";
+                return false;
+            }
+
+            rebased = new List<T>(desired);
+            reason = null;
+            return true;
+        }
+
+        var beforeLookup = new HashSet<T>(before, comparer);
+        var resultLookup = new HashSet<T>(current, comparer);
+        var result = new List<T>(current);
+        foreach (var value in desired)
+        {
+            if (!beforeLookup.Contains(value) && resultLookup.Add(value))
+            {
+                result.Add(value);
+            }
+        }
+
+        rebased = result;
+        reason = null;
+        return true;
+    }
+
     private static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)
     {
         if (value is HashSet<T> hashSet)
@@ -258,6 +416,50 @@ internal static class SparseCollectionRebase
         for (var index = 0; index < prefix.Count; index++)
         {
             if (!equal(candidate[index], prefix[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasPrefix<T>(
+        IReadOnlyList<T> candidate,
+        IReadOnlyList<T> prefix,
+        IEqualityComparer<T> comparer
+    )
+    {
+        if (candidate.Count < prefix.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < prefix.Count; index++)
+        {
+            if (!comparer.Equals(candidate[index], prefix[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool SequenceEqual<T>(
+        IReadOnlyList<T> left,
+        IReadOnlyList<T> right,
+        IEqualityComparer<T> comparer
+    )
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!comparer.Equals(left[index], right[index]))
             {
                 return false;
             }
