@@ -1554,11 +1554,12 @@ internal static class SparseKeyedCollectionEmitter
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
-                "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
+                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
             );
+            code.AppendLineAt(5, "if (!localTouches) continue;");
             code.AppendLineAt(
                 5,
-                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
+                "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
             );
             code.AppendLineAt(
                 5,
@@ -1572,7 +1573,6 @@ internal static class SparseKeyedCollectionEmitter
                     + facade
                     + ".AreEqual((object?)d, (object?)c));"
             );
-            code.AppendLineAt(5, "if (!localTouches) continue;");
             code.AppendLineAt(5, "if (baseEqualsCurrent)");
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
@@ -1713,11 +1713,12 @@ internal static class SparseKeyedCollectionEmitter
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
-                "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
+                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
             );
+            code.AppendLineAt(5, "if (!localTouches) continue;");
             code.AppendLineAt(
                 5,
-                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
+                "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
             );
             code.AppendLineAt(
                 5,
@@ -1731,7 +1732,6 @@ internal static class SparseKeyedCollectionEmitter
                     + facade
                     + ".AreEqual((object?)d, (object?)c));"
             );
-            code.AppendLineAt(5, "if (!localTouches) continue;");
             code.AppendLineAt(5, "if (baseEqualsCurrent)");
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
