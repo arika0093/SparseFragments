@@ -4,8 +4,11 @@
     <AssemblyName>SparseFragments.Extensions.Blazor</AssemblyName>
     <RootNamespace>SparseFragments.Extensions.Blazor</RootNamespace>
     <IsPackable>true</IsPackable>
-    <PackageDescription>Blazor edit sessions for SparseFragments. Keeps a fragment baseline alongside the live model and derives semantic patches from before/after state.</PackageDescription>
-    <PackageTags>blazor;forms;editcontext;patch;sparse</PackageTags>
+    <PackageDescription>Blazor edit sessions for SparseFragments with semantic change tracking.</PackageDescription>
+    <PackageTags>blazor;forms;patch;dotnet</PackageTags>
+    <!-- Explicit README handling (#37): this package does not ship the core README. Clearing the
+      inherited PackageReadmeFile keeps the Blazor package metadata explicit and valid. -->
+    <PackageReadmeFile></PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

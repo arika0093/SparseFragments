@@ -10,60 +10,30 @@ Try it live in the browser: [*SparseFragments Playground*](https://arika0093.git
 
 ## The Problem: Missing Is Not Null
 
-Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`/`default`". That distinction becomes essential the moment data is layered:
+Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`". That distinction matters as soon as data is layered: higher-priority sources must override only what they actually set, while an explicit `null` must win over a lower layer's value and a missing member must fall through.
 
-* Multiple sources (files, environment variables, remote policies, user edits) each contribute *some* members, and higher-priority layers must override only what they actually set.
-* An explicit `null` is a real, meaningful value that must win over a lower layer's value — while a missing member must fall through.
-* Nested models and collections need their own merge rules (member-by-member? append? set-union?), not a blanket "last write wins".
-* You want to compute the minimal difference between two states and apply it elsewhere as a patch.
-* Mutable models must be cloneable without sharing references between copies.
+Hand-writing this per model is boilerplate-heavy and error-prone, and reflection-based solutions sacrifice startup performance and AOT/trim compatibility. SparseFragments generates it from your POCOs at compile time.
 
-Hand-writing this per model is boilerplate-heavy and error-prone, and reflection-based solutions sacrifice startup performance and AOT/trim compatibility.
+## Is This For You?
 
-## Overview
-### Presence in one glance
+All of these are uses of the same typed partial state: keep an edit, override, or delta as a `Fragment`/`Patch` that remembers what was specified, then combine it with `Merge`, `Diff`, or `Apply`.
 
-An explicitly set `null` overrides a lower layer; an unspecified member falls through. The generated typed API preserves that distinction:
+* **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered `Merge` produces the effective state.
+* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents — no reflection involved.
+* **Minimal persisted settings.** `Diff` the current settings against the defaults and persist only the resulting fragment.
+* **Edit sessions and dirty tracking.** Accumulate user edits in a `Patch`, check `IsEmpty`, apply for a preview, or drop to cancel. The original model is never mutated.
 
-```csharp
-// Given the Settings model defined in Usage §2 below:
-var defaults = Settings.Fragment.From(new Settings
-{
-    Label = "fallback",
-    Child = new Child { Host = "db.local" },
-});
-
-// Explicit null is present: it overrides the lower layer.
-var clearsLabel = new Settings.Fragment { Label = (string?)null };
-// Nothing set: everything is missing, so the lower layer survives.
-var saysNothing = new Settings.Fragment();
-
-defaults.Merge(clearsLabel).ToModel().Label; // null (explicit null wins)
-defaults.Merge(saysNothing).ToModel().Label; // "fallback" (missing falls through)
-```
-
-`Merge`, `Diff`, and typed `Patch` below are operations on this partial state — not separate features bolted together.
-
-### What You Get: Layers Over Typed Partial State
-
-1. **Presence-aware `Fragment`.** `Optional<T>` distinguishes *missing*, *present null*, and *present value* per member. Sparse construction (`new Settings.Fragment { ... }`) carries only what a layer actually sets.
-2. **Merge, diff, and typed patch as operations on partial state.** Layered `Merge` overrides only present members; `Diff` captures the minimal delta between states; a typed `Patch` applies `Set` / `Unset` / `Unchanged` edits (including nested `SetNull`) without mutating the original.
-3. **Advanced capabilities, when you need them.** Per-member merge algebra (`Replace` / `Deep` / `Append` / `SetUnion`, or custom strategies), immutable builders, structural `DeepClone`, and typed patch rebase stay available but secondary to the core mental model.
-4. **Boundary interop as built-in.** Crossing a process boundary? Convert a typed patch to a standard RFC 6902 JSON Patch document (and back) with the built-in `FromJsonPatch` / `ToJsonPatch` bridge. In-process code never needs to think in JSON Patch terms.
-
-## Usage
-
-### 1. Install the package
+## Install
 
 ```shell
 dotnet add package SparseFragments
 ```
 
-The generator ships inside the package as an analyzer, so this is the only setup step. From then on, all the supporting code is generated for you at compile time.
+The generator ships inside the package as an analyzer, so this is the only setup step. The runtime targets `netstandard2.0`, so it can be consumed from `netstandard2.0`-compatible projects as well as modern .NET (`net8.0` / `net10.0`).
 
-The runtime targets `netstandard2.0`, so it can be consumed from `netstandard2.0`-compatible projects as well as modern .NET (`net8.0` / `net10.0`).
+## Quick Start
 
-### 2. Define your model
+### 1. Define your model
 
 All you need is `[SparseFragmentModel]` on a `partial` class:
 
@@ -87,22 +57,11 @@ public partial class Child
 }
 ```
 
-Once you build, the generator adds the following members inside your model type:
+Reachable partial nested types (like `Child` here) automatically receive generated Fragment/Patch APIs. See [Model shapes](docs/model-shapes.md) for the full rules.
 
-| Generated member | Purpose |
-| --- | --- |
-| `Settings.Fragment` | A sparse, presence-aware view shaped like your model |
-| `Settings.Patch` | Member-level mutation directives (Set / Unset / unchanged) |
-| `Settings.Patch.FromJsonPatch` / `patch.ToJsonPatch` | RFC 6902 import/export bridge (built in) |
-| `Fragment.FragmentJsonConverter` | `System.Text.Json` converter for the canonical fragment JSON used by the bridge |
-| Fragment builder | Copies a fragment while changing only the members you touch |
-| `DeepClone()` | Returns a fully independent copy of a model or fragment |
+### 2. The three states of `Optional<T>`
 
-Reachable partial model types automatically receive generated Fragment/Patch APIs. Non-partial nested POCOs are treated as atomic replace values; declare the nested type `partial` (or annotate it with `[SparseFragmentModel]`) when it needs independently sparse behavior.
-
-### 3. Background: the three states of `Optional<T>`
-
-At the heart of SparseFragments is `Optional<T>`:
+At the heart of SparseFragments is `Optional<T>` — *missing*, *present null*, and *present value*:
 
 ```csharp
 Optional<string?> a = Optional<string?>.Missing;       // not specified (IsPresent == false)
@@ -110,9 +69,26 @@ Optional<string?> b = "hello";                         // present (implicit conv
 Optional<string?> c = Optional<string?>.Present(null); // explicitly null
 ```
 
-"Missing" is treated as different from "holding null/default". During a merge, this information alone decides whether a lower layer's value survives or gets overridden.
+An explicitly set `null` overrides a lower layer; an unspecified member falls through:
 
-### 4. Create fragments
+```csharp
+// Given the Settings model defined in §1 above:
+var defaults = Settings.Fragment.From(new Settings
+{
+    Label = "fallback",
+    Child = new Child { Host = "db.local" },
+});
+
+// Explicit null is present: it overrides the lower layer.
+var clearsLabel = new Settings.Fragment { Label = (string?)null };
+// Nothing set: everything is missing, so the lower layer survives.
+var saysNothing = new Settings.Fragment();
+
+defaults.Merge(clearsLabel).ToModel().Label; // null (explicit null wins)
+defaults.Merge(saysNothing).ToModel().Label; // "fallback" (missing falls through)
+```
+
+### 3. Create fragments
 
 There are two ways to create a fragment:
 
@@ -125,11 +101,11 @@ var sparse = new Settings.Fragment { Label = "base" };
 sparse.IsEmpty; // false
 ```
 
-Option (b) is the core of SparseFragments: a minimal *contribution* whose unspecified members can fall through to any number of lower layers.
+Option (b) is the core of SparseFragments: a minimal *contribution* whose unspecified members fall through to lower layers.
 
-### 5. Merge layered contributions
+### 4. Merge layered contributions
 
-`Merge` overlays a higher-priority fragment onto a lower-priority one. Only members that are *present* in the higher layer override; *missing* members keep the lower layer's values.
+`Merge` overlays a higher-priority fragment onto a lower-priority one. Only *present* members override; *missing* members keep the lower layer's values.
 
 ```csharp
 // A full model as the base layer.
@@ -153,7 +129,9 @@ var merged = lower.Merge(higher).ToModel();
 // merged.Plugins     == ["base-plugin", "extra-plugin"]  (Append concatenates)
 ```
 
-### 6. Diff and patch
+Per-member rules (`Replace` / `Deep` / `Append` / `SetUnion`, or your own strategy) are covered in [Merge strategies](docs/merge-strategies.md).
+
+### 5. Diff and patch
 
 `Diff` captures the minimal delta between two states; a `Patch` represents "changes to apply to one layer".
 
@@ -184,21 +162,7 @@ toNull.Child.SetNull();                                        // explicit null,
 
 `Patch.IsEmpty` tells you at a glance whether the patch changes anything at all.
 
-### Patch value ownership
-
-Assigning a mutable value to a patch shares it by reference — nothing is cloned on assignment or on `Apply`:
-
-```csharp
-var tags = new List<string> { "a" };
-var patch = new Settings.Patch { Plugins = tags };
-var result = new Settings.Fragment().Apply(patch);
-
-tags.Add("b"); // visible through result.Plugins and patch.Plugins: one shared list.
-```
-
-The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance, so callers own mutation discipline. This matches `Merge` (`Replace` keeps the higher layer's reference), `ApplyChanges`, and `ToModel`. Only `Fragment.From`, `DeepClone`, whole-contribution `Set(model)` (which snapshots through `From`), and JSON Patch import (freshly deserialized values) produce isolated copies. When a patch value must stay independent, clone it before assigning (`model.DeepClone()` / `fragment.DeepClone()`) and leave the source alone afterwards. Granular keyed-collection edits allocate a new container but still share element references.
-
-### 7. Build and clone (secondary helpers)
+### 6. Build and clone
 
 Builders and `DeepClone` work around the same partial state when you need an edited copy or an isolated graph:
 
@@ -211,59 +175,11 @@ var clone = original.ToModel().DeepClone();                    // fully independ
 clone.Child!.Count = 42;                                       // original.Child.Count is still 7
 ```
 
-`DeepClone` preserves shared references and object cycles. `Fragment.From` and `Fragment.Diff` do not support cyclic object graphs: shared (non-cyclic) references are allowed, but a cycle throws `NotSupportedException` naming the member path instead of overflowing the stack.
+Patch assignment shares references by default; `Fragment.From`, `DeepClone`, whole-contribution `Set(model)`, and JSON Patch import snapshot instead. Details: [Clone & ownership](docs/cloning-and-ownership.md).
 
-### 8. Customize merging (advanced)
+### 7. Exchange patches as JSON Patch
 
-`[SparseMerge]` changes the merge rule per member. The defaults already cover the common cases, so reach for this only when a member needs its own algebra:
-
-| MergeMode | Behavior |
-| --- | --- |
-| `Replace` | The higher layer's value wins (default for scalars and collections) |
-| `Deep` | Recursively merge nested fragments member by member (default for nested models) |
-| `Append` | Concatenate collections from lowest to highest priority |
-| `SetUnion` | Combine as an insertion-ordered set union |
-| `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation |
-
-### Custom strategies are presence-aware (advanced)
-
-A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional capability with a well-defined default — override it only when the member needs its own three-way reconciliation:
-
-```csharp
-public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>
-{
-    public override Optional<string?> Merge(
-        Optional<string?> lowerPriority,
-        Optional<string?> higherPriority
-    ) => higherPriority.IsPresent ? higherPriority : lowerPriority;
-
-    public override bool AreEqual(string? left, string? right) => left == right;
-}
-```
-
-The rebase contract preserves the missing/present distinction end to end:
-
-* `TryRebase` receives `Optional<T>` for the edit base, the desired state, and the current state. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` are all observable transitions.
-* Return the rebased state as an `Optional<T>`: a present result becomes a `Set` patch operation, a missing result becomes `Unset`, and a result equal to the current state stays `Unchanged` (a semantic no-op).
-* The default implementation succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise.
-* Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
-
-### Set and dictionary equality
-
-Set and dictionary members compare order-independently, and the element/key comparer is part of the collection value, so the result never depends on operand order:
-
-* Same values with the same comparer are equal, regardless of enumeration order.
-* Same values with different comparers (for example `StringComparer.Ordinal` versus `StringComparer.OrdinalIgnoreCase`) are unequal, even if the entries would match under one side's comparer.
-* Reversing the operands never changes the result.
-* Custom `IReadOnlyDictionary<TKey, TValue>` implementations compare order-independently even when they do not implement non-generic `ICollection`. When a custom collection does not expose its comparer, equality requires lookups to succeed in both directions using each side's own semantics.
-
-## Exchange patches as JSON Patch
-
-Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for every `[SparseFragmentModel]` type.
-
-### Import a JSON Patch document
-
-`Patch.FromJsonPatch` applies an RFC 6902 document to the canonical JSON of a baseline fragment, then derives the equivalent typed semantic `Patch`:
+Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document with the built-in `FromJsonPatch` / `ToJsonPatch` bridge:
 
 ```csharp
 using System.Text;
@@ -279,105 +195,35 @@ var patch = Settings.Patch.FromJsonPatch(
 
 var updated = baseline.Apply(patch);
 // updated.Label == "patched"
-```
 
-The baseline is presence-aware, so the mapping is exact:
-
-* `replace` with a JSON `null` value becomes a present null; `remove` becomes absent (`Missing`).
-* A nested `add` fails when its parent fragment is absent (`JsonPatchErrorKind.MissingParent`).
-* Whole-contribution transitions use the root pointer `""`: `add` from `Optional<Fragment?>.Missing`, `replace` with `null`, and `remove` to absent.
-* Array element operations (`/Tags/1`, `/Tags/-`) work on import; collections are whole values on export (see below).
-* Pointers follow RFC 6901 (`~0` for `~`, `~1` for `/`) and honor `[JsonPropertyName]` wire names, `JsonSerializerOptions.PropertyNamingPolicy`, and `PropertyNameCaseInsensitive`.
-
-An overload taking a present `Fragment` directly (`FromJsonPatch(baseline, document, options)`) covers the common case. If a model happens to declare members named `FromJsonPatch` / `ToJsonPatch`, the bridge is emitted with a `Sparse` prefix instead (`SparseFromJsonPatch` / `SparseToJsonPatch`).
-
-### Export a typed patch
-
-`ToJsonPatch` runs the typed patch against the same baseline and diffs the before/after canonical JSON:
-
-```csharp
 var baselineOpt = Optional<Settings.Fragment?>.Present(baseline);
 var exported = patch.ToJsonPatch(baselineOpt); // ReadOnlyMemory<byte>, UTF-8 JSON
-Console.WriteLine(Encoding.UTF8.GetString(exported.ToArray()));
-// [{"op":"replace","path":"/Label","value":"patched"}]
 ```
 
-Export is semantic, not a verbatim replay of the import:
+Round-tripping holds semantically: re-importing the export onto the same baseline produces the same fragment. Pointers, options, NativeAOT setup, and typed failures are covered in [JSON Patch](docs/json-patch.md).
 
-| Input shape | Exported shape |
+### 8. Beyond the basics
+
+* **Keyed collections.** Sequences of structural elements with stable identity (`[SparseKey]`) patch by element — add/remove/edit/reorder — instead of replacing the whole list. See [Keyed collections](docs/keyed-collections.md).
+* **Patch rebase.** Replay a patch authored against an older state onto a newer one; irreconcilable edits come back as structured conflicts. See [Patch rebase](docs/rebase.md).
+* **Blazor forms.** The `SparseFragments.Extensions.Blazor` package derives semantic patches from baseline-versus-current comparison behind an ordinary `EditForm`. See [Blazor](docs/blazor.md).
+
+## Documentation
+
+| Topic | Purpose |
 | --- | --- |
-| Objects | Diffed recursively member by member |
-| Arrays and scalars | Collapsed to a whole-value `add` / `remove` / `replace` on the member path |
-| `move` / `copy` | Collapsed to the equivalent `remove` plus `add` / `replace` |
-| `test` | Validation-only; never appears in the export |
-
-Round-tripping holds semantically: applying the re-imported export to the same baseline produces the same fragment as applying the original typed patch.
-
-### Options, converters, and NativeAOT
-
-Both directions accept an optional `JsonSerializerOptions`:
-
-```csharp
-var options = new JsonSerializerOptions
-{
-    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    PropertyNameCaseInsensitive = true,
-};
-
-// Scalar/collection members resolve through options.TypeInfoResolver.
-var patch = Settings.Patch.FromJsonPatch(baselineOpt, document, options);
-var exported = patch.ToJsonPatch(baselineOpt, options);
-```
-
-The fragment itself never needs `JsonTypeInfo` metadata: conversion goes through the generated `Fragment.FragmentJsonConverter` directly. Only scalar/collection member types use the supplied resolver, so NativeAOT applications just pass a source-generated context:
-
-```csharp
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(int))]
-[JsonSerializable(typeof(List<string>))]
-internal sealed partial class PatchContext : JsonSerializerContext;
-```
-
-```csharp
-var options = new JsonSerializerOptions { TypeInfoResolver = PatchContext.Default };
-```
-
-When reflection-based serialization is disabled and no resolver is supplied, the bridge fails fast with a clear `InvalidOperationException` instead of reaching runtime codegen. `Fragment.FragmentJsonConverter` is also public, so ordinary `JsonSerializer.Serialize(fragment, options)` works with the same presence semantics (present members only, explicit nulls preserved).
-
-### Failures are typed
-
-Malformed documents, unknown operations, bad pointers, missing targets/parents, invalid array indices, failed `test` operations, unmapped properties, and member deserialization failures all throw `JsonPatchException` with a machine-readable `Kind`:
-
-```csharp
-try
-{
-    var patch = Settings.Patch.FromJsonPatch(baselineOpt, document);
-}
-catch (JsonPatchException ex) when (ex.Kind == JsonPatchErrorKind.MissingTarget)
-{
-    // e.g. replace/remove/test on a path that does not exist in the baseline.
-}
-```
-
-## Main Use Cases
-
-All of these are uses of the same typed partial state: keep an edit, override, or delta as a `Fragment`/`Patch` that remembers what was specified, then combine it with `Merge`, `Diff`, or `Apply`.
-
-* **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer only carries what it changes, and a priority-ordered `Merge` produces the effective state.
-* **Partial-update APIs and DTO patching.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents. Keep the incoming partial update as a typed fragment and apply it onto the current state — no reflection involved.
-* **Storing only user-modified settings.** `Diff` the current settings against the defaults and persist only the resulting fragment. Saved data stays minimal, and future default changes still reach users who never overrode them.
-* **Edit sessions and dirty tracking.** Accumulate user edits in a `Patch`, check `IsEmpty` to know whether anything changed, apply it for a preview, or drop it to cancel. The original model is never mutated, so there is no manual restore logic to write.
-* **State diffs between snapshots.** Derive `Diff(before, after)` and apply it to another in-process snapshot with `ApplyChanges`.
-* **Boundary exchange (secondary).** Accept standard JSON Patch documents at the edge with `Patch.FromJsonPatch`, work with them as typed semantic patches in-process, and send them back out with `patch.ToJsonPatch`. `test` operations validate before mutation, and the export stays minimal (recursive for objects, whole-value for arrays/scalars).
-* **Safe duplication (secondary).** `DeepClone` copies models with nested and mutable members (including collections and shared references) without handwritten copy constructors.
+| [Merge strategies](docs/merge-strategies.md) | Replace / Deep / Append / SetUnion / custom strategy behavior |
+| [Keyed collections](docs/keyed-collections.md) | Stable-key structural collection patch semantics |
+| [Patch rebase](docs/rebase.md) | Concurrent edit reconciliation and structured conflicts |
+| [JSON Patch](docs/json-patch.md) | RFC 6902 bridge, serialization, failures, NativeAOT |
+| [Clone & ownership](docs/cloning-and-ownership.md) | Reference sharing, snapshots, cycles, DeepClone |
+| [Model shapes](docs/model-shapes.md) | Supported model forms, nested models, constructors, promotion |
+| [Blazor](docs/blazor.md) | Edit sessions, EditContext integration, semantic dirty tracking |
+| [Diagnostics](docs/analyzer.md) | Generator diagnostics reference |
 
 ## Blazor Forms
 
-The `SparseFragments.Extensions.Blazor` package bridges ordinary Blazor forms and
-semantic patches. A session keeps a fragment baseline alongside the live model and
-exposes an `EditContext` for normal form behavior; patches always come from
-baseline-versus-current comparison, never from `EditContext` field tracking, so keyed
-collection edits, reorder, and edit-then-restore behave correctly.
+The `SparseFragments.Extensions.Blazor` package bridges ordinary Blazor forms and semantic patches. A session keeps a fragment baseline alongside the live model and exposes an `EditContext` for normal form behavior; patches always come from baseline-versus-current comparison, so keyed collection edits, reorder, and edit-then-restore behave correctly.
 
 ```csharp
 var session = order.CreateEditSession(); // generated when the package is referenced
@@ -393,25 +239,18 @@ if (session.HasChanges)
 session.AcceptChanges(); // re-baseline, clear Blazor modified flags
 ```
 
-`CreateEditSession()` is generated for each `[SparseFragmentModel]` class when the
-Blazor package is referenced; projects without the reference generate byte-identical
-output. Server errors can be surfaced with `CreateValidationStore()` /
-`AddValidationError()` without taking a dependency on HTTP transport.
+Full workflow, validation, and package boundaries: [Blazor](docs/blazor.md).
 
 ## Observable Proxies
 
-Every generated class model also nests an `Observable` proxy
-(`new OrderDto.Observable(order, onChanged)`) implementing
-`System.ComponentModel.INotifyPropertyChanged` over the live model instance.
+Every generated class model also nests an `Observable` proxy (`new OrderDto.Observable(order, onChanged)`) implementing `System.ComponentModel.INotifyPropertyChanged` over the live model instance. Scalar members raise `PropertyChanged` only when the value actually changes; nested reference models are exposed through cached child proxies. It needs no `INotifyPropertyChanged` on the model itself and adds no runtime dependency beyond BCL ComponentModel contracts.
 
-Scalar members raise `PropertyChanged` only when the value actually changes; nested
-reference models are exposed through cached child proxies whose changes invoke the
-root callback; replacing a nested member rebuilds its proxy; init-only and read-only
-members stay read-only; value-type members keep value semantics; collections are
-replace-only for notification purposes. It needs no `INotifyPropertyChanged` on the
-model itself, adds no runtime dependency beyond BCL ComponentModel contracts, and is
-generated by the normal SparseFragments generator from the shared emitter, so it is
-not an edit-session or persistence abstraction.
+## Packages and Compatibility
+
+* `SparseFragments` — core package (runtime `netstandard2.0`; samples verified on `net8.0` / `net10.0`).
+* `SparseFragments.Extensions.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
+
+Try it live: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
 
 ## License
 
