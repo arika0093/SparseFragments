@@ -148,19 +148,34 @@ internal static class SparseValueComparer
 
         public bool ContainsAll(IEnumerable<KeyValuePair<TKey, TValue>> entries)
         {
+#pragma warning disable S3267 // Concrete dictionary enumeration avoids boxing its value-type enumerator.
+            if (entries is Dictionary<TKey, TValue> dictionary)
+            {
+                foreach (var pair in dictionary)
+                {
+                    if (!Contains(pair))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
             foreach (var pair in entries)
             {
-                if (
-                    !TryGetValue(pair.Key, out var value)
-                    || !AreDictionaryValuesEqual(value, pair.Value)
-                )
+                if (!Contains(pair))
                 {
                     return false;
                 }
             }
+#pragma warning restore S3267
 
             return true;
         }
+
+        private bool Contains(KeyValuePair<TKey, TValue> pair) =>
+            TryGetValue(pair.Key, out var value) && AreDictionaryValuesEqual(value, pair.Value);
 
         private static bool AreDictionaryValuesEqual(TValue left, TValue right)
         {
