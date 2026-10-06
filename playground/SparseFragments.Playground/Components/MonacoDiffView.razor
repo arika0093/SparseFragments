@@ -1,0 +1,118 @@
+@using BlazorMonaco.Editor
+@using Microsoft.JSInterop
+@using SparseFragments.Playground.Models
+@inject PlaygroundThemeState ThemeState
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="pg-monaco notranslate" translate="no" style="@WrapperStyle">
+    <StandaloneDiffEditor @ref="_editor"
+        Id="@EditorId"
+        ConstructionOptions="GetOptions"
+        OnDidInit="HandleInit"
+        CssClass="pg-monaco-editor" />
+</div>
+
+@code {
+    private StandaloneDiffEditor? _editor;
+    private TextModel? _originalModel;
+    private TextModel? _modifiedModel;
+    private string? _lastOriginal;
+    private string? _lastModified;
+    private bool _initialized;
+
+    [Parameter, EditorRequired]
+    public string Original { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Modified { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Language { get; set; } = "json";
+
+    [Parameter]
+    public string Height { get; set; } = "300px";
+
+    /// <summary>Gets or sets whether the editor fills the available card height.</summary>
+    [Parameter]
+    public bool Fill { get; set; }
+
+    private string EditorId { get; } = $"monaco-diff-{Guid.NewGuid():N}";
+
+    private string CurrentTheme => ThemeState.IsDark ? "vs-dark" : "vs";
+
+    private string WrapperStyle => Fill ? "height: 100%; min-height: 220px;" : $"height: {Height};";
+
+    protected override void OnInitialized() => ThemeState.Changed += OnThemeChanged;
+
+    private StandaloneDiffEditorConstructionOptions GetOptions(StandaloneDiffEditor editor)
+    {
+        return new StandaloneDiffEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            ReadOnly = true,
+            Theme = CurrentTheme,
+            Minimap = new EditorMinimapOptions { Enabled = false },
+            RenderSideBySide = true,
+            UseInlineViewWhenSpaceIsLimited = true,
+        };
+    }
+
+    private async Task HandleInit()
+    {
+        if (_editor is null)
+        {
+            return;
+        }
+        _originalModel = await Global.CreateModel(JS, Original, Language);
+        _modifiedModel = await Global.CreateModel(JS, Modified, Language);
+        await _editor.SetModel(
+            new DiffEditorModel { Original = _originalModel, Modified = _modifiedModel });
+        _lastOriginal = Original;
+        _lastModified = Modified;
+        _initialized = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await SyncAsync();
+    }
+
+    private async Task SyncAsync()
+    {
+        if (!_initialized || _originalModel is null || _modifiedModel is null)
+        {
+            return;
+        }
+        if (_lastOriginal != Original)
+        {
+            _lastOriginal = Original;
+            await _originalModel.SetValue(Original);
+        }
+        if (_lastModified != Modified)
+        {
+            _lastModified = Modified;
+            await _modifiedModel.SetValue(Modified);
+        }
+    }
+
+    private void OnThemeChanged()
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("blazorMonaco.editor.setTheme", CurrentTheme);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        });
+    }
+
+    public void Dispose() => ThemeState.Changed -= OnThemeChanged;
+}

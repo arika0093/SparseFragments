@@ -121,8 +121,29 @@ code {
     padding: 1rem 1.5rem 3rem;
 }
 
-.pg-lead {
-    max-width: 72rem;
+.pg-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pg-title h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    min-width: 0;
+}
+
+.pg-gh {
+    margin-left: auto;
+    display: inline-flex;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.pg-gh svg {
+    width: 1.75rem;
+    height: 1.75rem;
+    fill: currentColor;
 }
 
 .pg-toolbar {
