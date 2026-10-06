@@ -75,7 +75,7 @@ namespace SparseFragments
     }
     public readonly struct Optional<T> : System.IEquatable<SparseFragments.Optional<T>>
     {
-        public bool IsPresent { get; init; }
+        public bool IsPresent { get; }
         public T Value { get; }
         public static SparseFragments.Optional<T> Missing { get; }
         public void CopyTo(ref SparseFragments.Optional<T> destination) { }
