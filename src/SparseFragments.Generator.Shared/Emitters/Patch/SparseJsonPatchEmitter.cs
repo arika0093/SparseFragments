@@ -335,6 +335,11 @@ internal static class SparseJsonPatchEmitter
     /// Conversion goes through the generated fragment converter directly so no
     /// <c>JsonTypeInfo</c> metadata is ever required for the fragment itself;
     /// scalar and collection members still use the supplied options resolver.
+    /// Fragment JSON is written to a UTF-8 buffer and parsed into a
+    /// <c>JsonNode</c> without materializing an intermediate string, and nodes
+    /// are written back to UTF-8 consumed directly by <c>Utf8JsonReader</c>
+    /// rather than round-tripping through <c>ToJsonString()</c>, so no
+    /// UTF-8/string re-encoding occurs on either path.
     /// The reflection fallback is suppressed for trimming and NativeAOT and is
     /// guarded by <c>JsonSerializer.IsReflectionEnabledByDefault</c> (available
     /// in System.Text.Json 8 and later, which the JsonPatch runtime requires),
@@ -408,10 +413,12 @@ internal static class SparseJsonPatchEmitter
             4,
             "new Fragment.FragmentJsonConverter().Write(writer, fragment.Value, options);"
         );
+        code.AppendLineAt(4, "writer.Flush();");
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "stream.Position = 0;");
         code.AppendLineAt(
             3,
-            "return global::System.Text.Json.Nodes.JsonNode.Parse(global::System.Text.Encoding.UTF8.GetString(stream.ToArray()));"
+            "return global::System.Text.Json.Nodes.JsonNode.Parse(stream);"
         );
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -425,7 +432,27 @@ internal static class SparseJsonPatchEmitter
         );
         code.AppendLineAt(
             3,
-            "var reader = new global::System.Text.Json.Utf8JsonReader(global::System.Text.Encoding.UTF8.GetBytes(node.ToJsonString()));"
+            "using var stream = new global::System.IO.MemoryStream();"
+        );
+        code.AppendLineAt(
+            3,
+            "using (var writer = new global::System.Text.Json.Utf8JsonWriter(stream))"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "node.WriteTo(writer);");
+        code.AppendLineAt(4, "writer.Flush();");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "global::System.ArraySegment<byte> buffer;"
+        );
+        code.AppendLineAt(
+            3,
+            "if (!stream.TryGetBuffer(out buffer)) { buffer = new global::System.ArraySegment<byte>(stream.ToArray()); }"
+        );
+        code.AppendLineAt(
+            3,
+            "var reader = new global::System.Text.Json.Utf8JsonReader(new global::System.ReadOnlySpan<byte>(buffer.Array!, buffer.Offset, buffer.Count));"
         );
         code.AppendLineAt(
             3,
