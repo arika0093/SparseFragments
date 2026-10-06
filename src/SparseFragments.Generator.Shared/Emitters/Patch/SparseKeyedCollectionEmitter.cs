@@ -2156,7 +2156,14 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(
             4,
-            "var beforeDict = new global::System.Collections.Generic.Dictionary<"
+            "var beforeDict = before.Value is global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + valueType
+                + "> __beforeDirect && "
+                + "global::System.Object.Equals(__beforeDirect.Comparer, "
+                + comparer
+                + ") ? __beforeDirect : new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + valueType
@@ -2165,14 +2172,20 @@ internal static class SparseKeyedCollectionEmitter
                 + keyType
                 + ", "
                 + valueType
-                + ">"
-                + ")before.Value!, "
+                + ">)before.Value!, "
                 + comparer
                 + ");"
         );
         code.AppendLineAt(
             4,
-            "var afterDict = new global::System.Collections.Generic.Dictionary<"
+            "var afterDict = after.Value is global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + valueType
+                + "> __afterDirect && "
+                + "global::System.Object.Equals(__afterDirect.Comparer, "
+                + comparer
+                + ") ? __afterDirect : new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + valueType
@@ -2181,8 +2194,7 @@ internal static class SparseKeyedCollectionEmitter
                 + keyType
                 + ", "
                 + valueType
-                + ">"
-                + ")after.Value!, "
+                + ">)after.Value!, "
                 + comparer
                 + ");"
         );
