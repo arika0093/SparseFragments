@@ -16,6 +16,9 @@ permissions:
   contents: read
 
 env:
+  # Exact SDK selection is pinned in global.json (reproducibility policy
+  # #26); this channel only ensures setup-dotnet installs an SDK satisfying
+  # it. Dependabot updates actions/setup-dotnet itself via github-actions.
   DOTNET_VERSION: 10.0.x
 
 jobs:
@@ -34,9 +37,16 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      # Reproducibility policy (#26): pin to a released tag (Dependabot
+      # github-actions ecosystem proposes upgrades). Never use @master here.
+      # toolVersion matches the pinned Nerdbank.GitVersioning MSBuild package
+      # (src/Directory.Build.props) and the nbgv dotnet tool
+      # (.config/dotnet-tools.json) so version computation is reproducible.
       - name: Read package version
-        uses: dotnet/nbgv@master
+        uses: dotnet/nbgv@v0.5.2
         id: nbgv
+        with:
+          toolVersion: 3.10.94
 
       - name: Export package version
         id: version
