@@ -242,14 +242,16 @@ internal static class SparseCollectionAnalyzer
 
     /// <summary>Discovers the structural key of an element type.</summary>
     /// <remarks>
-    /// Key source precedence: a model-level <c>[SparseKey("A", "B")]</c> on the
-    /// element type wins when present (property-level attributes are then ignored);
-    /// otherwise property-level <c>[SparseKey]</c> members apply, ordered by
-    /// <c>Order</c> then property name. Composite keys preserve model-level
+    /// Strict single-mechanism discovery (issue #4): exactly one of a property-level
+    /// <c>[SparseKey]</c>, a type-level <c>[SparseKey(names)]</c> composite declaration,
+    /// or an <c>ISparseKeyed&lt;TKey&gt;</c> implementation may apply, with no
+    /// precedence between conflicting mechanisms. Any conflict or invalid shape yields
+    /// no key; use <see cref="SparseKeyAnalyzer.CollectDiagnostics"/> to report the
+    /// corresponding SPF012–SPF020 errors. Composite keys preserve type-level
     /// declaration order. A single key reports its property type; a composite key
-    /// reports a <c>ValueTuple</c> of the property types in key order. Only usable
-    /// (scalar, non-collection) key properties count; unknown or unusable names are
-    /// dropped, and an empty result means "no usable key".
+    /// reports a <c>ValueTuple</c> of the component types in key order (strongly typed,
+    /// collision-safe, component-wise equality); an interface key reports
+    /// <c>TKey</c> extracted via <c>element.SparseKey</c> without runtime reflection.
     /// </remarks>
     public static bool TryDiscoverKeys(
         INamedTypeSymbol element,
@@ -259,104 +261,28 @@ internal static class SparseCollectionAnalyzer
         out string? keyTypeName
     )
     {
-        keyPropertyNames = ImmutableArray<string>.Empty;
-        keyTypeName = null;
-
-        var properties = new Dictionary<string, IPropertySymbol>(StringComparer.Ordinal);
-        foreach (
-            var property in SparseModelDiscovery.GetReadableProperties(element, cancellationToken)
+        if (
+            SparseKeyAnalyzer.TryGetKeyInfo(element, config, cancellationToken, out var info)
+            && info is not null
         )
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            properties[property.Name] = property;
+            keyPropertyNames = info.PropertyNames;
+            keyTypeName = info.KeyTypeName;
+            return true;
         }
 
-        if (properties.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var attribute in element.GetAttributes())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (attribute.AttributeClass?.ToDisplayString() != KeyAttributeMetadataName)
-            {
-                continue;
-            }
-
-            var declared = new List<string>();
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var argument in attribute.ConstructorArguments)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (argument.Kind == TypedConstantKind.Array)
-                {
-                    foreach (var value in argument.Values)
-                    {
-                        if (value.Value is string name && name.Length > 0 && seen.Add(name))
-                        {
-                            declared.Add(name);
-                        }
-                    }
-                }
-                else if (argument.Value is string name && name.Length > 0 && seen.Add(name))
-                {
-                    declared.Add(name);
-                }
-            }
-
-            if (
-                TryBuildKey(
-                    properties,
-                    declared,
-                    config,
-                    cancellationToken,
-                    out keyPropertyNames,
-                    out keyTypeName
-                )
-            )
-            {
-                return true;
-            }
-
-            // Model-level present but unusable (unknown/non-scalar names): fall through
-            // to property-level rather than suppressing valid property keys silently.
-            break;
-        }
-
-        var keyed = new List<(int Order, string Name)>();
-        foreach (var property in properties.Values)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (TryGetKeyOrder(property, cancellationToken, out var order))
-            {
-                keyed.Add((order, property.Name));
-            }
-        }
-
-        keyed.Sort(
-            static (left, right) =>
-                left.Order != right.Order
-                    ? left.Order.CompareTo(right.Order)
-                    : string.Compare(left.Name, right.Name, StringComparison.Ordinal)
-        );
-
-        var ordered = new List<string>(keyed.Count);
-        foreach (var (order, name) in keyed)
-        {
-            _ = order;
-            ordered.Add(name);
-        }
-
-        return TryBuildKey(
-            properties,
-            ordered,
-            config,
-            cancellationToken,
-            out keyPropertyNames,
-            out keyTypeName
-        );
+        keyPropertyNames = ImmutableArray<string>.Empty;
+        keyTypeName = null;
+        return false;
     }
+
+    /// <summary>Discovers full key metadata (including the defining mechanism).</summary>
+    public static bool TryDiscoverKeyInfo(
+        INamedTypeSymbol element,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken,
+        out SparseKeyInfo? info
+    ) => SparseKeyAnalyzer.TryGetKeyInfo(element, config, cancellationToken, out info);
 
     /// <summary>Determines whether a member requires the SPF011 unkeyed-sequence diagnostic.</summary>
     /// <remarks>
@@ -393,121 +319,4 @@ internal static class SparseCollectionAnalyzer
         return member.Collection.ElementType is not INamedTypeSymbol namedElement
             || !TryDiscoverKeys(namedElement, config, cancellationToken, out _, out _);
     }
-
-    private static bool TryGetKeyOrder(
-        IPropertySymbol property,
-        CancellationToken cancellationToken,
-        out int order
-    )
-    {
-        order = 0;
-        foreach (var attribute in property.GetAttributes())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (attribute.AttributeClass?.ToDisplayString() != KeyAttributeMetadataName)
-            {
-                continue;
-            }
-
-            foreach (var named in attribute.NamedArguments)
-            {
-                if (named.Key == "Order" && named.Value.Value is int namedOrder)
-                {
-                    order = namedOrder;
-                    return true;
-                }
-            }
-
-            if (attribute.ConstructorArguments.FirstOrDefault().Value is int constructorOrder)
-            {
-                order = constructorOrder;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryBuildKey(
-        Dictionary<string, IPropertySymbol> properties,
-        IEnumerable<string> names,
-        SparseGeneratorConfig config,
-        CancellationToken cancellationToken,
-        out ImmutableArray<string> keyPropertyNames,
-        out string? keyTypeName
-    )
-    {
-        var resolved = new List<IPropertySymbol>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var name in names)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!seen.Add(name))
-            {
-                continue;
-            }
-
-            if (
-                properties.TryGetValue(name, out var property)
-                && IsUsableKeyType(property.Type, config, cancellationToken)
-            )
-            {
-                resolved.Add(property);
-            }
-        }
-
-        if (resolved.Count == 0)
-        {
-            keyPropertyNames = ImmutableArray<string>.Empty;
-            keyTypeName = null;
-            return false;
-        }
-
-        var builder = ImmutableArray.CreateBuilder<string>(resolved.Count);
-        foreach (var property in resolved)
-        {
-            builder.Add(property.Name);
-        }
-
-        keyPropertyNames = builder.ToImmutable();
-        keyTypeName =
-            resolved.Count == 1
-                ? NonNullableTypeName(resolved[0].Type)
-                : "("
-                    + string.Join(
-                        ", ",
-                        resolved.Select(static property => NonNullableTypeName(property.Type))
-                    )
-                    + ")";
-        return true;
-    }
-
-    private static bool IsUsableKeyType(
-        ITypeSymbol type,
-        SparseGeneratorConfig config,
-        CancellationToken cancellationToken
-    )
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (type is IArrayTypeSymbol)
-        {
-            return false;
-        }
-
-        if (
-            type is INamedTypeSymbol
-            && GetCollectionInfo(type).CloneKind != SparseCloneCollectionKind.Unsupported
-        )
-        {
-            return false;
-        }
-
-        return SparseModelDiscovery.ClassifyStructuralType(type, config, cancellationToken)
-            == SparseModelDiscovery.StructuralTypeKind.Scalar;
-    }
-
-    private static string NonNullableTypeName(ITypeSymbol type) =>
-        type.WithNullableAnnotation(NullableAnnotation.NotAnnotated)
-            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -36,6 +37,13 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (property.IsStatic || property.IsIndexer)
+                {
+                    continue;
+                }
+
+                // Computed key metadata ([SparseKey] or ISparseKeyed<>.SparseKey) is
+                // identity, not construction state: it is extracted, never overlaid.
+                if (IsComputedKeyMetadata(property, pocoType, cancellationToken))
                 {
                     continue;
                 }
@@ -85,6 +93,59 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
             )
             {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a property is computed identity metadata rather than state.
+    /// </summary>
+    /// <remarks>
+    /// A getter-only <c>[SparseKey]</c> property (e.g.
+    /// <c>public ServerKey Key => new(TenantId, Id)</c>) or the <c>SparseKey</c> getter
+    /// of an <c>ISparseKeyed&lt;TKey&gt;</c> implementation is extracted for keyed
+    /// collection identity and never constructed or overlaid, so it must not mark the
+    /// containing type as structurally unsupported. Properties with any setter remain
+    /// construction state and keep the existing rules.
+    /// </remarks>
+    private static bool IsComputedKeyMetadata(
+        IPropertySymbol property,
+        INamedTypeSymbol pocoType,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (property.SetMethod is not null)
+        {
+            return false;
+        }
+
+        foreach (var attribute in property.GetAttributes())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (attribute.AttributeClass?.ToDisplayString() == "SparseFragments.SparseKeyAttribute")
+            {
+                return true;
+            }
+        }
+
+        if (
+            string.Equals(property.Name, "SparseKey", StringComparison.Ordinal)
+            && property.GetMethod?.DeclaredAccessibility == Accessibility.Public
+        )
+        {
+            foreach (var implemented in pocoType.AllInterfaces)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (
+                    implemented.OriginalDefinition?.ToDisplayString()
+                    == "SparseFragments.ISparseKeyed<TKey>"
+                )
+                {
+                    return true;
+                }
             }
         }
 

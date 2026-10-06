@@ -48,6 +48,10 @@ namespace SparseFragments
         public static SparseFragments.FragmentOperation<T> Set(T? value) { }
         public static SparseFragments.FragmentOperation<T> op_Implicit(T? value) { }
     }
+    public interface ISparseKeyed<out TKey>
+    {
+        TKey SparseKey { get; }
+    }
     public enum JsonPatchErrorKind
     {
         MalformedDocument = 0,
@@ -107,9 +111,7 @@ namespace SparseFragments
     public sealed class SparseKeyAttribute : System.Attribute
     {
         public SparseKeyAttribute() { }
-        public SparseKeyAttribute(int order) { }
         public SparseKeyAttribute(string propertyName, params string[] additionalPropertyNames) { }
-        public int Order { get; set; }
         public string[] PropertyNames { get; }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]

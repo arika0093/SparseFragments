@@ -35,4 +35,13 @@ internal static class SparseDiagnosticIds
     public const string GeneratedNameCollision = "SPF009";
     public const string IncompatiblePromotedModel = "SPF010";
     public const string UnkeyedStructuralSequence = "SPF011";
+    public const string ConflictingKeyMechanisms = "SPF012";
+    public const string MultiplePropertyKeys = "SPF013";
+    public const string InvalidKeyAttributeShape = "SPF014";
+    public const string MissingKeyComponent = "SPF015";
+    public const string DuplicateKeyComponent = "SPF016";
+    public const string InaccessibleKeyProperty = "SPF017";
+    public const string NullableKey = "SPF018";
+    public const string UnsupportedKeyShape = "SPF019";
+    public const string InvalidKeyedInterface = "SPF020";
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -43,6 +44,24 @@ internal static class SparseModelDiagnostics
                 )
             );
 
+        // Members whose element declares key metadata but whose key is invalid fail
+        // with the precise SPF012–SPF020 cause. Precompute them so downstream
+        // artifact diagnostics (notably SPF008 from clone analysis) stay silent:
+        // the invalid declaration itself is the actionable failure.
+        var keyErrorProperties = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        foreach (var member in members)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (
+                member.Collection.ElementType is INamedTypeSymbol element
+                && SparseKeyAnalyzer.HasKeyDeclaration(element, config, cancellationToken)
+                && !SparseKeyAnalyzer.CollectDiagnostics(element, config, cancellationToken).IsEmpty
+            )
+            {
+                keyErrorProperties.Add(member.Property);
+            }
+        }
+
         foreach (
             var property in SparseCloneAnalysis.UnsupportedCloneMembers(
                 model,
@@ -50,6 +69,13 @@ internal static class SparseModelDiagnostics
                 cancellationToken
             )
         )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (keyErrorProperties.Contains(property))
+            {
+                continue;
+            }
+
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
                     SparseDiagnosticIds.UnsupportedClone,
@@ -57,6 +83,7 @@ internal static class SparseModelDiagnostics
                     property.Name
                 )
             );
+        }
 
         foreach (var member in members)
         {
@@ -102,8 +129,34 @@ internal static class SparseModelDiagnostics
                 );
             }
 
+            // Key validation runs for every member whose element declares key metadata,
+            // even when keyed semantics are not required (scalar fallback or an explicit
+            // whole-collection merge mode): an invalid declaration must fail with its
+            // own SPF012–SPF020 cause rather than being silently ignored. Members with
+            // no declaration keep the SPF011 unkeyed-sequence check below.
+            var reportedKeyError = false;
             if (
-                SparseCollectionAnalyzer.IsUnkeyedStructuralSequence(
+                member.Collection.ElementType is INamedTypeSymbol keyedElement
+                && SparseKeyAnalyzer.HasKeyDeclaration(keyedElement, config, cancellationToken)
+            )
+            {
+                foreach (
+                    var keyDiagnostic in SparseKeyAnalyzer.CollectDiagnostics(
+                        keyedElement,
+                        config,
+                        cancellationToken
+                    )
+                )
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    diagnostics.Add(keyDiagnostic);
+                    reportedKeyError = true;
+                }
+            }
+
+            if (
+                !reportedKeyError
+                && SparseCollectionAnalyzer.IsUnkeyedStructuralSequence(
                     member,
                     config,
                     cancellationToken
@@ -117,6 +170,30 @@ internal static class SparseModelDiagnostics
                         member.Property.Name
                     )
                 );
+            }
+        }
+
+        // Declared-but-invalid keys on promoted nested models must fail the root as
+        // well: nested keyed semantics are generated from the same metadata.
+        var nestedSeen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (
+            var nestedDiagnostic in SparseKeyAnalyzer.CollectNestedKeyDiagnostics(
+                members,
+                config,
+                cancellationToken
+            )
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var key =
+                nestedDiagnostic.DescriptorId
+                + "|"
+                + nestedDiagnostic.Argument1
+                + "|"
+                + nestedDiagnostic.Location?.SourceSpan.ToString();
+            if (nestedSeen.Add(key))
+            {
+                diagnostics.Add(nestedDiagnostic);
             }
         }
     }

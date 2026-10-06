@@ -42,7 +42,8 @@ internal readonly record struct SparseCollectionInfo(
     string? NamedTypeDefinition,
     SparseCollectionSemantic Semantic = default,
     ImmutableArray<string> KeyPropertyNames = default,
-    string? KeyTypeName = null
+    string? KeyTypeName = null,
+    SparseKeyKind KeyKind = default
 )
 {
     public static SparseCollectionInfo Unsupported { get; } =
@@ -54,7 +55,8 @@ internal readonly record struct SparseCollectionInfo(
             null,
             SparseCollectionSemantic.None,
             ImmutableArray<string>.Empty,
-            null
+            null,
+            SparseKeyKind.None
         );
 
     /// <summary>Sequence of scalar (non-structural) elements; needs no key.</summary>
@@ -62,13 +64,13 @@ internal readonly record struct SparseCollectionInfo(
 
     /// <summary>Structural sequence with a usable discovered key.</summary>
     public bool IsKeyedSequence =>
-        Semantic == SparseCollectionSemantic.KeyedSequence && !KeyPropertyNames.IsDefaultOrEmpty;
+        Semantic == SparseCollectionSemantic.KeyedSequence && KeyKind != SparseKeyKind.None;
 
     /// <summary>Dictionary keyed by <c>TKey</c> (<see cref="ElementType"/>).</summary>
     public bool IsDictionary => Semantic == SparseCollectionSemantic.Dictionary;
 
     /// <summary>More than one key property (tuple key).</summary>
-    public bool IsCompositeKey => KeyPropertyNames.Length > 1;
+    public bool IsCompositeKey => KeyKind == SparseKeyKind.Composite;
 }
 
 internal sealed class SparseSymbolMemberModel(
