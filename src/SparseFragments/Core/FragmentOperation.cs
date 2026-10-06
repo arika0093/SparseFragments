@@ -37,6 +37,11 @@ public readonly struct FragmentOperation<T>
     public static FragmentOperation<T> Unchanged => default;
 
     /// <summary>Sets the source member to a present value.</summary>
+    /// <remarks>
+    /// The supplied reference is stored as-is. Applying the operation shares it with
+    /// the resulting fragment instead of cloning; callers own mutation discipline
+    /// (clone before assigning when the value must stay independent).
+    /// </remarks>
     public static FragmentOperation<T> Set(T? value) => new(FragmentOperationKind.Set, value);
 
     /// <summary>Creates a set operation from a value, so a patch member can be assigned directly.</summary>
@@ -47,6 +52,12 @@ public readonly struct FragmentOperation<T>
     public static FragmentOperation<T> Unset => new(FragmentOperationKind.Unset, default);
 
     /// <summary>Applies this operation to a current source member.</summary>
+    /// <remarks>
+    /// A <c>Set</c> operation returns the stored value by reference, so the patch,
+    /// the assigned source value, and the resulting fragment alias the same instance.
+    /// This matches <c>Merge</c> (<c>Replace</c>), <c>ApplyChanges</c>, and
+    /// <c>ToModel</c>; only <c>Fragment.From</c> and <c>DeepClone</c> isolate copies.
+    /// </remarks>
     public Optional<T> Apply(Optional<T> current) =>
         Kind switch
         {

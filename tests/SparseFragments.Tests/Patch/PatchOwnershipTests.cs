@@ -1,0 +1,161 @@
+using SparseFragments;
+
+namespace SparseFragments.Tests;
+
+// Plain (non-partial, non-fragment) value held directly: atomic replace semantics.
+public sealed class MutableAtomicValue
+{
+    public string Name { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class AtomicValueHolder
+{
+    [SparseMerge(MergeMode.Replace)]
+    public MutableAtomicValue? Payload { get; set; }
+}
+
+/// <summary>
+/// Ownership contract for mutable values assigned through a <c>Patch</c>:
+/// assignment and <c>Apply</c> share the supplied reference instead of cloning.
+/// The patch, the assigned source value, and the resulting fragment alias the
+/// same instance, so callers own mutation discipline. This matches
+/// <c>Merge</c> (<c>Replace</c>), <c>ApplyChanges</c>, and <c>ToModel</c>;
+/// only <c>Fragment.From</c>, <c>DeepClone</c>, whole-contribution
+/// <c>Set(model)</c> (which snapshots through <c>From</c>), and JSON Patch
+/// import (freshly deserialized values) produce isolated copies.
+/// </summary>
+public sealed class PatchOwnershipTests
+{
+    [Test]
+    public void ListValueAssignedThroughPatchIsSharedByReference()
+    {
+        var tags = new List<string> { "a" };
+        var patch = new ScalarSequenceHolder.Patch { Tags = tags };
+        var basis = new ScalarSequenceHolder.Fragment
+        {
+            Tags = new List<string> { "x" },
+        };
+
+        var result = basis.Apply(patch);
+
+        ReferenceEquals(result.Tags.Value, tags).ShouldBeTrue();
+        ReferenceEquals(patch.Tags.Value, tags).ShouldBeTrue();
+
+        // Mutating the source list after Apply is visible through the patch and the result...
+        tags.Add("b");
+        result.Tags.Value!.ShouldBe(["a", "b"]);
+        patch.Tags.Value!.ShouldBe(["a", "b"]);
+
+        // ...but the basis fragment keeps its own list.
+        basis.Tags.Value!.ShouldBe(["x"]);
+
+        // Mutating through the patch value is equally visible in the result.
+        patch.Tags.Value!.Add("c");
+        result.Tags.Value!.ShouldBe(["a", "b", "c"]);
+        tags.ShouldBe(["a", "b", "c"]);
+    }
+
+    [Test]
+    public void SetValueAssignedThroughPatchIsSharedByReference()
+    {
+        var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "a" };
+        var patch = new SetSettings.Patch { Values = values };
+
+        var result = new SetSettings.Fragment().Apply(patch);
+
+        ReferenceEquals(result.Values.Value, values).ShouldBeTrue();
+        ReferenceEquals(patch.Values.Value, values).ShouldBeTrue();
+
+        values.Add("b");
+        result.Values.Value!.ShouldBe(["a", "b"]);
+
+        patch.Values.Value!.Add("c");
+        result.Values.Value!.ShouldBe(["a", "b", "c"]);
+        values.ShouldBe(["a", "b", "c"]);
+    }
+
+    [Test]
+    public void DictionaryWholeSetIsSharedByReference()
+    {
+        var scores = new Dictionary<string, int> { ["a"] = 1 };
+        var patch = new ScalarDictHolder.Patch();
+        patch.Scores.Set(scores);
+        var basis = ScalarDictHolder.Fragment.From(
+            new ScalarDictHolder { Scores = new() { ["x"] = 0 } }
+        );
+
+        var result = basis.Apply(patch);
+
+        ReferenceEquals(result.Scores.Value, scores).ShouldBeTrue();
+
+        // Mutating the source dictionary after Apply is visible in the result...
+        scores["b"] = 2;
+        result.Scores.Value!["b"].ShouldBe(2);
+
+        // ...but the basis fragment keeps its own dictionary.
+        basis.Scores.Value!.ContainsKey("b").ShouldBeFalse();
+        basis.Scores.Value["x"].ShouldBe(0);
+    }
+
+    [Test]
+    public void PlainMutableClassValueIsSharedAtomically()
+    {
+        var payload = new MutableAtomicValue { Name = "a", Count = 1 };
+        var patch = new AtomicValueHolder.Patch { Payload = payload };
+        var basisPayload = new MutableAtomicValue { Name = "basis" };
+        var basis = new AtomicValueHolder.Fragment { Payload = basisPayload };
+
+        var result = basis.Apply(patch);
+
+        // Whole-value replacement: the result aliases the patch instance...
+        ReferenceEquals(result.Payload.Value, payload).ShouldBeTrue();
+        ReferenceEquals(patch.Payload.Value, payload).ShouldBeTrue();
+
+        // ...so post-Apply mutation from either side is visible in the result...
+        payload.Name = "mutated";
+        result.Payload.Value!.Name.ShouldBe("mutated");
+        patch.Payload.Value!.Count = 42;
+        result.Payload.Value.Count.ShouldBe(42);
+
+        // ...while the basis keeps its own instance untouched.
+        ReferenceEquals(basis.Payload.Value, basisPayload).ShouldBeTrue();
+        basisPayload.Name.ShouldBe("basis");
+        basis.Payload.Value!.Name.ShouldBe("basis");
+    }
+
+    [Test]
+    public void PatchBetweenSharesAfterValues()
+    {
+        var before = Optional<ScalarSequenceHolder.Fragment?>.Present(
+            ScalarSequenceHolder.Fragment.From(new ScalarSequenceHolder { Tags = ["x"] })
+        );
+        var after = ScalarSequenceHolder.Fragment.From(
+            new ScalarSequenceHolder { Tags = ["a", "b"] }
+        );
+
+        var patch = ScalarSequenceHolder.Patch.Between(
+            before,
+            Optional<ScalarSequenceHolder.Fragment?>.Present(after)
+        );
+
+        var applied = patch.Apply(before);
+        ReferenceEquals(applied.Value!.Tags.Value, after.Tags.Value).ShouldBeTrue();
+    }
+
+    [Test]
+    public void WholeSetModelSnapshotsThroughFrom()
+    {
+        var model = new ScalarSequenceHolder { Tags = ["a"], Numbers = [1] };
+        var patch = new ScalarSequenceHolder.Patch();
+        patch.Set(model);
+
+        // Whole-contribution Set clones at Set time, so later source mutation is isolated.
+        model.Tags.Add("mutated");
+
+        var applied = patch.Apply(Optional<ScalarSequenceHolder.Fragment?>.Missing);
+        applied.Value!.Tags.Value!.ShouldBe(["a"]);
+        ReferenceEquals(applied.Value.Tags.Value, model.Tags).ShouldBeFalse();
+    }
+}
