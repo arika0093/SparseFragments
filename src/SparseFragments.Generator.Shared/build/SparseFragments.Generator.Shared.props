@@ -1,0 +1,20 @@
+<Project>
+  <!--
+    Source-only consumption (#70): compile the shared generator sources directly
+    into the consuming generator. contentFiles are restored under the package
+    folder, so reference them relative to this props file. LinkBase keeps the
+    compiled items out of the consumer's default glob surface while preserving
+    the recursive directory structure.
+
+    This file ships in build/ only (never buildTransitive/): the package is
+    expected to be referenced privately by a generator project with
+    PrivateAssets="all", so the Shared sources must not leak through the
+    generated/analyzer package's dependency graph.
+  -->
+  <ItemGroup>
+    <Compile
+      Include="$(MSBuildThisFileDirectory)../contentFiles/cs/netstandard2.0/**/*.cs"
+      LinkBase="SparseShared"
+    />
+  </ItemGroup>
+</Project>

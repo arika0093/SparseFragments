@@ -228,13 +228,15 @@ jobs:
       - name: Pack NuGet packages
         # NOTE: no --no-build/--no-restore here. This job never restores the
         # test projects, so let pack restore/build itself instead.
-        # Two packages ship (#46): SparseFragments and
-        # SparseFragments.Blazor. Generator.Shared is an
-        # internal-only source directory and is never packed (#21).
+        # Three packages ship (#46, #70): SparseFragments,
+        # SparseFragments.Blazor, and SparseFragments.Generator.Shared
+        # (source-only downstream-generator sources).
         run: >
           dotnet pack src/SparseFragments/SparseFragments.csproj
           --configuration Release --output artifacts &&
           dotnet pack src/SparseFragments.Blazor/SparseFragments.Blazor.csproj
+          --configuration Release --output artifacts &&
+          dotnet pack src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj
           --configuration Release --output artifacts
 
       - name: Verify packed target assets
@@ -242,6 +244,9 @@ jobs:
 
       - name: Verify packed package consumer
         run: bash ./.github/workflows/scripts/verify-package-sparse-consumer.sh artifacts
+
+      - name: Verify Shared source-only package consumer
+        run: bash ./.github/workflows/scripts/verify-package-shared-consumer.sh artifacts
 
       - name: Verify README samples against packed packages
         run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts

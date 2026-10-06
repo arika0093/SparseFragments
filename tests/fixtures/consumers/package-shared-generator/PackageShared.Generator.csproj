@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>PackageShared.Generator</AssemblyName>
+    <RootNamespace>PackageShared.Generator</RootNamespace>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
+    <PolyArgumentExceptions>true</PolyArgumentExceptions>
+    <!-- Package-only probe (#70): no sibling-source fallback. This project must
+      restore SparseFragments.Generator.Shared from the packed local feed via
+      SparseSharedPackageVersion. Do not add a ProjectReference or a relative
+      Compile glob to src/SparseFragments.Generator.Shared. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Remove="TUnit;Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.6.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.1" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="all" />
+    <PackageReference Include="SparseFragments.Generator.Shared" Version="$(SparseSharedPackageVersion)" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
