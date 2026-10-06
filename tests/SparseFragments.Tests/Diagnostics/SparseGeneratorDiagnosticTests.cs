@@ -607,6 +607,7 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF018"] = "#spf018-nullable-sparsekey",
             ["SPF019"] = "#spf019-unsupported-sparsekey-shape",
             ["SPF020"] = "#spf020-invalid-isparsekeyed-implementation",
+            ["SPF021"] = "#spf021-duplicate-json-property-name",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)

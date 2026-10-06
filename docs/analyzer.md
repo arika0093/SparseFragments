@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF020)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF021)
 
 This is the list of diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -25,6 +25,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF018](#spf018-nullable-sparsekey) | Nullable SparseKey | Error |
 | [SPF019](#spf019-unsupported-sparsekey-shape) | Unsupported SparseKey shape | Error |
 | [SPF020](#spf020-invalid-isparsekeyed-implementation) | Invalid ISparseKeyed implementation | Error |
+| [SPF021](#spf021-duplicate-json-property-name) | Duplicate JSON property name | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -48,6 +49,8 @@ public partial class Settings { ... }
 * Message: `Model '{0}' must be a top-level, non-generic, non-abstract class or struct`
 * Cause: The model is not a top-level, non-generic, non-`abstract` class or struct.
   Nested types, generic types, `abstract` types, interfaces, and other type kinds are not supported.
+  `ref` structs and `file`-local types are likewise unsupported: generated code names the
+  model across partial declarations and cannot satisfy stack-only or file-scoped semantics.
 * Fix: Move the model to a top-level plain class/struct.
   If generics are needed, provide a materialized non-generic type instead.
 
@@ -159,6 +162,7 @@ public partial class Settings
 * Message: `Member '{0}' conflicts with a name reserved by the generated JSON Patch API`
 * Cause: A model member is named `JsonConverter` or `FragmentJsonConverter`,
   which collides with the generated JSON Patch bridge (e.g. `Fragment.FragmentJsonConverter`).
+  The check runs during analysis on the shared reserved-name primitive.
 * Fix: Rename the member.
 
 ## SPF010: Incompatible promoted fragment model
@@ -292,5 +296,27 @@ public partial class Server : ISparseKeyed<ServerKey>
     public string Tenant { get; set; } = "";
     public int Id { get; set; }
     public ServerKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
+}
+```
+
+## SPF021: Duplicate JSON property name
+
+* Message: `Multiple members map to the same JSON property name '{0}'`
+* Cause: Two or more serialized members resolve to the same JSON wire name
+  (via `[JsonPropertyName]` or the property name itself). The generated fragment
+  converter could only honor this at runtime; it now fails during analysis.
+  Members marked `[JsonIgnore]` never participate.
+* Fix: Give each member a distinct explicit `[JsonPropertyName]`, or rename the
+  .NET members so their wire names no longer collide.
+
+```csharp
+// Does not compile: both members serialize as "dup"
+[SparseFragmentModel]
+public partial class Widget
+{
+    [JsonPropertyName("dup")]
+    public string? First { get; set; }
+    [JsonPropertyName("dup")]
+    public string? Second { get; set; }
 }
 ```

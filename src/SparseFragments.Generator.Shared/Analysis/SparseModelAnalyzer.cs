@@ -11,7 +11,8 @@ internal sealed record SparseGeneratorConfig(
     string ModelAttributeMetadataName,
     string MergeAttributeMetadataName,
     string MergeStrategyBaseMetadataName,
-    string CloneReferenceSafeAttributeMetadataName
+    string CloneReferenceSafeAttributeMetadataName,
+    SparseStructuralPolicy StructuralPolicy = SparseStructuralPolicy.AtomicReplace
 );
 
 /// <summary>Orchestrates model analysis: shape validation, member discovery and diagnostics.</summary>
@@ -35,27 +36,16 @@ internal static class SparseModelAnalyzer
             .OfType<TypeDeclarationSyntax>()
             .FirstOrDefault();
 
-        if (declaration is null || !declaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+        switch (SparseShapeValidation.ValidateRootShape(model, declaration, cancellationToken))
         {
-            return Failure(SparseDiagnosticIds.MustBePartial, location, model.Name);
-        }
-
-        if (
-            model.ContainingType is not null
-            || model.Arity != 0
-            || (model.TypeKind != TypeKind.Class && model.TypeKind != TypeKind.Struct)
-            || model.IsAbstract
-        )
-        {
-            return Failure(SparseDiagnosticIds.UnsupportedModel, location, model.Name);
-        }
-
-        if (
-            model.TypeKind == TypeKind.Class
-            && ModelConstructorBinding.AnalyzeRoot(model, cancellationToken) is null
-        )
-        {
-            return Failure(SparseDiagnosticIds.MissingConstructor, location, model.Name);
+            case SparseRootShapeProblem.MustBePartial:
+                return Failure(SparseDiagnosticIds.MustBePartial, location, model.Name);
+            case SparseRootShapeProblem.RefLikeModel:
+            case SparseRootShapeProblem.FileLocalModel:
+            case SparseRootShapeProblem.UnsupportedModel:
+                return Failure(SparseDiagnosticIds.UnsupportedModel, location, model.Name);
+            case SparseRootShapeProblem.MissingConstructor:
+                return Failure(SparseDiagnosticIds.MissingConstructor, location, model.Name);
         }
 
         var members = SparseModelDiscovery
@@ -70,6 +60,49 @@ internal static class SparseModelAnalyzer
             diagnostics,
             cancellationToken
         );
+
+        var memberModels = SparseModelDiscovery.CreateMemberModels(
+            members,
+            config,
+            cancellationToken
+        );
+
+        // Formerly a late render-time check: reserved generated-name collisions
+        // now fail during analysis on the shared collision primitive, keeping
+        // the historical single SPF009 with no source location.
+        var reservedCollision = SparseShapeValidation.FindFirstReservedNameCollision(
+            memberModels,
+            SparseShapeValidation.SparseFragmentsReservedNames
+        );
+        if (reservedCollision is not null)
+        {
+            diagnostics.Add(
+                new SparseGeneratorDiagnostic(
+                    SparseDiagnosticIds.GeneratedNameCollision,
+                    null,
+                    reservedCollision
+                )
+            );
+        }
+
+        // Statically provable duplicate JSON wire names fail here instead of
+        // surfacing as runtime converter errors in generated code.
+        foreach (var duplicate in SparseShapeValidation.FindDuplicateWireNames(memberModels))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var owner = SparseShapeValidation.FindWireNameOwner(
+                members,
+                duplicate,
+                cancellationToken
+            );
+            diagnostics.Add(
+                new SparseGeneratorDiagnostic(
+                    SparseDiagnosticIds.DuplicateJsonPropertyName,
+                    owner?.Locations.FirstOrDefault(),
+                    duplicate
+                )
+            );
+        }
 
         if (diagnostics.Count > 0)
         {
@@ -89,11 +122,6 @@ internal static class SparseModelAnalyzer
             + "_"
             + SparseNaming.GetStableTypeHash(fullyQualifiedName, cancellationToken)
             + SparseWellKnownNames.HintNameSuffix;
-        var memberModels = SparseModelDiscovery.CreateMemberModels(
-            members,
-            config,
-            cancellationToken
-        );
         var pocoCloneModels = SparseModelDiscovery
             .GetPocoCloneTypes(members, config, cancellationToken)
             .Select(pocoType =>

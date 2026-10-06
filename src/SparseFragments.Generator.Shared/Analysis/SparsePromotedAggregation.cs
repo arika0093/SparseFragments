@@ -43,6 +43,49 @@ internal sealed record SparsePromotedDedupResult(
 /// </summary>
 internal static class SparsePromotedAggregation
 {
+    /// <summary>
+    /// Collects promoted contributions from analyzed roots and resolves them into
+    /// distinct emit candidates plus incompatible keys in one product-neutral step.
+    /// </summary>
+    /// <remarks>
+    /// Source rendering remains generator-specific; this helper owns only the
+    /// collect/dedupe/incompatibility-resolution mechanics so downstream
+    /// generators compose with the shared model instead of duplicating it.
+    /// Explicit roots (types that are themselves fragment models) never count as
+    /// promoted contributions.
+    /// </remarks>
+    internal static SparsePromotedDedupResult Aggregate(
+        ImmutableArray<SparseGenerationAnalysis> analyses,
+        CancellationToken cancellationToken
+    )
+    {
+        var contributions = ImmutableArray.CreateBuilder<SparsePromotedModel>();
+        var explicitRoots = ImmutableArray.CreateBuilder<string>();
+        foreach (var analysis in analyses)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (analysis.Model is { } model && model.ModelTypeName is not null)
+            {
+                explicitRoots.Add(model.ModelTypeName);
+            }
+
+            if (!analysis.PromotedModels.IsDefault)
+            {
+                contributions.AddRange(analysis.PromotedModels);
+            }
+        }
+
+        return Deduplicate(
+            contributions.ToImmutable(),
+            explicitRoots.ToImmutable(),
+            cancellationToken
+        );
+    }
+
+    internal static ImmutableArray<string> ToIncompatibleArguments(
+        SparsePromotedDedupResult result
+    ) => result.Incompatible.Select(static entry => entry.DisplayName).ToImmutableArray();
+
     internal static SparsePromotedDedupResult Deduplicate(
         ImmutableArray<SparsePromotedModel> contributions,
         ImmutableArray<string> explicitRootNames,
