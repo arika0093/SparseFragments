@@ -360,8 +360,11 @@ internal static class SparseCollectionProvenance
 
         comparer ??= EqualityComparer<T>.Default;
         var reset = LastReset(contributions);
+        // First-origin tracking while building the union: each distinct value records the
+        // lowest contribution index that supplied it, so origins need no second scan
+        // over the contributions. Total work stays O(total contributed + effective).
         var distinct = new List<T>();
-        var seen = new HashSet<T>(comparer);
+        var originsByValue = new Dictionary<T, int>(comparer);
         for (var index = reset + 1; index < contributions.Count; index++)
         {
             var contribution = contributions[index];
@@ -372,15 +375,16 @@ internal static class SparseCollectionProvenance
 
             foreach (var value in contribution.Value)
             {
-                if (seen.Add(value))
+                if (!originsByValue.ContainsKey(value))
                 {
+                    originsByValue[value] = index;
                     distinct.Add(value);
                 }
             }
         }
 
-        // HashSet<T>(comparer).Add uses the comparer, but duplicate detection for the
-        // provenance walk below must use the same comparer explicitly.
+        // Deduplication uses the comparer explicitly so custom equality matches
+        // the union validation below; origins are recorded on first acceptance.
         if (distinct.Count != effective.Value.Count)
         {
             return Fail(
@@ -405,13 +409,11 @@ internal static class SparseCollectionProvenance
         origins = new int[effective.Value.Count];
         for (var position = 0; position < effective.Value.Count; position++)
         {
-            var origin = FirstContaining(
-                contributions,
-                reset + 1,
-                effective.Value[position],
-                comparer
-            );
-            if (origin < 0)
+            // The order check above guarantees each effective value matches the
+            // distinct value tracked at the same position, so the lookup succeeds
+            // for comparers whose hash codes agree with equality. TryGetValue keeps
+            // a pathological comparer a validation failure instead of an exception.
+            if (!originsByValue.TryGetValue(effective.Value[position], out var origin))
             {
                 return Fail(
                     "The effective value contains an element supplied by no contribution.",
@@ -530,7 +532,10 @@ internal static class SparseCollectionProvenance
             }
         }
 
-        var union = new HashSet<T>(comparer);
+        // First-origin tracking while building the union: each distinct value records
+        // the lowest contribution index that supplied it, so origins need no second
+        // scan over the contributions. Total work stays O(total + effective).
+        var originsByValue = new Dictionary<T, int>(comparer);
         for (var index = reset + 1; index < contributions.Count; index++)
         {
             var contribution = contributions[index];
@@ -541,11 +546,17 @@ internal static class SparseCollectionProvenance
 
             foreach (var value in contribution.Value)
             {
-                union.Add(value);
+                if (!originsByValue.ContainsKey(value))
+                {
+                    originsByValue[value] = index;
+                }
             }
         }
 
-        if (union.Count != distinctEffective.Count || !union.IsSupersetOf(distinctEffective))
+        if (
+            originsByValue.Count != distinctEffective.Count
+            || !distinctEffective.All(value => originsByValue.ContainsKey(value))
+        )
         {
             return Fail(
                 "The effective set is not the comparer-aware union of the present contributions after the last reset.",
@@ -557,13 +568,11 @@ internal static class SparseCollectionProvenance
         origins = new int[effectiveValues.Length];
         for (var position = 0; position < effectiveValues.Length; position++)
         {
-            var origin = FirstContainingSet(
-                contributions,
-                reset + 1,
-                effectiveValues[position],
-                comparer
-            );
-            if (origin < 0)
+            // The union check above guarantees every effective value is tracked, so
+            // the lookup succeeds for comparers whose hash codes agree with
+            // equality. TryGetValue keeps a pathological comparer a validation
+            // failure instead of an exception.
+            if (!originsByValue.TryGetValue(effectiveValues[position], out var origin))
             {
                 return Fail(
                     "The effective value contains an element supplied by no contribution.",
@@ -660,70 +669,6 @@ internal static class SparseCollectionProvenance
         }
 
         return true;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell",
-        "S3267",
-        Justification = "Explicit loops return the first contributing index; LINQ would hide the provenance position."
-    )]
-    private static int FirstContaining<T>(
-        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
-        int start,
-        T value,
-        IEqualityComparer<T> comparer
-    )
-    {
-        for (var index = start; index < contributions.Count; index++)
-        {
-            var contribution = contributions[index];
-            if (!contribution.IsPresent || contribution.Value is null)
-            {
-                continue;
-            }
-
-            foreach (var candidate in contribution.Value)
-            {
-                if (comparer.Equals(candidate, value))
-                {
-                    return index;
-                }
-            }
-        }
-
-        return -1;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell",
-        "S3267",
-        Justification = "Explicit loops return the first contributing index; LINQ would hide the provenance position."
-    )]
-    private static int FirstContainingSet<T>(
-        IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
-        int start,
-        T value,
-        IEqualityComparer<T> comparer
-    )
-    {
-        for (var index = start; index < contributions.Count; index++)
-        {
-            var contribution = contributions[index];
-            if (!contribution.IsPresent || contribution.Value is null)
-            {
-                continue;
-            }
-
-            foreach (var candidate in contribution.Value)
-            {
-                if (comparer.Equals(candidate, value))
-                {
-                    return index;
-                }
-            }
-        }
-
-        return -1;
     }
 
     private static IEqualityComparer<T>? FirstActiveSetComparer<T>(

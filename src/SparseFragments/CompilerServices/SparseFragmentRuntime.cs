@@ -87,6 +87,44 @@ public static class SparseFragmentRuntime
     ) =>
         SparseCollectionRebase.TryRebaseSetUnion(before, desired, current, out rebased, out reason);
 
+    /// <summary>Reapplies an append edit onto a newer sequence without boxing or quadratic scans.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryRebaseSequenceAppend<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out List<T> rebased,
+        out string? reason
+    ) =>
+        SparseCollectionRebase.TryRebaseSequenceAppend(
+            before,
+            desired,
+            current,
+            comparer,
+            out rebased,
+            out reason
+        );
+
+    /// <summary>Reapplies a sequence set-union edit onto a newer sequence without boxing or quadratic scans.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryRebaseSequenceSetUnion<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out List<T> rebased,
+        out string? reason
+    ) =>
+        SparseCollectionRebase.TryRebaseSequenceSetUnion(
+            before,
+            desired,
+            current,
+            comparer,
+            out rebased,
+            out reason
+        );
+
     /// <summary>Creates a reference-identity clone context for generated deep-clone helpers.</summary>
     public static Dictionary<object, object> CreateCloneContext() =>
         new(SparseReferenceEqualityComparer.Instance);
