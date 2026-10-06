@@ -1,8 +1,6 @@
 # Patch Rebase
 
-Rebase replays a patch authored against an older state onto a newer state. It is the primitive for concurrent editing: two writers start from the same baseline, one commits first, and the other's patch must be reconciled with the new reality instead of blindly overwritten or rejected.
-
-Related pages: [Merge strategies](merge-strategies.md) (the custom-strategy `TryRebase` hook), [Keyed collections](keyed-collections.md), [Clone & ownership](cloning-and-ownership.md).
+Rebase replays a patch authored against an older state onto a newer state. Two writers start from the same baseline, one commits first, and the other's patch is reconciled against the committed state.
 
 ## The Base / Local / Current Model
 
@@ -10,7 +8,7 @@ Rebase takes three states:
 
 * **base** — the state the local patch was authored against;
 * **local** — the desired patch (the user's edits);
-* **current** — the newer state onto which the patch must be replayed.
+* **current** — the newer state onto which the patch is replayed.
 
 All three are presence-aware `Optional<Fragment?>` values, so *missing*, *present null*, and *present value* participate in reconciliation exactly as they do in merge: `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` are all observable transitions.
 
@@ -31,7 +29,7 @@ if (!result.HasConflicts)
 }
 ```
 
-Rebase returns a **new patch for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. The rebased patch excludes conflicting members; applying it to `current` is always safe.
+Rebase returns a **new patch for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased patch.
 
 ## The Three Outcomes
 
@@ -107,7 +105,7 @@ Nested conflicts expose the full member path: a local `Nested.Host = "b"` agains
 * **Nested structural members** rebase member-by-member; only the colliding leaf conflicts while disjoint nested edits replay.
 * **Append-merged collections** treat an already-applied addition as a no-op (replaying `["a", "b"]` onto a current state that already contains `["a", "b"]` stays put) and report concurrent divergent growth as `CollectionAppend`.
 * **Set-union members** rebase against comparer-aware equality: same entries under the same comparer replay cleanly; entries that differ under the member's comparer conflict as `CollectionSetUnion`.
-* **Keyed structural collections** rebase element-wise where keys line up; per-key divergent edits conflict while disjoint key ranges (added/removed/edited on different keys) replay. See [Keyed collections](keyed-collections.md).
+* **Keyed structural collections** rebase element-wise where keys line up; per-key divergent edits conflict while disjoint key ranges (added/removed/edited on different keys) replay.
 * **The whole contribution** participates too: `Set`-style root transitions and root presence changes (`Missing` vs present-null vs present) rebase through the same machinery, with unresolvable root divergence reported as `WholeContribution`.
 * **An empty local patch** rebases across root presence changes without conflicts — there is nothing to reconcile.
 
@@ -119,5 +117,3 @@ A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own t
 * a present result maps to a `Set` patch operation, a missing result maps to `Unset`, and a result equal to the current state stays `Unchanged` (a semantic no-op);
 * the default implementation succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
-
-The full contract — including thread-safety expectations — lives in [Merge strategies](merge-strategies.md); conflict-shape details stay on this page.
