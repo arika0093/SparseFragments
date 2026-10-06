@@ -298,7 +298,7 @@ jobs:
         run: |
           mkdir -p TestResults
           dotnet publish tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj \
-            --configuration Release --framework net10.0 \
+            --configuration Release --framework net10.0 --use-current-runtime \
             --output TestResults/nativeaot-smoke --verbosity normal 2>&1 \
             | tee TestResults/nativeaot-publish.log
 
