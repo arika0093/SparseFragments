@@ -57,6 +57,11 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeFalse();
         Apply(result.Patch, current).Value!.Plugins.Value.ShouldBe(["a", "b"]);
+        SemanticOracle.AssertEqual(
+            current,
+            Apply(result.Patch, current),
+            "rebasing an already-applied addition is a semantic no-op"
+        );
     }
 
     [Test]
@@ -72,6 +77,11 @@ public sealed class FragmentPatchRebaseTests
         var model = Apply(result.Patch, currentState).Value!.ToModel();
         model.RetryCount.ShouldBe(2);
         model.Label.ShouldBe("b");
+        SemanticOracle.AssertEqual(
+            State(new Settings { RetryCount = 2, Label = "b" }),
+            Apply(result.Patch, currentState),
+            "rebased scalar edits apply cleanly onto current"
+        );
     }
 
     [Test]
@@ -85,6 +95,11 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeFalse();
         result.Patch.IsEmpty.ShouldBeTrue();
+        SemanticOracle.AssertEqual(
+            currentState,
+            Apply(result.Patch, currentState),
+            "rebasing an already-applied edit is a semantic no-op"
+        );
     }
 
     [Test]
@@ -147,6 +162,11 @@ public sealed class FragmentPatchRebaseTests
         var model = Apply(result.Patch, currentState).Value!.ToModel();
         model.Nested!.Host.ShouldBe("changed");
         model.Nested.Port.ShouldBe(2);
+        SemanticOracle.AssertEqual(
+            State(new Settings { Nested = new Nested { Host = "changed", Port = 2 } }),
+            Apply(result.Patch, currentState),
+            "rebased nested edit applies cleanly onto current"
+        );
     }
 
     [Test]
@@ -217,6 +237,18 @@ public sealed class FragmentPatchRebaseTests
         values.ShouldContain("a");
         values.ShouldContain("b");
         values.ShouldContain("c");
+        SemanticOracle.AssertEqual(
+            FragmentState(
+                new SetSettings.Fragment
+                {
+                    Values = Optional<ISet<string>>.Present(
+                        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "a", "b", "c" }
+                    ),
+                }
+            ),
+            Apply(result.Patch, currentState),
+            "rebased set-union edit applies cleanly onto current"
+        );
     }
 
     [Test]
@@ -266,6 +298,11 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeFalse();
         Apply(result.Patch, currentState).Value!.RetryCount.Value.ShouldBe(5);
+        SemanticOracle.AssertEqual(
+            State(new Settings { RetryCount = 5 }),
+            Apply(result.Patch, currentState),
+            "whole-contribution rebase applies when current matches base"
+        );
     }
 
     private static Optional<Settings.Fragment?> State(Settings model) =>
