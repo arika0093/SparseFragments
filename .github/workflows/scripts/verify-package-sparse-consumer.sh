@@ -4,7 +4,10 @@
 # Builds and runs tests/fixtures/consumers/package-sparse against the packed
 # packages via a local feed: the fixture resolves SparseFragments from
 # RestoreAdditionalProjectSources instead of falling back to ProjectReference,
-# for net8.0 and net10.0, and must reach its success marker.
+# for net8.0 and net10.0, and must reach its success marker. It also builds
+# tests/fixtures/consumers/package-sparse-netstandard, a netstandard2.0 class
+# library covering the lowest shipped TFM (#27): build-only, since
+# netstandard2.0 has no runnable host, so compilation success is the gate.
 #
 # Usage: verify-package-sparse-consumer.sh <package-directory>
 set -euo pipefail
@@ -48,5 +51,15 @@ for framework in net8.0 net10.0; do
         exit 1
     fi
 done
+
+netstandard_csproj="tests/fixtures/consumers/package-sparse-netstandard/PackageSparse.NetStandard.Consumer.csproj"
+if [[ ! -f "${netstandard_csproj}" ]]; then
+    echo "netstandard2.0 consumer fixture missing at '${netstandard_csproj}'." >&2
+    exit 1
+fi
+dotnet build "${netstandard_csproj}" \
+    --configuration Release \
+    -p:SparseFragmentsPackageVersion="${version}" \
+    -p:RestoreAdditionalProjectSources="${feed}"
 
 echo "SparseFragments packed package consumer verified (SparseFragments ${version})."
