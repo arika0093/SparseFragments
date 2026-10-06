@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>PackageSparse.Docs.Consumer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Remove="TUnit;Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
+    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
+  </ItemGroup>
+</Project>

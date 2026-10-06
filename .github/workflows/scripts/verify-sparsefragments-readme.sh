@@ -73,7 +73,9 @@ for token in "${required_tokens[@]}"; do
 done
 
 # 3. Compile and run the canonical fixture against the packed packages.
-package="$(ls "${package_directory}"/SparseFragments.*.nupkg 2>/dev/null | head -n 1 || true)"
+# The core glob pins the version digit so the Blazor package
+# (SparseFragments.Extensions.Blazor.*.nupkg, #46) never resolves here.
+package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseFragments package found in '${package_directory}'." >&2
     exit 1
