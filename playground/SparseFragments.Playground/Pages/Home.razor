@@ -116,7 +116,12 @@
 </FluentCard>
 
 <h2>3. Keyed list: List&lt;Quest&gt;</h2>
-<p class="pg-hint">Outer <em>List&lt;PlaygroundQuest&gt;</em> patches <em>by Id key</em>: add / remove / edit by key, reorder via the final key order (<em>SetOrder</em>). Inner <em>List&lt;int&gt; Scores</em> is a scalar sequence with no keys: even one element change replaces the <em>whole list</em> (order matters, duplicates allowed). After edits are highlighted live from <em>Patch.Between</em>: green is added, blue is moved, <span class="pg-dot"></span>is an edited field. Drag <span class="pg-drag">⠿</span> to reorder.</p>
+<p class="pg-hint">Outer <em>List&lt;Quest&gt;</em> patches by <em>Id</em> key; inner <em>Scores</em> replaces the whole list.</p>
+<div class="pg-legend" aria-label="Edit highlight legend">
+    <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+    <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+    <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+</div>
 <div class="pg-grid">
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
@@ -138,7 +143,7 @@
         <div class="pg-card-head">
             <h3>Before code</h3>
         </div>
-        <FluentTabs>
+        <FluentTabs ActiveTabId="@RosterBeforeTabId" ActiveTabIdChanged="@OnRosterTabChanged">
             <FluentTab Label="Model (C#)" Id="roster-before-csharp">
                 <MonacoView Content="@RosterBeforeCSharp" Language="csharp" Height="270px" />
             </FluentTab>
@@ -151,7 +156,7 @@
         <div class="pg-card-head">
             <h3>After code</h3>
         </div>
-        <FluentTabs>
+        <FluentTabs ActiveTabId="@RosterAfterTabId" ActiveTabIdChanged="@OnRosterTabChanged">
             <FluentTab Label="Model (C#)" Id="roster-after-csharp">
                 <MonacoView Content="@RosterAfterCSharp" Language="csharp" Height="270px" />
             </FluentTab>
@@ -217,6 +222,8 @@
     private RosterEditState RosterAfter = RosterEditState.AfterDefaults();
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
+    private string RosterBeforeTabId = "roster-before-csharp";
+    private string RosterAfterTabId = "roster-after-csharp";
     private bool _importHidden = true;
     private string _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
     private string? _importError;
@@ -318,6 +325,17 @@
         HigherTabId = $"higher-{language}";
     }
 
+    private void OnRosterTabChanged(string? id)
+    {
+        if (id is null)
+        {
+            return;
+        }
+        var language = id.EndsWith("csharp", StringComparison.Ordinal) ? "csharp" : "json";
+        RosterBeforeTabId = $"roster-before-{language}";
+        RosterAfterTabId = $"roster-after-{language}";
+    }
+
     private void ResetLower() => Lower = FragmentEditState.LowerDefaults();
 
     private void ResetHigher() => Higher = FragmentEditState.HigherDefaults();
@@ -337,6 +355,8 @@
         ResetRosterAfter();
         LowerTabId = "lower-csharp";
         HigherTabId = "higher-csharp";
+        RosterBeforeTabId = "roster-before-csharp";
+        RosterAfterTabId = "roster-after-csharp";
         _importHidden = true;
         _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
         _importError = null;

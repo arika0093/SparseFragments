@@ -1,60 +1,23 @@
 @using SparseFragments.Playground.Models
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-    @for (var i = 0; i < State.Rows.Count; i++)
+    @if (AllowReorder)
     {
-        var index = i;
-        var row = State.Rows[index];
-        var hl = GetHighlight(row);
-        <div class="@RowClass(hl, index)"
-            @ondragenter="() => _dropTarget = index"
-            @ondragover:preventDefault
-            @ondragover="() => {}"
-            @ondragleave="OnDragLeave"
-            @ondrop="() => DropAsync(index)">
-            <div class="pg-rline1">
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Id <small>key</small></span>
-                    <FluentTextField Placeholder="id" Style="width: 100%;"
-                        Value="@row.Id"
-                        ValueChanged="@(async v => { row.Id = v; await NotifyAsync(); })" />
-                </div>
-                <div class="pg-roster-field @(hl?.TitleChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.TitleChanged == true)Title</span>
-                    <FluentTextField Placeholder="title" Style="width: 100%;"
-                        Value="@row.Title"
-                        ValueChanged="@(async v => { row.Title = v; await NotifyAsync(); })" />
-                </div>
-                <div class="pg-roster-field @(hl?.PointsChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.PointsChanged == true)Points</span>
-                    <FluentNumberField TValue="int" Style="width: 100%;"
-                        Value="@row.Points"
-                        ValueChanged="@(async v => { row.Points = v; await NotifyAsync(); })" />
-                </div>
-            </div>
-            <div class="pg-rline2">
-                <div class="pg-roster-field @(hl?.ScoresChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.ScoresChanged == true)Scores <small>List&lt;int&gt; whole</small></span>
-                    <FluentTextField Placeholder="10, 20" Style="width: 100%;"
-                        Value="@row.ScoresText"
-                        ValueChanged="@(async v => { row.ScoresText = v; await NotifyAsync(); })" />
-                </div>
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Order</span>
-                    <div class="pg-order @(hl?.Moved == true ? "pg-moved-num" : "")" title="Position in this list">@(index + 1)</div>
-                </div>
-                <div class="pg-roster-actions">
-                    @if (AllowReorder)
-                    {
-                        <span class="pg-drag" draggable="true" title="Drag to reorder"
-                            @ondragstart="() => OnDragStart(index)"
-                            @ondragend="OnDragEnd">⠿</span>
-                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(index == 0)" @onclick="@(async () => await MoveAsync(index, -1))">↑</FluentButton>
-                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(index == State.Rows.Count - 1)" @onclick="@(async () => await MoveAsync(index, 1))">↓</FluentButton>
-                    }
-                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(index))">✕</FluentButton>
-                </div>
-            </div>
+        <SortableList Items="State.Rows" Handle=".pg-drag" Class="pg-roster-list"
+            GhostClass="pg-sort-ghost" ChosenClass="pg-sort-chosen"
+            OnUpdate="OnSortableUpdate" Context="row">
+            <SortableItemTemplate>
+                @RowFragment((row, State.Rows.IndexOf(row)))
+            </SortableItemTemplate>
+        </SortableList>
+    }
+    else
+    {
+        <div class="pg-roster-list">
+        @for (var i = 0; i < State.Rows.Count; i++)
+        {
+            @RowFragment((State.Rows[i], i))
+        }
         </div>
     }
     <div>
@@ -65,9 +28,6 @@
 @code {
     private static readonly string[] RandomTitles =
         ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
-
-    private int? _dragIndex;
-    private int? _dropTarget;
 
     [Parameter, EditorRequired]
     public RosterEditState State { get; set; } = null!;
@@ -86,12 +46,81 @@
     [Parameter]
     public bool ShowHighlights { get; set; } = true;
 
+    private RenderFragment<(QuestRow Row, int Index)> RowFragment => item =>
+        @<div class="@RowClass(GetHighlight(item.Row))">
+            <div class="pg-rline1">
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Id <small>key</small></span>
+                    <FluentTextField Placeholder="id" Style="width: 100%;"
+                        Value="@item.Row.Id"
+                        ValueChanged="@(async v => { item.Row.Id = v; await NotifyAsync(); })" />
+                </div>
+                <div class="pg-roster-field @(GetHighlight(item.Row)?.TitleChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Row)?.TitleChanged == true)Title</span>
+                    <FluentTextField Placeholder="title" Style="width: 100%;"
+                        Value="@item.Row.Title"
+                        ValueChanged="@(async v => { item.Row.Title = v; await NotifyAsync(); })" />
+                </div>
+                <div class="pg-roster-field @(GetHighlight(item.Row)?.PointsChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Row)?.PointsChanged == true)Points</span>
+                    <FluentNumberField TValue="int" Style="width: 100%;"
+                        Value="@item.Row.Points"
+                        ValueChanged="@(async v => { item.Row.Points = v; await NotifyAsync(); })" />
+                </div>
+            </div>
+            <div class="pg-rline2">
+                <div class="pg-roster-field @(GetHighlight(item.Row)?.ScoresChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Row)?.ScoresChanged == true)Scores <small>List&lt;int&gt; whole</small></span>
+                    <FluentTextField Placeholder="10, 20" Style="width: 100%;"
+                        Value="@item.Row.ScoresText"
+                        ValueChanged="@(async v => { item.Row.ScoresText = v; await NotifyAsync(); })" />
+                </div>
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Order</span>
+                    <div class="pg-order @(GetHighlight(item.Row)?.Moved == true ? "pg-moved-num" : "")" title="Position in this list">@(item.Index + 1)</div>
+                </div>
+                <div class="pg-roster-actions">
+                    @if (AllowReorder)
+                    {
+                        <span class="pg-drag" title="Drag to reorder">⠿</span>
+                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(item.Index == 0)" @onclick="@(async () => await MoveAsync(item.Index, -1))">↑</FluentButton>
+                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(item.Index == State.Rows.Count - 1)" @onclick="@(async () => await MoveAsync(item.Index, 1))">↓</FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(item.Index))">✕</FluentButton>
+                </div>
+            </div>
+        </div>;
+
+    private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
+    {
+        var (oldIndex, newIndex) = indices;
+        if (oldIndex == newIndex
+            || oldIndex < 0
+            || oldIndex >= State.Rows.Count
+            || newIndex < 0
+            || newIndex > State.Rows.Count)
+        {
+            return Task.CompletedTask;
+        }
+        var item = State.Rows[oldIndex];
+        State.Rows.RemoveAt(oldIndex);
+        if (newIndex < State.Rows.Count)
+        {
+            State.Rows.Insert(newIndex, item);
+        }
+        else
+        {
+            State.Rows.Add(item);
+        }
+        return NotifyAsync();
+    }
+
     private RosterRowHighlight? GetHighlight(QuestRow row) =>
         ShowHighlights && Highlights is not null && Highlights.TryGetValue(row, out var highlight)
             ? highlight
             : null;
 
-    private string RowClass(RosterRowHighlight? highlight, int index)
+    private static string RowClass(RosterRowHighlight? highlight)
     {
         var cls = "pg-roster-row";
         if (highlight?.IsAdded == true)
@@ -105,14 +134,6 @@
         if (highlight is not null && !highlight.IsAdded && !highlight.IsRemoved && highlight.Moved)
         {
             cls += " pg-moved";
-        }
-        if (_dragIndex == index)
-        {
-            cls += " pg-dragging";
-        }
-        if (_dropTarget == index && _dragIndex != index && AllowReorder)
-        {
-            cls += " pg-drop-target";
         }
         return cls;
     }
@@ -165,38 +186,6 @@
             return Task.CompletedTask;
         }
         (State.Rows[target], State.Rows[index]) = (State.Rows[index], State.Rows[target]);
-        return NotifyAsync();
-    }
-
-    private void OnDragStart(int index)
-    {
-        _dragIndex = index;
-        _dropTarget = null;
-    }
-
-    private void OnDragEnd()
-    {
-        _dragIndex = null;
-        _dropTarget = null;
-    }
-
-    private void OnDragLeave()
-    {
-        _dropTarget = null;
-    }
-
-    private Task DropAsync(int target)
-    {
-        var drag = _dragIndex;
-        _dragIndex = null;
-        _dropTarget = null;
-        if (!AllowReorder || drag is null || drag.Value == target)
-        {
-            return Task.CompletedTask;
-        }
-        var item = State.Rows[drag.Value];
-        State.Rows.RemoveAt(drag.Value);
-        State.Rows.Insert(target > drag.Value ? target - 1 : target, item);
         return NotifyAsync();
     }
 

@@ -302,6 +302,43 @@ code {
     border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
 }
 
+.pg-legend {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: -0.25rem 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--neutral-foreground-hint, #495057);
+}
+
+.pg-lg {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.pg-sw {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 0.2rem;
+}
+
+.pg-sw-add {
+    background: #2da44e;
+}
+
+.pg-sw-move {
+    background: #0969da;
+}
+
+.pg-roster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .pg-roster-row {
     padding: 0.4rem 0.5rem 0.5rem 0.6rem;
     border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
@@ -323,12 +360,13 @@ code {
     border-left-color: #0969da;
 }
 
-.pg-roster-row.pg-dragging {
-    opacity: 0.5;
+.pg-sort-ghost {
+    opacity: 0.4;
+    background: rgba(9, 105, 218, 0.08);
 }
 
-.pg-roster-row.pg-drop-target {
-    outline: 2px dashed #0969da;
+.pg-sort-chosen {
+    outline: 2px solid #0969da;
     outline-offset: 2px;
 }
 

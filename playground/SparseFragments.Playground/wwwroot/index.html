@@ -28,6 +28,10 @@
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
     </div>
+    <!-- Sortable.min.js must load BEFORE Monaco's loader.js: the loader defines a -->
+    <!-- global AMD `define`, which would divert the UMD build into its AMD branch -->
+    <!-- and leave window.Sortable undefined. -->
+    <script src="js/Sortable.min.js?v=1.15.7"></script>
     <script src="_content/BlazorMonaco/jsInterop.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
