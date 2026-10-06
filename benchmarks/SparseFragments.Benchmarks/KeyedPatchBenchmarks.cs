@@ -660,6 +660,49 @@ public class KeyedRebaseBenchmarks
             )
         );
         _local = BenchKeyedServerHolder.Patch.Between(_baseState, _desiredState);
+        var clean = Rebase_Clean();
+        var alreadyApplied = Rebase_AlreadyApplied();
+        var conflict = Rebase_Conflict();
+        var cleanItems = clean.Patch.Apply(_concurrentAddState).Value!.Items.Value!;
+        var appliedItems = alreadyApplied.Patch.Apply(_desiredState).Value!.Items.Value!;
+        var conflictItems = conflict.Patch.Apply(_divergentState).Value!.Items.Value!;
+        if (
+            clean.HasConflicts
+            || alreadyApplied.HasConflicts
+            || !conflict.HasConflicts
+            || cleanItems.Count != Size + 1
+            || appliedItems.Count != Size
+            || conflictItems.Count != Size
+            || cleanItems[^1].Id != "srv-remote"
+            || cleanItems[^1].Name != "remote"
+        )
+        {
+            throw new InvalidOperationException(
+                "Keyed Rebase must preserve concurrent additions and detect conflicts."
+            );
+        }
+
+        for (var index = 0; index < Size; index++)
+        {
+            var localName = index < touched ? "local-" + index : "server-" + index;
+            var localCount = index < touched ? -index : index;
+            if (
+                cleanItems[index].Name != localName
+                || cleanItems[index].Count != localCount
+                || appliedItems[index].Name != localName
+                || appliedItems[index].Count != localCount
+                || conflictItems[index].Name
+                    != (index < touched ? "remote-" + index : "server-" + index)
+                || conflictItems[index].Count != (index < touched ? 1000 + index : index)
+                || _baseState.Value!.Items.Value![index].Name != "server-" + index
+                || _desiredState.Value!.Items.Value![index].Name != localName
+            )
+            {
+                throw new InvalidOperationException(
+                    "Keyed Rebase must preserve local edits, untouched elements, and source states."
+                );
+            }
+        }
     }
 
     [Benchmark(Description = "Keyed Rebase[N,K]: clean replay beside a concurrent add")]
