@@ -529,12 +529,8 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + ">(beforeValues, desiredValues, currentValues, out var rebasedValues, out var reason))"
         );
         code.AppendLineAt(6, "{");
-        var operationType =
-            operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
-        code.AppendLineAt(
-            7,
-            "result." + field + " = " + operationType + ".Set(rebasedValues);"
-        );
+        var operationType = operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        code.AppendLineAt(7, "result." + field + " = " + operationType + ".Set(rebasedValues);");
     }
 
     private static void AppendBoxedCollectionRebase(
@@ -567,8 +563,7 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + ".AreEqual(left, right), out var rebasedValues, out var reason))"
         );
         code.AppendLineAt(6, "{");
-        var operationType =
-            operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        var operationType = operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
         var materialized = SparseFragmentExpressions.MaterializeCollection(
             member,
             "global::System.Linq.Enumerable.Cast<"

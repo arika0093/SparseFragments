@@ -86,6 +86,9 @@ internal static class SparseJsonNaming
 
     private static bool TryParseCondition(TypedConstant constant, out int condition)
     {
+        // JsonIgnoreCondition arrives as its underlying integral value; accept
+        // every integral representation (int/long plus the narrower/wider forms
+        // other generators observe) so the shared parser stays complete.
         if (constant.Value is int intValue && intValue >= 0 && intValue <= 3)
         {
             condition = intValue;
@@ -96,6 +99,21 @@ internal static class SparseJsonNaming
         {
             condition = (int)longValue;
             return true;
+        }
+
+        if (constant.Value is sbyte or byte or short or ushort or uint or ulong)
+        {
+            // All remaining unsigned/signed integral forms fit in long, so this
+            // conversion cannot fail.
+            var numeric = System.Convert.ToInt64(
+                constant.Value,
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+            if (numeric >= 0 && numeric <= 3)
+            {
+                condition = (int)numeric;
+                return true;
+            }
         }
 
         condition = JsonIgnoreAlways;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -252,5 +253,35 @@ internal static class SparseSequence
 internal readonly record struct SparseGeneratorDiagnostic(
     string DescriptorId,
     Location? Location,
-    string? Argument1
-);
+    ImmutableArray<string?> Arguments
+)
+{
+    public SparseGeneratorDiagnostic(string descriptorId, Location? location, string? argument)
+        : this(
+            descriptorId,
+            location,
+            argument is null
+                ? ImmutableArray<string?>.Empty
+                : ImmutableArray.Create<string?>(argument)
+        ) { }
+
+    public string? Argument1 => Arguments.Length > 0 ? Arguments[0] : null;
+
+    public SparseLocationSnapshot? Snapshot => SparseLocationSnapshot.Capture(Location);
+
+    public SparseDiagnosticPayload ToPayload() => SparseDiagnosticPayload.FromDiagnostic(this);
+
+    // ImmutableArray<T> equality is reference-based, so structural comparison
+    // goes through SparseSequence like every other shared model.
+    public bool Equals(SparseGeneratorDiagnostic other) =>
+        string.Equals(DescriptorId, other.DescriptorId, StringComparison.Ordinal)
+        && Equals(Location, other.Location)
+        && SparseSequence.Equal(Arguments, other.Arguments);
+
+    public override int GetHashCode() =>
+        unchecked(
+            (StringComparer.Ordinal.GetHashCode(DescriptorId) * 31 + (Location?.GetHashCode() ?? 0))
+                * 31
+            + SparseSequence.Hash(Arguments)
+        );
+}

@@ -18,8 +18,6 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private const string ModelAttributeName = "SparseFragments.SparseFragmentModelAttribute";
     private const string MergeAttributeName = "SparseFragments.SparseMergeAttribute";
     private const string MergeStrategyBaseName = "SparseFragments.FragmentMergeStrategy<T>";
-    private const string IsExternalInitMetadataName =
-        "System.Runtime.CompilerServices.IsExternalInit";
     private const string EmitIsExternalInitOption =
         "build_property.SparseFragmentsEmitIsExternalInit";
     private const string IsExternalInitHintName = "SparseFragments.IsExternalInit.g.cs";
@@ -234,6 +232,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf020-invalid-isparsekeyed-implementation"
     );
 
+    private static readonly DiagnosticDescriptor DuplicateJsonPropertyName = new(
+        SparseDiagnosticIds.DuplicateJsonPropertyName,
+        "Duplicate JSON property name",
+        "Multiple members map to the same JSON property name '{0}'",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf021-duplicate-json-property-name"
+    );
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -385,17 +393,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         !options.GlobalOptions.TryGetValue(EmitIsExternalInitOption, out var value)
         || !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
 
-    private static bool ShouldEmitIsExternalInit(Compilation compilation, bool configured)
-    {
-        if (!configured)
-            return false;
-        var marker = compilation.GetTypeByMetadataName(IsExternalInitMetadataName);
-        if (marker is null)
-            return true;
-        if (SymbolEqualityComparer.Default.Equals(marker.ContainingAssembly, compilation.Assembly))
-            return false;
-        return marker.DeclaredAccessibility != Accessibility.Public;
-    }
+    private static bool ShouldEmitIsExternalInit(Compilation compilation, bool configured) =>
+        SparseExternalInit.ShouldEmitIsExternalInit(compilation, configured);
 
     private static void Emit(SourceProductionContext context, SparseGenerationResult result)
     {
@@ -404,11 +403,17 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             context.ReportDiagnostic(
-                Diagnostic.Create(
-                    GetDescriptor(diagnostic.DescriptorId),
-                    diagnostic.Location ?? Location.None,
-                    diagnostic.Argument1
-                )
+                diagnostic.Arguments.Length <= 1
+                    ? Diagnostic.Create(
+                        GetDescriptor(diagnostic.DescriptorId),
+                        diagnostic.Location ?? Location.None,
+                        diagnostic.Argument1
+                    )
+                    : Diagnostic.Create(
+                        GetDescriptor(diagnostic.DescriptorId),
+                        diagnostic.Location ?? Location.None,
+                        diagnostic.Arguments.ToArray()
+                    )
             );
         }
 
@@ -429,28 +434,6 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         if (!analysis.Model.HasValue)
         {
             return new SparseGenerationResult(null, null, analysis.Diagnostics);
-        }
-
-        if (
-            analysis.Members.Any(static member =>
-                member.Property.Name is "JsonConverter" or "FragmentJsonConverter"
-            )
-        )
-        {
-            var colliding = analysis.Members.First(member =>
-                member.Property.Name is "JsonConverter" or "FragmentJsonConverter"
-            );
-            return new SparseGenerationResult(
-                null,
-                null,
-                analysis.Diagnostics.Add(
-                    new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.GeneratedNameCollision,
-                        null,
-                        colliding.Property.Name
-                    )
-                )
-            );
         }
 
         var model = analysis.Model.Value;
@@ -489,6 +472,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseDiagnosticIds.NullableKey => NullableKey,
             SparseDiagnosticIds.UnsupportedKeyShape => UnsupportedKeyShape,
             SparseDiagnosticIds.InvalidKeyedInterface => InvalidKeyedInterface,
+            SparseDiagnosticIds.DuplicateJsonPropertyName => DuplicateJsonPropertyName,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 
@@ -500,15 +484,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (
-            promoted.Members.Any(static member =>
-                member.Property.Name is "JsonConverter" or "FragmentJsonConverter"
-            )
-        )
+        // Promoted collisions stay render-time (the promoted path carries no
+        // analysis diagnostics) but run on the shared collision primitive.
+        var promotedCollision = SparseShapeValidation.FindFirstReservedNameCollision(
+            promoted.Members,
+            SparseShapeValidation.SparseFragmentsReservedNames
+        );
+        if (promotedCollision is not null)
         {
-            var colliding = promoted.Members.First(member =>
-                member.Property.Name is "JsonConverter" or "FragmentJsonConverter"
-            );
             return new SparseGenerationResult(
                 null,
                 null,
@@ -516,7 +499,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                     new SparseGeneratorDiagnostic(
                         SparseDiagnosticIds.GeneratedNameCollision,
                         null,
-                        colliding.Property.Name
+                        promotedCollision
                     )
                 )
             );

@@ -62,6 +62,7 @@ internal static class SparseModelDiagnostics
             }
         }
 
+        var cloneReported = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         foreach (
             var property in SparseCloneAnalysis.UnsupportedCloneMembers(
                 model,
@@ -76,6 +77,33 @@ internal static class SparseModelDiagnostics
                 continue;
             }
 
+            cloneReported.Add(property);
+            diagnostics.Add(
+                new SparseGeneratorDiagnostic(
+                    SparseDiagnosticIds.UnsupportedClone,
+                    property.Locations.FirstOrDefault(),
+                    property.Name
+                )
+            );
+        }
+
+        // Recursively unsupported generated member shapes (dynamic, pointers,
+        // type parameters, error and ref-like types) can never appear in emitted
+        // code; fail with the intentional clone diagnostic instead of downstream
+        // generated-code compilation errors. Members already reported above keep
+        // their single diagnostic.
+        var unsupportedShapeProperties = members
+            .Select(static member => member.Property)
+            .Where(property =>
+                !keyErrorProperties.Contains(property)
+                && !cloneReported.Contains(property)
+                && SparseShapeValidation.GetUnsupportedMemberReason(property.Type) is not null
+            )
+            .ToArray();
+        foreach (var property in unsupportedShapeProperties)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            cloneReported.Add(property);
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
                     SparseDiagnosticIds.UnsupportedClone,
@@ -92,7 +120,7 @@ internal static class SparseModelDiagnostics
                 member.MergeMode == CustomMergeMode
                 && (
                     member.MergeStrategyType is null
-                    || !IsValidMergeStrategy(
+                    || !SparseMergeValidation.IsValidCustomStrategy(
                         member.MergeStrategyType,
                         member.Property.Type,
                         member.ChildModel is not null,
@@ -255,59 +283,5 @@ internal static class SparseModelDiagnostics
                     yield return property;
             }
         }
-    }
-
-    private static bool IsValidMergeStrategy(
-        INamedTypeSymbol strategyType,
-        ITypeSymbol memberType,
-        bool isNestedModel,
-        SparseGeneratorConfig config,
-        CancellationToken cancellationToken
-    )
-    {
-        if (
-            isNestedModel
-            || strategyType.TypeKind != TypeKind.Class
-            || strategyType.IsAbstract
-            || strategyType.Arity != 0
-        )
-        {
-            return false;
-        }
-
-        for (var current = strategyType; current is not null; current = current.ContainingType)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (
-                current.DeclaredAccessibility
-                is not (Accessibility.Public or Accessibility.Internal)
-            )
-            {
-                return false;
-            }
-        }
-
-        var hasConstructor = strategyType.InstanceConstructors.Any(static constructor =>
-            constructor.Parameters.Length == 0
-            && constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
-        );
-        if (!hasConstructor)
-        {
-            return false;
-        }
-
-        for (var current = strategyType; current is not null; current = current.BaseType)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (
-                current.OriginalDefinition.ToDisplayString() == config.MergeStrategyBaseMetadataName
-                && SymbolEqualityComparer.Default.Equals(current.TypeArguments[0], memberType)
-            )
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

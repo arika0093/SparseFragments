@@ -22,131 +22,49 @@ internal static class SparseFragmentPatchAlgebraEmitter
         var kind = runtime + "FragmentOperationKind";
         var expressions = SparseFragmentPatchEmitter.Expressions;
 
-        code.AppendLineAt(
-            2,
-            "/// <summary>Derives a patch between two sparse contribution states, preserving presence exactly.</summary>"
+        SparseSemanticBetweenEmitter.AppendBetweenMethod(
+            code,
+            members,
+            new SparseBetweenDialect(
+                runtime,
+                optionalFragment,
+                wholeOperation,
+                "__sparse_whole",
+                prefix,
+                SparseFragmentPatchEmitter.Field,
+                static member =>
+                    member.ChildModel is null
+                    && !SparseFragmentPatchEmitter.IsCollectionPatch(member),
+                SparseFragmentPatchEmitter.ValueType,
+                (member, beforeValue, afterValue) =>
+                    member.MergeStrategyType is null
+                        ? expressions.ValueEqualityExpression(member, beforeValue, afterValue)
+                        : "Fragment."
+                            + SparseWellKnownNames.MergeStrategyFieldPrefix
+                            + member.Id
+                            + ".AreEqual("
+                            + beforeValue
+                            + ", "
+                            + afterValue
+                            + ")",
+                static (member, before, after) =>
+                    SparseFragmentPatchEmitter.IsCollectionPatch(member)
+                        ? SparseFragmentPatchEmitter.CollectionPatch(member)
+                            + ".Between("
+                            + before
+                            + ", "
+                            + after
+                            + ")"
+                        : SparseFragmentPatchEmitter.ChildPatch(member)
+                            + "."
+                            + member.ChildModel!.Value.PatchApiPrefix
+                            + "Between("
+                            + before
+                            + ", "
+                            + after
+                            + ")"
+            )
         );
-        code.AppendLineAt(
-            2,
-            "public static Patch "
-                + prefix
-                + "Between("
-                + optionalFragment
-                + " before, "
-                + optionalFragment
-                + " after)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var patch = new Patch();");
-        code.AppendLineAt(3, "if (before.IsPresent != after.IsPresent)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "patch.__sparse_whole = after.IsPresent ? "
-                + wholeOperation
-                + ".Set(after.Value) : "
-                + wholeOperation
-                + ".Unset;"
-        );
-        code.AppendLineAt(4, "return patch;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "if (!before.IsPresent) return patch;");
-        code.AppendLineAt(
-            3,
-            "if (global::System.Object.ReferenceEquals(before.Value, after.Value)) return patch;"
-        );
-        code.AppendLineAt(3, "if (before.Value is null || after.Value is null)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "patch.__sparse_whole = " + wholeOperation + ".Set(after.Value);");
-        code.AppendLineAt(4, "return patch;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "var beforeFragment = before.Value!;");
-        code.AppendLineAt(3, "var afterFragment = after.Value!;");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var field = SparseFragmentPatchEmitter.Field(member);
-            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
-            {
-                var operation =
-                    runtime
-                    + "FragmentOperation<"
-                    + SparseFragmentPatchEmitter.ValueType(member)
-                    + ">";
-                var beforeValue = "beforeFragment." + name + ".Value";
-                var afterValue = "afterFragment." + name + ".Value";
-                var equality = member.MergeStrategyType is null
-                    ? expressions.ValueEqualityExpression(member, beforeValue, afterValue)
-                    : "Fragment."
-                        + SparseWellKnownNames.MergeStrategyFieldPrefix
-                        + member.Id
-                        + ".AreEqual("
-                        + beforeValue
-                        + ", "
-                        + afterValue
-                        + ")";
-                code.AppendLineAt(3, "patch." + field + " = !afterFragment." + name + ".IsPresent");
-                code.AppendLineAt(
-                    4,
-                    "? (beforeFragment."
-                        + name
-                        + ".IsPresent ? "
-                        + operation
-                        + ".Unset : default("
-                        + operation
-                        + "))"
-                );
-                code.AppendLineAt(
-                    4,
-                    ": ((beforeFragment."
-                        + name
-                        + ".IsPresent && "
-                        + equality
-                        + ") ? default("
-                        + operation
-                        + ") : "
-                        + operation
-                        + ".Set(afterFragment."
-                        + name
-                        + ".Value));"
-                );
-            }
-            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
-            {
-                code.AppendLineAt(
-                    3,
-                    "patch."
-                        + field
-                        + " = "
-                        + SparseFragmentPatchEmitter.CollectionPatch(member)
-                        + ".Between(beforeFragment."
-                        + name
-                        + ", afterFragment."
-                        + name
-                        + ");"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    3,
-                    "patch."
-                        + field
-                        + " = "
-                        + SparseFragmentPatchEmitter.ChildPatch(member)
-                        + "."
-                        + member.ChildModel!.Value.PatchApiPrefix
-                        + "Between(beforeFragment."
-                        + name
-                        + ", afterFragment."
-                        + name
-                        + ");"
-                );
-            }
-        }
-
-        code.AppendLineAt(3, "return patch;");
-        code.AppendLineAt(2, "}");
 
         code.AppendLineAt(
             2,

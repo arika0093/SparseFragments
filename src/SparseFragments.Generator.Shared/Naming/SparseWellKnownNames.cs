@@ -44,4 +44,5 @@ internal static class SparseDiagnosticIds
     public const string NullableKey = "SPF018";
     public const string UnsupportedKeyShape = "SPF019";
     public const string InvalidKeyedInterface = "SPF020";
+    public const string DuplicateJsonPropertyName = "SPF021";
 }
