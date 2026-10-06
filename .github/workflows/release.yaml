@@ -78,9 +78,10 @@ jobs:
     uses: ./.github/workflows/test.yaml
 
   # Consumes the already-packed release candidate exactly as users would:
-  # the fixture installs the candidate SparseFragments from a local feed
-  # (no ProjectReference fallback, no second pack) and the README fixture
-  # runs through verify-sparsefragments-readme.sh. Publishing below is
+  # fixtures install the candidate SparseFragments (and Blazor, #46) packages
+  # from a local feed (no ProjectReference fallback, no second pack), the
+  # README fixture runs through verify-sparsefragments-readme.sh, and the docs
+  # guides run through verify-docs-samples.sh (#45). Publishing below is
   # blocked unless these checks pass on the same candidate bytes.
   candidate-consumers:
     runs-on: ubuntu-latest
@@ -118,6 +119,9 @@ jobs:
 
       - name: Verify README samples against release candidate
         run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
+
+      - name: Verify docs samples against release candidate
+        run: bash ./.github/workflows/scripts/verify-docs-samples.sh artifacts
 
   release-github:
     if: >-

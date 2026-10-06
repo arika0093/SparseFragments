@@ -42,8 +42,9 @@ permissions:
 #   catches OS-specific filesystem, path, casing, and line-ending behavior.
 # - public-api (Linux only): API surface approval/audience drift, fully
 #   OS-independent; one leg is sufficient in every tier.
-# - package-consumers (Linux only): pack integrity plus packed-feed consumer
-#   and README-sample drift; OS-independent packaging logic, one leg always.
+# - package-consumers (Linux only): pack integrity plus packed-feed consumer,
+#   README-sample, and docs-sample drift; OS-independent packaging logic, one
+#   leg always.
 # - nativeaot matrix OS: the OS-sensitive tier. Each leg links against a
 #   distinct toolchain (Linux clang/zlib, macOS Xcode, Windows MSVC) and
 #   catches trimming/AOT diagnostics specific to that target. PRs run the
@@ -190,9 +191,10 @@ jobs:
 
   # Packed-package consumer gate (#11). Packs the release candidate packages
   # once, verifies their integrity, then exercises them the way users consume
-  # them: a fixture installs the packed SparseFragments from a local feed
-  # (no ProjectReference fallback) and the README fixture runs through
-  # verify-sparsefragments-readme.sh. The same bytes validated here are what
+  # them: fixtures install the packed SparseFragments (and Blazor, #46) packages
+  # from a local feed (no ProjectReference fallback), the README fixture runs
+  # through verify-sparsefragments-readme.sh, and the docs guides run through
+  # verify-docs-samples.sh (#45). The same bytes validated here are what
   # the consumer checks run against; nothing is rebuilt a second time.
   # Single-OS by design in every tier: packing logic is OS-independent.
   package-consumers:
@@ -226,10 +228,13 @@ jobs:
       - name: Pack NuGet packages
         # NOTE: no --no-build/--no-restore here. This job never restores the
         # test projects, so let pack restore/build itself instead.
-        # Only SparseFragments ships a package (#21): Generator.Shared is an
-        # internal-only source directory and is never packed.
+        # Two packages ship (#46): SparseFragments and
+        # SparseFragments.Extensions.Blazor. Generator.Shared is an
+        # internal-only source directory and is never packed (#21).
         run: >
           dotnet pack src/SparseFragments/SparseFragments.csproj
+          --configuration Release --output artifacts &&
+          dotnet pack src/SparseFragments.Extensions.Blazor/SparseFragments.Extensions.Blazor.csproj
           --configuration Release --output artifacts
 
       - name: Verify packed target assets
@@ -240,6 +245,9 @@ jobs:
 
       - name: Verify README samples against packed packages
         run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
+
+      - name: Verify docs samples against packed packages
+        run: bash ./.github/workflows/scripts/verify-docs-samples.sh artifacts
 
   # True NativeAOT publish gate (#9, #19). Publishes the NativeAOT TUnit
   # project and executes the native test binary directly. Independent from

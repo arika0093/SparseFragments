@@ -2,8 +2,12 @@
 # Verifies packed SparseFragments NuGet package integrity: expected package
 # IDs, target assets, and analyzer/build assets that packing can silently omit.
 #
-# Only SparseFragments ships a package (#21): Generator.Shared is an
-# internal-only source directory and is never packed.
+# Two packages ship (#46): SparseFragments (core runtime + generator analyzer)
+# and SparseFragments.Extensions.Blazor (Blazor edit sessions).
+# Generator.Shared is an internal-only source directory and is never packed
+# (#21). The Blazor package intentionally ships no README: it opts out of the
+# inherited PackageReadmeFile (#37), so verification asserts the nupkg neither
+# contains a README entry nor references one from its nuspec.
 #
 # Usage: verify-packages.sh <package-directory>
 set -euo pipefail
@@ -19,9 +23,10 @@ if [[ ! -d "${package_directory}" ]]; then
     exit 1
 fi
 
-# Portable packages must ship every asset in the target policy.
+# Each shipped package must carry every asset in the target policy.
 declare -A portable_package_assets=(
     [SparseFragments]="netstandard2.0"
+    [SparseFragments.Extensions.Blazor]="net8.0 net10.0"
 )
 
 expected_package_ids=(
@@ -44,6 +49,34 @@ require_entry() {
     size="$(unzip -p "${package_file}" "${entry}" 2>/dev/null | wc -c | tr -d '[:space:]')"
     if [[ -z "${size}" || "${size}" -eq 0 ]]; then
         echo "Package '${package_id}' is missing a non-empty entry '${entry}'." >&2
+        exit 1
+    fi
+}
+
+require_readme() {
+    local entry="$1"
+    require_entry "${entry}"
+    if ! grep -q -F "<readme>${entry}</readme>" <<<"${nuspec}"; then
+        echo "Package '${package_id}' ships '${entry}' but its .nuspec does not reference it via <readme>." >&2
+        exit 1
+    fi
+}
+
+require_no_readme() {
+    if grep -q -i -E '^README\.md$' <<<"${entries}"; then
+        echo "Package '${package_id}' must not ship a README.md entry: it opts out of PackageReadmeFile (#37, #46)." >&2
+        exit 1
+    fi
+    if grep -q -i -F '<readme>' <<<"${nuspec}"; then
+        echo "Package '${package_id}' must not reference a <readme> in its .nuspec: it opts out of PackageReadmeFile (#37, #46)." >&2
+        exit 1
+    fi
+}
+
+require_dependency() {
+    local dependency_id="$1"
+    if ! grep -q -F "<dependency id=\"${dependency_id}\"" <<<"${nuspec}"; then
+        echo "Package '${package_id}' is missing expected dependency '${dependency_id}'." >&2
         exit 1
     fi
 }
@@ -76,6 +109,13 @@ for package_file in "${package_files[@]}"; do
         SparseFragments)
             require_entry 'analyzers/dotnet/cs/SparseFragments.Generator.dll'
             require_entry 'lib/netstandard2.0/SparseFragments.dll'
+            require_readme 'README.md'
+            ;;
+        SparseFragments.Extensions.Blazor)
+            require_entry 'lib/net8.0/SparseFragments.Extensions.Blazor.dll'
+            require_entry 'lib/net10.0/SparseFragments.Extensions.Blazor.dll'
+            require_no_readme
+            require_dependency 'SparseFragments'
             ;;
     esac
 done
