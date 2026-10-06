@@ -14,7 +14,35 @@ internal static class SparseValueComparer
     /// <summary>Compares two typed values using the default sparse semantics.</summary>
     public static bool AreEqual<T>(T? left, T? right)
     {
+        if (typeof(T).IsValueType && ScalarEquality<T>.UseTypedComparer)
+        {
+            return EqualityComparer<T>.Default.Equals(left!, right!);
+        }
+
         return AreEqual((object?)left, (object?)right);
+    }
+
+    private static class ScalarEquality<T>
+    {
+        [SuppressMessage(
+            "Major Code Smell",
+            "S2743",
+            Justification = "Scalar classification is intentionally cached separately for each closed generic type."
+        )]
+        public static readonly bool UseTypedComparer = IsKnownScalar();
+
+        private static bool IsKnownScalar()
+        {
+            // Custom structs retain object equality and enumerable structs retain sequence equality.
+            var type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+            return type.IsPrimitive
+                || type.IsEnum
+                || type == typeof(decimal)
+                || type == typeof(DateTime)
+                || type == typeof(DateTimeOffset)
+                || type == typeof(TimeSpan)
+                || type == typeof(Guid);
+        }
     }
 
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
