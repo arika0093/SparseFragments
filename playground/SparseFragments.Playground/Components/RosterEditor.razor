@@ -46,6 +46,10 @@
     [Parameter]
     public bool ShowHighlights { get; set; } = true;
 
+    /// <summary>Gets or sets whether only removed rows are highlighted.</summary>
+    [Parameter]
+    public bool RemovedOnly { get; set; }
+
     private RenderFragment<(QuestRow Row, int Index)> RowFragment => item =>
         @<div class="@RowClass(GetHighlight(item.Row))">
             <div class="pg-rline1">
@@ -115,10 +119,20 @@
         return NotifyAsync();
     }
 
-    private RosterRowHighlight? GetHighlight(QuestRow row) =>
-        ShowHighlights && Highlights is not null && Highlights.TryGetValue(row, out var highlight)
-            ? highlight
-            : null;
+    private RosterRowHighlight? GetHighlight(QuestRow row)
+    {
+        if (!ShowHighlights
+            || Highlights is null
+            || !Highlights.TryGetValue(row, out var highlight))
+        {
+            return null;
+        }
+        if (RemovedOnly && !highlight.IsRemoved)
+        {
+            return null;
+        }
+        return highlight;
+    }
 
     private static string RowClass(RosterRowHighlight? highlight)
     {

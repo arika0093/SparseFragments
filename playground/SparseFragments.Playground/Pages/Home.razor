@@ -119,6 +119,7 @@
 <p class="pg-hint">Outer <em>List&lt;Quest&gt;</em> patches by <em>Id</em> key; inner <em>Scores</em> replaces the whole list.</p>
 <div class="pg-legend" aria-label="Edit highlight legend">
     <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+    <span class="pg-lg"><span class="pg-sw pg-sw-del"></span>removed</span>
     <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
     <span class="pg-lg"><span class="pg-dot"></span>edited</span>
 </div>
@@ -128,7 +129,7 @@
             <h3>Before</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterBefore">Reset</FluentButton>
         </div>
-        <RosterEditor State="RosterBefore" AllowReorder="false" ShowHighlights="false" OnChanged="Refresh" />
+        <RosterEditor State="RosterBefore" AllowReorder="false" Highlights="RosterHighlights.Before" RemovedOnly="true" OnChanged="Refresh" />
     </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">

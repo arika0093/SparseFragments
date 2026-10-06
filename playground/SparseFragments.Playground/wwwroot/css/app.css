@@ -329,6 +329,10 @@ code {
     background: #2da44e;
 }
 
+.pg-sw-del {
+    background: #cf222e;
+}
+
 .pg-sw-move {
     background: #0969da;
 }
