@@ -289,13 +289,13 @@ internal static class FragmentComparisonPrimitives
         CollectionShape? rightShape
     )
     {
-        var leftCount = TryCollectionCount(left);
-        var rightCount = TryCollectionCount(right);
+        var leftCount = TryDictionaryCount(left);
+        var rightCount = TryDictionaryCount(right);
         if (!leftCount.HasValue || !rightCount.HasValue)
         {
-            // Dictionaries without a cheap count are exotic; preserve the historical
-            // order-sensitive entry comparison for them.
-            return SequencesEqualOrdered((IEnumerable)left, (IEnumerable)right);
+            // Dictionaries never fall back to enumeration-order equality; exotic
+            // shapes without a readable count still compare order-independently.
+            return DictionariesEqualUnordered((IEnumerable)left, (IEnumerable)right);
         }
 
         if (leftCount.Value != rightCount.Value)
@@ -303,22 +303,40 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        // With matching counts a single native-lookup direction decides equality.
-        // The typed path avoids per-entry boxing for scalar values.
-        var fast =
-            leftShape?.TryDictionariesEqual?.Invoke(left, right)
-            ?? rightShape?.TryDictionariesEqual?.Invoke(right, left);
-        if (fast.HasValue)
+        // The key comparer is part of the dictionary value: differing comparers are
+        // unequal regardless of operand order, keeping equality symmetric. When a
+        // comparer cannot be discovered, both lookup directions must agree.
+        var leftComparer = TryCollectionComparer(left);
+        var rightComparer = TryCollectionComparer(right);
+        if (
+            leftComparer is not null
+            && rightComparer is not null
+            && !Equals(leftComparer, rightComparer)
+        )
         {
-            return fast.Value;
+            return false;
+        }
+
+        // The typed path avoids per-entry boxing for scalar values.
+        var forward = leftShape?.TryDictionariesEqual?.Invoke(left, right);
+        var backward = rightShape?.TryDictionariesEqual?.Invoke(right, left);
+        if (forward.HasValue && backward.HasValue)
+        {
+            return forward.Value && backward.Value;
+        }
+
+        if (forward.HasValue || backward.HasValue)
+        {
+            return (forward ?? backward)!.Value;
         }
 
         if (left is IDictionary leftDictionary && right is IDictionary rightDictionary)
         {
-            return DictionaryContainsAll(leftDictionary, rightDictionary);
+            return DictionaryContainsAll(leftDictionary, rightDictionary)
+                && DictionaryContainsAll(rightDictionary, leftDictionary);
         }
 
-        return SequencesEqualOrdered((IEnumerable)left, (IEnumerable)right);
+        return DictionariesEqualUnordered((IEnumerable)left, (IEnumerable)right);
     }
 
     private static bool DictionaryContainsAll(IDictionary pairs, IDictionary lookup)
@@ -435,12 +453,30 @@ internal static class FragmentComparisonPrimitives
             return SlowSetEquals(left, right);
         }
 
-        var fast =
-            leftShape?.TrySetEquals?.Invoke(left, (IEnumerable)right)
-            ?? rightShape?.TrySetEquals?.Invoke(right, (IEnumerable)left);
-        if (fast.HasValue)
+        // The element comparer is part of the set value: differing comparers are
+        // unequal regardless of operand order, keeping equality symmetric. When a
+        // comparer cannot be discovered, both directions must agree.
+        var leftComparer = TryCollectionComparer(left);
+        var rightComparer = TryCollectionComparer(right);
+        if (
+            leftComparer is not null
+            && rightComparer is not null
+            && !Equals(leftComparer, rightComparer)
+        )
         {
-            return fast.Value;
+            return false;
+        }
+
+        var forward = leftShape?.TrySetEquals?.Invoke(left, (IEnumerable)right);
+        var backward = rightShape?.TrySetEquals?.Invoke(right, (IEnumerable)left);
+        if (forward.HasValue && backward.HasValue)
+        {
+            return forward.Value && backward.Value;
+        }
+
+        if (forward.HasValue || backward.HasValue)
+        {
+            return (forward ?? backward)!.Value;
         }
 
         return SlowSetEquals(left, right);
@@ -504,8 +540,159 @@ internal static class FragmentComparisonPrimitives
         return typeof(IEnumerable).IsAssignableFrom(elementType);
     }
 
-    private static int? TryCollectionCount(object value) =>
-        value is ICollection collection ? collection.Count : null;
+    private static readonly ConcurrentDictionary<Type, PropertyInfo> ComparerProperties = new();
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo> CountProperties = new();
+
+    private static int? TryDictionaryCount(object value)
+    {
+        if (value is ICollection collection)
+        {
+            return collection.Count;
+        }
+
+        // Custom IReadOnlyDictionary implementations may not implement non-generic
+        // ICollection; read Count structurally so they still compare
+        // order-independently instead of falling back to enumeration order.
+        return GetIntProperty(GetCachedProperty(CountProperties, value.GetType(), "Count"), value);
+    }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2072",
+        Justification = "Only reads optional public Comparer/Count properties; a trimmed property is treated as undiscoverable with a symmetric order-independent fallback."
+    )]
+    private static PropertyInfo? GetCachedProperty(
+        ConcurrentDictionary<Type, PropertyInfo> cache,
+        Type type,
+        string name
+    )
+    {
+        if (cache.TryGetValue(type, out var cached))
+        {
+            return cached;
+        }
+
+        PropertyInfo? property;
+        try
+        {
+            property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        }
+        catch (AmbiguousMatchException)
+        {
+            return null;
+        }
+
+        if (
+            property is null
+            || !property.CanRead
+            || property.GetIndexParameters().Length != 0
+            || (name == "Count" && property.PropertyType != typeof(int))
+        )
+        {
+            return null;
+        }
+
+        cache.TryAdd(type, property);
+        return property;
+    }
+
+    private static object? TryCollectionComparer(object value) =>
+        GetPropertyValue(GetCachedProperty(ComparerProperties, value.GetType(), "Comparer"), value);
+
+    private static object? GetPropertyValue(PropertyInfo? property, object value)
+    {
+        if (property is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return property.GetValue(value, null);
+        }
+        catch (TargetInvocationException)
+        {
+            return null;
+        }
+    }
+
+    private static int? GetIntProperty(PropertyInfo? property, object value) =>
+        GetPropertyValue(property, value) is int count ? count : null;
+
+    private static bool DictionariesEqualUnordered(IEnumerable left, IEnumerable right)
+    {
+        var leftEntries = MaterializeEntries(left);
+        var rightEntries = MaterializeEntries(right);
+        if (leftEntries.Count != rightEntries.Count)
+        {
+            return false;
+        }
+
+        var used = new bool[rightEntries.Count];
+        foreach (var (key, value) in leftEntries)
+        {
+            var matched = false;
+            for (var index = 0; index < rightEntries.Count; index++)
+            {
+                if (used[index])
+                {
+                    continue;
+                }
+
+                if (
+                    !AreValuesEqual(key, rightEntries[index].Key)
+                    || !AreValuesEqual(value, rightEntries[index].Value)
+                )
+                {
+                    continue;
+                }
+
+                used[index] = true;
+                matched = true;
+                break;
+            }
+
+            if (!matched)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static List<(object? Key, object? Value)> MaterializeEntries(IEnumerable entries)
+    {
+        var materialized = new List<(object? Key, object? Value)>();
+        foreach (var item in entries)
+        {
+            if (item is DictionaryEntry entry)
+            {
+                materialized.Add((entry.Key, entry.Value));
+                continue;
+            }
+
+            var itemType = item?.GetType();
+            var key = GetPropertyValue(
+                itemType is null ? null : GetCachedProperty(EntryKeyProperties, itemType, "Key"),
+                item!
+            );
+            var value = GetPropertyValue(
+                itemType is null
+                    ? null
+                    : GetCachedProperty(EntryValueProperties, itemType, "Value"),
+                item!
+            );
+            materialized.Add((key, value));
+        }
+
+        return materialized;
+    }
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo> EntryKeyProperties = new();
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo> EntryValueProperties = new();
 
     private static CollectionShape? GetShape(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type
