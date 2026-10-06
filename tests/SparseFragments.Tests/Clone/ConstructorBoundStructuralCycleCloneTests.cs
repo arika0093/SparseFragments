@@ -8,7 +8,7 @@ public partial class StructuralCycleRoot
     public StructuralCycleChild Child { get; set; } = new("default");
 }
 
-public sealed class StructuralCycleChild(string name)
+public sealed partial class StructuralCycleChild(string name)
 {
     public string Name { get; } = name;
     public StructuralCycleChild? Next { get; set; }

@@ -56,33 +56,6 @@ public sealed class DistinctUnionMergeStrategy : FragmentMergeStrategy<List<stri
         reason = null;
         return true;
     }
-
-    public override IReadOnlyList<SparseMergeElementProvenance> ExplainElements(
-        List<string>? effective,
-        IReadOnlyList<SparseContribution<List<string>>> contributionsLowToHigh
-    )
-    {
-        if (effective is null)
-        {
-            return [];
-        }
-
-        var result = new List<SparseMergeElementProvenance>();
-        for (var index = 0; index < effective.Count; index++)
-        {
-            var element = effective[index];
-            var sources = contributionsLowToHigh
-                .Where(contribution =>
-                    contribution.Value.IsPresent
-                    && contribution.Value.Value is not null
-                    && contribution.Value.Value.Contains(element)
-                )
-                .Select(contribution => contribution.Index);
-            result.Add(new SparseMergeElementProvenance(index, sources));
-        }
-
-        return result;
-    }
 }
 
 [SparseFragmentModel]
@@ -101,87 +74,18 @@ public partial class ReplaceTraceSettings
 public sealed class SparseMergeStrategyTests
 {
     [Test]
-    public void SetUnionTraceUsesTheSourceSetsComparer()
+    public void CustomMergeStrategyMergesDistinctValues()
     {
-        var lower = new SetSettings.Fragment
+        var lower = new TraceSettings.Fragment
         {
-            Values = Optional<ISet<string>>.Present(
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "alpha" }
-            ),
+            Tags = Optional<List<string>>.Present(["alpha", "beta"]),
         };
-        var higher = new SetSettings.Fragment
+        var higher = new TraceSettings.Fragment
         {
-            Values = Optional<ISet<string>>.Present(
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ALPHA" }
-            ),
+            Tags = Optional<List<string>>.Present(["beta", "gamma"]),
         };
-        var trace = SparseMergeTracer
-            .Explain(
-                SetSettings.Fragment.FragmentSchema,
-                lower.Merge(higher),
-                [
-                    new(0, Optional<object?>.Present(lower)),
-                    new(1, Optional<object?>.Present(higher)),
-                ]
-            )
-            .Single();
-        trace.Elements.Single().ContributionIndices.ShouldBe([0, 1]);
-    }
 
-    [Test]
-    public void ReplaceCollectionTraceUsesOnlyTheWinningContribution()
-    {
-        var lower = new ReplaceTraceSettings.Fragment
-        {
-            Values = Optional<List<string>>.Present(["same", "lower"]),
-        };
-        var higher = new ReplaceTraceSettings.Fragment
-        {
-            Values = Optional<List<string>>.Present(["same", "higher"]),
-        };
-        var trace = SparseMergeTracer
-            .Explain(
-                ReplaceTraceSettings.Fragment.FragmentSchema,
-                lower.Merge(higher),
-                [
-                    new(0, Optional<object?>.Present(lower)),
-                    new(1, Optional<object?>.Present(higher)),
-                ]
-            )
-            .Single();
-        trace.ContributionIndices.ShouldBe([1]);
-        trace.Elements.Count.ShouldBe(2);
-        foreach (var element in trace.Elements)
-            element.ContributionIndices.ShouldBe([1]);
-    }
-
-    [Test]
-    public void AppendTraceDoesNotAttributeElementsErasedByNullToLowerContributions()
-    {
-        var lower = new Settings.Fragment
-        {
-            Plugins = Optional<IReadOnlyList<string>>.Present(["same"]),
-        };
-        var reset = new Settings.Fragment
-        {
-            Plugins = Optional<IReadOnlyList<string>>.Present(null!),
-        };
-        var higher = new Settings.Fragment
-        {
-            Plugins = Optional<IReadOnlyList<string>>.Present(["same"]),
-        };
-        var trace = SparseMergeTracer.Explain(
-            Settings.Fragment.FragmentSchema,
-            lower.Merge(reset).Merge(higher),
-            [
-                new(0, Optional<object?>.Present(lower)),
-                new(1, Optional<object?>.Present(reset)),
-                new(2, Optional<object?>.Present(higher)),
-            ]
-        );
-        var plugins = trace.Single(member => member.Name == "Plugins");
-        plugins.ContributionIndices.ShouldBe([1, 2]);
-        plugins.Elements.Single().ContributionIndices.ShouldBe([2]);
+        lower.Merge(higher).ToModel().Tags.ShouldBe(["alpha", "beta", "gamma"]);
     }
 
     [Test]
@@ -190,41 +94,6 @@ public sealed class SparseMergeStrategyTests
         var strategy = new SumMergeStrategy();
         strategy.TryRebase([1], [1], [5], out var result, out _).ShouldBeTrue();
         result.ShouldBe([5]);
-    }
-
-    [Test]
-    public void DeepTraceDropsContributionsErasedByPresentNull()
-    {
-        var lower = new Settings.Fragment
-        {
-            Nested = Optional<Nested.Fragment?>.Present(
-                new Nested.Fragment { Host = Optional<string>.Present("erased") }
-            ),
-        };
-        var reset = new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Present(null) };
-        var higher = new Settings.Fragment
-        {
-            Nested = Optional<Nested.Fragment?>.Present(
-                new Nested.Fragment { Port = Optional<int>.Present(9) }
-            ),
-        };
-        var effective = lower.Merge(reset).Merge(higher);
-        var trace = SparseMergeTracer.Explain(
-            Settings.Fragment.FragmentSchema,
-            effective,
-            [
-                new(0, Optional<object?>.Present(lower)),
-                new(1, Optional<object?>.Present(reset)),
-                new(2, Optional<object?>.Present(higher)),
-            ]
-        );
-
-        var nested = trace.Single(member => member.Name == "Nested");
-        nested.ContributionIndices.ShouldBe([1, 2]);
-        var host = nested.Nested.Single(member => member.Name == "Host");
-        host.Value.IsPresent.ShouldBeFalse();
-        host.ContributionIndices.ShouldBeEmpty();
-        nested.Nested.Single(member => member.Name == "Port").ContributionIndices.ShouldBe([2]);
     }
 
     [Test]
@@ -241,150 +110,5 @@ public sealed class SparseMergeStrategyTests
 
         strategy.TryRebase([1], [9], [5], out _, out var conflictReason).ShouldBeFalse();
         conflictReason.ShouldNotBeNull();
-    }
-
-    [Test]
-    public void DefaultTryPlanContributionOnlyPlansHighestPriority()
-    {
-        var strategy = new SumMergeStrategy();
-        var contributions = new SparseContribution<List<int>>[]
-        {
-            new(0, Optional<List<int>>.Present([1])),
-            new(1, Optional<List<int>>.Present([2])),
-        };
-
-        strategy.TryPlanContribution(contributions, 1, [5], out var planned, out _).ShouldBeTrue();
-        planned.Value.ShouldBe([5]);
-
-        strategy.TryPlanContribution(contributions, 0, [5], out _, out var reason).ShouldBeFalse();
-        reason.ShouldNotBeNull();
-    }
-
-    [Test]
-    public void TracerExplainsReplaceAndDeepMembers()
-    {
-        var lower = new Settings.Fragment
-        {
-            RetryCount = Optional<int>.Present(3),
-            Nested = Optional<Nested.Fragment?>.Present(
-                new Nested.Fragment { Host = Optional<string>.Present("lower") }
-            ),
-        };
-        var higher = new Settings.Fragment
-        {
-            RetryCount = Optional<int>.Present(9),
-            Nested = Optional<Nested.Fragment?>.Present(
-                new Nested.Fragment { Port = Optional<int>.Present(6432) }
-            ),
-        };
-        var effective = lower.Merge(higher);
-
-        var trace = SparseMergeTracer.Explain(
-            Settings.Fragment.FragmentSchema,
-            effective,
-            [
-                new SparseContribution(0, Optional<object?>.Present((object)lower)),
-                new SparseContribution(1, Optional<object?>.Present((object)higher)),
-            ]
-        );
-
-        var retry = trace.Single(member => member.Name == "RetryCount");
-        retry.ContributionIndices.ShouldBe([1]);
-        retry.Value.Value.ShouldBe(9);
-
-        var nested = trace.Single(member => member.Name == "Nested");
-        nested.ContributionIndices.ShouldBe([0, 1]);
-        nested.Nested.Single(member => member.Name == "Host").Value.Value.ShouldBe("lower");
-        nested.Nested.Single(member => member.Name == "Port").ContributionIndices.ShouldBe([1]);
-    }
-
-    [Test]
-    public void TracerExplainsAppendElements()
-    {
-        var lower = new Settings.Fragment
-        {
-            Plugins = Optional<IReadOnlyList<string>>.Present(["base"]),
-        };
-        var higher = new Settings.Fragment
-        {
-            Plugins = Optional<IReadOnlyList<string>>.Present(["first", "second"]),
-        };
-        var effective = lower.Merge(higher);
-
-        var trace = SparseMergeTracer.Explain(
-            Settings.Fragment.FragmentSchema,
-            effective,
-            [
-                new SparseContribution(0, Optional<object?>.Present((object)lower)),
-                new SparseContribution(1, Optional<object?>.Present((object)higher)),
-            ]
-        );
-
-        var plugins = trace.Single(member => member.Name == "Plugins");
-        plugins.ContributionIndices.ShouldBe([0, 1]);
-        plugins.Elements.Select(element => element.Index).ShouldBe([0, 1, 2]);
-        plugins.Elements[0].ContributionIndices.ShouldBe([0]);
-        plugins.Elements[1].ContributionIndices.ShouldBe([1]);
-        plugins.Elements[2].ContributionIndices.ShouldBe([1]);
-    }
-
-    [Test]
-    public void TracerExplainsSetUnionElements()
-    {
-        var lower = new SetSettings.Fragment
-        {
-            Values = Optional<ISet<string>>.Present(new HashSet<string> { "alpha", "beta" }),
-        };
-        var higher = new SetSettings.Fragment
-        {
-            Values = Optional<ISet<string>>.Present(new HashSet<string> { "beta", "gamma" }),
-        };
-        var effective = lower.Merge(higher);
-
-        var trace = SparseMergeTracer.Explain(
-            SetSettings.Fragment.FragmentSchema,
-            effective,
-            [
-                new SparseContribution(0, Optional<object?>.Present((object)lower)),
-                new SparseContribution(1, Optional<object?>.Present((object)higher)),
-            ]
-        );
-
-        var values = trace.Single(member => member.Name == "Values");
-        values.ContributionIndices.ShouldBe([0, 1]);
-        foreach (var element in values.Elements)
-        {
-            element.ContributionIndices.Count.ShouldBeGreaterThan(0);
-        }
-    }
-
-    [Test]
-    public void TracerDelegatesCustomStrategyElementExplanation()
-    {
-        var lower = new TraceSettings.Fragment
-        {
-            Tags = Optional<List<string>>.Present(["alpha", "beta"]),
-        };
-        var higher = new TraceSettings.Fragment
-        {
-            Tags = Optional<List<string>>.Present(["beta", "gamma"]),
-        };
-        var effective = lower.Merge(higher);
-
-        var trace = SparseMergeTracer.Explain(
-            TraceSettings.Fragment.FragmentSchema,
-            effective,
-            [
-                new SparseContribution(0, Optional<object?>.Present((object)lower)),
-                new SparseContribution(1, Optional<object?>.Present((object)higher)),
-            ]
-        );
-
-        var tags = trace.Single(member => member.Name == "Tags");
-        ((List<string>)tags.Value.Value!).ShouldBe(["alpha", "beta", "gamma"]);
-        tags.Elements.Count.ShouldBe(3);
-        tags.Elements[0].ContributionIndices.ShouldBe([0]);
-        tags.Elements[1].ContributionIndices.ShouldBe([0, 1]);
-        tags.Elements[2].ContributionIndices.ShouldBe([1]);
     }
 }

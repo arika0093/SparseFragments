@@ -40,9 +40,5 @@ public sealed class JsonPatchPackageLevelTests
         var exported = patch.ToJsonPatch(Optional<PackageLevelWidget.Fragment?>.Present(baseline));
         var text = Encoding.UTF8.GetString(exported.ToArray());
         await Assert.That(text.Contains("/Name")).IsTrue();
-
-        // Runtime types live natively in SparseFragments (no .JsonPatch sub-namespace).
-        var document = SparseJsonPatch.Parse("""[{"op":"replace","path":"/Count","value":2}]""");
-        await Assert.That(document.IsEmpty).IsFalse();
     }
 }

@@ -4,14 +4,15 @@ using System.Reflection;
 namespace SparseFragments.PublicApi.Tests;
 
 /// <summary>
-/// Guards the SparseFragments API boundary from issue #320.
+/// Guards the SparseFragments API boundary from issue #320, reduced by issue #2.
 /// Every public runtime type belongs to exactly one audience: first-class user API
 /// (ordinary IntelliSense), extension/tooling API (<see cref="EditorBrowsableState.Advanced"/>),
 /// or generated-code plumbing (<see cref="EditorBrowsableState.Never"/>).
 /// </summary>
 public sealed class SparseFragmentsApiAudienceTests
 {
-    private static readonly string[] FirstClass = [
+    private static readonly string[] FirstClass =
+    [
         "SparseFragments.Optional`1",
         "SparseFragments.FragmentOperation`1",
         "SparseFragments.FragmentOperationKind",
@@ -21,19 +22,17 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.SparseCloneReferenceSafeAttribute",
     ];
 
-    private static readonly string[] Plumbing = [
-        "SparseFragments.SparseValueComparer",
-        "SparseFragments.SparseCollectionMerger",
-        "SparseFragments.SparseCollectionRebase",
-        "SparseFragments.SparseModelRebase",
-        "SparseFragments.SparseReferenceEqualityComparer",
+    private static readonly string[] Plumbing =
+    [
+        "SparseFragments.CompilerServices.SparseFragmentRuntime",
+        "SparseFragments.CompilerServices.SparseJsonPatchBridge",
     ];
 
     [Test]
     public void EveryPublicTypeIsClassified()
     {
-        var exported = typeof(SparseFragments.SparseFragmentModelAttribute).Assembly
-            .GetExportedTypes()
+        var exported = typeof(SparseFragments.SparseFragmentModelAttribute)
+            .Assembly.GetExportedTypes()
             .Select(static type => type.FullName ?? type.Name)
             .OrderBy(static name => name)
             .ToArray();
@@ -59,8 +58,8 @@ public sealed class SparseFragmentsApiAudienceTests
     [Test]
     public void ExtensionAndToolingTypesStayAdvanced()
     {
-        var offenders = typeof(SparseFragments.SparseFragmentModelAttribute).Assembly
-            .GetExportedTypes()
+        var offenders = typeof(SparseFragments.SparseFragmentModelAttribute)
+            .Assembly.GetExportedTypes()
             .Where(static type => !FirstClass.Contains(type.FullName) && !Plumbing.Contains(type.FullName))
             .Where(static type => !HasAdvancedHiding(type))
             .Select(static type => type.FullName ?? type.Name)
@@ -80,22 +79,18 @@ public sealed class SparseFragmentsApiAudienceTests
         offenders.ShouldBeEmpty();
     }
 
-    private static bool IsAdvanced(string fullName) =>
-        HasAdvancedHiding(Resolve(fullName));
+    private static bool IsAdvanced(string fullName) => HasAdvancedHiding(Resolve(fullName));
 
     private static Type Resolve(string fullName) =>
         typeof(SparseFragments.SparseFragmentModelAttribute).Assembly.GetType(fullName)
         ?? throw new InvalidOperationException($"Unknown SparseFragments type '{fullName}'.");
 
     private static bool HasBrowsableHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>()
-            is { State: not EditorBrowsableState.Always };
+        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: not EditorBrowsableState.Always };
 
     private static bool HasAdvancedHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>()
-            is { State: EditorBrowsableState.Advanced };
+        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: EditorBrowsableState.Advanced };
 
     private static bool HasNeverHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>()
-            is { State: EditorBrowsableState.Never };
+        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: EditorBrowsableState.Never };
 }

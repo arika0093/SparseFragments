@@ -102,16 +102,15 @@ public sealed class FragmentPatchTests
         fragment.Set.Value.ShouldBe(7);
         fragment.SetNull.Value.ShouldBe(8);
         fragment.Unset.Value.ShouldBe(9);
-        ISparseModelPatch<PatchOperationNames, PatchOperationNames.Fragment> whole =
-            new PatchOperationNames.Patch();
-        whole.IsEmpty.ShouldBeTrue();
-        whole.Set(new PatchOperationNames { Set = 11 });
+        var whole = new PatchOperationNames.Patch();
+        whole.SparseIsEmpty.ShouldBeTrue();
+        whole.SparseSet(new PatchOperationNames { Set = 11 });
         whole.Apply(Optional<PatchOperationNames.Fragment?>.Missing).Value!.Set.Value.ShouldBe(11);
-        whole.SetNull();
+        whole.SparseSetNull();
         var nullResult = whole.Apply(Optional<PatchOperationNames.Fragment?>.Present(fragment));
         nullResult.IsPresent.ShouldBeTrue();
         nullResult.Value.ShouldBeNull();
-        whole.Unset();
+        whole.SparseUnset();
         whole.Apply(nullResult).IsPresent.ShouldBeFalse();
     }
 

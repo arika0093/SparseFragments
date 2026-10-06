@@ -223,65 +223,18 @@ public sealed class FragmentPatchAlgebraTests
     private static Optional<Settings.Fragment?> Apply(
         Settings.Patch patch,
         Optional<Settings.Fragment?> state
-    ) => ((ISparseModelPatch<Settings, Settings.Fragment>)patch).Apply(state);
+    ) => patch.Apply(state);
 
     private static void AssertSame(
         Optional<Settings.Fragment?> expected,
         Optional<Settings.Fragment?> actual
     )
     {
-        expected.IsPresent.ShouldBe(actual.IsPresent);
-        if (!expected.IsPresent)
-        {
-            return;
-        }
-
-        (expected.Value is null).ShouldBe(actual.Value is null);
-        if (expected.Value is null)
-        {
-            return;
-        }
-
-        SameFragment(expected.Value, actual.Value!).ShouldBeTrue();
+        SameFragment(expected, actual).ShouldBeTrue();
     }
 
-    private static bool SameFragment(ISparseFragment left, ISparseFragment right)
-    {
-        var leftMembers = left.EnumeratePresentMembers().ToDictionary(member => member.Id);
-        var rightMembers = right.EnumeratePresentMembers().ToDictionary(member => member.Id);
-        if (leftMembers.Count != rightMembers.Count)
-        {
-            return false;
-        }
-
-        foreach (var member in leftMembers.Values)
-        {
-            if (!rightMembers.TryGetValue(member.Id, out var other))
-            {
-                return false;
-            }
-
-            if (member.Value is ISparseFragment leftFragment)
-            {
-                if (other.Value is not ISparseFragment rightFragment)
-                {
-                    return false;
-                }
-
-                if (!SameFragment(leftFragment, rightFragment))
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            if (!SparseValueComparer.AreEqual(member.Value, other.Value))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    private static bool SameFragment(
+        Optional<Settings.Fragment?> left,
+        Optional<Settings.Fragment?> right
+    ) => Settings.Patch.Between(left, right).IsEmpty;
 }

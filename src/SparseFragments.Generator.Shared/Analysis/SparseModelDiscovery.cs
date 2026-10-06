@@ -83,6 +83,14 @@ internal static class SparseModelDiscovery
             var child =
                 IsFragmentModel(property.Type, config, cancellationToken)
                 || IsStructuralType(property.Type, config, cancellationToken)
+                || (
+                    property.Type is INamedTypeSymbol namedChild
+                    && SparsePromotedDiscovery.IsPromotablePartial(
+                        namedChild,
+                        config,
+                        cancellationToken
+                    )
+                )
                     ? (INamedTypeSymbol)property.Type
                     : null;
             var mode = child is not null ? 1 : 0;
@@ -221,11 +229,16 @@ internal static class SparseModelDiscovery
         ITypeSymbol type,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
-    ) =>
-        type is INamedTypeSymbol named
-        && ClassifyStructuralType(type, config, cancellationToken)
-            == StructuralTypeKind.StructuralObject
-        && IsAccessibleForGeneration(named);
+    )
+    {
+        // Non-partial nested POCOs are treated as atomic replace values (issue #2).
+        // Independently sparse/deep behavior requires a partial type (promoted) or
+        // an explicit [SparseFragmentModel]. No __SparseStructural_* hosts are generated.
+        _ = type;
+        _ = config;
+        _ = cancellationToken;
+        return false;
+    }
 
     internal static bool IsFrameworkType(INamedTypeSymbol type)
     {

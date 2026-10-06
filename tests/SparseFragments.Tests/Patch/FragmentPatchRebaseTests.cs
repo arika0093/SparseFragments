@@ -5,44 +5,6 @@ namespace SparseFragments.Tests;
 public sealed class FragmentPatchRebaseTests
 {
     [Test]
-    public void ModelRebaseSharesNestedAndCollectionRulesWithoutHostMetadata()
-    {
-        var baseline = new Settings
-        {
-            Plugins = ["a"],
-            Nested = new Nested { Host = "base", Port = 1 },
-        };
-        var desired = new Settings
-        {
-            Plugins = ["a", "b"],
-            Nested = new Nested { Host = "base", Port = 2 },
-        };
-        var current = new Settings
-        {
-            Plugins = ["a", "c"],
-            Nested = new Nested { Host = "upstream", Port = 1 },
-        };
-        var changes = Settings.Fragment.Diff(baseline, desired);
-
-        var result = SparseModelRebase.Rebase(
-            Settings.Fragment.FragmentSchema,
-            changes,
-            baseline,
-            desired,
-            current
-        );
-
-        result.HasConflicts.ShouldBeFalse();
-        var applied = Settings
-            .Fragment.From(current)
-            .ApplyChanges((Settings.Fragment)result.Patch)
-            .ToModel();
-        applied.Plugins.ShouldBe(["a", "c", "b"]);
-        applied.Nested!.Host.ShouldBe("upstream");
-        applied.Nested.Port.ShouldBe(2);
-    }
-
-    [Test]
     public void EmptyPatchRebasesAcrossRootPresenceChanges()
     {
         var current = State(new Settings { RetryCount = 9 });
@@ -310,20 +272,20 @@ public sealed class FragmentPatchRebaseTests
         Optional<Settings.Fragment?>.Present(Settings.Fragment.From(model));
 
     private static Optional<TFragment?> FragmentState<TFragment>(TFragment fragment)
-        where TFragment : class, ISparseFragment => Optional<TFragment?>.Present(fragment);
+        where TFragment : class => Optional<TFragment?>.Present(fragment);
 
     private static Optional<Settings.Fragment?> Apply(
         Settings.Patch patch,
         Optional<Settings.Fragment?> state
-    ) => ((ISparseModelPatch<Settings, Settings.Fragment>)patch).Apply(state);
+    ) => patch.Apply(state);
 
     private static Optional<SetSettings.Fragment?> Apply(
         SetSettings.Patch patch,
         Optional<SetSettings.Fragment?> state
-    ) => ((ISparseModelPatch<SetSettings, SetSettings.Fragment>)patch).Apply(state);
+    ) => patch.Apply(state);
 
     private static Optional<TraceSettings.Fragment?> Apply(
         TraceSettings.Patch patch,
         Optional<TraceSettings.Fragment?> state
-    ) => ((ISparseModelPatch<TraceSettings, TraceSettings.Fragment>)patch).Apply(state);
+    ) => patch.Apply(state);
 }

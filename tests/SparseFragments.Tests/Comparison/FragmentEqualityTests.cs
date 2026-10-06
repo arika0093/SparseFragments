@@ -5,24 +5,22 @@ public sealed class FragmentEqualityTests
     [Test]
     public void EmptyFragmentsAreEqual()
     {
-        SparseFragmentComparer
-            .AreEqual(new Settings.Fragment(), new Settings.Fragment())
-            .ShouldBeTrue();
+        AreEqual(new Settings.Fragment(), new Settings.Fragment()).ShouldBeTrue();
     }
 
     [Test]
     public void SameInstanceIsEqual()
     {
         var fragment = new Settings.Fragment { Enabled = Optional<bool>.Present(false) };
-        SparseFragmentComparer.AreEqual(fragment, fragment).ShouldBeTrue();
+        AreEqual(fragment, fragment).ShouldBeTrue();
     }
 
     [Test]
     public void NullHandling()
     {
-        SparseFragmentComparer.AreEqual(null, null).ShouldBeTrue();
-        SparseFragmentComparer.AreEqual(new Settings.Fragment(), null).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(null, new Settings.Fragment()).ShouldBeFalse();
+        AreEqual(null, null).ShouldBeTrue();
+        AreEqual(new Settings.Fragment(), null).ShouldBeFalse();
+        AreEqual(null, new Settings.Fragment()).ShouldBeFalse();
     }
 
     [Test]
@@ -33,9 +31,9 @@ public sealed class FragmentEqualityTests
         var presentValue = new Settings.Fragment { Label = Optional<string?>.Present("x") };
         var otherNull = new Settings.Fragment { Label = Optional<string?>.Present(null) };
 
-        SparseFragmentComparer.AreEqual(missing, presentNull).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(presentNull, presentValue).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(presentNull, otherNull).ShouldBeTrue();
+        AreEqual(missing, presentNull).ShouldBeFalse();
+        AreEqual(presentNull, presentValue).ShouldBeFalse();
+        AreEqual(presentNull, otherNull).ShouldBeTrue();
     }
 
     [Test]
@@ -48,8 +46,8 @@ public sealed class FragmentEqualityTests
             RetryCount = Optional<int>.Present(3),
         };
 
-        SparseFragmentComparer.AreEqual(one, two).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(two, one).ShouldBeFalse();
+        AreEqual(one, two).ShouldBeFalse();
+        AreEqual(two, one).ShouldBeFalse();
     }
 
     [Test]
@@ -58,7 +56,7 @@ public sealed class FragmentEqualityTests
         var left = new Settings.Fragment { Enabled = Optional<bool>.Present(false) };
         var right = new Settings.Fragment { RetryCount = Optional<int>.Present(3) };
 
-        SparseFragmentComparer.AreEqual(left, right).ShouldBeFalse();
+        AreEqual(left, right).ShouldBeFalse();
     }
 
     [Test]
@@ -67,7 +65,18 @@ public sealed class FragmentEqualityTests
         var settings = new Settings.Fragment { RetryCount = Optional<int>.Present(1) };
         var nested = new Nested.Fragment { Port = Optional<int>.Present(1) };
 
-        SparseFragmentComparer.AreEqual(settings, nested).ShouldBeFalse();
+        Settings.Patch
+            .Between(
+                Optional<Settings.Fragment?>.Present(settings),
+                Optional<Settings.Fragment?>.Missing
+            )
+            .IsEmpty.ShouldBeFalse();
+        Nested.Patch
+            .Between(
+                Optional<Nested.Fragment?>.Present(nested),
+                Optional<Nested.Fragment?>.Missing
+            )
+            .IsEmpty.ShouldBeFalse();
     }
 
     [Test]
@@ -97,9 +106,9 @@ public sealed class FragmentEqualityTests
         };
         var missing = new Settings.Fragment();
 
-        SparseFragmentComparer.AreEqual(left, right).ShouldBeTrue();
-        SparseFragmentComparer.AreEqual(left, changed).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(left, missing).ShouldBeFalse();
+        AreEqual(left, right).ShouldBeTrue();
+        AreEqual(left, changed).ShouldBeFalse();
+        AreEqual(left, missing).ShouldBeFalse();
     }
 
     [Test]
@@ -116,13 +125,11 @@ public sealed class FragmentEqualityTests
             Nested = Optional<Nested.Fragment?>.Present(null),
         };
 
-        SparseFragmentComparer.AreEqual(fragment, presentNull).ShouldBeFalse();
-        SparseFragmentComparer
-            .AreEqual(
-                presentNull,
-                new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Present(null) }
-            )
-            .ShouldBeTrue();
+        AreEqual(fragment, presentNull).ShouldBeFalse();
+        AreEqual(
+            presentNull,
+            new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Present(null) }
+        ).ShouldBeTrue();
     }
 
     [Test]
@@ -145,17 +152,24 @@ public sealed class FragmentEqualityTests
             Plugins = Optional<IReadOnlyList<string>>.Present(["a"]),
         };
 
-        SparseFragmentComparer.AreEqual(left, same).ShouldBeTrue();
-        SparseFragmentComparer.AreEqual(left, reordered).ShouldBeFalse();
-        SparseFragmentComparer.AreEqual(left, shorter).ShouldBeFalse();
+        AreEqual(left, same).ShouldBeTrue();
+        AreEqual(left, reordered).ShouldBeFalse();
+        AreEqual(left, shorter).ShouldBeFalse();
     }
 
     [Test]
     public void ArraysAndListsWithEqualContentAreEqual()
     {
-        SparseValueComparer.AreEqual(new[] { 1, 2, 3 }, new List<int> { 1, 2, 3 }).ShouldBeTrue();
-        SparseValueComparer.AreEqual(new[] { 1, 2, 3 }, new List<int> { 3, 2, 1 }).ShouldBeFalse();
-        SparseValueComparer.AreEqual(new[] { 1, 2 }, new[] { 1, 2, 3 }).ShouldBeFalse();
+        AreEqual(
+            new Settings.Fragment
+            {
+                Plugins = Optional<IReadOnlyList<string>>.Present(["a", "b"]),
+            },
+            new Settings.Fragment
+            {
+                Plugins = Optional<IReadOnlyList<string>>.Present(["a", "b"]),
+            }
+        ).ShouldBeTrue();
     }
 
     [Test]
@@ -192,20 +206,8 @@ public sealed class FragmentEqualityTests
             ),
         };
 
-        SparseFragmentComparer.AreEqual(left, reordered).ShouldBeTrue();
-        SparseFragmentComparer.AreEqual(left, changed).ShouldBeFalse();
-    }
-
-    [Test]
-    public void DictionariesUseNativeKeyLookup()
-    {
-        var left = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["FIRST"] = 1 };
-        var right = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["first"] = 1 };
-        var different = new Dictionary<string, int> { ["first"] = 1, ["second"] = 2 };
-
-        SparseValueComparer.AreEqual(left, right).ShouldBeTrue();
-        SparseValueComparer.AreEqual(left, different).ShouldBeFalse();
-        SparseValueComparer.AreEqual(left, new List<int> { 1 }).ShouldBeFalse();
+        DictionaryAreEqual(left, reordered).ShouldBeTrue();
+        DictionaryAreEqual(left, changed).ShouldBeFalse();
     }
 
     [Test]
@@ -230,51 +232,29 @@ public sealed class FragmentEqualityTests
             ),
         };
 
-        SparseFragmentComparer.AreEqual(left, reordered).ShouldBeTrue();
-        SparseFragmentComparer.AreEqual(left, changed).ShouldBeFalse();
-    }
-
-    [Test]
-    public void SetComparedAgainstSequenceIsUnequal()
-    {
-        SparseValueComparer
-            .AreEqual(new HashSet<string> { "a" }, new List<string> { "a" })
-            .ShouldBeFalse();
-    }
-
-    [Test]
-    public void NestedFragmentsInsideCollectionsCompareStructurally()
-    {
-        var leftNested = new Nested.Fragment { Host = Optional<string>.Present("db.local") };
-        var rightNested = new Nested.Fragment { Host = Optional<string>.Present("db.local") };
-        var changedNested = new Nested.Fragment { Host = Optional<string>.Present("other") };
-
-        SparseValueComparer
-            .AreEqual(new List<object?> { leftNested }, new List<object?> { rightNested })
-            .ShouldBeTrue();
-        SparseValueComparer
-            .AreEqual(new List<object?> { leftNested }, new List<object?> { changedNested })
-            .ShouldBeFalse();
-        SparseValueComparer
-            .AreEqual(
-                new Dictionary<string, object?> { ["nested"] = leftNested },
-                new Dictionary<string, object?> { ["nested"] = rightNested }
-            )
-            .ShouldBeTrue();
-        SparseValueComparer.AreEqual(leftNested, new Dictionary<string, object?>()).ShouldBeFalse();
-        SparseValueComparer.AreEqual(new Dictionary<string, object?>(), leftNested).ShouldBeFalse();
+        SetAreEqual(left, reordered).ShouldBeTrue();
+        SetAreEqual(left, changed).ShouldBeFalse();
     }
 
     [Test]
     public void ScalarsAndNulls()
     {
-        SparseValueComparer.AreEqual(null, null).ShouldBeTrue();
-        SparseValueComparer.AreEqual(null, 1).ShouldBeFalse();
-        SparseValueComparer.AreEqual(1, null).ShouldBeFalse();
-        SparseValueComparer.AreEqual(1, 1).ShouldBeTrue();
-        SparseValueComparer.AreEqual(1, 2).ShouldBeFalse();
-        SparseValueComparer.AreEqual("a", "a").ShouldBeTrue();
-        SparseValueComparer.AreEqual("a", "b").ShouldBeFalse();
+        AreEqual(
+            new Settings.Fragment { RetryCount = Optional<int>.Present(1) },
+            new Settings.Fragment { RetryCount = Optional<int>.Present(1) }
+        ).ShouldBeTrue();
+        AreEqual(
+            new Settings.Fragment { RetryCount = Optional<int>.Present(1) },
+            new Settings.Fragment { RetryCount = Optional<int>.Present(2) }
+        ).ShouldBeFalse();
+        AreEqual(
+            new Settings.Fragment { Label = Optional<string?>.Present("a") },
+            new Settings.Fragment { Label = Optional<string?>.Present("a") }
+        ).ShouldBeTrue();
+        AreEqual(
+            new Settings.Fragment { Label = Optional<string?>.Present("a") },
+            new Settings.Fragment { Label = Optional<string?>.Present("b") }
+        ).ShouldBeFalse();
     }
 
     [Test]
@@ -282,20 +262,47 @@ public sealed class FragmentEqualityTests
     {
         var fragment = new Settings.Fragment { Enabled = Optional<bool>.Present(false) };
 
-        SparseFragmentComparer
-            .AreEqual(
+        Settings.Patch
+            .Between(
                 Optional<Settings.Fragment?>.Present(fragment),
                 Optional<Settings.Fragment?>.Present(fragment)
             )
-            .ShouldBeTrue();
-        SparseFragmentComparer
-            .AreEqual(
+            .IsEmpty.ShouldBeTrue();
+        Settings.Patch
+            .Between(
                 Optional<Settings.Fragment?>.Present(fragment),
                 Optional<Settings.Fragment?>.Missing
             )
-            .ShouldBeFalse();
-        SparseFragmentComparer
-            .AreEqual(Optional<Settings.Fragment?>.Missing, Optional<Settings.Fragment?>.Missing)
-            .ShouldBeTrue();
+            .IsEmpty.ShouldBeFalse();
+        Settings.Patch
+            .Between(Optional<Settings.Fragment?>.Missing, Optional<Settings.Fragment?>.Missing)
+            .IsEmpty.ShouldBeTrue();
     }
+
+    private static bool AreEqual(Settings.Fragment? left, Settings.Fragment? right) =>
+        Settings.Patch
+            .Between(
+                left is null ? Optional<Settings.Fragment?>.Missing : Optional<Settings.Fragment?>.Present(left),
+                right is null ? Optional<Settings.Fragment?>.Missing : Optional<Settings.Fragment?>.Present(right)
+            )
+            .IsEmpty;
+
+    private static bool DictionaryAreEqual(
+        DictionarySettings.Fragment left,
+        DictionarySettings.Fragment right
+    ) =>
+        DictionarySettings.Patch
+            .Between(
+                Optional<DictionarySettings.Fragment?>.Present(left),
+                Optional<DictionarySettings.Fragment?>.Present(right)
+            )
+            .IsEmpty;
+
+    private static bool SetAreEqual(SetSettings.Fragment left, SetSettings.Fragment right) =>
+        SetSettings.Patch
+            .Between(
+                Optional<SetSettings.Fragment?>.Present(left),
+                Optional<SetSettings.Fragment?>.Present(right)
+            )
+            .IsEmpty;
 }

@@ -23,16 +23,11 @@ internal static class SparseFragmentPatchEmitter
         member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
         + "Patch";
 
-    internal static string Contract(string modelType, string fragmentType) =>
-        Runtime + "ISparseModelPatch<" + modelType + ", " + fragmentType + ">";
-
-    internal static string ChildContract(SparseMemberModel member) =>
-        Contract(member.ChildModel!.Value.NonNullableName, member.ChildFragmentType!);
-
     internal static readonly SparseFragmentExpressions Expressions = new("__sparse_patch_context");
 
     public static void AppendFragmentMethods(SharedIndentedBuilder code, string modelType)
     {
+        _ = modelType;
         code.AppendLineAt(2, "public Patch ToPatch() => new(this);");
         code.AppendLineAt(2, "public Fragment Apply(Patch patch)");
         code.AppendLineAt(2, "{");
@@ -42,15 +37,11 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(
             3,
-            "var result = (("
-                + Contract(modelType, "Fragment")
-                + ")patch).Apply("
-                + Runtime
-                + "Optional<Fragment?>.Present(this));"
+            "var result = patch.Apply(" + Runtime + "Optional<Fragment?>.Present(this));"
         );
         code.AppendLineAt(
             3,
-            "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or unset operation through ISparseModelPatch.Apply to preserve its optional state.\");"
+            "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or unset operation through Patch.Apply to preserve its optional state.\");"
         );
         code.AppendLineAt(3, "return result.Value;");
         code.AppendLineAt(2, "}");
@@ -72,7 +63,15 @@ internal static class SparseFragmentPatchEmitter
     );
 
     internal static SparsePatchDialect StandaloneDialect() =>
-        new(Runtime, "__sparse_whole", "__SparseMembersEmpty", Field, ChildContract, "Apply", true);
+        new(
+            Runtime,
+            "__sparse_whole",
+            "__SparseMembersEmpty",
+            Field,
+            static _ => string.Empty,
+            "Apply",
+            false
+        );
 
     internal static string Operation(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperation";
@@ -97,11 +96,9 @@ internal static class SparseFragmentPatchEmitter
                     ? dialect.MemberField(member) + ".Kind == " + Kind(dialect) + ".Unchanged"
                     : "("
                         + dialect.MemberField(member)
-                        + " is null || (("
-                        + dialect.NestedContract(member)
-                        + ")"
+                        + " is null || "
                         + dialect.MemberField(member)
-                        + ").IsEmpty)"
+                        + ".__SparseIsEmpty())"
             )
         );
     }
@@ -113,20 +110,19 @@ internal static class SparseFragmentPatchEmitter
         bool emitJsonBridge = true
     )
     {
-        var contract = Contract(modelType, "Fragment");
         var optional = Runtime + "Optional<Fragment?>";
         var patchPrefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
-        code.AppendLineAt(1, "public sealed class Patch : " + contract);
+        code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, Runtime, Field);
         var dialect = StandaloneDialect();
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,
             modelType,
-            contract,
-            contract,
+            string.Empty,
+            string.Empty,
             members,
             dialect
         );
@@ -135,7 +131,7 @@ internal static class SparseFragmentPatchEmitter
             code,
             members,
             dialect,
-            optional + " " + contract + ".Apply(" + optional + " current)"
+            "public " + optional + " Apply(" + optional + " current)"
         );
         SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect);
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
@@ -164,7 +160,7 @@ internal static class SparseFragmentPatchEmitter
                 "SparseJsonPatch",
                 Runtime + "Optional",
                 jsonPrefix,
-                "((" + contract + ")this).Apply(baseline)"
+                "this.Apply(baseline)"
             );
         }
         code.AppendLineAt(1, "}");

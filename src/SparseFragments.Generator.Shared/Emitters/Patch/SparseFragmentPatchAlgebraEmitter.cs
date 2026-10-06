@@ -12,7 +12,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
         ImmutableArray<SparseMemberModel> members
     )
     {
-        var contract = SparseFragmentPatchEmitter.Contract(modelType, "Fragment");
+        _ = modelType;
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
@@ -234,7 +234,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
             "public Patch " + prefix + "Invert(" + optionalFragment + " baseline)"
         );
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var applied = ((" + contract + ")this).Apply(baseline);");
+        code.AppendLineAt(3, "var applied = this.Apply(baseline);");
         code.AppendLineAt(3, "return " + prefix + "Between(applied, baseline);");
         code.AppendLineAt(2, "}");
     }

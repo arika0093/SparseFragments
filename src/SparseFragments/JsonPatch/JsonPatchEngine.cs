@@ -1,16 +1,13 @@
-using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace SparseFragments;
 
 /// <summary>Applies RFC 6902 operations to a JSON document atomically.</summary>
-[EditorBrowsable(EditorBrowsableState.Advanced)]
-public static class JsonPatchEngine
+internal static class JsonPatchEngine
 {
     /// <summary>The result of applying a patch document.</summary>
-    [EditorBrowsable(EditorBrowsableState.Advanced)]
-    public sealed class ApplyResult
+    internal sealed class ApplyResult
     {
         internal ApplyResult(JsonNode? node, bool isAbsent)
         {

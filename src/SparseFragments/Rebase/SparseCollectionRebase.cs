@@ -1,11 +1,7 @@
-using System.ComponentModel;
-
 namespace SparseFragments;
 
 /// <summary>Domain-neutral collection rebase rules shared by generated append and set-union members.</summary>
-/// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
-[EditorBrowsable(EditorBrowsableState.Never)]
-public static class SparseCollectionRebase
+internal static class SparseCollectionRebase
 {
     /// <summary>
     /// Reapplies an append edit (a suffix of added elements) onto a newer collection, or reports why it cannot.

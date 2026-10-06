@@ -495,27 +495,26 @@ internal static class SparseJsonPatchEmitter
             3,
             "var baselineNode = __SerializeFragmentToNode(baseline, effective, out var baselineIsAbsent);"
         );
-        code.AppendLineAt(3, "var document = " + runtime + "." + facade + ".Parse(jsonPatch);");
         code.AppendLineAt(
             3,
-            "var applied = "
-                + runtime
-                + ".JsonPatchEngine.Apply(baselineNode, baselineIsAbsent, document, __PropertyNameComparison(effective));"
+            "var appliedNode = "
+                + SparseWellKnownNames.JsonPatchBridgeType
+                + ".Apply(baselineNode, baselineIsAbsent, jsonPatch, __PropertyNameComparison(effective), out var appliedIsAbsent);"
         );
         code.AppendLineAt(3, baselineType + " result;");
         code.AppendLineAt(
             3,
-            "if (applied.IsAbsent) { result = " + optional + "<Fragment?>.Missing; }"
+            "if (appliedIsAbsent) { result = " + optional + "<Fragment?>.Missing; }"
         );
         code.AppendLineAt(
             3,
-            "else if (applied.Node is null) { result = " + optional + "<Fragment?>.Present(null); }"
+            "else if (appliedNode is null) { result = " + optional + "<Fragment?>.Present(null); }"
         );
         code.AppendLineAt(
             3,
             "else { result = "
                 + optional
-                + "<Fragment?>.Present(__DeserializeFragmentNode(applied.Node, effective)); }"
+                + "<Fragment?>.Present(__DeserializeFragmentNode(appliedNode, effective)); }"
         );
         code.AppendLineAt(3, "return " + betweenCall + "(baseline, result);");
         code.AppendLineAt(2, "}");
@@ -583,11 +582,10 @@ internal static class SparseJsonPatchEmitter
         );
         code.AppendLineAt(
             3,
-            "var document = "
-                + runtime
-                + ".JsonPatchEngine.Diff(beforeNode, beforeIsAbsent, afterNode, afterIsAbsent);"
+            "return "
+                + SparseWellKnownNames.JsonPatchBridgeType
+                + ".Diff(beforeNode, beforeIsAbsent, afterNode, afterIsAbsent);"
         );
-        code.AppendLineAt(3, "return " + runtime + ".JsonPatchEngine.Serialize(document);");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,

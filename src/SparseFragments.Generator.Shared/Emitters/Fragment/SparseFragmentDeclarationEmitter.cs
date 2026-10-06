@@ -29,19 +29,7 @@ internal sealed class SparseFragmentDeclarationEmitter(
             "/// <summary>A sparse, presence-aware representation of this model.</summary>"
         );
         appendAttributes?.Invoke(code);
-        code.AppendLineAt(
-            1,
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
-        );
-        code.AppendLineAt(
-            1,
-            "public sealed class Fragment : "
-                + fragmentInterface
-                + "<Fragment>, "
-                + deepCloneable
-                + "<Fragment>"
-                + (advancedInterface is null ? string.Empty : ", " + advancedInterface)
-        );
+        code.AppendLineAt(1, "public sealed class Fragment");
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "public Fragment() { }");
         code.AppendLine();

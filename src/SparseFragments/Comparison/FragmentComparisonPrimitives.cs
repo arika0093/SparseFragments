@@ -89,17 +89,6 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        if (left is ISparseFragment leftFragment)
-        {
-            return right is ISparseFragment rightFragment
-                && SparseFragmentComparer.AreEqual(leftFragment, rightFragment);
-        }
-
-        if (right is ISparseFragment)
-        {
-            return false;
-        }
-
         if (left is string || right is string)
         {
             return Equals(left, right);
@@ -512,8 +501,7 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        return typeof(IEnumerable).IsAssignableFrom(elementType)
-            || typeof(ISparseFragment).IsAssignableFrom(elementType);
+        return typeof(IEnumerable).IsAssignableFrom(elementType);
     }
 
     private static int? TryCollectionCount(object value) =>

@@ -213,9 +213,7 @@ public sealed class StandaloneJsonPatchTests
             Present(baseline),
             Utf8("""[{"op":"replace","path":"","value":null}]""")
         );
-        var nullResult = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)nulled
-        ).Apply(Present(baseline));
+        var nullResult = nulled.Apply(Present(baseline));
         nullResult.IsPresent.ShouldBeTrue();
         nullResult.Value.ShouldBeNull();
 
@@ -223,9 +221,7 @@ public sealed class StandaloneJsonPatchTests
             Present(baseline),
             Utf8("""[{"op":"remove","path":""}]""")
         );
-        var absent = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)removed
-        ).Apply(Present(baseline));
+        var absent = removed.Apply(Present(baseline));
         absent.IsPresent.ShouldBeFalse();
     }
 
@@ -236,9 +232,7 @@ public sealed class StandaloneJsonPatchTests
             Optional<PatchWidget.Fragment?>.Missing,
             Utf8("""[{"op":"add","path":"","value":{"Count":3}}]""")
         );
-        var result = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)patch
-        ).Apply(Optional<PatchWidget.Fragment?>.Missing);
+        var result = patch.Apply(Optional<PatchWidget.Fragment?>.Missing);
         result.IsPresent.ShouldBeTrue();
         result.Value!.Count.Value.ShouldBe(3);
     }
@@ -382,9 +376,7 @@ public sealed class StandaloneJsonPatchTests
             Optional<PatchWidget.Fragment?>.Missing,
             Utf8("""[{"op":"add","path":"","value":{"Count":1}}]""")
         );
-        var present = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)toPresent
-        ).Apply(Optional<PatchWidget.Fragment?>.Missing);
+        var present = toPresent.Apply(Optional<PatchWidget.Fragment?>.Missing);
         present.IsPresent.ShouldBeTrue();
 
         // Present -> present null.
@@ -392,9 +384,7 @@ public sealed class StandaloneJsonPatchTests
             present,
             Utf8("""[{"op":"replace","path":"","value":null}]""")
         );
-        var nulled = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)toNull
-        ).Apply(present);
+        var nulled = toNull.Apply(present);
         nulled.IsPresent.ShouldBeTrue();
         nulled.Value.ShouldBeNull();
 
@@ -403,12 +393,7 @@ public sealed class StandaloneJsonPatchTests
             nulled,
             Utf8("""[{"op":"replace","path":"","value":{"Count":2}}]""")
         );
-        var obj = (
-            (global::SparseFragments.ISparseModelPatch<
-                PatchWidget,
-                PatchWidget.Fragment
-            >)backToObject
-        ).Apply(nulled);
+        var obj = backToObject.Apply(nulled);
         obj.Value!.Count.Value.ShouldBe(2);
 
         // Present -> absent, then absent -> present null.
@@ -417,21 +402,14 @@ public sealed class StandaloneJsonPatchTests
             Present(baseline),
             Utf8("""[{"op":"remove","path":""}]""")
         );
-        var absent = (
-            (global::SparseFragments.ISparseModelPatch<PatchWidget, PatchWidget.Fragment>)toAbsent
-        ).Apply(Present(baseline));
+        var absent = toAbsent.Apply(Present(baseline));
         absent.IsPresent.ShouldBeFalse();
 
         var absentToNull = PatchWidget.Patch.FromJsonPatch(
             absent,
             Utf8("""[{"op":"add","path":"","value":null}]""")
         );
-        var presentNull = (
-            (global::SparseFragments.ISparseModelPatch<
-                PatchWidget,
-                PatchWidget.Fragment
-            >)absentToNull
-        ).Apply(absent);
+        var presentNull = absentToNull.Apply(absent);
         presentNull.IsPresent.ShouldBeTrue();
         presentNull.Value.ShouldBeNull();
     }

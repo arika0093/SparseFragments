@@ -36,10 +36,8 @@ edits.Child.Count = 11;
 var next = new Settings.Patch();
 next.Child.Host = "next";
 var combined = edits.Compose(next);
-var applied = ((ISparseModelPatch<Settings, Settings.Fragment>)combined).Apply(before);
-var restored = ((ISparseModelPatch<Settings, Settings.Fragment>)combined.Invert(before)).Apply(
-    applied
-);
+var applied = combined.Apply(before);
+var restored = combined.Invert(before).Apply(applied);
 Require(
     restored.Value!.Label.Value == "original" && restored.Value.Child.Value!.Count.Value == 7,
     "exact inversion"
@@ -50,9 +48,7 @@ Require(
 );
 var between = Settings.Patch.Between(before, applied);
 Require(
-    ((ISparseModelPatch<Settings, Settings.Fragment>)between)
-        .Apply(before)
-        .Value!.Child.Value!.Host.Value == "next",
+    between.Apply(before).Value!.Child.Value!.Host.Value == "next",
     "sparse Between"
 );
 var upstream = original.ToBuilder();
@@ -65,25 +61,13 @@ var rebased = Settings.Patch.Rebase(
     Optional<Settings.Fragment?>.Present(upstream.Build())
 );
 Require(!rebased.HasConflicts, "structured rebase");
-var replayed = ((ISparseModelPatch<Settings, Settings.Fragment>)rebased.Patch).Apply(
-    Optional<Settings.Fragment?>.Present(upstream.Build())
-);
+var replayed = rebased.Patch.Apply(Optional<Settings.Fragment?>.Present(upstream.Build()));
 Require(
     replayed.Value!.Label.Value == "upstream" && replayed.Value.Child.Value!.Count.Value == 12,
     "replay on current state"
 );
-var trace = SparseMergeTracer.Explain(
-    Settings.Fragment.FragmentSchema,
-    upstream.Build(),
-    [
-        new SparseContribution(0, Optional<object?>.Present(original)),
-        new SparseContribution(1, Optional<object?>.Present(upstream.Build())),
-    ]
-);
-Require(
-    trace.Single(member => member.Name == "Label").ContributionIndices.SequenceEqual([1]),
-    "domain-neutral merge trace"
-);
+var mergedUpstream = original.Merge(upstream.Build()).ToModel();
+Require(mergedUpstream.Label == "upstream", "layered merge");
 Console.WriteLine("SparseFragments packed consumer passed.");
 
 static void Require(bool condition, string capability)
@@ -99,7 +83,7 @@ public partial class Settings
     public Child? Child { get; set; }
 }
 
-public class Child
+public partial class Child
 {
     public int Count { get; set; }
     public string Host { get; set; } = "localhost";

@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json;
 
 namespace SparseFragments;
 
 /// <summary>A parsed RFC 6902 document.</summary>
-[EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class JsonPatchDocument
+internal sealed class JsonPatchDocument
 {
     private readonly IReadOnlyList<JsonPatchOperation> _operations;
 

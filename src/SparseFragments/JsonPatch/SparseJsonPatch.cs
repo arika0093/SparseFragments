@@ -1,18 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json;
 
 namespace SparseFragments;
 
 /// <summary>Entry facade for RFC 6902 import/export over canonical JSON.</summary>
-/// <remarks>
-/// Generated <c>FromJsonPatch</c>/<c>ToJsonPatch</c> bridges delegate fragment
-/// conversion to their generated JSON converters and use
-/// <see cref="JsonPatchDocument"/> plus <see cref="JsonPatchEngine"/> for the
-/// baseline-aware document transform, keeping this runtime free of ASP.NET
-/// dependencies.
-/// </remarks>
-[EditorBrowsable(EditorBrowsableState.Advanced)]
-public static class SparseJsonPatch
+internal static class SparseJsonPatch
 {
     /// <summary>Parses UTF-8 JSON Patch bytes.</summary>
     public static JsonPatchDocument Parse(ReadOnlyMemory<byte> utf8) =>

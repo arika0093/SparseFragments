@@ -96,7 +96,7 @@ Once you build, the generator adds the following members inside your model type:
 | Fragment builder | Copies a fragment while changing only the members you touch |
 | `DeepClone()` | Returns a fully independent copy of a model or fragment |
 
-Reachable partial model types automatically receive generated Fragment/Patch APIs. Non-partial nested POCOs still participate structurally but do not expose generated nested types.
+Reachable partial model types automatically receive generated Fragment/Patch APIs. Non-partial nested POCOs are treated as atomic replace values; declare the nested type `partial` (or annotate it with `[SparseFragmentModel]`) when it needs independently sparse behavior.
 
 ### 3. Background: the three states of `Optional<T>`
 

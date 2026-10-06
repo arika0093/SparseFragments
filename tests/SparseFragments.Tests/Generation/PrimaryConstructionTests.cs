@@ -55,11 +55,8 @@ public partial class ImmutableChildSettings
     public List<ImmutableConstructionChild> Children { get; set; } = new();
 }
 
-public sealed class ImmutableConstructionChild(int count = 7, int[]? items = null)
+public sealed partial class ImmutableConstructionChild(int count = 7, int[]? items = null)
 {
-    private ImmutableConstructionChild()
-        : this(99, null) { }
-
     public int Count { get; } = count;
     public int[]? Items { get; } = items;
 }
@@ -107,7 +104,7 @@ public partial class InitChildSettings
     public List<InitConstructionChild> Children { get; set; } = new();
 }
 
-public sealed class InitConstructionChild(int count = 7, int[]? items = null)
+public sealed partial class InitConstructionChild(int count = 7, int[]? items = null)
 {
     public int Count { get; init; } = count;
     public int[]? Items { get; init; } = items;
@@ -155,7 +152,7 @@ public partial class RequiredChildSettings
     public List<RequiredConstructionChild> Children { get; set; } = new();
 }
 
-public sealed class RequiredConstructionChild
+public sealed partial class RequiredConstructionChild
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public RequiredConstructionChild(int count = 7, int[]? items = null)

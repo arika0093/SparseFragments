@@ -1,13 +1,10 @@
-using System.ComponentModel;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace SparseFragments;
 
 /// <summary>One RFC 6902 operation.</summary>
-[EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class JsonPatchOperation
+internal sealed class JsonPatchOperation
 {
     /// <summary>Initializes a new instance.</summary>
     public JsonPatchOperation(string op, string path, string? from, JsonNode? value, bool hasValue)

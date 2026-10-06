@@ -141,7 +141,10 @@ internal static class SparseModelDiagnostics
                     != SparseCloneCollectionKind.Unsupported
                 )
                     continue;
-                if (SparseModelDiscovery.IsStructuralType(type, config, cancellationToken))
+                if (
+                    SparseModelDiscovery.IsStructuralType(type, config, cancellationToken)
+                    || SparsePromotedDiscovery.IsPromotablePartial(type, config, cancellationToken)
+                )
                 {
                     pending.Push(type);
                     continue;

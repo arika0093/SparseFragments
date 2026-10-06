@@ -1,12 +1,9 @@
 using System.Collections;
-using System.ComponentModel;
 
 namespace SparseFragments;
 
 /// <summary>Default semantic equality used by generated sparse fragments.</summary>
-/// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
-[EditorBrowsable(EditorBrowsableState.Never)]
-public static class SparseValueComparer
+internal static class SparseValueComparer
 {
     /// <summary>Compares two values, treating ordinary sequences element-wise.</summary>
     public static bool AreEqual(object? left, object? right) =>

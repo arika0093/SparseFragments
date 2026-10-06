@@ -7,7 +7,8 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits the standalone three-way rebase with structured conflicts.</summary>
 internal static class SparseFragmentPatchRebaseEmitter
 {
-    private static string EqualMethod(SparseMemberModel member) => "__SparseEqual_" + member.Id;
+    private static string EqualMethod(SparseMemberModel member) =>
+        "Fragment.__SparseEqual_" + member.Id;
 
     public static void AppendPatchRebase(
         SharedIndentedBuilder code,
@@ -15,30 +16,26 @@ internal static class SparseFragmentPatchRebaseEmitter
         ImmutableArray<SparseMemberModel> members
     )
     {
+        _ = modelType;
         var runtime = SparseFragmentPatchEmitter.Runtime;
-        var contract = SparseFragmentPatchEmitter.Contract(modelType, "Fragment");
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
         var optionalFragment = runtime + "Optional<Fragment?>";
         var kind = runtime + "FragmentOperationKind";
-        var comparer = runtime + "SparseFragmentComparer";
         var conflict = "global::SparseFragments.SparsePatchConflict";
         var conflictKind = "global::SparseFragments.SparsePatchConflictKind";
         var conflictList =
             "global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>";
         var rebaseResult = "global::SparseFragments.RebaseResult<Patch>";
 
-        AppendMemberEqualityHelpers(code, members, runtime, comparer);
         AppendRebaseStateHelpers(code, runtime);
         AppendRebaseHeader(
             code,
-            contract,
             prefix,
             rebaseResult,
             optionalFragment,
             kind,
-            comparer,
             conflict,
             conflictKind,
             conflictList
@@ -51,7 +48,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         {
             code.AppendLineAt(3, "{");
             if (member.ChildModel is not null)
-                AppendNestedMemberRebase(code, member, comparer, conflict, conflictKind);
+                AppendNestedMemberRebase(code, member, conflict, conflictKind);
             else
                 AppendScalarMemberRebase(code, member, kind, conflict, conflictKind);
             code.AppendLineAt(3, "}");
@@ -59,58 +56,6 @@ internal static class SparseFragmentPatchRebaseEmitter
 
         code.AppendLineAt(3, "return new " + rebaseResult + "(result, conflicts);");
         code.AppendLineAt(2, "}");
-    }
-
-    private static void AppendMemberEqualityHelpers(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members,
-        string runtime,
-        string comparer
-    )
-    {
-        foreach (var member in members)
-        {
-            var optionalMember =
-                runtime + "Optional<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
-            var method = EqualMethod(member);
-            if (member.ChildModel is not null)
-            {
-                code.AppendIndent(2)
-                    .Append("private static bool ")
-                    .Append(method)
-                    .Append("(")
-                    .Append(optionalMember)
-                    .Append(" left, ")
-                    .Append(optionalMember)
-                    .Append(" right) => ")
-                    .Append(comparer)
-                    .AppendLine(".AreEqual(left, right);");
-                continue;
-            }
-
-            var equality = member.MergeStrategyType is null
-                ? SparseFragmentPatchEmitter.Expressions.ValueEqualityExpression(
-                    member,
-                    "left.Value",
-                    "right.Value"
-                )
-                : "Fragment."
-                    + SparseWellKnownNames.MergeStrategyFieldPrefix
-                    + member.Id
-                    + ".AreEqual(left.Value, right.Value)";
-            code.AppendIndent(2)
-                .Append("private static bool ")
-                .Append(method)
-                .Append("(")
-                .Append(optionalMember)
-                .Append(" left, ")
-                .Append(optionalMember)
-                .AppendLine(" right)");
-            code.AppendLineAt(2, "{");
-            code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
-            code.AppendLineAt(3, "return right.IsPresent && " + equality + ";");
-            code.AppendLineAt(2, "}");
-        }
     }
 
     private static void AppendRebaseStateHelpers(SharedIndentedBuilder code, string runtime)
@@ -146,12 +91,10 @@ internal static class SparseFragmentPatchRebaseEmitter
 
     private static void AppendRebaseHeader(
         SharedIndentedBuilder code,
-        string contract,
         string prefix,
         string rebaseResult,
         string optionalFragment,
         string kind,
-        string comparer,
         string conflict,
         string conflictKind,
         string conflictList
@@ -180,22 +123,18 @@ internal static class SparseFragmentPatchRebaseEmitter
         );
         code.AppendLineAt(
             3,
-            "if ((("
-                + contract
-                + ")local).IsEmpty) return "
-                + rebaseResult
-                + ".Success(new Patch());"
+            "if (local.__SparseIsEmpty()) return " + rebaseResult + ".Success(new Patch());"
         );
         code.AppendLineAt(3, "var result = new Patch();");
         code.AppendLineAt(3, "var conflicts = new " + conflictList + "();");
-        code.AppendLineAt(3, "var desiredState = ((" + contract + ")local).Apply(baseState);");
+        code.AppendLineAt(3, "var desiredState = local.Apply(baseState);");
         code.AppendLineAt(3, "if (local.__sparse_whole.Kind != " + kind + ".Unchanged)");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "if (" + comparer + ".AreEqual(baseState, currentState))");
+        code.AppendLineAt(4, "if (Fragment.__SparseAreEqual(baseState, currentState))");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(4, "    result = local." + prefix + "Compose(new Patch());");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (!" + comparer + ".AreEqual(desiredState, currentState))");
+        code.AppendLineAt(4, "else if (!Fragment.__SparseAreEqual(desiredState, currentState))");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             4,
@@ -213,11 +152,11 @@ internal static class SparseFragmentPatchRebaseEmitter
             "if (!baseState.IsPresent || !currentState.IsPresent || baseState.Value is null || currentState.Value is null || !desiredState.IsPresent || desiredState.Value is null)"
         );
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "if (" + comparer + ".AreEqual(baseState, currentState))");
+        code.AppendLineAt(4, "if (Fragment.__SparseAreEqual(baseState, currentState))");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(4, "    result = local." + prefix + "Compose(new Patch());");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (!" + comparer + ".AreEqual(desiredState, currentState))");
+        code.AppendLineAt(4, "else if (!Fragment.__SparseAreEqual(desiredState, currentState))");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             4,
@@ -235,7 +174,6 @@ internal static class SparseFragmentPatchRebaseEmitter
     private static void AppendNestedMemberRebase(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string comparer,
         string conflict,
         string conflictKind
     )
@@ -245,36 +183,20 @@ internal static class SparseFragmentPatchRebaseEmitter
         const string baseMember = "baseMember";
         const string currentMember = "currentMember";
         const string desiredMember = "desiredMember";
+        var equality = EqualMethod(member);
 
         code.AppendLineAt(
             4,
-            "if (local."
-                + field
-                + " is not null && !(("
-                + SparseFragmentPatchEmitter.ChildContract(member)
-                + ")local."
-                + field
-                + ").IsEmpty)"
+            "if (local." + field + " is not null && !local." + field + ".__SparseIsEmpty())"
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "var " + baseMember + " = baseFragment." + name + ";");
         code.AppendLineAt(5, "var " + currentMember + " = currentFragment." + name + ";");
         code.AppendLineAt(
             5,
-            "var "
-                + desiredMember
-                + " = (("
-                + SparseFragmentPatchEmitter.ChildContract(member)
-                + ")local."
-                + field
-                + ").Apply("
-                + baseMember
-                + ");"
+            "var " + desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
         );
-        code.AppendLineAt(
-            5,
-            "if (" + comparer + ".AreEqual(" + baseMember + ", " + currentMember + "))"
-        );
+        code.AppendLineAt(5, "if (" + equality + "(" + baseMember + ", " + currentMember + "))");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "result." + field + " = local." + field + ";");
         code.AppendLineAt(5, "}");
@@ -310,7 +232,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
             5,
-            "else if (!" + comparer + ".AreEqual(" + desiredMember + ", " + currentMember + "))"
+            "else if (!" + equality + "(" + desiredMember + ", " + currentMember + "))"
         );
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
@@ -429,12 +351,12 @@ internal static class SparseFragmentPatchRebaseEmitter
             code.AppendLineAt(
                 6,
                 "if ("
-                    + runtime
-                    + "SparseCollectionRebase."
+                    + SparseWellKnownNames.CollectionRebaseType
+                    + "."
                     + (member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion")
                     + "(beforeValues, desiredValues, currentValues, (object? left, object? right) => "
-                    + runtime
-                    + "SparseValueComparer.AreEqual(left, right), out var rebasedValues, out var reason))"
+                    + SparseWellKnownNames.ValueComparerType
+                    + ".AreEqual(left, right), out var rebasedValues, out var reason))"
             );
             code.AppendLineAt(6, "{");
             var operationType =

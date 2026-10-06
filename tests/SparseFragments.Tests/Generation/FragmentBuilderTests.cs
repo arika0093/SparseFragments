@@ -9,7 +9,7 @@ public partial class BuilderParent
     public string? Label { get; set; }
 }
 
-public class BuilderChild
+public partial class BuilderChild
 {
     public int Count { get; set; }
 }

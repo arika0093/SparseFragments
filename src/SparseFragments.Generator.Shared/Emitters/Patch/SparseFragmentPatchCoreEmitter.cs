@@ -63,6 +63,9 @@ internal static class SparseFragmentPatchCoreEmitter
     {
         var operation = SparseFragmentPatchEmitter.Operation(dialect);
         var kind = SparseFragmentPatchEmitter.Kind(dialect);
+        var wholePrefix = SparseNaming.WholeApiPrefix(
+            members.Select(static member => member.Property.Name)
+        );
         code.AppendLineAt(
             2,
             "private " + operation + "<Fragment?> " + dialect.WholeFieldName + ";"
@@ -77,9 +80,9 @@ internal static class SparseFragmentPatchCoreEmitter
         );
         code.AppendLineAt(
             2,
-            "bool "
-                + emptyContract
-                + ".IsEmpty => "
+            "public bool "
+                + wholePrefix
+                + "IsEmpty => "
                 + dialect.WholeFieldName
                 + ".Kind == "
                 + kind
@@ -89,9 +92,9 @@ internal static class SparseFragmentPatchCoreEmitter
         );
         code.AppendLineAt(
             2,
-            "void "
-                + contract
-                + ".Set("
+            "public void "
+                + wholePrefix
+                + "Set("
                 + modelType
                 + " value) => "
                 + dialect.WholeFieldName
@@ -101,9 +104,9 @@ internal static class SparseFragmentPatchCoreEmitter
         );
         code.AppendLineAt(
             2,
-            "void "
-                + contract
-                + ".SetNull() => "
+            "public void "
+                + wholePrefix
+                + "SetNull() => "
                 + dialect.WholeFieldName
                 + " = "
                 + operation
@@ -111,36 +114,21 @@ internal static class SparseFragmentPatchCoreEmitter
         );
         code.AppendLineAt(
             2,
-            "void "
-                + contract
-                + ".Unset() => "
+            "public void "
+                + wholePrefix
+                + "Unset() => "
                 + dialect.WholeFieldName
                 + " = "
                 + operation
                 + "<Fragment?>.Unset;"
         );
-        foreach (var method in new[] { "Set", "SetNull", "Unset", "IsEmpty" })
-        {
-            if (members.Any(member => member.Property.Name == method))
-                continue;
-            var parameter = method == "Set" ? modelType + " value" : "";
-            var argument = method == "Set" ? "value" : "";
-            var declaration =
-                method == "IsEmpty"
-                    ? "public bool IsEmpty => ((" + emptyContract + ")this).IsEmpty;"
-                    : "public void "
-                        + method
-                        + "("
-                        + parameter
-                        + ") => (("
-                        + contract
-                        + ")this)."
-                        + method
-                        + "("
-                        + argument
-                        + ");";
-            code.AppendLineAt(2, declaration);
-        }
+        code.AppendLineAt(2, "internal bool __SparseIsEmpty() => " + wholePrefix + "IsEmpty;");
+        code.AppendLineAt(
+            2,
+            "internal void __SparseSet(" + modelType + " value) => " + wholePrefix + "Set(value);"
+        );
+        code.AppendLineAt(2, "internal void __SparseSetNull() => " + wholePrefix + "SetNull();");
+        code.AppendLineAt(2, "internal void __SparseUnset() => " + wholePrefix + "Unset();");
 
         code.AppendLineAt(
             2,
@@ -204,13 +192,7 @@ internal static class SparseFragmentPatchCoreEmitter
                 );
                 code.AppendLineAt(
                     4,
-                    "if (fragment."
-                        + name
-                        + ".Value is null) (("
-                        + dialect.NestedContract(member)
-                        + ")"
-                        + field
-                        + ").SetNull();"
+                    "if (fragment." + name + ".Value is null) " + field + ".__SparseSetNull();"
                 );
                 code.AppendLineAt(3, "}");
             }

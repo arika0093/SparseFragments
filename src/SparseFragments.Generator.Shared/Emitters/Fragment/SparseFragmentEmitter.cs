@@ -11,14 +11,7 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Builds standalone generated source for a <c>[SparseFragmentModel]</c>.</summary>
 internal static class SparseFragmentEmitter
 {
-    private const string Runtime = SparseWellKnownNames.RuntimeNamespace;
     private const string Optional = SparseWellKnownNames.OptionalType;
-    private const string FragmentMember = SparseWellKnownNames.FragmentMemberType;
-    private const string FragmentInterface = SparseWellKnownNames.FragmentInterfaceType;
-    private const string FragmentOfT = SparseWellKnownNames.FragmentInterfaceType;
-    private const string DeepCloneable = SparseWellKnownNames.DeepCloneableType;
-    private const string Schema = SparseWellKnownNames.SchemaType;
-    private const string MemberSchema = SparseWellKnownNames.MemberSchemaType;
     private const string MergeStrategy = SparseWellKnownNames.MergeStrategyType;
     private const string ReferenceComparer = SparseWellKnownNames.ReferenceComparerType;
 
@@ -84,6 +77,7 @@ internal static class SparseFragmentEmitter
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+        _ = structuralModels;
         var portableSetView = SparseFragmentCoreEmitter.RequiresPortableSetView(
             bclHashSetImplementsReadOnlySet,
             members
@@ -93,27 +87,12 @@ internal static class SparseFragmentEmitter
                         poco.Members.Select(static member => member.Collection.NamedTypeDefinition)
                     )
                 )
-                .Concat(
-                    structuralModels.SelectMany(static structural =>
-                        structural.Members.Select(static member =>
-                            member.Collection.NamedTypeDefinition
-                        )
-                    )
-                )
         );
         if (portableSetView)
         {
             members = ApplyPortableSetView(members);
             pocoCloneModels = pocoCloneModels
                 .Select(static poco => poco with { Members = ApplyPortableSetView(poco.Members) })
-                .ToImmutableArray();
-            structuralModels = structuralModels
-                .Select(static structural =>
-                    structural with
-                    {
-                        Members = ApplyPortableSetView(structural.Members),
-                    }
-                )
                 .ToImmutableArray();
         }
 
@@ -128,13 +107,7 @@ internal static class SparseFragmentEmitter
             code.Append("namespace ").Append(model.Namespace).AppendLine(";");
         }
 
-        code.Append(generatedType)
-            .Append(name)
-            .Append(" : ")
-            .Append(DeepCloneable)
-            .Append("<")
-            .Append(modelType)
-            .AppendLine(">");
+        code.Append(generatedType).Append(name).AppendLine();
         code.AppendLine("{");
         SparseFragmentCoreEmitter.AppendRootProjectionConstructor(
             code,
@@ -171,7 +144,6 @@ internal static class SparseFragmentEmitter
             !pocoCloneModels.IsEmpty,
             constructor: model.Constructor
         );
-        AppendStructuralModels(code, structuralModels, !pocoCloneModels.IsEmpty);
         code.AppendLine("}");
         return code.ToString();
     }
@@ -190,37 +162,6 @@ internal static class SparseFragmentEmitter
         return model.IsRecord ? "partial record class " : "partial class ";
     }
 
-    private static void AppendStructuralModels(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseStructuralModel> structuralModels,
-        bool usesPocoCloning
-    )
-    {
-        code.CancellationToken.ThrowIfCancellationRequested();
-        foreach (var structuralModel in structuralModels)
-        {
-            code.AppendLineAt(
-                1,
-                "/// <summary>Generated shape for an undecorated structural member type.</summary>"
-            );
-            code.AppendLineAt(1, "public sealed class " + structuralModel.HostName);
-            code.AppendLineAt(1, "{");
-            code.IndentOffset++;
-            AppendFragment(
-                code,
-                structuralModel.ValueTypeName,
-                structuralModel.Members,
-                true,
-                usesPocoCloning,
-                isRootModel: false,
-                emitJsonBridge: false,
-                constructor: structuralModel.Constructor
-            );
-            code.IndentOffset--;
-            code.AppendLineAt(1, "}");
-        }
-    }
-
     private static void AppendFragment(
         SharedIndentedBuilder code,
         string modelType,
@@ -232,9 +173,11 @@ internal static class SparseFragmentEmitter
         ModelConstructorBinding? constructor = null
     )
     {
-        SparseFragmentCoreEmitter.AppendDeclaration(code, FragmentOfT, DeepCloneable);
+        SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
         Core.AppendMembers(code, members, MergeStrategy);
-        AppendFragmentDescriptor(code, modelType, members);
+        code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
+        code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
+        AppendFragmentEquality(code, members);
         Core.AppendFromModel(code, modelType, members, modelIsReferenceType, usesPocoCloning);
         SparseFragmentCoreEmitter.AppendToModel(code, modelType, members, isRootModel, constructor);
         Core.AppendMerge(code, members);
@@ -249,204 +192,82 @@ internal static class SparseFragmentEmitter
         SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, emitJsonBridge);
     }
 
-    private static void AppendFragmentDescriptor(
+    private static void AppendFragmentEquality(
         SharedIndentedBuilder code,
-        string modelType,
         ImmutableArray<SparseMemberModel> members
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
-        code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
-        code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
-        code.AppendIndent(2)
-            .Append("public static ")
-            .Append(Schema)
-            .Append(" FragmentSchema { get; } = new(typeof(")
-            .Append(modelType)
-            .AppendLine("), new " + MemberSchema + "[]");
+        code.AppendLineAt(
+            2,
+            "internal static bool __SparseAreEqual(global::SparseFragments.Optional<Fragment?> left, global::SparseFragments.Optional<Fragment?> right)"
+        );
         code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
+        code.AppendLineAt(3, "if (!right.IsPresent) return false;");
+        code.AppendLineAt(
+            3,
+            "if (global::System.Object.ReferenceEquals(left.Value, right.Value)) return true;"
+        );
+        code.AppendLineAt(3, "if (left.Value is null || right.Value is null) return false;");
+        if (members.IsEmpty)
+        {
+            code.AppendLineAt(3, "return true;");
+        }
+        else
+        {
+            code.AppendIndent(3).Append("return ");
+            for (var index = 0; index < members.Length; index++)
+            {
+                if (index > 0)
+                {
+                    code.Append(" && ");
+                }
+
+                var name = SparseNaming.EscapeIdentifier(members[index].Property.Name);
+                code.Append("__SparseEqual_")
+                    .Append(members[index].Id)
+                    .Append("(left.Value.")
+                    .Append(name)
+                    .Append(", right.Value.")
+                    .Append(name)
+                    .Append(")");
+            }
+            code.AppendLine(";");
+        }
+        code.AppendLineAt(2, "}");
         foreach (var member in members)
         {
-            var valueType = member.ChildModel is null
-                ? member.Property.Type.NonNullableName
-                : member.ChildFragmentType!;
-            code.AppendIndent(3)
-                .Append("new(")
+            var valueType = SparseFragmentEmitHelpers.FragmentValueType(member);
+            code.AppendIndent(2)
+                .Append("internal static bool __SparseEqual_")
                 .Append(member.Id)
-                .Append(", ")
-                .Append(SymbolDisplay.FormatLiteral(member.Property.Name, true))
-                .Append(", typeof(")
+                .Append("(global::SparseFragments.Optional<")
                 .Append(valueType)
-                .Append("), ")
-                .Append(Runtime)
-                .Append(".MergeMode.")
-                .Append(SparseNaming.MergeModeName(member.MergeMode))
-                .Append(", static value => ((")
-                .Append(modelType)
-                .Append(")value).")
-                .Append(SparseNaming.EscapeIdentifier(member.Property.Name))
-                .Append(", ");
-            if (member.ChildModel is null)
+                .Append("> left, global::SparseFragments.Optional<")
+                .Append(valueType)
+                .AppendLine("> right)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
+            code.AppendLineAt(3, "if (!right.IsPresent) return false;");
+            string equality;
+            if (member.ChildModel is not null)
             {
-                code.Append("null");
+                equality = member.ChildFragmentType + ".__SparseAreEqual(left, right)";
+            }
+            else if (member.MergeStrategyType is not null)
+            {
+                equality = Core.MergeStrategyField(member) + ".AreEqual(left.Value, right.Value)";
             }
             else
             {
-                code.Append("static () => ")
-                    .Append(member.ChildFragmentType!)
-                    .Append(".FragmentSchema!");
+                equality = Expressions.ValueEqualityExpression(member, "left.Value", "right.Value");
             }
-
-            code.Append(", ")
-                .Append(member.MergeStrategyType is null ? "null" : Core.MergeStrategyField(member))
-                .Append(", static () => default(")
-                .Append(member.Property.Type.Name)
-                .Append("), ");
-            code.Append(
-                member.Collection.Kind == SparseCollectionKind.Unsupported
-                    ? "null"
-                    : "static values => "
-                        + SparseFragmentExpressions.MaterializeCollection(
-                            member,
-                            "global::System.Linq.Enumerable.Cast<"
-                                + member.Collection.ElementType.Name
-                                + ">(values)"
-                        )
-            );
-            code.Append(")");
-            if (member.Collection.Kind == SparseCollectionKind.Set)
-                code.Append(" { ContainsElement = static (values, element) => ((")
-                    .Append(member.Property.Type.Name)
-                    .Append(")values).Contains((")
-                    .Append(member.Collection.ElementType.Name)
-                    .Append(")element!) }");
-            code.AppendLine(",");
+            code.AppendLineAt(3, "return " + equality + ";");
+            code.AppendLineAt(2, "}");
         }
-
-        code.AppendLineAt(2, "}, static () => Fragment.Empty);");
-        code.AppendIndent(2)
-            .Append("public ")
-            .Append(Schema)
-            .AppendLine(" Schema => FragmentSchema;");
-        code.AppendLineAt(
-            2,
-            "public global::System.Collections.Generic.IEnumerable<"
-                + FragmentMember
-                + "> EnumeratePresentMembers()"
-        );
-        code.AppendLineAt(2, "{");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            code.AppendIndent(3)
-                .Append("if (")
-                .Append(name)
-                .Append(".IsPresent) yield return new(")
-                .Append(member.Id)
-                .Append(", ")
-                .Append(SymbolDisplay.FormatLiteral(member.Property.Name, true))
-                .Append(", ")
-                .Append(name)
-                .AppendLine(".Value);");
-        }
-
-        code.AppendLineAt(2, "}");
-        AppendWithMember(code, members);
-        AppendWithoutMember(code, members);
         code.AppendLine();
     }
-
-    private static void AppendWithMember(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    )
-    {
-        code.AppendIndent(2)
-            .Append("public ")
-            .Append(FragmentInterface)
-            .AppendLine(" WithMember(int memberId, object? value)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "switch (memberId)");
-        code.AppendLineAt(3, "{");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            code.AppendIndent(4).Append("case ").Append(member.Id).AppendLine(":");
-            code.AppendIndent(5).Append("return new Fragment");
-            code.AppendLine();
-            code.AppendLineAt(5, "{");
-            foreach (var copy in members)
-            {
-                var copyName = SparseNaming.EscapeIdentifier(copy.Property.Name);
-                code.AppendIndent(6)
-                    .Append(copyName)
-                    .Append(" = ")
-                    .Append(
-                        copyName == name
-                            ? Optional
-                                + "<"
-                                + FragmentValueType(copy)
-                                + ">.Present(("
-                                + FragmentValueType(copy)
-                                + ")value!)"
-                            : "this." + copyName
-                    )
-                    .AppendLine(",");
-            }
-
-            code.AppendLineAt(5, "};");
-        }
-
-        code.AppendLineAt(
-            4,
-            "default: throw new global::System.ArgumentOutOfRangeException(nameof(memberId));"
-        );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(2, "}");
-    }
-
-    private static void AppendWithoutMember(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    )
-    {
-        code.AppendIndent(2)
-            .Append("public ")
-            .Append(FragmentInterface)
-            .AppendLine(" WithoutMember(int memberId)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "switch (memberId)");
-        code.AppendLineAt(3, "{");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            code.AppendIndent(4).Append("case ").Append(member.Id).AppendLine(":");
-            code.AppendIndent(5).Append("return new Fragment");
-            code.AppendLine();
-            code.AppendLineAt(5, "{");
-            foreach (var copy in members)
-            {
-                var copyName = SparseNaming.EscapeIdentifier(copy.Property.Name);
-                code.AppendIndent(6)
-                    .Append(copyName)
-                    .Append(" = ")
-                    .Append(copyName == name ? "default" : "this." + copyName)
-                    .AppendLine(",");
-            }
-
-            code.AppendLineAt(5, "};");
-        }
-
-        code.AppendLineAt(
-            4,
-            "default: throw new global::System.ArgumentOutOfRangeException(nameof(memberId));"
-        );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(2, "}");
-    }
-
-    private static string FragmentValueType(SparseMemberModel member) =>
-        member.ChildModel is null ? member.Property.Type.Name : member.ChildFragmentType + "?";
 
     private static readonly SparseFragmentExpressions Expressions = new("__sparse_clone_context");
 

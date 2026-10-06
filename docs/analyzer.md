@@ -117,10 +117,14 @@ public partial class Settings
 ## SPF007: Unsupported structural member construction
 
 * Message: `Member '{0}' has an unsupported structural type; provide a supported public constructor and properties, decorate it as a fragment model, or explicitly select MergeMode.Replace`
-* Cause: A nested POCO cannot be constructed as a structural type.
-  It lacks a supported public constructor or public properties, or it is treated as a framework type.
+* Cause: A nested POCO cannot participate as a sparse member.
+  Non-partial nested types are treated as atomic replace values, so a nested type needs
+  independently sparse behavior (a `partial` type that the generator can promote, or an
+  explicit `[SparseFragmentModel]`), or the member must opt into whole-value replacement.
+  Framework types and types without a supported public constructor or public properties
+  are also unsupported as sparse members.
 * Fix: Do one of the following.
-  * Give the nested type a public constructor and public properties
+  * Declare the nested type `partial` with a public constructor and public properties so it is promoted to a first-class fragment
   * Annotate the nested type itself with `[SparseFragmentModel]` to make it a fragment model
   * Mark the member with `[SparseMerge(MergeMode.Replace)]` to replace it as a whole
 

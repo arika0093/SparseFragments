@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text;
 
 namespace SparseFragments;
 
 /// <summary>RFC 6901 JSON Pointer parsing and escaping.</summary>
-[EditorBrowsable(EditorBrowsableState.Advanced)]
-public static class JsonPointer
+internal static class JsonPointer
 {
     /// <summary>Parses a pointer into unescaped reference tokens.</summary>
     /// <exception cref="JsonPatchException">When the pointer is malformed.</exception>

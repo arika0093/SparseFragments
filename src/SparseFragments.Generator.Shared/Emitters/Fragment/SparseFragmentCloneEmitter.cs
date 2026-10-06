@@ -114,16 +114,62 @@ internal sealed class SparseFragmentCloneEmitter
                 ", ",
                 constructor.Parameters.Select(parameter => boundClones[parameter.PropertyName])
             );
+        // Register the clone before overlaying mutable setter members so setter-bound
+        // reference cycles resolve to the in-progress clone. Init-only and required
+        // members stay in the object initializer (they cannot be assigned afterwards),
+        // while plain mutable setters are assigned after registration. Cycles cannot
+        // pass through init-only or required values because those are fixed at
+        // construction time.
+        var initializerMembers = members
+            .Where(static member =>
+                !member.Property.IsReadOnly
+                && (member.Property.IsInitOnly || member.Property.IsRequired)
+            )
+            .ToArray();
+        var deferredMembers = members
+            .Where(static member =>
+                !member.Property.IsReadOnly
+                && !member.Property.IsInitOnly
+                && !member.Property.IsRequired
+            )
+            .ToArray();
         code.AppendIndent(2)
             .Append("var clone = new ")
             .Append(modelType)
             .Append("(")
             .Append(arguments)
             .AppendLine(")");
-        code.AppendLineAt(1, "{");
-        foreach (var member in members.Where(static member => !member.Property.IsReadOnly))
+        if (initializerMembers.Length > 0)
+        {
+            code.AppendLineAt(1, "{");
+            foreach (var member in initializerMembers)
+            {
+                code.AppendIndent(2)
+                    .Append(SparseNaming.EscapeIdentifier(member.Property.Name))
+                    .Append(" = ")
+                    .Append(
+                        boundClones.TryGetValue(member.Property.Name, out var cloned)
+                            ? cloned
+                            : Expressions.CloneModelExpression(
+                                member,
+                                "this." + SparseNaming.EscapeIdentifier(member.Property.Name)
+                            )
+                    )
+                    .AppendLine(",");
+            }
+
+            code.AppendLineAt(1, "};");
+        }
+        else
+        {
+            code.AppendLineAt(2, ";");
+        }
+        if (modelIsReferenceType)
+            code.AppendLineAt(2, CloneContext + ".Add(this, clone);");
+        foreach (var member in deferredMembers)
         {
             code.AppendIndent(2)
+                .Append("clone.")
                 .Append(SparseNaming.EscapeIdentifier(member.Property.Name))
                 .Append(" = ")
                 .Append(
@@ -134,12 +180,8 @@ internal sealed class SparseFragmentCloneEmitter
                             "this." + SparseNaming.EscapeIdentifier(member.Property.Name)
                         )
                 )
-                .AppendLine(",");
+                .AppendLine(";");
         }
-
-        code.AppendLineAt(1, "};");
-        if (modelIsReferenceType)
-            code.AppendLineAt(2, CloneContext + ".Add(this, clone);");
         code.AppendLineAt(2, "return clone;");
         code.AppendLineAt(1, "}");
     }

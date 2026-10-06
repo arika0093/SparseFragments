@@ -211,19 +211,22 @@ public sealed class SparseFragmentGenerationTests
     }
 
     [Test]
-    public void DescriptorEnumeratesAndMutatesMembers()
+    public void FragmentTracksPresenceThroughBuilders()
     {
         var fragment = new Settings.Fragment { RetryCount = Optional<int>.Present(9) };
-        var members = fragment.EnumeratePresentMembers().ToArray();
 
-        members.Length.ShouldBe(1);
-        members[0].Name.ShouldBe("RetryCount");
-        members[0].Value.ShouldBe(9);
+        fragment.IsEmpty.ShouldBeFalse();
+        fragment.RetryCount.IsPresent.ShouldBeTrue();
+        fragment.RetryCount.Value.ShouldBe(9);
+        fragment.Label.IsPresent.ShouldBeFalse();
+        new Settings.Fragment().IsEmpty.ShouldBeTrue();
 
-        var added = (Settings.Fragment)fragment.WithMember(3, new[] { "x" });
-        added.Plugins.Value.ShouldBe(["x"]);
-        var removed = (Settings.Fragment)fragment.WithoutMember(4);
+        var builder = fragment.ToBuilder();
+        builder.RetryCount = Optional<int>.Missing;
+        var removed = builder.Build();
         removed.RetryCount.IsPresent.ShouldBeFalse();
+        removed.IsEmpty.ShouldBeTrue();
+        fragment.RetryCount.IsPresent.ShouldBeTrue();
     }
 
     [Test]

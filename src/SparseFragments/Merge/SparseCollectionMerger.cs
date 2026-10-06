@@ -1,10 +1,7 @@
-using System.ComponentModel;
-
 namespace SparseFragments;
 
 /// <summary>Collection operations used by generated sparse fragments.</summary>
-[EditorBrowsable(EditorBrowsableState.Never)]
-public static class SparseCollectionMerger
+internal static class SparseCollectionMerger
 {
     /// <summary>Merges ordered contributions, retaining the first occurrence of each value.</summary>
     public static T[] MergeDistinctArray<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>

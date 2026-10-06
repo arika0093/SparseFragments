@@ -17,11 +17,7 @@ internal static class SparseFragmentEmitHelpers
     ) =>
         code.AppendLineAt(
             indent,
-            "var "
-                + cloneContext
-                + " = new global::System.Collections.Generic.Dictionary<object, object>("
-                + referenceComparer
-                + ".Instance);"
+            "var " + cloneContext + " = " + referenceComparer + ".CreateCloneContext();"
         );
 
     internal static void AppendNullGuard(SharedIndentedBuilder code, int indent, string variable)

@@ -59,5 +59,5 @@ public sealed class PatchAlgebraNamingTests
     private static Optional<AlgebraNamedRoot.Fragment?> Apply(
         AlgebraNamedRoot.Patch patch,
         Optional<AlgebraNamedRoot.Fragment?> state
-    ) => ((ISparseModelPatch<AlgebraNamedRoot, AlgebraNamedRoot.Fragment>)patch).Apply(state);
+    ) => patch.Apply(state);
 }
