@@ -101,6 +101,23 @@ internal static class SparseModelDiagnostics
                     )
                 );
             }
+
+            if (
+                SparseCollectionAnalyzer.IsUnkeyedStructuralSequence(
+                    member,
+                    config,
+                    cancellationToken
+                )
+            )
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        SparseDiagnosticIds.UnkeyedStructuralSequence,
+                        member.Property.Locations.FirstOrDefault(),
+                        member.Property.Name
+                    )
+                );
+            }
         }
     }
 

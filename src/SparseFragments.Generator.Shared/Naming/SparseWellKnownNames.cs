@@ -34,4 +34,5 @@ internal static class SparseDiagnosticIds
     public const string UnsupportedClone = "SPF008";
     public const string GeneratedNameCollision = "SPF009";
     public const string IncompatiblePromotedModel = "SPF010";
+    public const string UnkeyedStructuralSequence = "SPF011";
 }

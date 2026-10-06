@@ -582,12 +582,38 @@ internal static class SparseModelDiscovery
             valueType = CreateTypeModel(collection.ValueType, config, cancellationToken);
         }
 
+        var semantic = SparseCollectionAnalyzer.ClassifySemantic(
+            collection,
+            config,
+            cancellationToken
+        );
+        var keyPropertyNames = ImmutableArray<string>.Empty;
+        string? keyTypeName = null;
+        if (
+            semantic == SparseCollectionSemantic.KeyedSequence
+            && collection.ElementType is INamedTypeSymbol namedElement
+            && SparseCollectionAnalyzer.TryDiscoverKeys(
+                namedElement,
+                config,
+                cancellationToken,
+                out var discoveredNames,
+                out var discoveredType
+            )
+        )
+        {
+            keyPropertyNames = discoveredNames;
+            keyTypeName = discoveredType;
+        }
+
         return new SparseCollectionInfo(
             collection.Kind,
             collection.CloneKind,
             CreateTypeModel(collection.ElementType, config, cancellationToken),
             valueType,
-            collection.NamedType?.ConstructedFrom.ToDisplayString()
+            collection.NamedType?.ConstructedFrom.ToDisplayString(),
+            semantic,
+            keyPropertyNames,
+            keyTypeName
         );
     }
 

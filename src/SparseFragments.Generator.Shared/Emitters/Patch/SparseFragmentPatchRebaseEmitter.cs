@@ -49,6 +49,8 @@ internal static class SparseFragmentPatchRebaseEmitter
             code.AppendLineAt(3, "{");
             if (member.ChildModel is not null)
                 AppendNestedMemberRebase(code, member, conflict, conflictKind);
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+                AppendCollectionMemberRebase(code, member, conflict, conflictKind);
             else
                 AppendScalarMemberRebase(code, member, kind, conflict, conflictKind);
             code.AppendLineAt(3, "}");
@@ -169,6 +171,114 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "return new " + rebaseResult + "(result, conflicts);");
         code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendCollectionMemberRebase(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string conflict,
+        string conflictKind
+    )
+    {
+        var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+        var field = SparseFragmentPatchEmitter.Field(member);
+        const string baseMember = "baseMember";
+        const string currentMember = "currentMember";
+        const string desiredMember = "desiredMember";
+        var equality = EqualMethod(member);
+
+        code.AppendLineAt(
+            4,
+            "if (local." + field + " is not null && !local." + field + ".__SparseIsEmpty())"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "var " + baseMember + " = baseFragment." + name + ";");
+        code.AppendLineAt(5, "var " + currentMember + " = currentFragment." + name + ";");
+        code.AppendLineAt(5, "var " + desiredMember + " = " + baseMember + ";");
+        code.AppendLineAt(5, "var __applyFailed" + member.Id + " = false;");
+        code.AppendLineAt(5, "try");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(
+            6,
+            desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
+        );
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(
+            5,
+            "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
+                + conflict
+                + "(new string[] { "
+                + SymbolDisplay.FormatLiteral(member.Property.Name, true)
+                + " }, "
+                + conflictKind
+                + ".Nested, __SparseMember("
+                + baseMember
+                + "), __SparseMember("
+                + baseMember
+                + "), __SparseMember("
+                + currentMember
+                + "), ex.Message)); __applyFailed"
+                + member.Id
+                + " = true; }"
+        );
+        code.AppendLineAt(5, "if (!__applyFailed" + member.Id + ")");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "if (" + equality + "(" + baseMember + ", " + currentMember + "))");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(7, "result." + field + " = local." + field + ";");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(
+            6,
+            "else if (" + baseMember + ".IsPresent && " + currentMember + ".IsPresent)"
+        );
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            "var nested = "
+                + SparseFragmentPatchEmitter.CollectionPatch(member)
+                + ".Rebase("
+                + baseMember
+                + ", local."
+                + field
+                + ", "
+                + currentMember
+                + ");"
+        );
+        code.AppendLineAt(7, "result." + field + " = nested.Patch;");
+        code.AppendLineAt(7, "foreach (var nestedConflict in nested.Conflicts)");
+        code.AppendLineAt(7, "{");
+        code.AppendLineAt(
+            8,
+            "conflicts.Add(nestedConflict.WithPathPrefix("
+                + SymbolDisplay.FormatLiteral(member.Property.Name, true)
+                + "));"
+        );
+        code.AppendLineAt(7, "}");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(
+            6,
+            "else if (!" + equality + "(" + desiredMember + ", " + currentMember + "))"
+        );
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            "conflicts.Add(new "
+                + conflict
+                + "(new string[] { "
+                + SymbolDisplay.FormatLiteral(member.Property.Name, true)
+                + " }, "
+                + conflictKind
+                + ".Nested, __SparseMember("
+                + baseMember
+                + "), __SparseMember("
+                + desiredMember
+                + "), __SparseMember("
+                + currentMember
+                + "), \"The collection contribution conflicts with a concurrent change.\"));"
+        );
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(4, "}");
     }
 
     private static void AppendNestedMemberRebase(

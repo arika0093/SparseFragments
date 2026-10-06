@@ -18,6 +18,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.FragmentOperationKind",
         "SparseFragments.MergeMode",
         "SparseFragments.SparseFragmentModelAttribute",
+        "SparseFragments.SparseKeyAttribute",
         "SparseFragments.SparseMergeAttribute",
         "SparseFragments.SparseCloneReferenceSafeAttribute",
     ];

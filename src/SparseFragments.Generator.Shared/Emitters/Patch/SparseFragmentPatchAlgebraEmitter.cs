@@ -66,7 +66,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var field = SparseFragmentPatchEmitter.Field(member);
-            if (member.ChildModel is null)
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 var operation =
                     runtime
@@ -111,6 +111,21 @@ internal static class SparseFragmentPatchAlgebraEmitter
                         + ".Value));"
                 );
             }
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                code.AppendLineAt(
+                    3,
+                    "patch."
+                        + field
+                        + " = "
+                        + SparseFragmentPatchEmitter.CollectionPatch(member)
+                        + ".Between(beforeFragment."
+                        + name
+                        + ", afterFragment."
+                        + name
+                        + ");"
+                );
+            }
             else
             {
                 code.AppendLineAt(
@@ -120,7 +135,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
                         + " = "
                         + SparseFragmentPatchEmitter.ChildPatch(member)
                         + "."
-                        + member.ChildModel.Value.PatchApiPrefix
+                        + member.ChildModel!.Value.PatchApiPrefix
                         + "Between(beforeFragment."
                         + name
                         + ", afterFragment."
@@ -165,7 +180,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
         foreach (var member in members)
         {
             var field = SparseFragmentPatchEmitter.Field(member);
-            if (member.ChildModel is null)
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 code.AppendLineAt(
                     3,
@@ -180,6 +195,27 @@ internal static class SparseFragmentPatchAlgebraEmitter
                         + " : next."
                         + field
                         + ";"
+                );
+            }
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                code.AppendLineAt(
+                    3,
+                    "result."
+                        + field
+                        + " = next."
+                        + field
+                        + " is null ? this."
+                        + field
+                        + " : (this."
+                        + field
+                        + " is null ? next."
+                        + field
+                        + " : this."
+                        + field
+                        + ".Compose(next."
+                        + field
+                        + "));"
                 );
             }
             else
@@ -199,7 +235,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
                         + " : this."
                         + field
                         + "."
-                        + member.ChildModel.Value.PatchApiPrefix
+                        + member.ChildModel!.Value.PatchApiPrefix
                         + "Compose(next."
                         + field
                         + "));"

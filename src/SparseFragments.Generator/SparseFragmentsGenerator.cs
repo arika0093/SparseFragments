@@ -134,6 +134,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf010-incompatible-promoted-fragment-model"
     );
 
+    private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
+        SparseDiagnosticIds.UnkeyedStructuralSequence,
+        "Structural sequence without usable key",
+        "Member '{0}' is a structural sequence without a usable key; add [SparseKey] to the element type, or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf011-structural-sequence-without-usable-key"
+    );
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -335,6 +345,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseDiagnosticIds.UnsupportedClone => UnsupportedClone,
             SparseDiagnosticIds.GeneratedNameCollision => GeneratedNameCollision,
             SparseDiagnosticIds.IncompatiblePromotedModel => IncompatiblePromotedModel,
+            SparseDiagnosticIds.UnkeyedStructuralSequence => UnkeyedStructuralSequence,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

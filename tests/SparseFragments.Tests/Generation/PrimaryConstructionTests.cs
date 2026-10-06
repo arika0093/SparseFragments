@@ -57,6 +57,7 @@ public partial class ImmutableChildSettings
 
 public sealed partial class ImmutableConstructionChild(int count = 7, int[]? items = null)
 {
+    [SparseKey]
     public int Count { get; } = count;
     public int[]? Items { get; } = items;
 }
@@ -106,6 +107,7 @@ public partial class InitChildSettings
 
 public sealed partial class InitConstructionChild(int count = 7, int[]? items = null)
 {
+    [SparseKey]
     public int Count { get; init; } = count;
     public int[]? Items { get; init; } = items;
 }
@@ -161,6 +163,7 @@ public sealed partial class RequiredConstructionChild
         Items = items;
     }
 
+    [SparseKey]
     public required int Count { get; init; }
     public required int[]? Items { get; init; }
 }
