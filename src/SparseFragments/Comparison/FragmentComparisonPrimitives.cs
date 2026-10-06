@@ -15,6 +15,12 @@ namespace SparseFragments;
 /// element types for assignability tests. Where a collection exposes its
 /// comparer, the non-generic comparer interfaces are used so custom comparers
 /// keep working without generic closures.
+///
+/// Complexity boundaries (issue #60): set/dictionary fallbacks index through
+/// the discovered non-generic comparer in O(n) when one is available; without
+/// a usable comparer, or when elements themselves require structural equality
+/// with no compatible hash semantics, matching stays quadratic by design.
+/// Count mismatches short-circuit in O(1) wherever a count is discoverable.
 /// </remarks>
 internal static class FragmentComparisonPrimitives
 {
@@ -269,22 +275,44 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
+        var keyEquality = AsNonGenericEquality(comparer);
+        if (keyEquality is not null)
+        {
+            // Bounded fast path (issue #60): both Equals and GetHashCode flow
+            // through the same discovered comparer, so hash lookup preserves its
+            // exact semantics while avoiding the quadratic nested scan. Counts
+            // track multiplicities so exotic duplicate-bearing enumerables still
+            // compare as multisets. No generic closure is created: the adapter
+            // only forwards to the non-generic comparer interface. A null result
+            // means null members defeat exact hashing and falls back to the scan.
+            var hashed = HashSetEquals(
+                (IEnumerable)left,
+                (IEnumerable)right,
+                leftCount,
+                keyEquality
+            );
+            if (hashed.HasValue)
+            {
+                return hashed.Value;
+            }
+        }
+
+        // No usable comparer: elements compare structurally, which admits no
+        // compatible hash semantics, so this path stays quadratic by design.
+        // Matches are removed in place (order-preserving) so order-aligned
+        // inputs keep matching at the head instead of degrading the search.
         var remaining = new List<object?>();
         foreach (var item in (IEnumerable)left)
         {
             remaining.Add(item);
         }
 
-        var keyEquality = AsNonGenericEquality(comparer);
         foreach (var item in (IEnumerable)right)
         {
             var match = -1;
             for (var index = 0; index < remaining.Count; index++)
             {
-                var matched = keyEquality is not null
-                    ? keyEquality.Equals(remaining[index], item)
-                    : AreValuesEqual(remaining[index], item);
-                if (matched)
+                if (AreValuesEqual(remaining[index], item))
                 {
                     match = index;
                     break;
@@ -305,8 +333,121 @@ internal static class FragmentComparisonPrimitives
     private static IEqualityComparer? AsNonGenericEquality(object? comparer) =>
         comparer as IEqualityComparer;
 
+    /// <summary>
+    /// Adapts a discovered non-generic element/key comparer for generic hash
+    /// containers without runtime generic code generation.
+    /// </summary>
+    /// <remarks>
+    /// Explicit interface implementation keeps this distinct from
+    /// <see cref="object.Equals(object?, object?)"/> and stays trim/AOT clean.
+    /// Null keys never reach the inner comparer; callers track them separately.
+    /// </remarks>
+    private sealed class NonGenericEqualityAdapter(IEqualityComparer comparer)
+        : IEqualityComparer<object>
+    {
+        bool IEqualityComparer<object>.Equals(object x, object y) => comparer.Equals(x, y);
+
+        int IEqualityComparer<object>.GetHashCode(object obj) => comparer.GetHashCode(obj);
+    }
+
+    /// <summary>
+    /// Hash-joins set members through the discovered element comparer.
+    /// Returns <c>null</c> when null members defeat exact hashing so the caller
+    /// falls back to the comparer scan.
+    /// </summary>
+    private static bool? HashSetEquals(
+        IEnumerable left,
+        IEnumerable right,
+        int? leftCapacity,
+        IEqualityComparer keyEquality
+    )
+    {
+        var adapter = new NonGenericEqualityAdapter(keyEquality);
+        Dictionary<object, int>? leftCounts = null;
+        var nullCount = 0;
+        var leftTotal = 0;
+        var anyLeft = false;
+        foreach (var item in left)
+        {
+            anyLeft = true;
+            if (item is null)
+            {
+                nullCount++;
+            }
+            else
+            {
+                leftCounts ??= new Dictionary<object, int>(leftCapacity ?? 0, adapter);
+                leftCounts.TryGetValue(item, out var seen);
+                leftCounts[item] = seen + 1;
+            }
+
+            leftTotal++;
+        }
+
+        if (!anyLeft)
+        {
+            return !Any(right);
+        }
+
+        if (nullCount != 0 && !keyEquality.Equals(null, null))
+        {
+            return null;
+        }
+
+        var nullRemaining = nullCount;
+        var matched = 0;
+        foreach (var item in right)
+        {
+            if (item is null)
+            {
+                if (nullRemaining == 0)
+                {
+                    return false;
+                }
+
+                nullRemaining--;
+            }
+            else if (leftCounts is null || !leftCounts.TryGetValue(item, out var seen) || seen == 0)
+            {
+                return false;
+            }
+            else
+            {
+                leftCounts[item] = seen - 1;
+            }
+
+            matched++;
+        }
+
+        return matched == leftTotal && nullRemaining == 0;
+    }
+
+    private static bool Any(IEnumerable items)
+    {
+        var enumerator = items.GetEnumerator();
+        try
+        {
+            return enumerator.MoveNext();
+        }
+        finally
+        {
+            (enumerator as IDisposable)?.Dispose();
+        }
+    }
+
     private static bool SlowSetEquals(object left, object right)
     {
+        // Structural elements admit no compatible hash semantics, so matching
+        // stays quadratic by design; the count pre-check keeps count mismatches
+        // O(1). Matches are removed in place (order-preserving) so
+        // order-aligned inputs keep matching at the head.
+        var leftCount = TryDictionaryCount(left);
+        var rightCount = TryDictionaryCount(right);
+        if (leftCount.HasValue && rightCount.HasValue && leftCount.Value != rightCount.Value)
+        {
+            return false;
+        }
+
         var remaining = new List<object?>();
         foreach (var item in (IEnumerable)left)
         {
@@ -442,14 +583,30 @@ internal static class FragmentComparisonPrimitives
         object? keyComparer
     )
     {
-        var leftEntries = MaterializeEntries(left);
         var rightEntries = MaterializeEntries(right);
+
+        var keyEquality = AsNonGenericEquality(keyComparer);
+        if (keyEquality is not null)
+        {
+            // Bounded fast path (issue #60): index the right entries by key
+            // through the same discovered key comparer, turning the nested
+            // scan into hash lookups while streaming the left side instead of
+            // materializing both. Duplicate keys defeat indexing and fall back
+            // to the multiset scan below; keys without a usable comparer stay
+            // on the structural scan by design (no safe hash exists).
+            var hashed = HashDictionariesStreamed(left, rightEntries, keyEquality);
+            if (hashed.HasValue)
+            {
+                return hashed.Value;
+            }
+        }
+
+        var leftEntries = MaterializeEntries(left);
         if (leftEntries.Count != rightEntries.Count)
         {
             return false;
         }
 
-        var keyEquality = AsNonGenericEquality(keyComparer);
         var used = new bool[rightEntries.Count];
         foreach (var (key, value) in leftEntries)
         {
@@ -483,32 +640,110 @@ internal static class FragmentComparisonPrimitives
         return true;
     }
 
+    /// <summary>
+    /// Hash-joins right entries (indexed by key) against a streamed left side
+    /// through the discovered key comparer. Returns <c>null</c> when duplicate
+    /// or null keys defeat exact indexing so the caller falls back to the
+    /// multiset scan.
+    /// </summary>
+    private static bool? HashDictionariesStreamed(
+        IEnumerable left,
+        List<(object? Key, object? Value)> rightEntries,
+        IEqualityComparer keyEquality
+    )
+    {
+        var rightMap = new Dictionary<object, object?>(
+            rightEntries.Count,
+            new NonGenericEqualityAdapter(keyEquality)
+        );
+        var hasNullKey = false;
+        object? nullValue = null;
+        foreach (var (key, value) in rightEntries)
+        {
+            if (key is null)
+            {
+                if (hasNullKey)
+                {
+                    return null;
+                }
+
+                hasNullKey = true;
+                nullValue = value;
+                continue;
+            }
+
+            if (!rightMap.TryAdd(key, value))
+            {
+                return null;
+            }
+        }
+
+        if (hasNullKey && !keyEquality.Equals(null, null))
+        {
+            return null;
+        }
+
+        var streamed = 0;
+        var nullMatched = false;
+        foreach (var item in left)
+        {
+            ExtractEntry(item, out var key, out var value);
+            if (key is null)
+            {
+                if (!hasNullKey || nullMatched || !AreValuesEqual(value, nullValue))
+                {
+                    return false;
+                }
+
+                nullMatched = true;
+            }
+            else if (
+                !rightMap.TryGetValue(key, out var rightValue) || !AreValuesEqual(value, rightValue)
+            )
+            {
+                return false;
+            }
+
+            streamed++;
+            if (streamed > rightEntries.Count)
+            {
+                return false;
+            }
+        }
+
+        return streamed == rightEntries.Count;
+    }
+
     private static List<(object? Key, object? Value)> MaterializeEntries(IEnumerable entries)
     {
         var materialized = new List<(object? Key, object? Value)>();
         foreach (var item in entries)
         {
-            if (item is DictionaryEntry entry)
-            {
-                materialized.Add((entry.Key, entry.Value));
-                continue;
-            }
-
-            var itemType = item?.GetType();
-            var key = GetPropertyValue(
-                itemType is null ? null : GetCachedProperty(EntryKeyProperties, itemType, "Key"),
-                item!
-            );
-            var value = GetPropertyValue(
-                itemType is null
-                    ? null
-                    : GetCachedProperty(EntryValueProperties, itemType, "Value"),
-                item!
-            );
+            ExtractEntry(item, out var key, out var value);
             materialized.Add((key, value));
         }
 
         return materialized;
+    }
+
+    private static void ExtractEntry(object? item, out object? key, out object? value)
+    {
+        if (item is DictionaryEntry entry)
+        {
+            key = entry.Key;
+            value = entry.Value;
+            return;
+        }
+
+        var itemType = item?.GetType();
+        key = GetPropertyValue(
+            itemType is null ? null : GetCachedProperty(EntryKeyProperties, itemType, "Key"),
+            item!
+        );
+        value = GetPropertyValue(
+            itemType is null ? null : GetCachedProperty(EntryValueProperties, itemType, "Value"),
+            item!
+        );
     }
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo> EntryKeyProperties = new();
