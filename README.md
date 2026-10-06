@@ -1,11 +1,12 @@
 # SparseFragments
 
-**Typed partial state for C#.**
+*Typed partial state for C#.*
+
 Distinguish missing, null, and values. Generate fragments, merge, diff, and typed patches from ordinary POCOs at compile time.
 
-Annotate a partial class with `[SparseFragmentModel]`, and the generator emits a typed **Fragment** — a presence-aware view where each member tracks whether it was specified — plus merge, semantic diff, and typed patch operations over that partial state. Targets netstandard2.0.
+Annotate a partial class with `[SparseFragmentModel]`, and the generator emits a typed **Fragment** — a presence-aware view where each member tracks whether it was specified — plus merge, semantic diff, and typed patch operations over that partial state.
 
-Try it live in the browser: **SparseFragments Playground** — https://arika0093.github.io/SparseFragments/ — edit layers, reset, and watch fragments, patches, and RFC 6902 JSON Patch update.
+Try it live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
 
 ## The Problem: Missing Is Not Null
 
@@ -19,6 +20,7 @@ Plain C# properties cannot distinguish "the caller did not specify this member" 
 
 Hand-writing this per model is boilerplate-heavy and error-prone, and reflection-based solutions sacrifice startup performance and AOT/trim compatibility.
 
+## Overview
 ### Presence in one glance
 
 An explicitly set `null` overrides a lower layer; an unspecified member falls through. The generated typed API preserves that distinction:
@@ -42,16 +44,12 @@ defaults.Merge(saysNothing).ToModel().Label; // "fallback" (missing falls throug
 
 `Merge`, `Diff`, and typed `Patch` below are operations on this partial state — not separate features bolted together.
 
-## What You Get: Layers Over Typed Partial State
+### What You Get: Layers Over Typed Partial State
 
 1. **Presence-aware `Fragment`.** `Optional<T>` distinguishes *missing*, *present null*, and *present value* per member. Sparse construction (`new Settings.Fragment { ... }`) carries only what a layer actually sets.
 2. **Merge, diff, and typed patch as operations on partial state.** Layered `Merge` overrides only present members; `Diff` captures the minimal delta between states; a typed `Patch` applies `Set` / `Unset` / `Unchanged` edits (including nested `SetNull`) without mutating the original.
 3. **Advanced capabilities, when you need them.** Per-member merge algebra (`Replace` / `Deep` / `Append` / `SetUnion`, or custom strategies), immutable builders, structural `DeepClone`, and diagnostics such as rebase and contribution provenance stay available but secondary to the core mental model.
 4. **Boundary interop as built-in.** Crossing a process boundary? Convert a typed patch to a standard RFC 6902 JSON Patch document (and back) with the built-in `FromJsonPatch` / `ToJsonPatch` bridge. In-process code never needs to think in JSON Patch terms.
-
-Details for each layer follow in Usage; advanced and interop sections live at the end so they do not obscure the core model.
-
-Adoption is one attribute on a partial class; the generator ships as an analyzer in the package and emits predictable, source-generated operations: plain generated C# — reflection-free core operations, no runtime code generation, no generator warmup at runtime — with automatic `IsExternalInit` emission for init-only members. Measure the representative paths locally with `SparseFragmentBenchmarks318` (see `benchmarks/README.md`).
 
 ## Usage
 
@@ -211,15 +209,11 @@ clone.Child!.Count = 42;                                       // original.Child
 | `SetUnion` | Combine as an insertion-ordered set union |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation |
 
-### 9. Exchange patches as RFC 6902 JSON Patch (opt-in boundary interop)
+## Exchange patches as RFC 6902 JSON Patch
 
 Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for every `[SparseFragmentModel]` type.
 
-#### 9.1. No extra package needed
-
-`FromJsonPatch` / `ToJsonPatch` are generated alongside `Fragment` / `Patch` and the runtime ships inside `SparseFragments` itself. The implementation has no ASP.NET dependencies.
-
-#### 9.2. Import a JSON Patch document
+### Import a JSON Patch document
 
 `Patch.FromJsonPatch` applies an RFC 6902 document to the canonical JSON of a baseline fragment, then derives the equivalent typed semantic `Patch`:
 
@@ -249,7 +243,7 @@ The baseline is presence-aware, so the mapping is exact:
 
 An overload taking a present `Fragment` directly (`FromJsonPatch(baseline, document, options)`) covers the common case. If a model happens to declare members named `FromJsonPatch` / `ToJsonPatch`, the bridge is emitted with a `Sparse` prefix instead (`SparseFromJsonPatch` / `SparseToJsonPatch`).
 
-#### 9.3. Export a typed patch
+### Export a typed patch
 
 `ToJsonPatch` runs the typed patch against the same baseline and diffs the before/after canonical JSON:
 
@@ -271,7 +265,7 @@ Export is semantic, not a verbatim replay of the import:
 
 Round-tripping holds semantically: applying the re-imported export to the same baseline produces the same fragment as applying the original typed patch.
 
-#### 9.4. Options, converters, and NativeAOT
+### Options, converters, and NativeAOT
 
 Both directions accept an optional `JsonSerializerOptions`:
 
@@ -302,7 +296,7 @@ var options = new JsonSerializerOptions { TypeInfoResolver = PatchContext.Defaul
 
 When reflection-based serialization is disabled and no resolver is supplied, the bridge fails fast with a clear `InvalidOperationException` instead of reaching runtime codegen. `Fragment.FragmentJsonConverter` is also public, so ordinary `JsonSerializer.Serialize(fragment, options)` works with the same presence semantics (present members only, explicit nulls preserved).
 
-#### 9.5. Failures are typed
+### Failures are typed
 
 Malformed documents, unknown operations, bad pointers, missing targets/parents, invalid array indices, failed `test` operations, unmapped properties, and member deserialization failures all throw `JsonPatchException` with a machine-readable `Kind`:
 
@@ -325,7 +319,7 @@ All of these are uses of the same typed partial state: keep an edit, override, o
 * **Partial-update APIs and DTO patching.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents. Keep the incoming partial update as a typed fragment and apply it onto the current state — no reflection involved.
 * **Storing only user-modified settings.** `Diff` the current settings against the defaults and persist only the resulting fragment. Saved data stays minimal, and future default changes still reach users who never overrode them.
 * **Edit sessions and dirty tracking.** Accumulate user edits in a `Patch`, check `IsEmpty` to know whether anything changed, apply it for a preview, or drop it to cancel. The original model is never mutated, so there is no manual restore logic to write.
-* **State diffs between snapshots.** Derive `Diff(before, after)` and apply it to another in-process snapshot with `ApplyChanges`. Serialization and cross-version wire formats are separate application concerns.
+* **State diffs between snapshots.** Derive `Diff(before, after)` and apply it to another in-process snapshot with `ApplyChanges`.
 * **Boundary exchange (secondary).** Accept standard JSON Patch documents at the edge with `Patch.FromJsonPatch`, work with them as typed semantic patches in-process, and send them back out with `patch.ToJsonPatch`. `test` operations validate before mutation, and the export stays minimal (recursive for objects, whole-value for arrays/scalars).
 * **Safe duplication (secondary).** `DeepClone` copies models with nested and mutable members (including collections and shared references) without handwritten copy constructors.
 
