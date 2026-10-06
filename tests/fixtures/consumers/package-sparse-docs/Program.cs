@@ -12,6 +12,7 @@ JsonPatchSamples.Run();
 MergeStrategiesSamples.Run();
 CloningAndOwnershipSamples.Run();
 ModelShapesSamples.Run();
+UiFrameworksSamples.Run();
 
 Console.WriteLine("SparseFragments docs consumer passed.");
 
