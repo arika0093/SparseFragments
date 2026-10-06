@@ -209,7 +209,7 @@ clone.Child!.Count = 42;                                       // original.Child
 | `SetUnion` | Combine as an insertion-ordered set union |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation |
 
-## Exchange patches as RFC 6902 JSON Patch
+## Exchange patches as JSON Patch
 
 Typed `Patch` values stay in-process. When a patch has to cross a process boundary — an HTTP PATCH endpoint, another service, or stored JSON — convert it to a standard [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) document. The same bridge is generated for every `[SparseFragmentModel]` type.
 
@@ -323,20 +323,16 @@ All of these are uses of the same typed partial state: keep an edit, override, o
 * **Boundary exchange (secondary).** Accept standard JSON Patch documents at the edge with `Patch.FromJsonPatch`, work with them as typed semantic patches in-process, and send them back out with `patch.ToJsonPatch`. `test` operations validate before mutation, and the export stays minimal (recursive for objects, whole-value for arrays/scalars).
 * **Safe duplication (secondary).** `DeepClone` copies models with nested and mutable members (including collections and shared references) without handwritten copy constructors.
 
-## Development
-
-This repository builds and tests standalone:
-
-```bash
-dotnet restore SparseFragments.slnx
-dotnet build SparseFragments.slnx --no-restore --configuration Release
-dotnet test SparseFragments.slnx --no-build --no-restore --configuration Release
-```
-
-`SparseFragments.Generator.Shared` ships as a source-only NuGet package
-(`contentFiles` plus `build/SparseFragments.Generator.Shared.props`), so
-downstream generators can compile the same sources without a submodule.
-
 ## License
 
 This project is licensed under the Apache-2.0 License.
+
+```
+Copyright 2026- arika0093
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+```
