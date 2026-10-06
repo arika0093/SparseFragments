@@ -8,6 +8,8 @@ namespace SparseFragments.CompilerServices
         public static bool AreEqual<T>(T? left, T? right) { }
         public static bool AreSetEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
         public static System.Collections.Generic.Dictionary<object, object> CreateCloneContext() { }
+        public static System.Collections.Generic.HashSet<System.Collections.Generic.KeyValuePair<object, object>> CreateDiffCycleContext() { }
+        public static System.Collections.Generic.HashSet<object> CreateFromCycleContext() { }
         public static void EnsureUniqueKeys<TKey>(System.Collections.Generic.IEnumerable<TKey> keys, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static bool KeyOrderEquals<TKey>(System.Collections.Generic.IReadOnlyList<TKey> left, System.Collections.Generic.IReadOnlyList<TKey> right, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static T[] MergeDistinctArray<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
