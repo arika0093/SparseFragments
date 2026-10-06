@@ -113,4 +113,35 @@ public static class SparseFragmentRuntime
         IReadOnlyList<TKey> right,
         IEqualityComparer<TKey>? comparer = null
     ) => SparseKeyedCollection.OrderEquals(left, right, comparer);
+
+    /// <summary>
+    /// Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.
+    /// </summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryExplainCollectionProvenance<T>(
+        MergeMode mode,
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        Optional<IReadOnlyList<T>?> effective,
+        IEqualityComparer<T>? comparer,
+        out int[] origins,
+        out string? reason
+    ) =>
+        SparseCollectionProvenance.TryExplain(
+            mode,
+            contributions,
+            effective,
+            comparer,
+            out origins,
+            out reason
+        );
+
+    /// <summary>Explains which low-to-high contribution supplied each effective set element with comparer-correct equality.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryExplainSetProvenance<T>(
+        IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
+        Optional<IEnumerable<T>?> effective,
+        out int[] origins,
+        out string? reason
+    ) =>
+        SparseCollectionProvenance.TryExplainSet(contributions, effective, out origins, out reason);
 }
