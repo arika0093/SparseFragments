@@ -1,0 +1,800 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+
+namespace SparseFragments;
+
+/// <summary>
+/// Domain-neutral collection contribution provenance shared by generated append, set-union, and replace members.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Given an effective collection plus low-to-high contribution values, the primitive explains which
+/// contribution position supplied each effective element. It operates only on contribution
+/// indices/values and fragment merge semantics: it never depends on host source identities,
+/// state registries, schemas, or diagnostics. A host adapter can map contribution indices to its
+/// own source identities.
+/// </para>
+/// <para>
+/// Presence is significant and mirrors generated fragment merge: <see cref="Optional{T}.Missing"/>
+/// contributes nothing, a present null value is a reset that discards all lower contributions, and a
+/// present collection contributes its elements. For <see cref="MergeMode.Append"/> the effective value
+/// is the concatenation of the present non-null contributions after the last present-null reset,
+/// preserving duplicates and order. For <see cref="MergeMode.SetUnion"/> over sequences the effective
+/// value is the insertion-ordered distinct union (first occurrence wins). For set-shaped
+/// <see cref="MergeMode.SetUnion"/> the effective value is the comparer-aware union; the element
+/// comparer is part of the set value (issue #5), so differing comparers fail rather than depending on
+/// operand order. For <see cref="MergeMode.Replace"/> the highest present contribution wins and every
+/// effective element maps to it.
+/// </para>
+/// <para>
+/// Keyed structural collections (issues #3/#4) are out of scope: scalar sequences stay atomic whole
+/// values here, and keyed reorder is a final key sequence with invalid duplicate keys, never a
+/// positional mapping. This primitive covers flat element values only and must not be interpreted as
+/// keyed identity.
+/// </para>
+/// <para>
+/// Custom strategies (<see cref="MergeMode.Custom"/>) and deep merges (<see cref="MergeMode.Deep"/>)
+/// are unsupported: a custom algebra can only participate once it provides an explicit provenance
+/// contract. The unified <see cref="TryExplain{T}"/> entry point reports those modes as failures
+/// with a reason instead of guessing.
+/// </para>
+/// </remarks>
+internal static class SparseCollectionProvenance
+{
+    /// <summary>
+    /// Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.
+    /// </summary>
+    /// <param name="mode">The fragment merge mode. Only Replace, Append, and SetUnion are supported.</param>
+    /// <param name="contributions">Contribution values from lowest to highest priority. Missing contributes nothing; present null resets.</param>
+    /// <param name="effective">The merged effective value using the same presence convention.</param>
+    /// <param name="comparer">Element equality. Defaults to <see cref="EqualityComparer{T}.Default"/>, matching <see cref="SparseCollectionMerger"/> sequence semantics.</param>
+    /// <param name="origins">On success, one contribution index per effective element position.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    /// <returns>True when <paramref name="effective"/> matches the recomputed merge and provenance was explained.</returns>
+    public static bool TryExplain<T>(
+        MergeMode mode,
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        Optional<IReadOnlyList<T>?> effective,
+        IEqualityComparer<T>? comparer,
+        out int[] origins,
+        out string? reason
+    )
+    {
+        return mode switch
+        {
+            MergeMode.Replace => TryExplainReplace(
+                contributions,
+                effective,
+                comparer,
+                out _,
+                out origins,
+                out reason
+            ),
+            MergeMode.Append => TryExplainAppend(
+                contributions,
+                effective,
+                comparer,
+                out origins,
+                out reason
+            ),
+            MergeMode.SetUnion => TryExplainSetUnion(
+                contributions,
+                effective,
+                comparer,
+                out origins,
+                out reason
+            ),
+            MergeMode.Deep => Fail(
+                "Deep merge has no flat collection provenance; it merges nested models member by member.",
+                out origins,
+                out reason
+            ),
+            _ => Fail(
+                "Custom merge strategies are unsupported by the neutral provenance primitive unless they provide an explicit provenance contract.",
+                out origins,
+                out reason
+            ),
+        };
+    }
+
+    /// <summary>
+    /// Explains replace provenance: the highest present contribution wins and supplies every effective element.
+    /// </summary>
+    /// <param name="contributions">Contribution values from lowest to highest priority.</param>
+    /// <param name="effective">The merged effective value.</param>
+    /// <param name="comparer">Element equality used to validate the effective value.</param>
+    /// <param name="winner">On success, the winning contribution index, or -1 when no contribution is present.</param>
+    /// <param name="origins">On success, one entry per effective element, each equal to <paramref name="winner"/>.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    public static bool TryExplainReplace<T>(
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        Optional<IReadOnlyList<T>?> effective,
+        IEqualityComparer<T>? comparer,
+        out int winner,
+        out int[] origins,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(contributions);
+
+        winner = HighestPresent(contributions);
+        if (winner < 0)
+        {
+            if (!effective.IsPresent)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "The effective value is present but no contribution is present.",
+                out origins,
+                out reason
+            );
+        }
+
+        var winning = contributions[winner];
+        if (winning.Value is null)
+        {
+            if (effective.IsPresent && effective.Value is null)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "The winning contribution is a present null reset but the effective value is not a present null.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (!effective.IsPresent || effective.Value is null)
+        {
+            return Fail(
+                "The winning contribution is a present collection but the effective value is not a present collection.",
+                out origins,
+                out reason
+            );
+        }
+
+        comparer ??= EqualityComparer<T>.Default;
+        if (!SequenceEqual(winning.Value, effective.Value, comparer))
+        {
+            return Fail(
+                "The effective value does not equal the highest present contribution for Replace.",
+                out origins,
+                out reason
+            );
+        }
+
+        origins = new int[effective.Value.Count];
+        for (var index = 0; index < origins.Length; index++)
+        {
+            origins[index] = winner;
+        }
+
+        reason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Explains append provenance: the effective value concatenates the present non-null contributions
+    /// after the last present-null reset, preserving duplicates and order.
+    /// </summary>
+    /// <param name="contributions">Contribution values from lowest to highest priority.</param>
+    /// <param name="effective">The merged effective value.</param>
+    /// <param name="comparer">Element equality used to validate the effective value.</param>
+    /// <param name="origins">On success, one contribution index per effective element position.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    public static bool TryExplainAppend<T>(
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        Optional<IReadOnlyList<T>?> effective,
+        IEqualityComparer<T>? comparer,
+        out int[] origins,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(contributions);
+
+        var highest = HighestPresent(contributions);
+        if (highest < 0)
+        {
+            if (!effective.IsPresent)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "The effective value is present but no contribution is present.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (contributions[highest].Value is null)
+        {
+            if (effective.IsPresent && effective.Value is null)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "A present null contribution resets the append merge but the effective value is not a present null.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (!effective.IsPresent || effective.Value is null)
+        {
+            return Fail(
+                "The append merge has present collections but the effective value is not a present collection.",
+                out origins,
+                out reason
+            );
+        }
+
+        comparer ??= EqualityComparer<T>.Default;
+        var reset = LastReset(contributions);
+        var total = 0;
+        for (var index = reset + 1; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (contribution.IsPresent && contribution.Value is not null)
+            {
+                total = checked(total + contribution.Value.Count);
+            }
+        }
+
+        if (effective.Value.Count != total)
+        {
+            return Fail(
+                "The effective value does not concatenate the present contributions after the last reset for Append.",
+                out origins,
+                out reason
+            );
+        }
+
+        origins = new int[total];
+        var position = 0;
+        for (var index = reset + 1; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var value in contribution.Value)
+            {
+                if (!comparer.Equals(value, effective.Value[position]))
+                {
+                    return Fail(
+                        "The effective value does not concatenate the present contributions after the last reset for Append.",
+                        out origins,
+                        out reason
+                    );
+                }
+
+                origins[position] = index;
+                position++;
+            }
+        }
+
+        reason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Explains sequence set-union provenance: the effective value is the insertion-ordered distinct
+    /// union (first occurrence wins) of the present non-null contributions after the last present-null reset.
+    /// </summary>
+    /// <param name="contributions">Contribution values from lowest to highest priority.</param>
+    /// <param name="effective">The merged effective value.</param>
+    /// <param name="comparer">Element equality. Defaults to <see cref="EqualityComparer{T}.Default"/>, matching <see cref="SparseCollectionMerger.MergeDistinctList{T}"/>.</param>
+    /// <param name="origins">On success, one contribution index per effective element; each maps to the first contribution holding an equal value.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit loops track contribution indices while building the distinct union; LINQ would obscure provenance positions."
+    )]
+    public static bool TryExplainSetUnion<T>(
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        Optional<IReadOnlyList<T>?> effective,
+        IEqualityComparer<T>? comparer,
+        out int[] origins,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(contributions);
+
+        var highest = HighestPresent(contributions);
+        if (highest < 0)
+        {
+            if (!effective.IsPresent)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "The effective value is present but no contribution is present.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (contributions[highest].Value is null)
+        {
+            if (effective.IsPresent && effective.Value is null)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "A present null contribution resets the set-union merge but the effective value is not a present null.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (!effective.IsPresent || effective.Value is null)
+        {
+            return Fail(
+                "The set-union merge has present collections but the effective value is not a present collection.",
+                out origins,
+                out reason
+            );
+        }
+
+        comparer ??= EqualityComparer<T>.Default;
+        var reset = LastReset(contributions);
+        var distinct = new List<T>();
+        var seen = new HashSet<T>(comparer);
+        for (var index = reset + 1; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var value in contribution.Value)
+            {
+                if (seen.Add(value))
+                {
+                    distinct.Add(value);
+                }
+            }
+        }
+
+        // HashSet<T>(comparer).Add uses the comparer, but duplicate detection for the
+        // provenance walk below must use the same comparer explicitly.
+        if (distinct.Count != effective.Value.Count)
+        {
+            return Fail(
+                "The effective value is not the insertion-ordered distinct union of the present contributions after the last reset.",
+                out origins,
+                out reason
+            );
+        }
+
+        for (var position = 0; position < distinct.Count; position++)
+        {
+            if (!comparer.Equals(distinct[position], effective.Value[position]))
+            {
+                return Fail(
+                    "The effective value is not the insertion-ordered distinct union of the present contributions after the last reset.",
+                    out origins,
+                    out reason
+                );
+            }
+        }
+
+        origins = new int[effective.Value.Count];
+        for (var position = 0; position < effective.Value.Count; position++)
+        {
+            var origin = FirstContaining(
+                contributions,
+                reset + 1,
+                effective.Value[position],
+                comparer
+            );
+            if (origin < 0)
+            {
+                return Fail(
+                    "The effective value contains an element supplied by no contribution.",
+                    out origins,
+                    out reason
+                );
+            }
+
+            origins[position] = origin;
+        }
+
+        reason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Explains set-shaped set-union provenance with comparer-correct equality (issue #5).
+    /// </summary>
+    /// <remarks>
+    /// The effective comparer is discovered like <see cref="SparseCollectionMerger.MergeSet{T}"/>:
+    /// the effective set's comparer wins when available, otherwise the first active
+    /// <see cref="HashSet{T}"/> comparer wins, otherwise <see cref="EqualityComparer{T}.Default"/>.
+    /// When both the effective set and the contributions declare comparers that differ, the values
+    /// differ (the comparer is part of the value) and provenance fails instead of depending on
+    /// operand order. Origins align with the effective enumeration order at call time; set order
+    /// itself carries no provenance meaning.
+    /// </remarks>
+    /// <param name="contributions">Contribution values from lowest to highest priority. Missing contributes nothing; present null resets.</param>
+    /// <param name="effective">The merged effective set using the same presence convention.</param>
+    /// <param name="origins">On success, one contribution index per effective element in enumeration order; each maps to the first contribution holding an equal value.</param>
+    /// <param name="reason">The failure reason on failure.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit loops track contribution indices while building the comparer-aware union; LINQ would obscure provenance positions."
+    )]
+    public static bool TryExplainSet<T>(
+        IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
+        Optional<IEnumerable<T>?> effective,
+        out int[] origins,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(contributions);
+
+        var highest = HighestPresentSet(contributions);
+        if (highest < 0)
+        {
+            if (!effective.IsPresent)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "The effective value is present but no contribution is present.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (contributions[highest].Value is null)
+        {
+            if (effective.IsPresent && effective.Value is null)
+            {
+                origins = [];
+                reason = null;
+                return true;
+            }
+
+            return Fail(
+                "A present null contribution resets the set-union merge but the effective value is not a present null.",
+                out origins,
+                out reason
+            );
+        }
+
+        if (!effective.IsPresent || effective.Value is null)
+        {
+            return Fail(
+                "The set-union merge has present collections but the effective value is not a present collection.",
+                out origins,
+                out reason
+            );
+        }
+
+        var reset = LastResetSet(contributions);
+        var effectiveComparer = TryGetSetComparer(effective.Value);
+        var activeComparer = FirstActiveSetComparer(contributions, reset + 1);
+        if (
+            effectiveComparer is not null
+            && activeComparer is not null
+            && !effectiveComparer.Equals(activeComparer)
+        )
+        {
+            return Fail(
+                "The effective set comparer differs from the contributions comparer; the comparer is part of the set value.",
+                out origins,
+                out reason
+            );
+        }
+
+        var comparer = effectiveComparer ?? activeComparer ?? EqualityComparer<T>.Default;
+        var effectiveValues = effective.Value.ToArray();
+        var distinctEffective = new HashSet<T>(comparer);
+        foreach (var value in effectiveValues)
+        {
+            if (!distinctEffective.Add(value))
+            {
+                return Fail(
+                    "The effective set contains duplicate elements under its comparer.",
+                    out origins,
+                    out reason
+                );
+            }
+        }
+
+        var union = new HashSet<T>(comparer);
+        for (var index = reset + 1; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var value in contribution.Value)
+            {
+                union.Add(value);
+            }
+        }
+
+        if (union.Count != distinctEffective.Count || !union.IsSupersetOf(distinctEffective))
+        {
+            return Fail(
+                "The effective set is not the comparer-aware union of the present contributions after the last reset.",
+                out origins,
+                out reason
+            );
+        }
+
+        origins = new int[effectiveValues.Length];
+        for (var position = 0; position < effectiveValues.Length; position++)
+        {
+            var origin = FirstContainingSet(
+                contributions,
+                reset + 1,
+                effectiveValues[position],
+                comparer
+            );
+            if (origin < 0)
+            {
+                return Fail(
+                    "The effective value contains an element supplied by no contribution.",
+                    out origins,
+                    out reason
+                );
+            }
+
+            origins[position] = origin;
+        }
+
+        reason = null;
+        return true;
+    }
+
+    private static bool Fail(string message, out int[] origins, out string? reason)
+    {
+        origins = [];
+        reason = message;
+        return false;
+    }
+
+    private static int HighestPresent<T>(IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions)
+    {
+        for (var index = contributions.Count - 1; index >= 0; index--)
+        {
+            if (contributions[index].IsPresent)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int LastReset<T>(IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions)
+    {
+        for (var index = contributions.Count - 1; index >= 0; index--)
+        {
+            var contribution = contributions[index];
+            if (contribution.IsPresent && contribution.Value is null)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int HighestPresentSet<T>(IReadOnlyList<Optional<IEnumerable<T>?>> contributions)
+    {
+        for (var index = contributions.Count - 1; index >= 0; index--)
+        {
+            if (contributions[index].IsPresent)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int LastResetSet<T>(IReadOnlyList<Optional<IEnumerable<T>?>> contributions)
+    {
+        for (var index = contributions.Count - 1; index >= 0; index--)
+        {
+            var contribution = contributions[index];
+            if (contribution.IsPresent && contribution.Value is null)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool SequenceEqual<T>(
+        IReadOnlyList<T> left,
+        IReadOnlyList<T> right,
+        IEqualityComparer<T> comparer
+    )
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!comparer.Equals(left[index], right[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit loops return the first contributing index; LINQ would hide the provenance position."
+    )]
+    private static int FirstContaining<T>(
+        IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
+        int start,
+        T value,
+        IEqualityComparer<T> comparer
+    )
+    {
+        for (var index = start; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var candidate in contribution.Value)
+            {
+                if (comparer.Equals(candidate, value))
+                {
+                    return index;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit loops return the first contributing index; LINQ would hide the provenance position."
+    )]
+    private static int FirstContainingSet<T>(
+        IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
+        int start,
+        T value,
+        IEqualityComparer<T> comparer
+    )
+    {
+        for (var index = start; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            foreach (var candidate in contribution.Value)
+            {
+                if (comparer.Equals(candidate, value))
+                {
+                    return index;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    private static IEqualityComparer<T>? FirstActiveSetComparer<T>(
+        IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
+        int start
+    )
+    {
+        for (var index = start; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent || contribution.Value is null)
+            {
+                continue;
+            }
+
+            var comparer = TryGetSetComparer(contribution.Value);
+            if (comparer is not null)
+            {
+                return comparer;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)
+    {
+        if (value is HashSet<T> hashSet)
+        {
+            return hashSet.Comparer;
+        }
+
+        return GetDeclaredComparer<T>(value);
+    }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2072",
+        Justification = "Only reads an optional public Comparer property; a trimmed property is treated as an undiscoverable comparer with a symmetric bidirectional fallback."
+    )]
+    private static IEqualityComparer<T>? GetDeclaredComparer<T>(object value)
+    {
+        PropertyInfo? property;
+        try
+        {
+            property = value
+                .GetType()
+                .GetProperty("Comparer", BindingFlags.Public | BindingFlags.Instance);
+        }
+        catch (AmbiguousMatchException)
+        {
+            return null;
+        }
+
+        if (
+            property is null
+            || !property.CanRead
+            || property.GetIndexParameters().Length != 0
+            || !typeof(IEqualityComparer<T>).IsAssignableFrom(property.PropertyType)
+        )
+        {
+            return null;
+        }
+
+        try
+        {
+            return (IEqualityComparer<T>?)property.GetValue(value, null);
+        }
+        catch (TargetInvocationException)
+        {
+            return null;
+        }
+    }
+}
