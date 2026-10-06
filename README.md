@@ -182,6 +182,20 @@ toNull.Child.SetNull();                                        // explicit null,
 
 `Patch.IsEmpty` tells you at a glance whether the patch changes anything at all.
 
+### Patch value ownership
+
+Assigning a mutable value to a patch shares it by reference — nothing is cloned on assignment or on `Apply`:
+
+```csharp
+var tags = new List<string> { "a" };
+var patch = new Settings.Patch { Plugins = tags };
+var result = new Settings.Fragment().Apply(patch);
+
+tags.Add("b"); // visible through result.Plugins and patch.Plugins: one shared list.
+```
+
+The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance, so callers own mutation discipline. This matches `Merge` (`Replace` keeps the higher layer's reference), `ApplyChanges`, and `ToModel`. Only `Fragment.From`, `DeepClone`, whole-contribution `Set(model)` (which snapshots through `From`), and JSON Patch import (freshly deserialized values) produce isolated copies. When a patch value must stay independent, clone it before assigning (`model.DeepClone()` / `fragment.DeepClone()`) and leave the source alone afterwards. Granular keyed-collection edits allocate a new container but still share element references.
+
 ### 7. Build and clone (secondary helpers)
 
 Builders and `DeepClone` work around the same partial state when you need an edited copy or an isolated graph:

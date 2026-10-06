@@ -169,7 +169,8 @@ public sealed class ListClassPatchTests
         result.Items.Value[0].Name.ShouldBe("c");
         result.Items.Value[0].Count.ShouldBe(9);
 
-        // Original is untouched and the patch value is cloned into the result.
+        // Original is untouched; the patch value is shared into the result by
+        // reference (see PatchOwnershipTests), not cloned.
         original.Items.Value!.Count.ShouldBe(2);
         original.Items.Value[0].Name.ShouldBe("a");
     }
