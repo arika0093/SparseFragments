@@ -16,14 +16,17 @@
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
+  <!-- Reproducibility policy (#26): release-affecting tool inputs are pinned
+    to explicit versions. Dependabot (nuget ecosystem, .github/dependabot.yml)
+    proposes upgrades explicitly. Do not reintroduce floating (*) versions here. -->
   <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.*" PrivateAssets="all">
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.94" PrivateAssets="all">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="CSharpier.MsBuild" Version="1.3.0" PrivateAssets="all">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.*" PrivateAssets="all">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="all" />
