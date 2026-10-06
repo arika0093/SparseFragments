@@ -24,20 +24,13 @@
     />
   </ItemGroup>
   <ItemGroup>
-    <!-- Local sources win while the Shared folder ships in-repo. Once
-      consumers move off the monorepo/submodule layout, the PackageReference
-      below takes over with the same sources from NuGet. -->
+    <!-- Shared generator sources are always compiled in-repo (#21).
+      There is no NuGet fallback: the sibling Shared project is the single
+      source of truth, so local and shipped generator behavior cannot diverge. -->
     <Compile
       Include="..\SparseFragments.Generator.Shared\**\*.cs"
       Exclude="..\SparseFragments.Generator.Shared\obj\**;..\SparseFragments.Generator.Shared\bin\**"
       LinkBase="Shared"
-      Condition="Exists('..\SparseFragments.Generator.Shared\SparseFragments.Generator.Shared.csproj')"
-    />
-    <PackageReference
-      Include="SparseFragments.Generator.Shared"
-      Version="0.1.*"
-      PrivateAssets="all"
-      Condition="!Exists('..\SparseFragments.Generator.Shared\SparseFragments.Generator.Shared.csproj')"
     />
   </ItemGroup>
 </Project>

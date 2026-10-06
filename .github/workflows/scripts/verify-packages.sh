@@ -2,6 +2,9 @@
 # Verifies packed SparseFragments NuGet package integrity: expected package
 # IDs, target assets, and analyzer/build assets that packing can silently omit.
 #
+# Only SparseFragments ships a package (#21): Generator.Shared is an
+# internal-only source directory and is never packed.
+#
 # Usage: verify-packages.sh <package-directory>
 set -euo pipefail
 
@@ -23,7 +26,6 @@ declare -A portable_package_assets=(
 
 expected_package_ids=(
     "${!portable_package_assets[@]}"
-    SparseFragments.Generator.Shared
 )
 
 package_files=()
@@ -75,16 +77,6 @@ for package_file in "${package_files[@]}"; do
             require_entry 'analyzers/dotnet/cs/SparseFragments.Generator.dll'
             require_entry 'lib/netstandard2.0/SparseFragments.dll'
             ;;
-        SparseFragments.Generator.Shared)
-            # Source-only: no lib/ assets. At least one shared source plus the
-            # props that compiles it into the consuming generator.
-            require_entry 'build/SparseFragments.Generator.Shared.props'
-            if ! grep -q 'contentFiles/cs/netstandard2.0/.*\.cs$' <<<"${entries}"; then
-                echo "Package '${package_id}' must pack shared sources under 'contentFiles/cs/netstandard2.0/'." >&2
-                exit 1
-            fi
-            continue
-            ;;
     esac
 done
 
@@ -101,8 +93,7 @@ fi
 
 unexpected_package_ids=()
 for found_id in "${!found_package_ids[@]}"; do
-    if [[ -z "${portable_package_assets[${found_id}]:-}" && \
-        "${found_id}" != "SparseFragments.Generator.Shared" ]]; then
+    if [[ -z "${portable_package_assets[${found_id}]:-}" ]]; then
         unexpected_package_ids+=("${found_id}")
     fi
 done
