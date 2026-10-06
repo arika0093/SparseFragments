@@ -45,7 +45,7 @@ internal sealed class SparseFragmentConversionEmitter
         SparseFragmentEmitHelpers.AppendCloneContext(code, 3, CloneContext, ReferenceComparer);
         code.AppendLineAt(
             3,
-            "var __sparse_from_context = new global::System.Collections.Generic.List<object>();"
+            "var __sparse_from_context = " + ReferenceComparer + ".CreateFromCycleContext();"
         );
         code.AppendLineAt(
             3,
@@ -59,40 +59,27 @@ internal sealed class SparseFragmentConversionEmitter
             .Append(" value, global::System.Collections.Generic.Dictionary<object, object> ")
             .Append(CloneContext)
             .Append(
-                ", global::System.Collections.Generic.List<object> __sparse_from_context, string __sparse_from_path)"
+                ", global::System.Collections.Generic.HashSet<object> __sparse_from_context, string __sparse_from_path)"
             )
             .AppendLine("");
         code.AppendLineAt(2, "{");
         if (modelIsReferenceType)
         {
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "value");
-            code.AppendLineAt(
-                3,
-                "for (var __sparse_from_index = 0; __sparse_from_index < __sparse_from_context.Count; __sparse_from_index++)"
-            );
+            code.AppendLineAt(3, "if (!__sparse_from_context.Add(value))");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
                 4,
-                "if (global::System.Object.ReferenceEquals(__sparse_from_context[__sparse_from_index], value))"
-            );
-            code.AppendLineAt(4, "{");
-            code.AppendLineAt(
-                5,
                 "throw new global::System.NotSupportedException(\"Cyclic reference detected during From at '\" + __sparse_from_path + \"'. Fragment.From does not support cyclic object graphs; DeepClone preserves cycles.\");"
             );
-            code.AppendLineAt(4, "}");
             code.AppendLineAt(3, "}");
-            code.AppendLineAt(3, "__sparse_from_context.Add(value);");
             code.AppendLineAt(3, "try");
             code.AppendLineAt(3, "{");
             AppendFromModelBody(code, members, 4);
             code.AppendLineAt(3, "}");
             code.AppendLineAt(3, "finally");
             code.AppendLineAt(3, "{");
-            code.AppendLineAt(
-                4,
-                "__sparse_from_context.RemoveAt(__sparse_from_context.Count - 1);"
-            );
+            code.AppendLineAt(4, "__sparse_from_context.Remove(value);");
             code.AppendLineAt(3, "}");
         }
         else

@@ -91,6 +91,16 @@ public static class SparseFragmentRuntime
     public static Dictionary<object, object> CreateCloneContext() =>
         new(SparseReferenceEqualityComparer.Instance);
 
+    /// <summary>Creates a reference-identity cycle scope for generated <c>Fragment.From</c> helpers.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static HashSet<object> CreateFromCycleContext() =>
+        new(SparseReferenceEqualityComparer.Instance);
+
+    /// <summary>Creates a pair-identity cycle scope for generated <c>Fragment.Diff</c> helpers.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static HashSet<KeyValuePair<object, object>> CreateDiffCycleContext() =>
+        new(SparseDiffPairEqualityComparer.Instance);
+
     /// <summary>Ensures keyed-collection keys are unique, throwing on duplicates.</summary>
     public static void EnsureUniqueKeys<TKey>(
         IEnumerable<TKey> keys,

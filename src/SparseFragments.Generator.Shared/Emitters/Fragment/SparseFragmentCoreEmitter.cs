@@ -26,7 +26,7 @@ internal sealed class SparseFragmentCoreEmitter
     {
         _declaration = new(optional, mergeStrategyFieldPrefix);
         _conversion = new(optional, cloneContext, referenceComparer, expressions);
-        _merge = new(optional, mergeStrategyFieldPrefix, expressions);
+        _merge = new(optional, mergeStrategyFieldPrefix, referenceComparer, expressions);
         _clone = new(optional, cloneContext, referenceComparer, expressions);
     }
 
