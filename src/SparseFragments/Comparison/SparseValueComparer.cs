@@ -45,6 +45,53 @@ internal static class SparseValueComparer
         }
     }
 
+    /// <summary>Compares sequence-shaped values in their existing order.</summary>
+    public static bool AreSequenceEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        var leftList = AsIndexedSequence(left);
+        var rightList = AsIndexedSequence(right);
+        if (leftList is not null && rightList is not null)
+        {
+            if (leftList.Count != rightList.Count)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < leftList.Count; index++)
+            {
+                if (!AreEqual(leftList[index], rightList[index]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return AreEqual((object?)left, (object?)right);
+    }
+
+    private static IList<T>? AsIndexedSequence<T>(IEnumerable<T> values)
+    {
+        if (values is T[] array)
+        {
+            return array;
+        }
+
+        // Derived/custom collections keep their existing non-generic comparison views.
+        return values.GetType() == typeof(List<T>) ? (List<T>)values : null;
+    }
+
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
     /// <remarks>
     /// The element comparer is part of the set value: sets whose comparers differ are

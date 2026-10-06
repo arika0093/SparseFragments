@@ -6,6 +6,7 @@ namespace SparseFragments.CompilerServices
         public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? left, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? right) { }
         public static bool AreEqual(object? left, object? right) { }
         public static bool AreEqual<T>(T? left, T? right) { }
+        public static bool AreSequenceEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
         public static bool AreSetEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
         public static System.Collections.Generic.Dictionary<object, object> CreateCloneContext() { }
         public static System.Collections.Generic.HashSet<System.Collections.Generic.KeyValuePair<object, object>> CreateDiffCycleContext() { }

@@ -18,6 +18,10 @@ public static class SparseFragmentRuntime
     /// <summary>Compares two typed values using the default sparse semantics.</summary>
     public static bool AreEqual<T>(T? left, T? right) => SparseValueComparer.AreEqual(left, right);
 
+    /// <summary>Compares sequence-shaped values in their existing order.</summary>
+    public static bool AreSequenceEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right) =>
+        SparseValueComparer.AreSequenceEqual(left, right);
+
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
     public static bool AreSetEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right) =>
         SparseValueComparer.AreSetEqual(left, right);

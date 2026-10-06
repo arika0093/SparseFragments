@@ -16,6 +16,8 @@ internal sealed class SparseFragmentExpressions(
         var collection = member.Collection;
         return collection.CloneKind switch
         {
+            SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List =>
+                $"{ValueComparer}.AreSequenceEqual<{collection.ElementType.Name}>({left}, {right})",
             SparseCloneCollectionKind.Set =>
                 $"{ValueComparer}.AreSetEqual<{collection.ElementType.Name}>({left}, {right})",
             SparseCloneCollectionKind.Dictionary when collection.ValueType is not null =>
