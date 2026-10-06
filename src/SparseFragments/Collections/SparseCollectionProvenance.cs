@@ -363,8 +363,9 @@ internal static class SparseCollectionProvenance
         // First-origin tracking while building the union: each distinct value records the
         // lowest contribution index that supplied it, so origins need no second scan
         // over the contributions. Total work stays O(total contributed + effective).
-        var distinct = new List<T>();
-        var originsByValue = new Dictionary<T, int>(comparer);
+        var originsByValue = new Dictionary<T, int>(effective.Value.Count, comparer);
+        var originBuffer = new int[effective.Value.Count];
+        var distinctCount = 0;
         for (var index = reset + 1; index < contributions.Count; index++)
         {
             var contribution = contributions[index];
@@ -377,15 +378,27 @@ internal static class SparseCollectionProvenance
             {
                 if (!originsByValue.ContainsKey(value))
                 {
+                    if (
+                        distinctCount >= effective.Value.Count
+                        || !comparer.Equals(value, effective.Value[distinctCount])
+                    )
+                    {
+                        return Fail(
+                            "The effective value is not the insertion-ordered distinct union of the present contributions after the last reset.",
+                            out origins,
+                            out reason
+                        );
+                    }
+
                     originsByValue[value] = index;
-                    distinct.Add(value);
+                    originBuffer[distinctCount++] = index;
                 }
             }
         }
 
-        // Deduplication uses the comparer explicitly so custom equality matches
-        // the union validation below; origins are recorded on first acceptance.
-        if (distinct.Count != effective.Value.Count)
+        // Each first accepted value was checked against its effective position
+        // above, so a matching distinct count completes ordered-union validation.
+        if (distinctCount != effective.Value.Count)
         {
             return Fail(
                 "The effective value is not the insertion-ordered distinct union of the present contributions after the last reset.",
@@ -394,37 +407,7 @@ internal static class SparseCollectionProvenance
             );
         }
 
-        for (var position = 0; position < distinct.Count; position++)
-        {
-            if (!comparer.Equals(distinct[position], effective.Value[position]))
-            {
-                return Fail(
-                    "The effective value is not the insertion-ordered distinct union of the present contributions after the last reset.",
-                    out origins,
-                    out reason
-                );
-            }
-        }
-
-        origins = new int[effective.Value.Count];
-        for (var position = 0; position < effective.Value.Count; position++)
-        {
-            // The order check above guarantees each effective value matches the
-            // distinct value tracked at the same position, so the lookup succeeds
-            // for comparers whose hash codes agree with equality. TryGetValue keeps
-            // a pathological comparer a validation failure instead of an exception.
-            if (!originsByValue.TryGetValue(effective.Value[position], out var origin))
-            {
-                return Fail(
-                    "The effective value contains an element supplied by no contribution.",
-                    out origins,
-                    out reason
-                );
-            }
-
-            origins[position] = origin;
-        }
-
+        origins = originBuffer;
         reason = null;
         return true;
     }
@@ -519,23 +502,20 @@ internal static class SparseCollectionProvenance
 
         var comparer = effectiveComparer ?? activeComparer ?? EqualityComparer<T>.Default;
         var effectiveValues = effective.Value.ToArray();
-        var distinctEffective = new HashSet<T>(comparer);
-        foreach (var value in effectiveValues)
+        var distinctEffective = new HashSet<T>(effectiveValues, comparer);
+        if (distinctEffective.Count != effectiveValues.Length)
         {
-            if (!distinctEffective.Add(value))
-            {
-                return Fail(
-                    "The effective set contains duplicate elements under its comparer.",
-                    out origins,
-                    out reason
-                );
-            }
+            return Fail(
+                "The effective set contains duplicate elements under its comparer.",
+                out origins,
+                out reason
+            );
         }
 
         // First-origin tracking while building the union: each distinct value records
         // the lowest contribution index that supplied it, so origins need no second
         // scan over the contributions. Total work stays O(total + effective).
-        var originsByValue = new Dictionary<T, int>(comparer);
+        var originsByValue = new Dictionary<T, int>(effectiveValues.Length, comparer);
         for (var index = reset + 1; index < contributions.Count; index++)
         {
             var contribution = contributions[index];

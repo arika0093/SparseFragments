@@ -129,12 +129,11 @@ code {
 
 .pg-title h1 {
     margin: 0;
-    font-size: 1.75rem;
+    font-weight: 700;
     min-width: 0;
 }
 
 .pg-gh {
-    margin-left: auto;
     display: inline-flex;
     flex-shrink: 0;
     color: inherit;
@@ -146,19 +145,11 @@ code {
     fill: currentColor;
 }
 
-.pg-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0.5rem 0 1rem;
-    flex-wrap: wrap;
-}
-
 .pg-theme {
+    margin-left: auto;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-left: auto;
 }
 
 .pg-grid {
@@ -211,11 +202,15 @@ code {
 
 .pg-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 12rem 12rem auto;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.2rem;
     min-width: 0;
+}
+
+.pg-nested .pg-row {
+    grid-template-columns: 10rem 12rem auto;
 }
 
 .pg-controls {
@@ -223,7 +218,6 @@ code {
     align-items: center;
     gap: 0.5rem;
     min-width: 0;
-    flex-wrap: wrap;
 }
 
 .pg-controls > * {
@@ -262,7 +256,8 @@ code {
 }
 
 .pg-op {
-    min-width: 8rem;
+    width: 9.5rem;
+    min-width: 0;
     max-width: 100%;
 }
 
@@ -284,6 +279,10 @@ code {
     }
 
     .pg-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .pg-nested .pg-row {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
