@@ -9,6 +9,26 @@ public enum LeafDiffScenario
     SameReference,
 }
 
+[SparseFragmentModel]
+public sealed partial class BenchConstructorLeaf
+{
+    public BenchConstructorLeaf(int count, string? name)
+    {
+        Count = count;
+        Name = name;
+    }
+
+    public int Count { get; }
+    public string? Name { get; }
+}
+
+[SparseFragmentModel]
+public sealed partial class BenchRequiredLeaf
+{
+    public required int Count { get; init; }
+    public string? Name { get; init; }
+}
+
 /// <summary>Separates leaf diffs from recursive diffs and reference short circuits.</summary>
 [MemoryDiagnoser]
 public class LeafDiffBenchmarks
@@ -84,18 +104,37 @@ public class LeafDiffBenchmarks
         var other = new BenchKeyedServer { Id = "other" };
         var active = SparseFragmentRuntime.CreateDiffCycleContext();
         active.Add(new KeyValuePair<object, object>(_before, other));
+        var rejectedAncestor = false;
         try
         {
             BenchKeyedServer.Fragment.Diff(_before, other, active, "Leaf");
         }
         catch (NotSupportedException)
         {
+            rejectedAncestor = true;
+        }
+
+        if (!rejectedAncestor)
+        {
+            throw new InvalidOperationException(
+                "Internal leaf Diff must reject an active ancestor pair."
+            );
+        }
+
+        var cycleBefore = new BenchWidgetNested();
+        var cycleAfter = new BenchWidgetNested();
+        cycleBefore.Child = cycleBefore;
+        cycleAfter.Child = cycleAfter;
+        try
+        {
+            BenchWidgetNested.Fragment.Diff(cycleBefore, cycleAfter);
+        }
+        catch (NotSupportedException)
+        {
             return;
         }
 
-        throw new InvalidOperationException(
-            "Internal leaf Diff must reject an active ancestor pair."
-        );
+        throw new InvalidOperationException("Recursive Diff must reject cyclic model graphs.");
     }
 
     [Benchmark]
@@ -120,6 +159,8 @@ public class LeafCloneBenchmarks
     private BenchLeafValue.Fragment _valueFragment = null!;
     private BenchWidgetNested _nested = null!;
     private BenchWidgetNested.Fragment _nestedFragment = null!;
+    private BenchConstructorLeaf _constructorLeaf = null!;
+    private BenchRequiredLeaf _requiredLeaf = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -131,6 +172,8 @@ public class LeafCloneBenchmarks
             Count = 42,
         };
         _value = new BenchLeafValue { Name = "value", Count = 42 };
+        _constructorLeaf = new BenchConstructorLeaf(42, "constructor");
+        _requiredLeaf = new BenchRequiredLeaf { Count = 42, Name = "required" };
         _fragment = new BenchKeyedServer.Fragment { Count = Optional<int>.Present(42) };
         _valueFragment = new BenchLeafValue.Fragment
         {
@@ -152,6 +195,8 @@ public class LeafCloneBenchmarks
         var valueClone = ValueFragment();
         var nestedClone = NestedModel();
         var nestedFragmentClone = NestedFragment();
+        var constructorClone = ConstructorModel();
+        var requiredClone = RequiredModel();
         if (
             ReferenceEquals(_leaf, leafClone)
             || leafClone.Count != 42
@@ -166,6 +211,12 @@ public class LeafCloneBenchmarks
             || !ReferenceEquals(nestedClone.Child, nestedClone)
             || ReferenceEquals(_nestedFragment, nestedFragmentClone)
             || !ReferenceEquals(nestedFragmentClone.Child.Value, nestedFragmentClone)
+            || ReferenceEquals(_constructorLeaf, constructorClone)
+            || constructorClone.Count != 42
+            || constructorClone.Name != "constructor"
+            || ReferenceEquals(_requiredLeaf, requiredClone)
+            || requiredClone.Count != 42
+            || requiredClone.Name != "required"
         )
         {
             throw new InvalidOperationException(
@@ -204,4 +255,10 @@ public class LeafCloneBenchmarks
 
     [Benchmark]
     public BenchWidgetNested.Fragment NestedFragment() => _nestedFragment.DeepClone();
+
+    [Benchmark]
+    public BenchConstructorLeaf ConstructorModel() => _constructorLeaf.DeepClone();
+
+    [Benchmark]
+    public BenchRequiredLeaf RequiredModel() => _requiredLeaf.DeepClone();
 }
