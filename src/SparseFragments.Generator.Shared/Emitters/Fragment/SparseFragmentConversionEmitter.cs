@@ -32,6 +32,11 @@ internal sealed class SparseFragmentConversionEmitter
         bool usesPocoCloning
     )
     {
+        var requiresContext = members.Any(static member =>
+            member.ChildModel is not null
+            || member.Property.Type.PocoCloneHelperName is not null
+            || member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
+        );
         code.AppendIndent(2)
             .Append("public static Fragment From(")
             .Append(modelType)
@@ -42,15 +47,22 @@ internal sealed class SparseFragmentConversionEmitter
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "value");
         }
 
-        SparseFragmentEmitHelpers.AppendCloneContext(code, 3, CloneContext, ReferenceComparer);
-        code.AppendLineAt(
-            3,
-            "var __sparse_from_context = " + ReferenceComparer + ".CreateFromCycleContext();"
-        );
-        code.AppendLineAt(
-            3,
-            "return From(value, " + CloneContext + ", __sparse_from_context, \"\");"
-        );
+        if (requiresContext)
+        {
+            SparseFragmentEmitHelpers.AppendCloneContext(code, 3, CloneContext, ReferenceComparer);
+            code.AppendLineAt(
+                3,
+                "var __sparse_from_context = " + ReferenceComparer + ".CreateFromCycleContext();"
+            );
+            code.AppendLineAt(
+                3,
+                "return From(value, " + CloneContext + ", __sparse_from_context, \"\");"
+            );
+        }
+        else
+        {
+            AppendFromModelBody(code, members, 3);
+        }
         code.AppendLineAt(2, "}");
         code.AppendLine();
         code.AppendIndent(2)
@@ -66,6 +78,9 @@ internal sealed class SparseFragmentConversionEmitter
         if (modelIsReferenceType)
         {
             SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "value");
+        }
+        if (modelIsReferenceType && requiresContext)
+        {
             code.AppendLineAt(3, "if (!__sparse_from_context.Add(value))");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
