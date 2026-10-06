@@ -15,6 +15,7 @@ namespace SparseFragments.CompilerServices
         public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
         public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
+        public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
     }
     public static class SparseJsonPatchBridge
     {
