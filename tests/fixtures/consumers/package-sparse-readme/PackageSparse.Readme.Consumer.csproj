@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Remove="TUnit;Shouldly" />
-    <Using Remove="Shouldly;Configlue.Codecs;Configlue.Migrations;Configlue.Resources;Configlue.Sources;Configlue.Extensibility;Configlue.State;Configlue.Transformers" />
+    <Using Remove="Shouldly" />
   </ItemGroup>
   <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
     <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
