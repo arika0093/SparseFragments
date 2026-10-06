@@ -95,12 +95,15 @@ internal sealed class JsonPatchDocument
             );
         }
 
-        var operations = new List<JsonPatchOperation>(root.GetArrayLength());
+        var count = root.GetArrayLength();
+        var operations =
+            count == 0 ? Array.Empty<JsonPatchOperation>() : new JsonPatchOperation[count];
+        var index = 0;
         foreach (var element in root.EnumerateArray())
         {
-            operations.Add(JsonPatchOperation.Parse(element));
+            operations[index++] = JsonPatchOperation.Parse(element);
         }
 
-        return new JsonPatchDocument(operations.ToArray());
+        return new JsonPatchDocument(operations);
     }
 }
