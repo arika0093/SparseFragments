@@ -30,11 +30,30 @@ internal static class JsonPointer
             );
         }
 
-        var rawTokens = pointer.Substring(1).Split('/');
-        var tokens = new string[rawTokens.Length];
-        for (var i = 0; i < rawTokens.Length; i++)
+        // Size the token array by counting segments so a single pass tokenizes
+        // the pointer without an intermediate Substring/Split allocation.
+        var count = 1;
+        for (var scan = 1; scan < pointer.Length; scan++)
         {
-            tokens[i] = Unescape(rawTokens[i], pointer);
+            if (pointer[scan] == '/')
+            {
+                count++;
+            }
+        }
+
+        var tokens = new string[count];
+        var tokenIndex = 0;
+        var segmentStart = 1;
+        for (var scan = 1; scan <= pointer.Length; scan++)
+        {
+            if (scan == pointer.Length || pointer[scan] == '/')
+            {
+                tokens[tokenIndex++] = Unescape(
+                    pointer.Substring(segmentStart, scan - segmentStart),
+                    pointer
+                );
+                segmentStart = scan + 1;
+            }
         }
 
         return tokens;
