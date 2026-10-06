@@ -119,7 +119,14 @@ internal sealed class JsonPatchOperation
         JsonNode? value = null;
         if (hasValue)
         {
-            value = JsonNode.Parse(valueElement.GetRawText());
+            // Detach from the parsed document without converting the value to text and reparsing it.
+            value = valueElement.ValueKind switch
+            {
+                JsonValueKind.Object => JsonObject.Create(valueElement.Clone()),
+                JsonValueKind.Array => JsonArray.Create(valueElement.Clone()),
+                JsonValueKind.Null => null,
+                _ => JsonValue.Create(valueElement.Clone()),
+            };
         }
 
         switch (op)
