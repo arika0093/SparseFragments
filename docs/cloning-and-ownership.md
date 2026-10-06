@@ -1,6 +1,6 @@
 # Cloning and Ownership
 
-Assignment shares references; construction from a model snapshots. The table below is the complete rule set — callers own mutation discipline for shared references.
+Assignment shares references; construction from a model snapshots. Sharing is the default because patch and merge paths are hot: cloning every assigned collection on `Apply` would tax each layering operation, while snapshots happen at trust boundaries — `From` (untrusted model into the fragment world), JSON import (freshly deserialized values), and the explicit `DeepClone` escape hatch. Callers own mutation discipline for shared references. The table below is the complete rule set.
 
 ## Operation / Ownership Table
 

@@ -16,6 +16,12 @@ public partial class Settings
 }
 ```
 
+Per-member sparse behavior (merge, nested diff/patch, keyed identity) needs generated
+APIs emitted *into the member's type*. That is only possible when the type is
+declared `partial` so the generator can append to it. When the type cannot carry
+generated APIs, the member cannot diff inside the value — it stays whole-value, and
+the generator requires you to say so explicitly rather than guessing.
+
 The root model must be:
 
 * declared `partial` (the generator appends `Fragment` / `Patch` members to the same type; `SPF001`);
@@ -39,7 +45,29 @@ public partial class Child   // no annotation needed: promoted automatically
 The rules:
 
 * **Make the nested type `partial`** when it needs independently sparse behavior (per-member merge, nested diff/patch, keyed identity). The generator promotes reachable partial nested types to first-class fragments.
-* **Non-partial nested POCOs are atomic replace values.** A nested type that is not `partial` cannot carry generated APIs, so the member is treated as a whole value: patches set or unset it, never diff inside it. To keep that whole-value behavior explicitly — including for framework types or types without a supported constructor — mark the member `[SparseMerge(MergeMode.Replace)]` (`SPF007`).
+* **Non-partial nested POCOs do not implicitly participate in sparse/deep semantics.** A nested type that is not `partial` cannot carry generated APIs, so the member cannot diff inside the value. Declare the nested type `partial` to enable structural sparse behavior, or explicitly mark the member with `[SparseMerge(MergeMode.Replace)]` to treat it as an atomic value. Otherwise the generator reports `SPF007` — atomic replacement is always an explicit opt-in, never a silent fallback:
+
+```csharp
+public class Child
+{
+    public string? Name { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class Parent
+{
+    public Child Child { get; set; } = new(); // SPF007
+}
+```
+
+```csharp
+public partial class Child { ... } // promoted structural model
+```
+
+```csharp
+[SparseMerge(MergeMode.Replace)]
+public Child Child { get; set; } = new(); // explicit atomic replacement
+```
 * **Shared nested types must agree.** A nested type without its own explicit `[SparseFragmentModel]` root that is referenced from multiple roots with different generated semantics (different member sets or merge settings) is an error (`SPF010`): unify the definitions and settings, or annotate the nested type itself with `[SparseFragmentModel]` to promote it to an explicit root.
 * **Structural collection element types are discovered the same way.** A `List<T>` member whose `T` is a fragment model (or a promotable partial) is a structural sequence and needs key identity (see [Keyed collections](keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
 
