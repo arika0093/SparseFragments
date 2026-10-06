@@ -569,27 +569,44 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
+        // The final key set is exactly map.Keys (source minus removals plus adds),
+        // so map.Count is the exact result capacity: no re-enumeration of source
+        // via Enumerable.Count. The added loop keeps its duplicate guard but
+        // resolves it through an O(1) comparer-correct set instead of the former
+        // O(N) result.Exists scan per added element (former O(N x K) behavior).
+        // The set is built only when adds exist, so pure edit/remove applies pay
+        // nothing extra; for valid patches the guard never fires because Apply
+        // already rejected added keys that collide with the map.
         code.AppendLineAt(
             5,
-            "result = new global::System.Collections.Generic.List<"
-                + elementType
-                + ">(global::System.Linq.Enumerable.Count(source) + ((__added is null) ? 0 : __added.Count));"
+            "result = new global::System.Collections.Generic.List<" + elementType + ">(map.Count);"
         );
         code.AppendLineAt(5, "foreach (var item in source)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "var k = " + KeyOfMethod(member) + "(item);");
         code.AppendLineAt(6, "if (map.TryGetValue(k, out var current2)) result.Add(current2);");
         code.AppendLineAt(5, "}");
+        code.AppendLineAt(5, "if (__added is not null)");
+        code.AppendLineAt(5, "{");
         code.AppendLineAt(
-            5,
-            "if (__added is not null) foreach (var item in __added) { var k = "
-                + KeyOfMethod(member)
-                + "(item); if (!result.Exists(e => "
+            6,
+            "var __emitted = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
                 + comparer
-                + ".Equals("
-                + KeyOfMethod(member)
-                + "(e), k))) result.Add(map[k]); }"
+                + ");"
         );
+        code.AppendLineAt(
+            6,
+            "foreach (var __placed in result) __emitted.Add(" + KeyOfMethod(member) + "(__placed));"
+        );
+        code.AppendLineAt(
+            6,
+            "foreach (var item in __added) { var k = "
+                + KeyOfMethod(member)
+                + "(item); if (__emitted.Add(k)) result.Add(map[k]); }"
+        );
+        code.AppendLineAt(5, "}");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "return " + MaterializeSequence(member, "result") + ";");
         code.AppendLineAt(3, "}");
@@ -699,16 +716,36 @@ internal static class SparseKeyedCollectionEmitter
                 + facade
                 + ".AreEqual((object?)before.Value, (object?)after.Value)) return patch;"
         );
-        // Build maps with duplicate detection.
+        // Build maps with duplicate detection. Each collection is enumerated exactly
+        // once: the before pass collects the map and the order list together, and
+        // the added pass reuses afterOrder/afterMap instead of re-enumerating
+        // after.Value and recomputing keys. Capacity hints come from a
+        // netstandard2.0-safe ICollection/IReadOnlyCollection probe (0 when the
+        // member shape exposes no Count); duplicate-key validation and all
+        // comparer/key semantics are unchanged.
+        code.AppendLineAt(
+            4,
+            "var __beforeCapacity = before.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> __beforeCollection ? __beforeCollection.Count : (before.GetValueOrDefault() is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> __beforeReadOnly ? __beforeReadOnly.Count : 0);"
+        );
         code.AppendLineAt(
             4,
             "var beforeMap = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementType
-                + ">("
+                + ">(__beforeCapacity, "
                 + comparer
                 + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "var beforeOrder = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(__beforeCapacity);"
         );
         code.AppendLineAt(4, "foreach (var item in before.Value!)");
         code.AppendLineAt(4, "{");
@@ -717,20 +754,31 @@ internal static class SparseKeyedCollectionEmitter
             5,
             "if (!beforeMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
         );
+        code.AppendLineAt(5, "beforeOrder.Add(k);");
         code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "var __afterCapacity = after.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> __afterCollection ? __afterCollection.Count : (after.GetValueOrDefault() is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> __afterReadOnly ? __afterReadOnly.Count : 0);"
+        );
         code.AppendLineAt(
             4,
             "var afterMap = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementType
-                + ">("
+                + ">(__afterCapacity, "
                 + comparer
                 + ");"
         );
         code.AppendLineAt(
             4,
-            "var afterOrder = new global::System.Collections.Generic.List<" + keyType + ">();"
+            "var afterOrder = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(__afterCapacity);"
         );
         code.AppendLineAt(4, "foreach (var item in after.Value!)");
         code.AppendLineAt(4, "{");
@@ -743,20 +791,26 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "var removed = new global::System.Collections.Generic.List<" + keyType + ">();"
+            "var removed = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(beforeMap.Count);"
         );
         code.AppendLineAt(
             4,
             "foreach (var k in beforeMap.Keys) if (!afterMap.ContainsKey(k)) removed.Add(k);"
         );
+        // Added entries are derived from afterOrder/afterMap (after-order, no key
+        // recomputation, no second enumeration of after.Value). The capacity is
+        // the exact upper bound |after| - |before intersect after|.
         code.AppendLineAt(
             4,
-            "var added = new global::System.Collections.Generic.List<" + elementType + ">();"
+            "var added = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">(global::System.Math.Max(0, afterMap.Count - beforeMap.Count + removed.Count));"
         );
-        code.AppendLineAt(4, "foreach (var item in after.Value!)");
+        code.AppendLineAt(4, "foreach (var k in afterOrder)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "var k = " + KeyOfMethod(member) + "(item);");
-        code.AppendLineAt(5, "if (!beforeMap.ContainsKey(k)) added.Add(item);");
+        code.AppendLineAt(5, "if (!beforeMap.ContainsKey(k)) added.Add(afterMap[k]);");
         code.AppendLineAt(4, "}");
         if (hasPatch)
         {
@@ -841,14 +895,7 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(4, "{");
         // Order-only change? Before/after equal as sets but order differs -> still need order patch.
-        code.AppendLineAt(
-            5,
-            "var beforeOrder = new global::System.Collections.Generic.List<"
-                + keyType
-                + ">(); foreach (var item in before.Value!) beforeOrder.Add("
-                + KeyOfMethod(member)
-                + "(item));"
-        );
+        // beforeOrder was already collected in the single before pass above.
         code.AppendLineAt(
             5,
             "if ("
@@ -868,19 +915,11 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(
             4,
-            "var beforeOrderKeys = new global::System.Collections.Generic.List<"
-                + keyType
-                + ">(); foreach (var item in before.Value!) beforeOrderKeys.Add("
-                + KeyOfMethod(member)
-                + "(item));"
-        );
-        code.AppendLineAt(
-            4,
             "if (!"
                 + facade
                 + ".KeyOrderEquals<"
                 + keyType
-                + ">(beforeOrderKeys, afterOrder)) patch.__order = afterOrder;"
+                + ">(beforeOrder, afterOrder)) patch.__order = afterOrder;"
         );
         code.AppendLineAt(4, "return patch;");
         code.AppendLineAt(3, "}");
@@ -997,20 +1036,31 @@ internal static class SparseKeyedCollectionEmitter
                 + comparer
                 + ");"
         );
-        // Net removals: removed by either, minus re-added later.
+        // Net removals: removed by either, minus re-added later. netRemoved keeps
+        // insertion order (this removals, then next removals) while
+        // __netRemovedSet gives O(1) comparer-correct dedup instead of the
+        // former O(K^2) Enumerable.Contains scan per candidate key.
         code.AppendLineAt(
             4,
-            "var netRemoved = new global::System.Collections.Generic.List<" + keyType + ">();"
+            "var netRemoved = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(thisRemoved.Count + nextRemoved.Count);"
         );
         code.AppendLineAt(
             4,
-            "foreach (var k in thisRemoved) if (!nextAdded.ContainsKey(k)) netRemoved.Add(k);"
-        );
-        code.AppendLineAt(
-            4,
-            "foreach (var k in nextRemoved) if (!thisAdded.ContainsKey(k) || thisRemoved.Contains(k)) { if (!netRemoved.Contains(k, "
+            "var __netRemovedSet = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
                 + comparer
-                + ")) netRemoved.Add(k); }"
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "foreach (var k in thisRemoved) if (!nextAdded.ContainsKey(k) && __netRemovedSet.Add(k)) netRemoved.Add(k);"
+        );
+        code.AppendLineAt(
+            4,
+            "foreach (var k in nextRemoved) if ((!thisAdded.ContainsKey(k) || thisRemoved.Contains(k)) && __netRemovedSet.Add(k)) netRemoved.Add(k);"
         );
         // Net adds: this-added surviving next-removal (with next edits applied), plus next-added.
         code.AppendLineAt(
@@ -1366,14 +1416,24 @@ internal static class SparseKeyedCollectionEmitter
     )
     {
         var runtime = SparseFragmentPatchEmitter.Runtime;
-        // Build maps.
+        // Build maps. Capacity hints use a netstandard2.0-safe
+        // ICollection/IReadOnlyCollection probe (0 when the member shape
+        // exposes no Count); duplicate-key validation is unchanged.
+        code.AppendLineAt(
+            4,
+            "var __baseCapacity = baseState.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> __baseCollection ? __baseCollection.Count : (baseState.GetValueOrDefault() is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> __baseReadOnly ? __baseReadOnly.Count : 0);"
+        );
         code.AppendLineAt(
             4,
             "var baseMap = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementType
-                + ">("
+                + ">(__baseCapacity, "
                 + comparer
                 + ");"
         );
@@ -1385,11 +1445,19 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(
             4,
+            "var __currentCapacity = currentState.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> __currentCollection ? __currentCollection.Count : (currentState.GetValueOrDefault() is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> __currentReadOnly ? __currentReadOnly.Count : 0);"
+        );
+        code.AppendLineAt(
+            4,
             "var currentMap = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementType
-                + ">("
+                + ">(__currentCapacity, "
                 + comparer
                 + ");"
         );
@@ -1401,11 +1469,19 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(
             4,
+            "var __desiredCapacity = desired.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> __desiredCollection ? __desiredCollection.Count : (desired.GetValueOrDefault() is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> __desiredReadOnly ? __desiredReadOnly.Count : 0);"
+        );
+        code.AppendLineAt(
+            4,
             "var desiredMap = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementType
-                + ">("
+                + ">(__desiredCapacity, "
                 + comparer
                 + ");"
         );
@@ -1427,6 +1503,48 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "foreach (var k in currentMap.Keys) allKeys.Add(k); foreach (var k in desiredMap.Keys) allKeys.Add(k);"
         );
+        // Pre-index locally touched keys once (O(K)) so the per-key loop below
+        // resolves touches with O(1) comparer-correct lookups instead of O(K)
+        // List.Exists scans per union key (former O(N x K) behavior). For valid
+        // patches (unique added/removed keys, as enforced by Add/Remove and by
+        // Between/Compose construction) the maps below resolve exactly the same
+        // keys as the scans did.
+        code.AppendLineAt(
+            4,
+            "var __touchedAdded = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "var __addedByKey = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + elementType
+                + ">((local.__added is null) ? 0 : local.__added.Count, "
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (local.__added is not null) foreach (var __touchedItem in local.__added) { var __touchedKey = "
+                + KeyOfMethod(member)
+                + "(__touchedItem); __touchedAdded.Add(__touchedKey); __addedByKey[__touchedKey] = __touchedItem; }"
+        );
+        code.AppendLineAt(
+            4,
+            "var __touchedRemoved = (local.__removed is null) ? new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
+                + comparer
+                + ") : new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(local.__removed, "
+                + comparer
+                + ");"
+        );
         if (hasPatch)
         {
             var elementPatch = ElementPatchType(member);
@@ -1440,13 +1558,7 @@ internal static class SparseKeyedCollectionEmitter
             );
             code.AppendLineAt(
                 5,
-                "var localTouches = (local.__added is not null && local.__added.Exists(e => "
-                    + comparer
-                    + ".Equals("
-                    + KeyOfMethod(member)
-                    + "(e), k))) || (local.__removed is not null && local.__removed.Exists(r => "
-                    + comparer
-                    + ".Equals(r, k))) || (local.__edited is not null && local.__edited.ContainsKey(k));"
+                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
             );
             code.AppendLineAt(
                 5,
@@ -1465,21 +1577,15 @@ internal static class SparseKeyedCollectionEmitter
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
                 6,
-                "if (local.__removed is not null && local.__removed.Exists(r => "
-                    + comparer
-                    + ".Equals(r, k))) { (result.__removed ??= new global::System.Collections.Generic.List<"
+                "if (__touchedRemoved.Contains(k)) { (result.__removed ??= new global::System.Collections.Generic.List<"
                     + keyType
                     + ">()).Add(k); }"
             );
             code.AppendLineAt(
                 6,
-                "else if (local.__added is not null) foreach (var addedItem in local.__added) if ("
-                    + comparer
-                    + ".Equals("
-                    + KeyOfMethod(member)
-                    + "(addedItem), k)) (result.__added ??= new global::System.Collections.Generic.List<"
+                "else if (__addedByKey.TryGetValue(k, out var __rebasedAdded)) (result.__added ??= new global::System.Collections.Generic.List<"
                     + elementType
-                    + ">()).Add(addedItem);"
+                    + ">()).Add(__rebasedAdded);"
             );
             code.AppendLineAt(
                 6,
@@ -1611,13 +1717,7 @@ internal static class SparseKeyedCollectionEmitter
             );
             code.AppendLineAt(
                 5,
-                "var localTouches = (local.__added is not null && local.__added.Exists(e => "
-                    + comparer
-                    + ".Equals("
-                    + KeyOfMethod(member)
-                    + "(e), k))) || (local.__removed is not null && local.__removed.Exists(r => "
-                    + comparer
-                    + ".Equals(r, k))) || (local.__edited is not null && local.__edited.ContainsKey(k));"
+                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
             );
             code.AppendLineAt(
                 5,
@@ -1636,21 +1736,15 @@ internal static class SparseKeyedCollectionEmitter
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
                 6,
-                "if (local.__removed is not null && local.__removed.Exists(r => "
-                    + comparer
-                    + ".Equals(r, k))) { (result.__removed ??= new global::System.Collections.Generic.List<"
+                "if (__touchedRemoved.Contains(k)) { (result.__removed ??= new global::System.Collections.Generic.List<"
                     + keyType
                     + ">()).Add(k); }"
             );
             code.AppendLineAt(
                 6,
-                "else if (local.__added is not null) foreach (var addedItem in local.__added) if ("
-                    + comparer
-                    + ".Equals("
-                    + KeyOfMethod(member)
-                    + "(addedItem), k)) (result.__added ??= new global::System.Collections.Generic.List<"
+                "else if (__addedByKey.TryGetValue(k, out var __rebasedAdded)) (result.__added ??= new global::System.Collections.Generic.List<"
                     + elementType
-                    + ">()).Add(addedItem);"
+                    + ">()).Add(__rebasedAdded);"
             );
             code.AppendLineAt(
                 6,
@@ -2254,6 +2348,20 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "if (next.__removed is not null) foreach (var k in next.__removed) set.Remove(k);"
         );
+        // Pre-index next removals once so per-edit checks below are O(1)
+        // comparer-correct lookups instead of O(K) List.Contains scans.
+        code.AppendLineAt(
+            4,
+            "var __nextRemoved = (next.__removed is null) ? new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
+                + comparer
+                + ") : new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(next.__removed, "
+                + comparer
+                + ");"
+        );
         if (hasPatch)
         {
             var valuePatch = ValuePatchType(member);
@@ -2267,7 +2375,7 @@ internal static class SparseKeyedCollectionEmitter
             );
             code.AppendLineAt(
                 4,
-                "if (__edited is not null) foreach (var kv in __edited) { if (kv.Value.__SparseIsEmpty()) continue; if (next.__removed is not null && next.__removed.Contains(kv.Key)) continue; edited ??= new global::System.Collections.Generic.Dictionary<"
+                "if (__edited is not null) foreach (var kv in __edited) { if (kv.Value.__SparseIsEmpty()) continue; if (__nextRemoved.Contains(kv.Key)) continue; edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
                     + ", "
                     + valuePatch
@@ -2517,6 +2625,20 @@ internal static class SparseKeyedCollectionEmitter
                 + comparer
                 + "); foreach (var k in currentDict.Keys) keys.Add(k); foreach (var k in desiredDict.Keys) keys.Add(k);"
         );
+        // Pre-index locally removed keys once (O(K)) so per-key touch checks are
+        // O(1) comparer-correct lookups instead of O(K) List.Contains scans.
+        code.AppendLineAt(
+            4,
+            "var __dictRemoved = (local.__removed is null) ? new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">("
+                + comparer
+                + ") : new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(local.__removed, "
+                + comparer
+                + ");"
+        );
         if (hasPatch)
         {
             var valuePatch = ValuePatchType(member);
@@ -2530,7 +2652,7 @@ internal static class SparseKeyedCollectionEmitter
             );
             code.AppendLineAt(
                 5,
-                "var touchesSet = local.__set is not null && local.__set.ContainsKey(k); var touchesRemoved = local.__removed is not null && local.__removed.Contains(k); var touchesEdited = local.__edited is not null && local.__edited.ContainsKey(k);"
+                "var touchesSet = local.__set is not null && local.__set.ContainsKey(k); var touchesRemoved = __dictRemoved.Contains(k); var touchesEdited = local.__edited is not null && local.__edited.ContainsKey(k);"
             );
             code.AppendLineAt(5, "if (!touchesSet && !touchesRemoved && !touchesEdited) continue;");
             code.AppendLineAt(
@@ -2619,7 +2741,7 @@ internal static class SparseKeyedCollectionEmitter
             );
             code.AppendLineAt(
                 5,
-                "var touches = (local.__set is not null && local.__set.ContainsKey(k)) || (local.__removed is not null && local.__removed.Contains(k)) || (local.__edited is not null && local.__edited.ContainsKey(k));"
+                "var touches = (local.__set is not null && local.__set.ContainsKey(k)) || __dictRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
             );
             code.AppendLineAt(5, "if (!touches) continue;");
             code.AppendLineAt(
@@ -2642,7 +2764,7 @@ internal static class SparseKeyedCollectionEmitter
                     + valueType
                     + ">("
                     + comparer
-                    + "))[k] = sv; else if (local.__removed is not null && local.__removed.Contains(k)) (result.__removed ??= new global::System.Collections.Generic.List<"
+                    + "))[k] = sv; else if (__dictRemoved.Contains(k)) (result.__removed ??= new global::System.Collections.Generic.List<"
                     + keyType
                     + ">()).Add(k); else if (local.__edited is not null && local.__edited.TryGetValue(k, out var ev)) (result.__edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
