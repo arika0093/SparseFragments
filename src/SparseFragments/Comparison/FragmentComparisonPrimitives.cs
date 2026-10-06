@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
@@ -583,6 +584,7 @@ internal static class FragmentComparisonPrimitives
         object? keyComparer
     )
     {
+        List<(object? Key, object? Value)>? rightEntries = null;
         var keyEquality = AsNonGenericEquality(keyComparer);
         if (keyEquality is not null)
         {
@@ -591,19 +593,24 @@ internal static class FragmentComparisonPrimitives
             // scan into hash lookups while streaming both sides. Duplicate keys
             // defeat indexing and fall back to the multiset scan below; keys
             // without a usable comparer stay on the structural scan by design.
-            var hashed = HashDictionariesStreamed(
-                left,
-                right,
-                TryDictionaryCount(right),
-                keyEquality
-            );
+            var rightCapacity = TryDictionaryCount(right);
+            bool? hashed;
+            if (rightCapacity.HasValue)
+            {
+                hashed = HashDictionariesStreamed(left, right, rightCapacity, keyEquality);
+            }
+            else
+            {
+                rightEntries = MaterializeEntries(right);
+                hashed = HashDictionariesMaterialized(left, rightEntries, keyEquality);
+            }
             if (hashed.HasValue)
             {
                 return hashed.Value;
             }
         }
 
-        var rightEntries = MaterializeEntries(right);
+        rightEntries ??= MaterializeEntries(right);
         var leftEntries = MaterializeEntries(left);
         if (leftEntries.Count != rightEntries.Count)
         {
@@ -656,10 +663,18 @@ internal static class FragmentComparisonPrimitives
         IEqualityComparer keyEquality
     )
     {
-        var rightMap = new Dictionary<object, object?>(
-            rightCapacity ?? 0,
-            new NonGenericEqualityAdapter(keyEquality)
-        );
+        if (!rightCapacity.HasValue)
+        {
+            return null;
+        }
+
+        var mapCapacity = GetPooledMapCapacity(rightCapacity.Value);
+        if (mapCapacity == 0)
+        {
+            return null;
+        }
+
+        using var rightMap = new PooledObjectMap(mapCapacity, keyEquality);
         var hasNullKey = false;
         object? nullValue = null;
         var rightCount = 0;
@@ -719,6 +734,180 @@ internal static class FragmentComparisonPrimitives
         }
 
         return streamed == rightCount;
+    }
+
+    private static bool? HashDictionariesMaterialized(
+        IEnumerable left,
+        List<(object? Key, object? Value)> rightEntries,
+        IEqualityComparer keyEquality
+    )
+    {
+        var rightMap = new Dictionary<object, object?>(
+            rightEntries.Count,
+            new NonGenericEqualityAdapter(keyEquality)
+        );
+        var hasNullKey = false;
+        object? nullValue = null;
+        foreach (var (key, value) in rightEntries)
+        {
+            if (key is null)
+            {
+                if (hasNullKey)
+                {
+                    return null;
+                }
+
+                hasNullKey = true;
+                nullValue = value;
+                continue;
+            }
+
+            if (!rightMap.TryAdd(key, value))
+            {
+                return null;
+            }
+        }
+
+        if (hasNullKey && !keyEquality.Equals(null, null))
+        {
+            return null;
+        }
+
+        var streamed = 0;
+        var nullMatched = false;
+        foreach (var item in left)
+        {
+            ExtractEntry(item, out var key, out var value);
+            if (key is null)
+            {
+                if (!hasNullKey || nullMatched || !AreValuesEqual(value, nullValue))
+                {
+                    return false;
+                }
+
+                nullMatched = true;
+            }
+            else if (
+                !rightMap.TryGetValue(key, out var rightValue) || !AreValuesEqual(value, rightValue)
+            )
+            {
+                return false;
+            }
+
+            streamed++;
+            if (streamed > rightEntries.Count)
+            {
+                return false;
+            }
+        }
+
+        return streamed == rightEntries.Count;
+    }
+
+    private static int GetPooledMapCapacity(int count)
+    {
+        const int maxArrayLength = 0x7FFFFFC7;
+        var requested = Math.Max(4L, (long)count * 2);
+        var capacity = 4;
+        while (capacity < requested)
+        {
+            if (capacity > maxArrayLength / 2)
+            {
+                return 0;
+            }
+
+            capacity <<= 1;
+        }
+
+        return capacity;
+    }
+
+    private struct PooledObjectMap : IDisposable
+    {
+        private readonly int _mask;
+        private readonly int _capacity;
+        private readonly IEqualityComparer _comparer;
+        private object?[] _keys;
+        private object?[] _values;
+
+        public PooledObjectMap(int capacity, IEqualityComparer comparer)
+        {
+            _capacity = capacity;
+            _mask = capacity - 1;
+            _comparer = comparer;
+            _keys = ArrayPool<object?>.Shared.Rent(capacity);
+            try
+            {
+                _values = ArrayPool<object?>.Shared.Rent(capacity);
+            }
+            catch
+            {
+                ArrayPool<object?>.Shared.Return(_keys);
+                throw;
+            }
+
+            Array.Clear(_keys, 0, capacity);
+            Array.Clear(_values, 0, capacity);
+        }
+
+        public bool TryAdd(object key, object? value)
+        {
+            var index = _comparer.GetHashCode(key) & _mask;
+            for (var probe = 0; probe < _capacity; probe++)
+            {
+                var existing = _keys[index];
+                if (existing is null)
+                {
+                    _keys[index] = key;
+                    _values[index] = value;
+                    return true;
+                }
+
+                if (_comparer.Equals(existing, key))
+                {
+                    return false;
+                }
+
+                index = (index + 1) & _mask;
+            }
+
+            return false;
+        }
+
+        public bool TryGetValue(object key, out object? value)
+        {
+            var index = _comparer.GetHashCode(key) & _mask;
+            for (var probe = 0; probe < _capacity; probe++)
+            {
+                var existing = _keys[index];
+                if (existing is null)
+                {
+                    value = null;
+                    return false;
+                }
+
+                if (_comparer.Equals(existing, key))
+                {
+                    value = _values[index];
+                    return true;
+                }
+
+                index = (index + 1) & _mask;
+            }
+
+            value = null;
+            return false;
+        }
+
+        public void Dispose()
+        {
+            Array.Clear(_keys, 0, _capacity);
+            Array.Clear(_values, 0, _capacity);
+            ArrayPool<object?>.Shared.Return(_keys);
+            ArrayPool<object?>.Shared.Return(_values);
+            _keys = Array.Empty<object?>();
+            _values = Array.Empty<object?>();
+        }
     }
 
     private static List<(object? Key, object? Value)> MaterializeEntries(IEnumerable entries)
