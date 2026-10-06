@@ -6,12 +6,14 @@
     <IsPackable>true</IsPackable>
     <PackageDescription>Blazor edit sessions for SparseFragments with semantic change tracking.</PackageDescription>
     <PackageTags>blazor;forms;patch;dotnet</PackageTags>
-    <!-- Explicit README handling (#37): this package does not ship the core README. Clearing the
-      inherited PackageReadmeFile keeps the Blazor package metadata explicit and valid. -->
-    <PackageReadmeFile></PackageReadmeFile>
+    <!-- Dedicated package README (#52): concise first-use page, not the core README. -->
+    <PackageReadmeFile>README.Blazor.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.Blazor.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../SparseFragments/SparseFragments.csproj" />

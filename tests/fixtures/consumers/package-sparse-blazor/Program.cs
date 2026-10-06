@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Components.Forms;
 using SparseFragments;
 using SparseFragments.Blazor;
 
-// Canonical compile-checked mirror of docs/blazor.md (#45) and the Blazor
-// candidate-consumer gate (#46). Exercises the generated CreateEditSession()
-// workflow against the packed SparseFragments.Blazor package (no
-// ProjectReference fallback when SparseFragmentsPackageVersion is set):
-// baseline-relative HasChanges, semantic CreatePatch, AcceptChanges
+// Canonical compile-checked mirror of docs/ui-frameworks.md (#45, #48) and the
+// Blazor candidate-consumer gate (#46). Exercises the generated
+// CreateEditSession() workflow against the packed SparseFragments.Blazor
+// package (no ProjectReference fallback when SparseFragmentsPackageVersion is
+// set): baseline-relative HasChanges, semantic CreatePatch, AcceptChanges
 // re-baselining, edit-then-restore, and EditContext validation integration.
 
 var order = new BlazorDocsOrder

@@ -114,7 +114,7 @@ for package_file in "${package_files[@]}"; do
         SparseFragments.Blazor)
             require_entry 'lib/net8.0/SparseFragments.Blazor.dll'
             require_entry 'lib/net10.0/SparseFragments.Blazor.dll'
-            require_no_readme
+            require_readme 'README.Blazor.md'
             require_dependency 'SparseFragments'
             ;;
     esac

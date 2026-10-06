@@ -116,7 +116,7 @@ check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFram
     'Patch.Between' \
     'Fragment.From'
 
-check_sample "blazor" "docs/blazor.md" "${blazor_fixture_dir}/Program.cs" \
+check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
     'CreatePatch' \

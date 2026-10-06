@@ -202,12 +202,6 @@ var exported = patch.ToJsonPatch(baselineOpt); // ReadOnlyMemory<byte>, UTF-8 JS
 
 Round-tripping holds semantically: re-importing the export onto the same baseline produces the same fragment. Pointers, options, NativeAOT setup, and typed failures are covered in [JSON Patch](docs/json-patch.md).
 
-### 8. Beyond the basics
-
-* **Keyed collections.** Sequences of structural elements with stable identity (`[SparseKey]`) patch by element — add/remove/edit/reorder — instead of replacing the whole list. See [Keyed collections](docs/keyed-collections.md).
-* **Patch rebase.** Replay a patch authored against an older state onto a newer one; irreconcilable edits come back as structured conflicts. See [Patch rebase](docs/rebase.md).
-* **Blazor forms.** The `SparseFragments.Blazor` package derives semantic patches from baseline-versus-current comparison behind an ordinary `EditForm`. See [Blazor](docs/blazor.md).
-
 ## Documentation
 
 | Topic | Purpose |
@@ -218,22 +212,12 @@ Round-tripping holds semantically: re-importing the export onto the same baselin
 | [JSON Patch](docs/json-patch.md) | RFC 6902 bridge, serialization, failures, NativeAOT |
 | [Clone & ownership](docs/cloning-and-ownership.md) | Reference sharing, snapshots, cycles, DeepClone |
 | [Model shapes](docs/model-shapes.md) | Supported model forms, nested models, constructors, promotion |
-| [Blazor](docs/blazor.md) | Edit sessions, EditContext integration, semantic dirty tracking |
-| [UI frameworks](docs/ui-frameworks.md) | Blazor, WPF, MAUI, WinUI, Avalonia integration patterns |
+| [UI frameworks](docs/ui-frameworks.md) | Blazor edit sessions, Observable proxies, WPF, MAUI, WinUI, Avalonia patterns |
 | [Diagnostics](docs/analyzer.md) | Generator diagnostics reference |
-
-## UI Frameworks
-
-Blazor forms use edit sessions behind an ordinary `EditForm`; desktop frameworks
-bind the generated `T.Observable` proxy. See [UI frameworks](docs/ui-frameworks.md).
-
-## Observable Proxies
-
-Every generated class model also nests an `Observable` proxy (`new OrderDto.Observable(order, onChanged)`) implementing `System.ComponentModel.INotifyPropertyChanged` over the live model instance. Scalar members raise `PropertyChanged` only when the value actually changes; nested reference models are exposed through cached child proxies. It needs no `INotifyPropertyChanged` on the model itself and adds no runtime dependency beyond BCL ComponentModel contracts.
 
 ## Packages and Compatibility
 
-* `SparseFragments` — core package (runtime `netstandard2.0`; samples verified on `net8.0` / `net10.0`).
+* `SparseFragments` — core package (runtime `netstandard2.0`). Packed-package consumers are verified on `net48` (Windows-only execution), `net8.0`, and `net10.0`; the lowest compile-time surface is additionally covered by the `netstandard2.0` consumer. Framework support implied by the TFM is distinct from these executed environments.
 * `SparseFragments.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
 
 Try it live: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
