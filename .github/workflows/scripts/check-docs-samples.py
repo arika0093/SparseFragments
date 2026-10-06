@@ -60,9 +60,27 @@ def extract_fixture(path):
     return blocks
 
 
+def strip_assertions(text):
+    # User-facing docs show result comments instead of test-helper assertions
+    # (#71). Fixtures keep runtime Requires, so ignore assertion statements on
+    # both sides before comparing. Real code statements and result comments
+    # must still match exactly.
+    text = re.sub(
+        r"DocsCheck\s*\.\s*Require\s*\(.*?\);", "", text, flags=re.DOTALL
+    )
+    text = re.sub(
+        r"(?m)^\s*Require\s*\(.*?\);", "", text, flags=re.DOTALL
+    )
+    text = re.sub(
+        r"[^\n]*ShouldBe\w*\s*\(.*?\)\s*;", "", text, flags=re.DOTALL
+    )
+    return text
+
+
 def normalize(lines):
+    text = strip_assertions("\n".join(lines))
     kept = []
-    for line in lines:
+    for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
             continue

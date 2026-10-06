@@ -1,15 +1,6 @@
 # Merge Strategies
 
-`Merge` overlays a higher-priority fragment onto a lower-priority one: only *present* members override, while *missing* members keep the lower layer's values. `[SparseMerge]` selects the per-member algebra used when both layers carry a value.
-
-One rule cannot fit every member shape: scalar values usually want higher-priority
-replacement, nested objects often need member-wise composition, ordered collections
-may want append semantics, and set-like data may want union semantics. The modes
-below are answers to those different composition requirements.
-
-Leave the member undecorated to take the default — `Replace` for scalars and
-collections, `Deep` for nested models. Reach for `[SparseMerge]` only when the
-default composition is wrong for the shape.
+`Merge` combines a lower-priority Fragment with a higher-priority Fragment. Missing members in the higher layer fall through to the lower layer. Most members need no configuration: scalars and ordinary collections use `Replace`, while nested generated models use `Deep`. Add `[SparseMerge]` only when you want different behavior.
 
 ## Built-in Modes
 
@@ -20,6 +11,25 @@ default composition is wrong for the shape.
 | `Append` | Concatenate collections from lowest to highest priority | Collections (not sets, not scalars) |
 | `SetUnion` | Combine as an insertion-ordered set union | Collections and sets (not scalars) |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation | Any member via `[SparseMerge(typeof(Strategy))]` |
+
+```csharp
+var lower = new Settings.Fragment
+{
+    Label = "base",
+    Child = new Child.Fragment { Host = "lower", Port = 1 },
+    Plugins = new[] { "base-plugin" },
+};
+var higher = new Settings.Fragment
+{
+    Child = new Child.Fragment { Host = "higher" },
+    Plugins = new[] { "extra-plugin" },
+};
+
+var merged = lower.Merge(higher);
+// merged.Label == "base" (higher is missing, so the lower value falls through)
+// merged.Child.Host == "higher", merged.Child.Port == 1 (Deep composes member by member)
+// merged.Plugins == ["base-plugin", "extra-plugin"] (Append concatenates)
+```
 
 ```csharp
 [SparseFragmentModel]
@@ -37,14 +47,14 @@ public partial class Settings
 }
 ```
 
-Applicability constraints (enforced at generation time, `SPF005`):
+Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf005-unsupported-merge-mode)):
 
 * `Deep` is only available for nested models (fragment models or structural types).
 * `Append` cannot be used on set types (use an ordered collection or `SetUnion`) nor on non-collections.
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the default element-wise behavior either: they must declare identity or explicitly select `Append`, `SetUnion`, or a custom strategy (`SPF011`).
+Structural sequences without a key cannot use the default element-wise behavior either: they must declare identity or explicitly select `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)).
 
 ### `Append`
 

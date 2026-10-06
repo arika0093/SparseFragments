@@ -1,8 +1,6 @@
 # Keyed Collections
 
-A collection of structural elements patches *by element* instead of replacing the whole collection only when the element type has a stable identity. Atomic collections patch as whole values; keyed structural collections diff per element.
-
-Element-wise diff requires stable identity. Positional identity breaks down when elements are inserted or reordered, so structural sequences require a key.
+SparseFragments can patch a structural list element by element only when each element has a stable key. Array positions are not stable identity: inserting an item at the front changes every later index even though those existing items are still the same logical objects.
 
 <!-- sample: keyed-first-models -->
 ```csharp
@@ -38,9 +36,8 @@ var after = Fleet.Fragment.From(new Fleet
 var patch = Fleet.Patch.Between(before, after); // add/remove/edit by key
 var applied = patch.Apply(before);              // original untouched
 
-DocsCheck.Require(applied.Value!.Servers.Value!.Count == 2, "added element present");
-DocsCheck.Require(
-    applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new", "edit by key");
+// applied.Value!.Servers.Value!.Count == 2
+// applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new"
 ```
 <!-- /sample -->
 
@@ -53,7 +50,7 @@ DocsCheck.Require(
 | Structural sequence **with** a key | `List<Server>` where `Server` declares `[SparseKey]` | Keyed: add/remove/edit by element, reorder by key order |
 | Structural sequence **without** a key | `List<Server>` with no key declared | Generator error (`SPF011`): declare a key, or opt into `Append`, `SetUnion`, or a custom strategy on the member |
 
-"Structural" here means the element type is a fragment model (or a reachable partial type eligible for promotion). A sequence of scalars is never structural, no matter what merge mode is configured.
+A structural element is an element SparseFragments can patch through its generated member-level Fragment/Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
 
 When no key is available and per-element patching is not needed, keep whole-collection semantics explicitly:
 
@@ -122,7 +119,7 @@ public partial class Server
 
 The generated composite key is a strongly typed tuple of the component values in declaration order, compared component-wise. Component order is significant: `(tenant, id)` and `(id, tenant)` are different key shapes. Marking more than one property with `[SparseKey]` is *not* a composite key (`SPF013`) — use the type-level form instead.
 
-### `ISparseKeyed<TKey>` escape hatch
+### Computed keys with `ISparseKeyed<TKey>`
 
 When identity cannot be expressed as a key property or an ordered composite — for example a normalized or case-folded key — implement `ISparseKeyed<TKey>`:
 
@@ -151,11 +148,19 @@ Keys must be stable and comparable:
 
 `Patch.Between` derives per-element operations from the before/after key sets; `Apply` replays them. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `Between(applied, after).IsEmpty` holds).
 
-```csharp
-var before = State(Holder(Server("a", "A"), Server("b", "B")));
-var after = State(Holder(Server("b", "B2"), Server("c", "C")));
+The same `Fleet` / `Server` model shows each operation with ordinary values:
 
-var patch = KeyedServerHolder.Patch.Between(before, after);
+```csharp
+var before = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
+});
+var after = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
+});
+
+var patch = Fleet.Patch.Between(before, after);
 var applied = patch.Apply(before);
 // applied holds keys ["b", "c"]; "b" was edited in place, "a" removed, "c" added.
 ```
@@ -164,7 +169,7 @@ Concretely:
 
 * **Add.** An element whose key exists only in `after` is added. Its full fragment state is carried by the patch.
 * **Remove.** An element whose key exists only in `before` is removed by key.
-* **Edit.** An element present in both is patched through its generated nested patch — only the changed members travel. Editing nested members, nested keyed collections, and whole-value members all compose through the normal fragment algebra.
+* **Edit.** An element present in both is patched through its generated nested patch — only the changed members travel. Editing nested members, nested keyed collections, and whole-value members all use the same generated Patch behavior as the rest of the model.
 * **Replace the whole collection.** Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
 * **Reorder.** The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate "move identity".
 

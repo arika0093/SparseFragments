@@ -29,6 +29,8 @@ public static class VerifiedSamples
             RetryCount = 3, // present; Label stays missing
         };
 
+        // sparse.Label.IsPresent == false
+        // sparse.RetryCount.Value == 3
         DocsCheck.Require(!sparse.Label.IsPresent, "Label stays missing");
         DocsCheck.Require(sparse.RetryCount.Value == 3, "RetryCount is present");
         // /sample
@@ -42,6 +44,8 @@ public static class VerifiedSamples
         var user = new CounterSettings.Fragment { Label = "dark" };
 
         var effective = defaults.Merge(environment).Merge(user);
+        // effective.Label == "dark"
+        // effective.RetryCount == 5
         DocsCheck.Require(effective.Label.Value == "dark", "user Label wins");
         DocsCheck.Require(effective.RetryCount.Value == 5, "environment RetryCount wins");
         // /sample
@@ -54,10 +58,13 @@ public static class VerifiedSamples
         var afterModel = new CounterSettings { Label = "a", RetryCount = 2 };
 
         var diff = CounterSettings.Fragment.Diff(beforeModel, afterModel);
+        // diff.Label.IsPresent == false
+        // diff.RetryCount.Value == 2
         DocsCheck.Require(!diff.Label.IsPresent, "unchanged Label is missing");
         DocsCheck.Require(diff.RetryCount.Value == 2, "changed RetryCount is present");
 
         var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
+        // restored.RetryCount.Value == 2
         DocsCheck.Require(restored.RetryCount.Value == 2, "ApplyChanges replays the diff");
         // /sample
     }
@@ -70,12 +77,16 @@ public static class VerifiedSamples
 
         var update = new CounterSettings.Patch { Label = (string?)null };
         var updated = basis.Apply(update);
+        // updated.Label.IsPresent == true
+        // updated.Label.Value is null
+        // updated.RetryCount.Value == 1
         DocsCheck.Require(updated.Label.IsPresent, "explicit null stays present");
         DocsCheck.Require(updated.Label.Value is null, "value is null");
         DocsCheck.Require(updated.RetryCount.Value == 1, "untouched member kept");
 
         var remove = new CounterSettings.Patch();
         remove.RetryCount.Unset();
+        // !remove.Apply(basis).Value!.RetryCount.IsPresent
         DocsCheck.Require(
             !remove.Apply(basis).Value!.RetryCount.IsPresent, "Unset drops the contribution");
         // /sample
@@ -89,6 +100,7 @@ public static class VerifiedSamples
         var b = Optional<CounterSettings.Fragment?>.Present(new CounterSettings.Fragment());
 
         var removal = CounterSettings.Patch.Between(a, b); // Label: present → missing
+        // !removal.Apply(a).Value!.Label.IsPresent
         DocsCheck.Require(
             !removal.Apply(a).Value!.Label.IsPresent, "Between preserves the removal");
         // /sample
@@ -109,6 +121,8 @@ public static class VerifiedSamples
         var patch = Fleet.Patch.Between(before, after); // add/remove/edit by key
         var applied = patch.Apply(before);              // original untouched
 
+        // applied.Value!.Servers.Value!.Count == 2
+        // applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new"
         DocsCheck.Require(applied.Value!.Servers.Value!.Count == 2, "added element present");
         DocsCheck.Require(
             applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new", "edit by key");
@@ -126,8 +140,11 @@ public static class VerifiedSamples
 
         var rebased = RebaseSettings.Patch.Rebase(baseState, localPatch, currentState);
 
-        DocsCheck.Require(!rebased.HasConflicts, "disjoint edits replay cleanly");
         var reconciled = rebased.Patch.Apply(currentState);
+        // !rebased.HasConflicts
+        // reconciled.Value!.RetryCount.Value == 2
+        // reconciled.Value!.Label.Value == "b"
+        DocsCheck.Require(!rebased.HasConflicts, "disjoint edits replay cleanly");
         DocsCheck.Require(reconciled.Value!.RetryCount.Value == 2, "local edit kept");
         DocsCheck.Require(reconciled.Value!.Label.Value == "b", "concurrent edit kept");
         // /sample

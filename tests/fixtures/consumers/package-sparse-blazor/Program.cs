@@ -71,12 +71,15 @@ var uiOrder = new UiOrder { Number = "ORD-1" };
 var uiSession = uiOrder.CreateEditSession();
 
 uiSession.Model.Number = "ORD-2";
+// uiSession.HasChanges == true
 DocsCheck.Require(uiSession.HasChanges, "scalar edit detected");
 
 var uiPatch = uiSession.CreatePatch();
+// uiPatch.IsEmpty == false
 DocsCheck.Require(!uiPatch.IsEmpty, "semantic patch derived");
 
 uiSession.AcceptChanges();
+// uiSession.HasChanges == false
 DocsCheck.Require(!uiSession.HasChanges, "re-baselined");
 // /sample
 

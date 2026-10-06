@@ -1,6 +1,18 @@
 # Cloning and Ownership
 
-Assignment shares references; construction from a model snapshots. Sharing is the default because patch and merge paths are hot: cloning every assigned collection on `Apply` would tax each layering operation, while snapshots happen at trust boundaries — `From` (untrusted model into the fragment world), JSON import (freshly deserialized values), and the explicit `DeepClone` escape hatch. Callers own mutation discipline for shared references. The table below is the complete rule set.
+Values assigned directly to a Fragment or Patch are normally kept by reference. `Fragment.From(model)` copies supported model state, and `DeepClone()` creates an explicit independent copy. This matters for mutable objects such as lists: mutating a shared value after assignment also changes the value observed through the Fragment or Patch.
+
+Concretely, assigning a mutable value to a patch shares it by reference — nothing is cloned on assignment or on `Apply`:
+
+```csharp
+var tags = new List<string> { "a" };
+var patch = new Settings.Patch { Plugins = tags };
+var result = new Settings.Fragment().Apply(patch);
+
+tags.Add("b"); // visible through result.Plugins and patch.Plugins: one shared list.
+```
+
+Do not mutate a shared object after assigning it if the Fragment/Patch must remain stable. Clone the value first when independent ownership is required. When a patch value must stay independent, clone it before assigning (`model.DeepClone()` / `fragment.DeepClone()`) and leave the source alone afterwards.
 
 ## Operation / Ownership Table
 
@@ -18,17 +30,9 @@ Assignment shares references; construction from a model snapshots. Sharing is th
 | JSON Patch import | Snapshots (freshly deserialized values) |
 | Granular keyed-collection edits | New container, shared element references |
 
-Concretely, assigning a mutable value to a patch shares it by reference — nothing is cloned on assignment or on `Apply`:
+SparseFragments does not clone every assigned value during `Merge` or `Apply`, so those operations may reuse caller-provided references.
 
-```csharp
-var tags = new List<string> { "a" };
-var patch = new Settings.Patch { Plugins = tags };
-var result = new Settings.Fragment().Apply(patch);
-
-tags.Add("b"); // visible through result.Plugins and patch.Plugins: one shared list.
-```
-
-The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance, so callers own mutation discipline. When a patch value must stay independent, clone it before assigning (`model.DeepClone()` / `fragment.DeepClone()`) and leave the source alone afterwards.
+The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance. When a patch value must stay independent, clone it before assigning and leave the source alone afterwards.
 
 ## `DeepClone`
 
@@ -52,7 +56,7 @@ public partial class Settings
 }
 ```
 
-* Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors (`SPF008`); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
+* Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors ([`SPF008`](analyzer.md#spf008-unsupported-deep-clone-member)); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
 
 ## Graph and Cycle Behavior
 
@@ -62,4 +66,4 @@ Not every operation accepts cyclic object graphs:
 * `DeepClone` **does** support cycles and preserves shared references, as described above.
 * Granular keyed-collection edits allocate a new container but still share element references; clone elements (or the whole graph via `DeepClone`) when the result must be independent.
 
-Keep graphs acyclic at the `From`/`Diff` boundary; clone freely once inside fragment state.
+Keep graphs acyclic at the `From`/`Diff` boundary. Use `DeepClone` when the result must not share mutable references with its source.
