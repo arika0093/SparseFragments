@@ -5,11 +5,12 @@
     <AssemblyName>SparseFragments.Tests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"
-      ReferenceOutputAssembly="false"
+      ReferenceOutputAssembly="true"
     />
   </ItemGroup>
   <ItemGroup>
