@@ -1,22 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <OutputType>Exe</OutputType>
     <RootNamespace>SparseFragments.NativeAotSmoke</RootNamespace>
     <AssemblyName>SparseFragments.NativeAotSmoke</AssemblyName>
-    <IsTestProject>false</IsTestProject>
     <IsPackable>false</IsPackable>
-    <!-- True NativeAOT publish gate: IL trimming + AOT compile run in CI. -->
+    <!-- NativeAOT TUnit gate: this test project publishes ahead-of-time and the
+      native binary runs real TUnit tests (source-generation mode is AOT
+      compatible by default). -->
     <PublishAot>true</PublishAot>
-    <!-- No reflection fallback: the smoke test must prove the source-generated path. -->
+    <!-- No reflection fallback: the AOT tests must prove the source-generated path. -->
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <IsAotCompatible>true</IsAotCompatible>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
-  <!-- tests/Directory.Build.props assumes a TUnit test project; this is a plain
-    NativeAOT console app, so drop the test-only references. -->
+  <!-- tests/Directory.Build.props assumes Shouldly alongside TUnit; Shouldly
+    relies on runtime reflection, so AOT tests use TUnit assertions instead. -->
   <ItemGroup>
-    <PackageReference Remove="TUnit" />
     <PackageReference Remove="Shouldly" />
     <Using Remove="Shouldly" />
   </ItemGroup>
