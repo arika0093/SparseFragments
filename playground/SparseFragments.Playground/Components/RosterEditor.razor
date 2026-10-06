@@ -5,42 +5,54 @@
     {
         var index = i;
         var row = State.Rows[index];
-        <div class="pg-roster-row">
-            <div class="pg-row">
-                <span class="pg-name notranslate" translate="no">Id <small>key</small></span>
-                <div class="pg-controls">
-                    <FluentTextField Placeholder="id" Style="flex: 1 1 9rem; min-width: 0;"
+        var hl = GetHighlight(row);
+        <div class="@RowClass(hl, index)"
+            @ondragenter="() => _dropTarget = index"
+            @ondragover:preventDefault
+            @ondragover="() => {}"
+            @ondragleave="OnDragLeave"
+            @ondrop="() => DropAsync(index)">
+            <div class="pg-rline1">
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Id <small>key</small></span>
+                    <FluentTextField Placeholder="id" Style="width: 100%;"
                         Value="@row.Id"
                         ValueChanged="@(async v => { row.Id = v; await NotifyAsync(); })" />
                 </div>
-                <div class="pg-actions">
-                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(index == 0)" @onclick="@(async () => await MoveAsync(index, -1))">↑</FluentButton>
-                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(index == State.Rows.Count - 1)" @onclick="@(async () => await MoveAsync(index, 1))">↓</FluentButton>
-                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(index))">✕</FluentButton>
-                </div>
-            </div>
-            <div class="pg-row">
-                <span class="pg-name notranslate" translate="no">Title <small>string</small></span>
-                <div class="pg-controls">
-                    <FluentTextField Placeholder="title" Style="flex: 1 1 9rem; min-width: 0;"
+                <div class="pg-roster-field @(hl?.TitleChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.TitleChanged == true)Title</span>
+                    <FluentTextField Placeholder="title" Style="width: 100%;"
                         Value="@row.Title"
                         ValueChanged="@(async v => { row.Title = v; await NotifyAsync(); })" />
                 </div>
-            </div>
-            <div class="pg-row">
-                <span class="pg-name notranslate" translate="no">Points <small>int</small></span>
-                <div class="pg-controls">
-                    <FluentNumberField TValue="int" Style="flex: 1 1 9rem; min-width: 0;"
+                <div class="pg-roster-field @(hl?.PointsChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.PointsChanged == true)Points</span>
+                    <FluentNumberField TValue="int" Style="width: 100%;"
                         Value="@row.Points"
                         ValueChanged="@(async v => { row.Points = v; await NotifyAsync(); })" />
                 </div>
             </div>
-            <div class="pg-row">
-                <span class="pg-name notranslate" translate="no">Scores <small>List&lt;int&gt; whole</small></span>
-                <div class="pg-controls">
-                    <FluentTextField Placeholder="10, 20" Style="flex: 1 1 9rem; min-width: 0;"
+            <div class="pg-rline2">
+                <div class="pg-roster-field @(hl?.ScoresChanged == true ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(hl?.ScoresChanged == true)Scores <small>List&lt;int&gt; whole</small></span>
+                    <FluentTextField Placeholder="10, 20" Style="width: 100%;"
                         Value="@row.ScoresText"
                         ValueChanged="@(async v => { row.ScoresText = v; await NotifyAsync(); })" />
+                </div>
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Order</span>
+                    <div class="pg-order @(hl?.Moved == true ? "pg-moved-num" : "")" title="Position in this list">@(index + 1)</div>
+                </div>
+                <div class="pg-roster-actions">
+                    @if (AllowReorder)
+                    {
+                        <span class="pg-drag" draggable="true" title="Drag to reorder"
+                            @ondragstart="() => OnDragStart(index)"
+                            @ondragend="OnDragEnd">⠿</span>
+                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(index == 0)" @onclick="@(async () => await MoveAsync(index, -1))">↑</FluentButton>
+                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(index == State.Rows.Count - 1)" @onclick="@(async () => await MoveAsync(index, 1))">↓</FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(index))">✕</FluentButton>
                 </div>
             </div>
         </div>
@@ -51,15 +63,91 @@
 </FluentStack>
 
 @code {
+    private static readonly string[] RandomTitles =
+        ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
+
+    private int? _dragIndex;
+    private int? _dropTarget;
+
     [Parameter, EditorRequired]
     public RosterEditState State { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    [Parameter]
+    public IReadOnlyDictionary<QuestRow, RosterRowHighlight>? Highlights { get; set; }
+
+    /// <summary>Gets or sets whether reorder controls (handle, up/down) are shown.</summary>
+    [Parameter]
+    public bool AllowReorder { get; set; } = true;
+
+    /// <summary>Gets or sets whether edit highlights are shown.</summary>
+    [Parameter]
+    public bool ShowHighlights { get; set; } = true;
+
+    private RosterRowHighlight? GetHighlight(QuestRow row) =>
+        ShowHighlights && Highlights is not null && Highlights.TryGetValue(row, out var highlight)
+            ? highlight
+            : null;
+
+    private string RowClass(RosterRowHighlight? highlight, int index)
+    {
+        var cls = "pg-roster-row";
+        if (highlight?.IsAdded == true)
+        {
+            cls += " pg-added";
+        }
+        if (highlight?.IsRemoved == true)
+        {
+            cls += " pg-removed";
+        }
+        if (highlight is not null && !highlight.IsAdded && !highlight.IsRemoved && highlight.Moved)
+        {
+            cls += " pg-moved";
+        }
+        if (_dragIndex == index)
+        {
+            cls += " pg-dragging";
+        }
+        if (_dropTarget == index && _dragIndex != index && AllowReorder)
+        {
+            cls += " pg-drop-target";
+        }
+        return cls;
+    }
+
+    private static RenderFragment TitleDot(bool changed) => builder =>
+    {
+        if (changed)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "pg-dot");
+            builder.AddAttribute(2, "title", "edited");
+            builder.CloseElement();
+        }
+    };
+
     private Task AddAsync()
     {
-        State.Rows.Add(new QuestRow { Id = $"q{State.Rows.Count + 1}", Title = "New", Points = 0, ScoresText = string.Empty });
+        var existing = new HashSet<string>(State.Rows.Select(r => r.Id));
+        string id;
+        do
+        {
+            id = $"q{Random.Shared.Next(1, 100)}";
+        }
+        while (!existing.Add(id));
+        var scoreCount = Random.Shared.Next(0, 3);
+        var scores = string.Join(
+            ", ",
+            Enumerable.Range(0, scoreCount).Select(_ => Random.Shared.Next(0, 100)));
+        State.Rows.Add(new QuestRow
+        {
+            Id = id,
+            Title = RandomTitles[Random.Shared.Next(RandomTitles.Length)],
+            Points = Random.Shared.Next(0, 100),
+            ScoresText = scores,
+        });
         return NotifyAsync();
     }
 
@@ -77,6 +165,38 @@
             return Task.CompletedTask;
         }
         (State.Rows[target], State.Rows[index]) = (State.Rows[index], State.Rows[target]);
+        return NotifyAsync();
+    }
+
+    private void OnDragStart(int index)
+    {
+        _dragIndex = index;
+        _dropTarget = null;
+    }
+
+    private void OnDragEnd()
+    {
+        _dragIndex = null;
+        _dropTarget = null;
+    }
+
+    private void OnDragLeave()
+    {
+        _dropTarget = null;
+    }
+
+    private Task DropAsync(int target)
+    {
+        var drag = _dragIndex;
+        _dragIndex = null;
+        _dropTarget = null;
+        if (!AllowReorder || drag is null || drag.Value == target)
+        {
+            return Task.CompletedTask;
+        }
+        var item = State.Rows[drag.Value];
+        State.Rows.RemoveAt(drag.Value);
+        State.Rows.Insert(target > drag.Value ? target - 1 : target, item);
         return NotifyAsync();
     }
 

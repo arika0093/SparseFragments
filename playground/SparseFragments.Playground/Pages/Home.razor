@@ -79,7 +79,7 @@
 </FluentCard>
 
 <h2>2. Typed patch applied to the merged fragment</h2>
-<p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated. <em>Unset</em> removes that layer's contribution, so the member disappears from the patched <em>Fragment (JSON)</em> view; <em>Model</em> views always materialize a full object, so a missing member falls back to the <em>new()</em> default (e.g. Label → "default", Nested → default object) instead of disappearing.</p>
+<p class="pg-hint">A patch carries <em>Set / Unset / unchanged</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Patch edits</h3>
@@ -101,11 +101,10 @@
 <FluentCard Class="pg-fluent-card pg-section-card">
     <div class="pg-card-head">
         <h3>Baseline → Patched</h3>
-        <span class="pg-hint">IsEmpty: @TypedPatch.IsEmpty</span>
     </div>
     <FluentTabs>
         <FluentTab Label="Fragment (JSON)" Id="patched-fragment-json">
-            <MonacoView Content="@PatchedFragmentJson" Language="json" Height="300px" />
+            <MonacoDiffView Original="@MergedFragmentJson" Modified="@PatchedFragmentJson" Language="json" Height="300px" />
         </FluentTab>
         <FluentTab Label="Model (C#)" Id="patched-model-csharp">
             <MonacoDiffView Original="@MergedModelCSharp" Modified="@PatchedModelCSharp" Language="csharp" Height="300px" />
@@ -116,15 +115,29 @@
     </FluentTabs>
 </FluentCard>
 
-<h2>3. Keyed list: List&lt;Quest&gt; with List&lt;int&gt; inside</h2>
-<p class="pg-hint">Outer <em>List&lt;PlaygroundQuest&gt;</em> patches <em>by Id key</em>: add / remove / edit by key, reorder via the final key order (<em>SetOrder</em>). Inner <em>List&lt;int&gt; Scores</em> is a scalar sequence with no keys: even one element change replaces the <em>whole list</em> (order matters, duplicates allowed). Try: edit b's Title (nested edit), change b's Scores (whole-value), delete a, add d, drag c to the top with ↑.</p>
+<h2>3. Keyed list: List&lt;Quest&gt;</h2>
+<p class="pg-hint">Outer <em>List&lt;PlaygroundQuest&gt;</em> patches <em>by Id key</em>: add / remove / edit by key, reorder via the final key order (<em>SetOrder</em>). Inner <em>List&lt;int&gt; Scores</em> is a scalar sequence with no keys: even one element change replaces the <em>whole list</em> (order matters, duplicates allowed). After edits are highlighted live from <em>Patch.Between</em>: green is added, blue is moved, <span class="pg-dot"></span>is an edited field. Drag <span class="pg-drag">⠿</span> to reorder.</p>
 <div class="pg-grid">
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>Before</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterBefore">Reset</FluentButton>
         </div>
-        <RosterEditor State="RosterBefore" OnChanged="Refresh" />
+        <RosterEditor State="RosterBefore" AllowReorder="false" ShowHighlights="false" OnChanged="Refresh" />
+    </FluentCard>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>After</h3>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterAfter">Reset</FluentButton>
+        </div>
+        <RosterEditor State="RosterAfter" Highlights="RosterHighlights.After" OnChanged="Refresh" />
+    </FluentCard>
+</div>
+<div class="pg-grid">
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Before code</h3>
+        </div>
         <FluentTabs>
             <FluentTab Label="Model (C#)" Id="roster-before-csharp">
                 <MonacoView Content="@RosterBeforeCSharp" Language="csharp" Height="270px" />
@@ -136,10 +149,8 @@
     </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
-            <h3>After</h3>
-            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterAfter">Reset</FluentButton>
+            <h3>After code</h3>
         </div>
-        <RosterEditor State="RosterAfter" OnChanged="Refresh" />
         <FluentTabs>
             <FluentTab Label="Model (C#)" Id="roster-after-csharp">
                 <MonacoView Content="@RosterAfterCSharp" Language="csharp" Height="270px" />
@@ -156,10 +167,7 @@
         <span class="pg-hint">@RosterSummary</span>
     </div>
     <FluentTabs>
-        <FluentTab Label="Patch (Between C#)" Id="roster-patch-between">
-            <MonacoView Content="@RosterBetweenCSharp" Language="csharp" Height="270px" />
-        </FluentTab>
-        <FluentTab Label="Patch (manual C#)" Id="roster-patch-manual">
+        <FluentTab Label="Patch (C#)" Id="roster-patch-manual">
             <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
         </FluentTab>
         <FluentTab Label="JSON Patch" Id="roster-json-patch">
@@ -253,15 +261,16 @@
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterBefore.BuildFragment()));
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
-    private string RosterBetweenCSharp => Try(() => PlaygroundSnippets.RosterBetweenCSharp(RosterBefore, RosterAfter));
     private string RosterManualCSharp => Try(() => PlaygroundSnippets.RosterManualPatchCSharp("patch", RosterBefore, RosterAfter));
     private string RosterSummary => Try(RosterDiffSummary);
+
+    private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
+        RosterHighlights => RosterHighlight.Build(RosterBefore, RosterAfter);
 
     private string RosterDiffSummary()
     {
         var beforeIds = RosterBefore.Rows.Select(r => r.Id).ToList();
         var afterIds = RosterAfter.Rows.Select(r => r.Id).ToList();
-        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
         var added = afterIds.Where(id => !beforeIds.Contains(id)).ToList();
         var removed = beforeIds.Where(id => !afterIds.Contains(id)).ToList();
         var beforeById = RosterBefore.Rows.ToDictionary(r => r.Id);
@@ -271,7 +280,7 @@
             .Select(r => r.Id)
             .ToList();
         var order = string.Join("→", afterIds);
-        return $"IsEmpty: {patch.IsEmpty} | add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{order}]";
+        return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{order}]";
     }
 
     private string RosterJsonPatch => Try(() =>

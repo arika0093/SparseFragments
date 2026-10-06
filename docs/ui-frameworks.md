@@ -2,20 +2,35 @@
 
 SparseFragments derives a patch from a retained baseline and the current model. UI change tracking is used for binding/validation, not as the source of patch semantics.
 
+In Blazor, with the `SparseFragments.Blazor` package referenced, sessions are the Blazor-specific path: the package generates `CreateEditSession()` per model.
+
+<!-- sample: ui-session-models -->
 ```csharp
-var session = order.CreateEditSession();
+using SparseFragments;
 
-session.Model.Number = "ORD-2";
-session.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
-
-if (session.HasChanges)
+[SparseFragmentModel]
+public partial class UiOrder
 {
-    var patch = session.CreatePatch();
-    ...
+    public string Number { get; set; } = string.Empty;
 }
-
-session.AcceptChanges();
 ```
+<!-- /sample -->
+
+<!-- sample: ui-session -->
+```csharp
+var uiOrder = new UiOrder { Number = "ORD-1" };
+var uiSession = uiOrder.CreateEditSession();
+
+uiSession.Model.Number = "ORD-2";
+DocsCheck.Require(uiSession.HasChanges, "scalar edit detected");
+
+var uiPatch = uiSession.CreatePatch();
+DocsCheck.Require(!uiPatch.IsEmpty, "semantic patch derived");
+
+uiSession.AcceptChanges();
+DocsCheck.Require(!uiSession.HasChanges, "re-baselined");
+```
+<!-- /sample -->
 
 Without a session, the same flow works manually — snapshot a baseline, let the UI mutate the plain model, and diff baseline against current state:
 

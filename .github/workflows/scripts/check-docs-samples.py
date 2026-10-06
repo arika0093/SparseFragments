@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Verify annotated Markdown samples match canonical fixtures exactly (#68).
+
+Usage: check-docs-samples.py <guide> <fixture> <id> [<id> ...]
+
+Markdown convention: a line `<!-- sample: <id> -->`, then a fenced block,
+then `<!-- /sample -->`. Fixture convention: `// sample: <id>` ...
+`// /sample` (possibly several regions per id; concatenated in order).
+Normalization (both sides): drop `using ...;` lines and blank lines, strip
+leading/trailing whitespace, LF line endings. Anything else must match
+exactly, so drift in statements, models, or asserted results fails the check.
+"""
+
+import re
+import sys
+
+
+def extract_md(path):
+    with open(path, encoding="utf-8") as handle:
+        lines = handle.read().splitlines()
+    blocks = {}
+    current = None
+    in_fence = False
+    for line in lines:
+        marker = re.fullmatch(r"\s*<!--\s*sample:\s*(\S+)\s*-->", line)
+        if marker is not None:
+            current = marker.group(1)
+            in_fence = False
+            blocks.setdefault(current, [])
+            continue
+        if current is not None and line.strip() == "<!-- /sample -->":
+            current = None
+            continue
+        if current is not None:
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                blocks[current].append(line)
+    return blocks
+
+
+def extract_fixture(path):
+    with open(path, encoding="utf-8") as handle:
+        lines = handle.read().splitlines()
+    blocks = {}
+    current = None
+    for line in lines:
+        marker = re.fullmatch(r"\s*//\s*sample:\s*(\S+)", line)
+        if marker is not None:
+            current = marker.group(1)
+            blocks.setdefault(current, [])
+            continue
+        if current is not None and re.fullmatch(r"\s*//\s*/sample", line):
+            current = None
+            continue
+        if current is not None:
+            blocks[current].append(line)
+    return blocks
+
+
+def normalize(lines):
+    kept = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if re.fullmatch(r"using\s[^;]+;", stripped):
+            continue
+        kept.append(stripped)
+    return kept
+
+
+def main(argv):
+    if len(argv) < 4:
+        print("Usage: check-docs-samples.py <guide> <fixture> <id> [<id> ...]")
+        return 2
+    guide, fixture, ids = argv[1], argv[2], argv[3:]
+    try:
+        md_blocks = extract_md(guide)
+    except OSError as error:
+        print("Docs sample drift: cannot read guide '%s': %s" % (guide, error))
+        return 1
+    try:
+        fixture_blocks = extract_fixture(fixture)
+    except OSError as error:
+        print("Docs sample drift: cannot read fixture '%s': %s" % (guide, error))
+        return 1
+    failed = False
+    for sample_id in ids:
+        if sample_id not in md_blocks:
+            print(
+                "Docs sample drift: guide '%s' has no <!-- sample: %s --> block."
+                % (guide, sample_id)
+            )
+            failed = True
+            continue
+        if sample_id not in fixture_blocks:
+            print(
+                "Docs sample drift: fixture '%s' has no // sample: %s region."
+                % (fixture, sample_id)
+            )
+            failed = True
+            continue
+        expected = normalize(fixture_blocks[sample_id])
+        actual = normalize(md_blocks[sample_id])
+        if actual != expected:
+            print(
+                "Docs sample drift [%s]: guide block differs from fixture region."
+                % sample_id
+            )
+            for index, (left, right) in enumerate(
+                zip(actual + [None] * len(expected), expected + [None] * len(actual))
+            ):
+                if left != right:
+                    print("  md line %d: %r" % (index + 1, left))
+                    print("  fixture  : %r" % (right,))
+                    break
+            print(
+                "  (md %d lines, fixture %d lines after normalization)"
+                % (len(actual), len(expected))
+            )
+            failed = True
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

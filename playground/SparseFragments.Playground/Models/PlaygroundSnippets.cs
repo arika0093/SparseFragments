@@ -235,20 +235,7 @@ public static class PlaygroundSnippets
         return sb.ToString();
     }
 
-    /// <summary>Builds C# code deriving a keyed patch via Between.</summary>
-    public static string RosterBetweenCSharp(RosterEditState before, RosterEditState after)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(RosterModelCSharp("before", before.ToModel()).TrimEnd());
-        sb.AppendLine(RosterModelCSharp("after", after.ToModel()).TrimEnd());
-        sb.AppendLine("var beforeOpt = Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before));");
-        sb.AppendLine("var afterOpt = Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after));");
-        sb.AppendLine("var patch = PlaygroundRoster.Patch.Between(beforeOpt, afterOpt);");
-        sb.AppendLine("var applied = patch.Apply(beforeOpt); // == afterOpt when IsEmpty is false-checked");
-        return sb.ToString();
-    }
-
-    /// <summary>Builds the manual Add/Remove/Edit/SetOrder equivalent for the before/after diff.</summary>
+    /// <summary>Builds the keyed Add/Remove/Edit/SetOrder patch for the before/after diff.</summary>
     public static string RosterManualPatchCSharp(string variableName, RosterEditState before, RosterEditState after)
     {
         var sb = new StringBuilder();

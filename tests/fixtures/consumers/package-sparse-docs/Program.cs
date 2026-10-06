@@ -13,6 +13,7 @@ MergeStrategiesSamples.Run();
 CloningAndOwnershipSamples.Run();
 ModelShapesSamples.Run();
 UiFrameworksSamples.Run();
+VerifiedSamples.Run();
 
 Console.WriteLine("SparseFragments docs consumer passed.");
 

@@ -2,14 +2,36 @@
 
 Rebase replays a patch authored against an older state onto a newer state. Two writers start from the same baseline, one commits first, and the other's patch is reconciled against the committed state. Last-writer-wins would silently discard one side; rebase instead keeps both sides' compatible edits and reports only the irreconcilable ones as structured conflicts.
 
+<!-- sample: rebase-first-models -->
 ```csharp
-var rebased = Settings.Patch.Rebase(baseState, localPatch, currentState);
+using SparseFragments;
 
-if (!rebased.HasConflicts)
+[SparseFragmentModel]
+public partial class RebaseSettings
 {
-    var reconciled = rebased.Patch.Apply(currentState);
+    public string? Label { get; set; }
+
+    public int RetryCount { get; set; }
 }
 ```
+<!-- /sample -->
+
+<!-- sample: rebase-first -->
+```csharp
+var baseState = Optional<RebaseSettings.Fragment?>.Present(
+    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "a" }));
+var localPatch = new RebaseSettings.Patch { RetryCount = 2 };
+var currentState = Optional<RebaseSettings.Fragment?>.Present(
+    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "b" }));
+
+var rebased = RebaseSettings.Patch.Rebase(baseState, localPatch, currentState);
+
+DocsCheck.Require(!rebased.HasConflicts, "disjoint edits replay cleanly");
+var reconciled = rebased.Patch.Apply(currentState);
+DocsCheck.Require(reconciled.Value!.RetryCount.Value == 2, "local edit kept");
+DocsCheck.Require(reconciled.Value!.Label.Value == "b", "concurrent edit kept");
+```
+<!-- /sample -->
 
 ## The Base / Local / Current Model
 

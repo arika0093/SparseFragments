@@ -116,6 +116,29 @@ check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFram
     'Patch.Between' \
     'Fragment.From'
 
+# 1b. Exact sample verification (#68). Annotated fenced blocks in the guides
+# must match their canonical fixture regions exactly (after normalization),
+# so the documented code compiles and produces the documented result.
+check_block() {
+    local topic="$1"
+    local guide="$2"
+    local fixture_source="$3"
+    shift 3
+    if ! python3 "$(dirname "$0")/check-docs-samples.py" "${guide}" "${fixture_source}" "$@"; then
+        echo "Docs sample drift [${topic}]: see mismatches above." >&2
+        exit 1
+    fi
+}
+
+check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
+    core-models core-create core-layering core-diff core-patch core-between
+check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
+    keyed-first-models keyed-first
+check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
+    rebase-first-models rebase-first
+check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
+    ui-session-models ui-session
+
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
@@ -125,6 +148,22 @@ check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs"
     'CreateValidationStore' \
     'session.Field(' \
     'AddValidationError'
+
+# 1c. Internal link and anchor validation (#68).
+if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
+    README.md \
+    docs/merge-strategies.md \
+    docs/keyed-collections.md \
+    docs/rebase.md \
+    docs/json-patch.md \
+    docs/cloning-and-ownership.md \
+    docs/model-shapes.md \
+    docs/ui-frameworks.md \
+    docs/fragments-and-patches.md \
+    docs/analyzer.md; then
+    echo "Docs link check failed; see broken links above." >&2
+    exit 1
+fi
 
 # 2. Compile and run the canonical fixtures against the packed packages.
 # The core glob pins the version digit so the Blazor package
