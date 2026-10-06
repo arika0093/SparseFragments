@@ -2279,7 +2279,9 @@ internal static class SparseKeyedCollectionEmitter
                 5,
                 "if (!"
                     + facade
-                    + ".AreEqual((object?)b, (object?)kv.Value)) (patch.__edited ??= new global::System.Collections.Generic.Dictionary<"
+                    + ".AreEqual<"
+                    + valueType
+                    + ">(b, kv.Value)) (patch.__edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
                     + ", "
                     + valueType
@@ -2657,13 +2659,17 @@ internal static class SparseKeyedCollectionEmitter
                 5,
                 "bool baseEqCurrent = inBase == inCurrent && (!inBase || "
                     + facade
-                    + ".AreEqual((object?)b, (object?)c));"
+                    + ".AreEqual<"
+                    + valueType
+                    + ">(b, c));"
             );
             code.AppendLineAt(
                 5,
                 "bool desiredEqCurrent = inDesired == inCurrent && (!inDesired || "
                     + facade
-                    + ".AreEqual((object?)d, (object?)c));"
+                    + ".AreEqual<"
+                    + valueType
+                    + ">(d, c));"
             );
             code.AppendLineAt(
                 5,
@@ -2746,13 +2752,17 @@ internal static class SparseKeyedCollectionEmitter
                 5,
                 "bool baseEqCurrent = inBase == inCurrent && (!inBase || "
                     + facade
-                    + ".AreEqual((object?)b, (object?)c));"
+                    + ".AreEqual<"
+                    + valueType
+                    + ">(b, c));"
             );
             code.AppendLineAt(
                 5,
                 "bool desiredEqCurrent = inDesired == inCurrent && (!inDesired || "
                     + facade
-                    + ".AreEqual((object?)d, (object?)c));"
+                    + ".AreEqual<"
+                    + valueType
+                    + ">(d, c));"
             );
             code.AppendLineAt(
                 5,
