@@ -88,7 +88,7 @@ feed="$(realpath "${package_directory}")"
 for framework in net8.0 net10.0; do
     dotnet build "${fixture_csproj}" \
         --configuration Release --framework "${framework}" \
-        -p:ConfigluePackageVersion="${version}" \
+        -p:SparseFragmentsPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
     output="$(dotnet "${fixture_dir}/bin/Release/${framework}/PackageSparse.Readme.Consumer.dll" 2>&1)"
     echo "${output}"
