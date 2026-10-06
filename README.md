@@ -219,27 +219,13 @@ Round-tripping holds semantically: re-importing the export onto the same baselin
 | [Clone & ownership](docs/cloning-and-ownership.md) | Reference sharing, snapshots, cycles, DeepClone |
 | [Model shapes](docs/model-shapes.md) | Supported model forms, nested models, constructors, promotion |
 | [Blazor](docs/blazor.md) | Edit sessions, EditContext integration, semantic dirty tracking |
+| [UI frameworks](docs/ui-frameworks.md) | Blazor, WPF, MAUI, WinUI, Avalonia integration patterns |
 | [Diagnostics](docs/analyzer.md) | Generator diagnostics reference |
 
-## Blazor Forms
+## UI Frameworks
 
-The `SparseFragments.Extensions.Blazor` package bridges ordinary Blazor forms and semantic patches. A session keeps a fragment baseline alongside the live model and exposes an `EditContext` for normal form behavior; patches always come from baseline-versus-current comparison, so keyed collection edits, reorder, and edit-then-restore behave correctly.
-
-```csharp
-var session = order.CreateEditSession(); // generated when the package is referenced
-
-<EditForm EditContext="@session.EditContext">...</EditForm>
-
-if (session.HasChanges)
-{
-    var patch = session.CreatePatch();
-    ...
-}
-
-session.AcceptChanges(); // re-baseline, clear Blazor modified flags
-```
-
-Full workflow, validation, and package boundaries: [Blazor](docs/blazor.md).
+Blazor forms use edit sessions behind an ordinary `EditForm`; desktop frameworks
+bind the generated `T.Observable` proxy. See [UI frameworks](docs/ui-frameworks.md).
 
 ## Observable Proxies
 

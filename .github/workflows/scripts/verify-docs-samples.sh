@@ -110,6 +110,12 @@ check_sample "model-shapes" "docs/model-shapes.md" "${docs_fixture_dir}/ModelSha
     'IReadOnlyList<string> Plugins' \
     'Diff'
 
+check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+    '.Observable(' \
+    'PropertyChanged' \
+    'Patch.Between' \
+    'Fragment.From'
+
 check_sample "blazor" "docs/blazor.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
