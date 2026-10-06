@@ -198,10 +198,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(5, "var __applyFailed" + member.Id + " = false;");
         code.AppendLineAt(5, "try");
         code.AppendLineAt(5, "{");
-        code.AppendLineAt(
-            6,
-            desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
-        );
+        code.AppendLineAt(6, desiredMember + " = local." + field + ".Apply(" + baseMember + ");");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
             5,
@@ -404,8 +401,6 @@ internal static class SparseFragmentPatchRebaseEmitter
                 baseMember,
                 desiredMember,
                 currentMember,
-                equality,
-                scalarKind,
                 conflict,
                 conflictKind,
                 4
@@ -553,8 +548,6 @@ internal static class SparseFragmentPatchRebaseEmitter
         string baseMember,
         string desiredMember,
         string currentMember,
-        string equality,
-        string scalarKind,
         string conflict,
         string conflictKind,
         int indent
@@ -566,7 +559,10 @@ internal static class SparseFragmentPatchRebaseEmitter
             + "FragmentOperation<"
             + SparseFragmentPatchEmitter.ValueType(member)
             + ">";
-        code.AppendLineAt(indent, "if (local." + field + ".Kind == " + kind + ".Set)");
+        // Custom strategies observe every member edit (Set and Unset): the presence-aware
+        // TryRebase(Optional<T>, ...) SPI can represent a missing rebased state, so unlike the
+        // previous T?-based SPI there is no need to route Unset through the scalar fallback.
+        code.AppendLineAt(indent, "if (local." + field + ".Kind != " + kind + ".Unchanged)");
         code.AppendLineAt(indent, "{");
         code.AppendLineAt(indent + 1, "var " + baseMember + " = baseFragment." + name + ";");
         code.AppendLineAt(indent + 1, "var " + currentMember + " = currentFragment." + name + ";");
@@ -581,23 +577,38 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + strategyField
                 + ".TryRebase("
                 + baseMember
-                + ".IsPresent ? "
-                + baseMember
-                + ".Value : default, "
+                + ", "
                 + desiredMember
-                + ".IsPresent ? "
-                + desiredMember
-                + ".Value : default, "
+                + ", "
                 + currentMember
-                + ".IsPresent ? "
-                + currentMember
-                + ".Value : default, out var rebasedValue, out var reason))"
+                + ", out var rebasedValue, out var reason))"
         );
         code.AppendLineAt(indent + 1, "{");
         code.AppendLineAt(
             indent + 2,
-            "result." + field + " = " + operationType + ".Set(rebasedValue);"
+            "if (!((!rebasedValue.IsPresent && !"
+                + currentMember
+                + ".IsPresent) || (rebasedValue.IsPresent && "
+                + currentMember
+                + ".IsPresent && "
+                + strategyField
+                + ".AreEqual("
+                + currentMember
+                + ".Value, rebasedValue.Value))))"
         );
+        code.AppendLineAt(indent + 2, "{");
+        code.AppendLineAt(indent + 3, "if (rebasedValue.IsPresent)");
+        code.AppendLineAt(indent + 3, "{");
+        code.AppendLineAt(
+            indent + 4,
+            "result." + field + " = " + operationType + ".Set(rebasedValue.Value);"
+        );
+        code.AppendLineAt(indent + 3, "}");
+        code.AppendLineAt(indent + 3, "else");
+        code.AppendLineAt(indent + 3, "{");
+        code.AppendLineAt(indent + 4, "result." + field + " = " + operationType + ".Unset;");
+        code.AppendLineAt(indent + 3, "}");
+        code.AppendLineAt(indent + 2, "}");
         code.AppendLineAt(indent + 1, "}");
         code.AppendLineAt(indent + 1, "else");
         code.AppendLineAt(indent + 1, "{");
@@ -618,27 +629,6 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + "), reason ?? \"The custom merge strategy could not rebase the member.\"));"
         );
         code.AppendLineAt(indent + 1, "}");
-        code.AppendLineAt(indent, "}");
-        code.AppendLineAt(indent, "else if (local." + field + ".Kind != " + kind + ".Unchanged)");
-        code.AppendLineAt(indent, "{");
-        code.AppendLineAt(indent + 1, "var " + baseMember + " = baseFragment." + name + ";");
-        code.AppendLineAt(indent + 1, "var " + currentMember + " = currentFragment." + name + ";");
-        code.AppendLineAt(
-            indent + 1,
-            "var " + desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
-        );
-        EmitScalarRebase(
-            code,
-            field,
-            member.Property.Name,
-            baseMember,
-            desiredMember,
-            currentMember,
-            equality,
-            scalarKind,
-            conflict,
-            indent + 1
-        );
         code.AppendLineAt(indent, "}");
     }
 

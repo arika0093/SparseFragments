@@ -209,6 +209,29 @@ clone.Child!.Count = 42;                                       // original.Child
 | `SetUnion` | Combine as an insertion-ordered set union |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation |
 
+### Custom strategies are presence-aware (advanced)
+
+A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional capability with a well-defined default — override it only when the member needs its own three-way reconciliation:
+
+```csharp
+public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>
+{
+    public override Optional<string?> Merge(
+        Optional<string?> lowerPriority,
+        Optional<string?> higherPriority
+    ) => higherPriority.IsPresent ? higherPriority : lowerPriority;
+
+    public override bool AreEqual(string? left, string? right) => left == right;
+}
+```
+
+The rebase contract preserves the missing/present distinction end to end:
+
+* `TryRebase` receives `Optional<T>` for the edit base, the desired state, and the current state. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` are all observable transitions.
+* Return the rebased state as an `Optional<T>`: a present result becomes a `Set` patch operation, a missing result becomes `Unset`, and a result equal to the current state stays `Unchanged` (a semantic no-op).
+* The default implementation succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise.
+* Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
+
 ### Set and dictionary equality
 
 Set and dictionary members compare order-independently, and the element/key comparer is part of the collection value, so the result never depends on operand order:
