@@ -2142,7 +2142,11 @@ internal static class SparseKeyedCollectionEmitter
             5,
             "if (!"
                 + facade
-                + ".AreEqual((object?)before.Value, (object?)after.Value)) patch.__whole = "
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(before.Value, after.Value)) patch.__whole = "
                 + operation
                 + ".Set(after.Value);"
         );
@@ -2152,7 +2156,11 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "if ("
                 + facade
-                + ".AreEqual((object?)before.Value, (object?)after.Value)) return patch;"
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(before.Value, after.Value)) return patch;"
         );
         code.AppendLineAt(
             4,
@@ -2519,7 +2527,11 @@ internal static class SparseKeyedCollectionEmitter
             5,
             "if ("
                 + facade
-                + ".AreEqual((object?)baseState.Value, (object?)currentState.Value)) { result.__whole = local.__whole; return new global::SparseFragments.RebaseResult<"
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(baseState.Value, currentState.Value)) { result.__whole = local.__whole; return new global::SparseFragments.RebaseResult<"
                 + patchName
                 + ">(result, conflicts); }"
         );
@@ -2527,7 +2539,11 @@ internal static class SparseKeyedCollectionEmitter
             5,
             "if (desired.IsPresent == currentState.IsPresent && "
                 + facade
-                + ".AreEqual((object?)desired.Value, (object?)currentState.Value)) return global::SparseFragments.RebaseResult<"
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(desired.Value, currentState.Value)) return global::SparseFragments.RebaseResult<"
                 + patchName
                 + ">.Success(new "
                 + patchName
@@ -2552,7 +2568,11 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "if ("
                 + facade
-                + ".AreEqual((object?)baseState.Value, (object?)currentState.Value)) { result.__set = local.__set is null ? null : new global::System.Collections.Generic.Dictionary<"
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(baseState.Value, currentState.Value)) { result.__set = local.__set is null ? null : new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + valueType
@@ -2574,7 +2594,11 @@ internal static class SparseKeyedCollectionEmitter
             4,
             "if (desired.IsPresent == currentState.IsPresent && "
                 + facade
-                + ".AreEqual((object?)desired.Value, (object?)currentState.Value)) return global::SparseFragments.RebaseResult<"
+                + ".AreDictionaryEqual<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(desired.Value, currentState.Value)) return global::SparseFragments.RebaseResult<"
                 + patchName
                 + ">.Success(new "
                 + patchName
