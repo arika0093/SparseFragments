@@ -12,6 +12,7 @@ namespace SparseFragments.Tests;
 [SparseFragmentModel]
 public partial class SharedMutableCollectionRoot
 {
+    [SparseKey]
     public int Value { get; set; }
     public int[] IntArray { get; set; } = [];
     public int[] IntArrayAlias { get; set; } = [];

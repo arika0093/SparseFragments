@@ -24,6 +24,7 @@ public partial class NullableClassListHolder
 [SparseFragmentModel]
 public partial class FragmentChild
 {
+    [SparseKey]
     public string Name { get; set; } = string.Empty;
     public int Count { get; set; }
 }

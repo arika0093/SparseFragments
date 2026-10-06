@@ -79,4 +79,17 @@ public static class SparseFragmentRuntime
     /// <summary>Creates a reference-identity clone context for generated deep-clone helpers.</summary>
     public static Dictionary<object, object> CreateCloneContext() =>
         new(SparseReferenceEqualityComparer.Instance);
+
+    /// <summary>Ensures keyed-collection keys are unique, throwing on duplicates.</summary>
+    public static void EnsureUniqueKeys<TKey>(
+        IEnumerable<TKey> keys,
+        IEqualityComparer<TKey>? comparer = null
+    ) => SparseKeyedCollection.EnsureUniqueKeys(keys, comparer);
+
+    /// <summary>Compares two final key sequences for equality.</summary>
+    public static bool KeyOrderEquals<TKey>(
+        IReadOnlyList<TKey> left,
+        IReadOnlyList<TKey> right,
+        IEqualityComparer<TKey>? comparer = null
+    ) => SparseKeyedCollection.OrderEquals(left, right, comparer);
 }

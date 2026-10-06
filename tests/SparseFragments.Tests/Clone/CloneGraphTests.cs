@@ -5,6 +5,7 @@ namespace SparseFragments.Tests;
 [SparseFragmentModel]
 public partial class CloneGraphNode
 {
+    [SparseKey]
     public int Value { get; set; }
     public ISet<CloneGraphNode> Members { get; set; } = new HashSet<CloneGraphNode>();
     public CloneGraphNode[] Buffer { get; set; } = Array.Empty<CloneGraphNode>();

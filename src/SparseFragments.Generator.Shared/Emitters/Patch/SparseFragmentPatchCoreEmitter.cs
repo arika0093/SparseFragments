@@ -18,7 +18,7 @@ internal static class SparseFragmentPatchCoreEmitter
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var field = fieldName(member);
-            if (member.ChildModel is null)
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 var type =
                     runtime
@@ -28,6 +28,25 @@ internal static class SparseFragmentPatchCoreEmitter
                     + ">";
                 code.AppendLineAt(2, "private " + type + " " + field + ";");
                 code.AppendLineAt(2, "public ref " + type + " " + name + " => ref " + field + ";");
+            }
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                var type = SparseFragmentPatchEmitter.CollectionPatch(member);
+                code.AppendLineAt(2, "private " + type + "? " + field + ";");
+                code.AppendLineAt(
+                    2,
+                    "public "
+                        + type
+                        + " "
+                        + name
+                        + " { get => "
+                        + field
+                        + " ??= new "
+                        + type
+                        + "(); set => "
+                        + field
+                        + " = value; }"
+                );
             }
             else
             {
@@ -159,7 +178,7 @@ internal static class SparseFragmentPatchCoreEmitter
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var field = dialect.MemberField(member);
-            if (member.ChildModel is null)
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
                 code.AppendLineAt(
                     3,
                     field
@@ -173,6 +192,24 @@ internal static class SparseFragmentPatchCoreEmitter
                         + name
                         + ".Value) : default;"
                 );
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                var collectionPatch = SparseFragmentPatchEmitter.CollectionPatch(member);
+                code.AppendLineAt(3, "if (fragment." + name + ".IsPresent)");
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(
+                    4,
+                    field
+                        + " = new "
+                        + collectionPatch
+                        + "(); "
+                        + field
+                        + ".Set(fragment."
+                        + name
+                        + ".Value!);"
+                );
+                code.AppendLineAt(3, "}");
+            }
             else
             {
                 code.AppendLineAt(3, "if (fragment." + name + ".IsPresent)");
@@ -214,11 +251,11 @@ internal static class SparseFragmentPatchCoreEmitter
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var field = dialect.MemberField(member);
             string expression;
-            if (member.ChildModel is null)
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 expression = field + ".Apply(current." + name + ")";
             }
-            else if (dialect.CastNestedApply)
+            else if (dialect.CastNestedApply && member.ChildModel is not null)
             {
                 expression =
                     field

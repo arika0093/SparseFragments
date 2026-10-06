@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF010)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF011)
 
 This is the list of diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -15,6 +15,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF008](#spf008-unsupported-deep-clone-member) | Unsupported deep clone member | Error |
 | [SPF009](#spf009-member-conflicts-with-generated-json-patch-api) | Member conflicts with generated JSON Patch API | Error |
 | [SPF010](#spf010-incompatible-promoted-fragment-model) | Incompatible promoted fragment model | Error |
+| [SPF011](#spf011-structural-sequence-without-usable-key) | Structural sequence without usable key | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -159,3 +160,17 @@ public partial class Settings
   The generator cannot settle on a single output, so promoted generation is skipped.
 * Fix: Unify the nested type definition and merge settings, or annotate the nested type itself
   with `[SparseFragmentModel]` to promote it to an explicit root.
+
+## SPF011: Structural sequence without usable key
+
+* Message: `Member '{0}' is a structural sequence without a usable key; add [SparseKey] to the element type, or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
+* Cause: A `List<T>`/array member whose element type is a fragment model (or promotable
+  partial) has no stable key, so granular add/remove/edit/order semantics cannot be derived.
+  Scalar sequences (`List<string>`, `int[]`, …) and dictionaries are unaffected: scalars stay
+  atomic whole values and dictionaries are keyed by `TKey` inherently.
+* Fix: Declare keys on the element type — `[SparseKey]` on one property (or several with
+  `Order` for composite keys), or model-level `[SparseKey("TenantId", "Id")]` (model-level
+  wins when present). Key properties must be scalar. A key change through an element edit
+  is remove-old + add-new and never silently retargets. To keep legacy whole-collection
+  semantics instead, select `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
+  `FragmentMergeStrategy<T>` on the member.

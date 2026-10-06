@@ -23,6 +23,12 @@ internal static class SparseFragmentPatchEmitter
         member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
         + "Patch";
 
+    internal static bool IsCollectionPatch(SparseMemberModel member) =>
+        SparseKeyedCollectionEmitter.IsCollectionPatch(member);
+
+    internal static string CollectionPatch(SparseMemberModel member) =>
+        SparseKeyedCollectionEmitter.CollectionPatchName(member);
+
     internal static readonly SparseFragmentExpressions Expressions = new("__sparse_patch_context");
 
     public static void AppendFragmentMethods(SharedIndentedBuilder code, string modelType)
@@ -91,16 +97,25 @@ internal static class SparseFragmentPatchEmitter
             return "true";
         return string.Join(
             " && ",
-            members.Select(member =>
-                member.ChildModel is null
-                    ? dialect.MemberField(member) + ".Kind == " + Kind(dialect) + ".Unchanged"
-                    : "("
-                        + dialect.MemberField(member)
-                        + " is null || "
-                        + dialect.MemberField(member)
-                        + ".__SparseIsEmpty())"
-            )
+            members.Select(member => MemberEmptyExpression(member, dialect))
         );
+    }
+
+    private static string MemberEmptyExpression(
+        SparseMemberModel member,
+        SparsePatchDialect dialect
+    )
+    {
+        if (member.ChildModel is not null || IsCollectionPatch(member))
+        {
+            return "("
+                + dialect.MemberField(member)
+                + " is null || "
+                + dialect.MemberField(member)
+                + ".__SparseIsEmpty())";
+        }
+
+        return dialect.MemberField(member) + ".Kind == " + Kind(dialect) + ".Unchanged";
     }
 
     public static void AppendPatch(
@@ -116,6 +131,7 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
+        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, Runtime, Field);
         var dialect = StandaloneDialect();
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
