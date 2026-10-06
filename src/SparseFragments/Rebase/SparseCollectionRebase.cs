@@ -183,9 +183,9 @@ internal static class SparseCollectionRebase
             return false;
         }
 
-        var beforeLookup = new HashSet<T>(before, localComparer);
+        desiredLookup.ExceptWith(before);
         var result = new HashSet<T>(current, currentComparer);
-        foreach (var value in desired.Where(value => !beforeLookup.Contains(value)))
+        foreach (var value in desired.Where(desiredLookup.Contains))
         {
             result.Add(value);
         }
@@ -337,12 +337,12 @@ internal static class SparseCollectionRebase
             return true;
         }
 
-        var beforeLookup = new HashSet<T>(before, comparer);
+        desiredLookup.ExceptWith(before);
         var resultLookup = new HashSet<T>(current, comparer);
         var result = new List<T>(current);
         foreach (var value in desired)
         {
-            if (!beforeLookup.Contains(value) && resultLookup.Add(value))
+            if (desiredLookup.Contains(value) && resultLookup.Add(value))
             {
                 result.Add(value);
             }
