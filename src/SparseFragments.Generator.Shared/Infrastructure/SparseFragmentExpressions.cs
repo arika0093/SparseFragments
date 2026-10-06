@@ -142,7 +142,6 @@ internal sealed class SparseFragmentExpressions(
             return $"{CollectionMerger}.MergeSet<{elementType}>({lower}, {higher})";
         }
 
-        var combined = $"global::System.Linq.Enumerable.Concat({lower}, {higher})";
         if (member.MergeMode == 3)
         {
             var method =
@@ -152,12 +151,12 @@ internal sealed class SparseFragmentExpressions(
             return $"{CollectionMerger}.{method}<{elementType}>({lower}, {higher})";
         }
 
-        return member.Collection.Kind switch
+        if (member.Collection.Kind == SparseCollectionKind.List)
         {
-            SparseCollectionKind.List =>
-                $"new global::System.Collections.Generic.List<{elementType}>({combined})",
-            _ => $"global::System.Linq.Enumerable.ToArray({combined})",
-        };
+            return $"{CollectionMerger}.MergeAppendList<{elementType}>({lower}, {higher})";
+        }
+
+        return $"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Concat({lower}, {higher}))";
     }
 
     /// <summary>Builds an expression that materializes a sequence of elements into the member's collection type.</summary>

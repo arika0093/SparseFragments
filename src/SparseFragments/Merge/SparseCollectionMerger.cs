@@ -3,6 +3,26 @@ namespace SparseFragments;
 /// <summary>Collection operations used by generated sparse fragments.</summary>
 internal static class SparseCollectionMerger
 {
+    /// <summary>Appends ordered contributions, preserving duplicates.</summary>
+    public static List<T> MergeAppendList<T>(IEnumerable<T> lower, IEnumerable<T> higher)
+    {
+        ArgumentNullException.ThrowIfNull(lower);
+        ArgumentNullException.ThrowIfNull(higher);
+        var capacity = checked(GetAppendCount(lower) + GetAppendCount(higher));
+        var result = new List<T>(capacity);
+        result.AddRange(lower);
+        result.AddRange(higher);
+        return result;
+    }
+
+    private static int GetAppendCount<T>(IEnumerable<T> values) =>
+        values switch
+        {
+            ICollection<T> collection => collection.Count,
+            IReadOnlyCollection<T> collection => collection.Count,
+            _ => 0,
+        };
+
     /// <summary>Merges ordered contributions, retaining the first occurrence of each value.</summary>
     public static T[] MergeDistinctArray<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>
         MergeDistinctList(lower, higher).ToArray();

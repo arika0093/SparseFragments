@@ -28,6 +28,10 @@ public static class SparseFragmentRuntime
         IEnumerable<KeyValuePair<TKey, TValue>>? right
     ) => SparseValueComparer.AreDictionaryEqual(left, right);
 
+    /// <summary>Appends ordered contributions, preserving duplicates.</summary>
+    public static List<T> MergeAppendList<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>
+        SparseCollectionMerger.MergeAppendList(lower, higher);
+
     /// <summary>Merges ordered contributions, retaining the first occurrence of each value.</summary>
     public static T[] MergeDistinctArray<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>
         SparseCollectionMerger.MergeDistinctArray(lower, higher);

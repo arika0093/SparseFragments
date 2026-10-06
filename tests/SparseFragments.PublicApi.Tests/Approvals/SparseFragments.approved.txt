@@ -12,6 +12,7 @@ namespace SparseFragments.CompilerServices
         public static System.Collections.Generic.HashSet<object> CreateFromCycleContext() { }
         public static void EnsureUniqueKeys<TKey>(System.Collections.Generic.IEnumerable<TKey> keys, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static bool KeyOrderEquals<TKey>(System.Collections.Generic.IReadOnlyList<TKey> left, System.Collections.Generic.IReadOnlyList<TKey> right, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static System.Collections.Generic.List<T> MergeAppendList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static T[] MergeDistinctArray<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static System.Collections.Generic.List<T> MergeDistinctList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
