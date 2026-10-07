@@ -16,10 +16,13 @@ permissions:
   contents: read
 
 env:
-  # Exact SDK selection is pinned in global.json (reproducibility policy
-  # #26); this channel only ensures setup-dotnet installs an SDK satisfying
-  # it. Dependabot updates actions/setup-dotnet itself via github-actions.
-  DOTNET_VERSION: 10.0.x
+  # Release reproducibility policy (#84): release-candidate bytes are built
+  # with exactly this SDK. setup-dotnet installs this exact version (not a
+  # floating channel), and the package-candidate job fails unless
+  # `dotnet --version` selects it. Keep in sync with the `sdk.version` pin in
+  # global.json. Normal development/PR CI (test.yaml) intentionally keeps the
+  # wider 8.0.x/10.0.x channels for convenience; only release output is pinned.
+  DOTNET_VERSION: 10.0.401
 
 jobs:
   package-candidate:
@@ -36,6 +39,13 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Assert release SDK selection
+        run: |
+          test "$(dotnet --version)" = "${{ env.DOTNET_VERSION }}" || \
+            { echo "Release SDK mismatch: 'dotnet --version' is '$(dotnet --version)', expected '${{ env.DOTNET_VERSION }}'." >&2; exit 1; }
+          grep -F -q "\"version\": \"${{ env.DOTNET_VERSION }}\"" global.json || \
+            { echo "global.json sdk.version drifted from DOTNET_VERSION '${{ env.DOTNET_VERSION }}'." >&2; exit 1; }
 
       # Reproducibility policy (#26): pin to a released tag (Dependabot
       # github-actions ecosystem proposes upgrades). Never use @master here.
