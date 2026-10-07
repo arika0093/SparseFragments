@@ -4,15 +4,17 @@ using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model (issue #85).</summary>
+/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model (issue #85, #96).</summary>
 /// <remarks>
-/// ChangeSet is a thin immutable wrapper retaining before/after presence-aware state
-/// plus the canonical forward Patch. Diff/rebase semantics delegate to the existing
-/// Patch implementation so scalar, nested, collection, keyed, and custom-strategy
-/// behavior is preserved exactly. Patch.Between/Invert/Rebase remain for compatibility
-/// with ChangeSet.Between as the canonical diff entry.
-/// Issue #90 adds a typed read-only projection surface computed from the semantic
-/// before/after states (normalization, not raw patch ops).
+/// Issue #96: canonical storage is sparse per-path transition state, never full
+/// before/after snapshots. Unchanged members retain nothing (Missing + has=false
+/// or null nested). Between/FromPatch normalize to this sparse form; ToPatch/Invert
+/// project from it; typed surface reads it; STJ serializes only changed paths.
+/// Compose/Rebase are sparse-aware for memberwise transitions; whole-root and
+/// keyed/dict member-level whole cases retain the member values they need.
+/// Full sparse keyed algebra (granular-only retention, cross-member merge without
+/// member values) is deferred to #97: keyed/dict changed members currently retain
+/// their member-level before/after values (still sparse at member granularity).
 /// </remarks>
 internal static class SparseChangeSetEmitter
 {
@@ -33,129 +35,24 @@ internal static class SparseChangeSetEmitter
         SparsePatchStjEmitter.AppendChangeSetConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class ChangeSet");
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(2, "private readonly " + optionalFragment + " _before;");
-        code.AppendLineAt(2, "private readonly " + optionalFragment + " _after;");
-        code.AppendLineAt(2, "private readonly Patch _patch;");
-        code.AppendLineAt(
-            2,
-            "private ChangeSet("
-                + optionalFragment
-                + " before, "
-                + optionalFragment
-                + " after, Patch patch)"
+        AppendFields(code, members, runtime, optionalFragment);
+        AppendConstructor(code, members, runtime, optionalFragment);
+        AppendIsEmpty(code, members);
+        AppendBetween(code, members, runtime, optionalFragment);
+        AppendFromPatch(code, members, runtime, optionalFragment);
+        AppendToPatch(code, members, runtime, prefix);
+        AppendInvert(code, members, runtime, optionalFragment);
+        AppendCompose(code, members, runtime, optionalFragment);
+        AppendRebase(
+            code,
+            members,
+            runtime,
+            optionalFragment,
+            rebaseResult,
+            prefix,
+            rebase,
+            between
         );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "_before = before;");
-        code.AppendLineAt(3, "_after = after;");
-        code.AppendLineAt(3, "_patch = patch;");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Whether this change set contains no semantic changes.</summary>"
-        );
-        code.AppendLineAt(2, "public bool IsEmpty => _patch.__SparseIsEmpty();");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Derives the canonical baseline-aware diff between two states.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public static ChangeSet Between("
-                + optionalFragment
-                + " before, "
-                + optionalFragment
-                + " after)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var patch = " + between + "(before, after);");
-        code.AppendLineAt(3, "return new ChangeSet(before, after, patch);");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public static ChangeSet FromPatch(" + optionalFragment + " baseline, Patch patch)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
-        );
-        code.AppendLineAt(3, "var after = patch.Apply(baseline);");
-        code.AppendLineAt(
-            3,
-            "return new ChangeSet(baseline, after, " + between + "(baseline, after));"
-        );
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
-        );
-        code.AppendLineAt(2, "public Patch ToPatch() => " + between + "(_before, _after);");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangeSet Invert()");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "return new ChangeSet(_after, _before, " + between + "(_after, _before));"
-        );
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangeSet Compose(ChangeSet next)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
-        );
-        code.AppendLineAt(
-            3,
-            "if (!Fragment.__SparseAreEqual(_after, next._before)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
-        );
-        code.AppendLineAt(
-            3,
-            "return new ChangeSet(_before, next._after, " + between + "(_before, next._after));"
-        );
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
-        code.AppendLineAt(2, "public static ChangeSet Compose(ChangeSet first, ChangeSet second)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (first is null) throw new global::System.ArgumentNullException(nameof(first));"
-        );
-        code.AppendLineAt(3, "return first.Compose(second);");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Rebases this change onto a newer state without requiring the original baseline.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public " + rebaseResult + " RebaseOnto(" + optionalFragment + " current)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var rebase = " + rebase + "(_before, _patch, current);");
-        code.AppendLineAt(3, "if (rebase.Conflicts.Count == 0 && rebase.Patch.__SparseIsEmpty())");
-        code.AppendLineAt(
-            4,
-            "return " + rebaseResult + ".Success(new ChangeSet(current, current, rebase.Patch));"
-        );
-        code.AppendLineAt(3, "var rebasedAfter = rebase.Patch.Apply(current);");
-        code.AppendLineAt(
-            3,
-            "return new "
-                + rebaseResult
-                + "(new ChangeSet(current, rebasedAfter, rebase.Patch), rebase.Conflicts);"
-        );
-        code.AppendLineAt(2, "}");
         AppendTypedSurface(code, members);
         SparsePatchStjEmitter.AppendChangeSetStj(code, members);
         code.AppendLineAt(1, "}");
@@ -179,29 +76,1041 @@ internal static class SparseChangeSetEmitter
         m.ChildFragmentType!.Substring(0, m.ChildFragmentType.Length - "Fragment".Length)
         + "ChangeSet";
 
-    private static string KeyTypeOf(SparseMemberModel m)
+    private static string BeforeField(SparseMemberModel m) => "__sparse_before_" + m.Id;
+
+    private static string AfterField(SparseMemberModel m) => "__sparse_after_" + m.Id;
+
+    private static string HasField(SparseMemberModel m) => "__sparse_has_" + m.Id;
+
+    private static string NestedField(SparseMemberModel m) => "__sparse_nested_" + m.Id;
+
+    private static void AppendFields(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
     {
-        if (IsDict(m))
-            return m.Collection.ElementType.Name;
-        return m.Collection.KeyTypeName ?? "object?";
+        code.AppendLineAt(2, "private readonly bool __sparse_hasWhole;");
+        code.AppendLineAt(2, "private readonly " + optionalFragment + " __sparse_wholeBefore;");
+        code.AppendLineAt(2, "private readonly " + optionalFragment + " __sparse_wholeAfter;");
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+            {
+                code.AppendLineAt(
+                    2,
+                    "private readonly " + ChildChangeSet(member) + "? " + NestedField(member) + ";"
+                );
+            }
+            else
+            {
+                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                code.AppendLineAt(2, "private readonly " + opt + " " + BeforeField(member) + ";");
+                code.AppendLineAt(2, "private readonly " + opt + " " + AfterField(member) + ";");
+                code.AppendLineAt(2, "private readonly bool " + HasField(member) + ";");
+            }
+        }
     }
 
-    private static string ElementTypeOf(SparseMemberModel m) => m.Collection.ElementType.Name;
+    private static void AppendConstructor(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        var parts = new List<string>
+        {
+            "bool hasWhole",
+            optionalFragment + " wholeBefore",
+            optionalFragment + " wholeAfter",
+        };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+            {
+                parts.Add(ChildChangeSet(member) + "? nested" + member.Id);
+            }
+            else
+            {
+                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                parts.Add(opt + " before" + member.Id);
+                parts.Add(opt + " after" + member.Id);
+                parts.Add("bool has" + member.Id);
+            }
+        }
+        code.AppendLineAt(2, "private ChangeSet(" + string.Join(", ", parts) + ")");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "__sparse_hasWhole = hasWhole;");
+        code.AppendLineAt(3, "__sparse_wholeBefore = wholeBefore;");
+        code.AppendLineAt(3, "__sparse_wholeAfter = wholeAfter;");
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+            {
+                code.AppendLineAt(3, NestedField(member) + " = nested" + member.Id + ";");
+            }
+            else
+            {
+                code.AppendLineAt(3, BeforeField(member) + " = before" + member.Id + ";");
+                code.AppendLineAt(3, AfterField(member) + " = after" + member.Id + ";");
+                code.AppendLineAt(3, HasField(member) + " = has" + member.Id + ";");
+            }
+        }
+        code.AppendLineAt(2, "}");
+    }
 
-    private static string ValueTypeOf(SparseMemberModel m) =>
-        m.Collection.ValueType?.Name ?? "object?";
+    private static string EmptyArgs(ImmutableArray<SparseMemberModel> members)
+    {
+        var parts = new List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                parts.Add("null");
+            else
+                parts.AddRange(new[] { "default", "default", "false" });
+        }
+        return string.Join(", ", parts);
+    }
 
-    private static string ElementChangeSetOf(SparseMemberModel m) =>
-        m.Collection.ElementType.NonNullableName + ".ChangeSet";
+    private static void AppendIsEmpty(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Whether this change set contains no semantic changes.</summary>"
+        );
+        var expr = new List<string> { "!__sparse_hasWhole" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                expr.Add(
+                    "(" + NestedField(member) + " is null || " + NestedField(member) + ".IsEmpty)"
+                );
+            else
+                expr.Add("!" + HasField(member));
+        }
+        code.AppendLineAt(2, "public bool IsEmpty => " + string.Join(" && ", expr) + ";");
+    }
 
-    private static string ElementFragmentOf(SparseMemberModel m) =>
-        m.Collection.ElementType.NonNullableName + ".Fragment";
+    private static void AppendBetween(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Derives the canonical baseline-aware diff between two states.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public static ChangeSet Between("
+                + optionalFragment
+                + " before, "
+                + optionalFragment
+                + " after)"
+        );
+        code.AppendLineAt(2, "{");
+        var empty = EmptyArgs(members);
+        code.AppendLineAt(3, "if (before.IsPresent != after.IsPresent)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "return new ChangeSet(true, before, after, " + MemberEmptyTail(members) + ");"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (!before.IsPresent) return new ChangeSet(" + empty + ");");
+        code.AppendLineAt(
+            3,
+            "if (global::System.Object.ReferenceEquals(before.Value, after.Value)) return new ChangeSet("
+                + empty
+                + ");"
+        );
+        code.AppendLineAt(3, "if (before.Value is null || after.Value is null)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (before.Value is null && after.Value is null) return new ChangeSet(" + empty + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "return new ChangeSet(true, before, after, " + MemberEmptyTail(members) + ");"
+        );
+        code.AppendLineAt(3, "}");
+        if (members.IsDefaultOrEmpty || members.Length == 0)
+        {
+            code.AppendLineAt(3, "return new ChangeSet(" + empty + ");");
+            code.AppendLineAt(2, "}");
+            return;
+        }
+        code.AppendLineAt(3, "var bf = before.Value!;");
+        code.AppendLineAt(3, "var af = after.Value!;");
+        foreach (var member in members)
+        {
+            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+            if (IsNested(member))
+            {
+                var child = ChildChangeSet(member);
+                code.AppendLineAt(
+                    3,
+                    "var __n"
+                        + member.Id
+                        + " = "
+                        + child
+                        + ".Between(bf."
+                        + name
+                        + ", af."
+                        + name
+                        + ");"
+                );
+                code.AppendLineAt(
+                    3,
+                    child
+                        + "? __nn"
+                        + member.Id
+                        + " = __n"
+                        + member.Id
+                        + ".IsEmpty ? null : __n"
+                        + member.Id
+                        + ";"
+                );
+            }
+            else if (IsKeyed(member) || IsDict(member))
+            {
+                // Keyed/dict equality is granular (element-wise fragment aware):
+                // member-level sequence/dictionary comparison alone cannot see
+                // through cloned element instances, so reuse the canonical
+                // collection diff exactly like Patch.Between does.
+                var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                code.AppendLineAt(
+                    3,
+                    "bool __h"
+                        + member.Id
+                        + " = !"
+                        + coll
+                        + ".Between(bf."
+                        + name
+                        + ", af."
+                        + name
+                        + ").__SparseIsEmpty();"
+                );
+                code.AppendLineAt(
+                    3,
+                    opt
+                        + " __b"
+                        + member.Id
+                        + " = __h"
+                        + member.Id
+                        + " ? bf."
+                        + name
+                        + " : default;"
+                );
+                code.AppendLineAt(
+                    3,
+                    opt
+                        + " __a"
+                        + member.Id
+                        + " = __h"
+                        + member.Id
+                        + " ? af."
+                        + name
+                        + " : default;"
+                );
+            }
+            else
+            {
+                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                code.AppendLineAt(
+                    3,
+                    "bool __h"
+                        + member.Id
+                        + " = !Fragment.__SparseEqual_"
+                        + member.Id
+                        + "(bf."
+                        + name
+                        + ", af."
+                        + name
+                        + ");"
+                );
+                code.AppendLineAt(
+                    3,
+                    opt
+                        + " __b"
+                        + member.Id
+                        + " = __h"
+                        + member.Id
+                        + " ? bf."
+                        + name
+                        + " : default;"
+                );
+                code.AppendLineAt(
+                    3,
+                    opt
+                        + " __a"
+                        + member.Id
+                        + " = __h"
+                        + member.Id
+                        + " ? af."
+                        + name
+                        + " : default;"
+                );
+            }
+        }
+        // Empty fast path.
+        var conds = new List<string>();
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                conds.Add("__nn" + member.Id + " is null");
+            else
+                conds.Add("!__h" + member.Id);
+        }
+        code.AppendLineAt(
+            3,
+            "if (" + string.Join(" && ", conds) + ") return new ChangeSet(" + empty + ");"
+        );
+        var args = new List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                args.Add("__nn" + member.Id);
+            else
+                args.AddRange(new[] { "__b" + member.Id, "__a" + member.Id, "__h" + member.Id });
+        }
+        code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", args) + ");");
+        code.AppendLineAt(2, "}");
+    }
 
-    private static string ValueChangeSetOf(SparseMemberModel m) =>
-        m.Collection.ValueType!.Value.NonNullableName + ".ChangeSet";
+    private static string MemberEmptyTail(ImmutableArray<SparseMemberModel> members)
+    {
+        if (members.IsDefaultOrEmpty || members.Length == 0)
+            return string.Empty.Trim();
+        var parts = new List<string>();
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                parts.Add("null");
+            else
+                parts.AddRange(new[] { "default", "default", "false" });
+        }
+        return string.Join(", ", parts);
+    }
 
-    private static string ValueFragmentOf(SparseMemberModel m) =>
-        m.Collection.ValueType!.Value.NonNullableName + ".Fragment";
+    private static void AppendFromPatch(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        _ = members;
+        _ = runtime;
+        code.AppendLineAt(
+            2,
+            "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public static ChangeSet FromPatch(" + optionalFragment + " baseline, Patch patch)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
+        );
+        code.AppendLineAt(3, "var after = patch.Apply(baseline);");
+        code.AppendLineAt(3, "return Between(baseline, after);");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendToPatch(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string prefix
+    )
+    {
+        var between = "Patch." + prefix + "Between";
+        code.AppendLineAt(
+            2,
+            "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
+        );
+        code.AppendLineAt(2, "public Patch ToPatch()");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (__sparse_hasWhole) return "
+                + between
+                + "(__sparse_wholeBefore, __sparse_wholeAfter);"
+        );
+        code.AppendLineAt(3, "var patch = new Patch();");
+        foreach (var member in members)
+        {
+            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+            if (IsNested(member))
+            {
+                code.AppendLineAt(3, "if (" + NestedField(member) + " is not null)");
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(4, "patch." + name + " = " + NestedField(member) + ".ToPatch();");
+                code.AppendLineAt(3, "}");
+            }
+            else if (IsKeyed(member) || IsDict(member))
+            {
+                var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                code.AppendLineAt(3, "if (" + HasField(member) + ")");
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(
+                    4,
+                    "patch."
+                        + name
+                        + " = "
+                        + coll
+                        + ".Between("
+                        + BeforeField(member)
+                        + ", "
+                        + AfterField(member)
+                        + ");"
+                );
+                code.AppendLineAt(3, "}");
+            }
+            else
+            {
+                var vt = SparseFragmentPatchEmitter.ValueType(member);
+                var op = runtime + "FragmentOperation<" + vt + ">";
+                code.AppendLineAt(3, "if (" + HasField(member) + ")");
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(
+                    4,
+                    "patch."
+                        + name
+                        + " = "
+                        + AfterField(member)
+                        + ".IsPresent ? "
+                        + op
+                        + ".Set("
+                        + AfterField(member)
+                        + ".Value) : "
+                        + op
+                        + ".Unset;"
+                );
+                code.AppendLineAt(3, "}");
+            }
+        }
+        code.AppendLineAt(3, "return patch;");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendInvert(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        _ = runtime;
+        _ = optionalFragment;
+        code.AppendLineAt(
+            2,
+            "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
+        );
+        code.AppendLineAt(2, "public ChangeSet Invert()");
+        code.AppendLineAt(2, "{");
+        var emptyTail = MemberEmptyTail(members);
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        if (string.IsNullOrEmpty(emptyTail))
+            code.AppendLineAt(
+                4,
+                "return new ChangeSet(true, __sparse_wholeAfter, __sparse_wholeBefore);"
+            );
+        else
+            code.AppendLineAt(
+                4,
+                "return new ChangeSet(true, __sparse_wholeAfter, __sparse_wholeBefore, "
+                    + emptyTail
+                    + ");"
+            );
+        code.AppendLineAt(3, "}");
+        var args = new List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                args.Add(
+                    NestedField(member) + " is null ? null : " + NestedField(member) + ".Invert()"
+                );
+            else
+                args.AddRange(new[] { AfterField(member), BeforeField(member), HasField(member) });
+        }
+        code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", args) + ");");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendCompose(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        _ = runtime;
+        _ = optionalFragment;
+        code.AppendLineAt(
+            2,
+            "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
+        );
+        code.AppendLineAt(2, "public ChangeSet Compose(ChangeSet next)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
+        );
+        code.AppendLineAt(3, "if (IsEmpty) return next;");
+        code.AppendLineAt(3, "if (next.IsEmpty) return this;");
+        code.AppendLineAt(3, "if (__sparse_hasWhole || next.__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (__sparse_hasWhole && next.__sparse_hasWhole)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (!Fragment.__SparseAreEqual(__sparse_wholeAfter, next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+        );
+        code.AppendLineAt(5, "return Between(__sparse_wholeBefore, next.__sparse_wholeAfter);");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "throw new global::System.InvalidOperationException(\"ChangeSet composition of whole-root and memberwise transitions requires a shared baseline; this sparse algebra is completed in #97.\");"
+        );
+        code.AppendLineAt(3, "}");
+        foreach (var member in members)
+        {
+            if (!IsNested(member))
+                continue;
+            var child = ChildChangeSet(member);
+            code.AppendLineAt(3, child + "? __c" + member.Id + ";");
+            code.AppendLineAt(
+                3,
+                "if ("
+                    + NestedField(member)
+                    + " is null) __c"
+                    + member.Id
+                    + " = next."
+                    + NestedField(member)
+                    + ";"
+            );
+            code.AppendLineAt(
+                3,
+                "else if (next."
+                    + NestedField(member)
+                    + " is null) __c"
+                    + member.Id
+                    + " = "
+                    + NestedField(member)
+                    + ";"
+            );
+            code.AppendLineAt(
+                3,
+                "else { var __cc"
+                    + member.Id
+                    + " = "
+                    + NestedField(member)
+                    + ".Compose(next."
+                    + NestedField(member)
+                    + "); __c"
+                    + member.Id
+                    + " = __cc"
+                    + member.Id
+                    + ".IsEmpty ? null : __cc"
+                    + member.Id
+                    + "; }"
+            );
+        }
+        // Emit per-member merge with explicit locals.
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                continue;
+            var opt =
+                SparseFragmentPatchEmitter.Runtime + "Optional<" + FragmentValueType(member) + ">";
+            code.AppendLineAt(3, opt + " __cb" + member.Id + "_b = default;");
+            code.AppendLineAt(3, opt + " __cb" + member.Id + "_a = default;");
+            code.AppendLineAt(3, "bool __cb" + member.Id + "_has;");
+            code.AppendLineAt(3, "if (!" + HasField(member) + ")");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "__cb" + member.Id + "_has = next." + HasField(member) + ";");
+            code.AppendLineAt(4, "__cb" + member.Id + "_b = next." + BeforeField(member) + ";");
+            code.AppendLineAt(4, "__cb" + member.Id + "_a = next." + AfterField(member) + ";");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "else if (!next." + HasField(member) + ")");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "__cb" + member.Id + "_has = true;");
+            code.AppendLineAt(4, "__cb" + member.Id + "_b = " + BeforeField(member) + ";");
+            code.AppendLineAt(4, "__cb" + member.Id + "_a = " + AfterField(member) + ";");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "else");
+            code.AppendLineAt(3, "{");
+            if (IsKeyed(member) || IsDict(member))
+            {
+                var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                code.AppendLineAt(
+                    4,
+                    "if (!"
+                        + coll
+                        + ".Between("
+                        + AfterField(member)
+                        + ", next."
+                        + BeforeField(member)
+                        + ").__SparseIsEmpty()) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                );
+                code.AppendLineAt(
+                    4,
+                    "if ("
+                        + coll
+                        + ".Between("
+                        + BeforeField(member)
+                        + ", next."
+                        + AfterField(member)
+                        + ").__SparseIsEmpty()) { __cb"
+                        + member.Id
+                        + "_has = false; }"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    4,
+                    "if (!Fragment.__SparseEqual_"
+                        + member.Id
+                        + "("
+                        + AfterField(member)
+                        + ", next."
+                        + BeforeField(member)
+                        + ")) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                );
+                code.AppendLineAt(
+                    4,
+                    "if (Fragment.__SparseEqual_"
+                        + member.Id
+                        + "("
+                        + BeforeField(member)
+                        + ", next."
+                        + AfterField(member)
+                        + ")) { __cb"
+                        + member.Id
+                        + "_has = false; }"
+                );
+            }
+            code.AppendLineAt(
+                4,
+                "else { __cb"
+                    + member.Id
+                    + "_has = true; __cb"
+                    + member.Id
+                    + "_b = "
+                    + BeforeField(member)
+                    + "; __cb"
+                    + member.Id
+                    + "_a = next."
+                    + AfterField(member)
+                    + "; }"
+            );
+            code.AppendLineAt(3, "}");
+        }
+        var args = new List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                args.Add("__c" + member.Id);
+            else
+                args.AddRange(
+                    new[]
+                    {
+                        "__cb" + member.Id + "_b",
+                        "__cb" + member.Id + "_a",
+                        "__cb" + member.Id + "_has",
+                    }
+                );
+        }
+        code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", args) + ");");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
+        code.AppendLineAt(2, "public static ChangeSet Compose(ChangeSet first, ChangeSet second)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (first is null) throw new global::System.ArgumentNullException(nameof(first));"
+        );
+        code.AppendLineAt(3, "return first.Compose(second);");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendRebase(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment,
+        string rebaseResult,
+        string prefix,
+        string rebase,
+        string between
+    )
+    {
+        _ = between;
+        _ = prefix;
+        code.AppendLineAt(
+            2,
+            "private static "
+                + runtime
+                + "Optional<object?> __SparseState("
+                + optionalFragment
+                + " state) => state.IsPresent ? "
+                + runtime
+                + "Optional<object?>.Present((object?)state.Value) : "
+                + runtime
+                + "Optional<object?>.Missing;"
+        );
+        code.AppendLineAt(
+            2,
+            "private static "
+                + runtime
+                + "Optional<object?> __SparseMember<T>("
+                + runtime
+                + "Optional<T> value) => value.IsPresent ? "
+                + runtime
+                + "Optional<object?>.Present((object?)value.Value) : "
+                + runtime
+                + "Optional<object?>.Missing;"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Rebases this change onto a newer state without requiring the original baseline.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public " + rebaseResult + " RebaseOnto(" + optionalFragment + " current)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __local = ToPatch();");
+        code.AppendLineAt(4, "var __rb = " + rebase + "(__sparse_wholeBefore, __local, current);");
+        code.AppendLineAt(4, "if (__rb.Conflicts.Count == 0 && __rb.Patch.__SparseIsEmpty())");
+        code.AppendLineAt(5, "return " + rebaseResult + ".Success(Between(current, current));");
+        code.AppendLineAt(4, "var __ra = __rb.Patch.Apply(current);");
+        code.AppendLineAt(
+            4,
+            "return new " + rebaseResult + "(Between(current, __ra), __rb.Conflicts);"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "if (IsEmpty) return " + rebaseResult + ".Success(Between(current, current));"
+        );
+        code.AppendLineAt(3, "if (!current.IsPresent || current.Value is null)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "var __conf = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
+        );
+        code.AppendLineAt(
+            4,
+            "__conf.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.WholeContribution, __SparseState(__sparse_hasWhole ? __sparse_wholeBefore : default), __SparseState(__sparse_hasWhole ? __sparse_wholeAfter : default), __SparseState(current), \"The contribution conflicts with a concurrent change.\"));"
+        );
+        code.AppendLineAt(4, "return new " + rebaseResult + "(Between(current, current), __conf);");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "var __cur = current.Value!;");
+        code.AppendLineAt(
+            3,
+            "var __conflicts = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
+        );
+        // Declare rebased locals.
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+            {
+                code.AppendLineAt(3, ChildChangeSet(member) + "? __r" + member.Id + " = null;");
+            }
+            else
+            {
+                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                code.AppendLineAt(3, opt + " __rb" + member.Id + " = default;");
+                code.AppendLineAt(3, opt + " __ra" + member.Id + " = default;");
+                code.AppendLineAt(3, "bool __rh" + member.Id + " = false;");
+            }
+        }
+        foreach (var member in members)
+        {
+            var prop = member.Property.Name;
+            var lit = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(prop, true);
+            var esc = SparseNaming.EscapeIdentifier(prop);
+            code.AppendLineAt(3, "{");
+            if (IsNested(member))
+            {
+                code.AppendLineAt(4, "if (" + NestedField(member) + " is not null)");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    5,
+                    "var __nr"
+                        + member.Id
+                        + " = "
+                        + NestedField(member)
+                        + ".RebaseOnto(__cur."
+                        + esc
+                        + ");"
+                );
+                code.AppendLineAt(5, "foreach (var __c in __nr" + member.Id + ".Conflicts)");
+                code.AppendLineAt(5, "{");
+                code.AppendLineAt(6, "__conflicts.Add(__c.WithPathPrefix(" + lit + "));");
+                code.AppendLineAt(5, "}");
+                code.AppendLineAt(
+                    5,
+                    "__r"
+                        + member.Id
+                        + " = __nr"
+                        + member.Id
+                        + ".Patch.IsEmpty ? null : __nr"
+                        + member.Id
+                        + ".Patch;"
+                );
+                code.AppendLineAt(4, "}");
+            }
+            else if (IsKeyed(member) || IsDict(member))
+            {
+                var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                code.AppendLineAt(4, "if (" + HasField(member) + ")");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    4,
+                    "    var __base" + member.Id + " = " + BeforeField(member) + ";"
+                );
+                code.AppendLineAt(4, "    var __curM" + member.Id + " = __cur." + esc + ";");
+                code.AppendLineAt(
+                    4,
+                    "    var __local"
+                        + member.Id
+                        + " = "
+                        + coll
+                        + ".Between(__base"
+                        + member.Id
+                        + ", "
+                        + AfterField(member)
+                        + ");"
+                );
+                code.AppendLineAt(
+                    4,
+                    "    var __cr"
+                        + member.Id
+                        + " = "
+                        + coll
+                        + ".Rebase(__base"
+                        + member.Id
+                        + ", __local"
+                        + member.Id
+                        + ", __curM"
+                        + member.Id
+                        + ");"
+                );
+                code.AppendLineAt(4, "    foreach (var __c in __cr" + member.Id + ".Conflicts)");
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(5, "        __conflicts.Add(__c.WithPathPrefix(" + lit + "));");
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(4, "    if (!__cr" + member.Id + ".Patch.__SparseIsEmpty())");
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(
+                    5,
+                    "        var __applied"
+                        + member.Id
+                        + " = __cr"
+                        + member.Id
+                        + ".Patch.Apply(__curM"
+                        + member.Id
+                        + ");"
+                );
+                code.AppendLineAt(
+                    5,
+                    "        if (!Fragment.__SparseEqual_"
+                        + member.Id
+                        + "(__curM"
+                        + member.Id
+                        + ", __applied"
+                        + member.Id
+                        + "))"
+                );
+                code.AppendLineAt(5, "        {");
+                code.AppendLineAt(6, "            __rh" + member.Id + " = true;");
+                code.AppendLineAt(
+                    6,
+                    "            __rb" + member.Id + " = __curM" + member.Id + ";"
+                );
+                code.AppendLineAt(
+                    6,
+                    "            __ra" + member.Id + " = __applied" + member.Id + ";"
+                );
+                code.AppendLineAt(5, "        }");
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(4, "}");
+            }
+            else if (member.MergeStrategyType is not null)
+            {
+                var strat = "Fragment." + SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
+                code.AppendLineAt(4, "if (" + HasField(member) + ")");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    4,
+                    "    var __base" + member.Id + " = " + BeforeField(member) + ";"
+                );
+                code.AppendLineAt(
+                    4,
+                    "    var __des" + member.Id + " = " + AfterField(member) + ";"
+                );
+                code.AppendLineAt(4, "    var __curM" + member.Id + " = __cur." + esc + ";");
+                code.AppendLineAt(
+                    4,
+                    "    if ("
+                        + strat
+                        + ".TryRebase(__base"
+                        + member.Id
+                        + ", __des"
+                        + member.Id
+                        + ", __curM"
+                        + member.Id
+                        + ", out var __reb"
+                        + member.Id
+                        + ", out var __reason"
+                        + member.Id
+                        + "))"
+                );
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(
+                    5,
+                    "        if (!((!__reb"
+                        + member.Id
+                        + ".IsPresent && !__curM"
+                        + member.Id
+                        + ".IsPresent) || (__reb"
+                        + member.Id
+                        + ".IsPresent && __curM"
+                        + member.Id
+                        + ".IsPresent && "
+                        + strat
+                        + ".AreEqual(__curM"
+                        + member.Id
+                        + ".Value, __reb"
+                        + member.Id
+                        + ".Value))))"
+                );
+                code.AppendLineAt(5, "        {");
+                code.AppendLineAt(6, "            __rh" + member.Id + " = true;");
+                code.AppendLineAt(
+                    6,
+                    "            __rb" + member.Id + " = __curM" + member.Id + ";"
+                );
+                code.AppendLineAt(6, "            __ra" + member.Id + " = __reb" + member.Id + ";");
+                code.AppendLineAt(5, "        }");
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(4, "    else");
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(
+                    5,
+                    "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                        + lit
+                        + " }, global::SparseFragments.SparsePatchConflictKind.CustomStrategy, __SparseMember(__base"
+                        + member.Id
+                        + "), __SparseMember(__des"
+                        + member.Id
+                        + "), __SparseMember(__curM"
+                        + member.Id
+                        + "), __reason"
+                        + member.Id
+                        + " ?? \"The custom merge strategy could not rebase the member.\"));"
+                );
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(4, "}");
+            }
+            else
+            {
+                string kind;
+                if (member.MergeMode == 2)
+                    kind = "global::SparseFragments.SparsePatchConflictKind.CollectionAppend";
+                else if (member.MergeMode == 3)
+                    kind = "global::SparseFragments.SparsePatchConflictKind.CollectionSetUnion";
+                else
+                    kind = "global::SparseFragments.SparsePatchConflictKind.Scalar";
+                code.AppendLineAt(4, "if (" + HasField(member) + ")");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    4,
+                    "    var __base" + member.Id + " = " + BeforeField(member) + ";"
+                );
+                code.AppendLineAt(
+                    4,
+                    "    var __des" + member.Id + " = " + AfterField(member) + ";"
+                );
+                code.AppendLineAt(4, "    var __curM" + member.Id + " = __cur." + esc + ";");
+                code.AppendLineAt(
+                    4,
+                    "    if (Fragment.__SparseEqual_"
+                        + member.Id
+                        + "(__base"
+                        + member.Id
+                        + ", __curM"
+                        + member.Id
+                        + "))"
+                );
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(5, "        __rh" + member.Id + " = true;");
+                code.AppendLineAt(5, "        __rb" + member.Id + " = __curM" + member.Id + ";");
+                code.AppendLineAt(5, "        __ra" + member.Id + " = __des" + member.Id + ";");
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(
+                    4,
+                    "    else if (!Fragment.__SparseEqual_"
+                        + member.Id
+                        + "(__des"
+                        + member.Id
+                        + ", __curM"
+                        + member.Id
+                        + "))"
+                );
+                code.AppendLineAt(4, "    {");
+                code.AppendLineAt(
+                    5,
+                    "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                        + lit
+                        + " }, "
+                        + kind
+                        + ", __SparseMember(__base"
+                        + member.Id
+                        + "), __SparseMember(__des"
+                        + member.Id
+                        + "), __SparseMember(__curM"
+                        + member.Id
+                        + "), \"The member conflicts with a concurrent change.\"));"
+                );
+                code.AppendLineAt(4, "    }");
+                code.AppendLineAt(4, "}");
+            }
+            code.AppendLineAt(3, "}");
+        }
+        var rargs = new List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+                rargs.Add("__r" + member.Id);
+            else
+                rargs.AddRange(
+                    new[] { "__rb" + member.Id, "__ra" + member.Id, "__rh" + member.Id }
+                );
+        }
+        code.AppendLineAt(3, "var __rebased = new ChangeSet(" + string.Join(", ", rargs) + ");");
+        code.AppendLineAt(3, "return new " + rebaseResult + "(__rebased, __conflicts);");
+        code.AppendLineAt(2, "}");
+    }
 
     private static void AppendTypedSurface(
         SharedIndentedBuilder code,
@@ -245,9 +1154,13 @@ internal static class SparseChangeSetEmitter
             usedTypes.Add(t);
             transNames[member.Id] = t;
         }
-        // Member before/after helpers (preserve presence; Missing when root absent).
+        // Sparse before/after helpers read canonical sparse storage (issue #96).
+        // Whole-root transitions project member states from the retained root
+        // fragments; memberwise transitions expose only retained changed paths.
         foreach (var member in members)
         {
+            if (IsNested(member))
+                continue;
             var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
             var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
             code.AppendLineAt(
@@ -256,9 +1169,13 @@ internal static class SparseChangeSetEmitter
                     + opt
                     + " __SparseBefore_"
                     + member.Id
-                    + "() => _before.IsPresent && _before.Value is not null ? _before.Value."
+                    + "() => __sparse_hasWhole ? (__sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
                     + esc
-                    + " : default;"
+                    + " : default) : ("
+                    + HasField(member)
+                    + " ? "
+                    + BeforeField(member)
+                    + " : default);"
             );
             code.AppendLineAt(
                 2,
@@ -266,9 +1183,13 @@ internal static class SparseChangeSetEmitter
                     + opt
                     + " __SparseAfter_"
                     + member.Id
-                    + "() => _after.IsPresent && _after.Value is not null ? _after.Value."
+                    + "() => __sparse_hasWhole ? (__sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
                     + esc
-                    + " : default;"
+                    + " : default) : ("
+                    + HasField(member)
+                    + " ? "
+                    + AfterField(member)
+                    + " : default);"
             );
         }
         foreach (var member in members)
@@ -348,6 +1269,7 @@ internal static class SparseChangeSetEmitter
     )
     {
         var childCs = ChildChangeSet(member);
+        var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
         code.AppendLineAt(
             2,
             "/// <summary>Gets the nested typed change set for member '"
@@ -355,20 +1277,32 @@ internal static class SparseChangeSetEmitter
                 + "'.</summary>"
         );
         code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        code.AppendLineAt(2, "public " + childCs + " " + prop);
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "get");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (__sparse_hasWhole)");
+        code.AppendLineAt(4, "{");
         code.AppendLineAt(
-            2,
-            "public "
-                + childCs
-                + " "
-                + prop
-                + " => "
-                + childCs
-                + ".Between(__SparseBefore_"
-                + member.Id
-                + "(), __SparseAfter_"
-                + member.Id
-                + "());"
+            5,
+            "var __wb = __sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
+                + esc
+                + " : default;"
         );
+        code.AppendLineAt(
+            5,
+            "var __wa = __sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
+                + esc
+                + " : default;"
+        );
+        code.AppendLineAt(5, "return " + childCs + ".Between(__wb, __wa);");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "return " + NestedField(member) + " ?? " + childCs + ".Between(default, default);"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
     }
 
     private static string KeyOfBody(SparseMemberModel member)
@@ -604,7 +1538,7 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(3, KeyOfBody(member));
         code.AppendLineAt(2, "}");
-        // Build helper (semantic before/after projection; never reads patch ops).
+        // Build helper (semantic before/after projection over sparse storage; never reads patch ops).
         code.AppendLineAt(
             2,
             "private "
@@ -1578,4 +2512,28 @@ internal static class SparseChangeSetEmitter
                 + "());"
         );
     }
+
+    private static string KeyTypeOf(SparseMemberModel m)
+    {
+        if (IsDict(m))
+            return m.Collection.ElementType.Name;
+        return m.Collection.KeyTypeName ?? "object?";
+    }
+
+    private static string ElementTypeOf(SparseMemberModel m) => m.Collection.ElementType.Name;
+
+    private static string ValueTypeOf(SparseMemberModel m) =>
+        m.Collection.ValueType?.Name ?? "object?";
+
+    private static string ElementChangeSetOf(SparseMemberModel m) =>
+        m.Collection.ElementType.NonNullableName + ".ChangeSet";
+
+    private static string ElementFragmentOf(SparseMemberModel m) =>
+        m.Collection.ElementType.NonNullableName + ".Fragment";
+
+    private static string ValueChangeSetOf(SparseMemberModel m) =>
+        m.Collection.ValueType!.Value.NonNullableName + ".ChangeSet";
+
+    private static string ValueFragmentOf(SparseMemberModel m) =>
+        m.Collection.ValueType!.Value.NonNullableName + ".Fragment";
 }

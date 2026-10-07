@@ -831,21 +831,777 @@ internal static class SparsePatchStjEmitter
         ImmutableArray<SparseMemberModel> members
     )
     {
-        _ = members;
+        AppendTypeInfoHelper(code, 2);
         code.AppendLine();
+        AppendChangeSetWireHelpers(code, members);
+        code.AppendLine();
+        AppendChangeSetWrite(code, members);
+        code.AppendLine();
+        AppendChangeSetRead(code, members);
+        code.AppendLine();
+        foreach (var member in members)
+        {
+            if (
+                member.ChildModel is not null
+                && !SparseFragmentPatchEmitter.IsCollectionPatch(member)
+            )
+                continue;
+            AppendChangeSetOptionalHelpers(code, member);
+            code.AppendLine();
+        }
+        AppendChangeSetOptionalFragment(code);
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "public sealed class ChangeSetJsonConverter : global::System.Text.Json.Serialization.JsonConverter<ChangeSet>"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "public override ChangeSet Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options) => ChangeSet.__SparseReadStj(ref reader, options);"
+        );
+        code.AppendLineAt(
+            3,
+            "public override void Write(global::System.Text.Json.Utf8JsonWriter writer, ChangeSet value, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (value is null) { writer.WriteNullValue(); return; }");
+        code.AppendLineAt(4, "ChangeSet.__SparseWriteStj(writer, value, options);");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static string ChangeSetWireName(SparseMemberModel member) =>
+        member.Property.JsonPropertyName ?? member.Property.Name;
+
+    private static bool ChangeSetIsNested(SparseMemberModel member) =>
+        member.ChildModel is not null && !SparseFragmentPatchEmitter.IsCollectionPatch(member);
+
+    private static string ChangeSetValueType(SparseMemberModel member) =>
+        SparseFragmentEmitHelpers.FragmentValueType(member);
+
+    private static string ChangeSetChildChangeSet(SparseMemberModel member) =>
+        member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
+        + "ChangeSet";
+
+    private static void AppendChangeSetWireHelpers(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "private static bool __SparseMatches(string? actual, string propertyName, bool useNamingPolicy, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (actual is null) { return false; }");
+        code.AppendLineAt(
+            3,
+            "var expected = useNamingPolicy ? options.PropertyNamingPolicy?.ConvertName(propertyName) ?? propertyName : propertyName;"
+        );
+        code.AppendLineAt(
+            3,
+            "return global::System.String.Equals(actual, expected, options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal);"
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "private static void __SparseValidateJsonNames(global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "var names = new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
+        );
+        foreach (
+            var property in members
+                .Where(static m => !m.Property.IsJsonIgnored)
+                .Select(static m => m.Property)
+        )
+        {
+            var literal = SymbolDisplay.FormatLiteral(
+                property.JsonPropertyName ?? property.Name,
+                true
+            );
+            var expression = property.HasExplicitJsonPropertyName
+                ? literal
+                : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
+            code.AppendLineAt(
+                3,
+                "if (!names.Add("
+                    + expression
+                    + ")) { throw new global::System.Text.Json.JsonException(\"Multiple change-set members map to the same JSON property name.\"); }"
+            );
+        }
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendChangeSetWrite(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
         code.AppendLineAt(
             2,
             "internal static void __SparseWriteStj(global::System.Text.Json.Utf8JsonWriter writer, ChangeSet value, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "writer.WriteStartObject();");
-        code.AppendLineAt(3, "writer.WritePropertyName(\"before\");");
-        code.AppendLineAt(3, "__SparseWriteOptionalFragment(writer, value._before, options);");
-        code.AppendLineAt(3, "writer.WritePropertyName(\"after\");");
-        code.AppendLineAt(3, "__SparseWriteOptionalFragment(writer, value._after, options);");
+        code.AppendLineAt(3, "if (value.__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "writer.WritePropertyName(\"$whole\");");
+        code.AppendLineAt(4, "writer.WriteStartObject();");
+        code.AppendLineAt(4, "writer.WritePropertyName(\"before\");");
+        code.AppendLineAt(
+            4,
+            "__SparseWriteOptionalFragment(writer, value.__sparse_wholeBefore, options);"
+        );
+        code.AppendLineAt(4, "writer.WritePropertyName(\"after\");");
+        code.AppendLineAt(
+            4,
+            "__SparseWriteOptionalFragment(writer, value.__sparse_wholeAfter, options);"
+        );
+        code.AppendLineAt(4, "writer.WriteEndObject();");
+        code.AppendLineAt(4, "writer.WriteEndObject();");
+        code.AppendLineAt(4, "return;");
+        code.AppendLineAt(3, "}");
+        foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
+        {
+            var wire = ChangeSetWireName(member);
+            var lit = Lit(wire);
+            var explicitName = member.Property.HasExplicitJsonPropertyName;
+            var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
+            _ = esc;
+            if (ChangeSetIsNested(member))
+            {
+                var child = ChangeSetChildChangeSet(member);
+                code.AppendLineAt(3, "if (value.__sparse_nested_" + member.Id + " is not null)");
+                code.AppendLineAt(3, "{");
+                if (explicitName)
+                    code.AppendLineAt(4, "writer.WritePropertyName(" + lit + ");");
+                else
+                    code.AppendLineAt(
+                        4,
+                        "writer.WritePropertyName(options.PropertyNamingPolicy?.ConvertName("
+                            + lit
+                            + ") ?? "
+                            + lit
+                            + ");"
+                    );
+                code.AppendLineAt(
+                    4,
+                    child
+                        + ".__SparseWriteStj(writer, value.__sparse_nested_"
+                        + member.Id
+                        + ", options);"
+                );
+                code.AppendLineAt(3, "}");
+            }
+            else
+            {
+                code.AppendLineAt(3, "if (value.__sparse_has_" + member.Id + ")");
+                code.AppendLineAt(3, "{");
+                if (explicitName)
+                    code.AppendLineAt(4, "writer.WritePropertyName(" + lit + ");");
+                else
+                    code.AppendLineAt(
+                        4,
+                        "writer.WritePropertyName(options.PropertyNamingPolicy?.ConvertName("
+                            + lit
+                            + ") ?? "
+                            + lit
+                            + ");"
+                    );
+                code.AppendLineAt(4, "writer.WriteStartObject();");
+                code.AppendLineAt(4, "writer.WritePropertyName(\"before\");");
+                code.AppendLineAt(
+                    4,
+                    "__SparseWriteOpt_"
+                        + member.Id
+                        + "(writer, value.__sparse_before_"
+                        + member.Id
+                        + ", options);"
+                );
+                code.AppendLineAt(4, "writer.WritePropertyName(\"after\");");
+                code.AppendLineAt(
+                    4,
+                    "__SparseWriteOpt_"
+                        + member.Id
+                        + "(writer, value.__sparse_after_"
+                        + member.Id
+                        + ", options);"
+                );
+                code.AppendLineAt(4, "writer.WriteEndObject();");
+                code.AppendLineAt(3, "}");
+            }
+        }
+        code.AppendLineAt(3, "writer.WriteEndObject();");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendChangeSetRead(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "internal static ChangeSet __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "__SparseValidateJsonNames(options);");
+        code.AppendLineAt(
+            3,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A change set must be a JSON object.\");"
+        );
+        code.AppendLineAt(3, "bool __seenWhole = false;");
+        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __wholeBefore = default;");
+        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __wholeAfter = default;");
+        code.AppendLineAt(3, "bool __hasWholeBefore = false; bool __hasWholeAfter = false;");
+        foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
+        {
+            if (ChangeSetIsNested(member))
+            {
+                code.AppendLineAt(3, "bool __seen_" + member.Id + " = false;");
+                code.AppendLineAt(
+                    3,
+                    ChangeSetChildChangeSet(member) + "? __n_" + member.Id + " = null;"
+                );
+            }
+            else
+            {
+                var vt = ChangeSetValueType(member);
+                code.AppendLineAt(3, "bool __seen_" + member.Id + " = false;");
+                code.AppendLineAt(
+                    3,
+                    Runtime + "Optional<" + vt + "> __b_" + member.Id + " = default;"
+                );
+                code.AppendLineAt(
+                    3,
+                    Runtime + "Optional<" + vt + "> __a_" + member.Id + " = default;"
+                );
+                code.AppendLineAt(
+                    3,
+                    "bool __hb_" + member.Id + " = false; bool __ha_" + member.Id + " = false;"
+                );
+            }
+        }
+        code.AppendLineAt(3, "while (reader.Read())");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
+        );
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a change-set property name.\");"
+        );
+        code.AppendLineAt(4, "var __prop = reader.GetString();");
+        code.AppendLineAt(
+            4,
+            "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of change set.\");"
+        );
+        code.AppendLineAt(4, "if (__prop == \"$whole\")");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (__seenWhole) throw new global::System.Text.Json.JsonException(\"Duplicate change-set property '$whole'.\");"
+        );
+        foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
+        {
+            code.AppendLineAt(
+                5,
+                "if (__seen_"
+                    + member.Id
+                    + ") throw new global::System.Text.Json.JsonException(\"Whole and member transitions cannot coexist.\");"
+            );
+        }
+        code.AppendLineAt(5, "__seenWhole = true;");
+        code.AppendLineAt(
+            5,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A whole transition must be a JSON object.\");"
+        );
+        code.AppendLineAt(5, "while (reader.Read())");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(
+            6,
+            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
+        );
+        code.AppendLineAt(
+            6,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a whole-transition property name.\");"
+        );
+        code.AppendLineAt(6, "var __isWb = reader.ValueTextEquals(\"before\");");
+        code.AppendLineAt(6, "var __isWa = !__isWb && reader.ValueTextEquals(\"after\");");
+        code.AppendLineAt(6, "var __wUnknown = __isWb || __isWa ? null : reader.GetString();");
+        code.AppendLineAt(
+            6,
+            "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of whole transition.\");"
+        );
+        code.AppendLineAt(6, "if (__isWb)");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            "if (__hasWholeBefore) throw new global::System.Text.Json.JsonException(\"Duplicate whole before.\");"
+        );
+        code.AppendLineAt(7, "__hasWholeBefore = true;");
+        code.AppendLineAt(7, "__wholeBefore = __SparseReadOptionalFragment(ref reader, options);");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(6, "else if (__isWa)");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            "if (__hasWholeAfter) throw new global::System.Text.Json.JsonException(\"Duplicate whole after.\");"
+        );
+        code.AppendLineAt(7, "__hasWholeAfter = true;");
+        code.AppendLineAt(7, "__wholeAfter = __SparseReadOptionalFragment(ref reader, options);");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(
+            6,
+            "else throw new global::System.Text.Json.JsonException(\"Unknown whole property '\" + __wUnknown + \"'.\");"
+        );
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(
+            5,
+            "if (!__hasWholeBefore) throw new global::System.Text.Json.JsonException(\"Missing whole before.\");"
+        );
+        code.AppendLineAt(
+            5,
+            "if (!__hasWholeAfter) throw new global::System.Text.Json.JsonException(\"Missing whole after.\");"
+        );
+        code.AppendLineAt(4, "}");
+        foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
+        {
+            var wire = ChangeSetWireName(member);
+            var lit = Lit(wire);
+            var usePolicy = member.Property.HasExplicitJsonPropertyName ? "false" : "true";
+            code.AppendLineAt(
+                4,
+                "else if" + " (__SparseMatches(__prop, " + lit + ", " + usePolicy + ", options))"
+            );
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(
+                5,
+                "if (__seenWhole) throw new global::System.Text.Json.JsonException(\"Whole and member transitions cannot coexist.\");"
+            );
+            code.AppendLineAt(
+                5,
+                "if (__seen_"
+                    + member.Id
+                    + ") throw new global::System.Text.Json.JsonException(\"Duplicate change-set property.\");"
+            );
+            code.AppendLineAt(5, "__seen_" + member.Id + " = true;");
+            if (ChangeSetIsNested(member))
+            {
+                var child = ChangeSetChildChangeSet(member);
+                code.AppendLineAt(
+                    5,
+                    "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A nested change set must be a JSON object.\");"
+                );
+                code.AppendLineAt(
+                    5,
+                    "var __nn"
+                        + member.Id
+                        + " = "
+                        + child
+                        + ".__SparseReadStj(ref reader, options);"
+                );
+                code.AppendLineAt(
+                    5,
+                    "if (__nn"
+                        + member.Id
+                        + ".IsEmpty) throw new global::System.Text.Json.JsonException(\"Empty nested change must not be serialized.\");"
+                );
+                code.AppendLineAt(5, "__n_" + member.Id + " = __nn" + member.Id + ";");
+            }
+            else
+            {
+                code.AppendLineAt(
+                    5,
+                    "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A member transition must be a JSON object.\");"
+                );
+                code.AppendLineAt(5, "while (reader.Read())");
+                code.AppendLineAt(5, "{");
+                code.AppendLineAt(
+                    6,
+                    "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
+                );
+                code.AppendLineAt(
+                    6,
+                    "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a member-transition property name.\");"
+                );
+                code.AppendLineAt(6, "var __isB = reader.ValueTextEquals(\"before\");");
+                code.AppendLineAt(6, "var __isA = !__isB && reader.ValueTextEquals(\"after\");");
+                code.AppendLineAt(
+                    6,
+                    "var __mUnknown = __isB || __isA ? null : reader.GetString();"
+                );
+                code.AppendLineAt(
+                    6,
+                    "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of member transition.\");"
+                );
+                code.AppendLineAt(6, "if (__isB)");
+                code.AppendLineAt(6, "{");
+                code.AppendLineAt(
+                    7,
+                    "if (__hb_"
+                        + member.Id
+                        + ") throw new global::System.Text.Json.JsonException(\"Duplicate member before.\");"
+                );
+                code.AppendLineAt(7, "__hb_" + member.Id + " = true;");
+                code.AppendLineAt(
+                    7,
+                    "__b_"
+                        + member.Id
+                        + " = __SparseReadOpt_"
+                        + member.Id
+                        + "(ref reader, options);"
+                );
+                code.AppendLineAt(6, "}");
+                code.AppendLineAt(6, "else if (__isA)");
+                code.AppendLineAt(6, "{");
+                code.AppendLineAt(
+                    7,
+                    "if (__ha_"
+                        + member.Id
+                        + ") throw new global::System.Text.Json.JsonException(\"Duplicate member after.\");"
+                );
+                code.AppendLineAt(7, "__ha_" + member.Id + " = true;");
+                code.AppendLineAt(
+                    7,
+                    "__a_"
+                        + member.Id
+                        + " = __SparseReadOpt_"
+                        + member.Id
+                        + "(ref reader, options);"
+                );
+                code.AppendLineAt(6, "}");
+                code.AppendLineAt(
+                    6,
+                    "else throw new global::System.Text.Json.JsonException(\"Unknown member property '\" + __mUnknown + \"'.\");"
+                );
+                code.AppendLineAt(5, "}");
+                code.AppendLineAt(
+                    5,
+                    "if (!__hb_"
+                        + member.Id
+                        + ") throw new global::System.Text.Json.JsonException(\"Missing member before.\");"
+                );
+                code.AppendLineAt(
+                    5,
+                    "if (!__ha_"
+                        + member.Id
+                        + ") throw new global::System.Text.Json.JsonException(\"Missing member after.\");"
+                );
+                code.AppendLineAt(
+                    5,
+                    "if (!__b_"
+                        + member.Id
+                        + ".IsPresent && !__a_"
+                        + member.Id
+                        + ".IsPresent) throw new global::System.Text.Json.JsonException(\"Empty member transition must not be serialized.\");"
+                );
+                if (
+                    member.ChildModel is null
+                    && SparseFragmentPatchEmitter.IsCollectionPatch(member)
+                )
+                {
+                    var collRead = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                    code.AppendLineAt(
+                        5,
+                        "if ("
+                            + collRead
+                            + ".Between(__b_"
+                            + member.Id
+                            + ", __a_"
+                            + member.Id
+                            + ").__SparseIsEmpty()) throw new global::System.Text.Json.JsonException(\"Empty member transition must not be serialized.\");"
+                    );
+                }
+                else
+                {
+                    code.AppendLineAt(
+                        5,
+                        "if (Fragment.__SparseEqual_"
+                            + member.Id
+                            + "(__b_"
+                            + member.Id
+                            + ", __a_"
+                            + member.Id
+                            + ")) throw new global::System.Text.Json.JsonException(\"Empty member transition must not be serialized.\");"
+                    );
+                }
+            }
+            code.AppendLineAt(4, "}");
+        }
+        // Ignored members: skip.
+        foreach (var member in members.Where(static m => m.Property.IsJsonIgnored))
+        {
+            var wire = ChangeSetWireName(member);
+            var lit = Lit(wire);
+            var usePolicy = member.Property.HasExplicitJsonPropertyName ? "false" : "true";
+            code.AppendLineAt(
+                4,
+                "else if (__SparseMatches(__prop, " + lit + ", " + usePolicy + ", options))"
+            );
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(5, "reader.Skip();");
+            code.AppendLineAt(4, "}");
+        }
+        code.AppendLineAt(
+            4,
+            "else throw new global::System.Text.Json.JsonException(\"Unknown change-set property '\" + __prop + \"'.\");"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (__seenWhole)");
+        code.AppendLineAt(3, "{");
+        var tail = new System.Text.StringBuilder();
+        var sep = string.Empty;
+        foreach (var member in members)
+        {
+            tail.Append(sep);
+            if (ChangeSetIsNested(member))
+                tail.Append("null");
+            else
+                tail.Append("default, default, false");
+            sep = ", ";
+        }
+        if (tail.Length == 0)
+            code.AppendLineAt(4, "return Between(__wholeBefore, __wholeAfter);");
+        else
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + string.Join(
+                        " || ",
+                        members.Where(m => !m.Property.IsJsonIgnored).Select(m => "__seen_" + m.Id)
+                    )
+                    + (members.Any(m => !m.Property.IsJsonIgnored) ? ") " : string.Empty)
+                    + (
+                        members.Any(m => !m.Property.IsJsonIgnored)
+                            ? "throw new global::System.Text.Json.JsonException(\"Whole and member transitions cannot coexist.\");"
+                            : string.Empty
+                    )
+            );
+        if (tail.Length != 0)
+            code.AppendLineAt(
+                4,
+                "return new ChangeSet(true, __wholeBefore, __wholeAfter, " + tail.ToString() + ");"
+            );
+        code.AppendLineAt(3, "}");
+        var cargs = new System.Collections.Generic.List<string> { "false", "default", "default" };
+        foreach (var member in members)
+        {
+            if (member.Property.IsJsonIgnored)
+            {
+                if (ChangeSetIsNested(member))
+                    cargs.Add("null");
+                else
+                    cargs.AddRange(new[] { "default", "default", "false" });
+                continue;
+            }
+            if (ChangeSetIsNested(member))
+                cargs.Add("__n_" + member.Id);
+            else
+                cargs.AddRange(
+                    new[] { "__b_" + member.Id, "__a_" + member.Id, "__seen_" + member.Id }
+                );
+        }
+        code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", cargs) + ");");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendChangeSetOptionalHelpers(
+        SharedIndentedBuilder code,
+        SparseMemberModel member
+    )
+    {
+        var vt = ChangeSetValueType(member);
+        var allowsNull =
+            member.Property.Type.IsReferenceType || vt.EndsWith("?", StringComparison.Ordinal);
+        code.AppendLineAt(
+            2,
+            "private static void __SparseWriteOpt_"
+                + member.Id
+                + "(global::System.Text.Json.Utf8JsonWriter writer, "
+                + Runtime
+                + "Optional<"
+                + vt
+                + "> optional, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "writer.WriteStartObject();");
+        code.AppendLineAt(3, "if (!optional.IsPresent)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "writer.WriteString(\"state\", \"missing\");");
+        code.AppendLineAt(3, "}");
+        if (allowsNull)
+        {
+            code.AppendLineAt(3, "else if ((object?)optional.Value is null)");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "writer.WriteString(\"state\", \"null\");");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "else");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "writer.WriteString(\"state\", \"value\");");
+            code.AppendLineAt(4, "writer.WritePropertyName(\"value\");");
+            code.AppendLineAt(
+                4,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + vt
+                    + ">(writer, optional.Value!, GetMemberTypeInfo<"
+                    + vt
+                    + ">(options));"
+            );
+            code.AppendLineAt(3, "}");
+        }
+        else
+        {
+            code.AppendLineAt(3, "else");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "writer.WriteString(\"state\", \"value\");");
+            code.AppendLineAt(4, "writer.WritePropertyName(\"value\");");
+            code.AppendLineAt(
+                4,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + vt
+                    + ">(writer, optional.Value!, GetMemberTypeInfo<"
+                    + vt
+                    + ">(options));"
+            );
+            code.AppendLineAt(3, "}");
+        }
         code.AppendLineAt(3, "writer.WriteEndObject();");
         code.AppendLineAt(2, "}");
         code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "private static "
+                + Runtime
+                + "Optional<"
+                + vt
+                + "> __SparseReadOpt_"
+                + member.Id
+                + "(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A member value must be a JSON object.\");"
+        );
+        code.AppendLineAt(3, "byte __state = 0;");
+        code.AppendLineAt(3, "string? __unknownState = null;");
+        code.AppendLineAt(3, "bool __hasValue = false;");
+        code.AppendLineAt(3, vt + " __v = default!;");
+        code.AppendLineAt(3, "bool __valueWasNull = false;");
+        code.AppendLineAt(3, "while (reader.Read())");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
+        );
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a member-value property name.\");"
+        );
+        code.AppendLineAt(4, "var __isState = reader.ValueTextEquals(\"state\");");
+        code.AppendLineAt(4, "var __isValue = !__isState && reader.ValueTextEquals(\"value\");");
+        code.AppendLineAt(4, "var __unknown = __isState || __isValue ? null : reader.GetString();");
+        code.AppendLineAt(
+            4,
+            "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of member value.\");"
+        );
+        code.AppendLineAt(4, "if (__isState)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (__state != 0) throw new global::System.Text.Json.JsonException(\"Duplicate member state.\");"
+        );
+        code.AppendLineAt(
+            5,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.String) throw new global::System.Text.Json.JsonException(\"Member state must be a string.\");"
+        );
+        code.AppendLineAt(
+            5,
+            "__state = reader.ValueTextEquals(\"missing\") ? (byte)1 : reader.ValueTextEquals(\"null\") ? (byte)2 : reader.ValueTextEquals(\"value\") ? (byte)3 : (byte)4;"
+        );
+        code.AppendLineAt(5, "if (__state == 4) __unknownState = reader.GetString();");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "else if (__isValue)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Duplicate member value.\");"
+        );
+        code.AppendLineAt(5, "__hasValue = true;");
+        code.AppendLineAt(
+            5,
+            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.Null) { __v = default!; __valueWasNull = true; }"
+        );
+        code.AppendLineAt(
+            5,
+            "else { __v = global::System.Text.Json.JsonSerializer.Deserialize(ref reader, GetMemberTypeInfo<"
+                + vt
+                + ">(options))!; __valueWasNull = false; }"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "else throw new global::System.Text.Json.JsonException(\"Unknown member property '\" + __unknown + \"'.\");"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "if (__state == 0) throw new global::System.Text.Json.JsonException(\"Missing member state.\");"
+        );
+        code.AppendLineAt(3, "if (__state == 1)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Missing state must not have a value.\");"
+        );
+        code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Missing;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (__state == 2)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Null state must not have a value.\");"
+        );
+        if (!allowsNull)
+        {
+            code.AppendLineAt(
+                4,
+                "throw new global::System.Text.Json.JsonException(\"Null state is not valid for this member type.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Present(default!);");
+        }
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (__state == 3)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!__hasValue) throw new global::System.Text.Json.JsonException(\"Missing member value.\");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (__valueWasNull) throw new global::System.Text.Json.JsonException(\"Value state must have a non-null value.\");"
+        );
+        code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Present(__v!);");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "throw new global::System.Text.Json.JsonException(\"Unknown member state '\" + __unknownState + \"'.\");"
+        );
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendChangeSetOptionalFragment(SharedIndentedBuilder code)
+    {
         code.AppendLineAt(
             2,
             "private static void __SparseWriteOptionalFragment(global::System.Text.Json.Utf8JsonWriter writer, "
@@ -872,73 +1628,6 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "writer.WriteEndObject();");
-        code.AppendLineAt(2, "}");
-        code.AppendLine();
-        code.AppendLineAt(
-            2,
-            "internal static ChangeSet __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A change set must be a JSON object.\");"
-        );
-        code.AppendLineAt(3, "bool __hasBefore = false;");
-        code.AppendLineAt(3, "bool __hasAfter = false;");
-        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __before = default;");
-        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __after = default;");
-        code.AppendLineAt(3, "while (reader.Read())");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
-        );
-        code.AppendLineAt(
-            4,
-            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a change-set property name.\");"
-        );
-        code.AppendLineAt(4, "var __isBefore = reader.ValueTextEquals(\"before\");");
-        code.AppendLineAt(4, "var __isAfter = !__isBefore && reader.ValueTextEquals(\"after\");");
-        code.AppendLineAt(
-            4,
-            "var __unknown = __isBefore || __isAfter ? null : reader.GetString();"
-        );
-        code.AppendLineAt(
-            4,
-            "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of change set.\");"
-        );
-        code.AppendLineAt(4, "if (__isBefore)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "if (__hasBefore) throw new global::System.Text.Json.JsonException(\"Duplicate change-set property 'before'.\");"
-        );
-        code.AppendLineAt(5, "__hasBefore = true;");
-        code.AppendLineAt(5, "__before = __SparseReadOptionalFragment(ref reader, options);");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (__isAfter)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "if (__hasAfter) throw new global::System.Text.Json.JsonException(\"Duplicate change-set property 'after'.\");"
-        );
-        code.AppendLineAt(5, "__hasAfter = true;");
-        code.AppendLineAt(5, "__after = __SparseReadOptionalFragment(ref reader, options);");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(
-            4,
-            "else throw new global::System.Text.Json.JsonException(\"Unknown change-set property '\" + __unknown + \"'.\");"
-        );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "if (!__hasBefore) throw new global::System.Text.Json.JsonException(\"Missing change-set property 'before'.\");"
-        );
-        code.AppendLineAt(
-            3,
-            "if (!__hasAfter) throw new global::System.Text.Json.JsonException(\"Missing change-set property 'after'.\");"
-        );
-        code.AppendLineAt(3, "return ChangeSet.Between(__before, __after);");
         code.AppendLineAt(2, "}");
         code.AppendLine();
         code.AppendLineAt(
@@ -1048,31 +1737,11 @@ internal static class SparsePatchStjEmitter
             "if (__valueWasNull) throw new global::System.Text.Json.JsonException(\"Value state must have an object value.\");"
         );
         code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Present(__frag);");
-        code.AppendLine();
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
             "throw new global::System.Text.Json.JsonException(\"Unknown optional state '\" + __unknownState + \"'.\");"
         );
-        code.AppendLineAt(2, "}");
-        code.AppendLine();
-        code.AppendLineAt(
-            2,
-            "public sealed class ChangeSetJsonConverter : global::System.Text.Json.Serialization.JsonConverter<ChangeSet>"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "public override ChangeSet Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options) => ChangeSet.__SparseReadStj(ref reader, options);"
-        );
-        code.AppendLineAt(
-            3,
-            "public override void Write(global::System.Text.Json.Utf8JsonWriter writer, ChangeSet value, global::System.Text.Json.JsonSerializerOptions options)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "if (value is null) { writer.WriteNullValue(); return; }");
-        code.AppendLineAt(4, "ChangeSet.__SparseWriteStj(writer, value, options);");
-        code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }
 
