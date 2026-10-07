@@ -4,17 +4,26 @@ using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model (issue #85, #96).</summary>
+/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model (issue #85, #96, #97).</summary>
 /// <remarks>
 /// Issue #96: canonical storage is sparse per-path transition state, never full
 /// before/after snapshots. Unchanged members retain nothing (Missing + has=false
 /// or null nested). Between/FromPatch normalize to this sparse form; ToPatch/Invert
 /// project from it; typed surface reads it; STJ serializes only changed paths.
-/// Compose/Rebase are sparse-aware for memberwise transitions; whole-root and
-/// keyed/dict member-level whole cases retain the member values they need.
-/// Full sparse keyed algebra (granular-only retention, cross-member merge without
-/// member values) is deferred to #97: keyed/dict changed members currently retain
-/// their member-level before/after values (still sparse at member granularity).
+/// Issue #97: Compose and Rebase operate directly on that sparse transition state.
+/// Memberwise compose checks semantic contiguity only where transitions overlap
+/// (scalar via generated equality, keyed/dict via canonical collection Between,
+/// nested recursively); disjoint paths compose without full-state equality.
+/// Whole-root transitions compose with memberwise ones through shared-baseline
+/// algebra (contiguity helpers plus memberwise patch application onto the retained
+/// whole endpoint, then Between). Memberwise rebase consumes per-member
+/// before/desired plus the supplied current member only: scalar via equality,
+/// nested recursively, keyed/dict via the canonical member-local collection rebase,
+/// custom strategies via TryRebase, and Append/SetUnion members via merge-aware
+/// TryRebase rather than plain equality. Keyed/dict changed members retain their
+/// member-level before/after values (still sparse at member granularity: only
+/// changed members are retained); composition and rebase reason over them with
+/// stable-key canonical semantics rather than positional flattening.
 /// </remarks>
 internal static class SparseChangeSetEmitter
 {
@@ -43,6 +52,7 @@ internal static class SparseChangeSetEmitter
         AppendToPatch(code, members, runtime, prefix);
         AppendInvert(code, members, runtime, optionalFragment);
         AppendCompose(code, members, runtime, optionalFragment);
+        AppendMatchHelpers(code, members, runtime, optionalFragment);
         AppendRebase(
             code,
             members,
@@ -582,10 +592,27 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(5, "return Between(__sparse_wholeBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(4, "}");
+        // Shared-baseline algebra (issue #97): a whole-root endpoint composes with a
+        // memberwise transition when the memberwise side is contiguous with the retained
+        // whole state. Only overlapping (changed) paths are checked; disjoint paths
+        // compose without full-state equality. The merged endpoint is derived by
+        // applying the memberwise patch onto the retained whole state, then Between
+        // normalizes (including back to no-op where before == final after).
+        code.AppendLineAt(4, "if (__sparse_hasWhole)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (!next.__SparseBeforeMatches(__sparse_wholeAfter)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+        );
+        code.AppendLineAt(5, "var __mergedAfter = next.ToPatch().Apply(__sparse_wholeAfter);");
+        code.AppendLineAt(5, "return Between(__sparse_wholeBefore, __mergedAfter);");
+        code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "throw new global::System.InvalidOperationException(\"ChangeSet composition of whole-root and memberwise transitions requires a shared baseline; this sparse algebra is completed in #97.\");"
+            "if (!__SparseAfterMatches(next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
+        code.AppendLineAt(4, "var __mergedBefore = Invert().ToPatch().Apply(next.__sparse_wholeBefore);");
+        code.AppendLineAt(4, "return Between(__mergedBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
@@ -745,8 +772,107 @@ internal static class SparseChangeSetEmitter
             3,
             "if (first is null) throw new global::System.ArgumentNullException(nameof(first));"
         );
-        code.AppendLineAt(3, "return first.Compose(second);");
+        code.AppendLineAt(3, "return first." + "Compose(second);");
         code.AppendLineAt(2, "}");
+    }
+
+    /// <summary>
+    /// Emits the shared-baseline contiguity probes used by whole-root/memberwise composition (issue #97).
+    /// </summary>
+    /// <remarks>
+    /// Each probe checks semantic continuity only on changed paths: an empty transition
+    /// matches any state, a whole-root transition compares whole endpoints, and a
+    /// memberwise transition compares per-member before (or after) values with the
+    /// supplied state, recursing through nested subtrees. Keyed/dictionary members use
+    /// the canonical key-aware collection Between emptiness check, mirroring memberwise
+    /// compose; all other members use the generated semantic member equality.
+    /// </remarks>
+    private static void AppendMatchHelpers(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string runtime,
+        string optionalFragment
+    )
+    {
+        _ = runtime;
+        foreach (var side in new[] { "Before", "After" })
+        {
+            var field = side == "Before" ? "__sparse_wholeBefore" : "__sparse_wholeAfter";
+            code.AppendLineAt(
+                2,
+                "/// <summary>Whether the supplied state matches this transition's "
+                    + (side == "Before" ? "before" : "after")
+                    + " on every changed path.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal bool __Sparse" + side + "Matches(" + optionalFragment + " state)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "if (IsEmpty) return true;");
+            code.AppendLineAt(
+                3,
+                "if (__sparse_hasWhole) return Fragment.__SparseAreEqual(" + field + ", state);"
+            );
+            code.AppendLineAt(3, "if (!state.IsPresent || state.Value is null) return false;");
+            code.AppendLineAt(3, "var __st = state.Value!;");
+            foreach (var member in members)
+            {
+                var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
+                if (IsNested(member))
+                {
+                    code.AppendLineAt(
+                        3,
+                        "if ("
+                            + NestedField(member)
+                            + " is not null && !"
+                            + NestedField(member)
+                            + ".__Sparse"
+                            + side
+                            + "Matches(__st."
+                            + esc
+                            + ")) return false;"
+                    );
+                }
+                else if (IsKeyed(member) || IsDict(member))
+                {
+                    var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+                    var own = side == "Before" ? BeforeField(member) : AfterField(member);
+                    code.AppendLineAt(3, "if (" + HasField(member) + ")");
+                    code.AppendLineAt(3, "{");
+                    code.AppendLineAt(
+                        4,
+                        "if (!"
+                            + coll
+                            + ".Between(__st."
+                            + esc
+                            + ", "
+                            + own
+                            + ").__SparseIsEmpty()) return false;"
+                    );
+                    code.AppendLineAt(3, "}");
+                }
+                else
+                {
+                    var own = side == "Before" ? BeforeField(member) : AfterField(member);
+                    code.AppendLineAt(3, "if (" + HasField(member) + ")");
+                    code.AppendLineAt(3, "{");
+                    code.AppendLineAt(
+                        4,
+                        "if (!Fragment.__SparseEqual_"
+                            + member.Id
+                            + "(__st."
+                            + esc
+                            + ", "
+                            + own
+                            + ")) return false;"
+                    );
+                    code.AppendLineAt(3, "}");
+                }
+            }
+            code.AppendLineAt(3, "return true;");
+            code.AppendLineAt(2, "}");
+        }
     }
 
     private static void AppendRebase(
@@ -1032,15 +1158,12 @@ internal static class SparseChangeSetEmitter
                 code.AppendLineAt(4, "    }");
                 code.AppendLineAt(4, "}");
             }
+            else if (member.MergeMode is 2 or 3)
+            {
+                AppendMergeCollectionRebase(code, member, esc, lit, runtime);
+            }
             else
             {
-                string kind;
-                if (member.MergeMode == 2)
-                    kind = "global::SparseFragments.SparsePatchConflictKind.CollectionAppend";
-                else if (member.MergeMode == 3)
-                    kind = "global::SparseFragments.SparsePatchConflictKind.CollectionSetUnion";
-                else
-                    kind = "global::SparseFragments.SparsePatchConflictKind.Scalar";
                 code.AppendLineAt(4, "if (" + HasField(member) + ")");
                 code.AppendLineAt(4, "{");
                 code.AppendLineAt(
@@ -1082,9 +1205,7 @@ internal static class SparseChangeSetEmitter
                     5,
                     "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
                         + lit
-                        + " }, "
-                        + kind
-                        + ", __SparseMember(__base"
+                        + " }, global::SparseFragments.SparsePatchConflictKind.Scalar, __SparseMember(__base"
                         + member.Id
                         + "), __SparseMember(__des"
                         + member.Id
@@ -1110,6 +1231,347 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(3, "var __rebased = new ChangeSet(" + string.Join(", ", rargs) + ");");
         code.AppendLineAt(3, "return new " + rebaseResult + "(__rebased, __conflicts);");
         code.AppendLineAt(2, "}");
+    }
+
+    /// <summary>
+    /// Emits merge-aware rebase for Append/SetUnion scalar-collection members (issue #97).
+    /// </summary>
+    /// <remarks>
+    /// Unlike plain scalar equality, Append members replay the locally appended suffix onto
+    /// the current prefix and SetUnion members replay locally added elements beside the
+    /// current set; both consume only the retained per-member before/desired plus the
+    /// supplied current member, mirroring the generated Patch rebase dispatch (typed
+    /// set/sequence fast paths with a boxed semantic fallback). A rebased value equal to
+    /// current normalizes to no-op; an unmergeable concurrent change reports a structured
+    /// member conflict while leaving other paths untouched.
+    /// </remarks>
+    private static void AppendMergeCollectionRebase(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string esc,
+        string lit,
+        string runtime
+    )
+    {
+        var id = member.Id;
+        var valueType = FragmentValueType(member);
+        var elementType = member.Collection.ElementType.Name;
+        var opt = runtime + "Optional<" + valueType + ">";
+        var facade = SparseWellKnownNames.CollectionRebaseType;
+        var comparer = SparseWellKnownNames.ValueComparerType;
+        var kind =
+            member.MergeMode == 2
+                ? "global::SparseFragments.SparsePatchConflictKind.CollectionAppend"
+                : "global::SparseFragments.SparsePatchConflictKind.CollectionSetUnion";
+        var isSet =
+            member.MergeMode == 3 && member.Collection.CloneKind == SparseCloneCollectionKind.Set;
+        var isTypedSequence =
+            !isSet
+            && member.Collection.CloneKind
+                is SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List
+            && member.Collection.ElementType.UsesDefaultScalarEquality;
+
+        code.AppendLineAt(4, "if (" + HasField(member) + ")");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(4, "    var __base" + id + " = " + BeforeField(member) + ";");
+        code.AppendLineAt(4, "    var __des" + id + " = " + AfterField(member) + ";");
+        code.AppendLineAt(4, "    var __curM" + id + " = __cur." + esc + ";");
+        code.AppendLineAt(
+            4,
+            "    if (Fragment.__SparseEqual_" + id + "(__base" + id + ", __curM" + id + "))"
+        );
+        code.AppendLineAt(4, "    {");
+        code.AppendLineAt(5, "        __rh" + id + " = true;");
+        code.AppendLineAt(5, "        __rb" + id + " = __curM" + id + ";");
+        code.AppendLineAt(5, "        __ra" + id + " = __des" + id + ";");
+        code.AppendLineAt(4, "    }");
+        code.AppendLineAt(
+            4,
+            "    else if (__base"
+                + id
+                + ".IsPresent && __des"
+                + id
+                + ".IsPresent && __curM"
+                + id
+                + ".IsPresent && (object?)__base"
+                + id
+                + ".Value is not null && (object?)__des"
+                + id
+                + ".Value is not null && (object?)__curM"
+                + id
+                + ".Value is not null)"
+        );
+        code.AppendLineAt(4, "    {");
+        code.AppendLineAt(5, "        " + valueType + " __rebuilt" + id + " = default!;");
+        code.AppendLineAt(5, "        string? __reason" + id + ";");
+        code.AppendLineAt(5, "        bool __ok" + id + ";");
+        if (isSet)
+        {
+            code.AppendLineAt(
+                5,
+                "        __ok"
+                    + id
+                    + " = "
+                    + facade
+                    + ".TryRebaseSetUnion<"
+                    + elementType
+                    + ">(__base"
+                    + id
+                    + ".Value!, __des"
+                    + id
+                    + ".Value!, __curM"
+                    + id
+                    + ".Value!, out var __rv"
+                    + id
+                    + ", out __reason"
+                    + id
+                    + ");"
+            );
+            code.AppendLineAt(5, "        if (__ok" + id + ") __rebuilt" + id + " = __rv" + id + ";");
+        }
+        else if (isTypedSequence)
+        {
+            var typedMethod =
+                member.MergeMode == 2 ? "TryRebaseSequenceAppend" : "TryRebaseSequenceSetUnion";
+            if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
+                typedMethod += "Array";
+            var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
+            var readOnly =
+                "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">";
+            var list = "global::System.Collections.Generic.List<" + elementType + ">";
+            string NativeInput(string state, string variable) =>
+                "(object?)"
+                + state
+                + ".Value is "
+                + readOnly
+                + " "
+                + variable
+                + " && ("
+                + variable
+                + " is "
+                + elementType
+                + "[] || "
+                + variable
+                + ".GetType() == typeof("
+                + list
+                + "))";
+            code.AppendLineAt(
+                5,
+                "        if ("
+                    + NativeInput("__base" + id, "__bv" + id)
+                    + " && "
+                    + NativeInput("__des" + id, "__dv" + id)
+                    + " && "
+                    + NativeInput("__curM" + id, "__cv" + id)
+                    + ")"
+            );
+            code.AppendLineAt(5, "        {");
+            code.AppendLineAt(
+                6,
+                "            __ok"
+                    + id
+                    + " = "
+                    + facade
+                    + "."
+                    + typedMethod
+                    + "<"
+                    + elementType
+                    + ">(__bv"
+                    + id
+                    + ", __dv"
+                    + id
+                    + ", __cv"
+                    + id
+                    + ", null, out var __tv"
+                    + id
+                    + ", out __reason"
+                    + id
+                    + ");"
+            );
+            code.AppendLineAt(
+                6,
+                "            if (__ok" + id + ") __rebuilt" + id + " = __tv" + id + ";"
+            );
+            code.AppendLineAt(5, "        }");
+            code.AppendLineAt(5, "        else");
+            code.AppendLineAt(5, "        {");
+            code.AppendLineAt(
+                6,
+                "            var __bb"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__base"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                6,
+                "            var __cb"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__curM"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                6,
+                "            var __db"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__des"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                6,
+                "            __ok"
+                    + id
+                    + " = "
+                    + facade
+                    + "."
+                    + boxedMethod
+                    + "(__bb"
+                    + id
+                    + ", __db"
+                    + id
+                    + ", __cb"
+                    + id
+                    + ", (object? __l, object? __r) => "
+                    + comparer
+                    + ".AreEqual(__l, __r), out var __bx"
+                    + id
+                    + ", out __reason"
+                    + id
+                    + ");"
+            );
+            var boxedResult = SparseFragmentExpressions.MaterializeCollection(
+                member,
+                "global::System.Linq.Enumerable.Cast<" + elementType + ">(__bx" + id + ")"
+            );
+            code.AppendLineAt(
+                6,
+                "            if (__ok" + id + ") __rebuilt" + id + " = " + boxedResult + ";"
+            );
+            code.AppendLineAt(5, "        }");
+        }
+        else
+        {
+            var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
+            code.AppendLineAt(
+                5,
+                "        var __bb"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__base"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                5,
+                "        var __cb"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__curM"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                5,
+                "        var __db"
+                    + id
+                    + " = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable)__des"
+                    + id
+                    + ".Value));"
+            );
+            code.AppendLineAt(
+                5,
+                "        __ok"
+                    + id
+                    + " = "
+                    + facade
+                    + "."
+                    + boxedMethod
+                    + "(__bb"
+                    + id
+                    + ", __db"
+                    + id
+                    + ", __cb"
+                    + id
+                    + ", (object? __l, object? __r) => "
+                    + comparer
+                    + ".AreEqual(__l, __r), out var __bx"
+                    + id
+                    + ", out __reason"
+                    + id
+                    + ");"
+            );
+            var boxedResult = SparseFragmentExpressions.MaterializeCollection(
+                member,
+                "global::System.Linq.Enumerable.Cast<" + elementType + ">(__bx" + id + ")"
+            );
+            code.AppendLineAt(
+                5,
+                "        if (__ok" + id + ") __rebuilt" + id + " = " + boxedResult + ";"
+            );
+        }
+        code.AppendLineAt(5, "        if (__ok" + id + ")");
+        code.AppendLineAt(5, "        {");
+        code.AppendLineAt(
+            6,
+            "            " + opt + " __rebOpt" + id + " = " + opt + ".Present(__rebuilt" + id + ");"
+        );
+        code.AppendLineAt(
+            6,
+            "            if (!Fragment.__SparseEqual_" + id + "(__curM" + id + ", __rebOpt" + id + "))"
+        );
+        code.AppendLineAt(6, "            {");
+        code.AppendLineAt(7, "                __rh" + id + " = true;");
+        code.AppendLineAt(7, "                __rb" + id + " = __curM" + id + ";");
+        code.AppendLineAt(7, "                __ra" + id + " = __rebOpt" + id + ";");
+        code.AppendLineAt(6, "            }");
+        code.AppendLineAt(5, "        }");
+        code.AppendLineAt(5, "        else");
+        code.AppendLineAt(5, "        {");
+        code.AppendLineAt(
+            6,
+            "            __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                + lit
+                + " }, "
+                + kind
+                + ", __SparseMember(__base"
+                + id
+                + "), __SparseMember(__des"
+                + id
+                + "), __SparseMember(__curM"
+                + id
+                + "), __reason"
+                + id
+                + " ?? \"The member conflicts with a concurrent change.\"));"
+        );
+        code.AppendLineAt(5, "        }");
+        code.AppendLineAt(4, "    }");
+        code.AppendLineAt(
+            4,
+            "    else if (!Fragment.__SparseEqual_"
+                + id
+                + "(__des"
+                + id
+                + ", __curM"
+                + id
+                + "))"
+        );
+        code.AppendLineAt(4, "    {");
+        code.AppendLineAt(
+            5,
+            "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                + lit
+                + " }, "
+                + kind
+                + ", __SparseMember(__base"
+                + id
+                + "), __SparseMember(__des"
+                + id
+                + "), __SparseMember(__curM"
+                + id
+                + "), \"The member conflicts with a concurrent change.\"));"
+        );
+        code.AppendLineAt(4, "    }");
+        code.AppendLineAt(4, "}");
     }
 
     private static void AppendTypedSurface(
