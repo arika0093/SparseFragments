@@ -89,6 +89,22 @@ public class PatchJsonWidthBenchmarks
             throw new InvalidOperationException(
                 "Sparse and dense patch JSON must preserve values across model widths."
             );
+        var unicodePatch = JsonSerializer.Deserialize<BenchPatchUnicodeFields.Patch>(
+            "{\"日本語\":{\"kind\":\"set\",\"value\":1},\"__SparseJsonPropertyNames\":{\"kind\":\"set\",\"value\":2}}",
+            _options
+        )!;
+        var unicodeResult = unicodePatch.Apply(
+            Optional<BenchPatchUnicodeFields.Fragment?>.Present(
+                BenchPatchUnicodeFields.Fragment.From(new())
+            )
+        );
+        if (
+            unicodeResult.Value!.日本語.Value != 1
+            || unicodeResult.Value.__SparseJsonPropertyNames.Value != 2
+        )
+            throw new InvalidOperationException(
+                "UTF-8 dispatch must preserve Unicode names and helper-name collisions."
+            );
     }
 
     [Benchmark]
@@ -98,4 +114,11 @@ public class PatchJsonWidthBenchmarks
     [Benchmark]
     public BenchPatchEightFields.Patch Eight() =>
         JsonSerializer.Deserialize<BenchPatchEightFields.Patch>(_eight, _options)!;
+}
+
+[SparseFragmentModel]
+public partial class BenchPatchUnicodeFields
+{
+    public int 日本語 { get; set; }
+    public int __SparseJsonPropertyNames { get; set; }
 }

@@ -425,6 +425,31 @@ internal static class SparsePatchStjEmitter
         ImmutableArray<SparseMemberModel> members
     )
     {
+        // Bound the number of UTF-8 comparisons for small models.
+        var useUtf8Names = members.Length <= 4;
+        var propertyNamesType = "__SparseJsonPropertyNames";
+        var propertyNamesSuffix = 0;
+        while (members.Any(member => member.Property.Name == propertyNamesType))
+            propertyNamesType = "__SparseJsonPropertyNames" + ++propertyNamesSuffix;
+        if (useUtf8Names)
+        {
+            code.AppendLineAt(2, "private static class " + propertyNamesType);
+            code.AppendLineAt(2, "{");
+            var names = new[] { "$whole" }.Concat(members.Select(member => member.Property.Name));
+            var nameIndex = 0;
+            foreach (var name in names)
+            {
+                code.AppendLineAt(
+                    3,
+                    "internal static readonly byte[] Name"
+                        + nameIndex++
+                        + " = new byte[] { "
+                        + string.Join(", ", System.Text.Encoding.UTF8.GetBytes(name))
+                        + " };"
+                );
+            }
+            code.AppendLineAt(2, "}");
+        }
         code.AppendLineAt(
             2,
             "internal static Patch __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
@@ -450,12 +475,38 @@ internal static class SparsePatchStjEmitter
             4,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a patch property name.\");"
         );
-        code.AppendLineAt(4, "var __prop = reader.GetString();");
+        if (useUtf8Names)
+        {
+            code.AppendLineAt(
+                4,
+                "var __property = reader.ValueTextEquals("
+                    + propertyNamesType
+                    + ".Name0) ? 0 : "
+                    + string.Concat(
+                        members.Select(
+                            (member, index) =>
+                                "reader.ValueTextEquals("
+                                + propertyNamesType
+                                + ".Name"
+                                + (index + 1)
+                                + ") ? "
+                                + (index + 1)
+                                + " : "
+                        )
+                    )
+                    + "-1;"
+            );
+            code.AppendLineAt(4, "var __prop = __property < 0 ? reader.GetString() : null;");
+        }
+        else
+        {
+            code.AppendLineAt(4, "var __prop = reader.GetString();");
+        }
         code.AppendLineAt(
             4,
             "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of patch.\");"
         );
-        code.AppendLineAt(4, "if (__prop == \"$whole\")");
+        code.AppendLineAt(4, useUtf8Names ? "if (__property == 0)" : "if (__prop == \"$whole\")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
@@ -467,10 +518,16 @@ internal static class SparsePatchStjEmitter
             "result.__sparse_whole = __SparseReadWholeFragment(ref reader, options);"
         );
         code.AppendLineAt(4, "}");
+        var propertyIndex = 1;
         foreach (var member in members)
         {
             var lit = Lit(member.Property.Name);
-            code.AppendLineAt(4, "else if (__prop == " + lit + ")");
+            code.AppendLineAt(
+                4,
+                useUtf8Names
+                    ? "else if (__property == " + propertyIndex++ + ")"
+                    : "else if (__prop == " + lit + ")"
+            );
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
