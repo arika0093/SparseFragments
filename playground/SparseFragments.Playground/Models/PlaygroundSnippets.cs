@@ -236,79 +236,55 @@ public static class PlaygroundSnippets
     }
 
     /// <summary>
-    /// Builds the keyed Add/Remove/Edit/SetOrder patch for the inspected diff.
-    /// Operations come from <c>patch.Changes</c> inspection with property
-    /// identity resolved through <c>T.Sparse.Properties</c> (#72) rather than
-    /// a second manual before/after comparison.
+    /// Builds the keyed Add/Remove/Edit/SetOrder patch for the typed diff.
+    /// Operations come from the <c>Quests</c> keyed transition on
+    /// <c>PlaygroundRoster.ChangeSet</c> rather than a second manual
+    /// before/after comparison.
     /// </summary>
     public static string RosterManualPatchCSharp(
         string variableName,
-        PlaygroundRoster.Patch patch,
+        PlaygroundRoster.ChangeSet changes,
         RosterEditState after
     )
     {
         var sb = new StringBuilder();
         sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
-        var quests = RosterInspection.QuestsChange(patch);
-        if (quests is null)
+        var quests = RosterInspection.QuestsTransition(changes);
+        if (quests.IsEmpty)
         {
             sb.AppendLine("// No quest changes.");
             return sb.ToString();
         }
 
-        if (quests.Kind == SparseChangeKind.Set)
+        foreach (var added in quests.Added)
         {
-            sb.AppendLine($"// Whole list replacement; granular Add/Remove/Edit do not apply.");
-            sb.AppendLine(
-                $"{variableName}.Quests.Set({QuestListLiteral(after.Rows.Select(static row => row.ToModel()).ToList())});"
-            );
-            return sb.ToString();
+            sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(added.Id)}, Title = {StringLiteral(added.Title)}, Points = {added.Points}, Scores = {IntListLiteral(added.Scores)} }});");
         }
-
-        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
+        foreach (var removed in quests.Removed)
         {
-            sb.AppendLine($"{variableName}.Quests.Unset();");
-            return sb.ToString();
+            sb.AppendLine($"{variableName}.Quests.Remove({StringLiteral(removed.Id)});");
         }
-
-        var keyed = quests.Keyed;
-        foreach (var added in keyed.Added)
+        foreach (var edit in quests.Edited)
         {
-            var quest = (PlaygroundQuest)added!;
-            sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }});");
-        }
-        foreach (var removed in keyed.RemovedKeys)
-        {
-            sb.AppendLine($"{variableName}.Quests.Remove({StringLiteral((string)removed!)});");
-        }
-        foreach (var edit in keyed.Edited)
-        {
-            var key = StringLiteral((string)edit.Key!);
-            foreach (var change in edit.NestedChanges)
+            var key = StringLiteral(edit.Key);
+            var quest = edit.Value;
+            if (quest.Title.IsChanged && quest.Title.After.IsPresent)
             {
-                string editText;
-                if (ReferenceEquals(change.Property, RosterInspection.QuestTitleProperty))
-                {
-                    editText = $"{variableName}.Quests.Edit({key}).Title = {StringLiteral((string)change.Value!)};";
-                }
-                else if (ReferenceEquals(change.Property, RosterInspection.QuestPointsProperty))
-                {
-                    editText = $"{variableName}.Quests.Edit({key}).Points = {change.Value};";
-                }
-                else if (ReferenceEquals(change.Property, RosterInspection.QuestScoresProperty))
-                {
-                    editText = $"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral((List<int>)change.Value!)}; // whole value: one element change replaces the list";
-                }
-                else
-                {
-                    editText = $"// Unhandled quest member '{change.Property.Name}'.";
-                }
+                sb.AppendLine($"{variableName}.Quests.Edit({key}).Title = {StringLiteral(quest.Title.After.Value ?? string.Empty)};");
+            }
 
-                sb.AppendLine(editText);
+            if (quest.Points.IsChanged && quest.Points.After.IsPresent)
+            {
+                sb.AppendLine($"{variableName}.Quests.Edit({key}).Points = {quest.Points.After.Value};");
+            }
+
+            if (quest.Scores.IsChanged && quest.Scores.After.IsPresent)
+            {
+                sb.AppendLine($"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral(quest.Scores.After.Value ?? new List<int>())}; // whole value: one element change replaces the list");
             }
         }
-        var order = keyed.HasOrder
-            ? keyed.KeyOrder.Select(static key => (string)key!).ToList()
+        var order = quests.OrderChanged
+            ? quests.AfterOrder.ToList()
             : after.Rows.Select(static row => row.Id).ToList();
         sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", order.Select(StringLiteral))} }}); // final key order, not moves");
         return sb.ToString();
@@ -316,17 +292,4 @@ public static class PlaygroundSnippets
 
     private static string IntListLiteral(IReadOnlyList<int> values) =>
         values.Count == 0 ? "new List<int>()" : $"new List<int> {{ {string.Join(", ", values)} }}";
-
-    private static string QuestListLiteral(IReadOnlyList<PlaygroundQuest> quests)
-    {
-        if (quests.Count == 0)
-        {
-            return "new List<PlaygroundQuest>()";
-        }
-
-        var items = quests.Select(static quest =>
-            $"new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }}"
-        );
-        return $"new List<PlaygroundQuest> {{ {string.Join(", ", items)} }}";
-    }
 }

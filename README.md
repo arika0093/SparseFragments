@@ -189,10 +189,9 @@ Changes, Patch, and ChangeSet:
 * [Fragments and patches](docs/fragments-and-patches.md) — Patch vs ChangeSet, `Between`/`ToPatch`/`FromPatch`, compose/invert, serialization
 * [ChangeSet rebase](docs/rebase.md) — disconnected editing, `RebaseOnto`, and structured conflicts
 
-Collections, inspection, and UI:
+Collections and UI:
 
 * [Keyed collections](docs/keyed-collections.md) — element-wise identity, ordering, and per-key edits
-* [Inspection](docs/inspection.md) — model metadata and change enumeration
 * [UI frameworks](docs/ui-frameworks.md) — edit sessions, validation, and `Observable` binding
 
 Model rules, ownership, and tooling:

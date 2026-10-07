@@ -153,10 +153,8 @@ public partial class Settings
 ## SPF009: Member conflicts with generated API
 
 * Message: `Member '{0}' conflicts with a name reserved by the generated API`
-* Cause: A model member is named `JsonConverter`, `FragmentJsonConverter` or `Sparse`,
-  which collides with the generated fragment JSON converter or the generated `Sparse`
-  runtime-metadata holder (`T.Sparse.Properties`). A nested type named `Sparse`
-  collides the same way.
+* Cause: A model member is named `JsonConverter` or `FragmentJsonConverter`,
+  which collides with the generated fragment JSON converter.
 * Fix: Rename the member.
 
 ## SPF010: Incompatible promoted fragment model

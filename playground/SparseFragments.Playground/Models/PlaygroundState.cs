@@ -450,37 +450,36 @@ public sealed class RosterRowHighlight
     public bool Moved { get; set; }
 }
 
-/// <summary>Builds before/after highlight maps from a generated roster Patch.</summary>
+/// <summary>Builds before/after highlight maps from a generated roster ChangeSet.</summary>
 /// <remarks>
 /// Case 3 derives one <c>PlaygroundRoster.ChangeSet</c> from before/after state and
 /// treats it as the source of truth: added/removed rows, per-property edit dots
-/// and final key order all come from the ChangeSet's <c>ToPatch().Changes</c> (#73)
-/// with property identity resolved through <c>T.Sparse.Properties</c> (#72) instead
-/// of a second manual diff. Only the mapping from inspected descriptors to the
+/// and final key order all come from the typed <c>Quests</c> keyed transition
+/// instead of a second manual diff. Only the mapping from transition data to the
 /// existing CSS/highlight objects stays Playground-specific.
 /// </remarks>
 public static class RosterHighlight
 {
     /// <summary>
-    /// Projects an already-computed roster Patch onto row highlights.
-    /// Pure over the inspection surface, so it stays testable without UI.
+    /// Projects an already-computed roster ChangeSet onto row highlights.
+    /// Pure over the typed transition surface, so it stays testable without UI.
     /// </summary>
     public static (
         Dictionary<QuestRow, RosterRowHighlight> Before,
         Dictionary<QuestRow, RosterRowHighlight> After
-    ) BuildFromPatch(
-        PlaygroundRoster.Patch patch,
+    ) BuildFromChangeSet(
+        PlaygroundRoster.ChangeSet changes,
         RosterEditState before,
         RosterEditState after
     )
     {
         var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
         var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
-        // Semantic detection comes from patch.Changes via the shared #72
-        // descriptors (see RosterInspection); only the mapping from inspected
-        // descriptors to CSS/highlight objects stays Playground-specific.
-        var quests = RosterInspection.QuestsChange(patch);
-        if (quests is null)
+        // Semantic detection comes from the typed Quests transition (see
+        // RosterInspection); only the mapping from transition data to
+        // CSS/highlight objects stays Playground-specific.
+        var quests = RosterInspection.QuestsTransition(changes);
+        if (quests.IsEmpty)
         {
             foreach (var row in before.Rows)
             {
@@ -495,55 +494,13 @@ public static class RosterHighlight
             return (beforeMap, afterMap);
         }
 
-        if (quests.Kind == SparseChangeKind.Set)
-        {
-            // Whole-list replacement: every after row reads as fully edited.
-            foreach (var row in before.Rows)
-            {
-                beforeMap[row] = new RosterRowHighlight();
-            }
-
-            foreach (var row in after.Rows)
-            {
-                afterMap[row] = new RosterRowHighlight
-                {
-                    TitleChanged = true,
-                    PointsChanged = true,
-                    ScoresChanged = true,
-                };
-            }
-
-            return (beforeMap, afterMap);
-        }
-
-        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
-        {
-            foreach (var row in before.Rows)
-            {
-                beforeMap[row] = new RosterRowHighlight { IsRemoved = true };
-            }
-
-            foreach (var row in after.Rows)
-            {
-                afterMap[row] = new RosterRowHighlight();
-            }
-
-            return (beforeMap, afterMap);
-        }
-
-        var keyed = quests.Keyed;
-        var added = new HashSet<string>(
-            keyed.Added.Select(static element => ((PlaygroundQuest)element!).Id)
-        );
-        var removed = new HashSet<string>(
-            keyed.RemovedKeys.Select(static key => (string)key!)
-        );
-        var edits = new Dictionary<string, HashSet<SparsePropertyInfo>>();
+        var keyed = quests;
+        var added = new HashSet<string>(keyed.Added.Select(static element => element.Id));
+        var removed = new HashSet<string>(keyed.Removed.Select(static element => element.Id));
+        var edits = new Dictionary<string, PlaygroundQuest.ChangeSet>();
         foreach (var edit in keyed.Edited)
         {
-            edits[(string)edit.Key!] = new HashSet<SparsePropertyInfo>(
-                edit.NestedChanges.Select(static change => change.Property)
-            );
+            edits[edit.Key] = edit.Value;
         }
 
         var beforeIndex = new Dictionary<string, int>();
@@ -553,13 +510,13 @@ public static class RosterHighlight
         }
 
         Dictionary<string, int>? orderIndex = null;
-        if (keyed.HasOrder)
+        if (keyed.OrderChanged)
         {
             orderIndex = new Dictionary<string, int>();
             var order = 0;
-            foreach (var key in keyed.KeyOrder)
+            foreach (var key in keyed.AfterOrder)
             {
-                orderIndex[(string)key!] = order++;
+                orderIndex[key] = order++;
             }
         }
 
@@ -572,11 +529,11 @@ public static class RosterHighlight
             }
             else if (edits.TryGetValue(row.Id, out var changed))
             {
-                // Presentation maps known property descriptors to visual dots; the
-                // semantic detection above comes from patch.Changes.
-                highlight.TitleChanged = changed.Contains(RosterInspection.QuestTitleProperty);
-                highlight.PointsChanged = changed.Contains(RosterInspection.QuestPointsProperty);
-                highlight.ScoresChanged = changed.Contains(RosterInspection.QuestScoresProperty);
+                // Presentation maps typed per-quest transitions to visual dots;
+                // the semantic detection above comes from the Quests transition.
+                highlight.TitleChanged = changed.Title.IsChanged;
+                highlight.PointsChanged = changed.Points.IsChanged;
+                highlight.ScoresChanged = changed.Scores.IsChanged;
             }
 
             if (

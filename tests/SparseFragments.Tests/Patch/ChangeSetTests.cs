@@ -32,7 +32,6 @@ public sealed class ChangeSetTests
         var changes = Settings.ChangeSet.Between(before, before);
         changes.IsEmpty.ShouldBeTrue();
         changes.ToPatch().IsEmpty.ShouldBeTrue();
-        changes.Changes.Count.ShouldBe(0);
     }
 
     [Test]
@@ -377,14 +376,19 @@ public sealed class ChangeSetTests
     }
 
     [Test]
-    public void InspectionUsesSharedPropertyMetadata()
+    public void TypedTransitionsObserveMemberChanges()
     {
         var before = Present(MakeSettings("Alice", 1));
         var after = Present(MakeSettings("Bob", 1));
         var changes = Settings.ChangeSet.Between(before, after);
-        changes.Changes.Count.ShouldBeGreaterThan(0);
-        var patchChanges = changes.ToPatch().Changes;
-        patchChanges.Count.ShouldBe(changes.Changes.Count);
+        changes.IsEmpty.ShouldBeFalse();
+        changes.Label.IsChanged.ShouldBeTrue();
+        changes.Label.Before.Value.ShouldBe("Alice");
+        changes.Label.After.Value.ShouldBe("Bob");
+        changes.RetryCount.IsChanged.ShouldBeFalse();
+        var patch = changes.ToPatch();
+        patch.IsEmpty.ShouldBeFalse();
+        Settings.Patch.Between(patch.Apply(before), after).IsEmpty.ShouldBeTrue();
     }
 
     [Test]

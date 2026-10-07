@@ -85,23 +85,6 @@ internal static class SparseModelAnalyzer
             );
         }
 
-        // The generated `Sparse` metadata holder collides with any model member
-        // named Sparse (properties, fields, methods, nested types), including
-        // non-settable ones that never become fragment members.
-        if (
-            !string.Equals(reservedCollision, "Sparse", System.StringComparison.Ordinal)
-            && model.GetMembers("Sparse").Length > 0
-        )
-        {
-            diagnostics.Add(
-                new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.GeneratedNameCollision,
-                    null,
-                    "Sparse"
-                )
-            );
-        }
-
         // Statically provable duplicate JSON wire names fail here instead of
         // surfacing as runtime converter errors in generated code.
         foreach (var duplicate in SparseShapeValidation.FindDuplicateWireNames(memberModels))
