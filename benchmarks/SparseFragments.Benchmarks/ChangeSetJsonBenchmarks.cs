@@ -51,6 +51,10 @@ public class ChangeSetJsonBenchmarks
                 .Text.Encoding.UTF8.GetString(_json)
                 .Replace("\"before\"", "\"be\\u0066ore\"")
                 .Replace("\"after\"", "\"a\\u0066ter\"")
+                .Replace("\"state\"", "\"st\\u0061te\"")
+                .Replace("\"value\"", "\"v\\u0061lue\"")
+                .Replace("\"missing\"", "\"mi\\u0073sing\"")
+                .Replace("\"null\"", "\"n\\u0075ll\"")
         );
         Validate(
             JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(escaped, _options)!
@@ -62,7 +66,13 @@ public class ChangeSetJsonBenchmarks
             {
                 writer.WriteStartObject();
                 foreach (var property in document.RootElement.EnumerateObject().Reverse())
-                    property.WriteTo(writer);
+                {
+                    writer.WritePropertyName(property.Name);
+                    writer.WriteStartObject();
+                    foreach (var member in property.Value.EnumerateObject().Reverse())
+                        member.WriteTo(writer);
+                    writer.WriteEndObject();
+                }
                 writer.WriteEndObject();
             }
             Validate(
@@ -78,6 +88,14 @@ public class ChangeSetJsonBenchmarks
                 "{\"before\":{\"state\":\"missing\"},\"before\":{\"state\":\"missing\"},\"after\":{\"state\":\"missing\"}}",
                 "{\"before\":{\"state\":\"missing\"},\"other\":{\"state\":\"missing\"}}",
                 "{\"before\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"bogus\"},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"missing\",\"state\":\"null\"},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":null},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"value\"},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"value\",\"value\":null},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"missing\",\"value\":{}},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"state\":\"null\",\"value\":{}},\"after\":{\"state\":\"missing\"}}",
+                "{\"before\":{\"other\":\"missing\"},\"after\":{\"state\":\"missing\"}}",
             }
         )
         {

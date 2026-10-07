@@ -876,7 +876,8 @@ internal static class SparsePatchStjEmitter
             3,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"An optional fragment must be a JSON object.\");"
         );
-        code.AppendLineAt(3, "string? __state = null;");
+        code.AppendLineAt(3, "byte __state = 0;");
+        code.AppendLineAt(3, "string? __unknownState = null;");
         code.AppendLineAt(3, "bool __hasValue = false;");
         code.AppendLineAt(3, "Fragment? __frag = null;");
         code.AppendLineAt(3, "bool __valueWasNull = false;");
@@ -890,24 +891,30 @@ internal static class SparsePatchStjEmitter
             4,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected an optional-fragment property name.\");"
         );
-        code.AppendLineAt(4, "var __p = reader.GetString();");
+        code.AppendLineAt(4, "var __isState = reader.ValueTextEquals(\"state\");");
+        code.AppendLineAt(4, "var __isValue = !__isState && reader.ValueTextEquals(\"value\");");
+        code.AppendLineAt(4, "var __unknown = __isState || __isValue ? null : reader.GetString();");
         code.AppendLineAt(
             4,
             "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of optional fragment.\");"
         );
-        code.AppendLineAt(4, "if (__p == \"state\")");
+        code.AppendLineAt(4, "if (__isState)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "if (__state is not null) throw new global::System.Text.Json.JsonException(\"Duplicate optional state.\");"
+            "if (__state != 0) throw new global::System.Text.Json.JsonException(\"Duplicate optional state.\");"
         );
         code.AppendLineAt(
             5,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.String) throw new global::System.Text.Json.JsonException(\"Optional state must be a string.\");"
         );
-        code.AppendLineAt(5, "__state = reader.GetString();");
+        code.AppendLineAt(
+            5,
+            "__state = reader.ValueTextEquals(\"missing\") ? (byte)1 : reader.ValueTextEquals(\"null\") ? (byte)2 : reader.ValueTextEquals(\"value\") ? (byte)3 : (byte)4;"
+        );
+        code.AppendLineAt(5, "if (__state == 4) __unknownState = reader.GetString();");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (__p == \"value\")");
+        code.AppendLineAt(4, "else if (__isValue)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
@@ -929,14 +936,14 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "else throw new global::System.Text.Json.JsonException(\"Unknown optional property '\" + __p + \"'.\");"
+            "else throw new global::System.Text.Json.JsonException(\"Unknown optional property '\" + __unknown + \"'.\");"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
-            "if (__state is null) throw new global::System.Text.Json.JsonException(\"Missing optional state.\");"
+            "if (__state == 0) throw new global::System.Text.Json.JsonException(\"Missing optional state.\");"
         );
-        code.AppendLineAt(3, "if (__state == \"missing\")");
+        code.AppendLineAt(3, "if (__state == 1)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
@@ -945,7 +952,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Missing;");
         code.AppendLine();
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "if (__state == \"null\")");
+        code.AppendLineAt(3, "if (__state == 2)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
@@ -954,7 +961,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Present(null);");
         code.AppendLine();
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "if (__state == \"value\")");
+        code.AppendLineAt(3, "if (__state == 3)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
@@ -969,7 +976,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
-            "throw new global::System.Text.Json.JsonException(\"Unknown optional state '\" + __state + \"'.\");"
+            "throw new global::System.Text.Json.JsonException(\"Unknown optional state '\" + __unknownState + \"'.\");"
         );
         code.AppendLineAt(2, "}");
         code.AppendLine();
