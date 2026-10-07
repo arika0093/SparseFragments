@@ -137,9 +137,9 @@ public static class NetStandardConsumerCheck
             baselineOpt,
             Optional<NetStandardSettings.Fragment?>.Present(editedBaseline));
         var changesJson = JsonSerializer.Serialize(changes);
-        var restored = JsonSerializer.Deserialize<NetStandardSettings.ChangeSet>(changesJson);
+        var restoredChanges = JsonSerializer.Deserialize<NetStandardSettings.ChangeSet>(changesJson)!;
         Require(
-            baseline.Apply(restored.ToPatch()).Label.Value == "patched",
+            baseline.Apply(restoredChanges.ToPatch()).Label.Value == "patched",
             "ChangeSet JSON round-trip"
         );
         Require(changesJson.Contains("patched"), "ChangeSet JSON export");

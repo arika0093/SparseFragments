@@ -166,7 +166,7 @@ public static class VerifiedSamples
         DocsCheck.Require(changes.Label.Before.Value == "a", "Before preserves the old value");
         DocsCheck.Require(changes.Label.After.Value == "b", "After preserves the new value");
         DocsCheck.Require(!changes.RetryCount.IsChanged, "unchanged member stays typed");
-        DocsCheck.Require(changes.RetryCount.Before.Value == 1, "unchanged Before is preserved");
+        DocsCheck.Require(!changes.RetryCount.Before.IsPresent, "unchanged Before stays missing");
         // /sample
     }
 
