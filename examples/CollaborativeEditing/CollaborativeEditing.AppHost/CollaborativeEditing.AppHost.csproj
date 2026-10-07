@@ -1,0 +1,22 @@
+<Project Sdk="Aspire.AppHost.Sdk" Version="13.6.0">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <UserSecretsId>4f8e2c1a-7b3d-4e5f-9a6b-1c2d3e4f5a6b</UserSecretsId>
+    <!-- Orchestrator only: never ship as a NuGet package. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" Version="13.6.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CollaborativeEditing.Client.Blazor\CollaborativeEditing.Client.Blazor.csproj" />
+    <ProjectReference Include="..\CollaborativeEditing.Server\CollaborativeEditing.Server.csproj" />
+  </ItemGroup>
+</Project>
