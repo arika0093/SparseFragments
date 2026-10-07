@@ -138,6 +138,32 @@ public class JsonPatchObjectDiffBenchmarks
                 "Unchanged arrays, nulls and numerically equal values must be omitted."
             );
         }
+        var nestedBefore = JsonNode.Parse(
+            """{"a/~":{"stable":5,"child":{"value":0}},"removed":1}"""
+        );
+        var nestedAfter = JsonNode.Parse("""{"a/~":{"stable":5,"child":{"value":1}},"added":2}""");
+        var nestedPatch = SparseJsonPatchBridge.Diff(nestedBefore, false, nestedAfter, false);
+        using var nestedDocument = JsonDocument.Parse(nestedPatch);
+        var nestedPaths = nestedDocument
+            .RootElement.EnumerateArray()
+            .Select(operation => operation.GetProperty("path").GetString());
+        var nestedActual = SparseJsonPatchBridge.Apply(
+            nestedBefore,
+            false,
+            nestedPatch,
+            StringComparison.Ordinal,
+            out var nestedAbsent
+        );
+        if (
+            !nestedPaths.SequenceEqual(["/removed", "/a~1~0/child/value", "/added"])
+            || nestedAbsent
+            || !JsonNode.DeepEquals(nestedActual, nestedAfter)
+        )
+        {
+            throw new InvalidOperationException(
+                "Nested object diffs must preserve recursion, escaping and operation order."
+            );
+        }
     }
 
     private string Key(int index) => (Escaped ? "a/~key-" : "key-") + index;

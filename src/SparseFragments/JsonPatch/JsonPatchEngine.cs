@@ -163,6 +163,18 @@ internal static class JsonPatchEngine
             return;
         }
 
+        DiffUnequalNodes(before, after, path, ops);
+    }
+
+    // Call only after comparing the nodes so unchanged members never need a
+    // path allocation, and changed members are not compared a second time.
+    private static void DiffUnequalNodes(
+        JsonNode? before,
+        JsonNode? after,
+        string path,
+        List<JsonPatchOperation> ops
+    )
+    {
         if (before is JsonObject beforeObject && after is JsonObject afterObject)
         {
             foreach (var key in ((IDictionary<string, JsonNode?>)beforeObject).Keys)
@@ -197,9 +209,9 @@ internal static class JsonPatchEngine
                         )
                     );
                 }
-                else
+                else if (!RfcJsonEquality.AreEqual(beforeValue, property.Value))
                 {
-                    DiffNodes(
+                    DiffUnequalNodes(
                         beforeValue,
                         property.Value,
                         path + "/" + JsonPointer.Escape(property.Key),
