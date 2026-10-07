@@ -32,6 +32,8 @@ public class PatchInspectionBenchmarks
     private BenchInspectionRecord.Patch _keyed = null!;
     private BenchInspectionRecord.Patch _dictionary = null!;
     private BenchInspectionRecord.Patch _nestedDictionary = null!;
+    private BenchInspectionRecord.Patch _keyedMixed = null!;
+    private BenchInspectionRecord.Patch _dictionaryMixed = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -52,6 +54,48 @@ public class PatchInspectionBenchmarks
             new() { Details = keys.ToDictionary(key => key, key => Item(key, 0)) },
             new() { Details = keys.ToDictionary(key => key, key => Item(key, 1)) }
         );
+        var retained = keys.Where((_, index) => index % 2 != 0).ToArray();
+        var removed = keys.Where((_, index) => index % 2 == 0).ToArray();
+        var added = Enumerable.Range(Size, Size / 2).Select(index => "key-" + index).ToArray();
+        var desiredOrder = retained.Concat(added).Reverse().ToArray();
+        _keyedMixed = Between(
+            new() { Items = keys.Select(key => Item(key, 0)).ToList() },
+            new() { Items = desiredOrder.Select(key => Item(key, 1)).ToList() }
+        );
+        _dictionaryMixed = Between(
+            new() { Scores = keys.ToDictionary(key => key, _ => 0) },
+            new() { Scores = desiredOrder.ToDictionary(key => key, _ => 1) }
+        );
+        var keyedMixed = KeyedMixed().Single().Keyed!;
+        var dictionaryMixed = DictionaryMixed().Single().Dictionary!;
+        if (
+            !keyedMixed.HasOrder
+            || !keyedMixed.KeyOrder.SequenceEqual(desiredOrder.Cast<object?>())
+            || !new HashSet<object?>(keyedMixed.RemovedKeys).SetEquals(removed)
+            || keyedMixed.Added.Count != added.Length
+            || !new HashSet<string>(
+                keyedMixed.Added.Select(value => ((BenchInspectionItem)value!).Id)
+            ).SetEquals(added)
+            || keyedMixed.Edited.Count != retained.Length
+            || !new HashSet<object?>(keyedMixed.Edited.Select(edit => edit.Key)).SetEquals(retained)
+            || keyedMixed.Edited.Any(edit => !ValidScore(edit.NestedChanges))
+            || !new HashSet<object?>(dictionaryMixed.RemovedKeys).SetEquals(removed)
+            || dictionaryMixed.SetEntries.Count != added.Length
+            || !new HashSet<object?>(
+                dictionaryMixed.SetEntries.Select(entry => entry.Key)
+            ).SetEquals(added)
+            || dictionaryMixed.SetEntries.Any(entry => !Equals(entry.Value, 1))
+            || dictionaryMixed.Edited.Count != retained.Length
+            || !new HashSet<object?>(dictionaryMixed.Edited.Select(edit => edit.Key)).SetEquals(
+                retained
+            )
+            || dictionaryMixed.Edited.Any(edit => edit.HasNestedChanges || !Equals(edit.Value, 1))
+        )
+        {
+            throw new InvalidOperationException(
+                "Mixed inspection must preserve additions, removals, edits and key order."
+            );
+        }
         var scalar = Scalar();
         var nested = Nested();
         var keyed = KeyedEdits().Single().Keyed!;
@@ -196,4 +240,10 @@ public class PatchInspectionBenchmarks
 
     [Benchmark]
     public IReadOnlyList<SparsePatchChange> NestedDictionaryEdits() => _nestedDictionary.Changes;
+
+    [Benchmark]
+    public IReadOnlyList<SparsePatchChange> KeyedMixed() => _keyedMixed.Changes;
+
+    [Benchmark]
+    public IReadOnlyList<SparsePatchChange> DictionaryMixed() => _dictionaryMixed.Changes;
 }
