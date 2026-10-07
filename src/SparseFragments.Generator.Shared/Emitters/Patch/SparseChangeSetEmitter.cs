@@ -1715,13 +1715,32 @@ internal static class SparseChangeSetEmitter
                 + comparer
                 + ");"
         );
+        code.AppendLineAt(5, "var __addedCount" + id + " = 0;");
         code.AppendLineAt(
             5,
             "foreach (var __kv in __net"
                 + id
-                + ") if (__kv.Value.IsRemoved) __netRemoved"
+                + ") { if (__kv.Value.IsAdded) __addedCount"
                 + id
-                + ".Add(__kv.Key);"
+                + "++; if (__kv.Value.IsRemoved) __netRemoved"
+                + id
+                + ".Add(__kv.Key); }"
+        );
+        // The union key set is no longer needed after merging. Reuse its capacity
+        // for pending additions when additions would otherwise cause repeated scans.
+        // These keys are a subset of the original union, so the set never grows.
+        code.AppendLineAt(5, "var __indexAddedOrder" + id + " = __addedCount" + id + " > 4;");
+        code.AppendLineAt(
+            5,
+            "if (__indexAddedOrder"
+                + id
+                + ") { __keys"
+                + id
+                + ".Clear(); foreach (var __kv in __net"
+                + id
+                + ") if (__kv.Value.IsAdded) __keys"
+                + id
+                + ".Add(__kv.Key); }"
         );
         code.AppendLineAt(
             5,
@@ -1769,17 +1788,25 @@ internal static class SparseChangeSetEmitter
             6,
             "var __no = new global::System.Collections.Generic.List<"
                 + keyType
-                + ">(); foreach (var __k in __o2a) if (!__netRemoved"
+                + ">(__o2a.Count); foreach (var __k in __o2a) if (!__netRemoved"
                 + id
-                + ".Contains(__k)) __no.Add(__k);"
+                + ".Contains(__k)) { __no.Add(__k); if (__indexAddedOrder"
+                + id
+                + ") __keys"
+                + id
+                + ".Remove(__k); }"
         );
         code.AppendLineAt(
             6,
             "foreach (var __kv in __net"
                 + id
-                + ") if (__kv.Value.IsAdded && !__no.Contains(__kv.Key, "
+                + ") if (__kv.Value.IsAdded && (__indexAddedOrder"
+                + id
+                + " ? __keys"
+                + id
+                + ".Remove(__kv.Key) : !__no.Contains(__kv.Key, "
                 + comparer
-                + ")) __no.Add(__kv.Key);"
+                + "))) __no.Add(__kv.Key);"
         );
         code.AppendLineAt(6, "__naO" + id + " = __no;");
         code.AppendLineAt(5, "}");
@@ -1789,17 +1816,25 @@ internal static class SparseChangeSetEmitter
             6,
             "var __no = new global::System.Collections.Generic.List<"
                 + keyType
-                + ">(); foreach (var __k in __o1a) if (!__netRemoved"
+                + ">(__o1a.Count); foreach (var __k in __o1a) if (!__netRemoved"
                 + id
-                + ".Contains(__k)) __no.Add(__k);"
+                + ".Contains(__k)) { __no.Add(__k); if (__indexAddedOrder"
+                + id
+                + ") __keys"
+                + id
+                + ".Remove(__k); }"
         );
         code.AppendLineAt(
             6,
             "foreach (var __kv in __net"
                 + id
-                + ") if (__kv.Value.IsAdded && !__no.Contains(__kv.Key, "
+                + ") if (__kv.Value.IsAdded && (__indexAddedOrder"
+                + id
+                + " ? __keys"
+                + id
+                + ".Remove(__kv.Key) : !__no.Contains(__kv.Key, "
                 + comparer
-                + ")) __no.Add(__kv.Key);"
+                + "))) __no.Add(__kv.Key);"
         );
         code.AppendLineAt(6, "__naO" + id + " = __no;");
         code.AppendLineAt(5, "}");
