@@ -29,4 +29,11 @@
       ReferenceOutputAssembly="false"
     />
   </ItemGroup>
+
+  <!-- Web assets are single-sourced in /assets and linked into wwwroot. -->
+  <ItemGroup>
+    <Content Include="..\..\assets\favicon.png" Link="wwwroot\favicon.png" />
+    <Content Include="..\..\assets\apple-touch-icon.png" Link="wwwroot\apple-touch-icon.png" />
+    <Content Include="..\..\assets\icon-192.png" Link="wwwroot\icon-192.png" />
+  </ItemGroup>
 </Project>
