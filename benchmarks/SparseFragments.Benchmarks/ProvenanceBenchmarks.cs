@@ -89,10 +89,14 @@ public class ProvenanceBenchmarks
             .ToArray();
         var afterReset = contributions.Skip(resetAt + 1).ToList();
         _sequenceAppendResetEffective = Optional<IReadOnlyList<string>?>.Present(
-            (IReadOnlyList<string>?)afterReset.SelectMany(l => l).ToList()
+            afterReset.Count == 0
+                ? null
+                : (IReadOnlyList<string>?)afterReset.SelectMany(l => l).ToList()
         );
         _sequenceUnionResetEffective = Optional<IReadOnlyList<string>?>.Present(
-            (IReadOnlyList<string>?)SequenceUnion(afterReset, StringComparer.Ordinal)
+            afterReset.Count == 0
+                ? null
+                : (IReadOnlyList<string>?)SequenceUnion(afterReset, StringComparer.Ordinal)
         );
 
         _setContributions = contributions
@@ -142,12 +146,80 @@ public class ProvenanceBenchmarks
             )
             .ToArray();
         _setResetEffective = Optional<IEnumerable<string>?>.Present(
-            (IEnumerable<string>?)
-                new HashSet<string>(
-                    SequenceUnion(afterReset, StringComparer.Ordinal),
-                    StringComparer.Ordinal
-                )
+            afterReset.Count == 0
+                ? null
+                : (IEnumerable<string>?)
+                    new HashSet<string>(
+                        SequenceUnion(afterReset, StringComparer.Ordinal),
+                        StringComparer.Ordinal
+                    )
         );
+        if (
+            !Replace_Success()
+            || !Append_Success()
+            || !Append_Reset()
+            || !SequenceSetUnion_Success()
+            || !SequenceSetUnion_CustomComparer()
+            || !SequenceSetUnion_Reset()
+            || SequenceSetUnion_Mismatch()
+            || !SetSetUnion_Success()
+            || !SetSetUnion_CustomComparer()
+            || !SetSetUnion_Reset()
+            || SetSetUnion_Mismatch()
+        )
+            throw new InvalidOperationException(
+                "Provenance must accept matching merges and reject mismatches."
+            );
+        ValidateSequenceOrigins(
+            _sequenceContributions,
+            _sequenceUnionEffective,
+            StringComparer.Ordinal
+        );
+        ValidateSequenceOrigins(
+            _sequenceContributions,
+            _sequenceUnionIgnoreCaseEffective,
+            StringComparer.OrdinalIgnoreCase
+        );
+        ValidateSequenceOrigins(
+            _sequenceResetContributions,
+            _sequenceUnionResetEffective,
+            StringComparer.Ordinal
+        );
+    }
+
+    private static void ValidateSequenceOrigins(
+        IReadOnlyList<Optional<IReadOnlyList<string>?>> contributions,
+        Optional<IReadOnlyList<string>?> effective,
+        IEqualityComparer<string> comparer
+    )
+    {
+        var expected = new Dictionary<string, int>(comparer);
+        for (var index = 0; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent)
+                continue;
+            if (contribution.Value is null)
+            {
+                expected.Clear();
+                continue;
+            }
+            foreach (var value in contribution.Value)
+                expected.TryAdd(value, index);
+        }
+        if (
+            !SparseFragmentRuntime.TryExplainCollectionProvenance(
+                MergeMode.SetUnion,
+                contributions,
+                effective,
+                comparer,
+                out var origins,
+                out _
+            ) || !origins.SequenceEqual((effective.Value ?? []).Select(value => expected[value]))
+        )
+            throw new InvalidOperationException(
+                "Sequence provenance must preserve first contribution indices after resets."
+            );
     }
 
     [Benchmark(Description = "Provenance Replace: highest contribution wins")]
