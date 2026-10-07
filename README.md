@@ -169,6 +169,7 @@ var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory
 | Apply partial updates | [Fragments and patches](docs/fragments-and-patches.md) § patches |
 | Customize how members merge | [Merge strategies](docs/merge-strategies.md) |
 | Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
+| Inspect model semantics and Patch changes | [Inspection](docs/inspection.md) |
 | Reconcile concurrent edits | [Patch rebase](docs/rebase.md) |
 | Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
 | Exchange changes as RFC 6902 JSON Patch | [JSON Patch](docs/json-patch.md) |

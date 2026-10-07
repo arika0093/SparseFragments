@@ -116,6 +116,16 @@ check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFram
     'Patch.Between' \
     'Fragment.From'
 
+check_sample "inspection" "docs/inspection.md" "${docs_fixture_dir}/InspectionSamples.cs" \
+    'Roster.Sparse.Properties' \
+    'patch.Changes' \
+    'SparseChangeKind' \
+    'SparseCollectionSemantic.KeyedSequence' \
+    'SparseKeyKind.Property' \
+    'NestedChanges' \
+    'RemovedKeys' \
+    'KeyOrder'
+
 # 1b. Exact sample verification (#68). Annotated fenced blocks in the guides
 # must match their canonical fixture regions exactly (after normalization),
 # so the documented code compiles and produces the documented result.
@@ -138,6 +148,8 @@ check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     rebase-first-models rebase-first
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session
+check_block "inspection" "docs/inspection.md" "${docs_fixture_dir}/InspectionSamples.cs" \
+    inspection-models inspection-first inspection-kinds inspection-nested inspection-keyed
 
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
@@ -160,7 +172,8 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/model-shapes.md \
     docs/ui-frameworks.md \
     docs/fragments-and-patches.md \
-    docs/analyzer.md; then
+    docs/analyzer.md \
+    docs/inspection.md; then
     echo "Docs link check failed; see broken links above." >&2
     exit 1
 fi
