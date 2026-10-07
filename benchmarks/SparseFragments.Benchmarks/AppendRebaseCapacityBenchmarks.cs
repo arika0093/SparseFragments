@@ -32,6 +32,20 @@ public class AppendRebaseCapacityBenchmarks
     [GlobalSetup]
     public void Setup()
     {
+        var empty = System.Array.Empty<int>();
+        if (
+            !SparseFragmentRuntime.TryRebaseSequenceAppendArray(
+                empty,
+                empty,
+                empty,
+                null,
+                out var emptyResult,
+                out _
+            ) || !ReferenceEquals(empty, emptyResult)
+        )
+        {
+            throw new InvalidOperationException("Empty array replay must reuse the empty array.");
+        }
         var before = Enumerable.Range(0, Size).ToArray();
         var desired = before.Concat(Enumerable.Range(Size, AddCount)).ToArray();
         var current = before.Concat([-1]).ToArray();
@@ -43,9 +57,11 @@ public class AppendRebaseCapacityBenchmarks
         _objectCurrent = Store(current.Cast<object?>().ToArray());
         var expected = current.Concat(desired.Skip(Size)).ToArray();
         var typed = Typed();
+        var array = Array();
         var boxed = Object();
         if (
             !typed.SequenceEqual(expected)
+            || !array.SequenceEqual(expected)
             || !boxed.SequenceEqual(expected.Cast<object?>())
             || !_before.SequenceEqual(before)
             || !_desired.SequenceEqual(desired)
@@ -70,6 +86,15 @@ public class AppendRebaseCapacityBenchmarks
             )
             || appliedReason is not null
             || !applied.SequenceEqual(desired)
+            || !SparseFragmentRuntime.TryRebaseSequenceAppendArray(
+                _before,
+                _desired,
+                _desired,
+                null,
+                out var arrayApplied,
+                out _
+            )
+            || !arrayApplied.SequenceEqual(desired)
             || !SparseFragmentRuntime.TryRebaseAppend(
                 _objectBefore,
                 _objectDesired,
@@ -97,6 +122,15 @@ public class AppendRebaseCapacityBenchmarks
                 out var reason
             )
             || reason is null
+            || SparseFragmentRuntime.TryRebaseSequenceAppendArray(
+                _before,
+                _desired,
+                changed,
+                null,
+                out _,
+                out var arrayReason
+            )
+            || arrayReason is null
             || SparseFragmentRuntime.TryRebaseAppend(
                 _objectBefore,
                 _objectDesired,
@@ -137,6 +171,25 @@ public class AppendRebaseCapacityBenchmarks
         )
         {
             throw new InvalidOperationException("Append replay unexpectedly conflicted.");
+        }
+        return result;
+    }
+
+    [Benchmark]
+    public int[] Array()
+    {
+        if (
+            !SparseFragmentRuntime.TryRebaseSequenceAppendArray(
+                _before,
+                _desired,
+                _current,
+                null,
+                out var result,
+                out _
+            )
+        )
+        {
+            throw new InvalidOperationException("Array append replay unexpectedly conflicted.");
         }
         return result;
     }

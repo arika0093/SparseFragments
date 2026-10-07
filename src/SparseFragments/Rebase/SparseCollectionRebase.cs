@@ -274,6 +274,68 @@ internal static class SparseCollectionRebase
         return true;
     }
 
+    public static bool TryRebaseSequenceAppendArray<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out T[] rebased,
+        out string? reason
+    )
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(desired);
+        ArgumentNullException.ThrowIfNull(current);
+
+        comparer ??= EqualityComparer<T>.Default;
+
+        if (SequenceEqual(current, desired, comparer) || SequenceEqual(desired, before, comparer))
+        {
+            rebased = CloneSequenceArray(current);
+            reason = null;
+            return true;
+        }
+
+        if (!HasPrefix(desired, before, comparer))
+        {
+            if (
+                !SequenceEqual(current, before, comparer)
+                && !SequenceEqual(current, desired, comparer)
+            )
+            {
+                rebased = [];
+                reason =
+                    "The configuration edit conflicts with a concurrent change to an append-merged member.";
+                return false;
+            }
+
+            rebased = CloneSequenceArray(desired);
+            reason = null;
+            return true;
+        }
+
+        if (!HasPrefix(current, before, comparer))
+        {
+            rebased = [];
+            reason =
+                "The configuration edit cannot reapply its append because the existing collection prefix changed.";
+            return false;
+        }
+
+        var capacity = checked(current.Count + (desired.Count - before.Count));
+        var result = new T[capacity];
+        CopySequence(current, result);
+        var destination = current.Count;
+        for (var index = before.Count; index < desired.Count; index++)
+        {
+            result[destination++] = desired[index];
+        }
+
+        rebased = result;
+        reason = null;
+        return true;
+    }
+
     /// <summary>
     /// Reapplies a sequence set-union edit (added and removed elements) onto a newer
     /// sequence without boxing, delegate dispatch, or quadratic scans.
@@ -306,11 +368,116 @@ internal static class SparseCollectionRebase
         out string? reason
     )
     {
+        if (
+            !TryPrepareSequenceSetUnion(
+                before,
+                desired,
+                current,
+                comparer,
+                out var initial,
+                out var additions,
+                out reason
+            )
+        )
+        {
+            rebased = [];
+            return false;
+        }
+        var result = new List<T>(checked(initial.Count + (additions?.Count ?? 0)));
+        result.AddRange(initial);
+        if (additions is not null && additions.Count > 0)
+        {
+            foreach (var value in desired)
+            {
+                if (additions.Contains(value))
+                {
+                    additions.Remove(value);
+                    result.Add(value);
+                    if (additions.Count == 0)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        rebased = result;
+        return true;
+    }
+
+    [SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "The loop consumes pending additions in first-occurrence order and stops when all additions are copied."
+    )]
+    public static bool TryRebaseSequenceSetUnionArray<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out T[] rebased,
+        out string? reason
+    )
+    {
+        if (
+            !TryPrepareSequenceSetUnion(
+                before,
+                desired,
+                current,
+                comparer,
+                out var initial,
+                out var additions,
+                out reason
+            )
+        )
+        {
+            rebased = [];
+            return false;
+        }
+        var count = checked(initial.Count + (additions?.Count ?? 0));
+        var result = count == 0 ? Array.Empty<T>() : new T[count];
+        CopySequence(initial, result);
+        var destination = initial.Count;
+        if (additions is not null && additions.Count > 0)
+        {
+            foreach (var value in desired)
+            {
+                if (additions.Contains(value))
+                {
+                    additions.Remove(value);
+                    result[destination++] = value;
+                    if (additions.Count == 0)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        rebased = result;
+        return true;
+    }
+
+    [SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit membership checks avoid allocating a predicate during replay preparation."
+    )]
+    private static bool TryPrepareSequenceSetUnion<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out IReadOnlyList<T> initial,
+        out HashSet<T>? additions,
+        out string? reason
+    )
+    {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(desired);
         ArgumentNullException.ThrowIfNull(current);
 
         comparer ??= EqualityComparer<T>.Default;
+        initial = current;
+        additions = null;
 
         var desiredLookup = new HashSet<T>(desired, comparer);
         var hasRemoved = false;
@@ -330,40 +497,42 @@ internal static class SparseCollectionRebase
                 && !SequenceEqual(current, desired, comparer)
             )
             {
-                rebased = [];
                 reason =
                     "The configuration edit conflicts with a concurrent change to a set-union member.";
                 return false;
             }
 
-            rebased = new List<T>(desired);
+            initial = desired;
             reason = null;
             return true;
         }
 
         desiredLookup.ExceptWith(before);
         desiredLookup.ExceptWith(current);
-        var result = new List<T>(checked(current.Count + desiredLookup.Count));
-        result.AddRange(current);
-        if (desiredLookup.Count > 0)
-        {
-            foreach (var value in desired)
-            {
-                if (desiredLookup.Contains(value))
-                {
-                    desiredLookup.Remove(value);
-                    result.Add(value);
-                    if (desiredLookup.Count == 0)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        rebased = result;
+        additions = desiredLookup;
         reason = null;
         return true;
+    }
+
+    private static T[] CloneSequenceArray<T>(IReadOnlyList<T> source)
+    {
+        var result = source.Count == 0 ? Array.Empty<T>() : new T[source.Count];
+        CopySequence(source, result);
+        return result;
+    }
+
+    private static void CopySequence<T>(IReadOnlyList<T> source, T[] destination)
+    {
+        if (source is ICollection<T> collection)
+        {
+            collection.CopyTo(destination, 0);
+            return;
+        }
+        var index = 0;
+        foreach (var value in source)
+        {
+            destination[index++] = value;
+        }
     }
 
     private static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)

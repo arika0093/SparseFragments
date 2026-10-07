@@ -114,6 +114,25 @@ public static class SparseFragmentRuntime
             out reason
         );
 
+    /// <summary>Reapplies an append edit directly into an array.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryRebaseSequenceAppendArray<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out T[] rebased,
+        out string? reason
+    ) =>
+        SparseCollectionRebase.TryRebaseSequenceAppendArray(
+            before,
+            desired,
+            current,
+            comparer,
+            out rebased,
+            out reason
+        );
+
     /// <summary>Reapplies a sequence set-union edit onto a newer sequence without boxing or quadratic scans.</summary>
     /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSequenceSetUnion<T>(
@@ -125,6 +144,25 @@ public static class SparseFragmentRuntime
         out string? reason
     ) =>
         SparseCollectionRebase.TryRebaseSequenceSetUnion(
+            before,
+            desired,
+            current,
+            comparer,
+            out rebased,
+            out reason
+        );
+
+    /// <summary>Reapplies a sequence set-union edit directly into an array.</summary>
+    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+    public static bool TryRebaseSequenceSetUnionArray<T>(
+        IReadOnlyList<T> before,
+        IReadOnlyList<T> desired,
+        IReadOnlyList<T> current,
+        IEqualityComparer<T>? comparer,
+        out T[] rebased,
+        out string? reason
+    ) =>
+        SparseCollectionRebase.TryRebaseSequenceSetUnionArray(
             before,
             desired,
             current,

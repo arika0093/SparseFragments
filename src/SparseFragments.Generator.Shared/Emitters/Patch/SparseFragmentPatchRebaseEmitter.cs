@@ -556,6 +556,10 @@ internal static class SparseFragmentPatchRebaseEmitter
         var readOnlyType = $"global::System.Collections.Generic.IReadOnlyList<{elementType}>";
         var typedMethod =
             member.MergeMode == 2 ? "TryRebaseSequenceAppend" : "TryRebaseSequenceSetUnion";
+        if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
+        {
+            typedMethod += "Array";
+        }
         var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
         string NativeInput(string state, string variable) =>
             $"(object?){state}.Value is {readOnlyType} {variable} && ({variable} is {elementType}[] || {variable}.GetType() == typeof({listType}))";
@@ -578,11 +582,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             7,
             $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.{typedMethod}<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
         );
-        var typedResult =
-            member.Collection.CloneKind == SparseCloneCollectionKind.Array
-                ? "__typedValues.ToArray()"
-                : "__typedValues";
-        code.AppendLineAt(7, $"if (__rebaseSucceeded) __rebasedCollection = {typedResult};");
+        code.AppendLineAt(7, "if (__rebaseSucceeded) __rebasedCollection = __typedValues;");
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "else");
         code.AppendLineAt(6, "{");

@@ -25,6 +25,20 @@ public class SequenceUnionReplayBenchmarks
     [GlobalSetup]
     public void Setup()
     {
+        var empty = System.Array.Empty<string>();
+        if (
+            !SparseFragmentRuntime.TryRebaseSequenceSetUnionArray(
+                empty,
+                empty,
+                empty,
+                null,
+                out var emptyResult,
+                out _
+            ) || !ReferenceEquals(empty, emptyResult)
+        )
+        {
+            throw new InvalidOperationException("Empty array replay must reuse the empty array.");
+        }
         _comparer = CustomComparer ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         _before = Enumerable.Range(0, Size).Select(index => "base-" + index).ToList();
         _desired = new List<string>(_before);
@@ -47,8 +61,10 @@ public class SequenceUnionReplayBenchmarks
         var currentCopy = _current.ToArray();
         var expected = AlreadyApplied ? currentCopy : currentCopy.Concat(additions).ToArray();
         var actual = Rebase();
+        var array = ArrayRebase();
         if (
             !actual.SequenceEqual(expected)
+            || !array.SequenceEqual(expected)
             || !_before.SequenceEqual(beforeCopy)
             || !_desired.SequenceEqual(desiredCopy)
             || !_current.SequenceEqual(currentCopy)
@@ -70,6 +86,15 @@ public class SequenceUnionReplayBenchmarks
             )
             || reason is not null
             || !clean.SequenceEqual(removed)
+            || !SparseFragmentRuntime.TryRebaseSequenceSetUnionArray(
+                _before,
+                removed,
+                _before,
+                _comparer,
+                out var arrayClean,
+                out _
+            )
+            || !arrayClean.SequenceEqual(removed)
             || SparseFragmentRuntime.TryRebaseSequenceSetUnion(
                 _before,
                 removed,
@@ -79,6 +104,15 @@ public class SequenceUnionReplayBenchmarks
                 out var conflictReason
             )
             || conflictReason is null
+            || SparseFragmentRuntime.TryRebaseSequenceSetUnionArray(
+                _before,
+                removed,
+                _current,
+                _comparer,
+                out _,
+                out var arrayConflictReason
+            )
+            || arrayConflictReason is null
         )
         {
             throw new InvalidOperationException(
@@ -102,6 +136,25 @@ public class SequenceUnionReplayBenchmarks
         )
         {
             throw new InvalidOperationException("Addition replay unexpectedly conflicted.");
+        }
+        return result;
+    }
+
+    [Benchmark]
+    public string[] ArrayRebase()
+    {
+        if (
+            !SparseFragmentRuntime.TryRebaseSequenceSetUnionArray(
+                _before,
+                _desired,
+                _current,
+                _comparer,
+                out var result,
+                out _
+            )
+        )
+        {
+            throw new InvalidOperationException("Array union replay unexpectedly conflicted.");
         }
         return result;
     }
