@@ -20,18 +20,30 @@ internal static class SparseMetadataEmitter
         const string propertiesType =
             "global::System.Collections.Generic.IReadOnlyList<global::SparseFragments.SparsePropertyInfo>";
         const string arrayType = "new global::SparseFragments.SparsePropertyInfo[]";
+        // AsReadOnly wraps the array in a fixed non-array facade: consumers see
+        // IReadOnlyList<T> but cannot cast back to T[] and mutate shared metadata.
+        const string readOnlyPrefix = "global::System.Array.AsReadOnly(";
         if (members.IsDefaultOrEmpty)
         {
             code.AppendLineAt(
                 2,
-                "public static " + propertiesType + " Properties { get; } = " + arrayType + " { };"
+                "public static "
+                    + propertiesType
+                    + " Properties { get; } = "
+                    + readOnlyPrefix
+                    + arrayType
+                    + " { });"
             );
         }
         else
         {
             code.AppendLineAt(
                 2,
-                "public static " + propertiesType + " Properties { get; } = " + arrayType
+                "public static "
+                    + propertiesType
+                    + " Properties { get; } = "
+                    + readOnlyPrefix
+                    + arrayType
             );
             code.AppendLineAt(2, "{");
             foreach (var member in members)
@@ -40,7 +52,7 @@ internal static class SparseMetadataEmitter
                 code.AppendIndent(3).Append(FormatMember(member)).AppendLine(",");
             }
 
-            code.AppendLineAt(2, "};");
+            code.AppendLineAt(2, "});");
         }
 
         code.AppendLineAt(1, "}");

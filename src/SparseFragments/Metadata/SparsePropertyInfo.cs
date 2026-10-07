@@ -1,5 +1,6 @@
 namespace SparseFragments;
 
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 
 /// <summary>
@@ -69,7 +70,9 @@ public sealed class SparsePropertyInfo
         {
             keyNames[i] = keyPropertyNames[i];
         }
-        KeyPropertyNames = keyNames;
+        // Defensive copy behind a non-array wrapper: callers cannot cast back
+        // to string[] and mutate descriptor contents.
+        KeyPropertyNames = new ReadOnlyCollection<string>(keyNames);
         KeyType = keyType;
         JsonPropertyName = jsonPropertyName;
         IsRequired = isRequired;

@@ -300,8 +300,74 @@ public sealed class SparseMetadataTests
         {
             property.ShouldNotBeNull();
         }
+
         // Same fixed instance across accesses (not a lazy re-enumeration).
         ReferenceEquals(MetaScalar.Sparse.Properties, MetaScalar.Sparse.Properties).ShouldBeTrue();
+    }
+
+    [Test]
+    public void PropertiesCannotBeCastToArray()
+    {
+        (MetaScalar.Sparse.Properties is SparsePropertyInfo[]).ShouldBeFalse();
+        (MetaKeyedHolder.Sparse.Properties is SparsePropertyInfo[]).ShouldBeFalse();
+    }
+
+    [Test]
+    public void PropertiesRejectMutationThroughListInterface()
+    {
+        var properties = (IList<SparsePropertyInfo>)MetaScalar.Sparse.Properties;
+        properties.IsReadOnly.ShouldBeTrue();
+        Should.Throw<NotSupportedException>(() => properties.Add(MetaScalar.Sparse.Properties[0]));
+        Should.Throw<NotSupportedException>(() => properties.RemoveAt(0));
+        // Failed mutation leaves the shared instance intact.
+        MetaScalar.Sparse.Properties.Count.ShouldBe(4);
+        MetaScalar.Sparse.Properties[0].Name.ShouldBe("Count");
+    }
+
+    [Test]
+    public void KeyPropertyNamesCannotBeCastToArray()
+    {
+        var items = MetaKeyedHolder.Sparse.Properties.Single(p => p.Name == "Items");
+        (items.KeyPropertyNames is string[]).ShouldBeFalse();
+        var composites = MetaKeyedHolder.Sparse.Properties.Single(p => p.Name == "Composites");
+        (composites.KeyPropertyNames is string[]).ShouldBeFalse();
+    }
+
+    [Test]
+    public void KeyPropertyNamesRejectMutation()
+    {
+        var items = MetaKeyedHolder.Sparse.Properties.Single(p => p.Name == "Items");
+        var names = (IList<string>)items.KeyPropertyNames;
+        names.IsReadOnly.ShouldBeTrue();
+        Should.Throw<NotSupportedException>(() => names.Add("evil"));
+        Should.Throw<NotSupportedException>(() => names.RemoveAt(0));
+        items.KeyPropertyNames.ShouldBe(["Id"]);
+    }
+
+    [Test]
+    public void ConstructorInputMutationsDoNotLeakIntoDescriptors()
+    {
+        var input = new List<string> { "Id" };
+        var info = new SparsePropertyInfo(
+            "Items",
+            typeof(List<MetaKeyedElement>),
+            false,
+            false,
+            null,
+            MergeMode.Replace,
+            null,
+            SparseCollectionKind.List,
+            SparseCollectionSemantic.KeyedSequence,
+            SparseKeyKind.Property,
+            input,
+            typeof(string),
+            "Items",
+            false,
+            false,
+            false
+        );
+        input.Add("evil");
+        info.KeyPropertyNames.ShouldBe(["Id"]);
     }
 
     [Test]
