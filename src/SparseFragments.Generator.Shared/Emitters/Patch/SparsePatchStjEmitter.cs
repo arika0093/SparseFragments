@@ -965,9 +965,25 @@ internal static class SparsePatchStjEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        // v1 document envelope: {"version":1,"changes":{...body...}}.
+        // Body grammar lives in __SparseWriteBodyStj so nested ChangeSets can reuse it
+        // without nested envelopes. version/changes are exact wire names (policy-independent).
         code.AppendLineAt(
             2,
             "internal static void __SparseWriteStj(global::System.Text.Json.Utf8JsonWriter writer, ChangeSet value, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "writer.WriteStartObject();");
+        code.AppendLineAt(3, "writer.WritePropertyName(\"version\");");
+        code.AppendLineAt(3, "writer.WriteNumberValue(1);");
+        code.AppendLineAt(3, "writer.WritePropertyName(\"changes\");");
+        code.AppendLineAt(3, "__SparseWriteBodyStj(writer, value, options);");
+        code.AppendLineAt(3, "writer.WriteEndObject();");
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "internal static void __SparseWriteBodyStj(global::System.Text.Json.Utf8JsonWriter writer, ChangeSet value, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "writer.WriteStartObject();");
@@ -1015,7 +1031,7 @@ internal static class SparsePatchStjEmitter
                 code.AppendLineAt(
                     4,
                     child
-                        + ".__SparseWriteStj(writer, value.__sparse_nested_"
+                        + ".__SparseWriteBodyStj(writer, value.__sparse_nested_"
                         + member.Id
                         + ", options);"
                 );
@@ -1868,7 +1884,7 @@ internal static class SparsePatchStjEmitter
         var runtime = RuntimeFor(dialect);
         code.AppendLineAt(
             2,
-            "internal static ChangeSet __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
+            "internal static ChangeSet __SparseReadBodyStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "__SparseValidateJsonNames(options);");
@@ -2072,7 +2088,7 @@ internal static class SparsePatchStjEmitter
                         + member.Id
                         + " = "
                         + child
-                        + ".__SparseReadStj(ref reader, options);"
+                        + ".__SparseReadBodyStj(ref reader, options);"
                 );
                 code.AppendLineAt(
                     5,
@@ -2288,6 +2304,80 @@ internal static class SparsePatchStjEmitter
                 );
         }
         code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", cargs) + ");");
+        code.AppendLineAt(2, "}");
+        // v1 document envelope reader (order-independent, strict).
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "internal static ChangeSet __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A change-set document must be a JSON object.\");"
+        );
+        code.AppendLineAt(3, "bool __seenVersion = false;");
+        code.AppendLineAt(3, "bool __seenChanges = false;");
+        code.AppendLineAt(3, "ChangeSet? __docBody = null;");
+        code.AppendLineAt(3, "while (reader.Read())");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType == global::System.Text.Json.JsonTokenType.EndObject) break;"
+        );
+        code.AppendLineAt(
+            4,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a change-set document property name.\");"
+        );
+        code.AppendLineAt(4, "var __isVersion = reader.ValueTextEquals(\"version\");");
+        code.AppendLineAt(4, "var __isChanges = !__isVersion && reader.ValueTextEquals(\"changes\");");
+        code.AppendLineAt(
+            4,
+            "var __docUnknown = __isVersion || __isChanges ? null : reader.GetString();"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of change-set document.\");"
+        );
+        code.AppendLineAt(4, "if (__isVersion)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (__seenVersion) throw new global::System.Text.Json.JsonException(\"Duplicate change-set version.\");"
+        );
+        code.AppendLineAt(5, "__seenVersion = true;");
+        code.AppendLineAt(
+            5,
+            "if (reader.TokenType != global::System.Text.Json.JsonTokenType.Number || !reader.TryGetInt32(out var __v)) throw new global::System.Text.Json.JsonException(\"Change-set version must be the integer 1.\");"
+        );
+        code.AppendLineAt(
+            5,
+            "if (__v != 1) throw new global::System.Text.Json.JsonException(\"Unsupported change-set version '\" + __v + \"'. Expected version 1.\");"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "else if (__isChanges)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "if (__seenChanges) throw new global::System.Text.Json.JsonException(\"Duplicate change-set changes.\");"
+        );
+        code.AppendLineAt(5, "__seenChanges = true;");
+        code.AppendLineAt(5, "__docBody = __SparseReadBodyStj(ref reader, options);");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "else throw new global::System.Text.Json.JsonException(\"Unknown change-set document property '\" + __docUnknown + \"'.\");"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "if (!__seenVersion) throw new global::System.Text.Json.JsonException(\"Missing change-set version.\");"
+        );
+        code.AppendLineAt(
+            3,
+            "if (!__seenChanges) throw new global::System.Text.Json.JsonException(\"Missing change-set changes.\");"
+        );
+        code.AppendLineAt(3, "return __docBody!;");
         code.AppendLineAt(2, "}");
     }
 

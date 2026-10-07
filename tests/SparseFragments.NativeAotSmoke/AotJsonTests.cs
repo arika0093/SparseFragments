@@ -135,7 +135,12 @@ public sealed class AotJsonTests
             }
         );
         var changes = AotWidget.ChangeSet.Between(before, after);
-        var back = ReadChangeSet(WriteChangeSet(changes, options), options);
+        var json = WriteChangeSet(changes, options);
+
+        // v1 document envelope through the converter path.
+        await Assert.That(json.Contains("\"version\":1")).IsTrue();
+        await Assert.That(json.Contains("\"changes\"")).IsTrue();
+        var back = ReadChangeSet(json, options);
 
         await Assert.That(AotWidget.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty).IsTrue();
     }
@@ -211,16 +216,41 @@ public sealed class AotJsonTests
     public async Task MalformedChangeSetJsonFailsWithSourceGen()
     {
         var options = AotOptions();
-        var failed = false;
+        var failed = 0;
         try
         {
-            _ = ReadChangeSet("""{"before":{"state":"bogus"},"after":{"state":"missing"}}""", options);
+            _ = ReadChangeSet(
+                """{"version":1,"changes":{"Name":{"before":{"state":"bogus"},"after":{"state":"missing"}}}}""",
+                options
+            );
         }
         catch (JsonException)
         {
-            failed = true;
+            failed++;
         }
 
-        await Assert.That(failed).IsTrue();
+        // Missing version and unversioned bodies are rejected.
+        try
+        {
+            _ = ReadChangeSet(
+                """{"Name":{"before":{"state":"value","value":"a"},"after":{"state":"value","value":"b"}}}}""",
+                options
+            );
+        }
+        catch (JsonException)
+        {
+            failed++;
+        }
+
+        try
+        {
+            _ = ReadChangeSet("""{"version":2,"changes":{}}""", options);
+        }
+        catch (JsonException)
+        {
+            failed++;
+        }
+
+        await Assert.That(failed).IsEqualTo(3);
     }
 }
