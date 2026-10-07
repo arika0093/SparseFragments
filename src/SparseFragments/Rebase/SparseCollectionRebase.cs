@@ -495,6 +495,12 @@ internal static class SparseCollectionRebase
         initial = current;
         additions = null;
 
+        if (ReferenceEquals(before, desired) || ReferenceEquals(desired, current))
+        {
+            reason = null;
+            return true;
+        }
+
         var desiredLookup = new HashSet<T>(desired, comparer);
         var hasRemoved = false;
         foreach (var value in before)
