@@ -66,6 +66,10 @@ public class PatchJsonBenchmarks
                 .Replace("\"value\"", "\"va\\u006cue\"")
                 .Replace("\"set\"", "\"s\\u0065t\"")
                 .Replace("\"unset\"", "\"un\\u0073et\"")
+                .Replace("\"Counter\"", "\"Cou\\u006eter\"")
+                .Replace("\"Label\"", "\"La\\u0062el\"")
+                .Replace("\"Values\"", "\"Va\\u006cues\"")
+                .Replace("\"$whole\"", "\"\\u0024whole\"")
         );
         Validate(JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.Patch>(escaped, _options)!);
         using (var document = JsonDocument.Parse(_json))
@@ -111,6 +115,9 @@ public class PatchJsonBenchmarks
                 "{\"$whole\":{\"kind\":\"set\",\"value\":null,\"value\":null}}",
                 "{\"$whole\":{\"other\":\"unset\"}}",
                 "{\"$whole\":{\"kind\":\"set\",\"value\":1}}",
+                "{\"Counter\":{\"kind\":\"unset\"},\"Counter\":{\"kind\":\"unset\"}}",
+                "{\"Counter\":{\"kind\":\"unset\"},\"Cou\\u006eter\":{\"kind\":\"unset\"}}",
+                "{\"Unknown\":{\"kind\":\"unset\"}}",
             }
         )
         {
