@@ -152,7 +152,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(3, "if (rebase.Conflicts.Count == 0 && rebase.Patch.__SparseIsEmpty())");
         code.AppendLineAt(
             4,
-            "return " + rebaseResult + ".Success(new ChangeSet(current, current, new Patch()));"
+            "return " + rebaseResult + ".Success(new ChangeSet(current, current, rebase.Patch));"
         );
         code.AppendLineAt(3, "var rebasedAfter = rebase.Patch.Apply(current);");
         code.AppendLineAt(
