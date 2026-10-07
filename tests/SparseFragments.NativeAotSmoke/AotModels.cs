@@ -55,8 +55,28 @@ public partial class AotReferenceCollections
     public HashSet<string> Tags { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+[SparseFragmentModel]
+public partial class AotServer
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public int Count { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class AotServerHolder
+{
+    public List<AotServer> Items { get; set; } = new();
+}
+
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(IReadOnlyList<string>))]
+[JsonSerializable(typeof(AotServer))]
+[JsonSerializable(typeof(List<AotServer>))]
 internal sealed partial class AotSerializerContext : JsonSerializerContext { }
