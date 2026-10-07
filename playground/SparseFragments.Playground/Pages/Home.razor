@@ -1,5 +1,5 @@
 ﻿@page "/"
-@using System.Text
+@using System.Text.Json
 @using SparseFragments
 @using SparseFragments.Playground.Models
 @using SparseFragments.Playground.Components
@@ -85,7 +85,7 @@
     <div class="pg-card-head">
         <h3>Patch edits</h3>
         <div class="pg-actions">
-            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="OpenImport">Import JSON Patch…</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="OpenImport">Import ChangeSet JSON…</FluentButton>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetPatch">Reset</FluentButton>
         </div>
     </div>
@@ -94,8 +94,8 @@
         <FluentTab Label="C#" Id="patch-csharp">
             <MonacoView Content="@PatchCSharp" Language="csharp" Height="270px" />
         </FluentTab>
-        <FluentTab Label="JSON Patch" Id="patch-json-patch">
-            <MonacoView Content="@ExportText" Language="json" Height="270px" />
+        <FluentTab Label="ChangeSet (JSON)" Id="patch-changeset-json">
+            <MonacoView Content="@ChangeSetExportText" Language="json" Height="270px" />
         </FluentTab>
     </FluentTabs>
 </FluentCard>
@@ -180,8 +180,8 @@
         <FluentTab Label="Model metadata" Id="roster-model-metadata">
             <MonacoView Content="@RosterModelMetadata" Language="csharp" Height="270px" />
         </FluentTab>
-        <FluentTab Label="JSON Patch" Id="roster-json-patch">
-            <MonacoView Content="@RosterJsonPatch" Language="json" Height="270px" />
+        <FluentTab Label="ChangeSet JSON" Id="roster-changeset-json">
+            <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
         </FluentTab>
         <FluentTab Label="Applied (JSON)" Id="roster-applied-json">
             <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
@@ -189,13 +189,13 @@
     </FluentTabs>
 </FluentCard>
 
-<FluentDialog @bind-Hidden="_importHidden" Modal="true" TrapFocus="true" AriaLabel="Import JSON Patch">
+<FluentDialog @bind-Hidden="_importHidden" Modal="true" TrapFocus="true" AriaLabel="Import ChangeSet JSON">
     <FluentDialogHeader>
-        <h3>Import JSON Patch</h3>
+        <h3>Import ChangeSet JSON</h3>
     </FluentDialogHeader>
     <FluentDialogBody>
-        <p class="pg-hint">Applies an RFC 6902 document to the merged baseline and previews the result.</p>
-        <FluentTextArea Rows="8" Placeholder='[{"op":"replace","path":"/Label","value":"..."}]'
+        <p class="pg-hint">Paste a ChangeSet JSON document exported from the merged baseline and preview its applied result.</p>
+        <FluentTextArea Rows="8" Placeholder='{"before":{"state":"value","value":{"Label":"..."}},"after":{"state":"value","value":{"Label":"..."}}}'
             translate="no"
             Value="@_importText"
             ValueChanged="@(v => _importText = v ?? string.Empty)"
@@ -231,7 +231,7 @@
     private string RosterBeforeTabId = "roster-before-csharp";
     private string RosterAfterTabId = "roster-after-csharp";
     private bool _importHidden = true;
-    private string _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+    private string _importText = """{"before":{"state":"missing"},"after":{"state":"missing"}}""";
     private string? _importError;
     private string? _importResult;
 
@@ -256,12 +256,11 @@
     private string PatchedModelJson => Try(() => PlaygroundJson.WriteModel(PatchedFragment.ToModel()));
     private string PatchedModelCSharp => Try(() => PlaygroundSnippets.ModelCSharp("model", PatchedFragment.ToModel()));
 
-    private string ExportText => Try(() =>
+    private string ChangeSetExportText => Try(() =>
     {
-        var exported = TypedPatch.ToJsonPatch(
-            Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment),
-            PlaygroundJson.BridgeOptions());
-        return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
+        var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
+        var changes = PlaygroundSettings.ChangeSet.FromPatch(baseline, TypedPatch);
+        return JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions());
     });
 
     private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
@@ -279,11 +278,10 @@
     private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
         RosterHighlights => RosterCase.Highlights;
 
-    private string RosterJsonPatch => Try(() =>
+    private string RosterChangeSetJson => Try(() =>
     {
-        var patch = RosterCase.RequirePatch();
-        var exported = patch.ToJsonPatch(RosterBeforeOpt, PlaygroundJson.BridgeOptions());
-        return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
+        var changes = RosterCase.RequireChangeSet();
+        return JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions());
     });
 
     private string RosterAppliedModelJson => Try(() =>
@@ -361,14 +359,14 @@
         RosterBeforeTabId = "roster-before-csharp";
         RosterAfterTabId = "roster-after-csharp";
         _importHidden = true;
-        _importText = """[{"op":"replace","path":"/Label","value":"imported!"}]""";
+        _importText = """{"before":{"state":"missing"},"after":{"state":"missing"}}""";
         _importError = null;
         _importResult = null;
     }
 
     private void OpenImport()
     {
-        _importText = ExportText;
+        _importText = ChangeSetExportText;
         _importError = null;
         _importResult = null;
         _importHidden = false;
@@ -382,14 +380,17 @@
         _importResult = null;
         try
         {
-            var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
-            var patch = PlaygroundSettings.Patch.FromJsonPatch(
-                baseline,
-                Encoding.UTF8.GetBytes(_importText),
-                PlaygroundJson.BridgeOptions());
-            var applied = MergedFragment.Apply(patch);
+            var changes = JsonSerializer.Deserialize<PlaygroundSettings.ChangeSet>(
+                _importText,
+                PlaygroundJson.ChangeSetOptions());
+            if (changes is null)
+            {
+                throw new JsonException("The ChangeSet JSON deserialized to null.");
+            }
+
+            var applied = MergedFragment.Apply(changes.ToPatch());
             _importResult =
-                $"IsEmpty: {patch.IsEmpty}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
+                $"IsEmpty: {changes.IsEmpty}\nChangeSet JSON:\n{JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions())}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
         }
         catch (Exception ex)
         {

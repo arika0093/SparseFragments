@@ -23,8 +23,8 @@ public partial class AtomicValueHolder
 /// same instance, so callers own mutation discipline. This matches
 /// <c>Merge</c> (<c>Replace</c>), <c>ApplyChanges</c>, and <c>ToModel</c>;
 /// only <c>Fragment.From</c>, <c>DeepClone</c>, whole-contribution
-/// <c>Set(model)</c> (which snapshots through <c>From</c>), and JSON Patch
-/// import (freshly deserialized values) produce isolated copies.
+/// <c>Set(model)</c> (which snapshots through <c>From</c>), and Patch/ChangeSet
+/// JSON deserialization (freshly deserialized values) produce isolated copies.
 /// </summary>
 public sealed class PatchOwnershipTests
 {

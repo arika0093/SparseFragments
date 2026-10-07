@@ -85,7 +85,7 @@ var name = byName["Name"];
 
 Enumerate `T.Sparse.Properties` for generic handling. There are no typed per-property handles such as `T.Sparse.Properties.Title`: the first version intentionally supports enumeration, not individual property lookup by member.
 
-A model member or nested type named `Sparse` collides with the generated holder and fails with [`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-json-patch-api): rename the member.
+A model member or nested type named `Sparse` collides with the generated holder and fails with [`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api): rename the member.
 
 ## Patch Changes
 

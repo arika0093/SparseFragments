@@ -66,6 +66,7 @@ public partial class PlaygroundRoster
 [JsonSerializable(typeof(PlaygroundNested))]
 [JsonSerializable(typeof(PlaygroundQuest))]
 [JsonSerializable(typeof(PlaygroundRoster))]
+[JsonSerializable(typeof(List<PlaygroundQuest>))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(string))]

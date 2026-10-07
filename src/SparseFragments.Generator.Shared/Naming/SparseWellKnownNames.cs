@@ -10,7 +10,6 @@ internal static class SparseWellKnownNames
     public const string ReferenceComparerType = RuntimeFacadeNamespace + ".SparseFragmentRuntime";
     public const string CollectionMergerType = RuntimeFacadeNamespace + ".SparseFragmentRuntime";
     public const string CollectionRebaseType = RuntimeFacadeNamespace + ".SparseFragmentRuntime";
-    public const string JsonPatchBridgeType = RuntimeFacadeNamespace + ".SparseJsonPatchBridge";
 
     public const string InterfaceSetTypeDefinition = "System.Collections.Generic.ISet<T>";
     public const string ReadOnlySetTypeDefinition = "System.Collections.Generic.IReadOnlySet<T>";

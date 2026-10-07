@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Text.Json;
 using SparseFragments;
 
 // Lowest-shipped-TFM consumer (#27): a netstandard2.0 class library that
@@ -14,7 +14,7 @@ using SparseFragments;
 // capacity+comparer HashSet<T> constructor exists in the consumer
 // compilation): an Append list, a SetUnion hash set, a Replace dictionary,
 // a Deep nested model, plus typed patch algebra, builders, DeepClone, and
-// the JSON Patch bridge.
+// ChangeSet JSON transport.
 public static class NetStandardConsumerCheck
 {
     public static string Run()
@@ -129,17 +129,20 @@ public static class NetStandardConsumerCheck
         var fragmentClone = original.DeepClone();
         Require(fragmentClone.Label.Value == "original", "fragment DeepClone");
 
-        // JSON Patch bridge (compiles the generated bridge against netstandard2.0).
+        // ChangeSet JSON transport (standard System.Text.Json over the generated converters).
         var baseline = new NetStandardSettings.Fragment { Label = "base" };
         var baselineOpt = Optional<NetStandardSettings.Fragment?>.Present(baseline);
-        var document = Encoding.UTF8.GetBytes("[{\"op\":\"replace\",\"path\":\"/Label\",\"value\":\"patched\"}]");
-        var jsonPatch = NetStandardSettings.Patch.FromJsonPatch(baselineOpt, document);
+        var editedBaseline = new NetStandardSettings.Fragment { Label = "patched" };
+        var changes = NetStandardSettings.ChangeSet.Between(
+            baselineOpt,
+            Optional<NetStandardSettings.Fragment?>.Present(editedBaseline));
+        var changesJson = JsonSerializer.Serialize(changes);
+        var restored = JsonSerializer.Deserialize<NetStandardSettings.ChangeSet>(changesJson);
         Require(
-            baseline.Apply(jsonPatch).Label.Value == "patched",
-            "JSON Patch import"
+            baseline.Apply(restored.ToPatch()).Label.Value == "patched",
+            "ChangeSet JSON round-trip"
         );
-        var exported = Encoding.UTF8.GetString(jsonPatch.ToJsonPatch(baselineOpt).ToArray());
-        Require(exported.Contains("/Label"), "JSON Patch export");
+        Require(changesJson.Contains("patched"), "ChangeSet JSON export");
 
         return "SparseFragments netstandard2.0 consumer passed.";
     }

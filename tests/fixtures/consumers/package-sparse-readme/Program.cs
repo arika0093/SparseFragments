@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text.Json;
 using SparseFragments;
 
 // Canonical compile-checked mirror of src/fragments/src/SparseFragments/README.md.
@@ -79,20 +79,18 @@ var clone = original.ToModel().DeepClone();
 clone.Child!.Count = 42;
 Require(original.ToModel().Child!.Count == 7, "DeepClone structural isolation");
 
-// Section 9.2/9.3: RFC 6902 JSON Patch import/export.
+// Section 9: ChangeSet JSON transport via standard System.Text.Json.
 var baseline = new Settings.Fragment { Label = "base" };
-var document = Encoding.UTF8.GetBytes("""[{"op":"replace","path":"/Label","value":"patched"}]""");
-var jsonPatch = Settings.Patch.FromJsonPatch(
-    Optional<Settings.Fragment?>.Present(baseline),
-    document);
-var updatedFromJson = baseline.Apply(jsonPatch);
-Require(updatedFromJson.Label.Value == "patched", "JSON Patch import");
-
 var baselineOpt = Optional<Settings.Fragment?>.Present(baseline);
-var exported = jsonPatch.ToJsonPatch(baselineOpt);
-var exportedText = Encoding.UTF8.GetString(exported.ToArray());
-Require(exportedText.Contains("/Label"), "JSON Patch export");
-Require(exportedText.Contains("patched"), "JSON Patch export value");
+var editedBaseline = new Settings.Fragment { Label = "patched" };
+var changes = Settings.ChangeSet.Between(
+    baselineOpt,
+    Optional<Settings.Fragment?>.Present(editedBaseline));
+var changesJson = JsonSerializer.Serialize(changes);
+var restored = JsonSerializer.Deserialize<Settings.ChangeSet>(changesJson);
+var updatedFromJson = baseline.Apply(restored.ToPatch());
+Require(updatedFromJson.Label.Value == "patched", "ChangeSet JSON import");
+Require(changesJson.Contains("patched"), "ChangeSet JSON export value");
 
 Console.WriteLine("SparseFragments README consumer passed.");
 

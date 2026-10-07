@@ -521,7 +521,7 @@ public sealed class SparseGeneratorDiagnosticTests
             diagnostics,
             "SPF009",
             memberName,
-            "#spf009-member-conflicts-with-generated-json-patch-api",
+            "#spf009-member-conflicts-with-generated-api",
             expectInSource: false
         );
         sources.ShouldBeEmpty();
@@ -595,7 +595,7 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF006"] = "#spf006-required-member-cannot-be-constructed",
             ["SPF007"] = "#spf007-unsupported-structural-member-construction",
             ["SPF008"] = "#spf008-unsupported-deep-clone-member",
-            ["SPF009"] = "#spf009-member-conflicts-with-generated-json-patch-api",
+            ["SPF009"] = "#spf009-member-conflicts-with-generated-api",
             ["SPF010"] = "#spf010-incompatible-promoted-fragment-model",
             ["SPF011"] = "#spf011-structural-sequence-without-usable-key",
             ["SPF012"] = "#spf012-conflicting-sparsekey-mechanisms",

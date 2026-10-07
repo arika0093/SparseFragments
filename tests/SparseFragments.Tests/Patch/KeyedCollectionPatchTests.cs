@@ -325,49 +325,51 @@ public sealed class KeyedCollectionPatchTests
     }
 
     [Test]
-    public void JsonPatchPositionalEditsNormalizeToKeyedOperations()
+    public void KeyedElementEditNormalizesToNestedKeyedOperation()
     {
         var baseline = KeyedServerHolder.Fragment.From(Holder(Server("a", "A"), Server("b", "B")));
         var present = Optional<KeyedServerHolder.Fragment?>.Present(baseline);
+        var after = KeyedServerHolder.Fragment.From(Holder(Server("a", "A2"), Server("b", "B")));
+        var afterOpt = Optional<KeyedServerHolder.Fragment?>.Present(after);
 
-        // Positional RFC 6902 edit on a keyed element normalizes to a nested keyed edit.
-        var patch = KeyedServerHolder.Patch.FromJsonPatch(
-            present,
-            System.Text.Encoding.UTF8.GetBytes(
-                """[{"op":"replace","path":"/Items/0/Name","value":"A2"}]"""
-            )
-        );
+        // A nested keyed-element edit materializes as a keyed edit, not a positional one.
+        var patch = KeyedServerHolder.Patch.Between(present, afterOpt);
         patch.IsEmpty.ShouldBeFalse();
         var applied = patch.Apply(present);
         applied.Value!.Items.Value!.Single(s => s.Id == "a").Name.ShouldBe("A2");
 
-        // Export round-trips semantically (whole-array lowering re-imports to the same state).
-        var exported = patch.ToJsonPatch(present);
-        var reimported = KeyedServerHolder.Patch.FromJsonPatch(present, exported);
+        // The ChangeSet JSON round-trip preserves the same keyed semantics.
+        var changes = KeyedServerHolder.ChangeSet.Between(present, afterOpt);
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
+            System.Text.Json.JsonSerializer.Serialize(changes)
+        )!;
         KeyedServerHolder.Patch
-            .Between(reimported.Apply(present), applied)
+            .Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
     }
 
     [Test]
-    public void JsonPatchScalarSequenceRoundTripsAsWholeValue()
+    public void ScalarSequenceRoundTripsAsWholeValue()
     {
         var baseline = ScalarSequenceHolder.Fragment.From(
             new ScalarSequenceHolder { Tags = ["a", "b"], Numbers = [1] }
         );
         var present = Optional<ScalarSequenceHolder.Fragment?>.Present(baseline);
-
-        var patch = ScalarSequenceHolder.Patch.FromJsonPatch(
-            present,
-            System.Text.Encoding.UTF8.GetBytes("""[{"op":"add","path":"/Tags/-","value":"c"}]""")
+        var after = ScalarSequenceHolder.Fragment.From(
+            new ScalarSequenceHolder { Tags = ["a", "b", "c"], Numbers = [1] }
         );
+        var afterOpt = Optional<ScalarSequenceHolder.Fragment?>.Present(after);
+
+        var patch = ScalarSequenceHolder.Patch.Between(present, afterOpt);
         var applied = patch.Apply(present);
         applied.Value!.Tags.Value!.ShouldBe(["a", "b", "c"]);
 
-        var exported = patch.ToJsonPatch(present);
-        var reimported = ScalarSequenceHolder.Patch.FromJsonPatch(present, exported);
+        var changes = ScalarSequenceHolder.ChangeSet.Between(present, afterOpt);
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<ScalarSequenceHolder.ChangeSet>(
+            System.Text.Json.JsonSerializer.Serialize(changes)
+        )!;
         ScalarSequenceHolder.Patch
-            .Between(reimported.Apply(present), applied)
+            .Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
     }
 }

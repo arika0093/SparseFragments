@@ -145,7 +145,7 @@ toNull.Child.SetNull();                                        // explicit null,
 
 ### 5. Beyond the basics
 
-Builders, cloning, and the JSON Patch bridge follow the same partial state; the linked guides carry the full behavior:
+Builders, cloning, and ChangeSet JSON transport follow the same partial state; the linked guides carry the full behavior:
 
 ```csharp
 var edited = original.ToBuilder().Build();                     // edited copy via the builder
@@ -153,10 +153,13 @@ var clone = original.ToModel().DeepClone();                    // isolated graph
 
 var baseline = new Settings.Fragment { Label = "base" };
 var baselineOpt = Optional<Settings.Fragment?>.Present(baseline);
-var jsonPatch = Settings.Patch.FromJsonPatch(                  // RFC 6902 import (see JSON Patch)
+var editedBaseline = new Settings.Fragment { Label = "patched" };
+var changes = Settings.ChangeSet.Between(                      // baseline-aware diff
     baselineOpt,
-    System.Text.Encoding.UTF8.GetBytes("""[{"op":"replace","path":"/Label","value":"patched"}]"""));
-var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory<byte>, UTF-8 JSON
+    Optional<Settings.Fragment?>.Present(editedBaseline));
+var changesJson = System.Text.Json.JsonSerializer.Serialize(changes);
+var restored = System.Text.Json.JsonSerializer.Deserialize<Settings.ChangeSet>(changesJson);
+var updatedFromJson = baseline.Apply(restored.ToPatch());      // updatedFromJson.Label == "patched"
 ```
 
 ## Documentation
@@ -172,7 +175,6 @@ var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory
 | Inspect model semantics and Patch changes | [Inspection](docs/inspection.md) |
 | Reconcile concurrent edits | [Patch rebase](docs/rebase.md) |
 | Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
-| Exchange changes as RFC 6902 JSON Patch | [JSON Patch](docs/json-patch.md) |
 | Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
 | Check supported model shapes and constructors | [Model shapes](docs/model-shapes.md) |
 | Resolve generator errors | [Diagnostics](docs/analyzer.md) |
