@@ -45,14 +45,18 @@ public class ReferenceSequenceEqualityBenchmarks
 
     private static void CheckEquivalent<T>(T[]? left, T[]? right)
     {
-        if (
-            SparseFragmentRuntime.AreSequenceEqual(left, right)
-            != SparseFragmentRuntime.AreEqual((object?)left, (object?)right)
-        )
+        var expected = SparseFragmentRuntime.AreEqual((object?)left, (object?)right);
+        foreach (var leftView in new IEnumerable<T>?[] { left, left?.ToList() })
         {
-            throw new InvalidOperationException(
-                "Typed sequences must retain object comparison semantics."
-            );
+            foreach (var rightView in new IEnumerable<T>?[] { right, right?.ToList() })
+            {
+                if (SparseFragmentRuntime.AreSequenceEqual(leftView, rightView) != expected)
+                {
+                    throw new InvalidOperationException(
+                        "Typed sequences must retain object comparison semantics."
+                    );
+                }
+            }
         }
     }
 

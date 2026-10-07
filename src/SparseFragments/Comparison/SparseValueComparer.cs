@@ -58,18 +58,18 @@ internal static class SparseValueComparer
             return false;
         }
 
-        var leftList = AsIndexedSequence(left);
-        var rightList = AsIndexedSequence(right);
-        if (leftList is not null && rightList is not null)
+        // Keep native sequence access concrete so the JIT can optimize indexing.
+        // Exact List types preserve custom/derived non-generic comparison views.
+        if (left is T[] leftArray && right is T[] rightArray)
         {
-            if (leftList.Count != rightList.Count)
+            if (leftArray.Length != rightArray.Length)
             {
                 return false;
             }
 
-            for (var index = 0; index < leftList.Count; index++)
+            for (var index = 0; index < leftArray.Length; index++)
             {
-                if (!AreEqual(leftList[index], rightList[index]))
+                if (!AreEqual(leftArray[index], rightArray[index]))
                 {
                     return false;
                 }
@@ -78,18 +78,66 @@ internal static class SparseValueComparer
             return true;
         }
 
-        return AreEqual((object?)left, (object?)right);
-    }
-
-    private static IList<T>? AsIndexedSequence<T>(IEnumerable<T> values)
-    {
-        if (values is T[] array)
+        if (left.GetType() == typeof(List<T>) && right.GetType() == typeof(List<T>))
         {
-            return array;
+            var leftNativeList = (List<T>)left;
+            var rightNativeList = (List<T>)right;
+            if (leftNativeList.Count != rightNativeList.Count)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < leftNativeList.Count; index++)
+            {
+                if (!AreEqual(leftNativeList[index], rightNativeList[index]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (left is T[] mixedLeftArray && right.GetType() == typeof(List<T>))
+        {
+            var mixedRightList = (List<T>)right;
+            if (mixedLeftArray.Length != mixedRightList.Count)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < mixedLeftArray.Length; index++)
+            {
+                if (!AreEqual(mixedLeftArray[index], mixedRightList[index]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (left.GetType() == typeof(List<T>) && right is T[] mixedRightArray)
+        {
+            var mixedLeftList = (List<T>)left;
+            if (mixedLeftList.Count != mixedRightArray.Length)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < mixedLeftList.Count; index++)
+            {
+                if (!AreEqual(mixedLeftList[index], mixedRightArray[index]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // Derived/custom collections keep their existing non-generic comparison views.
-        return values.GetType() == typeof(List<T>) ? (List<T>)values : null;
+        return AreEqual((object?)left, (object?)right);
     }
 
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
