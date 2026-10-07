@@ -443,14 +443,14 @@ internal static class SparseFragmentPatchRebaseEmitter
                 AppendTypedSetUnionRebase(code, member, field, operation);
             }
             else if (
-                member.MergeMode == 3
+                member.MergeMode is 2 or 3
                 && member.Collection.CloneKind
                     is SparseCloneCollectionKind.Array
                         or SparseCloneCollectionKind.List
                 && member.Collection.ElementType.UsesDefaultScalarEquality
             )
             {
-                AppendTypedSequenceUnionRebase(code, member, field, operation);
+                AppendTypedSequenceRebase(code, member, field, operation);
             }
             else
             {
@@ -543,7 +543,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(7, "result." + field + " = " + operationType + ".Set(rebasedValues);");
     }
 
-    private static void AppendTypedSequenceUnionRebase(
+    private static void AppendTypedSequenceRebase(
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string field,
@@ -554,6 +554,9 @@ internal static class SparseFragmentPatchRebaseEmitter
         var valueType = SparseFragmentPatchEmitter.ValueType(member);
         var listType = $"global::System.Collections.Generic.List<{elementType}>";
         var readOnlyType = $"global::System.Collections.Generic.IReadOnlyList<{elementType}>";
+        var typedMethod =
+            member.MergeMode == 2 ? "TryRebaseSequenceAppend" : "TryRebaseSequenceSetUnion";
+        var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
         string NativeInput(string state, string variable) =>
             $"(object?){state}.Value is {readOnlyType} {variable} && ({variable} is {elementType}[] || {variable}.GetType() == typeof({listType}))";
 
@@ -573,7 +576,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
             7,
-            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.TryRebaseSequenceSetUnion<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
+            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.{typedMethod}<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
         );
         var typedResult =
             member.Collection.CloneKind == SparseCloneCollectionKind.Array
@@ -593,7 +596,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         }
         code.AppendLineAt(
             7,
-            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.TryRebaseSetUnion(beforeBoxed, desiredBoxed, currentBoxed, (object? left, object? right) => {SparseWellKnownNames.ValueComparerType}.AreEqual(left, right), out var __boxedValues, out reason);"
+            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.{boxedMethod}(beforeBoxed, desiredBoxed, currentBoxed, (object? left, object? right) => {SparseWellKnownNames.ValueComparerType}.AreEqual(left, right), out var __boxedValues, out reason);"
         );
         var boxedResult = SparseFragmentExpressions.MaterializeCollection(
             member,
