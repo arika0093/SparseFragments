@@ -3,11 +3,11 @@
 #
 # The canonical compile-checked source is
 # tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
-# README numbered Quick Start (model shape, Optional states, Fragment presence
-# and merge, typed Patch, ChangeSet transitions with typed observation, and one
-# ChangeSet JSON round-trip). Advanced ChangeSet algebra, rebase, keyed
-# collections, and UI sessions are covered by the docs samples instead
-# (verify-docs-samples.sh).
+# README Quick Start and core Generated API sections (model shape, Optional
+# states, Fragment merge, typed Patch, ChangeSet transitions with typed
+# observation, and ChangeSet JSON round-trip with rebase). Advanced ChangeSet
+# algebra, rebase conflicts, keyed collections, and UI sessions are covered by
+# the docs samples instead (verify-docs-samples.sh).
 # This script guards against drift
 # between the README and that canonical source, then builds and runs the
 # fixture against the packed packages so CI fails when the public generated
@@ -35,44 +35,43 @@ if [[ ! -f "${fixture_csproj}" || ! -f "${fixture_program}" ]]; then
     exit 1
 fi
 
-# 1. The merge sample constructs Child.Fragment directly, so Child must expose
-# generated APIs. Since #329 reachable partial nested models auto-generate
-# Fragment/Patch without requiring [SparseFragmentModel], Child must stay a
-# partial class in both files (not necessarily decorated).
-if ! grep -E -q 'public partial class Child' "${readme_path}"; then
-    echo "README must declare 'Child' as 'public partial class Child': the merge sample constructs 'new Child.Fragment { ... }' directly." >&2
+# 1. The Quick Start constructs DatabaseSettings.Fragment directly, so
+# DatabaseSettings must expose generated APIs. Since #329 reachable partial
+# nested models auto-generate Fragment/Patch without requiring
+# [SparseFragmentModel], DatabaseSettings must stay a partial class in both
+# files (not necessarily decorated).
+if ! grep -E -q 'public partial class DatabaseSettings' "${readme_path}"; then
+    echo "README must declare 'DatabaseSettings' as 'public partial class DatabaseSettings': the Quick Start constructs 'new DatabaseSettings.Fragment { ... }' directly." >&2
     exit 1
 fi
-if ! grep -E -q 'public partial class Child' "${fixture_program}"; then
-    echo "Canonical fixture must declare 'Child' as 'public partial class Child'." >&2
+if ! grep -E -q 'public partial class DatabaseSettings' "${fixture_program}"; then
+    echo "Canonical fixture must declare 'DatabaseSettings' as 'public partial class DatabaseSettings'." >&2
     exit 1
 fi
 
 # 2. Representative API tokens must appear in both the README and the
 # canonical fixture so the fixture cannot silently drift from the docs.
-# The list tracks the numbered Quick Start: model definition, presence,
-# Fragment merge, Patch editing, ChangeSet transitions with typed observation,
-# and the ordinary System.Text.Json round-trip.
+# The list tracks the Quick Start and core Generated API sections: model
+# definition, presence, Fragment merge, Patch editing, ChangeSet transitions
+# with typed observation, and the ordinary System.Text.Json round-trip with
+# rebase. Advanced ChangeSet algebra, keyed collections, and UI sessions are
+# covered by the docs samples instead (verify-docs-samples.sh).
 required_tokens=(
     '[SparseFragmentModel]'
-    '[SparseMerge(MergeMode.Append)]'
     'Optional<string?>.Missing'
     'Optional<string?>.Present'
     'new Settings.Fragment'
-    'new Child.Fragment'
+    'new DatabaseSettings.Fragment'
     '.Merge('
     'new Settings.Patch'
     '.Apply('
-    '.Unset()'
-    '.SetNull()'
-    'IsEmpty'
     'ChangeSet.Between'
-    '.ToPatch()'
     'IsChanged'
     '.Before'
     '.After'
     'JsonSerializer.Serialize'
     'JsonSerializer.Deserialize'
+    '.RebaseOnto'
 )
 for token in "${required_tokens[@]}"; do
     if ! grep -F -q "${token}" "${readme_path}"; then
