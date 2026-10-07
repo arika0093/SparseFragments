@@ -30,11 +30,17 @@ internal static class SparseChangeSetEmitter
     public static void AppendChangeSet(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
+    ) => AppendChangeSet(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
+
+    public static void AppendChangeSet(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var optionalFragment = runtime + "Optional<Fragment?>";
-        var rebaseResult = "global::SparseFragments.RebaseResult<ChangeSet>";
+        var rebaseResult = dialect.RebaseResult("ChangeSet");
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
@@ -44,14 +50,14 @@ internal static class SparseChangeSetEmitter
         SparsePatchStjEmitter.AppendChangeSetConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class ChangeSet");
         code.AppendLineAt(1, "{");
-        AppendFields(code, members, runtime, optionalFragment);
-        AppendConstructor(code, members, runtime, optionalFragment);
+        AppendFields(code, members, runtime, optionalFragment, dialect);
+        AppendConstructor(code, members, runtime, optionalFragment, dialect);
         AppendIsEmpty(code, members);
-        AppendBetween(code, members, runtime, optionalFragment);
+        AppendBetween(code, members, runtime, optionalFragment, dialect);
         AppendFromPatch(code, members, runtime, optionalFragment);
-        AppendToPatch(code, members, runtime, prefix);
+        AppendToPatch(code, members, runtime, prefix, dialect);
         AppendInvert(code, members, runtime, optionalFragment);
-        AppendCompose(code, members, runtime, optionalFragment);
+        AppendCompose(code, members, runtime, optionalFragment, dialect);
         AppendMatchHelpers(code, members, runtime, optionalFragment);
         AppendRebase(
             code,
@@ -61,10 +67,11 @@ internal static class SparseChangeSetEmitter
             rebaseResult,
             prefix,
             rebase,
-            between
+            between,
+            dialect
         );
-        AppendTypedSurface(code, members);
-        SparsePatchStjEmitter.AppendChangeSetStj(code, members);
+        AppendTypedSurface(code, members, dialect);
+        SparsePatchStjEmitter.AppendChangeSetStj(code, members, dialect);
         code.AppendLineAt(1, "}");
     }
 
@@ -82,9 +89,10 @@ internal static class SparseChangeSetEmitter
     private static string FragmentValueType(SparseMemberModel m) =>
         SparseFragmentEmitHelpers.FragmentValueType(m);
 
-    private static string ChildChangeSet(SparseMemberModel m) =>
-        m.ChildFragmentType!.Substring(0, m.ChildFragmentType.Length - "Fragment".Length)
-        + "ChangeSet";
+    private static string ChildChangeSet(
+        SparseMemberModel m,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => dialect.ChildChangeSetName(m);
 
     private static string BeforeField(SparseMemberModel m) => "__sparse_before_" + m.Id;
 
@@ -98,7 +106,8 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string optionalFragment
+        string optionalFragment,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         code.AppendLineAt(2, "private readonly bool __sparse_hasWhole;");
@@ -110,7 +119,11 @@ internal static class SparseChangeSetEmitter
             {
                 code.AppendLineAt(
                     2,
-                    "private readonly " + ChildChangeSet(member) + "? " + NestedField(member) + ";"
+                    "private readonly "
+                        + ChildChangeSet(member, dialect)
+                        + "? "
+                        + NestedField(member)
+                        + ";"
                 );
             }
             else
@@ -127,7 +140,8 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string optionalFragment
+        string optionalFragment,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var parts = new List<string>
@@ -140,7 +154,7 @@ internal static class SparseChangeSetEmitter
         {
             if (IsNested(member))
             {
-                parts.Add(ChildChangeSet(member) + "? nested" + member.Id);
+                parts.Add(ChildChangeSet(member, dialect) + "? nested" + member.Id);
             }
             else
             {
@@ -210,7 +224,8 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string optionalFragment
+        string optionalFragment,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         code.AppendLineAt(
@@ -265,7 +280,7 @@ internal static class SparseChangeSetEmitter
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             if (IsNested(member))
             {
-                var child = ChildChangeSet(member);
+                var child = ChildChangeSet(member, dialect);
                 code.AppendLineAt(
                     3,
                     "var __n"
@@ -443,9 +458,11 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string prefix
+        string prefix,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        _ = dialect;
         var between = "Patch." + prefix + "Between";
         code.AppendLineAt(
             2,
@@ -565,10 +582,10 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string optionalFragment
+        string optionalFragment,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        _ = runtime;
         _ = optionalFragment;
         code.AppendLineAt(
             2,
@@ -611,14 +628,17 @@ internal static class SparseChangeSetEmitter
             4,
             "if (!__SparseAfterMatches(next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
-        code.AppendLineAt(4, "var __mergedBefore = Invert().ToPatch().Apply(next.__sparse_wholeBefore);");
+        code.AppendLineAt(
+            4,
+            "var __mergedBefore = Invert().ToPatch().Apply(next.__sparse_wholeBefore);"
+        );
         code.AppendLineAt(4, "return Between(__mergedBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
             if (!IsNested(member))
                 continue;
-            var child = ChildChangeSet(member);
+            var child = ChildChangeSet(member, dialect);
             code.AppendLineAt(3, child + "? __c" + member.Id + ";");
             code.AppendLineAt(
                 3,
@@ -662,8 +682,7 @@ internal static class SparseChangeSetEmitter
         {
             if (IsNested(member))
                 continue;
-            var opt =
-                SparseFragmentPatchEmitter.Runtime + "Optional<" + FragmentValueType(member) + ">";
+            var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
             code.AppendLineAt(3, opt + " __cb" + member.Id + "_b = default;");
             code.AppendLineAt(3, opt + " __cb" + member.Id + "_a = default;");
             code.AppendLineAt(3, "bool __cb" + member.Id + "_has;");
@@ -883,11 +902,15 @@ internal static class SparseChangeSetEmitter
         string rebaseResult,
         string prefix,
         string rebase,
-        string between
+        string between,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         _ = between;
         _ = prefix;
+        var conflict = dialect.ConflictType;
+        var conflictKind = dialect.ConflictKindType;
+        var conflictList = "global::System.Collections.Generic.List<" + dialect.ConflictType + ">";
         code.AppendLineAt(
             2,
             "private static "
@@ -939,27 +962,28 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(3, "if (!current.IsPresent || current.Value is null)");
         code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __conf = new " + conflictList + "();");
         code.AppendLineAt(
             4,
-            "var __conf = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
-        );
-        code.AppendLineAt(
-            4,
-            "__conf.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.WholeContribution, __SparseState(__sparse_hasWhole ? __sparse_wholeBefore : default), __SparseState(__sparse_hasWhole ? __sparse_wholeAfter : default), __SparseState(current), \"The contribution conflicts with a concurrent change.\"));"
+            "__conf.Add(new "
+                + conflict
+                + "(new string[0], "
+                + conflictKind
+                + ".WholeContribution, __SparseState(__sparse_hasWhole ? __sparse_wholeBefore : default), __SparseState(__sparse_hasWhole ? __sparse_wholeAfter : default), __SparseState(current), \"The contribution conflicts with a concurrent change.\"));"
         );
         code.AppendLineAt(4, "return new " + rebaseResult + "(Between(current, current), __conf);");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "var __cur = current.Value!;");
-        code.AppendLineAt(
-            3,
-            "var __conflicts = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
-        );
+        code.AppendLineAt(3, "var __conflicts = new " + conflictList + "();");
         // Declare rebased locals.
         foreach (var member in members)
         {
             if (IsNested(member))
             {
-                code.AppendLineAt(3, ChildChangeSet(member) + "? __r" + member.Id + " = null;");
+                code.AppendLineAt(
+                    3,
+                    ChildChangeSet(member, dialect) + "? __r" + member.Id + " = null;"
+                );
             }
             else
             {
@@ -1143,9 +1167,13 @@ internal static class SparseChangeSetEmitter
                 code.AppendLineAt(4, "    {");
                 code.AppendLineAt(
                     5,
-                    "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                    "        __conflicts.Add(new "
+                        + conflict
+                        + "(new string[] { "
                         + lit
-                        + " }, global::SparseFragments.SparsePatchConflictKind.CustomStrategy, __SparseMember(__base"
+                        + " }, "
+                        + conflictKind
+                        + ".CustomStrategy, __SparseMember(__base"
                         + member.Id
                         + "), __SparseMember(__des"
                         + member.Id
@@ -1160,7 +1188,7 @@ internal static class SparseChangeSetEmitter
             }
             else if (member.MergeMode is 2 or 3)
             {
-                AppendMergeCollectionRebase(code, member, esc, lit, runtime);
+                AppendMergeCollectionRebase(code, member, esc, lit, runtime, dialect);
             }
             else
             {
@@ -1203,9 +1231,13 @@ internal static class SparseChangeSetEmitter
                 code.AppendLineAt(4, "    {");
                 code.AppendLineAt(
                     5,
-                    "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+                    "        __conflicts.Add(new "
+                        + conflict
+                        + "(new string[] { "
                         + lit
-                        + " }, global::SparseFragments.SparsePatchConflictKind.Scalar, __SparseMember(__base"
+                        + " }, "
+                        + conflictKind
+                        + ".Scalar, __SparseMember(__base"
                         + member.Id
                         + "), __SparseMember(__des"
                         + member.Id
@@ -1250,25 +1282,28 @@ internal static class SparseChangeSetEmitter
         SparseMemberModel member,
         string esc,
         string lit,
-        string runtime
+        string runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var id = member.Id;
         var valueType = FragmentValueType(member);
         var elementType = member.Collection.ElementType.Name;
         var opt = runtime + "Optional<" + valueType + ">";
-        var facade = SparseWellKnownNames.CollectionRebaseType;
-        var comparer = SparseWellKnownNames.ValueComparerType;
+        var facade = dialect.RuntimeFacade;
+        var comparer = dialect.RuntimeFacade;
+        var conflict = dialect.ConflictType;
         var kind =
             member.MergeMode == 2
-                ? "global::SparseFragments.SparsePatchConflictKind.CollectionAppend"
-                : "global::SparseFragments.SparsePatchConflictKind.CollectionSetUnion";
+                ? dialect.ConflictKindType + ".CollectionAppend"
+                : dialect.ConflictKindType + ".CollectionSetUnion";
         var isSet =
             member.MergeMode == 3 && member.Collection.CloneKind == SparseCloneCollectionKind.Set;
         var isTypedSequence =
             !isSet
             && member.Collection.CloneKind
-                is SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List
+                is SparseCloneCollectionKind.Array
+                    or SparseCloneCollectionKind.List
             && member.Collection.ElementType.UsesDefaultScalarEquality;
 
         code.AppendLineAt(4, "if (" + HasField(member) + ")");
@@ -1327,7 +1362,10 @@ internal static class SparseChangeSetEmitter
                     + id
                     + ");"
             );
-            code.AppendLineAt(5, "        if (__ok" + id + ") __rebuilt" + id + " = __rv" + id + ";");
+            code.AppendLineAt(
+                5,
+                "        if (__ok" + id + ") __rebuilt" + id + " = __rv" + id + ";"
+            );
         }
         else if (isTypedSequence)
         {
@@ -1336,8 +1374,7 @@ internal static class SparseChangeSetEmitter
             if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
                 typedMethod += "Array";
             var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
-            var readOnly =
-                "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">";
+            var readOnly = "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">";
             var list = "global::System.Collections.Generic.List<" + elementType + ">";
             string NativeInput(string state, string variable) =>
                 "(object?)"
@@ -1517,7 +1554,13 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(
             6,
-            "            if (!Fragment.__SparseEqual_" + id + "(__curM" + id + ", __rebOpt" + id + "))"
+            "            if (!Fragment.__SparseEqual_"
+                + id
+                + "(__curM"
+                + id
+                + ", __rebOpt"
+                + id
+                + "))"
         );
         code.AppendLineAt(6, "            {");
         code.AppendLineAt(7, "                __rh" + id + " = true;");
@@ -1529,7 +1572,9 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(5, "        {");
         code.AppendLineAt(
             6,
-            "            __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+            "            __conflicts.Add(new "
+                + conflict
+                + "(new string[] { "
                 + lit
                 + " }, "
                 + kind
@@ -1547,18 +1592,14 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(4, "    }");
         code.AppendLineAt(
             4,
-            "    else if (!Fragment.__SparseEqual_"
-                + id
-                + "(__des"
-                + id
-                + ", __curM"
-                + id
-                + "))"
+            "    else if (!Fragment.__SparseEqual_" + id + "(__des" + id + ", __curM" + id + "))"
         );
         code.AppendLineAt(4, "    {");
         code.AppendLineAt(
             5,
-            "        __conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { "
+            "        __conflicts.Add(new "
+                + conflict
+                + "(new string[] { "
                 + lit
                 + " }, "
                 + kind
@@ -1576,12 +1617,13 @@ internal static class SparseChangeSetEmitter
 
     private static void AppendTypedSurface(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         if (members.IsDefaultOrEmpty)
             return;
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var reserved = new HashSet<string>(System.StringComparer.Ordinal)
         {
             "IsEmpty",
@@ -1660,11 +1702,11 @@ internal static class SparseChangeSetEmitter
             if (IsScalar(member))
                 AppendScalarTransition(code, member, prop, transNames[member.Id], runtime);
             else if (IsNested(member))
-                AppendNestedProperty(code, member, prop);
+                AppendNestedProperty(code, member, prop, dialect);
             else if (IsKeyed(member))
-                AppendKeyedTransition(code, member, prop, transNames[member.Id], runtime);
+                AppendKeyedTransition(code, member, prop, transNames[member.Id], runtime, dialect);
             else if (IsDict(member))
-                AppendDictTransition(code, member, prop, transNames[member.Id], runtime);
+                AppendDictTransition(code, member, prop, transNames[member.Id], runtime, dialect);
         }
     }
 
@@ -1727,10 +1769,11 @@ internal static class SparseChangeSetEmitter
     private static void AppendNestedProperty(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string prop
+        string prop,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        var childCs = ChildChangeSet(member);
+        var childCs = ChildChangeSet(member, dialect);
         var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
         code.AppendLineAt(
             2,
@@ -1790,7 +1833,8 @@ internal static class SparseChangeSetEmitter
         SparseMemberModel member,
         string prop,
         string trans,
-        string runtime
+        string runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var keyType = KeyTypeOf(member);
@@ -1802,7 +1846,7 @@ internal static class SparseChangeSetEmitter
         var elementFrag = ElementFragmentOf(member);
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
-        var facade = "global::SparseFragments.CompilerServices.SparseFragmentRuntime";
+        var facade = dialect.RuntimeFacade;
         var readOnlyList = "global::System.Collections.Generic.IReadOnlyList<";
         var readOnlyDict = "global::System.Collections.Generic.IReadOnlyDictionary<";
         // Transition type.
@@ -2339,7 +2383,8 @@ internal static class SparseChangeSetEmitter
         SparseMemberModel member,
         string prop,
         string trans,
-        string runtime
+        string runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var keyType = KeyTypeOf(member);
@@ -2349,7 +2394,7 @@ internal static class SparseChangeSetEmitter
         var optValue = runtime + "Optional<" + valueType + ">";
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
-        var facade = "global::SparseFragments.CompilerServices.SparseFragmentRuntime";
+        var facade = dialect.RuntimeFacade;
         var readOnlyDict = "global::System.Collections.Generic.IReadOnlyDictionary<";
         var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
         var valueCs = hasPatch ? ValueChangeSetOf(member) : null;

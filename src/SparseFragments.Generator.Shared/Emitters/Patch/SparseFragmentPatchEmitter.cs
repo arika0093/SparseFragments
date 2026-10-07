@@ -56,6 +56,10 @@ internal static class SparseFragmentPatchEmitter
     /// <remarks>
     /// Only genuinely-shared algebra lives here: runtime names plus field/contract hooks.
     /// Routing, replacement, and facade contracts stay in the product generators.
+    /// Issue #98: the same dialect carries the narrow ChangeSet/STJ product hooks
+    /// (runtime facade, conflict/rebase-result names, nested Patch/ChangeSet naming)
+    /// so downstream products reuse one structural implementation without a
+    /// SparseFragments runtime dependency.
     /// </remarks>
     internal readonly record struct SparsePatchDialect(
         string RuntimeNamespace,
@@ -64,7 +68,13 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string> MemberField,
         Func<SparseMemberModel, string> NestedContract,
         string NestedApplyMethod,
-        bool CastNestedApply
+        bool CastNestedApply,
+        string RuntimeFacade,
+        string ConflictType,
+        string ConflictKindType,
+        Func<string, string> RebaseResult,
+        Func<SparseMemberModel, string> ChildPatchName,
+        Func<SparseMemberModel, string> ChildChangeSetName
     );
 
     internal static SparsePatchDialect StandaloneDialect() =>
@@ -75,8 +85,18 @@ internal static class SparseFragmentPatchEmitter
             Field,
             static _ => string.Empty,
             "Apply",
-            false
+            false,
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "global::SparseFragments.SparsePatchConflict",
+            "global::SparseFragments.SparsePatchConflictKind",
+            static payload => "global::SparseFragments.RebaseResult<" + payload + ">",
+            static member => ChildPatch(member),
+            static member => DefaultChildChangeSet(member)
         );
+
+    internal static string DefaultChildChangeSet(SparseMemberModel member) =>
+        member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
+        + "ChangeSet";
 
     internal static string Operation(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperation";

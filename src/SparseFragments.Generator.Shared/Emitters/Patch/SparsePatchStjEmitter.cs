@@ -16,7 +16,18 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparsePatchStjEmitter
 {
-    private const string Runtime = "global::SparseFragments.";
+    internal static string RuntimeFor(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>
+        dialect.RuntimeNamespace;
+
+    private static string ChildPatchType(
+        SparseMemberModel m,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => dialect.ChildPatchName(m);
+
+    private static string ChangeSetChildChangeSet(
+        SparseMemberModel m,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => dialect.ChildChangeSetName(m);
 
     private static string Lit(string value) => SymbolDisplay.FormatLiteral(value, true);
 
@@ -70,9 +81,6 @@ internal static class SparsePatchStjEmitter
 
     private static string ScalarValueType(SparseMemberModel m) =>
         SparseFragmentPatchEmitter.ValueType(m);
-
-    private static string ChildPatchType(SparseMemberModel m) =>
-        SparseFragmentPatchEmitter.ChildPatch(m);
 
     private static string CollectionPatchType(SparseMemberModel m) =>
         SparseFragmentPatchEmitter.CollectionPatch(m);
@@ -259,13 +267,19 @@ internal static class SparsePatchStjEmitter
     public static void AppendPatchStj(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
+    ) => AppendPatchStj(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
+
+    public static void AppendPatchStj(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         AppendTypeInfoHelper(code, 2);
         code.AppendLine();
-        AppendPatchWrite(code, members);
+        AppendPatchWrite(code, members, dialect);
         code.AppendLine();
-        AppendPatchRead(code, members);
+        AppendPatchRead(code, members, dialect);
         code.AppendLine();
         code.AppendLineAt(
             2,
@@ -289,9 +303,11 @@ internal static class SparsePatchStjEmitter
 
     private static void AppendPatchWrite(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        var runtime = RuntimeFor(dialect);
         code.AppendLineAt(
             2,
             "internal static void __SparseWriteStj(global::System.Text.Json.Utf8JsonWriter writer, Patch value, global::System.Text.Json.JsonSerializerOptions options)"
@@ -301,14 +317,14 @@ internal static class SparsePatchStjEmitter
         // Whole.
         code.AppendLineAt(
             3,
-            "if (value.__sparse_whole.Kind != " + Runtime + "FragmentOperationKind.Unchanged)"
+            "if (value.__sparse_whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)"
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "writer.WritePropertyName(\"$whole\");");
         code.AppendLineAt(4, "writer.WriteStartObject();");
         code.AppendLineAt(
             4,
-            "if (value.__sparse_whole.Kind == " + Runtime + "FragmentOperationKind.Unset)"
+            "if (value.__sparse_whole.Kind == " + runtime + "FragmentOperationKind.Unset)"
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "writer.WriteString(\"kind\", \"unset\");");
@@ -342,7 +358,7 @@ internal static class SparsePatchStjEmitter
                     "if (value."
                         + field
                         + ".Kind != "
-                        + Runtime
+                        + runtime
                         + "FragmentOperationKind.Unchanged)"
                 );
                 code.AppendLineAt(3, "{");
@@ -350,7 +366,7 @@ internal static class SparsePatchStjEmitter
                 code.AppendLineAt(4, "writer.WriteStartObject();");
                 code.AppendLineAt(
                     4,
-                    "if (value." + field + ".Kind == " + Runtime + "FragmentOperationKind.Unset)"
+                    "if (value." + field + ".Kind == " + runtime + "FragmentOperationKind.Unset)"
                 );
                 code.AppendLineAt(4, "{");
                 code.AppendLineAt(5, "writer.WriteString(\"kind\", \"unset\");");
@@ -389,7 +405,7 @@ internal static class SparsePatchStjEmitter
                 code.AppendLineAt(5, "writer.WritePropertyName(" + lit + ");");
                 code.AppendLineAt(
                     5,
-                    ChildPatchType(member)
+                    ChildPatchType(member, dialect)
                         + ".__SparseWriteStj(writer, __nested_"
                         + member.Id
                         + ", options);"
@@ -422,9 +438,11 @@ internal static class SparsePatchStjEmitter
 
     private static void AppendPatchRead(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        var runtime = RuntimeFor(dialect);
         // Bound the number of UTF-8 comparisons for small models.
         // Raising this to eight reduced allocation but slowed dense reads in
         // PatchJsonWidthBenchmarks; keep wider models on string dispatch.
@@ -553,7 +571,7 @@ internal static class SparsePatchStjEmitter
             else if (IsNested(member))
             {
                 var field = SparseFragmentPatchEmitter.Field(member);
-                var child = ChildPatchType(member);
+                var child = ChildPatchType(member, dialect);
                 code.AppendLineAt(
                     5,
                     "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A nested patch must be a JSON object.\");"
@@ -620,7 +638,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             2,
             "private static "
-                + Runtime
+                + runtime
                 + "FragmentOperation<Fragment?> __SparseReadWholeFragment(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
@@ -700,7 +718,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset whole must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<Fragment?>.Unset;");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<Fragment?>.Unset;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__kind == 2)");
         code.AppendLineAt(3, "{");
@@ -710,7 +728,7 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(
             4,
-            "return " + Runtime + "FragmentOperation<Fragment?>.Set(__fragValue);"
+            "return " + runtime + "FragmentOperation<Fragment?>.Set(__fragValue);"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
@@ -727,7 +745,7 @@ internal static class SparsePatchStjEmitter
             code.AppendLineAt(
                 2,
                 "private static "
-                    + Runtime
+                    + runtime
                     + "FragmentOperation<"
                     + vt
                     + "> __SparseReadScalar_"
@@ -808,7 +826,7 @@ internal static class SparsePatchStjEmitter
                 4,
                 "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset must not have a value.\");"
             );
-            code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + vt + ">.Unset;");
+            code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + vt + ">.Unset;");
             code.AppendLineAt(3, "}");
             code.AppendLineAt(3, "if (__kind == 2)");
             code.AppendLineAt(3, "{");
@@ -816,7 +834,7 @@ internal static class SparsePatchStjEmitter
                 4,
                 "if (!__hasValue) throw new global::System.Text.Json.JsonException(\"Missing scalar value.\");"
             );
-            code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + vt + ">.Set(__sv);");
+            code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + vt + ">.Set(__sv);");
             code.AppendLineAt(3, "}");
             code.AppendLineAt(
                 3,
@@ -829,15 +847,21 @@ internal static class SparsePatchStjEmitter
     public static void AppendChangeSetStj(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
+    ) => AppendChangeSetStj(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
+
+    public static void AppendChangeSetStj(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         AppendTypeInfoHelper(code, 2);
         code.AppendLine();
         AppendChangeSetWireHelpers(code, members);
         code.AppendLine();
-        AppendChangeSetWrite(code, members);
+        AppendChangeSetWrite(code, members, dialect);
         code.AppendLine();
-        AppendChangeSetRead(code, members);
+        AppendChangeSetRead(code, members, dialect);
         code.AppendLine();
         foreach (var member in members)
         {
@@ -846,10 +870,10 @@ internal static class SparsePatchStjEmitter
                 && !SparseFragmentPatchEmitter.IsCollectionPatch(member)
             )
                 continue;
-            AppendChangeSetOptionalHelpers(code, member);
+            AppendChangeSetOptionalHelpers(code, member, dialect);
             code.AppendLine();
         }
-        AppendChangeSetOptionalFragment(code);
+        AppendChangeSetOptionalFragment(code, dialect);
         code.AppendLine();
         code.AppendLineAt(
             2,
@@ -879,10 +903,6 @@ internal static class SparsePatchStjEmitter
 
     private static string ChangeSetValueType(SparseMemberModel member) =>
         SparseFragmentEmitHelpers.FragmentValueType(member);
-
-    private static string ChangeSetChildChangeSet(SparseMemberModel member) =>
-        member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
-        + "ChangeSet";
 
     private static void AppendChangeSetWireHelpers(
         SharedIndentedBuilder code,
@@ -939,7 +959,8 @@ internal static class SparsePatchStjEmitter
 
     private static void AppendChangeSetWrite(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         code.AppendLineAt(
@@ -975,7 +996,7 @@ internal static class SparsePatchStjEmitter
             _ = esc;
             if (ChangeSetIsNested(member))
             {
-                var child = ChangeSetChildChangeSet(member);
+                var child = ChangeSetChildChangeSet(member, dialect);
                 code.AppendLineAt(3, "if (value.__sparse_nested_" + member.Id + " is not null)");
                 code.AppendLineAt(3, "{");
                 if (explicitName)
@@ -1042,9 +1063,11 @@ internal static class SparsePatchStjEmitter
 
     private static void AppendChangeSetRead(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        var runtime = RuntimeFor(dialect);
         code.AppendLineAt(
             2,
             "internal static ChangeSet __SparseReadStj(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
@@ -1056,8 +1079,8 @@ internal static class SparsePatchStjEmitter
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A change set must be a JSON object.\");"
         );
         code.AppendLineAt(3, "bool __seenWhole = false;");
-        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __wholeBefore = default;");
-        code.AppendLineAt(3, Runtime + "Optional<Fragment?> __wholeAfter = default;");
+        code.AppendLineAt(3, runtime + "Optional<Fragment?> __wholeBefore = default;");
+        code.AppendLineAt(3, runtime + "Optional<Fragment?> __wholeAfter = default;");
         code.AppendLineAt(3, "bool __hasWholeBefore = false; bool __hasWholeAfter = false;");
         foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
         {
@@ -1066,7 +1089,7 @@ internal static class SparsePatchStjEmitter
                 code.AppendLineAt(3, "bool __seen_" + member.Id + " = false;");
                 code.AppendLineAt(
                     3,
-                    ChangeSetChildChangeSet(member) + "? __n_" + member.Id + " = null;"
+                    ChangeSetChildChangeSet(member, dialect) + "? __n_" + member.Id + " = null;"
                 );
             }
             else
@@ -1075,11 +1098,11 @@ internal static class SparsePatchStjEmitter
                 code.AppendLineAt(3, "bool __seen_" + member.Id + " = false;");
                 code.AppendLineAt(
                     3,
-                    Runtime + "Optional<" + vt + "> __b_" + member.Id + " = default;"
+                    runtime + "Optional<" + vt + "> __b_" + member.Id + " = default;"
                 );
                 code.AppendLineAt(
                     3,
-                    Runtime + "Optional<" + vt + "> __a_" + member.Id + " = default;"
+                    runtime + "Optional<" + vt + "> __a_" + member.Id + " = default;"
                 );
                 code.AppendLineAt(
                     3,
@@ -1194,7 +1217,7 @@ internal static class SparsePatchStjEmitter
             code.AppendLineAt(5, "__seen_" + member.Id + " = true;");
             if (ChangeSetIsNested(member))
             {
-                var child = ChangeSetChildChangeSet(member);
+                var child = ChangeSetChildChangeSet(member, dialect);
                 code.AppendLineAt(
                     5,
                     "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A nested change set must be a JSON object.\");"
@@ -1414,9 +1437,11 @@ internal static class SparsePatchStjEmitter
 
     private static void AppendChangeSetOptionalHelpers(
         SharedIndentedBuilder code,
-        SparseMemberModel member
+        SparseMemberModel member,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        var runtime = RuntimeFor(dialect);
         var vt = ChangeSetValueType(member);
         var allowsNull =
             member.Property.Type.IsReferenceType || vt.EndsWith("?", StringComparison.Ordinal);
@@ -1425,7 +1450,7 @@ internal static class SparsePatchStjEmitter
             "private static void __SparseWriteOpt_"
                 + member.Id
                 + "(global::System.Text.Json.Utf8JsonWriter writer, "
-                + Runtime
+                + runtime
                 + "Optional<"
                 + vt
                 + "> optional, global::System.Text.Json.JsonSerializerOptions options)"
@@ -1478,7 +1503,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             2,
             "private static "
-                + Runtime
+                + runtime
                 + "Optional<"
                 + vt
                 + "> __SparseReadOpt_"
@@ -1561,7 +1586,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Missing state must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Missing;");
+        code.AppendLineAt(4, "return " + runtime + "Optional<" + vt + ">.Missing;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__state == 2)");
         code.AppendLineAt(3, "{");
@@ -1578,7 +1603,7 @@ internal static class SparsePatchStjEmitter
         }
         else
         {
-            code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Present(default!);");
+            code.AppendLineAt(4, "return " + runtime + "Optional<" + vt + ">.Present(default!);");
         }
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__state == 3)");
@@ -1591,7 +1616,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__valueWasNull) throw new global::System.Text.Json.JsonException(\"Value state must have a non-null value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "Optional<" + vt + ">.Present(__v!);");
+        code.AppendLineAt(4, "return " + runtime + "Optional<" + vt + ">.Present(__v!);");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
@@ -1600,12 +1625,16 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(2, "}");
     }
 
-    private static void AppendChangeSetOptionalFragment(SharedIndentedBuilder code)
+    private static void AppendChangeSetOptionalFragment(
+        SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
     {
+        var runtime = RuntimeFor(dialect);
         code.AppendLineAt(
             2,
             "private static void __SparseWriteOptionalFragment(global::System.Text.Json.Utf8JsonWriter writer, "
-                + Runtime
+                + runtime
                 + "Optional<Fragment?> optional, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
@@ -1633,7 +1662,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             2,
             "private static "
-                + Runtime
+                + runtime
                 + "Optional<Fragment?> __SparseReadOptionalFragment(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(2, "{");
@@ -1714,7 +1743,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Missing state must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Missing;");
+        code.AppendLineAt(4, "return " + runtime + "Optional<Fragment?>.Missing;");
         code.AppendLine();
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__state == 2)");
@@ -1723,7 +1752,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Null state must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Present(null);");
+        code.AppendLineAt(4, "return " + runtime + "Optional<Fragment?>.Present(null);");
         code.AppendLine();
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__state == 3)");
@@ -1736,7 +1765,7 @@ internal static class SparsePatchStjEmitter
             4,
             "if (__valueWasNull) throw new global::System.Text.Json.JsonException(\"Value state must have an object value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "Optional<Fragment?>.Present(__frag);");
+        code.AppendLineAt(4, "return " + runtime + "Optional<Fragment?>.Present(__frag);");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
@@ -1745,8 +1774,16 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(2, "}");
     }
 
-    public static void AppendKeyedStj(SharedIndentedBuilder code, SparseMemberModel member)
+    public static void AppendKeyedStj(SharedIndentedBuilder code, SparseMemberModel member) =>
+        AppendKeyedStj(code, member, SparseFragmentPatchEmitter.StandaloneDialect());
+
+    public static void AppendKeyedStj(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
     {
+        var runtime = RuntimeFor(dialect);
         var keyType = KeyTypeOf(member);
         var elementType = ElementTypeOf(member);
         var listType = ListTypeOf(member);
@@ -1764,11 +1801,11 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "writer.WriteStartObject();");
-        code.AppendLineAt(4, "if (__whole.Kind != " + Runtime + "FragmentOperationKind.Unchanged)");
+        code.AppendLineAt(4, "if (__whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "writer.WritePropertyName(\"$whole\");");
         code.AppendLineAt(5, "writer.WriteStartObject();");
-        code.AppendLineAt(5, "if (__whole.Kind == " + Runtime + "FragmentOperationKind.Unset)");
+        code.AppendLineAt(5, "if (__whole.Kind == " + runtime + "FragmentOperationKind.Unset)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "writer.WriteString(\"kind\", \"unset\");");
         code.AppendLineAt(5, "}");
@@ -1865,7 +1902,7 @@ internal static class SparsePatchStjEmitter
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A keyed patch must be a JSON object.\");"
         );
         code.AppendLineAt(4, "bool __hasWhole = false;");
-        code.AppendLineAt(4, Runtime + "FragmentOperation<" + listType + "> __whole = default;");
+        code.AppendLineAt(4, runtime + "FragmentOperation<" + listType + "> __whole = default;");
         code.AppendLineAt(
             4,
             "global::System.Collections.Generic.List<" + elementType + ">? __added = null;"
@@ -2168,13 +2205,13 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
-                + Runtime
+                + runtime
                 + "FragmentOperationKind.Unset) { result.Unset(); return result; }"
         );
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
-                + Runtime
+                + runtime
                 + "FragmentOperationKind.Set) { result.Set(__whole.Value!); return result; }"
         );
         code.AppendLineAt(
@@ -2261,7 +2298,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             3,
             "private static "
-                + Runtime
+                + runtime
                 + "FragmentOperation<"
                 + listType
                 + "> __SparseReadWhole_"
@@ -2333,7 +2370,7 @@ internal static class SparsePatchStjEmitter
             5,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset whole must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + listType + ">.Unset;");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + listType + ">.Unset;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__kind == \"set\")");
         code.AppendLineAt(4, "{");
@@ -2341,7 +2378,7 @@ internal static class SparsePatchStjEmitter
             5,
             "if (!__hasValue) throw new global::System.Text.Json.JsonException(\"Missing whole value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + listType + ">.Set(__v);");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + listType + ">.Set(__v);");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
@@ -2350,8 +2387,16 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(3, "}");
     }
 
-    public static void AppendDictionaryStj(SharedIndentedBuilder code, SparseMemberModel member)
+    public static void AppendDictionaryStj(SharedIndentedBuilder code, SparseMemberModel member) =>
+        AppendDictionaryStj(code, member, SparseFragmentPatchEmitter.StandaloneDialect());
+
+    public static void AppendDictionaryStj(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
     {
+        var runtime = RuntimeFor(dialect);
         var keyType = KeyTypeOf(member);
         var valueType = ValueTypeOf(member);
         var dictType = DictTypeOf(member);
@@ -2368,11 +2413,11 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "writer.WriteStartObject();");
-        code.AppendLineAt(4, "if (__whole.Kind != " + Runtime + "FragmentOperationKind.Unchanged)");
+        code.AppendLineAt(4, "if (__whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "writer.WritePropertyName(\"$whole\");");
         code.AppendLineAt(5, "writer.WriteStartObject();");
-        code.AppendLineAt(5, "if (__whole.Kind == " + Runtime + "FragmentOperationKind.Unset)");
+        code.AppendLineAt(5, "if (__whole.Kind == " + runtime + "FragmentOperationKind.Unset)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "writer.WriteString(\"kind\", \"unset\");");
         code.AppendLineAt(5, "}");
@@ -2467,7 +2512,7 @@ internal static class SparsePatchStjEmitter
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A dictionary patch must be a JSON object.\");"
         );
         code.AppendLineAt(4, "bool __hasWhole = false;");
-        code.AppendLineAt(4, Runtime + "FragmentOperation<" + dictType + "> __whole = default;");
+        code.AppendLineAt(4, runtime + "FragmentOperation<" + dictType + "> __whole = default;");
         code.AppendLineAt(
             4,
             "global::System.Collections.Generic.Dictionary<"
@@ -2801,13 +2846,13 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
-                + Runtime
+                + runtime
                 + "FragmentOperationKind.Unset) { result.Unset(); return result; }"
         );
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
-                + Runtime
+                + runtime
                 + "FragmentOperationKind.Set) { result.Set(__whole.Value!); return result; }"
         );
         code.AppendLineAt(
@@ -2855,7 +2900,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(
             3,
             "private static "
-                + Runtime
+                + runtime
                 + "FragmentOperation<"
                 + dictType
                 + "> __SparseReadWhole_"
@@ -2927,7 +2972,7 @@ internal static class SparsePatchStjEmitter
             5,
             "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset whole must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + dictType + ">.Unset;");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + dictType + ">.Unset;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__kind == \"set\")");
         code.AppendLineAt(4, "{");
@@ -2935,7 +2980,7 @@ internal static class SparsePatchStjEmitter
             5,
             "if (!__hasValue) throw new global::System.Text.Json.JsonException(\"Missing whole value.\");"
         );
-        code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + dictType + ">.Set(__v);");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + dictType + ">.Set(__v);");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
