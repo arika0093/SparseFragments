@@ -20,6 +20,105 @@ It helps when:
 
 Try these cases live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/).
 
+## What Problem Does It Solve?
+
+### Partial Values
+
+A settings layer often needs to distinguish “not specified” from “explicitly set to `null`”. A normal nullable property cannot represent both meanings at once.
+
+A generated `Fragment` keeps that distinction:
+
+```csharp
+var user = new Settings.Fragment { Label = (string?)null };
+var effective = defaults.Merge(user);
+```
+
+This is useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
+
+See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and merge rules.
+
+### Partial Edits
+
+A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
+
+A generated `Patch` contains only the requested operations:
+
+```csharp
+var patch = new Settings.Patch();
+patch.Database.Port = 6432;
+
+var updated = current.Apply(patch);
+```
+
+This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseFragments is useful when the edit arrives from elsewhere.
+
+See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
+
+### Before → After Changes
+
+Undo, audit output, conflict detection, and synchronization need more than the final value. They need to know what changed.
+
+A generated `ChangeSet` records that transition:
+
+```csharp
+var changes = Settings.ChangeSet.Between(before, after);
+
+changes.Database.Port.IsChanged;
+changes.Database.Port.Before;
+changes.Database.Port.After;
+```
+
+See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
+
+### Client/Server Edits
+
+A `ChangeSet` can be serialized and sent through the transport the application already uses:
+
+```csharp
+var json = JsonSerializer.Serialize(changes);
+var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+
+var rebased = incoming.RebaseOnto(current);
+```
+
+Rebasing lets the receiver preserve unrelated newer changes instead of replacing current state with a stale object. Conflicting edits are reported separately.
+
+See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, and conflict handling.
+
+### UI Editing
+
+Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
+
+Blazor edit sessions retain a baseline and derive the remaining change:
+
+```csharp
+var session = settings.CreateEditSession();
+
+session.Model.Label = "edited";
+var changes = session.CreateChangeSet();
+```
+
+Other UI frameworks can use generated `Observable` wrappers for change notification without adding binding infrastructure to the model itself.
+
+See [UI frameworks](docs/ui-frameworks.md) for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+
+### Keyed Collections
+
+Collection edits need stable identity. Array positions are not enough when items can be inserted, removed, or reordered.
+
+With a `[SparseKey]` on the element model, changes are exposed by key:
+
+```csharp
+var changes = Roster.ChangeSet.Between(before, after);
+
+changes.Quests.Added;
+changes.Quests.Removed;
+changes.Quests.Edited;
+changes.Quests.OrderChanged;
+```
+
+See [Keyed collections](docs/keyed-collections.md) for key rules and per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
+
 ## Install
 
 ```shell
@@ -81,63 +180,6 @@ dotnet run --file quickstart.cs
 The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after.
 
 The sections below explain why those distinctions matter. The [documentation](#documentation) covers the full APIs.
-
-## What Problem Does It Solve?
-
-### Partial Values
-
-A settings layer often needs to distinguish “not specified” from “explicitly set to `null`”. A normal nullable property cannot represent both meanings at once.
-
-A generated `Fragment` preserves that distinction and can be merged with lower-priority values. This makes it useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
-
-See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and per-member merge rules.
-
-### Partial Edits
-
-A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
-
-A generated `Patch` contains only the requested operations. This is useful for local commands, partial-update APIs, and edits created in a different process from the one that eventually saves them.
-
-EF Core already tracks changes made directly to a tracked entity; SparseFragments does not replace that. It helps when the edit arrives from elsewhere and the receiving application needs to know what should actually be applied.
-
-See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
-
-### Before → After Changes
-
-Some workflows need the previous value as well as the requested update. Undo, audit output, conflict detection, and synchronization all depend on the specific transition.
-
-A generated `ChangeSet` records that before → after change with the same typed shape as the model. Nested members stay nested, and keyed collections expose changes by item identity.
-
-See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
-
-### Client/Server Edits
-
-A `ChangeSet` can be serialized with `System.Text.Json` and sent through the transport the application already uses.
-
-```csharp
-var json = JsonSerializer.Serialize(changes);
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
-```
-
-Because it carries the before → after transition, the receiver can rebase an edit onto newer state instead of blindly replacing that state with a stale object. Incompatible edits to the same member are returned as structured conflicts.
-
-See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, and conflict handling.
-
-### UI Editing
-
-Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
-
-SparseFragments generates `Observable` wrappers for WPF, WinForms, .NET MAUI, WinUI, and Avalonia. Blazor uses an edit session that keeps the ordinary model while deriving `HasChanges` and `ChangeSet` from the retained baseline.
-
-See [UI frameworks](docs/ui-frameworks.md) for binding, validation, notifications, and edit sessions.
-
-### Keyed Collections
-
-Collection edits need stable identity. Array positions are not enough: inserting one item shifts every later index even when those items did not change.
-
-Mark an element with `[SparseKey]`, and generated change sets can describe additions, removals, edits, and ordering by key.
-
-See [Keyed collections](docs/keyed-collections.md) for key rules and typed per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
 
 ## Generated API
 
