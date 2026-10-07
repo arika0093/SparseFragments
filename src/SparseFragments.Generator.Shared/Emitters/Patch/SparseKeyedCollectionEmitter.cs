@@ -34,6 +34,31 @@ internal static class SparseKeyedCollectionEmitter
     private static bool HasValuePatch(SparseMemberModel member) =>
         member.Collection.ValueType?.IsFragmentModel == true;
 
+    private static void AppendPendingKeyLoopStart(SharedIndentedBuilder code)
+    {
+        code.AppendLineAt(
+            4,
+            "for (var __mapIndex = 0; __mapIndex < 3 && __pendingKeys.Count > 0; __mapIndex++)"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "var __keyMap = __mapIndex == 0 ? baseMap : (__mapIndex == 1 ? currentMap : desiredMap);"
+        );
+        code.IndentOffset++;
+        code.AppendLineAt(4, "foreach (var k in __keyMap.Keys)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "if (__pendingKeys.Count == 0) { break; }");
+        code.AppendLineAt(5, "if (!__pendingKeys.Remove(k)) { continue; }");
+    }
+
+    private static void AppendPendingKeyLoopEnd(SharedIndentedBuilder code)
+    {
+        code.AppendLineAt(4, "}");
+        code.IndentOffset--;
+        code.AppendLineAt(4, "}");
+    }
+
     private static string ElementPatchType(SparseMemberModel member) =>
         member.Collection.ElementType.NonNullableName + ".Patch";
 
@@ -1491,18 +1516,6 @@ internal static class SparseKeyedCollectionEmitter
                 + KeyOfMethod(member)
                 + "(item); if (!desiredMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
         );
-        code.AppendLineAt(
-            4,
-            "var allKeys = new global::System.Collections.Generic.HashSet<"
-                + keyType
-                + ">(baseMap.Keys, "
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            4,
-            "foreach (var k in currentMap.Keys) allKeys.Add(k); foreach (var k in desiredMap.Keys) allKeys.Add(k);"
-        );
         // Pre-index locally touched keys once (O(K)) so the per-key loop below
         // resolves touches with O(1) comparer-correct lookups instead of O(K)
         // List.Exists scans per union key (former O(N x K) behavior). For valid
@@ -1545,18 +1558,30 @@ internal static class SparseKeyedCollectionEmitter
                 + comparer
                 + ");"
         );
+        // Seed from edited keys for an exact capacity hint, then merge other local touches.
+        // Removing keys while scanning base/current/desired preserves first-occurrence
+        // key identity and conflict order without allocating an O(N) union.
+        code.AppendLineAt(
+            4,
+            "var __pendingKeys = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(local.__edited is null ? (global::System.Collections.Generic.IEnumerable<"
+                + keyType
+                + ">)__touchedAdded : local.__edited.Keys, "
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (local.__edited is not null) __pendingKeys.UnionWith(__touchedAdded);"
+        );
+        code.AppendLineAt(4, "__pendingKeys.UnionWith(__touchedRemoved);");
         if (hasPatch)
         {
             var elementPatch = ElementPatchType(member);
             var elementFragment = ElementFragmentType(member);
             var prefix = ElementPatchPrefix(member);
-            code.AppendLineAt(4, "foreach (var k in allKeys)");
-            code.AppendLineAt(4, "{");
-            code.AppendLineAt(
-                5,
-                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
-            );
-            code.AppendLineAt(5, "if (!localTouches) continue;");
+            AppendPendingKeyLoopStart(code);
             code.AppendLineAt(
                 5,
                 "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
@@ -1652,7 +1677,7 @@ internal static class SparseKeyedCollectionEmitter
                     + "Optional<object?>.Present((object?)c), \"The keyed element conflicts with a concurrent change.\"));"
             );
             code.AppendLineAt(5, "}");
-            code.AppendLineAt(4, "}");
+            AppendPendingKeyLoopEnd(code);
             // Order: keep local order only when current order unchanged and no order conflict.
             code.AppendLineAt(4, "if (local.__order is not null && local.__order.Count > 0)");
             code.AppendLineAt(4, "{");
@@ -1709,13 +1734,7 @@ internal static class SparseKeyedCollectionEmitter
         }
         else
         {
-            code.AppendLineAt(4, "foreach (var k in allKeys)");
-            code.AppendLineAt(4, "{");
-            code.AppendLineAt(
-                5,
-                "var localTouches = __touchedAdded.Contains(k) || __touchedRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
-            );
-            code.AppendLineAt(5, "if (!localTouches) continue;");
+            AppendPendingKeyLoopStart(code);
             code.AppendLineAt(
                 5,
                 "var inBase = baseMap.TryGetValue(k, out var b); var inCurrent = currentMap.TryGetValue(k, out var c); var inDesired = desiredMap.TryGetValue(k, out var d);"
@@ -1770,7 +1789,7 @@ internal static class SparseKeyedCollectionEmitter
                     + "Optional<object?>.Present((object?)c), \"The keyed element conflicts with a concurrent change.\"));"
             );
             code.AppendLineAt(5, "}");
-            code.AppendLineAt(4, "}");
+            AppendPendingKeyLoopEnd(code);
             code.AppendLineAt(4, "if (local.__order is not null && local.__order.Count > 0)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
