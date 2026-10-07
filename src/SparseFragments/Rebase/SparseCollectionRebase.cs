@@ -407,9 +407,8 @@ internal static class SparseCollectionRebase
         {
             foreach (var value in desired)
             {
-                if (additions.Contains(value))
+                if (additions.Remove(value))
                 {
-                    additions.Remove(value);
                     result.Add(value);
                     if (additions.Count == 0)
                     {
@@ -459,9 +458,8 @@ internal static class SparseCollectionRebase
         {
             foreach (var value in desired)
             {
-                if (additions.Contains(value))
+                if (additions.Remove(value))
                 {
-                    additions.Remove(value);
                     result[destination++] = value;
                     if (additions.Count == 0)
                     {
