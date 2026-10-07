@@ -47,7 +47,11 @@ Require(inverted.Value!.Label.Value == "original", "invert round-trip");
 
 var changes = NetFxSettings.ChangeSet.Between(before, edits.Apply(before));
 var changesJson = JsonSerializer.Serialize(changes);
-var imported = JsonSerializer.Deserialize<NetFxSettings.ChangeSet>(changesJson)!;
+var imported = JsonSerializer.Deserialize<NetFxSettings.ChangeSet>(changesJson);
+if (imported is null)
+{
+    throw new InvalidOperationException("Failed: changeset json deserialize");
+}
 var roundTripped = imported.ToPatch().Apply(before);
 Require(
     NetFxSettings.Patch.Between(roundTripped, edits.Apply(before)).IsEmpty,
