@@ -453,10 +453,9 @@ public sealed class RosterRowHighlight
 /// <summary>Builds before/after highlight maps from a generated roster ChangeSet.</summary>
 /// <remarks>
 /// Case 3 derives one <c>PlaygroundRoster.ChangeSet</c> from before/after state and
-/// treats it as the source of truth: added/removed rows, per-property edit dots
-/// and final key order all come from the typed <c>Quests</c> keyed transition
-/// instead of a second manual diff. Only the mapping from transition data to the
-/// existing CSS/highlight objects stays Playground-specific.
+/// treats it as the source of truth. This is a thin mapping from the typed
+/// <c>Quests</c> keyed transition (via <c>GetChange</c>) to the existing
+/// CSS/highlight objects.
 /// </remarks>
 public static class RosterHighlight
 {
@@ -475,10 +474,7 @@ public static class RosterHighlight
     {
         var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
         var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
-        // Semantic detection comes from the typed Quests transition (see
-        // RosterInspection); only the mapping from transition data to
-        // CSS/highlight objects stays Playground-specific.
-        var quests = RosterInspection.QuestsTransition(changes);
+        var quests = changes.Quests;
         if (quests.IsEmpty)
         {
             foreach (var row in before.Rows)
@@ -494,57 +490,19 @@ public static class RosterHighlight
             return (beforeMap, afterMap);
         }
 
-        var keyed = quests;
-        var added = new HashSet<string>(keyed.Added.Select(static element => element.Id));
-        var removed = new HashSet<string>(keyed.Removed.Select(static element => element.Id));
-        var edits = new Dictionary<string, PlaygroundQuest.ChangeSet>();
-        foreach (var edit in keyed.Edited)
-        {
-            edits[edit.Key] = edit.Value;
-        }
-
-        var beforeIndex = new Dictionary<string, int>();
-        for (var i = 0; i < before.Rows.Count; i++)
-        {
-            beforeIndex[before.Rows[i].Id] = i;
-        }
-
-        Dictionary<string, int>? orderIndex = null;
-        if (keyed.OrderChanged)
-        {
-            orderIndex = new Dictionary<string, int>();
-            var order = 0;
-            foreach (var key in keyed.AfterOrder)
-            {
-                orderIndex[key] = order++;
-            }
-        }
-
         foreach (var row in after.Rows)
         {
-            var highlight = new RosterRowHighlight();
-            if (added.Contains(row.Id))
+            var item = quests.GetChange(row.Id);
+            var highlight = new RosterRowHighlight
             {
-                highlight.IsAdded = true;
-            }
-            else if (edits.TryGetValue(row.Id, out var changed))
+                IsAdded = item.IsAdded,
+                Moved = item.IsReordered,
+            };
+            if (item.IsEdited)
             {
-                // Presentation maps typed per-quest transitions to visual dots;
-                // the semantic detection above comes from the Quests transition.
-                highlight.TitleChanged = changed.Title.IsChanged;
-                highlight.PointsChanged = changed.Points.IsChanged;
-                highlight.ScoresChanged = changed.Scores.IsChanged;
-            }
-
-            if (
-                orderIndex is not null
-                && !added.Contains(row.Id)
-                && beforeIndex.TryGetValue(row.Id, out var beforeAt)
-                && orderIndex.TryGetValue(row.Id, out var afterAt)
-                && beforeAt != afterAt
-            )
-            {
-                highlight.Moved = true;
+                highlight.TitleChanged = item.Edit.Title.IsChanged;
+                highlight.PointsChanged = item.Edit.Points.IsChanged;
+                highlight.ScoresChanged = item.Edit.Scores.IsChanged;
             }
 
             afterMap[row] = highlight;
@@ -552,22 +510,12 @@ public static class RosterHighlight
 
         foreach (var row in before.Rows)
         {
-            var highlight = new RosterRowHighlight();
-            if (removed.Contains(row.Id))
+            var item = quests.GetChange(row.Id);
+            beforeMap[row] = new RosterRowHighlight
             {
-                highlight.IsRemoved = true;
-            }
-            else if (
-                orderIndex is not null
-                && orderIndex.TryGetValue(row.Id, out var afterAt)
-                && beforeIndex.TryGetValue(row.Id, out var beforeAt)
-                && beforeAt != afterAt
-            )
-            {
-                highlight.Moved = true;
-            }
-
-            beforeMap[row] = highlight;
+                IsRemoved = item.IsRemoved,
+                Moved = item.IsReordered,
+            };
         }
 
         return (beforeMap, afterMap);

@@ -12,8 +12,6 @@ public sealed class RosterCaseCoordinator
 {
     private PlaygroundRoster.ChangeSet? _changeSet;
     private PlaygroundRoster.Patch? _patch;
-    private RosterEditState? _before;
-    private RosterEditState? _after;
 
     /// <summary>Gets the shared ChangeSet, or null when the state is invalid.</summary>
     public PlaygroundRoster.ChangeSet? ChangeSet => IsInvalid ? null : _changeSet;
@@ -21,7 +19,7 @@ public sealed class RosterCaseCoordinator
     /// <summary>
     /// Gets the baseline-free Patch derived from the shared ChangeSet,
     /// or null when the state is invalid. Used only where a Patch is
-    /// specifically needed (highlights, summary, applied preview).
+    /// specifically needed (applied preview).
     /// </summary>
     public PlaygroundRoster.Patch? Patch => IsInvalid ? null : _patch;
 
@@ -34,8 +32,6 @@ public sealed class RosterCaseCoordinator
     /// </summary>
     public void Update(RosterEditState before, RosterEditState after)
     {
-        _before = before;
-        _after = after;
         try
         {
             _changeSet = PlaygroundRoster.ChangeSet.Between(
@@ -58,20 +54,17 @@ public sealed class RosterCaseCoordinator
     public (
         Dictionary<QuestRow, RosterRowHighlight> Before,
         Dictionary<QuestRow, RosterRowHighlight> After
-    ) Highlights
+    ) Highlights(RosterEditState before, RosterEditState after)
     {
-        get
+        if (IsInvalid || _changeSet is null)
         {
-            if (IsInvalid || _changeSet is null || _before is null || _after is null)
-            {
-                return (
-                    new Dictionary<QuestRow, RosterRowHighlight>(),
-                    new Dictionary<QuestRow, RosterRowHighlight>()
-                );
-            }
-
-            return RosterHighlight.BuildFromChangeSet(_changeSet, _before, _after);
+            return (
+                new Dictionary<QuestRow, RosterRowHighlight>(),
+                new Dictionary<QuestRow, RosterRowHighlight>()
+            );
         }
+
+        return RosterHighlight.BuildFromChangeSet(_changeSet, before, after);
     }
 
     /// <summary>One-line diff summary projected from the shared ChangeSet.</summary>
@@ -79,12 +72,12 @@ public sealed class RosterCaseCoordinator
     {
         get
         {
-            if (IsInvalid || _changeSet is null || _after is null)
+            if (IsInvalid || _changeSet is null)
             {
                 return "cannot diff: duplicate keys or invalid state";
             }
 
-            var quests = RosterInspection.QuestsTransition(_changeSet);
+            var quests = _changeSet.Quests;
             if (quests.IsEmpty)
             {
                 return "no changes";
@@ -93,9 +86,7 @@ public sealed class RosterCaseCoordinator
             var added = quests.Added.Select(static quest => quest.Id).ToList();
             var removed = quests.Removed.Select(static quest => quest.Id).ToList();
             var edited = quests.Edited.Select(static edit => edit.Key).ToList();
-            var order = quests.OrderChanged
-                ? quests.AfterOrder.ToList()
-                : _after.Rows.Select(static r => r.Id).ToList();
+            var order = quests.AfterOrder.ToList();
             return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
         }
     }
@@ -103,20 +94,13 @@ public sealed class RosterCaseCoordinator
     /// <summary>Manual C# snippet projected from the shared ChangeSet.</summary>
     public string ManualCSharp(string variableName = "patch")
     {
-        if (IsInvalid || _changeSet is null || _after is null)
+        if (IsInvalid || _changeSet is null)
         {
             return "// Cannot diff: duplicate keys or invalid state. See the ChangeSet JSON tab for the error.";
         }
 
-        return PlaygroundSnippets.RosterManualPatchCSharp(variableName, _changeSet, _after);
+        return PlaygroundSnippets.RosterManualPatchCSharp(variableName, _changeSet);
     }
-
-    /// <summary>
-    /// Static model semantics for the Case 3 models.
-    /// This is the compile-time SparseFragments reading of the Case 3 models, independent
-    /// of any particular ChangeSet instance.
-    /// </summary>
-    public string ModelMetadata => RosterInspection.DescribeModelMetadata();
 
     /// <summary>
     /// Returns the shared ChangeSet or throws, so JSON export / applied preview

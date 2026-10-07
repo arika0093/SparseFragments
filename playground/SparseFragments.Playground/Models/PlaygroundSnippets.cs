@@ -243,13 +243,12 @@ public static class PlaygroundSnippets
     /// </summary>
     public static string RosterManualPatchCSharp(
         string variableName,
-        PlaygroundRoster.ChangeSet changes,
-        RosterEditState after
+        PlaygroundRoster.ChangeSet changes
     )
     {
         var sb = new StringBuilder();
         sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
-        var quests = RosterInspection.QuestsTransition(changes);
+        var quests = changes.Quests;
         if (quests.IsEmpty)
         {
             sb.AppendLine("// No quest changes.");
@@ -283,10 +282,7 @@ public static class PlaygroundSnippets
                 sb.AppendLine($"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral(quest.Scores.After.Value ?? new List<int>())}; // whole value: one element change replaces the list");
             }
         }
-        var order = quests.OrderChanged
-            ? quests.AfterOrder.ToList()
-            : after.Rows.Select(static row => row.Id).ToList();
-        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", order.Select(StringLiteral))} }}); // final key order, not moves");
+        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", quests.AfterOrder.Select(StringLiteral))} }}); // final key order, not moves");
         return sb.ToString();
     }
 
