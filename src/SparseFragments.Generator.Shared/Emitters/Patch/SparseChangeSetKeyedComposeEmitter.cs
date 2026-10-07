@@ -286,27 +286,22 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + continuityDictionary
                 + " first, "
                 + continuityDictionary
-                + " second)"
+                + " second, int capacity)"
         );
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "global::System.Collections.Generic.List<" + keyType + ">? present = null;"
+            "global::System.Collections.Generic.HashSet<" + keyType + ">? present = null;"
         );
         code.AppendLineAt(
             6,
-            "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.List<"
+            "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.HashSet<"
                 + keyType
-                + ">()).Add(key);"
-        );
-        code.AppendLineAt(
-            6,
-            "return present is null ? null : new global::System.Collections.Generic.HashSet<"
-                + keyType
-                + ">(present, "
+                + ">(capacity, "
                 + comparer
-                + ");"
+                + ")).Add(key);"
         );
+        code.AppendLineAt(6, "return present;");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
             5,
@@ -336,7 +331,13 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + id
                 + ", __map2"
                 + id
-                + ") : null;"
+                + ", global::System.Math.Min("
+                + KeyedAfterOrder(member)
+                + "!.Count, __keys"
+                + id
+                + ".Count - __map1"
+                + id
+                + ".Count)) : null;"
         );
         code.AppendLineAt(5, "foreach (var __k in __keys" + id + ")");
         code.AppendLineAt(5, "{");
