@@ -159,17 +159,6 @@ var jsonPatch = Settings.Patch.FromJsonPatch(                  // RFC 6902 impor
 var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory<byte>, UTF-8 JSON
 ```
 
-## End-to-end example
-
-The [Collaborative editing example](examples/CollaborativeEditing/README.md) runs the pieces above as one database-backed flow: PostgreSQL + EF Core, Blazor and WPF clients, JSON Patch over HTTP, and revision-based rebase. It demonstrates:
-
-* mapping persistence entities to a SparseFragments model at an explicit boundary;
-* deriving a typed patch from a retained baseline and sending it as JSON Patch;
-* rebasing a stale save onto the latest revision, including structured conflicts;
-* keyed quest edits (add/remove/edit/reorder) and layered settings overrides across two UI frameworks.
-
-See the example README for the run path and file map; API semantics stay in the guides below.
-
 ## Documentation
 
 | Capability | Documentation |
@@ -187,7 +176,6 @@ See the example README for the run path and file map; API semantics stay in the 
 | Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
 | Check supported model shapes and constructors | [Model shapes](docs/model-shapes.md) |
 | Resolve generator errors | [Diagnostics](docs/analyzer.md) |
-| Follow a multi-client database-backed editing flow | [Collaborative editing example](examples/CollaborativeEditing/README.md) |
 
 ## Packages and Compatibility
 
