@@ -294,19 +294,43 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + " second, int capacity)"
         );
         code.AppendLineAt(5, "{");
-        code.AppendLineAt(
-            6,
-            "global::System.Collections.Generic.HashSet<" + keyType + ">? present = null;"
-        );
-        code.AppendLineAt(
-            6,
-            "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.HashSet<"
-                + keyType
-                + ">(capacity, "
-                + comparer
-                + ")).Add(key);"
-        );
-        code.AppendLineAt(6, "return present;");
+        if (dialect.HashSetSupportsCapacity)
+        {
+            code.AppendLineAt(
+                6,
+                "global::System.Collections.Generic.HashSet<" + keyType + ">? present = null;"
+            );
+            code.AppendLineAt(
+                6,
+                "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.HashSet<"
+                    + keyType
+                    + ">(capacity, "
+                    + comparer
+                    + ")).Add(key);"
+            );
+            code.AppendLineAt(6, "return present;");
+        }
+        else
+        {
+            code.AppendLineAt(
+                6,
+                "global::System.Collections.Generic.List<" + keyType + ">? present = null;"
+            );
+            code.AppendLineAt(
+                6,
+                "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.List<"
+                    + keyType
+                    + ">()).Add(key);"
+            );
+            code.AppendLineAt(
+                6,
+                "return present is null ? null : new global::System.Collections.Generic.HashSet<"
+                    + keyType
+                    + ">(present, "
+                    + comparer
+                    + ");"
+            );
+        }
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
             5,

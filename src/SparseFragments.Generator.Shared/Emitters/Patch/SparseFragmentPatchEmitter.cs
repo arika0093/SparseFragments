@@ -66,10 +66,11 @@ internal static class SparseFragmentPatchEmitter
         string ConflictKindType,
         Func<string, string> RebaseResult,
         Func<SparseMemberModel, string> ChildPatchName,
-        Func<SparseMemberModel, string> ChildChangeSetName
+        Func<SparseMemberModel, string> ChildChangeSetName,
+        bool HashSetSupportsCapacity = false
     );
 
-    internal static SparsePatchDialect StandaloneDialect() =>
+    internal static SparsePatchDialect StandaloneDialect(bool hashSetSupportsCapacity = false) =>
         new(
             Runtime,
             "__sparse_whole",
@@ -83,7 +84,8 @@ internal static class SparseFragmentPatchEmitter
             "global::SparseFragments.SparsePatchConflictKind",
             static payload => "global::SparseFragments.RebaseResult<" + payload + ">",
             static member => ChildPatch(member),
-            static member => DefaultChildChangeSet(member)
+            static member => DefaultChildChangeSet(member),
+            hashSetSupportsCapacity
         );
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
@@ -132,7 +134,8 @@ internal static class SparseFragmentPatchEmitter
     public static void AppendPatch(
         SharedIndentedBuilder code,
         string modelType,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        bool hashSetSupportsCapacity = false
     )
     {
         var optional = Runtime + "Optional<Fragment?>";
@@ -141,7 +144,7 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(1, "{");
         SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, Runtime, Field);
-        var dialect = StandaloneDialect();
+        var dialect = StandaloneDialect(hashSetSupportsCapacity);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,
             modelType,
@@ -162,6 +165,6 @@ internal static class SparseFragmentPatchEmitter
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
         SparsePatchStjEmitter.AppendPatchStj(code, members);
         code.AppendLineAt(1, "}");
-        SparseChangeSetEmitter.AppendChangeSet(code, members);
+        SparseChangeSetEmitter.AppendChangeSet(code, members, dialect);
     }
 }

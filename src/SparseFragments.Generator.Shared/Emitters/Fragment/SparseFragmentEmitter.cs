@@ -146,7 +146,8 @@ internal static class SparseFragmentEmitter
             members,
             !model.IsStruct,
             !pocoCloneModels.IsEmpty,
-            constructor: model.Constructor
+            constructor: model.Constructor,
+            hashSetSupportsCapacity: bclHashSetSupportsCapacity
         );
         if (emitBlazorEditSession && !model.IsStruct)
         {
@@ -213,7 +214,8 @@ internal static class SparseFragmentEmitter
         bool modelIsReferenceType,
         bool usesPocoCloning,
         bool isRootModel = true,
-        ModelConstructorBinding? constructor = null
+        ModelConstructorBinding? constructor = null,
+        bool hashSetSupportsCapacity = false
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
@@ -232,7 +234,7 @@ internal static class SparseFragmentEmitter
         SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, Optional);
         code.AppendLineAt(1, "}");
         Core.AppendBuilder(code, members);
-        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members);
+        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, hashSetSupportsCapacity);
     }
 
     private static void AppendFragmentEquality(
