@@ -59,7 +59,9 @@ internal static class SparseCollectionRebase
             return false;
         }
 
-        var result = new List<object?>(current);
+        var capacity = checked(current.Count + (desired.Count - before.Count));
+        var result = new List<object?>(capacity);
+        result.AddRange(current);
         for (var index = before.Count; index < desired.Count; index++)
         {
             result.Add(desired[index]);
@@ -259,7 +261,9 @@ internal static class SparseCollectionRebase
             return false;
         }
 
-        var result = new List<T>(current);
+        var capacity = checked(current.Count + (desired.Count - before.Count));
+        var result = new List<T>(capacity);
+        result.AddRange(current);
         for (var index = before.Count; index < desired.Count; index++)
         {
             result.Add(desired[index]);
