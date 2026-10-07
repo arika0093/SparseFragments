@@ -33,8 +33,8 @@ permissions:
 # Job names never change between tiers, so branch protection stays stable.
 # Branch-protection tip: require the ubuntu legs ("Strict tests / unit
 # (ubuntu-latest)", "Strict tests / nativeaot (ubuntu-latest)") plus
-# public-api and package-consumers. Those four checks exist in both tiers;
-# the macos/windows legs only appear in the full-matrix tier.
+# format, public-api and package-consumers. Those five checks exist in both
+# tiers; the macos/windows legs only appear in the full-matrix tier.
 #
 # Failure-class map (which dimension catches what):
 # - unit matrix OS: managed TUnit logic is nearly OS-independent; the Linux
@@ -51,6 +51,35 @@ permissions:
 #   Linux smoke leg; main/release run every supported OS before publish.
 
 jobs:
+  # Repository formatting gate (#83). CSharpier.MsBuild enforces formatting
+  # only for projects that compile the checked sources; the source-only
+  # Generator.Shared package compiles nothing itself, so its drift surfaced
+  # only at pack time and blocked the whole package-consumers job. This
+  # canonical check covers the shippable surface on every run instead.
+  # Scope is intentionally src/: wider scopes carry pre-existing formatter
+  # drift from older CSharpier versions and are owned separately.
+  format:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Check formatting
+        run: dotnet csharpier check src/
+
   # Regular unit tests (TUnit). Builds only the test project and its
   # src references so the Blazor playground never affects this job.
   # PR tier: Linux only (fast signal). Main/release tier: full OS matrix.

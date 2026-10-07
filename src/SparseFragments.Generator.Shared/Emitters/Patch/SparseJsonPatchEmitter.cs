@@ -416,10 +416,7 @@ internal static class SparseJsonPatchEmitter
         code.AppendLineAt(4, "writer.Flush();");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "stream.Position = 0;");
-        code.AppendLineAt(
-            3,
-            "return global::System.Text.Json.Nodes.JsonNode.Parse(stream);"
-        );
+        code.AppendLineAt(3, "return global::System.Text.Json.Nodes.JsonNode.Parse(stream);");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
@@ -430,10 +427,7 @@ internal static class SparseJsonPatchEmitter
             3,
             "var strict = new global::System.Text.Json.JsonSerializerOptions(options) { UnmappedMemberHandling = global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow };"
         );
-        code.AppendLineAt(
-            3,
-            "using var stream = new global::System.IO.MemoryStream();"
-        );
+        code.AppendLineAt(3, "using var stream = new global::System.IO.MemoryStream();");
         code.AppendLineAt(
             3,
             "using (var writer = new global::System.Text.Json.Utf8JsonWriter(stream))"
@@ -442,10 +436,7 @@ internal static class SparseJsonPatchEmitter
         code.AppendLineAt(4, "node.WriteTo(writer);");
         code.AppendLineAt(4, "writer.Flush();");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "global::System.ArraySegment<byte> buffer;"
-        );
+        code.AppendLineAt(3, "global::System.ArraySegment<byte> buffer;");
         code.AppendLineAt(
             3,
             "if (!stream.TryGetBuffer(out buffer)) { buffer = new global::System.ArraySegment<byte>(stream.ToArray()); }"
