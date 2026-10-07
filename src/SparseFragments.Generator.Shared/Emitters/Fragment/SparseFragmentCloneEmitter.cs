@@ -54,8 +54,12 @@ internal sealed class SparseFragmentCloneEmitter
             );
         }
         code.AppendLineAt(1, "}");
+        code.AppendLineAt(
+            1,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+        );
         code.AppendIndent(1)
-            .Append("public ")
+            .Append("internal ")
             .Append(modelType)
             .Append(" DeepClone(global::System.Collections.Generic.Dictionary<object, object> ")
             .Append(CloneContext)
@@ -357,6 +361,10 @@ internal sealed class SparseFragmentCloneEmitter
         }
         code.AppendLineAt(2, "}");
         code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+        );
         code.AppendIndent(2)
             .Append(
                 "internal Fragment DeepClone(global::System.Collections.Generic.Dictionary<object, object> "
