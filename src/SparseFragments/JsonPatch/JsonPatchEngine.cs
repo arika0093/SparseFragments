@@ -104,6 +104,12 @@ internal static class JsonPatchEngine
             throw new ArgumentNullException(nameof(document));
         }
 
+        if (document.Operations.Count == 0)
+        {
+            // Return independent bytes because callers can mutate the result.
+            return new byte[] { (byte)'[', (byte)']' };
+        }
+
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
