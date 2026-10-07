@@ -115,8 +115,8 @@ internal static class JsonPatchEngine
             return new byte[] { (byte)'[', (byte)']' };
         }
 
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        using var buffer = new PooledJsonBufferWriter();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
             writer.WriteStartArray();
             foreach (var operation in document.Operations)
@@ -148,7 +148,7 @@ internal static class JsonPatchEngine
             writer.WriteEndArray();
         }
 
-        return stream.ToArray();
+        return buffer.ToArray();
     }
 
     internal static JsonNode? Clone(JsonNode? node)
