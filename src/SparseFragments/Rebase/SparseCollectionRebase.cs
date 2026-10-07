@@ -201,6 +201,26 @@ internal static class SparseCollectionRebase
             return false;
         }
 
+        if (
+            borrowedDesired
+            && before.GetType() == typeof(HashSet<T>)
+            && ReferenceEquals(((HashSet<T>)before).Comparer, localComparer)
+        )
+        {
+            var beforeLookup = (HashSet<T>)before;
+            var nativeResult = new HashSet<T>(current, currentComparer);
+            if (desiredLookup.Count != beforeLookup.Count)
+            {
+                foreach (var value in desired.Where(value => !beforeLookup.Contains(value)))
+                {
+                    nativeResult.Add(value);
+                }
+            }
+            rebased = nativeResult;
+            reason = null;
+            return true;
+        }
+
         if (borrowedDesired)
         {
             desiredLookup = new HashSet<T>(desiredLookup, localComparer);
