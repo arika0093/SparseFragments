@@ -6,33 +6,11 @@
 
 *Source-generated partial state and typed changes for C#.*
 
-SparseFragments generates typed APIs around an ordinary C# model when the application needs to represent only part of a value or only part of an edit.
+SparseFragments generates typed APIs around ordinary C# models for partial values, edits, and before → after changes.
 
-Add `[SparseFragmentModel]` to the model you already use:
+Add `[SparseFragmentModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
 
-```csharp
-using SparseFragments;
-
-[SparseFragmentModel]
-public partial class Settings
-{
-    public string? Label { get; set; }
-    public DatabaseSettings? Database { get; set; }
-
-    [SparseMerge(MergeMode.Append)]
-    public IReadOnlyList<string> Plugins { get; set; } = [];
-}
-
-public partial class DatabaseSettings
-{
-    public string Host { get; set; } = "localhost";
-    public int Port { get; set; } = 5432;
-}
-```
-
-`Settings` remains the model used by the application. The generated types represent partial values, edits, and before → after changes without replacing the model.
-
-They help when:
+It helps when:
 
 * a settings layer must omit a property instead of assigning its default value;
 * an editor must preserve which properties the user actually changed;
