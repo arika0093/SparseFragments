@@ -152,6 +152,7 @@ internal static class SparseFragmentPatchEmitter
         SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect);
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
+        SparsePatchInspectionEmitter.AppendPatchInspection(code, modelType, members);
         if (emitJsonBridge)
         {
             var jsonPrefix = SparseNaming.JsonPatchApiPrefix(

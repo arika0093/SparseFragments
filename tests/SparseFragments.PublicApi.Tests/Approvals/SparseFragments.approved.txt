@@ -120,6 +120,14 @@ namespace SparseFragments
         public TPatch Patch { get; }
         public static SparseFragments.RebaseResult<TPatch> Success(TPatch patch) { }
     }
+    public enum SparseChangeKind
+    {
+        Set = 0,
+        Unset = 1,
+        Nested = 2,
+        KeyedCollection = 3,
+        Dictionary = 4,
+    }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
     {
@@ -140,6 +148,27 @@ namespace SparseFragments
         KeyedSequence = 2,
         Dictionary = 3,
     }
+    public sealed class SparseDictionaryEdit
+    {
+        public SparseDictionaryEdit(object? key, object? value, System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange> nestedChanges, bool hasNestedChanges) { }
+        public bool HasNestedChanges { get; }
+        public object? Key { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange> NestedChanges { get; }
+        public object? Value { get; }
+    }
+    public sealed class SparseDictionaryEntry
+    {
+        public SparseDictionaryEntry(object? key, object? value) { }
+        public object? Key { get; }
+        public object? Value { get; }
+    }
+    public sealed class SparseDictionaryInspection
+    {
+        public SparseDictionaryInspection(System.Collections.Generic.IReadOnlyList<SparseFragments.SparseDictionaryEntry> setEntries, System.Collections.Generic.IReadOnlyList<object?> removedKeys, System.Collections.Generic.IReadOnlyList<SparseFragments.SparseDictionaryEdit> edited) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseDictionaryEdit> Edited { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> RemovedKeys { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseDictionaryEntry> SetEntries { get; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute
     {
@@ -159,6 +188,21 @@ namespace SparseFragments
         Composite = 2,
         Interface = 3,
     }
+    public sealed class SparseKeyedCollectionInspection
+    {
+        public SparseKeyedCollectionInspection(System.Collections.Generic.IReadOnlyList<object?> added, System.Collections.Generic.IReadOnlyList<object?> removedKeys, System.Collections.Generic.IReadOnlyList<SparseFragments.SparseKeyedEdit> edited, bool hasOrder, System.Collections.Generic.IReadOnlyList<object?> keyOrder) { }
+        public System.Collections.Generic.IReadOnlyList<object?> Added { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseKeyedEdit> Edited { get; }
+        public bool HasOrder { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> KeyOrder { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> RemovedKeys { get; }
+    }
+    public sealed class SparseKeyedEdit
+    {
+        public SparseKeyedEdit(object? key, System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange> nestedChanges) { }
+        public object? Key { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange> NestedChanges { get; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseMergeAttribute : System.Attribute
     {
@@ -166,6 +210,16 @@ namespace SparseFragments
         public SparseMergeAttribute(System.Type strategyType) { }
         public SparseFragments.MergeMode Mode { get; }
         public System.Type? StrategyType { get; }
+    }
+    public sealed class SparsePatchChange
+    {
+        public SparsePatchChange(SparseFragments.SparsePropertyInfo property, SparseFragments.SparseChangeKind kind, object? value, System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange>? nestedChanges, SparseFragments.SparseKeyedCollectionInspection? keyed, SparseFragments.SparseDictionaryInspection? dictionary) { }
+        public SparseFragments.SparseDictionaryInspection? Dictionary { get; }
+        public SparseFragments.SparseKeyedCollectionInspection? Keyed { get; }
+        public SparseFragments.SparseChangeKind Kind { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchChange> NestedChanges { get; }
+        public SparseFragments.SparsePropertyInfo Property { get; }
+        public object? Value { get; }
     }
     public sealed class SparsePatchConflict
     {
