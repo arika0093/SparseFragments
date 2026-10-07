@@ -46,6 +46,23 @@ public class ChangeSetJsonBenchmarks
         _change = BenchChangeSetRebaseRecord.ChangeSet.Between(_before, State(1));
         _json = Serialize();
         Validate(Deserialize());
+        var alternateOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = _options.TypeInfoResolver,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+        };
+        var alternateJson = JsonSerializer.SerializeToUtf8Bytes(_change, alternateOptions);
+        Validate(
+            JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
+                alternateJson,
+                alternateOptions
+            )!
+        );
+        if (!Serialize().SequenceEqual(_json))
+            throw new InvalidOperationException(
+                "Fragment converter reuse must not retain serializer options."
+            );
         var escaped = System.Text.Encoding.UTF8.GetBytes(
             System
                 .Text.Encoding.UTF8.GetString(_json)

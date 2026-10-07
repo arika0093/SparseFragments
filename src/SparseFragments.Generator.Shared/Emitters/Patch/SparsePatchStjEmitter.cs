@@ -323,7 +323,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "new Fragment.FragmentJsonConverter().Write(writer, value.__sparse_whole.Value, options);"
+            "((Fragment.FragmentJsonConverter)Fragment.JsonConverter).Write(writer, value.__sparse_whole.Value, options);"
         );
         code.AppendLineAt(5, "}");
         code.AppendLineAt(4, "}");
@@ -678,7 +678,7 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(
             5,
-            "else if (reader.TokenType == global::System.Text.Json.JsonTokenType.StartObject) { __fragValue = new Fragment.FragmentJsonConverter().Read(ref reader, typeof(Fragment), options); }"
+            "else if (reader.TokenType == global::System.Text.Json.JsonTokenType.StartObject) { __fragValue = ((Fragment.FragmentJsonConverter)Fragment.JsonConverter).Read(ref reader, typeof(Fragment), options); }"
         );
         code.AppendLineAt(
             5,
@@ -1624,7 +1624,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(4, "writer.WritePropertyName(\"value\");");
         code.AppendLineAt(
             4,
-            "new Fragment.FragmentJsonConverter().Write(writer, optional.Value, options);"
+            "((Fragment.FragmentJsonConverter)Fragment.JsonConverter).Write(writer, optional.Value, options);"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "writer.WriteEndObject();");
@@ -1692,7 +1692,7 @@ internal static class SparsePatchStjEmitter
         );
         code.AppendLineAt(
             5,
-            "else if (reader.TokenType == global::System.Text.Json.JsonTokenType.StartObject) { var __r = new Fragment.FragmentJsonConverter().Read(ref reader, typeof(Fragment), options); __frag = __r; __valueWasNull = false; }"
+            "else if (reader.TokenType == global::System.Text.Json.JsonTokenType.StartObject) { var __r = ((Fragment.FragmentJsonConverter)Fragment.JsonConverter).Read(ref reader, typeof(Fragment), options); __frag = __r; __valueWasNull = false; }"
         );
         code.AppendLineAt(
             5,
