@@ -78,7 +78,8 @@ internal static class RfcJsonEquality
     )]
     private static bool JsonValuesEqual(JsonValue left, JsonValue right)
     {
-        if (left.GetValueKind() == System.Text.Json.JsonValueKind.Number)
+        var leftKind = left.GetValueKind();
+        if (leftKind == System.Text.Json.JsonValueKind.Number)
         {
             // JSON numbers with different lexical forms share the same value kind.
             if (
@@ -100,12 +101,12 @@ internal static class RfcJsonEquality
             return false;
         }
 
-        if (left.GetValueKind() != right.GetValueKind())
+        if (leftKind != right.GetValueKind())
         {
             return false;
         }
 
-        return left.GetValueKind() switch
+        return leftKind switch
         {
             System.Text.Json.JsonValueKind.True => true,
             System.Text.Json.JsonValueKind.False => true,
