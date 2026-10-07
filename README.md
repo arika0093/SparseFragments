@@ -164,9 +164,9 @@ var exported = jsonPatch.ToJsonPatch(baselineOpt);             // ReadOnlyMemory
 | Capability | Documentation |
 | --- | --- |
 | Distinguish missing, null, and explicit values | [Fragments and patches](docs/fragments-and-patches.md) |
-| Layer defaults and overrides | [Fragments and patches](docs/fragments-and-patches.md) § layering |
-| Store only values that changed | [Fragments and patches](docs/fragments-and-patches.md) § diff |
-| Apply partial updates | [Fragments and patches](docs/fragments-and-patches.md) § patches |
+| Layer defaults and overrides | [Fragments and patches](docs/fragments-and-patches.md) / layering |
+| Store only values that changed | [Fragments and patches](docs/fragments-and-patches.md) / diff |
+| Apply partial updates | [Fragments and patches](docs/fragments-and-patches.md) / patches |
 | Customize how members merge | [Merge strategies](docs/merge-strategies.md) |
 | Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
 | Inspect model semantics and Patch changes | [Inspection](docs/inspection.md) |
