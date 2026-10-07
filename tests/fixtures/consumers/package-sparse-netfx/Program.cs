@@ -55,7 +55,62 @@ Require(
     "json patch semantic round-trip"
 );
 
+// Patch algebra: composed patch matches sequential apply (nested + presence transition).
+var first = new NetFxSettings.Patch { Label = "composed-first" };
+first.Child.Count = 11;
+var second = new NetFxSettings.Patch { Label = (string?)null };
+second.Child.Host = "composed-next";
+var composed = first.Compose(second);
+var viaComposed = composed.Apply(before);
+var viaSequential = second.Apply(first.Apply(before));
+Require(Same(viaComposed, viaSequential), "compose matches sequential apply");
+Require(
+    viaComposed.Value!.Child.Value!.Count.Value == 11
+        && viaComposed.Value.Child.Value.Host.Value == "composed-next",
+    "compose nested members"
+);
+Require(
+    viaComposed.Value.Label.IsPresent && viaComposed.Value.Label.Value is null,
+    "compose presence transition"
+);
+
+// Structured rebase: disjoint local/nested edit merges cleanly onto upstream label edit.
+var upstream = original.ToBuilder();
+upstream.Label = Optional<string?>.Present("upstream");
+var current = Optional<NetFxSettings.Fragment?>.Present(upstream.Build());
+var local = new NetFxSettings.Patch();
+local.Child.Count = 12;
+var rebased = NetFxSettings.Patch.Rebase(before, local, current);
+Require(!rebased.HasConflicts, "rebase disjoint merge");
+var replayed = rebased.Patch.Apply(current);
+Require(
+    replayed.Value!.Label.Value == "upstream"
+        && replayed.Value.Child.Value!.Count.Value == 12
+        && replayed.Value.Child.Value.Host.Value == "keep",
+    "rebase replay on current"
+);
+
+// Concurrent scalar edit on the same member reports a structured conflict.
+var conflictLocal = new NetFxSettings.Patch { Label = "local" };
+var conflictBuilder = original.ToBuilder();
+conflictBuilder.Label = Optional<string?>.Present("current");
+var conflictCurrent = Optional<NetFxSettings.Fragment?>.Present(conflictBuilder.Build());
+var conflicted = NetFxSettings.Patch.Rebase(before, conflictLocal, conflictCurrent);
+Require(conflicted.HasConflicts, "rebase conflict detection");
+Require(
+    conflicted.Conflicts.Count == 1
+        && conflicted.Conflicts[0].Kind == SparsePatchConflictKind.Scalar
+        && conflicted.Conflicts[0].Path.Count == 1
+        && conflicted.Conflicts[0].Path[0] == "Label",
+    "rebase structured conflict"
+);
+
 Console.WriteLine("SparseFragments net48 consumer passed.");
+
+static bool Same(
+    Optional<NetFxSettings.Fragment?> left,
+    Optional<NetFxSettings.Fragment?> right
+) => NetFxSettings.Patch.Between(left, right).IsEmpty;
 
 static void Require(bool condition, string capability)
 {
