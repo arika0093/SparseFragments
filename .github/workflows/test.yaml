@@ -274,6 +274,9 @@ jobs:
       - name: Verify packed package consumer
         run: bash ./.github/workflows/scripts/verify-package-sparse-consumer.sh artifacts
 
+      - name: Verify stale same-version isolation
+        run: bash ./.github/workflows/scripts/verify-package-stale-isolation.sh artifacts
+
       - name: Verify Shared source-only package consumer
         run: bash ./.github/workflows/scripts/verify-package-shared-consumer.sh artifacts
 

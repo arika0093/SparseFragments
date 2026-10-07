@@ -384,6 +384,66 @@ public sealed class SparseEditSessionTests
     }
 
     [Test]
+    public void EditSessionChangeSet_SerializeDeserialize_PreservesRebaseAndApplySemantics()
+    {
+        // #87/#102: one representative end-to-end test over the serialization
+        // boundary (ordinary System.Text.Json), not the full #86 matrix.
+        var session = Order().CreateEditSession();
+        session.Model.Number = "ORD-2";
+        session.Model.Customer.Email = "new@example.com";
+        session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+
+        var changes = session.CreateChangeSet();
+        changes.IsEmpty.ShouldBeFalse();
+
+        var json = System.Text.Json.JsonSerializer.Serialize(changes);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSet>(json)!;
+        restored.IsEmpty.ShouldBeFalse();
+
+        // Same apply semantics from the session baseline.
+        PatchesShouldBeEquivalent(changes.ToPatch(), restored.ToPatch());
+        var baseline = Present(OrderDto.Fragment.From(Order()));
+        OrderDto.Patch.Between(
+            changes.ToPatch().Apply(baseline),
+            restored.ToPatch().Apply(baseline)
+        )
+            .IsEmpty.ShouldBeTrue();
+
+        // Same rebase semantics onto a disjoint authoritative state.
+        var authoritative = Present(
+            OrderDto.Fragment.From(
+                new OrderDto
+                {
+                    Number = "ORD-1",
+                    Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
+                    Lines = new()
+                    {
+                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
+                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
+                        new OrderLine { Sku = "c", Quantity = 3, Price = 30m },
+                    },
+                    Tags = new() { "fragile" },
+                }
+            )
+        );
+        var rebasedOriginal = changes.RebaseOnto(authoritative);
+        var rebasedRestored = restored.RebaseOnto(authoritative);
+        rebasedRestored.HasConflicts.ShouldBe(rebasedOriginal.HasConflicts);
+        rebasedRestored.HasConflicts.ShouldBeFalse();
+        PatchesShouldBeEquivalent(
+            rebasedOriginal.Patch.ToPatch(),
+            rebasedRestored.Patch.ToPatch()
+        );
+        var mergedOriginal = rebasedOriginal.Patch.ToPatch().Apply(authoritative);
+        var mergedRestored = rebasedRestored.Patch.ToPatch().Apply(authoritative);
+        OrderDto.Patch.Between(mergedOriginal, mergedRestored).IsEmpty.ShouldBeTrue();
+        mergedRestored.Value!.Number.Value.ShouldBe("ORD-2");
+        mergedRestored.Value!.Customer.Value!.Email.Value.ShouldBe("new@example.com");
+        mergedRestored.Value!.Lines.Value!.Single(line => line.Sku == "b")
+            .Quantity.ShouldBe(9);
+    }
+
+    [Test]
     public void RepeatedCreateAcceptEditCycles()
     {
         var session = Order().CreateEditSession();
