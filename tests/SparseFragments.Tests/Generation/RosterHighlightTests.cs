@@ -27,7 +27,7 @@ public sealed class RosterHighlightTests
     {
         var coordinator = new RosterCaseCoordinator();
         coordinator.Update(before, after);
-        return coordinator.Highlights;
+        return coordinator.Highlights(before, after);
     }
 
     [Test]
@@ -183,7 +183,7 @@ public sealed class RosterHighlightTests
         changes.ShouldNotBeNull();
 
         // All projections read the shared ChangeSet without recomputing it.
-        var highlights = coordinator.Highlights;
+        var highlights = coordinator.Highlights(before, after);
         var summary = coordinator.Summary;
         var manual = coordinator.ManualCSharp("patch");
 
@@ -222,13 +222,15 @@ public sealed class RosterHighlightTests
     [Test]
     public void InvalidStateIsConsistentEverywhere()
     {
+        var invalidBefore = State(Row("a"), Row("a"));
+        var invalidAfter = State(Row("a"));
         var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(State(Row("a"), Row("a")), State(Row("a")));
+        coordinator.Update(invalidBefore, invalidAfter);
 
         coordinator.IsInvalid.ShouldBeTrue();
         coordinator.Patch.ShouldBeNull();
 
-        var (before, after) = coordinator.Highlights;
+        var (before, after) = coordinator.Highlights(invalidBefore, invalidAfter);
         before.ShouldBeEmpty();
         after.ShouldBeEmpty();
 
@@ -237,5 +239,56 @@ public sealed class RosterHighlightTests
 
         var exception = Should.Throw<InvalidOperationException>(() => coordinator.RequirePatch());
         exception.Message.ShouldContain("Cannot diff roster state");
+    }
+
+    [Test]
+    public void Case3DoesNotDependOnGenericInspection()
+    {
+        var playground = typeof(RosterCaseCoordinator).Assembly;
+        playground.GetType("SparseFragments.Playground.Models.RosterInspection").ShouldBeNull();
+
+        typeof(RosterCaseCoordinator).GetProperty("ModelMetadata").ShouldBeNull();
+
+        // Summary and snippet derive from the typed Quests transition only:
+        // no before/after reconstruction parameter remains on the snippet API.
+        typeof(PlaygroundSnippets)
+            .GetMethod("RosterManualPatchCSharp")!
+            .GetParameters()
+            .Select(p => p.ParameterType)
+            .ShouldBe([typeof(string), typeof(PlaygroundRoster.ChangeSet)]);
+
+        // Generic inspection runtime types were removed by #91 and must stay gone.
+        var runtime = typeof(Optional<>).Assembly;
+        runtime.GetType("SparseFragments.Metadata.SparsePropertyInfo").ShouldBeNull();
+        runtime.GetType("SparseFragments.Metadata.SparsePatchChange").ShouldBeNull();
+        runtime.GetType("SparseFragments.Metadata.SparseChangeKind").ShouldBeNull();
+    }
+
+    [Test]
+    public void HighlightsFollowTypedReorderSemantics()
+    {
+        // Pure membership shifts are not reorders: survivors stay unmoved even
+        // though absolute indexes shift. Typed IsReordered drives Moved.
+        var (_, pureAddAfter) = Build(State(Row("a"), Row("b")), State(Row("a"), Row("b"), Row("c")));
+        foreach (var highlight in pureAddAfter.Values)
+        {
+            highlight.Moved.ShouldBeFalse();
+        }
+
+        var (_, pureRemoveAfter) = Build(
+            State(Row("a"), Row("b"), Row("c")),
+            State(Row("b"), Row("c"))
+        );
+        foreach (var highlight in pureRemoveAfter.Values)
+        {
+            highlight.Moved.ShouldBeFalse();
+        }
+
+        // Summary order is the typed AfterOrder, even when OrderChanged is false.
+        var before = State(Row("a"), Row("b"));
+        var after = State(Row("a"), Row("b", "B2"));
+        var coordinator = new RosterCaseCoordinator();
+        coordinator.Update(before, after);
+        coordinator.Summary.ShouldContain("order: [a→b]");
     }
 }

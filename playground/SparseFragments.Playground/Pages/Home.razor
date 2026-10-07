@@ -177,9 +177,6 @@
         <FluentTab Label="Patch (C#)" Id="roster-patch-manual">
             <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
         </FluentTab>
-        <FluentTab Label="Model metadata" Id="roster-model-metadata">
-            <MonacoView Content="@RosterModelMetadata" Language="csharp" Height="270px" />
-        </FluentTab>
         <FluentTab Label="ChangeSet JSON" Id="roster-changeset-json">
             <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
         </FluentTab>
@@ -272,11 +269,10 @@
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
     private string RosterManualCSharp => Try(() => RosterCase.ManualCSharp("patch"));
-    private string RosterModelMetadata => Try(() => RosterCase.ModelMetadata);
     private string RosterSummary => RosterCase.Summary;
 
     private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
-        RosterHighlights => RosterCase.Highlights;
+        RosterHighlights => RosterCase.Highlights(RosterBefore, RosterAfter);
 
     private string RosterChangeSetJson => Try(() =>
     {
