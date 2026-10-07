@@ -257,7 +257,7 @@
     {
         var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
         var changes = PlaygroundSettings.ChangeSet.FromPatch(baseline, TypedPatch);
-        return JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions());
+        return PlaygroundJson.WriteSettingsChangeSet(changes);
     });
 
     private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
@@ -282,7 +282,7 @@
             throw new InvalidOperationException("Cannot diff roster state.");
         }
 
-        return JsonSerializer.Serialize(_rosterChanges, PlaygroundJson.ChangeSetOptions());
+        return PlaygroundJson.WriteRosterChangeSet(_rosterChanges);
     });
 
     private string RosterAppliedModelJson => Try(() =>
@@ -412,9 +412,7 @@
         _importResult = null;
         try
         {
-            var changes = JsonSerializer.Deserialize<PlaygroundSettings.ChangeSet>(
-                _importText,
-                PlaygroundJson.ChangeSetOptions());
+            var changes = PlaygroundJson.ReadSettingsChangeSet(_importText);
             if (changes is null)
             {
                 throw new JsonException("The ChangeSet JSON deserialized to null.");
@@ -422,7 +420,7 @@
 
             var applied = MergedFragment.Apply(changes.ToPatch());
             _importResult =
-                $"IsEmpty: {changes.IsEmpty}\nChangeSet JSON:\n{JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions())}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
+                $"IsEmpty: {changes.IsEmpty}\nChangeSet JSON:\n{PlaygroundJson.WriteSettingsChangeSet(changes)}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
         }
         catch (Exception ex)
         {
