@@ -181,5 +181,6 @@ internal static class SparseFragmentPatchEmitter
             );
         }
         code.AppendLineAt(1, "}");
+        SparseChangeSetEmitter.AppendChangeSet(code, members);
     }
 }
