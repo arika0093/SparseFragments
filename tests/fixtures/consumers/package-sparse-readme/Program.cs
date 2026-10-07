@@ -2,66 +2,60 @@ using System.Text.Json;
 using SparseFragments;
 
 // Canonical compile-checked mirror of the root README.md.
-// Each block below corresponds to a README sample. Keep the model shapes
-// (Settings with [SparseFragmentModel], reachable partial Child) in sync with
-// the README so CI fails when the public generated API drifts from the
+// Each block below corresponds to a numbered Quick Start step. Keep the model
+// shapes (Settings with [SparseFragmentModel], reachable partial Child) in sync
+// with the README so CI fails when the public generated API drifts from the
 // documented samples.
 
-// Quick start: the three states of Optional<T>.
+// Quick Start step 2: the three states of Optional<T>.
 Optional<string?> missing = Optional<string?>.Missing;
-Optional<string?> presentNull = Optional<string?>.Present(null);
-Optional<string?> presentValue = "hello";
+Optional<string?> value = "hello";
+Optional<string?> explicitNull = Optional<string?>.Present(null);
 Require(!missing.IsPresent, "Optional missing");
-Require(presentNull.IsPresent && presentNull.Value is null, "Optional present null");
-Require(presentValue.IsPresent && presentValue.Value == "hello", "Optional present value");
+Require(value.IsPresent && value.Value == "hello", "Optional present value");
+Require(explicitNull.IsPresent && explicitNull.Value is null, "Optional present null");
 
-// Quick start: Fragment layering (missing falls through, present wins).
+// Quick Start step 2: presence is concrete on Fragment (explicit null wins, missing falls through).
 var defaults = Settings.Fragment.From(
     new Settings
     {
         Label = "fallback",
         Child = new Child { Host = "db.local" },
     });
-var overlay = new Settings.Fragment
+var clearsLabel = new Settings.Fragment { Label = (string?)null };
+var saysNothing = new Settings.Fragment();
+Require(defaults.Merge(clearsLabel).ToModel().Label is null, "explicit null overrides the lower layer");
+Require(defaults.Merge(saysNothing).ToModel().Label == "fallback", "missing falls through");
+
+// Quick Start step 3: Merge layered contributions (nested merge plus one Append rule).
+var lower = Settings.Fragment.From(
+    new Settings
+    {
+        Label = "base",
+        Child = new Child { Host = "db.local" },
+        Plugins = ["base-plugin"],
+    });
+var higher = new Settings.Fragment
 {
     Child = new Child.Fragment { Count = 9 },
+    Plugins = new[] { "extra-plugin" },
 };
-var effective = defaults.Merge(overlay).ToModel();
-Require(effective.Label == "fallback", "merge keeps lower value for missing members");
-Require(effective.Child!.Host == "db.local", "merge falls through nested missing members");
-Require(effective.Child.Count == 9, "merge higher priority wins");
+var merged = lower.Merge(higher).ToModel();
+Require(merged.Label == "base", "merge keeps lower value for missing members");
+Require(merged.Child!.Host == "db.local", "merge falls through nested missing members");
+Require(merged.Child.Count == 9, "merge higher priority wins");
+Require(merged.Plugins.SequenceEqual(["base-plugin", "extra-plugin"]), "merge Append concatenates");
 
-// Quick start: Patch desired operations (source fragment is never mutated).
+// Quick Start step 4: Patch desired operations (source fragment is never mutated).
 var patch = new Settings.Patch { Label = (string?)null };
 patch.Child.Count = 9;
+Require(new Settings.Patch().IsEmpty, "fresh patch is empty");
+Require(!patch.IsEmpty, "populated patch is not empty");
 var updated = defaults.Apply(patch);
 Require(updated.Label.IsPresent && updated.Label.Value is null, "typed patch present null");
 Require(updated.Child.Value!.Count.Value == 9, "typed nested set");
 Require(updated.Child.Value.Host.Value == "db.local", "typed patch keeps unspecified members");
 Require(defaults.Child.Value!.Count.Value == 0, "original fragment isolation");
-
-// Quick start: ChangeSet captures the immutable before -> after transition.
-var changes = Settings.ChangeSet.Between(
-    Optional<Settings.Fragment?>.Present(defaults),
-    Optional<Settings.Fragment?>.Present(updated));
-Require(!changes.IsEmpty, "ChangeSet.Between detects the transition");
-var replayed = defaults.Apply(changes.ToPatch());
-Require(replayed.Label.IsPresent && replayed.Label.Value is null, "ChangeSet.ToPatch replays the transition");
-Require(replayed.Child.Value!.Count.Value == 9, "ChangeSet.ToPatch replays nested members");
-
-// Workflows: minimal persisted settings via Fragment.Diff and ApplyChanges.
-var delta = Settings.Fragment.Diff(new Settings(), new Settings { Label = "custom" });
-var restored = Settings.Fragment.From(new Settings()).ApplyChanges(delta);
-Require(restored.Label.Value == "custom", "Diff/ApplyChanges persist only what differs");
-
-// Workflows: local desired edits compose baseline-free.
-var first = new Settings.Patch { Label = "a" };
-var second = new Settings.Patch();
-second.Child.Count = 2;
-var combined = first.Compose(second);
-var composedApplied = defaults.Apply(combined);
-Require(composedApplied.Label.Value == "a", "Patch.Compose keeps first operations");
-Require(composedApplied.Child.Value!.Count.Value == 2, "Patch.Compose keeps second operations");
 
 var clear = new Settings.Patch();
 clear.Child.SetNull();
@@ -71,41 +65,29 @@ var drop = new Settings.Patch();
 drop.Child.Unset();
 Require(!defaults.Apply(drop).Child.IsPresent, "typed nested Unset");
 
-// Workflows: observed transitions invert without an external baseline.
-var transition = Settings.ChangeSet.Between(
-    Optional<Settings.Fragment?>.Present(defaults),
-    Optional<Settings.Fragment?>.Present(updated));
-var undone = transition.Invert();
-var walkedBack = undone.ToPatch().Apply(Optional<Settings.Fragment?>.Present(updated));
-Require(walkedBack.Value!.Label.Value == "fallback", "ChangeSet.Invert walks back");
+// Quick Start step 5: ChangeSet captures the immutable before -> after transition.
+var before = Optional<Settings.Fragment?>.Present(defaults);
+var after = Optional<Settings.Fragment?>.Present(updated);
+var changes = Settings.ChangeSet.Between(before, after);
+Require(!changes.IsEmpty, "ChangeSet.Between detects the transition");
+Require(changes.Label.IsChanged, "typed transition reports the Label change");
+var beforeLabel = changes.Label.Before;
+var afterLabel = changes.Label.After;
+Require(beforeLabel.Value == "fallback", "typed transition Before");
+Require(afterLabel.IsPresent && afterLabel.Value is null, "typed transition After");
+var replayed = defaults.Apply(changes.ToPatch());
+Require(replayed.Label.IsPresent && replayed.Label.Value is null, "ChangeSet.ToPatch replays the transition");
+Require(replayed.Child.Value!.Count.Value == 9, "ChangeSet.ToPatch replays nested members");
 
-// Workflows: concurrent reconciliation via RebaseOnto.
-var current = Optional<Settings.Fragment?>.Present(
-    Settings.Fragment.From(new Settings { Label = "concurrent" }));
-var rebased = transition.RebaseOnto(current);
-Require(rebased.HasConflicts, "RebaseOnto reports the Label conflict");
-Require(rebased.Conflicts.Any(c => c.Path.SequenceEqual(["Label"])), "RebaseOnto conflict path");
-
-var cleanCurrent = Optional<Settings.Fragment?>.Present(
-    Settings.Fragment.From(new Settings { Label = "fallback", Child = new Child { Host = "other" } }));
-var cleanRebased = transition.RebaseOnto(cleanCurrent);
-Require(!cleanRebased.HasConflicts, "RebaseOnto replays disjoint members");
-var saved = cleanRebased.Patch.ToPatch().Apply(cleanCurrent);
-Require(saved.Value!.Label.Value is null, "rebased ChangeSet replays the transition");
-
-// End to end: local state -> shared change as ordinary System.Text.Json.
-var state = Settings.Fragment.From(new Settings { Label = "v1" });
-var edit = new Settings.Patch { Label = "v2" };
-var edited = state.Apply(edit);
-var outgoing = Settings.ChangeSet.Between(
-    Optional<Settings.Fragment?>.Present(state),
-    Optional<Settings.Fragment?>.Present(edited));
-var json = JsonSerializer.Serialize(outgoing);
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
-var arrival = incoming.RebaseOnto(Optional<Settings.Fragment?>.Present(state));
-var arrivalSaved = arrival.Patch.ToPatch().Apply(Optional<Settings.Fragment?>.Present(state));
-Require(arrivalSaved.Value!.Label.Value == "v2", "ChangeSet JSON round-trip and rebase");
-Require(json.Contains("v2"), "ChangeSet JSON export value");
+// Quick Start step 6: transitions cross process boundaries as ordinary System.Text.Json.
+var json = JsonSerializer.Serialize(changes);
+var restored = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+Require(restored.Label.IsChanged, "ChangeSet JSON round-trip preserves transitions");
+var restoredReplayed = restored.ToPatch().Apply(before);
+Require(
+    restoredReplayed.Value!.Label.IsPresent && restoredReplayed.Value.Label.Value is null,
+    "ChangeSet JSON round-trip replays the transition");
+Require(restoredReplayed.Value!.Child.Value!.Count.Value == 9, "ChangeSet JSON round-trip replays nested members");
 
 Console.WriteLine("SparseFragments README consumer passed.");
 
@@ -117,7 +99,7 @@ static void Require(bool condition, string capability)
     }
 }
 
-// Mirrors the README quick-start model. Reachable partial nested models
+// Mirrors the README Quick Start model. Reachable partial nested models
 // auto-generate Fragment/Patch, so Child stays undecorated but partial because
 // the samples construct Child.Fragment directly.
 [SparseFragmentModel]
@@ -125,6 +107,9 @@ public partial class Settings
 {
     public string? Label { get; set; }
     public Child? Child { get; set; }
+
+    [SparseMerge(MergeMode.Append)]
+    public IReadOnlyList<string> Plugins { get; set; } = [];
 }
 
 public partial class Child
