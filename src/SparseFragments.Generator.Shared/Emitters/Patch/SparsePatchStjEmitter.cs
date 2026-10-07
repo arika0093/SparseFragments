@@ -426,6 +426,8 @@ internal static class SparsePatchStjEmitter
     )
     {
         // Bound the number of UTF-8 comparisons for small models.
+        // Raising this to eight reduced allocation but slowed dense reads in
+        // PatchJsonWidthBenchmarks; keep wider models on string dispatch.
         var useUtf8Names = members.Length <= 4;
         var propertyNamesType = "__SparseJsonPropertyNames";
         var propertyNamesSuffix = 0;
