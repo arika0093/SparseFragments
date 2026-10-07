@@ -450,96 +450,199 @@ public sealed class RosterRowHighlight
     public bool Moved { get; set; }
 }
 
-/// <summary>Builds before/after highlight maps keyed by row reference.</summary>
+/// <summary>Builds before/after highlight maps from generated Patch inspection.</summary>
+/// <remarks>
+/// Case 3 derives one <c>PlaygroundRoster.Patch</c> from before/after state and
+/// treats it as the source of truth: added/removed rows, per-property edit dots
+/// and final key order all come from <c>patch.Changes</c> (#73) instead of a
+/// second manual diff. Only the mapping from inspected change names to the
+/// existing CSS/highlight objects stays Playground-specific.
+/// </remarks>
 public static class RosterHighlight
 {
     /// <summary>
-    /// Compares both lists by key. Common keys are diffed through
-    /// <c>PlaygroundQuest.Patch.Between</c>, so formatting-only differences
-    /// (e.g. <c>"10,20"</c> vs <c>"10, 20"</c>) do not count as edits.
+    /// Compares both lists through a single <c>PlaygroundRoster.Patch.Between</c>.
+    /// Formatting-only differences (e.g. <c>"10,20"</c> vs <c>"10, 20"</c>) do not
+    /// count as edits because keyed semantics compare parsed values.
+    /// Duplicate keys return empty maps; the failure surfaces through the diff tabs.
     /// </summary>
     public static (
         Dictionary<QuestRow, RosterRowHighlight> Before,
         Dictionary<QuestRow, RosterRowHighlight> After
     ) Build(RosterEditState before, RosterEditState after)
     {
-        var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
-        var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        PlaygroundRoster.Patch? patch;
         try
         {
-            var beforeIndex = IndexById(before.Rows);
-            var afterIndex = IndexById(after.Rows);
-            if (beforeIndex is null || afterIndex is null)
-            {
-                return (beforeMap, afterMap);
-            }
-
-            var beforeById = before.Rows.ToDictionary(row => row.Id);
-            var afterById = after.Rows.ToDictionary(row => row.Id);
-            foreach (var row in after.Rows)
-            {
-                var highlight = new RosterRowHighlight();
-                if (!beforeById.TryGetValue(row.Id, out var old))
-                {
-                    highlight.IsAdded = true;
-                }
-                else
-                {
-                    var patch = PlaygroundQuest.Patch.Between(
-                        Optional<PlaygroundQuest.Fragment?>.Present(
-                            PlaygroundQuest.Fragment.From(old.ToModel())
-                        ),
-                        Optional<PlaygroundQuest.Fragment?>.Present(
-                            PlaygroundQuest.Fragment.From(row.ToModel())
-                        )
-                    );
-                    highlight.TitleChanged =
-                        patch.Title.Kind != FragmentOperationKind.Unchanged;
-                    highlight.PointsChanged =
-                        patch.Points.Kind != FragmentOperationKind.Unchanged;
-                    highlight.ScoresChanged =
-                        patch.Scores.Kind != FragmentOperationKind.Unchanged;
-                    highlight.Moved = beforeIndex[row.Id] != afterIndex[row.Id];
-                }
-
-                afterMap[row] = highlight;
-            }
-
-            foreach (var row in before.Rows)
-            {
-                var highlight = new RosterRowHighlight();
-                if (!afterById.ContainsKey(row.Id))
-                {
-                    highlight.IsRemoved = true;
-                }
-                else
-                {
-                    highlight.Moved = beforeIndex[row.Id] != afterIndex[row.Id];
-                }
-
-                beforeMap[row] = highlight;
-            }
+            patch = PlaygroundRoster.Patch.Between(
+                Optional<PlaygroundRoster.Fragment?>.Present(before.BuildFragment()),
+                Optional<PlaygroundRoster.Fragment?>.Present(after.BuildFragment())
+            );
         }
         catch
         {
             // Duplicate keys and friends: surface errors through the diff tabs, not here.
+            return (
+                new Dictionary<QuestRow, RosterRowHighlight>(),
+                new Dictionary<QuestRow, RosterRowHighlight>()
+            );
         }
 
-        return (beforeMap, afterMap);
+        return BuildFromPatch(patch, before, after);
     }
 
-    private static Dictionary<string, int>? IndexById(List<QuestRow> rows)
+    /// <summary>
+    /// Projects an already-computed roster Patch onto row highlights.
+    /// Pure over the inspection surface, so it stays testable without UI.
+    /// </summary>
+    public static (
+        Dictionary<QuestRow, RosterRowHighlight> Before,
+        Dictionary<QuestRow, RosterRowHighlight> After
+    ) BuildFromPatch(
+        PlaygroundRoster.Patch patch,
+        RosterEditState before,
+        RosterEditState after
+    )
     {
-        var map = new Dictionary<string, int>();
-        for (var i = 0; i < rows.Count; i++)
+        var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        var quests = patch.Changes.FirstOrDefault(static change =>
+            change.Property.Name == nameof(PlaygroundRoster.Quests)
+        );
+        if (quests is null)
         {
-            if (!map.TryAdd(rows[i].Id, i))
+            foreach (var row in before.Rows)
             {
-                return null;
+                beforeMap[row] = new RosterRowHighlight();
+            }
+
+            foreach (var row in after.Rows)
+            {
+                afterMap[row] = new RosterRowHighlight();
+            }
+
+            return (beforeMap, afterMap);
+        }
+
+        if (quests.Kind == SparseChangeKind.Set)
+        {
+            // Whole-list replacement: every after row reads as fully edited.
+            foreach (var row in before.Rows)
+            {
+                beforeMap[row] = new RosterRowHighlight();
+            }
+
+            foreach (var row in after.Rows)
+            {
+                afterMap[row] = new RosterRowHighlight
+                {
+                    TitleChanged = true,
+                    PointsChanged = true,
+                    ScoresChanged = true,
+                };
+            }
+
+            return (beforeMap, afterMap);
+        }
+
+        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
+        {
+            foreach (var row in before.Rows)
+            {
+                beforeMap[row] = new RosterRowHighlight { IsRemoved = true };
+            }
+
+            foreach (var row in after.Rows)
+            {
+                afterMap[row] = new RosterRowHighlight();
+            }
+
+            return (beforeMap, afterMap);
+        }
+
+        var keyed = quests.Keyed;
+        var added = new HashSet<string>(
+            keyed.Added.Select(static element => ((PlaygroundQuest)element!).Id)
+        );
+        var removed = new HashSet<string>(
+            keyed.RemovedKeys.Select(static key => (string)key!)
+        );
+        var edits = new Dictionary<string, HashSet<string>>();
+        foreach (var edit in keyed.Edited)
+        {
+            edits[(string)edit.Key!] = new HashSet<string>(
+                edit.NestedChanges.Select(static change => change.Property.Name)
+            );
+        }
+
+        var beforeIndex = new Dictionary<string, int>();
+        for (var i = 0; i < before.Rows.Count; i++)
+        {
+            beforeIndex[before.Rows[i].Id] = i;
+        }
+
+        Dictionary<string, int>? orderIndex = null;
+        if (keyed.HasOrder)
+        {
+            orderIndex = new Dictionary<string, int>();
+            var order = 0;
+            foreach (var key in keyed.KeyOrder)
+            {
+                orderIndex[(string)key!] = order++;
             }
         }
 
-        return map;
+        foreach (var row in after.Rows)
+        {
+            var highlight = new RosterRowHighlight();
+            if (added.Contains(row.Id))
+            {
+                highlight.IsAdded = true;
+            }
+            else if (edits.TryGetValue(row.Id, out var changed))
+            {
+                // Presentation maps known property names to visual dots; the
+                // semantic detection above comes from patch.Changes.
+                highlight.TitleChanged = changed.Contains(nameof(PlaygroundQuest.Title));
+                highlight.PointsChanged = changed.Contains(nameof(PlaygroundQuest.Points));
+                highlight.ScoresChanged = changed.Contains(nameof(PlaygroundQuest.Scores));
+            }
+
+            if (
+                orderIndex is not null
+                && !added.Contains(row.Id)
+                && beforeIndex.TryGetValue(row.Id, out var beforeAt)
+                && orderIndex.TryGetValue(row.Id, out var afterAt)
+                && beforeAt != afterAt
+            )
+            {
+                highlight.Moved = true;
+            }
+
+            afterMap[row] = highlight;
+        }
+
+        foreach (var row in before.Rows)
+        {
+            var highlight = new RosterRowHighlight();
+            if (removed.Contains(row.Id))
+            {
+                highlight.IsRemoved = true;
+            }
+            else if (
+                orderIndex is not null
+                && orderIndex.TryGetValue(row.Id, out var afterAt)
+                && beforeIndex.TryGetValue(row.Id, out var beforeAt)
+                && beforeAt != afterAt
+            )
+            {
+                highlight.Moved = true;
+            }
+
+            beforeMap[row] = highlight;
+        }
+
+        return (beforeMap, afterMap);
     }
 }
 

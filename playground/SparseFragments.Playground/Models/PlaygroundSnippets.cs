@@ -235,52 +235,91 @@ public static class PlaygroundSnippets
         return sb.ToString();
     }
 
-    /// <summary>Builds the keyed Add/Remove/Edit/SetOrder patch for the before/after diff.</summary>
-    public static string RosterManualPatchCSharp(string variableName, RosterEditState before, RosterEditState after)
+    /// <summary>
+    /// Builds the keyed Add/Remove/Edit/SetOrder patch for the inspected diff.
+    /// Operations come from <c>patch.Changes</c> inspection rather than a second
+    /// manual before/after comparison.
+    /// </summary>
+    public static string RosterManualPatchCSharp(
+        string variableName,
+        PlaygroundRoster.Patch patch,
+        RosterEditState after
+    )
     {
         var sb = new StringBuilder();
         sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
-        var beforeById = before.Rows.ToDictionary(r => r.Id);
-        var afterById = after.Rows.ToDictionary(r => r.Id);
-        foreach (var row in after.Rows)
+        var quests = patch.Changes.FirstOrDefault(static change =>
+            change.Property.Name == nameof(PlaygroundRoster.Quests)
+        );
+        if (quests is null)
         {
-            if (!beforeById.ContainsKey(row.Id))
+            sb.AppendLine("// No quest changes.");
+            return sb.ToString();
+        }
+
+        if (quests.Kind == SparseChangeKind.Set)
+        {
+            sb.AppendLine($"// Whole list replacement; granular Add/Remove/Edit do not apply.");
+            sb.AppendLine(
+                $"{variableName}.Quests.Set({QuestListLiteral(after.Rows.Select(static row => row.ToModel()).ToList())});"
+            );
+            return sb.ToString();
+        }
+
+        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
+        {
+            sb.AppendLine($"{variableName}.Quests.Unset();");
+            return sb.ToString();
+        }
+
+        var keyed = quests.Keyed;
+        foreach (var added in keyed.Added)
+        {
+            var quest = (PlaygroundQuest)added!;
+            sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }});");
+        }
+        foreach (var removed in keyed.RemovedKeys)
+        {
+            sb.AppendLine($"{variableName}.Quests.Remove({StringLiteral((string)removed!)});");
+        }
+        foreach (var edit in keyed.Edited)
+        {
+            var key = StringLiteral((string)edit.Key!);
+            foreach (var change in edit.NestedChanges)
             {
-                var quest = row.ToModel();
-                sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }});");
+                var editText = change.Property.Name switch
+                {
+                    nameof(PlaygroundQuest.Title) =>
+                        $"{variableName}.Quests.Edit({key}).Title = {StringLiteral((string)change.Value!)};",
+                    nameof(PlaygroundQuest.Points) =>
+                        $"{variableName}.Quests.Edit({key}).Points = {change.Value};",
+                    nameof(PlaygroundQuest.Scores) =>
+                        $"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral((List<int>)change.Value!)}; // whole value: one element change replaces the list",
+                    _ => $"// Unhandled quest member '{change.Property.Name}'.",
+                };
+                sb.AppendLine(editText);
             }
         }
-        foreach (var row in before.Rows)
-        {
-            if (!afterById.ContainsKey(row.Id))
-            {
-                sb.AppendLine($"{variableName}.Quests.Remove({StringLiteral(row.Id)});");
-            }
-        }
-        foreach (var row in after.Rows)
-        {
-            if (beforeById.TryGetValue(row.Id, out var old))
-            {
-                if (old.Title != row.Title)
-                {
-                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Title = {StringLiteral(row.Title)};");
-                }
-                if (old.Points != row.Points)
-                {
-                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Points = {row.Points};");
-                }
-                var oldScores = QuestRow.ParseScores(old.ScoresText);
-                var newScores = QuestRow.ParseScores(row.ScoresText);
-                if (!oldScores.SequenceEqual(newScores))
-                {
-                    sb.AppendLine($"{variableName}.Quests.Edit({StringLiteral(row.Id)}).Scores = {IntListLiteral(newScores)}; // whole value: one element change replaces the list");
-                }
-            }
-        }
-        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", after.Rows.Select(r => StringLiteral(r.Id)))} }}); // final key order, not moves");
+        var order = keyed.HasOrder
+            ? keyed.KeyOrder.Select(static key => (string)key!).ToList()
+            : after.Rows.Select(static row => row.Id).ToList();
+        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", order.Select(StringLiteral))} }}); // final key order, not moves");
         return sb.ToString();
     }
 
     private static string IntListLiteral(IReadOnlyList<int> values) =>
         values.Count == 0 ? "new List<int>()" : $"new List<int> {{ {string.Join(", ", values)} }}";
+
+    private static string QuestListLiteral(IReadOnlyList<PlaygroundQuest> quests)
+    {
+        if (quests.Count == 0)
+        {
+            return "new List<PlaygroundQuest>()";
+        }
+
+        var items = quests.Select(static quest =>
+            $"new PlaygroundQuest {{ Id = {StringLiteral(quest.Id)}, Title = {StringLiteral(quest.Title)}, Points = {quest.Points}, Scores = {IntListLiteral(quest.Scores)} }}"
+        );
+        return $"new List<PlaygroundQuest> {{ {string.Join(", ", items)} }}";
+    }
 }

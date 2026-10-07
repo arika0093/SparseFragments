@@ -269,38 +269,77 @@
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterBefore.BuildFragment()));
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
-    private string RosterManualCSharp => Try(() => PlaygroundSnippets.RosterManualPatchCSharp("patch", RosterBefore, RosterAfter));
+    private string RosterManualCSharp => Try(() =>
+    {
+        var patch = TryRosterPatch();
+        return patch is null
+            ? "// Cannot diff: duplicate keys or invalid state. See the JSON Patch tab for the error."
+            : PlaygroundSnippets.RosterManualPatchCSharp("patch", patch, RosterAfter);
+    });
     private string RosterSummary => Try(RosterDiffSummary);
+
+    /// <summary>Single roster Patch shared by highlights, summary and snippets.</summary>
+    private PlaygroundRoster.Patch? TryRosterPatch()
+    {
+        try
+        {
+            return PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        }
+        catch
+        {
+            // Duplicate keys and friends surface through the JSON tabs, not here.
+            return null;
+        }
+    }
 
     private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
         RosterHighlights => RosterHighlight.Build(RosterBefore, RosterAfter);
 
     private string RosterDiffSummary()
     {
-        var beforeIds = RosterBefore.Rows.Select(r => r.Id).ToList();
-        var afterIds = RosterAfter.Rows.Select(r => r.Id).ToList();
-        var added = afterIds.Where(id => !beforeIds.Contains(id)).ToList();
-        var removed = beforeIds.Where(id => !afterIds.Contains(id)).ToList();
-        var beforeById = RosterBefore.Rows.ToDictionary(r => r.Id);
-        var edited = RosterAfter.Rows
-            .Where(r => beforeById.TryGetValue(r.Id, out var old) &&
-                (old.Title != r.Title || old.Points != r.Points || old.ScoresText != r.ScoresText))
-            .Select(r => r.Id)
-            .ToList();
-        var order = string.Join("→", afterIds);
-        return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{order}]";
+        var patch = TryRosterPatch();
+        if (patch is null)
+        {
+            return "cannot diff: duplicate keys or invalid state";
+        }
+
+        var quests = patch.Changes.FirstOrDefault(static change =>
+            change.Property.Name == nameof(PlaygroundRoster.Quests));
+        if (quests is null)
+        {
+            return "no changes";
+        }
+
+        if (quests.Kind == SparseChangeKind.Set)
+        {
+            return $"whole list replaced: [{string.Join(", ", RosterAfter.Rows.Select(r => r.Id))}]";
+        }
+
+        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
+        {
+            return "whole list cleared";
+        }
+
+        var keyed = quests.Keyed;
+        var added = keyed.Added.Select(v => ((PlaygroundQuest)v!).Id).ToList();
+        var removed = keyed.RemovedKeys.Select(k => (string)k!).ToList();
+        var edited = keyed.Edited.Select(e => (string)e.Key!).ToList();
+        var order = keyed.HasOrder
+            ? keyed.KeyOrder.Select(k => (string)k!).ToList()
+            : RosterAfter.Rows.Select(r => r.Id).ToList();
+        return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
     }
 
     private string RosterJsonPatch => Try(() =>
     {
-        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        var patch = TryRosterPatch() ?? throw new InvalidOperationException("Cannot diff roster state.");
         var exported = patch.ToJsonPatch(RosterBeforeOpt, PlaygroundJson.BridgeOptions());
         return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
     });
 
     private string RosterAppliedModelJson => Try(() =>
     {
-        var patch = PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
+        var patch = TryRosterPatch() ?? throw new InvalidOperationException("Cannot diff roster state.");
         var applied = patch.Apply(RosterBeforeOpt);
         return PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
     });
