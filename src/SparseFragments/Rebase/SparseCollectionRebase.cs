@@ -79,6 +79,11 @@ internal static class SparseCollectionRebase
     /// <param name="equal">Element equality.</param>
     /// <param name="rebased">The rebased collection on success.</param>
     /// <param name="reason">The failure reason on failure.</param>
+    [SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "A shared predicate avoids per-element comparison closures and preserves operand order."
+    )]
     public static bool TryRebaseSetUnion(
         IReadOnlyList<object?> before,
         IReadOnlyList<object?> desired,
@@ -93,11 +98,19 @@ internal static class SparseCollectionRebase
         ArgumentNullException.ThrowIfNull(current);
         ArgumentNullException.ThrowIfNull(equal);
 
-        var removed = before
-            .Where(value => !desired.Any(candidate => equal(candidate, value)))
-            .ToArray();
+        object? valueToFind = null;
+        Func<object?, bool> matches = candidate => equal(candidate, valueToFind);
+        var hasRemoved = false;
+        foreach (var value in before)
+        {
+            valueToFind = value;
+            if (!desired.Any(matches))
+            {
+                hasRemoved = true;
+            }
+        }
         if (
-            removed.Length > 0
+            hasRemoved
             && !SequenceEqual(current, before, equal)
             && !SequenceEqual(current, desired, equal)
         )
@@ -108,7 +121,7 @@ internal static class SparseCollectionRebase
             return false;
         }
 
-        if (removed.Length > 0)
+        if (hasRemoved)
         {
             rebased = desired;
             reason = null;
@@ -116,13 +129,13 @@ internal static class SparseCollectionRebase
         }
 
         var result = new List<object?>(current);
-        foreach (
-            var value in desired
-                .Where(value => !before.Any(candidate => equal(candidate, value)))
-                .Where(value => !result.Any(candidate => equal(candidate, value)))
-        )
+        foreach (var value in desired)
         {
-            result.Add(value);
+            valueToFind = value;
+            if (!before.Any(matches) && !result.Any(matches))
+            {
+                result.Add(value);
+            }
         }
 
         rebased = result;
