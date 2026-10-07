@@ -175,11 +175,9 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseMemberModel> members
     )
     {
-        var memberNames = members.Select(static member => member.Property.Name);
-        var between = SparseNaming.PatchApiPrefix(memberNames) + "Between";
-        var isEmpty = SparseNaming.WholeApiPrefix(memberNames) + "IsEmpty";
+        _ = members;
         var session =
-            "global::SparseFragments.Blazor.SparseEditSession<" + modelType + ", Fragment, Patch>";
+            "global::SparseFragments.Blazor.SparseEditSession<" + modelType + ", Fragment, Patch, ChangeSet>";
         code.AppendLineAt(
             1,
             "/// <summary>Creates a Blazor edit session capturing the current model as its baseline.</summary>"
@@ -190,11 +188,7 @@ internal static class SparseFragmentEmitter
                 + session
                 + " CreateEditSession() => "
                 + session
-                + ".Create(this, Fragment.From, Patch."
-                + between
-                + ", static patch => patch."
-                + isEmpty
-                + ");"
+                + ".Create(this, Fragment.From, ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty);"
         );
     }
 

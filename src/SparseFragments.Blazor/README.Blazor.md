@@ -13,6 +13,8 @@ var session = order.CreateEditSession();
 
 if (session.HasChanges)
 {
+    var changes = session.CreateChangeSet();
+    ...
     var patch = session.CreatePatch();
     ...
 }

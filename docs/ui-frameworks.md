@@ -49,7 +49,8 @@ The session API:
 | `Model` | The live editable model; the UI mutates this instance directly |
 | `EditContext` | The Blazor edit context for validation, field state, and submit behavior |
 | `HasChanges` | Whether the current model differs semantically from the baseline |
-| `CreatePatch()` | Derives the semantic patch between the baseline and the current model |
+| `CreateChangeSet()` | Derives the baseline-aware change set between the baseline and the current model (recommended for changes that leave the local process) |
+| `CreatePatch()` | Derives the baseline-free semantic patch (`CreateChangeSet().ToPatch()`) for purely local application |
 | `AcceptChanges()` | Replaces the baseline with the current state, clears Blazor modified flags, keeps the same model instance and `EditContext` |
 | `CreateValidationStore()` | Creates a `ValidationMessageStore` bound to the session's `EditContext` |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |

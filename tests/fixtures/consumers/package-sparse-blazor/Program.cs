@@ -58,7 +58,7 @@ Require(
 
 // Externally obtained errors (for example structured rebase conflicts) surface
 // the same way without taking a dependency on HTTP transport.
-SparseEditSession<BlazorDocsOrder, BlazorDocsOrder.Fragment, BlazorDocsOrder.Patch>.AddValidationError(
+SparseEditSession<BlazorDocsOrder, BlazorDocsOrder.Fragment, BlazorDocsOrder.Patch, BlazorDocsOrder.ChangeSet>.AddValidationError(
     store,
     session.Field(nameof(BlazorDocsOrder.Number)),
     "Server rejected the order number.");
