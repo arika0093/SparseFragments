@@ -198,7 +198,7 @@ This model is simple, yet it can represent hierarchical structure and edit state
 
 ### Fragment, Patch, and ChangeSet
 
-Using the Optional concept, edit state can be modeled cleanly.
+Using the `Optional` concept, edit state can be modeled cleanly.
 
 | Type | Represents | Typical use |
 | --- | --- | --- |
@@ -214,12 +214,16 @@ No special setup is required to use these features.
 ```csharp
 partial class Settings
 {
-    public Settings DeepClone() { /* ... */ }
-    public sealed class Fragment { /* ... */ }
-    public sealed class FragmentBuilder { /* ... */ }
-    public sealed class Patch { /* ... */ }
-    public sealed class ChangeSet { /* ... */ }
-    public sealed class Observable { /* ... */ }
+    // Deep copy without retaining references
+    public Settings DeepClone();
+    // Implementation of the concepts above
+    public sealed class Fragment;
+    public sealed class Patch;
+    public sealed class ChangeSet;
+    // A mutable builder for a generated fragment.
+    public sealed class FragmentBuilder;
+    // Bindable proxy over the live model instance
+    public sealed class Observable : INotifyPropertyChanged;
 }
 
 // Child types receive the same generated code as well
