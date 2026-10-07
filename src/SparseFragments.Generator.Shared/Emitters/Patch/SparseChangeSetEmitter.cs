@@ -431,6 +431,10 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(
             3,
+            "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
+        );
+        code.AppendLineAt(
+            3,
             "internal "
                 + trans
                 + "("
@@ -492,6 +496,10 @@ internal static class SparseChangeSetEmitter
             "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
         );
         code.AppendLineAt(3, "/// <summary>A single typed keyed item change.</summary>");
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Empty lookup results expose <see cref=\"IsEmpty\"/> and are never enumerated.</remarks>"
+        );
         code.AppendLineAt(3, "public sealed class Item");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -504,7 +512,7 @@ internal static class SparseChangeSetEmitter
                 + optElement
                 + " after, int beforeIndex, int afterIndex, bool isAdded, bool isRemoved, bool isEdited, bool isReordered, "
                 + elementCs
-                + " edit)"
+                + " edit, bool isEmpty)"
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "Key = key;");
@@ -517,6 +525,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(5, "IsEdited = isEdited;");
         code.AppendLineAt(5, "IsReordered = isReordered;");
         code.AppendLineAt(5, "Edit = edit;");
+        code.AppendLineAt(5, "IsEmpty = isEmpty;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
         code.AppendLineAt(4, "public " + optElement + " Before { get; }");
@@ -528,6 +537,53 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(4, "public bool IsEdited { get; }");
         code.AppendLineAt(4, "public bool IsReordered { get; }");
         code.AppendLineAt(4, "public " + elementCs + " Edit { get; }");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Whether this item carries no semantic change for the requested key.</summary>"
+        );
+        code.AppendLineAt(4, "public bool IsEmpty { get; }");
+        code.AppendLineAt(4, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Shared allocation-light empty item; retains no element snapshots.</summary>"
+        );
+        code.AppendLineAt(
+            4,
+            "public static Item Empty { get; } = new Item(default!, default, default, -1, -1, false, false, false, false, "
+                + elementCs
+                + ".Between(default, default), true);"
+        );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Looks up the typed change for a stable key; never returns null.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Unchanged or unknown keys return <see cref=\"Item.Empty\"/> (allocation-light singleton shared across lookups). "
+                + "Non-empty results are the same instances produced by enumeration. "
+                + "BeforeIndex/AfterIndex are absolute collection indexes; IsReordered observes surviving-key relative rank.</remarks>"
+        );
+        code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __lookup = _lookup;");
+        code.AppendLineAt(4, "if (__lookup is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "__lookup = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", Item>("
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
+        code.AppendLineAt(5, "_lookup = __lookup;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
         // Key helper.
@@ -815,7 +871,7 @@ internal static class SparseChangeSetEmitter
                 + runtime
                 + "Optional<"
                 + elementType
-                + ">.Present(__a), __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit));"
+                + ">.Present(__a), __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit, false));"
         );
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
@@ -849,7 +905,7 @@ internal static class SparseChangeSetEmitter
                 + runtime
                 + "Optional<"
                 + elementType
-                + ">.Present(__b), default, __bi, -1, false, true, false, false, __fullEdit));"
+                + ">.Present(__b), default, __bi, -1, false, true, false, false, __fullEdit, false));"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
@@ -921,6 +977,10 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(
             3,
             "private readonly global::System.Collections.Generic.IReadOnlyList<Item> _items;"
+        );
+        code.AppendLineAt(
+            3,
+            "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
         );
         code.AppendLineAt(
             3,
@@ -1012,7 +1072,7 @@ internal static class SparseChangeSetEmitter
                     + optValue
                     + " after, bool isAdded, bool isRemoved, bool isEdited, "
                     + valueCs
-                    + " edit)"
+                    + " edit, bool isEmpty)"
             );
         else
             code.AppendLineAt(
@@ -1023,7 +1083,7 @@ internal static class SparseChangeSetEmitter
                     + optValue
                     + " before, "
                     + optValue
-                    + " after, bool isAdded, bool isRemoved, bool isEdited)"
+                    + " after, bool isAdded, bool isRemoved, bool isEdited, bool isEmpty)"
             );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "Key = key;");
@@ -1034,6 +1094,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(5, "IsEdited = isEdited;");
         if (hasPatch)
             code.AppendLineAt(5, "Edit = edit;");
+        code.AppendLineAt(5, "IsEmpty = isEmpty;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
         code.AppendLineAt(4, "public " + optValue + " Before { get; }");
@@ -1043,6 +1104,58 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(4, "public bool IsEdited { get; }");
         if (hasPatch)
             code.AppendLineAt(4, "public " + valueCs + " Edit { get; }");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Whether this entry carries no semantic change for the requested key.</summary>"
+        );
+        code.AppendLineAt(4, "public bool IsEmpty { get; }");
+        code.AppendLineAt(4, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Shared allocation-light empty entry; retains no value snapshots.</summary>"
+        );
+        if (hasPatch)
+            code.AppendLineAt(
+                4,
+                "public static Item Empty { get; } = new Item(default!, default, default, false, false, false, "
+                    + valueCs
+                    + ".Between(default, default), true);"
+            );
+        else
+            code.AppendLineAt(
+                4,
+                "public static Item Empty { get; } = new Item(default!, default, default, false, false, false, true);"
+            );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Looks up the typed change for a dictionary key; never returns null.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Unchanged or unknown keys return <see cref=\"Item.Empty\"/> (allocation-light singleton). "
+                + "Non-empty results are the same instances produced by enumeration.</remarks>"
+        );
+        code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __lookup = _lookup;");
+        code.AppendLineAt(4, "if (__lookup is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "__lookup = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", Item>("
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
+        code.AppendLineAt(5, "_lookup = __lookup;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -1148,7 +1261,7 @@ internal static class SparseChangeSetEmitter
                     + valueCs
                     + ".Between(default, __ea); __items.Add(new "
                     + trans
-                    + ".Item(__kv.Key, default, __a, true, false, false, __edit)); }"
+                    + ".Item(__kv.Key, default, __a, true, false, false, __edit, false)); }"
             );
             code.AppendLineAt(
                 4,
@@ -1172,7 +1285,7 @@ internal static class SparseChangeSetEmitter
                     + valueCs
                     + ".Between(__eb, default); __items.Add(new "
                     + trans
-                    + ".Item(__kv.Key, __b, default, false, true, false, __edit)); }"
+                    + ".Item(__kv.Key, __b, default, false, true, false, __edit, false)); }"
             );
         }
         else
@@ -1185,7 +1298,7 @@ internal static class SparseChangeSetEmitter
                     + runtime
                     + "Optional<"
                     + valueType
-                    + ">.Present(__kv.Value), true, false, false));"
+                    + ">.Present(__kv.Value), true, false, false, false));"
             );
             code.AppendLineAt(
                 4,
@@ -1195,7 +1308,7 @@ internal static class SparseChangeSetEmitter
                     + runtime
                     + "Optional<"
                     + valueType
-                    + ">.Present(__kv.Value), default, false, true, false));"
+                    + ">.Present(__kv.Value), default, false, true, false, false));"
             );
         }
         code.AppendLineAt(
@@ -1325,7 +1438,7 @@ internal static class SparseChangeSetEmitter
                     + valueCs
                     + ".Between(default, __ea); __items2.Add(new "
                     + trans
-                    + ".Item(__kv.Key, default, __a, true, false, false, __edit)); }"
+                    + ".Item(__kv.Key, default, __a, true, false, false, __edit, false)); }"
             );
             code.AppendLineAt(
                 3,
@@ -1347,7 +1460,7 @@ internal static class SparseChangeSetEmitter
                     + valueCs
                     + ".Between(__eb, default); __items2.Add(new "
                     + trans
-                    + ".Item(__kv.Key, __b, default, false, true, false, __edit)); }"
+                    + ".Item(__kv.Key, __b, default, false, true, false, __edit, false)); }"
             );
             code.AppendLineAt(
                 3,
@@ -1361,7 +1474,7 @@ internal static class SparseChangeSetEmitter
                     + valueType
                     + ">.Present(__afterDict[__kv.Key]); __items2.Add(new "
                     + trans
-                    + ".Item(__kv.Key, __b, __a, false, false, true, __kv.Value)); }"
+                    + ".Item(__kv.Key, __b, __a, false, false, true, __kv.Value, false)); }"
             );
             code.AppendLineAt(
                 3,
@@ -1409,7 +1522,7 @@ internal static class SparseChangeSetEmitter
                     + runtime
                     + "Optional<"
                     + valueType
-                    + ">.Present(__kv.Value), true, false, false));"
+                    + ">.Present(__kv.Value), true, false, false, false));"
             );
             code.AppendLineAt(
                 3,
@@ -1419,7 +1532,7 @@ internal static class SparseChangeSetEmitter
                     + runtime
                     + "Optional<"
                     + valueType
-                    + ">.Present(__kv.Value), default, false, true, false));"
+                    + ">.Present(__kv.Value), default, false, true, false, false));"
             );
             code.AppendLineAt(
                 3,
@@ -1433,7 +1546,7 @@ internal static class SparseChangeSetEmitter
                     + runtime
                     + "Optional<"
                     + valueType
-                    + ">.Present(__kv.Value), false, false, true));"
+                    + ">.Present(__kv.Value), false, false, true, false));"
             );
             code.AppendLineAt(
                 3,
