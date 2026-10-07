@@ -5,6 +5,10 @@ namespace SparseFragments;
 /// <summary>A parsed RFC 6902 document.</summary>
 internal sealed class JsonPatchDocument
 {
+    /// <summary>A shared document with an immutable empty operation array.</summary>
+    internal static JsonPatchDocument Empty { get; } =
+        new JsonPatchDocument(Array.Empty<JsonPatchOperation>());
+
     private readonly IReadOnlyList<JsonPatchOperation> _operations;
 
     internal JsonPatchDocument(IReadOnlyList<JsonPatchOperation> operations)
@@ -96,8 +100,11 @@ internal sealed class JsonPatchDocument
         }
 
         var count = root.GetArrayLength();
-        var operations =
-            count == 0 ? Array.Empty<JsonPatchOperation>() : new JsonPatchOperation[count];
+        if (count == 0)
+        {
+            return Empty;
+        }
+        var operations = new JsonPatchOperation[count];
         var index = 0;
         foreach (var element in root.EnumerateArray())
         {
