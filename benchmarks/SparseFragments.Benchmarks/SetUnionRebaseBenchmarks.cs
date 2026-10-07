@@ -171,6 +171,29 @@ public class SetUnionRebaseBenchmarks
                 "Enumerable variants must replay under the current comparer."
             );
         }
+        var ordinalBefore = new HashSet<string>(["base", "BASE"], StringComparer.Ordinal);
+        var insensitiveDesired = new HashSet<string>(
+            ["base", "local"],
+            StringComparer.OrdinalIgnoreCase
+        );
+        var ordinalCurrent = new HashSet<string>(
+            ["base", "BASE", "remote"],
+            StringComparer.Ordinal
+        );
+        if (
+            !SparseFragmentRuntime.TryRebaseSetUnion<string>(
+                ordinalBefore,
+                insensitiveDesired,
+                ordinalCurrent,
+                out var mixed,
+                out _
+            ) || !mixed.SetEquals(["base", "BASE", "remote", "local"])
+        )
+        {
+            throw new InvalidOperationException(
+                "Equal counts under different comparers must retain local additions."
+            );
+        }
     }
 
     private static Optional<BenchSetUnionReplay.Fragment?> State(HashSet<string> values) =>
