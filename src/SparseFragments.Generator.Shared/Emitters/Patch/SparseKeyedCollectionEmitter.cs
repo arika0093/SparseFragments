@@ -464,6 +464,7 @@ internal static class SparseKeyedCollectionEmitter
             facade
         );
         SparsePatchInspectionEmitter.AppendKeyedInspection(code, member);
+        SparsePatchStjEmitter.AppendKeyedStj(code, member);
         code.AppendLineAt(2, "}");
     }
 
@@ -2833,6 +2834,7 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(3, "}");
         SparsePatchInspectionEmitter.AppendDictionaryInspection(code, member);
+        SparsePatchStjEmitter.AppendDictionaryStj(code, member);
         code.AppendLineAt(2, "}");
     }
 

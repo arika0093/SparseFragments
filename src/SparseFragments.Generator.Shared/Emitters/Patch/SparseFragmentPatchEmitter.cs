@@ -129,6 +129,7 @@ internal static class SparseFragmentPatchEmitter
         var patchPrefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
+        SparsePatchStjEmitter.AppendPatchConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
         SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members);
@@ -153,6 +154,7 @@ internal static class SparseFragmentPatchEmitter
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
         SparsePatchInspectionEmitter.AppendPatchInspection(code, modelType, members);
+        SparsePatchStjEmitter.AppendPatchStj(code, members);
         if (emitJsonBridge)
         {
             var jsonPrefix = SparseNaming.JsonPatchApiPrefix(

@@ -29,6 +29,7 @@ internal static class SparseChangeSetEmitter
         var between = "Patch." + prefix + "Between";
         var rebase = "Patch." + prefix + "Rebase";
 
+        SparsePatchStjEmitter.AppendChangeSetConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class ChangeSet");
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "private readonly " + optionalFragment + " _before;");
@@ -162,6 +163,7 @@ internal static class SparseChangeSetEmitter
                 + "(new ChangeSet(current, rebasedAfter, rebase.Patch), rebase.Conflicts);"
         );
         code.AppendLineAt(2, "}");
+        SparsePatchStjEmitter.AppendChangeSetStj(code, members);
         code.AppendLineAt(1, "}");
     }
 }
