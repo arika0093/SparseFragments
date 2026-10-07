@@ -461,37 +461,6 @@ public sealed class RosterRowHighlight
 public static class RosterHighlight
 {
     /// <summary>
-    /// Compares both lists through a single <c>PlaygroundRoster.Patch.Between</c>.
-    /// Formatting-only differences (e.g. <c>"10,20"</c> vs <c>"10, 20"</c>) do not
-    /// count as edits because keyed semantics compare parsed values.
-    /// Duplicate keys return empty maps; the failure surfaces through the diff tabs.
-    /// </summary>
-    public static (
-        Dictionary<QuestRow, RosterRowHighlight> Before,
-        Dictionary<QuestRow, RosterRowHighlight> After
-    ) Build(RosterEditState before, RosterEditState after)
-    {
-        PlaygroundRoster.Patch? patch;
-        try
-        {
-            patch = PlaygroundRoster.Patch.Between(
-                Optional<PlaygroundRoster.Fragment?>.Present(before.BuildFragment()),
-                Optional<PlaygroundRoster.Fragment?>.Present(after.BuildFragment())
-            );
-        }
-        catch
-        {
-            // Duplicate keys and friends: surface errors through the diff tabs, not here.
-            return (
-                new Dictionary<QuestRow, RosterRowHighlight>(),
-                new Dictionary<QuestRow, RosterRowHighlight>()
-            );
-        }
-
-        return BuildFromPatch(patch, before, after);
-    }
-
-    /// <summary>
     /// Projects an already-computed roster Patch onto row highlights.
     /// Pure over the inspection surface, so it stays testable without UI.
     /// </summary>
