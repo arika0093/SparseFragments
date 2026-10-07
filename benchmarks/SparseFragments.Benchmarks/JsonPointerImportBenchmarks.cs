@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
+using SparseFragments;
 using SparseFragments.CompilerServices;
 
 /// <summary>Measures pointer decoding separately from generated fragment materialization.</summary>
@@ -13,14 +14,18 @@ public class JsonPointerImportBenchmarks
     [Params(false, true)]
     public bool Escaped { get; set; }
 
+    [Params(5, 512)]
+    public int TokenLength { get; set; }
+
     private JsonObject _baseline = null!;
     private byte[] _operations = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        var key = Escaped ? "a/b~c" : "plain";
-        var path = Escaped ? "/a~1b~0c" : "/plain";
+        var suffix = new string('x', TokenLength - 5);
+        var key = (Escaped ? "a/b~c" : "plain") + suffix;
+        var path = (Escaped ? "/a~1b~0c" : "/plain") + suffix;
         _baseline = new JsonObject { [key] = 0 };
         var operations = new StringBuilder("[");
         for (var index = 1; index <= OperationCount; index++)
@@ -45,6 +50,52 @@ public class JsonPointerImportBenchmarks
             throw new InvalidOperationException(
                 "Pointer decoding must target the original property without mutating the baseline."
             );
+        }
+        CheckPointerEdges();
+    }
+
+    private static void CheckPointerEdges()
+    {
+        var baseline = new JsonObject { [""] = new JsonObject { ["~1"] = 0 } };
+        var actual = SparseJsonPatchBridge.Apply(
+            baseline,
+            false,
+            Encoding.UTF8.GetBytes("""[{"op":"replace","path":"//~01","value":1}]"""),
+            StringComparison.Ordinal,
+            out _
+        );
+        if (actual?[""]?["~1"]?.GetValue<int>() != 1 || baseline[""]?["~1"]?.GetValue<int>() != 0)
+        {
+            throw new InvalidOperationException(
+                "Pointer escapes must be decoded once and empty tokens retained."
+            );
+        }
+        foreach (var padding in new[] { "", new string('x', 512) })
+        {
+            foreach (var invalid in new[] { "~", "~2" })
+            {
+                var patch = Encoding.UTF8.GetBytes(
+                    "[{\"op\":\"remove\",\"path\":\"/" + padding + invalid + "\"}]"
+                );
+                try
+                {
+                    _ = SparseJsonPatchBridge.Apply(
+                        baseline,
+                        false,
+                        patch,
+                        StringComparison.Ordinal,
+                        out _
+                    );
+                }
+                catch (JsonPatchException exception)
+                    when (exception.Kind == JsonPatchErrorKind.MalformedPointer)
+                {
+                    continue;
+                }
+                throw new InvalidOperationException(
+                    "Malformed pointer escapes must retain their error kind."
+                );
+            }
         }
     }
 
