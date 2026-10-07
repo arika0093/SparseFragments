@@ -179,7 +179,7 @@ dotnet run --file quickstart.cs
 
 The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after.
 
-The sections below explain why those distinctions matter. The [documentation](#documentation) covers the full APIs.
+The [documentation](#documentation) covers the full APIs and detailed behavior.
 
 ## Generated API
 
