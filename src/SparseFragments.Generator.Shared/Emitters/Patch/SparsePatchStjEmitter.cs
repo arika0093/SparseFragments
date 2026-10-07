@@ -673,7 +673,8 @@ internal static class SparsePatchStjEmitter
                 3,
                 "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A scalar operation must be a JSON object.\");"
             );
-            code.AppendLineAt(3, "string? __kind = null;");
+            code.AppendLineAt(3, "byte __kind = 0;");
+            code.AppendLineAt(3, "string? __unknownKind = null;");
             code.AppendLineAt(3, "bool __hasValue = false;");
             code.AppendLineAt(3, vt + " __sv = default!;");
             code.AppendLineAt(3, "while (reader.Read())");
@@ -686,24 +687,33 @@ internal static class SparsePatchStjEmitter
                 4,
                 "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a scalar-operation property name.\");"
             );
-            code.AppendLineAt(4, "var __p = reader.GetString();");
+            code.AppendLineAt(4, "var __isKind = reader.ValueTextEquals(\"kind\");");
+            code.AppendLineAt(4, "var __isValue = !__isKind && reader.ValueTextEquals(\"value\");");
+            code.AppendLineAt(
+                4,
+                "var __unknown = __isKind || __isValue ? null : reader.GetString();"
+            );
             code.AppendLineAt(
                 4,
                 "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of scalar operation.\");"
             );
-            code.AppendLineAt(4, "if (__p == \"kind\")");
+            code.AppendLineAt(4, "if (__isKind)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
-                "if (__kind is not null) throw new global::System.Text.Json.JsonException(\"Duplicate scalar kind.\");"
+                "if (__kind != 0) throw new global::System.Text.Json.JsonException(\"Duplicate scalar kind.\");"
             );
             code.AppendLineAt(
                 5,
                 "if (reader.TokenType != global::System.Text.Json.JsonTokenType.String) throw new global::System.Text.Json.JsonException(\"Scalar kind must be a string.\");"
             );
-            code.AppendLineAt(5, "__kind = reader.GetString();");
+            code.AppendLineAt(
+                5,
+                "__kind = reader.ValueTextEquals(\"unset\") ? (byte)1 : reader.ValueTextEquals(\"set\") ? (byte)2 : (byte)3;"
+            );
+            code.AppendLineAt(5, "if (__kind == 3) __unknownKind = reader.GetString();");
             code.AppendLineAt(4, "}");
-            code.AppendLineAt(4, "else if (__p == \"value\")");
+            code.AppendLineAt(4, "else if (__isValue)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
@@ -719,14 +729,14 @@ internal static class SparsePatchStjEmitter
             code.AppendLineAt(4, "}");
             code.AppendLineAt(
                 4,
-                "else throw new global::System.Text.Json.JsonException(\"Unknown scalar property '\" + __p + \"'.\");"
+                "else throw new global::System.Text.Json.JsonException(\"Unknown scalar property '\" + __unknown + \"'.\");"
             );
             code.AppendLineAt(3, "}");
             code.AppendLineAt(
                 3,
-                "if (__kind is null) throw new global::System.Text.Json.JsonException(\"Missing scalar kind.\");"
+                "if (__kind == 0) throw new global::System.Text.Json.JsonException(\"Missing scalar kind.\");"
             );
-            code.AppendLineAt(3, "if (__kind == \"unset\")");
+            code.AppendLineAt(3, "if (__kind == 1)");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
                 4,
@@ -734,7 +744,7 @@ internal static class SparsePatchStjEmitter
             );
             code.AppendLineAt(4, "return " + Runtime + "FragmentOperation<" + vt + ">.Unset;");
             code.AppendLineAt(3, "}");
-            code.AppendLineAt(3, "if (__kind == \"set\")");
+            code.AppendLineAt(3, "if (__kind == 2)");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
                 4,
@@ -744,7 +754,7 @@ internal static class SparsePatchStjEmitter
             code.AppendLineAt(3, "}");
             code.AppendLineAt(
                 3,
-                "throw new global::System.Text.Json.JsonException(\"Unknown scalar kind '\" + __kind + \"'.\");"
+                "throw new global::System.Text.Json.JsonException(\"Unknown scalar kind '\" + __unknownKind + \"'.\");"
             );
             code.AppendLineAt(2, "}");
         }
