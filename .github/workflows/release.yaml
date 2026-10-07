@@ -15,14 +15,13 @@ on:
 permissions:
   contents: read
 
-env:
-  # Release reproducibility policy (#84): release-candidate bytes are built
-  # with exactly this SDK. setup-dotnet installs this exact version (not a
-  # floating channel), and the package-candidate job fails unless
-  # `dotnet --version` selects it. Keep in sync with the `sdk.version` pin in
-  # global.json. Normal development/PR CI (test.yaml) intentionally keeps the
-  # wider 8.0.x/10.0.x channels for convenience; only release output is pinned.
-  DOTNET_VERSION: 10.0.401
+# SDK selection policy (#104, supersedes the exact-SDK policy from #84):
+# release uses the same compatibility-band approach as normal CI
+# (`10.0.x`). global.json keeps a minimum/baseline SDK version with
+# `rollForward: latestFeature` and is not treated as an exact release lock.
+# Release reproducibility means one run packs one candidate and publishes
+# those exact candidate bytes (pack-once candidate identity, #79), not
+# byte-identical rebuilds with a historical SDK patch.
 
 jobs:
   package-candidate:
@@ -38,14 +37,12 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: 10.0.x
 
-      - name: Assert release SDK selection
+      - name: Log selected SDK
         run: |
-          test "$(dotnet --version)" = "${{ env.DOTNET_VERSION }}" || \
-            { echo "Release SDK mismatch: 'dotnet --version' is '$(dotnet --version)', expected '${{ env.DOTNET_VERSION }}'." >&2; exit 1; }
-          grep -F -q "\"version\": \"${{ env.DOTNET_VERSION }}\"" global.json || \
-            { echo "global.json sdk.version drifted from DOTNET_VERSION '${{ env.DOTNET_VERSION }}'." >&2; exit 1; }
+          dotnet --info
+          echo "Selected SDK: $(dotnet --version)"
 
       # Reproducibility policy (#26): pin to a released tag (Dependabot
       # github-actions ecosystem proposes upgrades). Never use @master here.
