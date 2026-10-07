@@ -16,9 +16,12 @@ public static class VerifiedSamples
         CorePatch();
         CoreBetween();
         CoreChangeSet();
+        CoreTyped();
+        CoreNested();
         CoreAlgebra();
         CoreSerialization();
         KeyedFirst();
+        KeyedTyped();
         RebaseFirst();
         RebaseApplied();
         RebaseConflict();
@@ -142,6 +145,56 @@ public static class VerifiedSamples
         // /sample
     }
 
+    private static void CoreTyped()
+    {
+        // sample: core-typed
+        var before = Optional<CounterSettings.Fragment?>.Present(
+            CounterSettings.Fragment.From(new CounterSettings { Label = "a", RetryCount = 1 }));
+        var after = Optional<CounterSettings.Fragment?>.Present(
+            CounterSettings.Fragment.From(new CounterSettings { Label = "b", RetryCount = 1 }));
+
+        var changes = CounterSettings.ChangeSet.Between(before, after);
+
+        if (changes.Label.IsChanged)
+        {
+            Console.WriteLine($"{changes.Label.Before} -> {changes.Label.After}");
+        }
+        // changes.Label.Before.Value == "a"
+        // changes.Label.After.Value == "b"
+        // changes.RetryCount.IsChanged == false
+        DocsCheck.Require(changes.Label.IsChanged, "changed member reports IsChanged");
+        DocsCheck.Require(changes.Label.Before.Value == "a", "Before preserves the old value");
+        DocsCheck.Require(changes.Label.After.Value == "b", "After preserves the new value");
+        DocsCheck.Require(!changes.RetryCount.IsChanged, "unchanged member stays typed");
+        DocsCheck.Require(changes.RetryCount.Before.Value == 1, "unchanged Before is preserved");
+        // /sample
+    }
+
+    private static void CoreNested()
+    {
+        // sample: core-nested
+        var before = Optional<DocsOrder.Fragment?>.Present(
+            DocsOrder.Fragment.From(
+                new DocsOrder { Name = "a", Customer = new DocsCustomer { Name = "Ann" } }));
+        var after = Optional<DocsOrder.Fragment?>.Present(
+            DocsOrder.Fragment.From(
+                new DocsOrder { Name = "a", Customer = new DocsCustomer { Name = "Bob" } }));
+
+        var changes = DocsOrder.ChangeSet.Between(before, after);
+        // changes.Name.IsChanged == false
+        // changes.Customer.Name.IsChanged == true
+        // changes.Customer.Name.Before.Value == "Ann"
+        // changes.Customer.Name.After.Value == "Bob"
+        DocsCheck.Require(!changes.Name.IsChanged, "unchanged member reports IsChanged == false");
+        DocsCheck.Require(!changes.Customer.IsEmpty, "nested transition is non-empty");
+        DocsCheck.Require(changes.Customer.Name.IsChanged, "nested member change observed");
+        DocsCheck.Require(
+            changes.Customer.Name.Before.Value == "Ann", "nested Before preserved");
+        DocsCheck.Require(
+            changes.Customer.Name.After.Value == "Bob", "nested After preserved");
+        // /sample
+    }
+
     private static void CoreAlgebra()
     {
         // sample: core-algebra
@@ -224,6 +277,54 @@ public static class VerifiedSamples
         DocsCheck.Require(applied.Value!.Servers.Value!.Count == 2, "added element present");
         DocsCheck.Require(
             applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new", "edit by key");
+        // /sample
+    }
+
+    private static void KeyedTyped()
+    {
+        // sample: keyed-typed
+        var before = Fleet.Fragment.From(new Fleet
+        {
+            Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
+        });
+        var after = Fleet.Fragment.From(new Fleet
+        {
+            Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
+        });
+
+        var changes = Fleet.ChangeSet.Between(before, after);
+        var servers = changes.Servers;
+        // servers.Added.Single().Id == "c"
+        // servers.Removed.Single().Id == "a"
+        // servers.Edited["b"].Host.After.Value == "B2"
+        // servers.BeforeOrder.SequenceEqual(["a", "b"])
+        // servers.AfterOrder.SequenceEqual(["b", "c"])
+        // servers.OrderChanged == true
+        foreach (var item in servers)
+        {
+            if (item.IsEdited)
+            {
+                Console.WriteLine(item.Edit.Host.IsChanged);
+            }
+        }
+        var edited = servers.GetChange("b");
+        // edited.IsEdited == true
+        // edited.Edit.Host.After.Value == "B2"
+        DocsCheck.Require(
+            servers.Added.Count == 1 && servers.Added.Single().Id == "c", "added projection");
+        DocsCheck.Require(
+            servers.Removed.Count == 1 && servers.Removed.Single().Id == "a", "removed projection");
+        DocsCheck.Require(
+            servers.Edited["b"].Host.After.Value == "B2", "edited projection");
+        DocsCheck.Require(
+            servers.BeforeOrder.SequenceEqual(["a", "b"]), "before order preserved");
+        DocsCheck.Require(
+            servers.AfterOrder.SequenceEqual(["b", "c"]), "after order preserved");
+        DocsCheck.Require(servers.OrderChanged, "order change observed");
+        DocsCheck.Require(edited.IsEdited, "keyed lookup observes the edit");
+        DocsCheck.Require(
+            edited.Edit.Host.After.Value == "B2", "keyed lookup carries the nested change");
+        DocsCheck.Require(servers.GetChange("absent").IsEmpty, "unknown key is empty");
         // /sample
     }
 
@@ -355,6 +456,21 @@ public partial class Server
     public string Id { get; set; } = string.Empty;
 
     public string Host { get; set; } = string.Empty;
+}
+// /sample
+
+// sample: core-nested-models
+[SparseFragmentModel]
+public partial class DocsOrder
+{
+    public string? Name { get; set; }
+
+    public DocsCustomer? Customer { get; set; }
+}
+
+public partial class DocsCustomer
+{
+    public string Name { get; set; } = string.Empty;
 }
 // /sample
 

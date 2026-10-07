@@ -125,7 +125,7 @@ var drop = new Settings.Patch();
 drop.Child.Unset();    // remove this layer's contribution
 ```
 
-**Observed before/after changes** are `ChangeSet.Between`. Project a transition back to operations with `ToPatch()`, attach a known baseline to an existing patch with `ChangeSet.FromPatch`, chain contiguous transitions with `Compose`, and reverse one without an external baseline using the parameterless `Invert()`:
+**Observed before/after changes** are `ChangeSet.Between`. Project a transition back to operations with `ToPatch()`, attach a known baseline to an existing patch with `ChangeSet.FromPatch`, chain contiguous transitions with `Compose`, and reverse one without an external baseline using the parameterless `Invert()`. Reading a transition is typed: each member exposes `IsChanged` / `Before` / `After` mirroring the source model, with no reflection or `object?` casts:
 
 ```csharp
 var transition = Settings.ChangeSet.Between(
@@ -134,7 +134,7 @@ var transition = Settings.ChangeSet.Between(
 var undone = transition.Invert();
 ```
 
-See [Fragments and patches](docs/fragments-and-patches.md) for the full contracts.
+See [Fragments and patches](docs/fragments-and-patches.md) for typed member observation and the full contracts.
 
 **Disconnected and concurrent reconciliation** is `ChangeSet.RebaseOnto`: it compares the ChangeSet's own before-state against the current state and returns a new ChangeSet plus structured conflicts, with no revision history required:
 
