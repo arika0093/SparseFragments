@@ -7,22 +7,8 @@ using System.Reflection;
 namespace SparseFragments;
 
 /// <summary>Allocation-friendly structural comparison shared by fragment equality.</summary>
-/// <remarks>
-/// Collection and fragment semantics live here so equality stays consistent.
-/// The runtime package ships only a netstandard2.0 asset, so this path never
-/// attempts runtime generic code generation (no MakeGenericMethod/CreateDelegate):
-/// all collection comparisons below are statically reachable and trim/NativeAOT
-/// clean. Shape classification only compares generic type definitions and reads
-/// element types for assignability tests. Where a collection exposes its
-/// comparer, the non-generic comparer interfaces are used so custom comparers
-/// keep working without generic closures.
-///
-/// Complexity boundaries (issue #60): set/dictionary fallbacks index through
-/// the discovered non-generic comparer in O(n) when one is available; without
-/// a usable comparer, or when elements themselves require structural equality
-/// with no compatible hash semantics, matching stays quadratic by design.
-/// Count mismatches short-circuit in O(1) wherever a count is discoverable.
-/// </remarks>
+/// <remarks>Trim/NativeAOT clean: no runtime generic code generation. Set/dictionary use the discovered
+/// comparer when available, else fall back to quadratic matching.</remarks>
 internal static class FragmentComparisonPrimitives
 {
     private enum CollectionKind
@@ -279,13 +265,7 @@ internal static class FragmentComparisonPrimitives
         var keyEquality = AsNonGenericEquality(comparer);
         if (keyEquality is not null)
         {
-            // Bounded fast path (issue #60): both Equals and GetHashCode flow
-            // through the same discovered comparer, so hash lookup preserves its
-            // exact semantics while avoiding the quadratic nested scan. Counts
-            // track multiplicities so exotic duplicate-bearing enumerables still
-            // compare as multisets. No generic closure is created: the adapter
-            // only forwards to the non-generic comparer interface. A null result
-            // means null members defeat exact hashing and falls back to the scan.
+            // Bounded fast path: hash lookup preserves comparer semantics and avoids quadratic scans.
             var hashed = HashSetEquals(
                 (IEnumerable)left,
                 (IEnumerable)right,
@@ -588,11 +568,7 @@ internal static class FragmentComparisonPrimitives
         var keyEquality = AsNonGenericEquality(keyComparer);
         if (keyEquality is not null)
         {
-            // Bounded fast path (issue #60): index the right entries by key
-            // through the same discovered key comparer, turning the nested
-            // scan into hash lookups while streaming both sides. Duplicate keys
-            // defeat indexing and fall back to the multiset scan below; keys
-            // without a usable comparer stay on the structural scan by design.
+            // Bounded fast path: index right entries by key comparer; duplicates fall back to scan.
             var rightCapacity = TryDictionaryCount(right);
             bool? hashed;
             if (rightCapacity.HasValue)

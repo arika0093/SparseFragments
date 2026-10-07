@@ -4,13 +4,7 @@ using System.Linq;
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Emits collection clone helpers and the portable <c>IReadOnlySet{T}</c> view.</summary>
-/// <remarks>
-/// Narrowed (issue #280): only the first-class configuration-model shapes
-/// (arrays, lists, sets, dictionaries) get generated clone helpers. Exotic
-/// containers (queues, stacks, concurrent collections, blocking collections,
-/// priority queues, linked lists, sorted/observable/read-only wrappers and
-/// immutable collections) are unsupported and require a custom clone policy.
-/// </remarks>
+/// <remarks>Only first-class shapes (arrays, lists, sets, dictionaries) get generated clone helpers.</remarks>
 internal static class SparseFragmentCollectionCloneEmitter
 {
     public static bool RequiresPortableSetView(

@@ -5,16 +5,8 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>
-/// Emits the nested bindable <c>Observable</c> proxy for a generated model.
-/// </summary>
-/// <remarks>
-/// Product-neutral Shared implementation: only BCL ComponentModel contracts plus
-/// ordinary equality primitives, so both SparseFragments and downstream generators
-/// (e.g. Configlue, which compiles these Shared sources) expose the same surface.
-/// The proxy wraps the live model instance; no state is copied except where value
-/// semantics require it. Collections are replace-only for notification purposes.
-/// </remarks>
+/// <summary>Emits the nested bindable <c>Observable</c> proxy for a generated model.</summary>
+/// <remarks>Wraps the live model instance; collections are replace-only for notification purposes.</remarks>
 internal static class SparseObservableEmitter
 {
     public static string ObservableTypeName(ImmutableArray<SparseMemberModel> members)

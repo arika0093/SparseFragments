@@ -2,28 +2,11 @@ using Microsoft.AspNetCore.Components.Forms;
 
 namespace SparseFragments.Blazor;
 
-/// <summary>
-/// Bridges ordinary Blazor forms and SparseFragments semantic patches.
-/// </summary>
+/// <summary>Bridges ordinary Blazor forms and SparseFragments semantic patches.</summary>
 /// <remarks>
-/// <para>
-/// The session keeps a SparseFragments baseline (captured as a fragment) alongside the
-/// live editable model and exposes an <see cref="EditContext"/> for normal Blazor form
-/// behavior (validation, field-modified state, change notifications, submit).
-/// </para>
-/// <para>
-/// Changes are always derived from a single baseline-versus-current ChangeSet through
-/// the generated fragment/patch algebra — never reconstructed from <see cref="EditContext"/>
-/// modified fields — so collection add/remove/reorder, nested edits, and edit-then-restore
-/// cases are represented correctly even when Blazor emits no equivalent field notification.
-/// <see cref="CreatePatch"/> is the baseline-free projection of that same ChangeSet
-/// (<c>CreateChangeSet().ToPatch()</c>), not an independently derived diff.
-/// </para>
-/// <para>
-/// This package depends only on SparseFragments and Blazor forms abstractions. It does
-/// not require ASP.NET Core server integration or an HTTP transport package. The session
-/// owns no entity IDs, versions, timestamps, or transport metadata.
-/// </para>
+/// The session keeps a fragment baseline alongside the live model and exposes an <see cref="EditContext"/>
+/// for normal Blazor behavior. Changes are derived from the baseline-versus-current ChangeSet algebra,
+/// never from <see cref="EditContext"/> modified fields.
 /// </remarks>
 /// <typeparam name="TModel">The editable model type. Must be a reference type.</typeparam>
 /// <typeparam name="TFragment">The generated fragment type for <typeparamref name="TModel"/>.</typeparam>
@@ -87,33 +70,17 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet>
     /// <summary>The Blazor edit context for validation, field state, and submit behavior.</summary>
     public EditContext EditContext { get; }
 
-    /// <summary>
-    /// Whether the current model differs semantically from the baseline.
-    /// Always computed from the ChangeSet algebra; collection mutations without
-    /// Blazor field notifications are still detected.
-    /// </summary>
+    /// <summary>Whether the current model differs semantically from the baseline.</summary>
     public bool HasChanges => !_isEmpty(CreateChangeSet());
 
-    /// <summary>
-    /// Derives the baseline-aware change set between the session baseline and the
-    /// current model. This is the single semantic derivation; the recommended API
-    /// for changes that leave the local process.
-    /// </summary>
+    /// <summary>Derives the baseline-aware change set between baseline and current model.</summary>
     public TChangeSet CreateChangeSet() =>
         _between(_baseline, Optional<TFragment?>.Present(_fromModel(Model)));
 
-    /// <summary>
-    /// Derives the baseline-free patch for purely local application scenarios.
-    /// Defined as the projection of the same semantic change
-    /// (<c>CreateChangeSet().ToPatch()</c>), not a separately derived diff.
-    /// </summary>
+    /// <summary>Derives the baseline-free patch (<c>CreateChangeSet().ToPatch()</c>).</summary>
     public TPatch CreatePatch() => _toPatch(CreateChangeSet());
 
-    /// <summary>
-    /// Accepts the current model state: replaces the baseline, clears Blazor modified
-    /// flags, and keeps the same model instance and <see cref="EditContext"/>.
-    /// Subsequent change sets use the newly accepted state as their before-state.
-    /// </summary>
+    /// <summary>Accepts the current model state as the new baseline.</summary>
     public void AcceptChanges()
     {
         _baseline = Optional<TFragment?>.Present(_fromModel(Model));
@@ -130,10 +97,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet>
         return new FieldIdentifier(Model, fieldName);
     }
 
-    /// <summary>
-    /// Surfaces a message (for example a server-side or conflict error associated with a
-    /// member path) through Blazor's <see cref="ValidationMessageStore"/>.
-    /// </summary>
+    /// <summary>Surfaces a message through Blazor's <see cref="ValidationMessageStore"/>.</summary>
     public static void AddValidationError(
         ValidationMessageStore store,
         FieldIdentifier field,

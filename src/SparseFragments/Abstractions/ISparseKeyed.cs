@@ -18,8 +18,7 @@ namespace SparseFragments;
 /// <para>
 /// Exactly one key-definition mechanism may apply to a structural type: implementing
 /// this interface conflicts with any <see cref="SparseKeyAttribute"/> declaration on
-/// the same type. The key type follows the same constraints as declared keys (stable
-/// equality, no nullable or collection-shaped keys).
+/// the same type.
 /// </para>
 /// </remarks>
 /// <typeparam name="TKey">The stable key type.</typeparam>

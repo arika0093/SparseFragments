@@ -422,9 +422,7 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, facade + ".EnsureUniqueKeys<" + keyType + ">(list);");
         code.AppendLineAt(4, "__order = list;");
         code.AppendLineAt(3, "}");
-        // Issue #103: internal sparse setter for ChangeSet.ToPatch (nested fragment edits).
-        // Bypasses the public Edit-for-mutation API by installing an already-built
-        // element patch; used only to project canonical ChangeSet transitions.
+        // Internal sparse setter for ChangeSet.ToPatch; installs an already-built element patch.
         if (hasPatch)
         {
             code.AppendLineAt(

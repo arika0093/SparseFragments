@@ -141,12 +141,7 @@ internal static class SparseValueComparer
     }
 
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
-    /// <remarks>
-    /// The element comparer is part of the set value: sets whose comparers differ are
-    /// unequal even when their elements would match under one side's comparer, so the
-    /// result never depends on operand order. When a comparer cannot be discovered from
-    /// a custom set, lookups must succeed in both directions.
-    /// </remarks>
+    /// <remarks>Comparers are part of the value: differing comparers are unequal regardless of operand order.</remarks>
     public static bool AreSetEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right)
     {
         if (ReferenceEquals(left, right))
@@ -190,14 +185,7 @@ internal static class SparseValueComparer
     }
 
     /// <summary>Compares dictionary-shaped values by key/value semantics.</summary>
-    /// <remarks>
-    /// The key comparer is part of the dictionary value: dictionaries whose key comparers
-    /// differ are unequal even when their entries would match under one side's lookup, so
-    /// the result never depends on operand order. Comparison never depends on enumeration
-    /// order either, including for custom read-only dictionaries that do not implement
-    /// non-generic <see cref="ICollection"/>. When a key comparer cannot be discovered,
-    /// lookups must succeed in both directions.
-    /// </remarks>
+    /// <remarks>Key comparers are part of the value: differing comparers are unequal regardless of operand order.</remarks>
     public static bool AreDictionaryEqual<TKey, TValue>(
         IEnumerable<KeyValuePair<TKey, TValue>>? left,
         IEnumerable<KeyValuePair<TKey, TValue>>? right

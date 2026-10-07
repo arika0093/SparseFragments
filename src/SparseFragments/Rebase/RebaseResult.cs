@@ -3,7 +3,6 @@ using System.ComponentModel;
 namespace SparseFragments;
 
 /// <summary>The reason a rebased patch could not be reconciled with a concurrent change.</summary>
-/// <remarks>Advanced vocabulary: patch rebase outcomes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public enum SparsePatchConflictKind
 {
@@ -27,17 +26,10 @@ public enum SparsePatchConflictKind
 }
 
 /// <summary>Structured, domain-neutral information about one rebase conflict.</summary>
-/// <remarks>Advanced vocabulary: patch rebase outcomes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparsePatchConflict
 {
-    /// <summary>Initializes a new conflict.</summary>
-    /// <param name="path">The member path from the root contribution.</param>
-    /// <param name="kind">The conflict kind.</param>
-    /// <param name="baseValue">The baseline presence-aware value.</param>
-    /// <param name="localValue">The desired (local) presence-aware value.</param>
-    /// <param name="currentValue">The current presence-aware value.</param>
-    /// <param name="reason">An optional human-readable reason.</param>
+    /// <summary>Creates a conflict with the given details.</summary>
     public SparsePatchConflict(
         IEnumerable<string> path,
         SparsePatchConflictKind kind,
@@ -94,13 +86,10 @@ public sealed class SparsePatchConflict
 
 /// <summary>The result of rebasing a patch onto a newer sparse state.</summary>
 /// <typeparam name="TPatch">The generated patch type.</typeparam>
-/// <remarks>Advanced vocabulary: patch rebase outcomes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class RebaseResult<TPatch>
 {
-    /// <summary>Initializes a rebase result.</summary>
-    /// <param name="patch">The rebased patch, excluding conflicting members.</param>
-    /// <param name="conflicts">The detected conflicts.</param>
+    /// <summary>Creates a rebase result.</summary>
     public RebaseResult(TPatch patch, IEnumerable<SparsePatchConflict> conflicts)
     {
         ArgumentNullException.ThrowIfNull(conflicts);

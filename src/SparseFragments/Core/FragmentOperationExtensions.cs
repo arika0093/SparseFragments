@@ -3,17 +3,8 @@ using System.ComponentModel;
 
 namespace SparseFragments;
 
-/// <summary>
-/// Presence-preserving mutation helpers for <see cref="FragmentOperation{T}"/> members.
-/// </summary>
-/// <remarks>
-/// These are <c>ref</c> extensions so they mutate the referenced storage in place,
-/// including the <c>ref</c>-returning members of generated <c>Patch</c> types
-/// (for example <c>patch.Label.Set("x")</c>). The converting <c>CopyFrom</c> overload
-/// invokes the converter only for a <see cref="FragmentOperationKind.Set"/> source;
-/// <see cref="FragmentOperationKind.Unchanged"/> and <see cref="FragmentOperationKind.Unset"/>
-/// sources are preserved as-is without invoking the converter.
-/// </remarks>
+/// <summary>Presence-preserving mutation helpers for <see cref="FragmentOperation{T}"/> members.</summary>
+/// <remarks>These are <c>ref</c> extensions; converters run only for <see cref="FragmentOperationKind.Set"/> sources.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class FragmentOperationExtensions
 {
@@ -41,16 +32,8 @@ public static class FragmentOperationExtensions
         FragmentOperation<T> source
     ) => target = source;
 
-    /// <summary>
-    /// Copies another operation while converting its value, preserving the operation kind.
-    /// </summary>
-    /// <remarks>
-    /// Only a <see cref="FragmentOperationKind.Set"/> <paramref name="source"/> invokes
-    /// <paramref name="map"/>; the converted value is stored with <c>Set</c>, so a null/default
-    /// conversion result stays an explicit set. <see cref="FragmentOperationKind.Unchanged"/> and
-    /// <see cref="FragmentOperationKind.Unset"/> sources are copied unchanged without invoking
-    /// <paramref name="map"/>.
-    /// </remarks>
+    /// <summary>Copies another operation while converting its value, preserving the operation kind.</summary>
+    /// <remarks>Only <see cref="FragmentOperationKind.Set"/> sources invoke <paramref name="map"/>.</remarks>
     /// <param name="target">The operation storage to mutate.</param>
     /// <param name="source">The operation to copy.</param>
     /// <param name="map">Converts a set source value to the destination value.</param>

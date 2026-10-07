@@ -1,12 +1,7 @@
 namespace SparseFragments;
 
 /// <summary>Keyed structural collection primitives shared by generated patches.</summary>
-/// <remarks>
-/// Scalar sequences remain atomic whole values; these helpers apply only to keyed
-/// structural sequences and dictionaries. Reordering is always a final key sequence,
-/// never positional <c>MoveAt</c>/<c>InsertAt</c>. Duplicate keys are invalid.
-/// A key change through an element edit is remove-old + add-new, never a silent retarget.
-/// </remarks>
+/// <remarks>Reorder is a final key sequence; duplicate keys are invalid; key changes are remove-old + add-new.</remarks>
 internal static class SparseKeyedCollection
 {
     /// <summary>Throws when a key sequence contains duplicates.</summary>

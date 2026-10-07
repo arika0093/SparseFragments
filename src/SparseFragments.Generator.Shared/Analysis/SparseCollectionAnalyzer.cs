@@ -18,12 +18,8 @@ internal enum SparseCollectionKind
 
 /// <summary>Clone-relevant collection category used by generated fragments.</summary>
 /// <remarks>
-/// Intentionally narrow (issue #280): first-class configuration-model shapes are
-/// arrays, lists, sets and dictionaries. Stateful or specialized BCL containers
-/// (queues, stacks, concurrent collections, <c>BlockingCollection</c>,
-/// <c>PriorityQueue</c>, <c>LinkedList</c>, sorted/observable/read-only wrappers
-/// and immutable collections) are <see cref="Unsupported"/> and require an
-/// explicit custom clone/merge policy.
+/// Intentionally narrow: first-class shapes are arrays, lists, sets and dictionaries.
+/// Other BCL containers are <see cref="Unsupported"/> and require an explicit custom clone/merge policy.
 /// </remarks>
 internal enum SparseCloneCollectionKind
 {
@@ -35,13 +31,7 @@ internal enum SparseCloneCollectionKind
 }
 
 /// <summary>Granular-merge semantic of a collection member.</summary>
-/// <remarks>
-/// Orthogonal to <see cref="SparseCollectionKind"/> (merge shape) and
-/// <see cref="SparseCloneCollectionKind"/> (clone shape): describes whether a
-/// sequence carries scalar values, structurally keyed elements, or dictionary
-/// entries. Existing emitters ignore this and keep current behavior; keyed
-/// emitters (issue #3, later part) will consume it.
-/// </remarks>
+/// <remarks>Orthogonal to merge/clone shape: whether a sequence carries scalar values, keyed elements, or dictionary entries.</remarks>
 internal enum SparseCollectionSemantic
 {
     None,
@@ -154,10 +144,7 @@ internal static class SparseCollectionAnalyzer
             or "System.Collections.Generic.IDictionary<TKey, TValue>"
             or "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>" =>
                 SparseCloneCollectionKind.Dictionary,
-            // Narrowed (issue #280): Queue/Stack, concurrent collections,
-            // BlockingCollection, PriorityQueue, LinkedList, SortedSet,
-            // ObservableCollection/ReadOnlyCollection and immutable collections
-            // are intentionally unsupported. Use an array, List, HashSet or
+            // Other BCL shapes are intentionally unsupported; use an array, List, HashSet or
             // Dictionary shape, or provide a custom clone/merge policy.
             _ => SparseCloneCollectionKind.Unsupported,
         };
@@ -172,11 +159,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Metadata name of the key attribute declared by the runtime.</summary>
-    /// <remarks>
-    /// The attribute type itself ships with the runtime assembly (issue #3); the
-    /// analyzer resolves it by metadata name so analysis degrades to "no key"
-    /// when the attribute is absent.
-    /// </remarks>
+    /// <remarks>The analyzer resolves it by metadata name so analysis degrades to "no key" when absent.</remarks>
     public const string KeyAttributeMetadataName = "SparseFragments.SparseKeyAttribute";
 
     /// <summary>Determines whether an element type needs keyed granular semantics.</summary>
@@ -241,18 +224,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Discovers the structural key of an element type.</summary>
-    /// <remarks>
-    /// Strict single-mechanism discovery (issue #4): exactly one of a property-level
-    /// <c>[SparseKey]</c>, a type-level <c>[SparseKey(names)]</c> composite declaration,
-    /// or an <c>ISparseKeyed&lt;TKey&gt;</c> implementation may apply, with no
-    /// precedence between conflicting mechanisms. Any conflict or invalid shape yields
-    /// no key; use <see cref="SparseKeyAnalyzer.CollectDiagnostics"/> to report the
-    /// corresponding SPF012–SPF020 errors. Composite keys preserve type-level
-    /// declaration order. A single key reports its property type; a composite key
-    /// reports a <c>ValueTuple</c> of the component types in key order (strongly typed,
-    /// collision-safe, component-wise equality); an interface key reports
-    /// <c>TKey</c> extracted via <c>element.SparseKey</c> without runtime reflection.
-    /// </remarks>
+    /// <remarks>Exactly one key mechanism may apply; conflicts yield no key (see SPF012–SPF020).</remarks>
     public static bool TryDiscoverKeys(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,

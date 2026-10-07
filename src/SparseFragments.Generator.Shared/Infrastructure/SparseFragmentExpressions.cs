@@ -162,12 +162,7 @@ internal sealed class SparseFragmentExpressions(
     }
 
     /// <summary>Builds an expression that materializes a sequence of elements into the member's collection type.</summary>
-    /// <remarks>
-    /// Narrowed (issue #280): sets normalize to <c>HashSet{T}</c>, sequences to
-    /// arrays/lists. Sorted, observable, read-only-wrapper, queue/stack,
-    /// concurrent and immutable shapes are unsupported and handled as
-    /// <c>Unsupported</c> by the analyzer.
-    /// </remarks>
+    /// <remarks>Sets normalize to <c>HashSet{T}</c>; other unsupported shapes are <c>Unsupported</c>.</remarks>
     public static string MaterializeCollection(SparseMemberModel member, string elements)
     {
         var elementType = member.Collection.ElementType.Name;

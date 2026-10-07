@@ -4,16 +4,8 @@ using Microsoft.CodeAnalysis;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>
-/// Product-neutral source-location snapshot suitable for incremental values.
-/// </summary>
-/// <remarks>
-/// <see cref="Location"/> does not provide deterministic value equality, so
-/// analysis outputs retain the live <see cref="Location"/> for reporting but
-/// key equality-sensitive paths (dedup keys, incremental comparisons) off
-/// this snapshot. A <c>null</c> snapshot means "no location"; a snapshot with
-/// an empty <see cref="FilePath"/> means <see cref="Location.None"/>.
-/// </remarks>
+/// <summary>Product-neutral source-location snapshot suitable for incremental values.</summary>
+/// <remarks><see cref="Location"/> lacks value equality, so equality-sensitive paths use this snapshot.</remarks>
 internal readonly record struct SparseLocationSnapshot(string FilePath, int Start, int Length)
 {
     public static SparseLocationSnapshot? Capture(Location? location)
@@ -38,15 +30,7 @@ internal readonly record struct SparseLocationSnapshot(string FilePath, int Star
     public override string ToString() => FilePath + "(" + Start + "," + Length + ")";
 }
 
-/// <summary>
-/// Product-neutral diagnostic payload keyed by diagnostic ID plus format arguments.
-/// </summary>
-/// <remarks>
-/// Generators keep their own diagnostic descriptors, build-property names, hint
-/// names and final reporting/emission; this payload is the shared incremental-safe
-/// value passed between analysis and reporting. Arguments use a general immutable
-/// array rather than a fixed-arity representation.
-/// </remarks>
+/// <summary>Product-neutral diagnostic payload keyed by diagnostic ID plus format arguments.</summary>
 internal readonly record struct SparseDiagnosticPayload(
     string DescriptorId,
     SparseLocationSnapshot? Location,
@@ -63,8 +47,7 @@ internal readonly record struct SparseDiagnosticPayload(
     public string? Argument(int index) =>
         !Arguments.IsDefault && (uint)index < (uint)Arguments.Length ? Arguments[index] : null;
 
-    // ImmutableArray<T> equality is reference-based, so structural comparison
-    // goes through SparseSequence like every other shared model.
+    // ImmutableArray equality is reference-based; compare via SparseSequence.
     public bool Equals(SparseDiagnosticPayload other) =>
         string.Equals(DescriptorId, other.DescriptorId, StringComparison.Ordinal)
         && Location == other.Location

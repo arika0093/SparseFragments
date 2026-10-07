@@ -3,41 +3,10 @@ using System.Reflection;
 
 namespace SparseFragments;
 
-/// <summary>
-/// Domain-neutral collection contribution provenance shared by generated append, set-union, and replace members.
-/// </summary>
+/// <summary>Collection contribution provenance shared by generated append, set-union, and replace members.</summary>
 /// <remarks>
-/// <para>
-/// Given an effective collection plus low-to-high contribution values, the primitive explains which
-/// contribution position supplied each effective element. It operates only on contribution
-/// indices/values and fragment merge semantics: it never depends on host source identities,
-/// state registries, schemas, or diagnostics. A host adapter can map contribution indices to its
-/// own source identities.
-/// </para>
-/// <para>
-/// Presence is significant and mirrors generated fragment merge: <see cref="Optional{T}.Missing"/>
-/// contributes nothing, a present null value is a reset that discards all lower contributions, and a
-/// present collection contributes its elements. For <see cref="MergeMode.Append"/> the effective value
-/// is the concatenation of the present non-null contributions after the last present-null reset,
-/// preserving duplicates and order. For <see cref="MergeMode.SetUnion"/> over sequences the effective
-/// value is the insertion-ordered distinct union (first occurrence wins). For set-shaped
-/// <see cref="MergeMode.SetUnion"/> the effective value is the comparer-aware union; the element
-/// comparer is part of the set value (issue #5), so differing comparers fail rather than depending on
-/// operand order. For <see cref="MergeMode.Replace"/> the highest present contribution wins and every
-/// effective element maps to it.
-/// </para>
-/// <para>
-/// Keyed structural collections (issues #3/#4) are out of scope: scalar sequences stay atomic whole
-/// values here, and keyed reorder is a final key sequence with invalid duplicate keys, never a
-/// positional mapping. This primitive covers flat element values only and must not be interpreted as
-/// keyed identity.
-/// </para>
-/// <para>
-/// Custom strategies (<see cref="MergeMode.Custom"/>) and deep merges (<see cref="MergeMode.Deep"/>)
-/// are unsupported: a custom algebra can only participate once it provides an explicit provenance
-/// contract. The unified <see cref="TryExplain{T}"/> entry point reports those modes as failures
-/// with a reason instead of guessing.
-/// </para>
+/// Presence mirrors fragment merge: <see cref="Optional{T}.Missing"/> contributes nothing, present null resets,
+/// present collections contribute elements (Append concatenates, SetUnion deduplicates, Replace takes highest).
 /// </remarks>
 internal static class SparseCollectionProvenance
 {
@@ -412,9 +381,7 @@ internal static class SparseCollectionProvenance
         return true;
     }
 
-    /// <summary>
-    /// Explains set-shaped set-union provenance with comparer-correct equality (issue #5).
-    /// </summary>
+    /// <summary>Explains set-shaped set-union provenance with comparer-correct equality.</summary>
     /// <remarks>
     /// The effective comparer is discovered like <see cref="SparseCollectionMerger.MergeSet{T}"/>:
     /// the effective set's comparer wins when available, otherwise the first active

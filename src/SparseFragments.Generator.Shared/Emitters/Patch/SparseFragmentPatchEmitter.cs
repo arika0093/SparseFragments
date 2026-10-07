@@ -53,14 +53,6 @@ internal static class SparseFragmentPatchEmitter
     }
 
     /// <summary>Small dialect for shared patch-core emission (whole, empty, ctor, apply).</summary>
-    /// <remarks>
-    /// Only genuinely-shared algebra lives here: runtime names plus field/contract hooks.
-    /// Routing, replacement, and facade contracts stay in the product generators.
-    /// Issue #98: the same dialect carries the narrow ChangeSet/STJ product hooks
-    /// (runtime facade, conflict/rebase-result names, nested Patch/ChangeSet naming)
-    /// so downstream products reuse one structural implementation without a
-    /// SparseFragments runtime dependency.
-    /// </remarks>
     internal readonly record struct SparsePatchDialect(
         string RuntimeNamespace,
         string WholeFieldName,

@@ -4,16 +4,8 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Emits System.Text.Json round-trip support for Patch and ChangeSet (issue #86).</summary>
-/// <remarks>
-/// Generates an internal sealed JsonConverter per Patch/ChangeSet applied via [JsonConverter],
-/// encoding semantic state (presence tags, nested, keyed identity/order) with explicit
-/// Utf8JsonReader/Writer calls (AOT-safe). User values are (de)serialized via
-/// JsonSerializer with JsonTypeInfo from options, so application source-gen covers user types.
-/// No runtime reflection or MakeGenericType is emitted. No public Serialize/Deserialize API.
-/// Malformed JSON throws JsonException; ChangeSet is rebuilt via Between(before, after)
-/// so no invalid baseline can be produced.
-/// </remarks>
+/// <summary>Emits System.Text.Json round-trip support for Patch and ChangeSet.</summary>
+/// <remarks>Uses explicit Utf8JsonReader/Writer calls (AOT-safe); user values go through JsonSerializer options.</remarks>
 internal static class SparsePatchStjEmitter
 {
     internal static string RuntimeFor(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>
@@ -1075,7 +1067,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(2, "}");
     }
 
-    /// <summary>Emits sparse keyed/dictionary member ChangeSet JSON (issue #103).</summary>
+    /// <summary>Emits sparse keyed/dictionary member ChangeSet JSON.</summary>
     /// <remarks>
     /// Canonical transition only: whole presence transitions write full before/after
     /// optionals; granular transitions write per-changed-key items (key, kind,
@@ -1241,7 +1233,7 @@ internal static class SparsePatchStjEmitter
     private static string SparseValueFragment(SparseMemberModel m) =>
         m.Collection.ValueType!.Value.NonNullableName + ".Fragment";
 
-    /// <summary>Emits sparse keyed/dict member ChangeSet JSON read (issue #103).</summary>
+    /// <summary>Emits sparse keyed/dict member ChangeSet JSON read.</summary>
     private static void AppendChangeSetSparseMemberRead(
         SharedIndentedBuilder code,
         SparseMemberModel member,

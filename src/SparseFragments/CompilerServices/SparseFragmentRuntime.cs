@@ -2,11 +2,7 @@ using System.ComponentModel;
 
 namespace SparseFragments.CompilerServices;
 
-/// <summary>
-/// Minimal generated-code runtime facade. Generated fragments and patches call
-/// these helpers across the assembly boundary; the individual implementation
-/// types behind them remain internal to the runtime assembly.
-/// </summary>
+/// <summary>Minimal generated-code runtime facade.</summary>
 /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class SparseFragmentRuntime
@@ -85,7 +81,6 @@ public static class SparseFragmentRuntime
         );
 
     /// <summary>Reapplies a set-union edit onto a newer set without boxing or quadratic scans.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSetUnion<T>(
         IEnumerable<T> before,
         IEnumerable<T> desired,
@@ -96,7 +91,6 @@ public static class SparseFragmentRuntime
         SparseCollectionRebase.TryRebaseSetUnion(before, desired, current, out rebased, out reason);
 
     /// <summary>Reapplies an append edit onto a newer sequence without boxing or quadratic scans.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSequenceAppend<T>(
         IReadOnlyList<T> before,
         IReadOnlyList<T> desired,
@@ -115,7 +109,6 @@ public static class SparseFragmentRuntime
         );
 
     /// <summary>Reapplies an append edit directly into an array.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSequenceAppendArray<T>(
         IReadOnlyList<T> before,
         IReadOnlyList<T> desired,
@@ -134,7 +127,6 @@ public static class SparseFragmentRuntime
         );
 
     /// <summary>Reapplies a sequence set-union edit onto a newer sequence without boxing or quadratic scans.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSequenceSetUnion<T>(
         IReadOnlyList<T> before,
         IReadOnlyList<T> desired,
@@ -153,7 +145,6 @@ public static class SparseFragmentRuntime
         );
 
     /// <summary>Reapplies a sequence set-union edit directly into an array.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryRebaseSequenceSetUnionArray<T>(
         IReadOnlyList<T> before,
         IReadOnlyList<T> desired,
@@ -176,12 +167,10 @@ public static class SparseFragmentRuntime
         new(SparseReferenceEqualityComparer.Instance);
 
     /// <summary>Creates a reference-identity cycle scope for generated <c>Fragment.From</c> helpers.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static HashSet<object> CreateFromCycleContext() =>
         new(SparseReferenceEqualityComparer.Instance);
 
     /// <summary>Creates a pair-identity cycle scope for generated <c>Fragment.Diff</c> helpers.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static HashSet<KeyValuePair<object, object>> CreateDiffCycleContext() =>
         new(SparseDiffPairEqualityComparer.Instance);
 
@@ -201,7 +190,6 @@ public static class SparseFragmentRuntime
     /// <summary>
     /// Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.
     /// </summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryExplainCollectionProvenance<T>(
         MergeMode mode,
         IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,
@@ -220,7 +208,6 @@ public static class SparseFragmentRuntime
         );
 
     /// <summary>Explains which low-to-high contribution supplied each effective set element with comparer-correct equality.</summary>
-    /// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
     public static bool TryExplainSetProvenance<T>(
         IReadOnlyList<Optional<IEnumerable<T>?>> contributions,
         Optional<IEnumerable<T>?> effective,

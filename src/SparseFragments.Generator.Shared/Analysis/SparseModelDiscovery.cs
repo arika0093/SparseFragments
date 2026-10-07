@@ -231,12 +231,7 @@ internal static class SparseModelDiscovery
         CancellationToken cancellationToken
     )
     {
-        // Atomic-replace policy (issue #2): non-partial nested POCOs are treated
-        // as atomic replace values. Independently sparse/deep behavior requires
-        // a partial type (promoted) or an explicit [SparseFragmentModel]; no
-        // __SparseStructural_* hosts are generated. Downstream generators opt
-        // into StructuralHosts through explicit policy instead of forking the
-        // traversal algorithms.
+        // Non-partial nested POCOs are atomic replace values.
         if (config.StructuralPolicy != SparseStructuralPolicy.StructuralHosts)
         {
             return false;

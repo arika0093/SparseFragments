@@ -4,27 +4,8 @@ using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model (issue #85, #96, #97).</summary>
-/// <remarks>
-/// Issue #96: canonical storage is sparse per-path transition state, never full
-/// before/after snapshots. Unchanged members retain nothing (Missing + has=false
-/// or null nested). Between/FromPatch normalize to this sparse form; ToPatch/Invert
-/// project from it; typed surface reads it; STJ serializes only changed paths.
-/// Issue #97: Compose and Rebase operate directly on that sparse transition state.
-/// Memberwise compose checks semantic contiguity only where transitions overlap
-/// (scalar via generated equality, keyed/dict via canonical collection Between,
-/// nested recursively); disjoint paths compose without full-state equality.
-/// Whole-root transitions compose with memberwise ones through shared-baseline
-/// algebra (contiguity helpers plus memberwise patch application onto the retained
-/// whole endpoint, then Between). Memberwise rebase consumes per-member
-/// before/desired plus the supplied current member only: scalar via equality,
-/// nested recursively, keyed/dict via the canonical member-local collection rebase,
-/// custom strategies via TryRebase, and Append/SetUnion members via merge-aware
-/// TryRebase rather than plain equality. Keyed/dict changed members retain their
-/// member-level before/after values (still sparse at member granularity: only
-/// changed members are retained); composition and rebase reason over them with
-/// stable-key canonical semantics rather than positional flattening.
-/// </remarks>
+/// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model.</summary>
+/// <remarks>Canonical storage is sparse per-path transition state; Compose/Rebase operate directly on it.</remarks>
 internal static class SparseChangeSetEmitter
 {
     public static void AppendChangeSet(
@@ -102,7 +83,7 @@ internal static class SparseChangeSetEmitter
 
     private static string NestedField(SparseMemberModel m) => "__sparse_nested_" + m.Id;
 
-    // Issue #103: sparse keyed/dictionary canonical storage field names.
+    // Sparse keyed/dictionary canonical storage field names.
     // Changed keyed/dict members retain only the semantic transition
     // (whole presence transition OR granular per-key items + key-only orders),
     // never complete before/after member snapshots.
@@ -187,7 +168,7 @@ internal static class SparseChangeSetEmitter
             }
             else if (IsKeyed(member) || IsDict(member))
             {
-                // Issue #103: canonical sparse storage. No full member snapshots.
+                // Canonical sparse storage. No full member snapshots.
                 var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
                 var trans = transNames[member.Id];
                 var keyType = KeyTypeOf(member);
@@ -681,7 +662,7 @@ internal static class SparseChangeSetEmitter
     {
         _ = runtime;
         _ = optionalFragment;
-        // Per-key item inverters (issue #103): reverse add/remove, nested edits,
+        // Per-key item inverters: reverse add/remove, nested edits,
         // endpoints, and indexes without recovering full snapshots.
         foreach (var member in members)
         {
@@ -825,7 +806,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(2, "}");
     }
 
-    /// <summary>Emits ToPatch projection for a sparse keyed/dict member (issue #103).</summary>
+    /// <summary>Emits ToPatch projection for a sparse keyed/dict member.</summary>
     private static void AppendKeyedDictToPatch(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -965,7 +946,7 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(5, "return Between(__sparse_wholeBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(4, "}");
-        // Shared-baseline algebra (issue #97): a whole-root endpoint composes with a
+        // Shared-baseline algebra: a whole-root endpoint composes with a
         // memberwise transition when the memberwise side is contiguous with the retained
         // whole state. Only overlapping (changed) paths are checked; disjoint paths
         // compose without full-state equality. The merged endpoint is derived by
@@ -1037,7 +1018,7 @@ internal static class SparseChangeSetEmitter
         }
         // Emit per-member merge with explicit locals.
         // Scalar members keep snapshot equality; keyed/dict compose per interacting
-        // key (issue #103) so disjoint keys compose despite differing unrelated snapshots.
+        // key so disjoint keys compose despite differing unrelated snapshots.
         foreach (var member in members)
         {
             if (IsNested(member))
@@ -1162,7 +1143,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(2, "}");
     }
 
-    /// <summary>Emits per-key sparse compose for a keyed member (issue #103).</summary>
+    /// <summary>Emits per-key sparse compose for a keyed member.</summary>
     /// <remarks>
     /// Declares locals __cb_has/__cb_whole/__cb_wb/__cb_wa/__cb_items/__cb_bO/__cb_aO.
     /// Disjoint keys compose without full-snapshot equality; overlapping keys require
@@ -1445,7 +1426,7 @@ internal static class SparseChangeSetEmitter
                 + id
                 + ".TryGetValue(__k, out var __a2);"
         );
-        // Directional continuity (issue #103): second's expected before must hold in
+        // Directional continuity: second's expected before must hold in
         // first's after. First-only keys need no check (second adapts); second-only
         // keys validate presence against first's retained key orders so disjoint
         // edits compose while remove/edit of absent keys still fail.
@@ -1932,7 +1913,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(3, "}");
     }
 
-    /// <summary>Emits per-key sparse compose for a dictionary member (issue #103).</summary>
+    /// <summary>Emits per-key sparse compose for a dictionary member.</summary>
     private static void AppendDictComposeSparse(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -2405,7 +2386,7 @@ internal static class SparseChangeSetEmitter
     }
 
     /// <summary>
-    /// Emits the shared-baseline contiguity probes used by whole-root/memberwise composition (issue #97).
+    /// Emits the shared-baseline contiguity probes used by whole-root/memberwise composition.
     /// </summary>
     /// <remarks>
     /// Each probe checks semantic continuity only on changed paths: an empty transition
@@ -3184,7 +3165,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(2, "}");
     }
 
-    /// <summary>Emits sparse per-key rebase for a keyed member (issue #103).</summary>
+    /// <summary>Emits sparse per-key rebase for a keyed member.</summary>
     private static void AppendKeyedRebaseSparse(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -3708,7 +3689,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(4, "}");
     }
 
-    /// <summary>Emits sparse per-key rebase for a dictionary member (issue #103).</summary>
+    /// <summary>Emits sparse per-key rebase for a dictionary member.</summary>
     private static void AppendDictRebaseSparse(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -4085,7 +4066,7 @@ internal static class SparseChangeSetEmitter
     }
 
     /// <summary>
-    /// Emits merge-aware rebase for Append/SetUnion scalar-collection members (issue #97).
+    /// Emits merge-aware rebase for Append/SetUnion scalar-collection members.
     /// </summary>
     /// <remarks>
     /// Unlike plain scalar equality, Append members replay the locally appended suffix onto
@@ -4477,7 +4458,7 @@ internal static class SparseChangeSetEmitter
             usedTypes.Add(t);
             transNames[member.Id] = t;
         }
-        // Sparse before/after helpers read canonical sparse storage (issue #96, #103).
+        // Sparse before/after helpers read canonical sparse storage.
         // Whole-root transitions project member states from the retained root
         // fragments; memberwise transitions expose only retained changed paths.
         // Keyed/dict granular transitions retain no full member snapshots: the
@@ -5215,7 +5196,7 @@ internal static class SparseChangeSetEmitter
                 + "(before, after, __added, __removed, __edited, __beforeOrder, __afterOrder, __orderChanged, __items, __empty);"
         );
         code.AppendLineAt(2, "}");
-        // Sparse projection (issue #103): derive typed transition from canonical
+        // Sparse projection: derive typed transition from canonical
         // sparse storage without full member snapshots.
         code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
         code.AppendLineAt(2, "{");
@@ -5955,7 +5936,7 @@ internal static class SparseChangeSetEmitter
             );
         }
         code.AppendLineAt(2, "}");
-        // Sparse projection (issue #103) from canonical storage.
+        // Sparse projection from canonical storage.
         code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -6010,7 +5991,7 @@ internal static class SparseChangeSetEmitter
     }
 
     /// <summary>
-    /// Emits Between-time sparse diff for a keyed sequence member (issue #103).
+    /// Emits Between-time sparse diff for a keyed sequence member.
     /// </summary>
     /// <remarks>
     /// Declares locals __h/&#95;_whole/&#95;_wb/&#95;_wa/&#95;_items/&#95;_bO/&#95;_aO.
@@ -6504,7 +6485,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(3, "}");
     }
 
-    /// <summary>Emits Between-time sparse diff for a dictionary member (issue #103).</summary>
+    /// <summary>Emits Between-time sparse diff for a dictionary member.</summary>
     private static void AppendDictBetweenSparse(
         SharedIndentedBuilder code,
         SparseMemberModel member,
