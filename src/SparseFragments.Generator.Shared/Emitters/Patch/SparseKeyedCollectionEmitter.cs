@@ -2855,10 +2855,18 @@ internal static class SparseKeyedCollectionEmitter
         );
         code.AppendLineAt(4, $"if ({variable} is null)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, $"{variable} = new {dictionaryType}({comparer});");
+        var source = "__" + variable + "Source";
         code.AppendLineAt(
             5,
-            $"if ({state}.IsPresent && (object?){state}.Value is not null) foreach (var kv in ({interfaceType}){state}.Value!) {variable}[kv.Key] = kv.Value;"
+            $"var {source} = {state}.IsPresent ? ({interfaceType}?){state}.Value : null;"
+        );
+        code.AppendLineAt(
+            5,
+            $"{variable} = new {dictionaryType}({source}?.Count ?? 0, {comparer});"
+        );
+        code.AppendLineAt(
+            5,
+            $"if ({source} is not null) foreach (var kv in {source}) {variable}[kv.Key] = kv.Value;"
         );
         code.AppendLineAt(4, "}");
     }
