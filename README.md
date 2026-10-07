@@ -50,237 +50,116 @@ dotnet add package SparseFragments
 
 The package contains the source generator, so no additional generation step is required.
 
-## What Problem Does It Solve?
+## Quick Start
 
-### Partial Values
-
-Consider these two settings documents:
-
-```json
-{}
-```
-
-```json
-{ "label": null }
-```
-
-They mean different things. The first does not specify `Label`, so a lower-priority value should remain.
-
-The second explicitly sets `Label` to `null`, so it should replace the lower-priority value. A `string?` property cannot represent both cases by itself.
-
-The usual workaround is another DTO, a presence flag for each property, or custom JSON logic. Nested models repeat the same problem for every property.
-
-SparseFragments generates a `Fragment` that keeps the distinction between omitted values, explicit `null`, and supplied values:
+With .NET 10 or later, the whole example fits in a single file:
 
 ```csharp
+#:package SparseFragments@*
+
+using SparseFragments;
+
 var defaults = Settings.Fragment.From(new Settings
 {
     Label = "default",
     Database = new() { Host = "db.local", Port = 5432 },
-    Plugins = ["core"],
 });
 
-var user = new Settings.Fragment
+var environment = new Settings.Fragment
 {
-    Label = (string?)null,
-    Database = new DatabaseSettings.Fragment
-    {
-        Port = 6432,
-    },
+    Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
 
-var effective = defaults.Merge(user).ToModel();
+var effective = defaults.Merge(environment);
 
-// effective.Label         == null
-// effective.Database.Host == "db.local"
-// effective.Database.Port == 6432
-```
+var patch = new Settings.Patch { Label = "production" };
+var updated = effective.Apply(patch);
 
-Only values supplied by the higher layer participate in the merge. This makes the same representation useful for application defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
+var changes = Settings.ChangeSet.Between(effective, updated);
 
-Per-member merge rules can replace, recursively merge, append, form a set union, or use a custom strategy. See [Merge strategies](docs/merge-strategies.md).
+Console.WriteLine(updated.ToModel().Label); // production
+Console.WriteLine(changes.Label.IsChanged); // True
 
-`Fragment.Diff(beforeModel, afterModel)` performs the complementary operation when a full model should be reduced to only the values that differ, such as user settings persisted relative to defaults.
-
-### Partial Edits
-
-A full edited object does not say which values the user intended to change. Suppose a form loads this state:
-
-```text
-Label         = "production"
-Database.Host = "db.example.com"
-Database.Port = 5432
-```
-
-If the user changes only the port, the resulting model still contains all three values. The edit itself contains one change:
-
-```text
-Database.Port: 5432 -> 6432
-```
-
-Preserving that distinction prevents untouched values from becoming accidental updates. It also lets a UI decide whether there are real unsaved changes rather than whether a field was merely touched.
-
-SparseFragments generates a `Patch` when the application already knows what it wants to change:
-
-```csharp
-var current = Settings.Fragment.From(new Settings
+[SparseFragmentModel]
+public partial class Settings
 {
-    Label = "production",
-    Database = new() { Host = "db.example.com", Port = 5432 },
-});
+    public string? Label { get; set; }
+    public DatabaseSettings? Database { get; set; }
+}
 
-var patch = new Settings.Patch();
-patch.Database.Port = 6432;
-
-var updated = current.Apply(patch);
-```
-
-`Label` and `Database.Host` are not part of this patch, so applying it leaves them alone. Assigning a value, assigning explicit `null`, and calling `Unset()` are separate operations.
-
-The same distinction matters when an edit is saved in a different process from the one that created it. EF Core already tracks property changes when the same `DbContext` loads and edits an entity; SparseFragments does not replace that tracking.
-
-When an edit was made in a browser or another process, however, the receiving application needs to know which values were intended to change. A patch or change set provides that information so application code can update only those values on the current entity.
-
-### Before → After Changes
-
-Some operations need the previous value as well as the requested update. Undo, audit output, conflict detection, and synchronization all depend on the specific before → after transition.
-
-A `Patch` can say:
-
-```text
-set Database.Port to 6432
-```
-
-A generated `ChangeSet` can retain:
-
-```text
-Database.Port: 5432 -> 6432
-```
-
-Create one by comparing two versions:
-
-```csharp
-var before = Settings.Fragment.From(original);
-var after = Settings.Fragment.From(edited);
-
-var changes = Settings.ChangeSet.Between(before, after);
-```
-
-The generated members follow the source model:
-
-```csharp
-if (changes.Database.Port.IsChanged)
+public partial class DatabaseSettings
 {
-    Console.WriteLine(
-        $"{changes.Database.Port.Before} -> {changes.Database.Port.After}");
+    public string Host { get; set; } = "localhost";
+    public int Port { get; set; } = 5432;
 }
 ```
 
-Application code does not need property-name strings, reflection, or `object?` casts. Nested changes keep the same structure.
+Save it as `quickstart.cs` and run:
 
-`ChangeSet` also supports inversion, composition, conversion back to a patch, and rebasing. See [Fragments and patches](docs/fragments-and-patches.md) and [ChangeSet rebase](docs/rebase.md).
+```shell
+dotnet run --file quickstart.cs
+```
+
+The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after.
+
+The sections below explain why those distinctions matter. The [documentation](#documentation) covers the full APIs.
+
+## What Problem Does It Solve?
+
+### Partial Values
+
+A settings layer often needs to distinguish “not specified” from “explicitly set to `null`”. A normal nullable property cannot represent both meanings at once.
+
+A generated `Fragment` preserves that distinction and can be merged with lower-priority values. This makes it useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
+
+See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and per-member merge rules.
+
+### Partial Edits
+
+A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
+
+A generated `Patch` contains only the requested operations. This is useful for local commands, partial-update APIs, and edits created in a different process from the one that eventually saves them.
+
+EF Core already tracks changes made directly to a tracked entity; SparseFragments does not replace that. It helps when the edit arrives from elsewhere and the receiving application needs to know what should actually be applied.
+
+See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
+
+### Before → After Changes
+
+Some workflows need the previous value as well as the requested update. Undo, audit output, conflict detection, and synchronization all depend on the specific transition.
+
+A generated `ChangeSet` records that before → after change with the same typed shape as the model. Nested members stay nested, and keyed collections expose changes by item identity.
+
+See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
 
 ### Client/Server Edits
 
-A `ChangeSet` is serializable with the standard `System.Text.Json` APIs:
+A `ChangeSet` can be serialized with `System.Text.Json` and sent through the transport the application already uses.
 
 ```csharp
-using System.Text.Json;
-
 var json = JsonSerializer.Serialize(changes);
 var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
 ```
 
-SparseFragments does not define a transport protocol. The serialized value can travel through HTTP, SignalR, a message bus, or the transport the application already uses.
+Because it carries the before → after transition, the receiver can rebase an edit onto newer state instead of blindly replacing that state with a stale object. Incompatible edits to the same member are returned as structured conflicts.
 
-Serialization matters when state can change while an edit is in transit. Consider a client that loads state A and produces A → B while the server independently changes A → C.
-
-Replacing C with B would discard the server-side change. The incoming change set instead retains the before-state needed to compare the client's edit with the current state.
-
-`RebaseOnto` preserves non-conflicting changes and reports incompatible edits to the same member as structured conflicts. The server therefore needs the incoming `ChangeSet` and its current state, not a retained historical snapshot of A.
-
-See [ChangeSet rebase](docs/rebase.md) for the complete client → server flow and conflict handling.
+See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, and conflict handling.
 
 ### UI Editing
 
-UI binding creates a different problem: change notification and meaningful data changes are not the same thing.
+Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
 
-WPF, WinForms, .NET MAUI, WinUI, and Avalonia commonly bind through `INotifyPropertyChanged`. SparseFragments generates an `Observable` wrapper so the ordinary model does not need a second hand-written property hierarchy just for binding:
+SparseFragments generates `Observable` wrappers for WPF, WinForms, .NET MAUI, WinUI, and Avalonia. Blazor uses an edit session that keeps the ordinary model while deriving `HasChanges` and `ChangeSet` from the retained baseline.
 
-```csharp
-var model = new Settings();
-
-var observable = new Settings.Observable(
-    model,
-    onChanged: () => HasUnsavedChanges = true);
-
-observable.Label = "edited";
-
-// model.Label == "edited"
-```
-
-The wrapper writes through to the original model and raises change notifications. A retained baseline can then be compared with the current model to derive the actual before → after change.
-
-Blazor uses an edit session over the ordinary model:
-
-```csharp
-var settings = new Settings { Label = "original" };
-var session = settings.CreateEditSession();
-
-session.Model.Label = "edited";
-
-session.HasChanges; // true
-var changes = session.CreateChangeSet();
-```
-
-A touched field is not necessarily a remaining change. If the user restores the original value, the session reports no semantic change:
-
-```csharp
-session.Model.Label = "edited";
-session.Model.Label = "original";
-
-session.HasChanges; // false
-```
-
-The resulting `ChangeSet` is the same serializable type that can be sent to a server. See [UI frameworks](docs/ui-frameworks.md).
+See [UI frameworks](docs/ui-frameworks.md) for binding, validation, notifications, and edit sessions.
 
 ### Keyed Collections
 
-Collection changes need stable identity. An array index only describes a position, so inserting an item at the front moves every later index even when the existing items themselves did not change.
+Collection edits need stable identity. Array positions are not enough: inserting one item shifts every later index even when those items did not change.
 
-Mark one member of a structural element with `[SparseKey]`:
+Mark an element with `[SparseKey]`, and generated change sets can describe additions, removals, edits, and ordering by key.
 
-```csharp
-public partial class Quest
-{
-    [SparseKey]
-    public string Id { get; set; } = "";
-
-    public string Title { get; set; } = "";
-    public int Points { get; set; }
-}
-
-[SparseFragmentModel]
-public partial class Roster
-{
-    public List<Quest> Quests { get; set; } = [];
-}
-```
-
-SparseFragments then derives additions, removals, edits, and order changes by key:
-
-```csharp
-var changes = Roster.ChangeSet.Between(before, after);
-
-changes.Quests.Added;
-changes.Quests.Removed;
-changes.Quests.Edited;
-changes.Quests.OrderChanged;
-```
-
-An edit to one quest remains an edit to that quest even if another item is inserted before it. The keyed collection example in the [Playground](https://arika0093.github.io/SparseFragments/) shows the generated transition while items are added, removed, edited, and reordered.
-
-See [Keyed collections](docs/keyed-collections.md) for key rules, collection semantics, and typed per-item transitions.
+See [Keyed collections](docs/keyed-collections.md) for key rules and typed per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
 
 ## Generated API
 
