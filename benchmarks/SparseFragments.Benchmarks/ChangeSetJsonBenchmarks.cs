@@ -63,6 +63,30 @@ public class ChangeSetJsonBenchmarks
             throw new InvalidOperationException(
                 "Fragment converter reuse must not retain serializer options."
             );
+        ReadEmptyFragment(BenchJsonCaseNames.Fragment.JsonConverter, _options);
+        AssertNameCollision(BenchJsonCaseNames.Fragment.JsonConverter, alternateOptions);
+        var namingPolicy = new BenchCountingJsonNamingPolicy();
+        var collisionOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = _options.TypeInfoResolver,
+            PropertyNamingPolicy = namingPolicy,
+        };
+        AssertNameCollision(BenchChangeSetRebaseRecord.Fragment.JsonConverter, collisionOptions);
+        if (namingPolicy.Calls != 2)
+            throw new InvalidOperationException(
+                "Name validation must stop at the first collision."
+            );
+        namingPolicy = new BenchCountingJsonNamingPolicy();
+        var singleOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = _options.TypeInfoResolver,
+            PropertyNamingPolicy = namingPolicy,
+        };
+        ReadEmptyFragment(BenchJsonSingleName.Fragment.JsonConverter, singleOptions);
+        if (namingPolicy.Calls != 1)
+            throw new InvalidOperationException(
+                "Single-member validation must evaluate its naming policy."
+            );
         var escaped = System.Text.Encoding.UTF8.GetBytes(
             System
                 .Text.Encoding.UTF8.GetString(_json)
@@ -150,6 +174,37 @@ public class ChangeSetJsonBenchmarks
             ),
         };
 
+    private static void ReadEmptyFragment<T>(
+        JsonConverter<T> converter,
+        JsonSerializerOptions options
+    )
+    {
+        var reader = new Utf8JsonReader(new byte[] { (byte)'{', (byte)'}' });
+        reader.Read();
+        converter.Read(ref reader, typeof(T), options);
+    }
+
+    private static void AssertNameCollision<T>(
+        JsonConverter<T> converter,
+        JsonSerializerOptions options
+    )
+    {
+        try
+        {
+            ReadEmptyFragment(converter, options);
+        }
+        catch (JsonException error)
+            when (error.Message.StartsWith(
+                    "Multiple fragment members map to the same JSON property name.",
+                    StringComparison.Ordinal
+                )
+            )
+        {
+            return;
+        }
+        throw new InvalidOperationException("Colliding JSON names must be rejected.");
+    }
+
     private void Validate(BenchChangeSetRebaseRecord.ChangeSet change)
     {
         var actual = change.ToPatch().Apply(_before);
@@ -181,4 +236,34 @@ public class ChangeSetJsonBenchmarks
     [Benchmark]
     public BenchChangeSetRebaseRecord.ChangeSet Deserialize() =>
         JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(_json, _options)!;
+}
+
+[SparseFragmentModel]
+public partial class BenchJsonCaseNames
+{
+    [JsonPropertyName("Name")]
+    public int First { get; set; }
+
+    [JsonPropertyName("name")]
+    public int Second { get; set; }
+
+    [JsonIgnore]
+    public int Ignored { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class BenchJsonSingleName
+{
+    public int Value { get; set; }
+}
+
+public sealed class BenchCountingJsonNamingPolicy : JsonNamingPolicy
+{
+    public int Calls { get; private set; }
+
+    public override string ConvertName(string name)
+    {
+        Calls++;
+        return "same";
+    }
 }

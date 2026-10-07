@@ -306,10 +306,27 @@ internal static class SparseFragmentJsonEmitter
             "private static void ValidateJsonNames(global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "var names = new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
-        );
+        var comparePairs = jsonMembers.Length <= 3;
+        if (!comparePairs)
+        {
+            code.AppendLineAt(
+                4,
+                "var names = new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
+            );
+        }
+        else if (jsonMembers.Length > 1)
+        {
+            code.AppendLineAt(
+                4,
+                "var comparison = options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal;"
+            );
+        }
+        else
+        {
+            // Preserve the options requirement even with no names to compare.
+            code.AppendLineAt(4, "_ = options.PropertyNameCaseInsensitive;");
+        }
+        var nameIndex = 0;
         foreach (var property in jsonMembers.Select(static member => member.Property))
         {
             var literal = SymbolDisplay.FormatLiteral(
@@ -319,12 +336,36 @@ internal static class SparseFragmentJsonEmitter
             var expression = property.HasExplicitJsonPropertyName
                 ? literal
                 : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
-            code.AppendLineAt(
-                4,
-                "if (!names.Add("
-                    + expression
-                    + ")) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
-            );
+            if (!comparePairs)
+            {
+                code.AppendLineAt(
+                    4,
+                    "if (!names.Add("
+                        + expression
+                        + ")) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                );
+            }
+            else if (jsonMembers.Length == 1)
+            {
+                // Retain naming-policy evaluation even when collisions are impossible.
+                code.AppendLineAt(4, "_ = " + expression + ";");
+            }
+            else
+            {
+                code.AppendLineAt(4, "var __name_" + nameIndex + " = " + expression + ";");
+                for (var previous = 0; previous < nameIndex; previous++)
+                {
+                    code.AppendLineAt(
+                        4,
+                        "if (global::System.String.Equals(__name_"
+                            + previous
+                            + ", __name_"
+                            + nameIndex
+                            + ", comparison)) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                    );
+                }
+                nameIndex++;
+            }
         }
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
