@@ -126,3 +126,5 @@ var removal = CounterSettings.Patch.Between(a, b); // Label: present → missing
 | Apply Patch operations | `fragment.Apply(patch)` | Fragment |
 
 `Merge` composes contributions; `ApplyChanges` replays a `Diff` Fragment; `Apply` executes `Patch` operations. They are not interchangeable: `ApplyChanges` never unsets a member that the diff did not carry, while a `Patch` explicitly can.
+
+The [Collaborative editing example](../examples/CollaborativeEditing/README.md) exercises these APIs together: system defaults layered under per-workspace overrides via `Merge`, with each save derived by `Patch.Between` from a retained baseline.

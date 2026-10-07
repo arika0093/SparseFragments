@@ -65,6 +65,8 @@ RFC 6902 arrays are positional (`/Items/0`), while keyed structural collections 
 
 Prefer the typed `Patch.Between` / `Apply` API for keyed collections whenever both sides are in-process; reserve the bridge for the boundary.
 
+The [Collaborative editing example](../examples/CollaborativeEditing/README.md) uses this boundary in both directions: each client exports its typed patch into a `PATCH` request and the server re-imports it before applying, keeping keyed meaning on the typed side.
+
 ## Options, Converters, and NativeAOT
 
 Both directions accept an optional `JsonSerializerOptions`:

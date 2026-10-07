@@ -111,3 +111,5 @@ DataContext = new WidgetDto.Observable(model, () => SaveCommand.NotifyCanExecute
 ```
 
 WinForms, .NET MAUI, WinUI, and Avalonia use the same `Observable` wrapper over the underlying model; only the framework-specific binding setup differs.
+
+The [Collaborative editing example](../examples/CollaborativeEditing/README.md) runs both adapters against the same save/rebase transport: the Blazor editor binds through an edit session while the WPF editor binds through the generated `Observable` wrapper, showing when each integration fits.

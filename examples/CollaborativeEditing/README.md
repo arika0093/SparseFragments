@@ -45,12 +45,12 @@ dotnet test examples/CollaborativeEditing/CollaborativeEditing.Tests
 
 ## Project Layout
 
-* `CollaborativeEditing.AppHost` — .NET Aspire orchestration: PostgreSQL, the API server, and the Blazor client. WPF is intentionally not referenced (Windows-only); it is launched separately.
+* [Aspire orchestration](CollaborativeEditing.AppHost/Program.cs) — PostgreSQL, the API server, and the Blazor client. WPF is intentionally not referenced (Windows-only); it is launched separately.
 * `CollaborativeEditing.ServiceDefaults` — shared Aspire service defaults (telemetry, health checks).
-* `CollaborativeEditing.Contracts` — the shared SparseFragments model (`Workspace`, `WorkspaceSettings`, `Quest`). Both clients and the server compile against these types.
-* `CollaborativeEditing.Server` — ASP.NET Core + EF Core. Owns persistence, mapping, validation, and optimistic concurrency.
-* `CollaborativeEditing.Client.Blazor` — Blazor WebAssembly editor using the generated edit-session integration.
-* `CollaborativeEditing.Client.Wpf` — WPF editor using the generated `T.Observable` wrapper.
+* [Shared contract model](CollaborativeEditing.Contracts/Models.cs) — `Workspace`, `WorkspaceSettings`, `Quest`. Both clients and the server compile against these types.
+* [Server](CollaborativeEditing.Server/Program.cs) — ASP.NET Core + EF Core. Owns persistence, mapping, validation, and optimistic concurrency.
+* [Blazor editor](CollaborativeEditing.Client.Blazor/Pages/WorkspaceEditor.razor) with its [HTTP client](CollaborativeEditing.Client.Blazor/WorkspaceApiClient.cs) — Blazor WebAssembly editor using the edit-session integration.
+* [WPF code-behind save/rebase flow](CollaborativeEditing.Client.Wpf/MainWindow.xaml.cs) — WPF editor using the generated `T.Observable` wrapper.
 * `CollaborativeEditing.Tests` — integration coverage for the persistence and concurrency workflow below the UI.
 
 ## Data and Persistence Flow
@@ -63,9 +63,9 @@ EF entities (WorkspaceEntity, QuestEntity)
 API / SparseFragments model (Workspace, Quest)
 ```
 
-The mapping boundary is deliberate: real applications assemble or transform persistence data before returning it. SparseFragments works on the application model; EF concerns never leak into the client contracts. See `CollaborativeEditing.Server/CollabLogic.cs` (mapper) and `Data/CollabDbContext.cs` (entities).
+The mapping boundary is deliberate: the server assembles persistence rows into the application model before SparseFragments ever sees it, so EF concerns never leak into the client contracts. See the [entity-to-model mapper](CollaborativeEditing.Server/CollabLogic.cs) and the [EF Core model](CollaborativeEditing.Server/Data/CollabDbContext.cs).
 
-Settings demonstrate Playground-style layering as an application scenario: the server keeps system defaults (`SystemDefaults.Value`) and per-workspace overrides. `GET` returns both the stored override and the merged `effectiveSettings` (`defaults.Merge(override)`), so a missing override member visibly leaves the default intact. See [Fragments and patches](../../docs/fragments-and-patches.md) for `Merge` semantics.
+Settings demonstrate layering as an application scenario: the server keeps system defaults and per-workspace overrides, returning both the stored override and the merged effective settings. See [Fragments and patches](../../docs/fragments-and-patches.md) for `Merge` semantics.
 
 ## Edit and Save Flow
 
@@ -86,9 +86,11 @@ GET model + revision
 → adopt new baseline
 ```
 
-Implementation: server update endpoint (`CollaborativeEditing.Server/Program.cs`, PATCH handler); client save workflow (`CollaborativeEditing.Client.Blazor/WorkspaceApiClient.cs` and `Pages/WorkspaceEditor.razor`; `CollaborativeEditing.Client.Wpf/MainWindow.xaml.cs`).
+Implementation: [server PATCH endpoint](CollaborativeEditing.Server/Program.cs); [Blazor HTTP client](CollaborativeEditing.Client.Blazor/WorkspaceApiClient.cs) and [Blazor editor page](CollaborativeEditing.Client.Blazor/Pages/WorkspaceEditor.razor); [WPF code-behind save/rebase flow](CollaborativeEditing.Client.Wpf/MainWindow.xaml.cs).
 
-JSON Patch is the transport format only. Clients edit typed models, derive typed patches, and serialize at the HTTP boundary; the server converts back with `FromJsonPatch` before applying. This matters most for keyed collections: SparseFragments uses stable key identity while RFC 6902 arrays use positional paths, so the typed patch Plus the baseline is what preserves add/remove/edit meaning. See [JSON Patch](../../docs/json-patch.md).
+JSON Patch is the transport format only: each side keeps a typed patch plus its baseline, which is what preserves keyed add/remove/edit meaning across positional RFC 6902 paths. See [JSON Patch](../../docs/json-patch.md).
+
+Revision/`If-Match`/ETag handling here is the example's own optimistic-concurrency scheme, not something SparseFragments requires.
 
 After a successful save, clients adopt the server-returned canonical representation and revision as the next baseline rather than assuming the local result is canonical. That leaves room for server normalization, validation transforms, and mapping logic.
 
@@ -109,7 +111,7 @@ See [Rebase](../../docs/rebase.md) for the complete semantic rules. Try it: open
 
 ## Conflict Scenario
 
-Edit the same quest title differently in both clients and save both. The stale save returns 412; rebase reports structured conflicts instead of submitting an arbitrary winner. The UI lists each conflict's path (`Path`/`PathText`), kind, and base/local/current values. No general merge editor is included; the data shown is what a real one would build on.
+Edit the same quest title differently in both clients and save both. The stale save returns 412; rebase reports structured conflicts instead of submitting an arbitrary winner. The UI lists each conflict's path (`Path`/`PathText`), kind, and base/local/current values, matching the shape described in [Rebase](../../docs/rebase.md). No general merge editor is included; the data shown is what a real one would build on.
 
 ## Keyed Collection Scenario
 
