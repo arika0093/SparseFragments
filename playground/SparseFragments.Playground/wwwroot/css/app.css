@@ -1,5 +1,12 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+#app {
+    max-width: 100%;
+    min-width: 0;
 }
 
 h1:focus {
@@ -125,11 +132,21 @@ code {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    min-width: 0;
 }
 
 .pg-title h1 {
     font-weight: 700;
     min-width: 0;
+}
+
+.pg-brand {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 6px;
 }
 
 .pg-gh {
@@ -180,7 +197,8 @@ code {
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .pg-card-head h3 {
@@ -192,11 +210,20 @@ code {
     white-space: nowrap;
 }
 
+.pg-card-head .pg-hint {
+    flex: 1 1 12rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .pg-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
 }
 
 .pg-row {
@@ -260,6 +287,43 @@ code {
     max-width: 100%;
 }
 
+/* Breakpoint strategy (desktop-first; 1rem = 16px at default root size):
+   - base (> 48rem / 768px): desktop two-column .pg-grid, fixed editor
+     columns (.pg-row 12rem 12rem auto), multi-column roster rows.
+   - max-width 48rem (tablets / narrow landscape): header and card heads
+     wrap, keyed-list summary drops to its own line, roster rows stack
+     (Id / Title / Points / Scores / Order / actions), dialog footer wraps.
+   - max-width 40rem (phones): tighter shell/card padding, field editors
+     reflow (name + op on line 1, controls full-width on line 2).
+   - max-width 24rem (small phones 320-384px): editors stack fully
+     (op select full-width), padding and title type tighten further.
+   The desktop two-column grid itself is untouched: .pg-grid auto-fit
+   collapses to one column on its own below ~56rem of content width. */
+@media (max-width: 48rem) {
+    .pg-title h1 {
+        flex: 1 1 auto;
+        font-size: 1.5rem;
+    }
+
+    .pg-card-head .pg-hint {
+        flex-basis: 100%;
+    }
+
+    .pg-rline1 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-rline2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    fluent-dialog-footer,
+    .fluent-dialog-footer {
+        flex-wrap: wrap;
+        max-width: 100%;
+    }
+}
+
 @media (max-width: 40rem) {
     .pg-shell {
         padding: 0.75rem 0.75rem 2rem;
@@ -288,6 +352,7 @@ code {
     .pg-row > .pg-controls {
         grid-column: 1 / -1;
         grid-row: 2;
+        flex-wrap: wrap;
     }
 
     .pg-row > .pg-op {
@@ -348,6 +413,8 @@ code {
     border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
     margin-left: 0.25rem;
     border-radius: 0.25rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .pg-roster-row.pg-added {
@@ -405,6 +472,8 @@ code {
     align-items: center;
     gap: 0.25rem;
     padding-bottom: 1px;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .pg-drag {
@@ -453,15 +522,7 @@ code {
     color: var(--neutral-foreground-hint, #6c757d);
 }
 
-@media (max-width: 40rem) {
-    .pg-rline1 {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .pg-rline2 {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
+/* Roster stacking lives in the max-width: 48rem block above. */
 
 .pg-hint {
     color: var(--neutral-foreground-hint, #495057);
@@ -469,6 +530,8 @@ code {
 
 .pg-monaco {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 160px;
     border: 1px solid var(--neutral-stroke-rest, #dee2e6);
     border-radius: 0.375rem;
@@ -477,7 +540,40 @@ code {
 
 .pg-monaco-editor {
     width: 100%;
+    max-width: 100%;
     height: 100%;
+}
+
+/* Fluent tabs: keep the tab strip scroll inside the card, never the page.
+   (Fluent renders the strip in shadow DOM; these light-DOM guards constrain
+   the host elements while body overflow-x: clip guarantees no page scroll.) */
+.pg-fluent-card fluent-tabs,
+.pg-fluent-card .fluent-tabs {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-fluent-card [role="tablist"] {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.pg-fluent-card div[role="tabpanel"] {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Grid items default to min-width: auto, which lets Monaco/tab content force
+   the grid (and page) wider. Constrain them; desktop layout is unaffected. */
+.pg-grid > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Dialog: keep the overlay panel inside the viewport; footer buttons may
+   wrap on narrow screens (flex-wrap only, no display change). */
+fluent-dialog [role="dialog"] {
+    max-width: calc(100vw - 2rem);
 }
 
 .pg-grid > .pg-fluent-card {
@@ -495,6 +591,8 @@ code {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .pg-stretch .fluent-tabs > div[role="tabpanel"] {
@@ -502,6 +600,9 @@ code {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .pg-stretch .pg-monaco {
@@ -514,4 +615,42 @@ code {
     flex: 1 1 auto;
     height: auto;
     min-height: 0;
+}
+
+@media (max-width: 24rem) {
+    .pg-shell {
+        padding: 0.5rem 0.5rem 1.5rem;
+    }
+
+    .pg-title h1 {
+        font-size: 1.25rem;
+    }
+
+    .pg-fluent-card {
+        padding: 0.5rem;
+    }
+
+    .pg-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-nested .pg-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-row > .pg-controls {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .pg-row > .pg-op {
+        grid-column: 1;
+        grid-row: auto;
+        width: 100%;
+    }
+
+    .pg-nested {
+        margin-left: 0.5rem;
+        padding-left: 0.5rem;
+    }
 }
