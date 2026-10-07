@@ -370,17 +370,17 @@ public sealed class SparseKeyedDictChangeSetTests
     {
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-                """{"Items":{"items":[{"key":"a","kind":"bogus","after":{"Id":"a","Name":"x","Count":0},"beforeIndex":-1,"afterIndex":0}]}}"""
+                """{"version":1,"changes":{"Items":{"items":[{"key":"a","kind":"bogus","after":{"Id":"a","Name":"x","Count":0},"beforeIndex":-1,"afterIndex":0}]}}}"""
             )
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-                """{"Items":{"items":[]}}"""
+                """{"version":1,"changes":{"Items":{"items":[]}}}"""
             )
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<ScalarDictHolder.ChangeSet>(
-                """{"Scores":{"items":[{"key":"a","kind":"edit","before":1,"after":1}]}}"""
+                """{"version":1,"changes":{"Scores":{"items":[{"key":"a","kind":"edit","before":1,"after":1}]}}}"""
             )
         );
     }

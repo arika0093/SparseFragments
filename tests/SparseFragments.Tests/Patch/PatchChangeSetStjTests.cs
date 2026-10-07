@@ -351,16 +351,24 @@ public sealed class PatchChangeSetStjTests
             JsonSerializer.Deserialize<Settings.Patch>("""{"$whole":{"kind":"set"}}""")
         );
         Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.ChangeSet>("""{"before":{"state":"missing"}}""")
-        );
-        Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"before":{"state":"bogus"},"after":{"state":"missing"}}"""
+                """{"version":1,"changes":{"before":{"state":"missing"}}}"""
             )
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"before":{"state":"missing"},"after":{"state":"missing"},"extra":{}}"""
+                """{"version":1,"changes":{"Label":{"before":{"state":"bogus"},"after":{"state":"missing"}}}}"""
+            )
+        );
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<Settings.ChangeSet>(
+                """{"version":1,"changes":{"Label":{"before":{"state":"missing"},"after":{"state":"missing"},"extra":{}}}}"""
+            )
+        );
+        // The pre-v1 unversioned body is not accepted as a v1 document.
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<Settings.ChangeSet>(
+                """{"Label":{"before":{"state":"value","value":"a"},"after":{"state":"value","value":"b"}}}"""
             )
         );
         Should.Throw<JsonException>(() =>

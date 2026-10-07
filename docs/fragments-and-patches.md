@@ -308,6 +308,26 @@ Registering the generated top-level Patch/ChangeSet types is sufficient for thei
 
 Typed convenience projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, item enumeration, and `BeforeOrder` / `AfterOrder` / `OrderChanged` are API projections over the transition, not duplicate wire fields. The canonical JSON contract carries only the changed-path transition state (`$whole` for whole-root transitions, per-member before/after otherwise — never full fragments); deserialization recomputes the projections, so a round-tripped ChangeSet observes the same typed transitions and `ToPatch().Apply(start)` still replays the after-state.
 
+### ChangeSet JSON v1
+
+ChangeSet JSON is a versioned SparseFragments format beginning with version 1. The serialized document is a root envelope with a required integer `version` and a `changes` object carrying the v1 body grammar:
+
+```json
+{
+  "version": 1,
+  "changes": {
+    "Label": {
+      "before": { "state": "value", "value": "a" },
+      "after": { "state": "value", "value": "b" }
+    }
+  }
+}
+```
+
+An empty ChangeSet serializes as `{"version": 1, "changes": {}}`. The `version` and `changes` names are wire-format metadata and always use those exact names, independent of `JsonSerializerOptions.PropertyNamingPolicy`; model-derived member names inside `changes` keep the existing `JsonPropertyName` / naming-policy behavior. Nested ChangeSets reuse the body grammar directly and never emit nested envelopes. Readers require exactly version 1, reject missing/duplicate/non-integer/unsupported versions, missing/duplicate `changes`, and unknown envelope properties, independent of root property order. The pre-v1 unversioned shape is not accepted.
+
+Callers still use ordinary `System.Text.Json`; SparseFragments adds no separate public JSON codec API and generates no JSON Schema. `Patch` JSON is not versioned by this contract, and the format carries no transport metadata, timestamps, revisions, ETags, model type names, or persistence policy. Future incompatible ChangeSet format changes require a new version.
+
 ## Which API for Which Task
 
 | Need | API | Result |
