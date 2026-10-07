@@ -251,18 +251,6 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         code.AppendLineAt(
             5,
-            "var __net"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + trans
-                + ".Item>("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            5,
             "var __keys"
                 + id
                 + " = new global::System.Collections.Generic.HashSet<"
@@ -274,6 +262,28 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + ");"
         );
         code.AppendLineAt(5, "__keys" + id + ".UnionWith(__map2" + id + ".Keys);");
+        // Keys occurring in only one input always survive composition. Their count
+        // is a safe capacity lower bound; fully overlapping cancellations reserve zero.
+        code.AppendLineAt(
+            5,
+            "var __net"
+                + id
+                + " = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + trans
+                + ".Item>((__keys"
+                + id
+                + ".Count - __map1"
+                + id
+                + ".Count) + (__keys"
+                + id
+                + ".Count - __map2"
+                + id
+                + ".Count), "
+                + comparer
+                + ");"
+        );
         // Index only second-only keys that occur in the retained first order.
         // Pure additions need no set allocation; small orders and a few queries
         // keep linear scans, since indexing sixteen-item edit benchmarks cost more.
