@@ -34,7 +34,12 @@ internal static class SparseKeyedCollectionEmitter
     private static bool HasValuePatch(SparseMemberModel member) =>
         member.Collection.ValueType?.IsFragmentModel == true;
 
-    private static void AppendPendingKeyLoopStart(SharedIndentedBuilder code)
+    private static void AppendPendingKeyLoopStart(
+        SharedIndentedBuilder code,
+        string baseMap = "baseMap",
+        string currentMap = "currentMap",
+        string desiredMap = "desiredMap"
+    )
     {
         code.AppendLineAt(
             4,
@@ -43,7 +48,13 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "var __keyMap = __mapIndex == 0 ? baseMap : (__mapIndex == 1 ? currentMap : desiredMap);"
+            "var __keyMap = __mapIndex == 0 ? "
+                + baseMap
+                + " : (__mapIndex == 1 ? "
+                + currentMap
+                + " : "
+                + desiredMap
+                + ");"
         );
         code.IndentOffset++;
         code.AppendLineAt(4, "foreach (var k in __keyMap.Keys)");
@@ -2636,14 +2647,6 @@ internal static class SparseKeyedCollectionEmitter
             comparer
         );
         EmitRebaseDictionarySnapshot(code, "desired", "desiredDict", keyType, valueType, comparer);
-        code.AppendLineAt(
-            4,
-            "var keys = new global::System.Collections.Generic.HashSet<"
-                + keyType
-                + ">(baseDict.Keys, "
-                + comparer
-                + "); foreach (var k in currentDict.Keys) keys.Add(k); foreach (var k in desiredDict.Keys) keys.Add(k);"
-        );
         // Pre-index locally removed keys once (O(K)) so per-key touch checks are
         // O(1) comparer-correct lookups instead of O(K) List.Contains scans.
         code.AppendLineAt(
@@ -2658,13 +2661,29 @@ internal static class SparseKeyedCollectionEmitter
                 + comparer
                 + ");"
         );
+        code.AppendLineAt(
+            4,
+            "var __pendingKeys = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(local.__set is not null ? (global::System.Collections.Generic.IEnumerable<"
+                + keyType
+                + ">)local.__set.Keys : (local.__edited is not null ? (global::System.Collections.Generic.IEnumerable<"
+                + keyType
+                + ">)local.__edited.Keys : __dictRemoved), "
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (local.__set is not null && local.__edited is not null) __pendingKeys.UnionWith(local.__edited.Keys);"
+        );
+        code.AppendLineAt(4, "__pendingKeys.UnionWith(__dictRemoved);");
         if (hasPatch)
         {
             var valuePatch = ValuePatchType(member);
             var valueFragment = ValueFragmentType(member);
             var prefix = ValuePatchPrefix(member);
-            code.AppendLineAt(4, "foreach (var k in keys)");
-            code.AppendLineAt(4, "{");
+            AppendPendingKeyLoopStart(code, "baseDict", "currentDict", "desiredDict");
             code.AppendLineAt(
                 5,
                 "var inBase = baseDict.TryGetValue(k, out var b); var inCurrent = currentDict.TryGetValue(k, out var c); var inDesired = desiredDict.TryGetValue(k, out var d);"
@@ -2673,7 +2692,6 @@ internal static class SparseKeyedCollectionEmitter
                 5,
                 "var touchesSet = local.__set is not null && local.__set.ContainsKey(k); var touchesRemoved = __dictRemoved.Contains(k); var touchesEdited = local.__edited is not null && local.__edited.ContainsKey(k);"
             );
-            code.AppendLineAt(5, "if (!touchesSet && !touchesRemoved && !touchesEdited) continue;");
             code.AppendLineAt(
                 5,
                 "bool baseEqCurrent = inBase == inCurrent && (!inBase || "
@@ -2752,21 +2770,15 @@ internal static class SparseKeyedCollectionEmitter
                     + runtime
                     + "Optional<object?>.Present((object?)c), \"The dictionary entry conflicts with a concurrent change.\"));"
             );
-            code.AppendLineAt(4, "}");
+            AppendPendingKeyLoopEnd(code);
         }
         else
         {
-            code.AppendLineAt(4, "foreach (var k in keys)");
-            code.AppendLineAt(4, "{");
+            AppendPendingKeyLoopStart(code, "baseDict", "currentDict", "desiredDict");
             code.AppendLineAt(
                 5,
                 "var inBase = baseDict.TryGetValue(k, out var b); var inCurrent = currentDict.TryGetValue(k, out var c); var inDesired = desiredDict.TryGetValue(k, out var d);"
             );
-            code.AppendLineAt(
-                5,
-                "var touches = (local.__set is not null && local.__set.ContainsKey(k)) || __dictRemoved.Contains(k) || (local.__edited is not null && local.__edited.ContainsKey(k));"
-            );
-            code.AppendLineAt(5, "if (!touches) continue;");
             code.AppendLineAt(
                 5,
                 "bool baseEqCurrent = inBase == inCurrent && (!inBase || "
@@ -2811,7 +2823,7 @@ internal static class SparseKeyedCollectionEmitter
                     + runtime
                     + "Optional<object?>.Present((object?)c), \"The dictionary entry conflicts with a concurrent change.\"));"
             );
-            code.AppendLineAt(4, "}");
+            AppendPendingKeyLoopEnd(code);
         }
 
         code.AppendLineAt(
