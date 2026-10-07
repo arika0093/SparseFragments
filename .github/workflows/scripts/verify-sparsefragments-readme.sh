@@ -3,9 +3,11 @@
 #
 # The canonical compile-checked source is
 # tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
-# README quick-start, workflow, and end-to-end samples (model shape, Optional
-# states, Fragment layering and merge, typed Patch, Fragment diff, ChangeSet
-# transitions with invert/compose/rebase, and one ChangeSet JSON round-trip).
+# README numbered Quick Start (model shape, Optional states, Fragment presence
+# and merge, typed Patch, ChangeSet transitions with typed observation, and one
+# ChangeSet JSON round-trip). Advanced ChangeSet algebra, rebase, keyed
+# collections, and UI sessions are covered by the docs samples instead
+# (verify-docs-samples.sh).
 # This script guards against drift
 # between the README and that canonical source, then builds and runs the
 # fixture against the packed packages so CI fails when the public generated
@@ -48,24 +50,29 @@ fi
 
 # 2. Representative API tokens must appear in both the README and the
 # canonical fixture so the fixture cannot silently drift from the docs.
+# The list tracks the numbered Quick Start: model definition, presence,
+# Fragment merge, Patch editing, ChangeSet transitions with typed observation,
+# and the ordinary System.Text.Json round-trip.
 required_tokens=(
     '[SparseFragmentModel]'
+    '[SparseMerge(MergeMode.Append)]'
+    'Optional<string?>.Missing'
+    'Optional<string?>.Present'
     'new Settings.Fragment'
     'new Child.Fragment'
     '.Merge('
-    'Settings.Fragment.Diff'
-    'ApplyChanges'
     'new Settings.Patch'
     '.Apply('
-    '.Compose('
     '.Unset()'
     '.SetNull()'
+    'IsEmpty'
     'ChangeSet.Between'
     '.ToPatch()'
-    '.Invert()'
-    'RebaseOnto'
-    'HasConflicts'
+    'IsChanged'
+    '.Before'
+    '.After'
     'JsonSerializer.Serialize'
+    'JsonSerializer.Deserialize'
 )
 for token in "${required_tokens[@]}"; do
     if ! grep -F -q "${token}" "${readme_path}"; then
