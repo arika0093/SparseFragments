@@ -73,12 +73,12 @@ check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir
     '[SparseKey(' \
     'ISparseKeyed' \
     'SparseKey =>' \
-    'Patch.Between' \
+    'ChangeSet.Between' \
     '.Apply(before)' \
     'IsEmpty'
 
 check_sample "rebase" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
-    'Patch.Rebase' \
+    'RebaseOnto' \
     'RebaseResult' \
     'HasConflicts' \
     'SparsePatchConflictKind.Scalar' \
@@ -106,12 +106,12 @@ check_sample "model-shapes" "docs/model-shapes.md" "${docs_fixture_dir}/ModelSha
 check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     '.Observable(' \
     'PropertyChanged' \
-    'Patch.Between' \
+    'ChangeSet.Between' \
     'Fragment.From'
 
 check_sample "inspection" "docs/inspection.md" "${docs_fixture_dir}/InspectionSamples.cs" \
     'Roster.Sparse.Properties' \
-    'patch.Changes' \
+    '.Changes' \
     'SparseChangeKind' \
     'SparseCollectionSemantic.KeyedSequence' \
     'SparseKeyKind.Property' \
@@ -134,11 +134,12 @@ check_block() {
 }
 
 check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    core-models core-create core-layering core-diff core-patch core-between
+    core-models core-create core-layering core-diff core-patch core-between \
+    core-changeset core-algebra core-serialization
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     keyed-first-models keyed-first
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first
+    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-e2e
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session
 check_block "inspection" "docs/inspection.md" "${docs_fixture_dir}/InspectionSamples.cs" \
@@ -147,6 +148,7 @@ check_block "inspection" "docs/inspection.md" "${docs_fixture_dir}/InspectionSam
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
+    'CreateChangeSet' \
     'CreatePatch' \
     'AcceptChanges' \
     'EditContext' \

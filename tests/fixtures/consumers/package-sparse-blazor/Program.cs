@@ -74,9 +74,9 @@ uiSession.Model.Number = "ORD-2";
 // uiSession.HasChanges == true
 DocsCheck.Require(uiSession.HasChanges, "scalar edit detected");
 
-var uiPatch = uiSession.CreatePatch();
-// uiPatch.IsEmpty == false
-DocsCheck.Require(!uiPatch.IsEmpty, "semantic patch derived");
+var uiChanges = uiSession.CreateChangeSet();
+// uiChanges.IsEmpty == false
+DocsCheck.Require(!uiChanges.IsEmpty, "semantic change set derived");
 
 uiSession.AcceptChanges();
 // uiSession.HasChanges == false

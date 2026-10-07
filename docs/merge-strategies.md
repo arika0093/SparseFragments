@@ -66,7 +66,7 @@ Present collections combine as an insertion-ordered set union: lower-priority en
 
 ## Custom Strategies
 
-A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [Patch rebase](rebase.md)).
+A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [ChangeSet rebase](rebase.md)).
 
 ```csharp
 public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>

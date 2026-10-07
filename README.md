@@ -19,7 +19,7 @@ Each scenario below keeps an edit, override, or delta as a `Fragment`/`Patch` th
 * **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered `Merge` produces the effective state.
 * **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents.
 * **Minimal persisted settings.** `Diff` the current settings against the defaults and persist only the resulting fragment.
-* **Edit sessions and dirty tracking.** Accumulate user edits in a `Patch`, check `IsEmpty`, apply for a preview, or drop to cancel. The original model is never mutated.
+* **Edit sessions and dirty tracking.** Accumulate user edits in an edit session, check `HasChanges`, apply for a preview, derive a `ChangeSet` for transport or later reconciliation, or drop to cancel. The original model is never mutated.
 
 ## Install
 
@@ -143,6 +143,20 @@ toNull.Child.SetNull();                                        // explicit null,
 
 `Patch.IsEmpty` tells you at a glance whether the patch changes anything at all.
 
+A `Patch` is a mutable list of desired operations. When the transition itself must travel — across processes, through JSON, or into a later reconciliation — derive the immutable `ChangeSet` instead:
+
+```csharp
+var patch = new Settings.Patch();
+// mutable desired operations
+
+var changes = Settings.ChangeSet.Between(
+    Optional<Settings.Fragment?>.Present(original),
+    Optional<Settings.Fragment?>.Present(updated));
+// immutable before -> after transition
+```
+
+All baseline-dependent operations belong to `ChangeSet`: `Between`, `ToPatch`, `FromPatch`, parameterless `Invert`, `Compose`, and `RebaseOnto`. See [ChangeSet rebase](docs/rebase.md) for the disconnected-editing flow.
+
 ### 5. Beyond the basics
 
 Builders, cloning, and ChangeSet JSON transport follow the same partial state; the linked guides carry the full behavior:
@@ -150,6 +164,11 @@ Builders, cloning, and ChangeSet JSON transport follow the same partial state; t
 ```csharp
 var edited = original.ToBuilder().Build();                     // edited copy via the builder
 var clone = original.ToModel().DeepClone();                    // isolated graph (see Clone & ownership)
+
+var serialized = System.Text.Json.JsonSerializer.Serialize(    // ordinary STJ, no transport protocol
+    Settings.ChangeSet.Between(
+        Optional<Settings.Fragment?>.Present(original),
+        Optional<Settings.Fragment?>.Present(updated)));
 
 var baseline = new Settings.Fragment { Label = "base" };
 var baselineOpt = Optional<Settings.Fragment?>.Present(baseline);
@@ -162,6 +181,8 @@ var restored = System.Text.Json.JsonSerializer.Deserialize<Settings.ChangeSet>(c
 var updatedFromJson = baseline.Apply(restored.ToPatch());      // updatedFromJson.Label == "patched"
 ```
 
+For SparseFragments-to-SparseFragments exchange, serialize the typed `Patch`/`ChangeSet` with ordinary `System.Text.Json`. The RFC 6902 bridge is only for interop with external systems.
+
 ## Documentation
 
 | Capability | Documentation |
@@ -173,7 +194,7 @@ var updatedFromJson = baseline.Apply(restored.ToPatch());      // updatedFromJso
 | Customize how members merge | [Merge strategies](docs/merge-strategies.md) |
 | Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
 | Inspect model semantics and Patch changes | [Inspection](docs/inspection.md) |
-| Reconcile concurrent edits | [Patch rebase](docs/rebase.md) |
+| Reconcile concurrent edits | [ChangeSet rebase](docs/rebase.md) |
 | Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
 | Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
 | Check supported model shapes and constructors | [Model shapes](docs/model-shapes.md) |

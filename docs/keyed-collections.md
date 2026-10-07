@@ -33,8 +33,8 @@ var after = Fleet.Fragment.From(new Fleet
     Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
 });
 
-var patch = Fleet.Patch.Between(before, after); // add/remove/edit by key
-var applied = patch.Apply(before);              // original untouched
+var changes = Fleet.ChangeSet.Between(before, after); // add/remove/edit by key
+var applied = changes.ToPatch().Apply(before);        // original untouched
 
 // applied.Value!.Servers.Value!.Count == 2
 // applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new"
@@ -146,7 +146,7 @@ Keys must be stable and comparable:
 
 ## Add / Remove / Edit / Reorder
 
-`Patch.Between` derives per-element operations from the before/after key sets; `Apply` replays them. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `Between(applied, after).IsEmpty` holds).
+`ChangeSet.Between` derives per-element operations from the before/after key sets; `ToPatch().Apply` replays them. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `ChangeSet.Between(applied, after).IsEmpty` holds).
 
 The same `Fleet` / `Server` model shows each operation with ordinary values:
 
@@ -160,8 +160,8 @@ var after = Fleet.Fragment.From(new Fleet
     Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
 });
 
-var patch = Fleet.Patch.Between(before, after);
-var applied = patch.Apply(before);
+var changes = Fleet.ChangeSet.Between(before, after);
+var applied = changes.ToPatch().Apply(before);
 // applied holds keys ["b", "c"]; "b" was edited in place, "a" removed, "c" added.
 ```
 
@@ -173,9 +173,9 @@ Concretely:
 * **Replace the whole collection.** Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
 * **Reorder.** The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate "move identity".
 
-Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts.
+Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
 ## Duplicate Keys and Key Changes
 
 * **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
-* **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `Between`/`Apply`.
+* **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `ChangeSet.Between`/`ToPatch`/`Apply`.
