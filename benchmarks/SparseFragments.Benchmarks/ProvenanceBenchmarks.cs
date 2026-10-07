@@ -185,6 +185,22 @@ public class ProvenanceBenchmarks
             _sequenceUnionResetEffective,
             StringComparer.Ordinal
         );
+        try
+        {
+            SparseFragmentRuntime.TryExplainCollectionProvenance(
+                MergeMode.SetUnion,
+                new[] { Optional<IReadOnlyList<string>?>.Present(new[] { (string)null! }) },
+                Optional<IReadOnlyList<string>?>.Present(new[] { (string)null! }),
+                StringComparer.Ordinal,
+                out _,
+                out _
+            );
+        }
+        catch (ArgumentNullException)
+        {
+            return;
+        }
+        throw new InvalidOperationException("Null provenance elements must remain rejected.");
     }
 
     private static void ValidateSequenceOrigins(
