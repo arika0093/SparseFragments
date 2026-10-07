@@ -468,9 +468,15 @@ internal static class SparseCollectionProvenance
         }
 
         var comparer = effectiveComparer ?? activeComparer ?? EqualityComparer<T>.Default;
-        var effectiveValues = effective.Value.ToArray();
-        var distinctEffective = new HashSet<T>(effectiveValues, comparer);
-        if (distinctEffective.Count != effectiveValues.Length)
+        // HashSet already guarantees uniqueness under its own comparer. Use its
+        // count and traversal directly instead of copying and rehashing its values.
+        var effectiveSet = effective.Value as HashSet<T>;
+        var effectiveValues = effectiveSet is null ? effective.Value.ToArray() : null;
+        var effectiveCount = effectiveSet?.Count ?? effectiveValues!.Length;
+        var distinctEffective = effectiveValues is null
+            ? null
+            : new HashSet<T>(effectiveValues, comparer);
+        if (distinctEffective is not null && distinctEffective.Count != effectiveCount)
         {
             return Fail(
                 "The effective set contains duplicate elements under its comparer.",
@@ -482,7 +488,7 @@ internal static class SparseCollectionProvenance
         // First-origin tracking while building the union: each distinct value records
         // the lowest contribution index that supplied it, so origins need no second
         // scan over the contributions. Total work stays O(total + effective).
-        var originsByValue = new Dictionary<T, int>(effectiveValues.Length, comparer);
+        var originsByValue = new Dictionary<T, int>(effectiveCount, comparer);
         for (var index = reset + 1; index < contributions.Count; index++)
         {
             var contribution = contributions[index];
@@ -501,8 +507,11 @@ internal static class SparseCollectionProvenance
         }
 
         if (
-            originsByValue.Count != distinctEffective.Count
-            || !distinctEffective.All(value => originsByValue.ContainsKey(value))
+            originsByValue.Count != effectiveCount
+            || (
+                distinctEffective is not null
+                && !distinctEffective.All(value => originsByValue.ContainsKey(value))
+            )
         )
         {
             return Fail(
@@ -512,8 +521,24 @@ internal static class SparseCollectionProvenance
             );
         }
 
-        origins = new int[effectiveValues.Length];
-        for (var position = 0; position < effectiveValues.Length; position++)
+        origins = new int[effectiveCount];
+        if (effectiveSet is not null)
+        {
+            var position = 0;
+            foreach (var value in effectiveSet)
+            {
+                if (!originsByValue.TryGetValue(value, out var origin))
+                    return Fail(
+                        "The effective set is not the comparer-aware union of the present contributions after the last reset.",
+                        out origins,
+                        out reason
+                    );
+                origins[position++] = origin;
+            }
+            reason = null;
+            return true;
+        }
+        for (var position = 0; position < effectiveValues!.Length; position++)
         {
             // The union check above guarantees every effective value is tracked, so
             // the lookup succeeds for comparers whose hash codes agree with

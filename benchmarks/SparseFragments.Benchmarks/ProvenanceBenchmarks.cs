@@ -185,6 +185,50 @@ public class ProvenanceBenchmarks
             _sequenceUnionResetEffective,
             StringComparer.Ordinal
         );
+        ValidateSetOrigins(_setContributions, _setEffective, StringComparer.Ordinal);
+        ValidateSetOrigins(
+            _setIgnoreCaseContributions,
+            _setIgnoreCaseEffective,
+            StringComparer.OrdinalIgnoreCase
+        );
+        ValidateSetOrigins(_setResetContributions, _setResetEffective, StringComparer.Ordinal);
+        var arrayEffective = _setEffective.Value!.ToArray();
+        ValidateSetOrigins(
+            _setContributions,
+            Optional<IEnumerable<string>?>.Present(arrayEffective),
+            StringComparer.Ordinal
+        );
+        ValidateSetOrigins(
+            _setContributions,
+            Optional<IEnumerable<string>?>.Present(arrayEffective.Select(value => value)),
+            StringComparer.Ordinal
+        );
+        if (
+            SparseFragmentRuntime.TryExplainSetProvenance(
+                _setContributions,
+                Optional<IEnumerable<string>?>.Present(
+                    arrayEffective.Concat(new[] { arrayEffective[0] })
+                ),
+                out _,
+                out _
+            )
+        )
+            throw new InvalidOperationException(
+                "Duplicate effective set elements must be rejected."
+            );
+        if (
+            SparseFragmentRuntime.TryExplainSetProvenance(
+                _setContributions,
+                Optional<IEnumerable<string>?>.Present(
+                    new HashSet<string>(arrayEffective, StringComparer.OrdinalIgnoreCase)
+                ),
+                out _,
+                out _
+            )
+        )
+            throw new InvalidOperationException(
+                "Effective and contribution set comparers must match."
+            );
         try
         {
             SparseFragmentRuntime.TryExplainCollectionProvenance(
@@ -235,6 +279,39 @@ public class ProvenanceBenchmarks
         )
             throw new InvalidOperationException(
                 "Sequence provenance must preserve first contribution indices after resets."
+            );
+    }
+
+    private static void ValidateSetOrigins(
+        IReadOnlyList<Optional<IEnumerable<string>?>> contributions,
+        Optional<IEnumerable<string>?> effective,
+        IEqualityComparer<string> comparer
+    )
+    {
+        var expected = new Dictionary<string, int>(comparer);
+        for (var index = 0; index < contributions.Count; index++)
+        {
+            var contribution = contributions[index];
+            if (!contribution.IsPresent)
+                continue;
+            if (contribution.Value is null)
+            {
+                expected.Clear();
+                continue;
+            }
+            foreach (var value in contribution.Value)
+                expected.TryAdd(value, index);
+        }
+        if (
+            !SparseFragmentRuntime.TryExplainSetProvenance(
+                contributions,
+                effective,
+                out var origins,
+                out _
+            ) || !origins.SequenceEqual((effective.Value ?? []).Select(value => expected[value]))
+        )
+            throw new InvalidOperationException(
+                "Set provenance must preserve first contribution indices in effective traversal order."
             );
     }
 
