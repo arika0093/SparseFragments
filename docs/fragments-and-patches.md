@@ -134,7 +134,7 @@ if (changes.Label.IsChanged)
 ```
 <!-- /sample -->
 
-Unchanged members remain typed and report `IsChanged == false`. `Before` / `After` preserve the missing / present-null / present-value states, so `missing -> present`, `present null -> missing`, and value changes are all observable without losing presence information. When a baseline-free operation is needed instead, cross the explicit boundary:
+Unchanged members remain typed and report `IsChanged == false` without retaining anything: their `Before` / `After` are missing. Changed members preserve the missing / present-null / present-value states, so `missing -> present`, `present null -> missing`, and value changes are all observable without losing presence information. When a baseline-free operation is needed instead, cross the explicit boundary:
 
 ```csharp
 var patch = changes.ToPatch();
@@ -306,7 +306,7 @@ var restored = JsonSerializer.Deserialize<Order.ChangeSet>(json, options);
 
 Registering the generated top-level Patch/ChangeSet types is sufficient for their statically reachable generated object graphs, subject to the ordinary System.Text.Json rules for dynamic/`object`/polymorphic member values: member scalar/collection types resolve through `options.TypeInfoResolver` like any other application type, so add them to the application context when the trimmer requires it.
 
-Typed convenience projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, item enumeration, and `BeforeOrder` / `AfterOrder` / `OrderChanged` are API projections over the transition, not duplicate wire fields. The canonical JSON contract carries the before/after state; deserialization recomputes the projections, so a round-tripped ChangeSet observes the same typed transitions and `ToPatch().Apply(start)` still replays the after-state.
+Typed convenience projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, item enumeration, and `BeforeOrder` / `AfterOrder` / `OrderChanged` are API projections over the transition, not duplicate wire fields. The canonical JSON contract carries only the changed-path transition state (`$whole` for whole-root transitions, per-member before/after otherwise — never full fragments); deserialization recomputes the projections, so a round-tripped ChangeSet observes the same typed transitions and `ToPatch().Apply(start)` still replays the after-state.
 
 ## Which API for Which Task
 

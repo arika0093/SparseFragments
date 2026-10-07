@@ -398,10 +398,11 @@ public sealed class ChangeSetTests
         var same = Present(MakeSettings("Alice", 1));
         var unchanged = Settings.ChangeSet.Between(before, same);
         unchanged.Label.IsChanged.ShouldBeFalse();
-        unchanged.Label.Before.IsPresent.ShouldBeTrue();
-        unchanged.Label.Before.Value.ShouldBe("Alice");
-        unchanged.Label.After.Value.ShouldBe("Alice");
+        // Issue #96: unchanged members retain nothing; Before/After are Missing.
+        unchanged.Label.Before.IsPresent.ShouldBeFalse();
+        unchanged.Label.After.IsPresent.ShouldBeFalse();
         unchanged.RetryCount.IsChanged.ShouldBeFalse();
+        unchanged.RetryCount.Before.IsPresent.ShouldBeFalse();
 
         var after = Present(MakeSettings("Bob", 1));
         var changes = Settings.ChangeSet.Between(before, after);
@@ -409,7 +410,8 @@ public sealed class ChangeSetTests
         changes.Label.Before.Value.ShouldBe("Alice");
         changes.Label.After.Value.ShouldBe("Bob");
         changes.RetryCount.IsChanged.ShouldBeFalse();
-        changes.RetryCount.Before.Value.ShouldBe(1);
+        changes.RetryCount.Before.IsPresent.ShouldBeFalse();
+        changes.RetryCount.After.IsPresent.ShouldBeFalse();
 
         var toNull = Settings.ChangeSet.Between(before, Present(MakeSettings(null, 1)));
         toNull.Label.IsChanged.ShouldBeTrue();
@@ -449,7 +451,9 @@ public sealed class ChangeSetTests
         changes.Tags.Before.Value.ShouldBe(["a", "b"]);
         changes.Tags.After.Value.ShouldBe(["c"]);
         changes.Numbers.IsChanged.ShouldBeFalse();
-        changes.Numbers.Before.Value.ShouldBe([1, 2]);
+        // Issue #96: unchanged collection members retain nothing.
+        changes.Numbers.Before.IsPresent.ShouldBeFalse();
+        changes.Numbers.After.IsPresent.ShouldBeFalse();
     }
 
     [Test]
