@@ -269,6 +269,75 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + ");"
         );
         code.AppendLineAt(5, "__keys" + id + ".UnionWith(__map2" + id + ".Keys);");
+        // Index only second-only keys that occur in the retained first order.
+        // Pure additions need no set allocation; small orders and a few queries
+        // keep linear scans, since indexing sixteen-item edit benchmarks cost more.
+        var continuityDictionary =
+            "global::System.Collections.Generic.Dictionary<" + keyType + ", " + trans + ".Item>";
+        code.AppendLineAt(
+            5,
+            "static global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">? __IndexContinuity"
+                + id
+                + "(global::System.Collections.Generic.List<"
+                + keyType
+                + "> order, "
+                + continuityDictionary
+                + " first, "
+                + continuityDictionary
+                + " second)"
+        );
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(
+            6,
+            "global::System.Collections.Generic.List<" + keyType + ">? present = null;"
+        );
+        code.AppendLineAt(
+            6,
+            "foreach (var key in order!) if (second.ContainsKey(key) && !first.ContainsKey(key)) (present ??= new global::System.Collections.Generic.List<"
+                + keyType
+                + ">()).Add(key);"
+        );
+        code.AppendLineAt(
+            6,
+            "return present is null ? null : new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(present, "
+                + comparer
+                + ");"
+        );
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(
+            5,
+            "var __indexContinuity"
+                + id
+                + " = "
+                + KeyedAfterOrder(member)
+                + " is not null && "
+                + KeyedAfterOrder(member)
+                + ".Count > 16 && __keys"
+                + id
+                + ".Count - __map1"
+                + id
+                + ".Count > 4;"
+        );
+        code.AppendLineAt(
+            5,
+            "var __presentSecondOnly"
+                + id
+                + " = __indexContinuity"
+                + id
+                + " ? __IndexContinuity"
+                + id
+                + "("
+                + KeyedAfterOrder(member)
+                + "!, __map1"
+                + id
+                + ", __map2"
+                + id
+                + ") : null;"
+        );
         code.AppendLineAt(5, "foreach (var __k in __keys" + id + ")");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
@@ -288,9 +357,13 @@ internal static class SparseChangeSetKeyedComposeEmitter
         code.AppendLineAt(7, "var __o1aChk = " + KeyedAfterOrder(member) + ";");
         code.AppendLineAt(
             7,
-            "if (__o1aChk is not null) { bool __in1 = false; foreach (var __ok in __o1aChk) if ("
+            "if (__o1aChk is not null) { bool __in1; if (__indexContinuity"
+                + id
+                + ") __in1 = __presentSecondOnly"
+                + id
+                + "?.Contains(__k) == true; else { __in1 = false; foreach (var __ok in __o1aChk) if ("
                 + comparer
-                + ".Equals(__ok, __k)) { __in1 = true; break; } if (__a2!.IsAdded ? __in1 : !__in1) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\"); }"
+                + ".Equals(__ok, __k)) { __in1 = true; break; } } if (__a2!.IsAdded ? __in1 : !__in1) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\"); }"
         );
         code.AppendLineAt(7, "__net" + id + "[__k] = __a2!; continue;");
         code.AppendLineAt(6, "}");

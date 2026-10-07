@@ -42,20 +42,51 @@ public class KeyedChangeSetEditComposeBenchmarks
             throw new InvalidOperationException(
                 "Disjoint and overlapping edited items must compose and invert correctly."
             );
+        ExpectRejected(
+            BenchKeyedServerHolder.ChangeSet.Between(State(1, skipIndex: Size - 1), State(2))
+        );
+        ExpectRejected(
+            BenchKeyedServerHolder.ChangeSet.Between(State(1, Size + 8), State(2, Size + 8))
+        );
     }
 
-    private Optional<BenchKeyedServerHolder.Fragment?> State(int step) =>
+    private void ExpectRejected(BenchKeyedServerHolder.ChangeSet next)
+    {
+        try
+        {
+            _first.Compose(next);
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message.StartsWith(
+                    "ChangeSet composition requires",
+                    StringComparison.Ordinal
+                )
+            )
+        {
+            return;
+        }
+        throw new InvalidOperationException(
+            "Composition must reject adding present keys and editing absent keys."
+        );
+    }
+
+    private Optional<BenchKeyedServerHolder.Fragment?> State(
+        int step,
+        int? count = null,
+        int? skipIndex = null
+    ) =>
         Optional<BenchKeyedServerHolder.Fragment?>.Present(
             BenchKeyedServerHolder.Fragment.From(
                 new()
                 {
                     Items = Enumerable
-                        .Range(0, Size)
+                        .Range(0, count ?? Size)
+                        .Where(index => index != skipIndex)
                         .Select(index => new BenchKeyedServer
                         {
                             Id = "srv-" + index,
                             Name = "server-" + index,
-                            Count = index + Increment(index, step),
+                            Count = index + (index >= Size ? step : Increment(index, step)),
                         })
                         .ToList(),
                 }
