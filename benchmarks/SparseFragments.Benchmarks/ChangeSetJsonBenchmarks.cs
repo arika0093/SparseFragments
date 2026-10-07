@@ -90,6 +90,8 @@ public class ChangeSetJsonBenchmarks
         var escaped = System.Text.Encoding.UTF8.GetBytes(
             System
                 .Text.Encoding.UTF8.GetString(_json)
+                .Replace("\"version\"", "\"ver\\u0073ion\"")
+                .Replace("\"changes\"", "\"chan\\u0067es\"")
                 .Replace("\"before\"", "\"be\\u0066ore\"")
                 .Replace("\"after\"", "\"a\\u0066ter\"")
                 .Replace("\"state\"", "\"st\\u0061te\"")
@@ -105,16 +107,14 @@ public class ChangeSetJsonBenchmarks
         {
             using (var writer = new Utf8JsonWriter(reordered))
             {
-                writer.WriteStartObject();
-                foreach (var property in document.RootElement.EnumerateObject().Reverse())
-                {
-                    writer.WritePropertyName(property.Name);
-                    writer.WriteStartObject();
-                    foreach (var member in property.Value.EnumerateObject().Reverse())
-                        member.WriteTo(writer);
-                    writer.WriteEndObject();
-                }
-                writer.WriteEndObject();
+                if (
+                    document.RootElement.GetProperty("version").GetInt32() != 1
+                    || document.RootElement.GetProperty("changes").ValueKind != JsonValueKind.Object
+                )
+                    throw new InvalidOperationException(
+                        "ChangeSet JSON must use the version 1 envelope."
+                    );
+                WriteReordered(document.RootElement, writer);
             }
             Validate(
                 JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
@@ -142,7 +142,10 @@ public class ChangeSetJsonBenchmarks
         {
             try
             {
-                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(invalid, _options);
+                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
+                    "{\"version\":1,\"changes\":{\"$whole\":" + invalid + "}}",
+                    _options
+                );
             }
             catch (JsonException)
             {
@@ -150,6 +153,53 @@ public class ChangeSetJsonBenchmarks
             }
             throw new InvalidOperationException("Invalid ChangeSet properties must be rejected.");
         }
+        foreach (
+            var invalid in new[]
+            {
+                "{}",
+                "{\"version\":1}",
+                "{\"changes\":{}}",
+                "{\"version\":2,\"changes\":{}}",
+                "{\"version\":\"1\",\"changes\":{}}",
+                "{\"version\":1,\"version\":1,\"changes\":{}}",
+                "{\"version\":1,\"changes\":{},\"changes\":{}}",
+                "{\"version\":1,\"changes\":{},\"unknown\":1}",
+            }
+        )
+        {
+            try
+            {
+                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(invalid, _options);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+            throw new InvalidOperationException("Malformed version 1 envelopes must be rejected.");
+        }
+    }
+
+    private static void WriteReordered(JsonElement element, Utf8JsonWriter writer)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            writer.WriteStartObject();
+            foreach (var property in element.EnumerateObject().Reverse())
+            {
+                writer.WritePropertyName(property.Name);
+                WriteReordered(property.Value, writer);
+            }
+            writer.WriteEndObject();
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            writer.WriteStartArray();
+            foreach (var item in element.EnumerateArray())
+                WriteReordered(item, writer);
+            writer.WriteEndArray();
+        }
+        else
+            element.WriteTo(writer);
     }
 
     private Optional<BenchChangeSetRebaseRecord.Fragment?> State(int step) =>
