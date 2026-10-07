@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/arika0093/SparseFragments</RepositoryUrl>
     <PackageProjectUrl>https://github.com/arika0093/SparseFragments</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>image.png</PackageIcon>
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
@@ -29,5 +30,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None
+      Include="$(MSBuildThisFileDirectory)../assets/image.png"
+      Pack="true"
+      PackagePath="/"
+      Visible="false"
+    />
   </ItemGroup>
 </Project>
