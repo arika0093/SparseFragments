@@ -307,8 +307,8 @@ internal static class SparsePatchInspectionEmitter
             "internal " + Runtime + "SparseKeyedCollectionInspection __SparseInspectKeyed()"
         );
         code.AppendLineAt(3, "{");
-        AppendObjectListCopy(code, "__sparse_added", "__added");
-        AppendObjectListCopy(code, "__sparse_removed", "__removed");
+        AppendObjectArrayCopy(code, "__sparse_added", "__added");
+        AppendObjectArrayCopy(code, "__sparse_removed", "__removed");
         var editType = Runtime + "SparseKeyedEdit";
         code.AppendLineAt(
             4,
@@ -318,21 +318,17 @@ internal static class SparsePatchInspectionEmitter
                 + editType
                 + ">();"
         );
-        code.AppendLineAt(4, "if (__edited is not null)");
+        code.AppendLineAt(4, "if (__edited is not null && __edited.Count != 0)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var __sparse_editedList = new global::System.Collections.Generic.List<"
-                + editType
-                + ">(__edited.Count);"
-        );
+        code.AppendLineAt(5, "var __sparse_editedArray = new " + editType + "[__edited.Count];");
+        code.AppendLineAt(5, "var __sparse_editedIndex = 0;");
         if (member.Collection.ElementType.IsFragmentModel)
         {
             code.AppendLineAt(
                 5,
-                "foreach (var __sparse_kvp in __edited) __sparse_editedList.Add(new "
+                "foreach (var __sparse_kvp in __edited) __sparse_editedArray[__sparse_editedIndex++] = new "
                     + editType
-                    + "((object?)__sparse_kvp.Key, __sparse_kvp.Value.__SparseGetChanges()));"
+                    + "((object?)__sparse_kvp.Key, __sparse_kvp.Value.__SparseGetChanges());"
             );
         }
         else
@@ -342,17 +338,17 @@ internal static class SparsePatchInspectionEmitter
             // Patch. Projected without nested changes to stay compilable.
             code.AppendLineAt(
                 5,
-                "foreach (var __sparse_kvp in __edited) __sparse_editedList.Add(new "
+                "foreach (var __sparse_kvp in __edited) __sparse_editedArray[__sparse_editedIndex++] = new "
                     + editType
                     + "((object?)__sparse_kvp.Key, "
                     + EmptyChanges
-                    + "));"
+                    + ");"
             );
         }
 
-        code.AppendLineAt(5, "__sparse_edited = __sparse_editedList;");
+        code.AppendLineAt(5, "__sparse_edited = __sparse_editedArray;");
         code.AppendLineAt(4, "}");
-        AppendObjectListCopy(code, "__sparse_order", "__order");
+        AppendObjectArrayCopy(code, "__sparse_order", "__order");
         code.AppendLineAt(
             4,
             "return new "
@@ -391,23 +387,19 @@ internal static class SparsePatchInspectionEmitter
                 + entryType
                 + ">();"
         );
-        code.AppendLineAt(4, "if (__set is not null)");
+        code.AppendLineAt(4, "if (__set is not null && __set.Count != 0)");
         code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "var __sparse_setArray = new " + entryType + "[__set.Count];");
+        code.AppendLineAt(5, "var __sparse_setIndex = 0;");
         code.AppendLineAt(
             5,
-            "var __sparse_setList = new global::System.Collections.Generic.List<"
+            "foreach (var __sparse_kvp in __set) __sparse_setArray[__sparse_setIndex++] = new "
                 + entryType
-                + ">(__set.Count);"
+                + "((object?)__sparse_kvp.Key, (object?)__sparse_kvp.Value);"
         );
-        code.AppendLineAt(
-            5,
-            "foreach (var __sparse_kvp in __set) __sparse_setList.Add(new "
-                + entryType
-                + "((object?)__sparse_kvp.Key, (object?)__sparse_kvp.Value));"
-        );
-        code.AppendLineAt(5, "__sparse_set = __sparse_setList;");
+        code.AppendLineAt(5, "__sparse_set = __sparse_setArray;");
         code.AppendLineAt(4, "}");
-        AppendObjectListCopy(code, "__sparse_removed", "__removed");
+        AppendObjectArrayCopy(code, "__sparse_removed", "__removed");
         var editType = Runtime + "SparseDictionaryEdit";
         code.AppendLineAt(
             4,
@@ -417,36 +409,32 @@ internal static class SparsePatchInspectionEmitter
                 + editType
                 + ">();"
         );
-        code.AppendLineAt(4, "if (__edited is not null)");
+        code.AppendLineAt(4, "if (__edited is not null && __edited.Count != 0)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var __sparse_editedList = new global::System.Collections.Generic.List<"
-                + editType
-                + ">(__edited.Count);"
-        );
+        code.AppendLineAt(5, "var __sparse_editedArray = new " + editType + "[__edited.Count];");
+        code.AppendLineAt(5, "var __sparse_editedIndex = 0;");
         if (member.Collection.ValueType?.IsFragmentModel == true)
         {
             code.AppendLineAt(
                 5,
-                "foreach (var __sparse_kvp in __edited) __sparse_editedList.Add(new "
+                "foreach (var __sparse_kvp in __edited) __sparse_editedArray[__sparse_editedIndex++] = new "
                     + editType
-                    + "((object?)__sparse_kvp.Key, null, __sparse_kvp.Value.__SparseGetChanges(), true));"
+                    + "((object?)__sparse_kvp.Key, null, __sparse_kvp.Value.__SparseGetChanges(), true);"
             );
         }
         else
         {
             code.AppendLineAt(
                 5,
-                "foreach (var __sparse_kvp in __edited) __sparse_editedList.Add(new "
+                "foreach (var __sparse_kvp in __edited) __sparse_editedArray[__sparse_editedIndex++] = new "
                     + editType
                     + "((object?)__sparse_kvp.Key, (object?)__sparse_kvp.Value, "
                     + EmptyChanges
-                    + ", false));"
+                    + ", false);"
             );
         }
 
-        code.AppendLineAt(5, "__sparse_edited = __sparse_editedList;");
+        code.AppendLineAt(5, "__sparse_edited = __sparse_editedArray;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
@@ -457,7 +445,11 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(3, "}");
     }
 
-    private static void AppendObjectListCopy(SharedIndentedBuilder code, string local, string field)
+    private static void AppendObjectArrayCopy(
+        SharedIndentedBuilder code,
+        string local,
+        string field
+    )
     {
         code.AppendLineAt(
             4,
@@ -465,25 +457,21 @@ internal static class SparsePatchInspectionEmitter
                 + local
                 + " = global::System.Array.Empty<object?>();"
         );
-        code.AppendLineAt(4, "if (" + field + " is not null)");
+        code.AppendLineAt(4, "if (" + field + " is not null && " + field + ".Count != 0)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var "
-                + local
-                + "List = new global::System.Collections.Generic.List<object?>("
-                + field
-                + ".Count);"
-        );
+        code.AppendLineAt(5, "var " + local + "Array = new object?[" + field + ".Count];");
+        code.AppendLineAt(5, "var " + local + "Index = 0;");
         code.AppendLineAt(
             5,
             "foreach (var __sparse_item in "
                 + field
                 + ") "
                 + local
-                + "List.Add((object?)__sparse_item);"
+                + "Array["
+                + local
+                + "Index++] = (object?)__sparse_item;"
         );
-        code.AppendLineAt(5, local + " = " + local + "List;");
+        code.AppendLineAt(5, local + " = " + local + "Array;");
         code.AppendLineAt(4, "}");
     }
 }
