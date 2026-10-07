@@ -72,6 +72,29 @@ public sealed class AotJsonTests
         return new AotServerHolder.ChangeSet.ChangeSetJsonConverter().Read(ref reader, typeof(AotServerHolder.ChangeSet), options);
     }
 
+    private static string WriteScoresChangeSet(AotIntCollections.ChangeSet changes, JsonSerializerOptions options)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            new AotIntCollections.ChangeSet.ChangeSetJsonConverter().Write(writer, changes, options);
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static AotIntCollections.ChangeSet ReadScoresChangeSet(string json, JsonSerializerOptions options)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var reader = new Utf8JsonReader(bytes);
+        if (!reader.Read())
+        {
+            throw new JsonException("Empty change-set JSON.");
+        }
+
+        return new AotIntCollections.ChangeSet.ChangeSetJsonConverter().Read(ref reader, typeof(AotIntCollections.ChangeSet), options);
+    }
+
     private static AotWidget.Fragment JsonBaseline() =>
         new()
         {
@@ -142,6 +165,28 @@ public sealed class AotJsonTests
         await Assert.That(AotServerHolder.Patch.Between(applied, after).IsEmpty).IsTrue();
         await Assert.That(applied.Value!.Items.Value!.Select(static item => item.Id).SequenceEqual(["b", "c"])).IsTrue();
         await Assert.That(applied.Value!.Items.Value!.Single(static item => item.Id == "b").Name).IsEqualTo("B2");
+    }
+
+    [Test]
+    public async Task SparseDictionaryChangeSetJsonRoundTrips()
+    {
+        var options = AotOptions();
+        Optional<AotIntCollections.Fragment?> State(AotIntCollections m) =>
+            Optional<AotIntCollections.Fragment?>.Present(AotIntCollections.Fragment.From(m));
+        var before = State(new AotIntCollections { Scores = new() { ["a"] = 1, ["b"] = 2 } });
+        var after = State(new AotIntCollections { Scores = new() { ["b"] = 3, ["c"] = 4 } });
+        var changes = AotIntCollections.ChangeSet.Between(before, after);
+        var json = WriteScoresChangeSet(changes, options);
+
+        // Sparse wire carries only the semantic transition, not unrelated entries.
+        await Assert.That(!json.Contains("999")).IsTrue();
+        var back = ReadScoresChangeSet(json, options);
+
+        await Assert.That(back.Scores.GetChange("b").IsEdited).IsTrue();
+        await Assert.That(back.Scores.GetChange("c").IsAdded).IsTrue();
+        await Assert.That(back.Scores.GetChange("a").IsRemoved).IsTrue();
+        await Assert.That(back.Scores.GetChange("zzz").IsEmpty).IsTrue();
+        await Assert.That(AotIntCollections.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty).IsTrue();
     }
 
     [Test]

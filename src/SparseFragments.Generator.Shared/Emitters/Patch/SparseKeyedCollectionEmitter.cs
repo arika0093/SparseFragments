@@ -422,6 +422,38 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(4, facade + ".EnsureUniqueKeys<" + keyType + ">(list);");
         code.AppendLineAt(4, "__order = list;");
         code.AppendLineAt(3, "}");
+        // Issue #103: internal sparse setter for ChangeSet.ToPatch (nested fragment edits).
+        // Bypasses the public Edit-for-mutation API by installing an already-built
+        // element patch; used only to project canonical ChangeSet transitions.
+        if (hasPatch)
+        {
+            code.AppendLineAt(
+                3,
+                "internal void __SparseSetEdited("
+                    + keyType
+                    + " key, "
+                    + ElementPatchType(member)
+                    + " patch)"
+            );
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "EnsureGranular(\"SetEdited\");");
+            code.AppendLineAt(
+                4,
+                "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
+            );
+            code.AppendLineAt(
+                4,
+                "__edited ??= new global::System.Collections.Generic.Dictionary<"
+                    + keyType
+                    + ", "
+                    + ElementPatchType(member)
+                    + ">("
+                    + comparer
+                    + ");"
+            );
+            code.AppendLineAt(4, "__edited[key] = patch;");
+            code.AppendLineAt(3, "}");
+        }
         EmitKeyedApply(code, member, elementType, keyType, listType, hasPatch, comparer);
         EmitKeyedBetween(
             code,
@@ -2053,6 +2085,35 @@ internal static class SparseKeyedCollectionEmitter
                     + ");"
             );
             code.AppendLineAt(4, "__edited[key] = value;");
+            code.AppendLineAt(3, "}");
+        }
+        if (hasPatch)
+        {
+            code.AppendLineAt(
+                3,
+                "internal void __SparseSetEdited("
+                    + keyType
+                    + " key, "
+                    + ValuePatchType(member)
+                    + " patch)"
+            );
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "EnsureGranular(\"SetEdited\");");
+            code.AppendLineAt(
+                4,
+                "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
+            );
+            code.AppendLineAt(
+                4,
+                "__edited ??= new global::System.Collections.Generic.Dictionary<"
+                    + keyType
+                    + ", "
+                    + ValuePatchType(member)
+                    + ">("
+                    + comparer
+                    + ");"
+            );
+            code.AppendLineAt(4, "__edited[key] = patch;");
             code.AppendLineAt(3, "}");
         }
 
