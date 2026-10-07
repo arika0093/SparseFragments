@@ -165,7 +165,7 @@ Once the two APIs above are in place, the same inspection code serves several co
 * generic editors and UI highlighting (see [UI frameworks](ui-frameworks.md) for framework binding);
 * debugging and diagnostics of unexpected patch contents.
 
-The Playground roster editor consumes `patch.Changes` this way to highlight added, removed, edited, and moved rows; it is a live example of the workflow without extra documentation here.
+The Playground roster editor consumes `T.Sparse.Properties` and `patch.Changes` this way to highlight added, removed, edited, and moved rows; it is a live example of the workflow without extra documentation here.
 
 ## Reflection, Trimming, and NativeAOT
 

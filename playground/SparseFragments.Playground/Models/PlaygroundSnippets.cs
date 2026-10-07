@@ -237,8 +237,9 @@ public static class PlaygroundSnippets
 
     /// <summary>
     /// Builds the keyed Add/Remove/Edit/SetOrder patch for the inspected diff.
-    /// Operations come from <c>patch.Changes</c> inspection rather than a second
-    /// manual before/after comparison.
+    /// Operations come from <c>patch.Changes</c> inspection with property
+    /// identity resolved through <c>T.Sparse.Properties</c> (#72) rather than
+    /// a second manual before/after comparison.
     /// </summary>
     public static string RosterManualPatchCSharp(
         string variableName,
@@ -248,9 +249,7 @@ public static class PlaygroundSnippets
     {
         var sb = new StringBuilder();
         sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
-        var quests = patch.Changes.FirstOrDefault(static change =>
-            change.Property.Name == nameof(PlaygroundRoster.Quests)
-        );
+        var quests = RosterInspection.QuestsChange(patch);
         if (quests is null)
         {
             sb.AppendLine("// No quest changes.");
@@ -287,16 +286,24 @@ public static class PlaygroundSnippets
             var key = StringLiteral((string)edit.Key!);
             foreach (var change in edit.NestedChanges)
             {
-                var editText = change.Property.Name switch
+                string editText;
+                if (ReferenceEquals(change.Property, RosterInspection.QuestTitleProperty))
                 {
-                    nameof(PlaygroundQuest.Title) =>
-                        $"{variableName}.Quests.Edit({key}).Title = {StringLiteral((string)change.Value!)};",
-                    nameof(PlaygroundQuest.Points) =>
-                        $"{variableName}.Quests.Edit({key}).Points = {change.Value};",
-                    nameof(PlaygroundQuest.Scores) =>
-                        $"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral((List<int>)change.Value!)}; // whole value: one element change replaces the list",
-                    _ => $"// Unhandled quest member '{change.Property.Name}'.",
-                };
+                    editText = $"{variableName}.Quests.Edit({key}).Title = {StringLiteral((string)change.Value!)};";
+                }
+                else if (ReferenceEquals(change.Property, RosterInspection.QuestPointsProperty))
+                {
+                    editText = $"{variableName}.Quests.Edit({key}).Points = {change.Value};";
+                }
+                else if (ReferenceEquals(change.Property, RosterInspection.QuestScoresProperty))
+                {
+                    editText = $"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral((List<int>)change.Value!)}; // whole value: one element change replaces the list";
+                }
+                else
+                {
+                    editText = $"// Unhandled quest member '{change.Property.Name}'.";
+                }
+
                 sb.AppendLine(editText);
             }
         }

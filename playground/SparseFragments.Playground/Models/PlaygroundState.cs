@@ -454,8 +454,9 @@ public sealed class RosterRowHighlight
 /// <remarks>
 /// Case 3 derives one <c>PlaygroundRoster.Patch</c> from before/after state and
 /// treats it as the source of truth: added/removed rows, per-property edit dots
-/// and final key order all come from <c>patch.Changes</c> (#73) instead of a
-/// second manual diff. Only the mapping from inspected change names to the
+/// and final key order all come from <c>patch.Changes</c> (#73) with property
+/// identity resolved through <c>T.Sparse.Properties</c> (#72) instead of a
+/// second manual diff. Only the mapping from inspected descriptors to the
 /// existing CSS/highlight objects stays Playground-specific.
 /// </remarks>
 public static class RosterHighlight
@@ -475,9 +476,10 @@ public static class RosterHighlight
     {
         var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
         var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
-        var quests = patch.Changes.FirstOrDefault(static change =>
-            change.Property.Name == nameof(PlaygroundRoster.Quests)
-        );
+        // Semantic detection comes from patch.Changes via the shared #72
+        // descriptors (see RosterInspection); only the mapping from inspected
+        // descriptors to CSS/highlight objects stays Playground-specific.
+        var quests = RosterInspection.QuestsChange(patch);
         if (quests is null)
         {
             foreach (var row in before.Rows)
@@ -536,11 +538,11 @@ public static class RosterHighlight
         var removed = new HashSet<string>(
             keyed.RemovedKeys.Select(static key => (string)key!)
         );
-        var edits = new Dictionary<string, HashSet<string>>();
+        var edits = new Dictionary<string, HashSet<SparsePropertyInfo>>();
         foreach (var edit in keyed.Edited)
         {
-            edits[(string)edit.Key!] = new HashSet<string>(
-                edit.NestedChanges.Select(static change => change.Property.Name)
+            edits[(string)edit.Key!] = new HashSet<SparsePropertyInfo>(
+                edit.NestedChanges.Select(static change => change.Property)
             );
         }
 
@@ -570,11 +572,11 @@ public static class RosterHighlight
             }
             else if (edits.TryGetValue(row.Id, out var changed))
             {
-                // Presentation maps known property names to visual dots; the
+                // Presentation maps known property descriptors to visual dots; the
                 // semantic detection above comes from patch.Changes.
-                highlight.TitleChanged = changed.Contains(nameof(PlaygroundQuest.Title));
-                highlight.PointsChanged = changed.Contains(nameof(PlaygroundQuest.Points));
-                highlight.ScoresChanged = changed.Contains(nameof(PlaygroundQuest.Scores));
+                highlight.TitleChanged = changed.Contains(RosterInspection.QuestTitleProperty);
+                highlight.PointsChanged = changed.Contains(RosterInspection.QuestPointsProperty);
+                highlight.ScoresChanged = changed.Contains(RosterInspection.QuestScoresProperty);
             }
 
             if (

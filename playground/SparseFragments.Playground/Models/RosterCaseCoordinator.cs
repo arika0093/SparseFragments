@@ -73,9 +73,7 @@ public sealed class RosterCaseCoordinator
                 return "cannot diff: duplicate keys or invalid state";
             }
 
-            var quests = _patch.Changes.FirstOrDefault(static change =>
-                change.Property.Name == nameof(PlaygroundRoster.Quests)
-            );
+            var quests = RosterInspection.QuestsChange(_patch);
             if (quests is null)
             {
                 return "no changes";
@@ -112,6 +110,13 @@ public sealed class RosterCaseCoordinator
 
         return PlaygroundSnippets.RosterManualPatchCSharp(variableName, _patch, _after);
     }
+
+    /// <summary>
+    /// Static model semantics enumerated directly from <c>T.Sparse.Properties</c> (#72).
+    /// This is the compile-time SparseFragments reading of the Case 3 models, independent
+    /// of any particular Patch instance.
+    /// </summary>
+    public string ModelMetadata => RosterInspection.DescribeModelMetadata();
 
     /// <summary>
     /// Returns the shared Patch or throws, so JSON export / applied preview
