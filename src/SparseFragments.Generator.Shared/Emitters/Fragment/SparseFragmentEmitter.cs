@@ -158,8 +158,6 @@ internal static class SparseFragmentEmitter
             SparseObservableEmitter.AppendObservable(code, modelType, members);
         }
 
-        SparseMetadataEmitter.AppendSparseMetadata(code, members);
-
         code.AppendLine("}");
         return code.ToString();
     }

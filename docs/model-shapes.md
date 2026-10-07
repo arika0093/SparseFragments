@@ -87,5 +87,4 @@ Element identity for element-patched collections is declared with `[SparseKey]` 
 * Prefer a parameterless constructor; constructor-bound properties (including `init` and `required`) resolve by name-and-type matching.
 * Members marked `[JsonIgnore]` never participate in JSON conversion; members that would collide on the same JSON wire name fail during analysis ([`SPF021`](analyzer.md#spf021-duplicate-json-property-name)) rather than at runtime.
 * Members named `JsonConverter` or `FragmentJsonConverter` collide with the generated JSON converter ([`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api)): rename the member.
-* Members or nested types named `Sparse` collide with the generated runtime-metadata holder `T.Sparse.Properties` ([`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api)): rename the member.
 * `From` / `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them — see [Clone & ownership](cloning-and-ownership.md).

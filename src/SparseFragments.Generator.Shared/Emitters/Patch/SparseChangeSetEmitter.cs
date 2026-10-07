@@ -23,8 +23,6 @@ internal static class SparseChangeSetEmitter
     {
         var runtime = SparseFragmentPatchEmitter.Runtime;
         var optionalFragment = runtime + "Optional<Fragment?>";
-        var changes = runtime + "SparsePatchChange";
-        var readOnlyChanges = "global::System.Collections.Generic.IReadOnlyList<" + changes + ">";
         var rebaseResult = "global::SparseFragments.RebaseResult<ChangeSet>";
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
@@ -56,14 +54,6 @@ internal static class SparseChangeSetEmitter
             "/// <summary>Whether this change set contains no semantic changes.</summary>"
         );
         code.AppendLineAt(2, "public bool IsEmpty => _patch.__SparseIsEmpty();");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Gets the non-empty member changes in this change set.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public " + readOnlyChanges + " Changes => _patch.__SparseGetChanges();"
-        );
         code.AppendLineAt(
             2,
             "/// <summary>Derives the canonical baseline-aware diff between two states.</summary>"
@@ -224,7 +214,6 @@ internal static class SparseChangeSetEmitter
         var reserved = new HashSet<string>(System.StringComparer.Ordinal)
         {
             "IsEmpty",
-            "Changes",
             "Between",
             "FromPatch",
             "ToPatch",

@@ -171,7 +171,7 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
-    public void SharedPatchIsSingleSourceOfTruth()
+    public void SharedChangeSetIsSingleSourceOfTruth()
     {
         var before = RosterEditState.BeforeDefaults();
         var after = RosterEditState.AfterDefaults();
@@ -179,18 +179,18 @@ public sealed class RosterHighlightTests
         coordinator.Update(before, after);
 
         coordinator.IsInvalid.ShouldBeFalse();
-        var patch = coordinator.Patch;
-        patch.ShouldNotBeNull();
+        var changes = coordinator.ChangeSet;
+        changes.ShouldNotBeNull();
 
-        // All projections read the shared Patch without recomputing it.
+        // All projections read the shared ChangeSet without recomputing it.
         var highlights = coordinator.Highlights;
         var summary = coordinator.Summary;
         var manual = coordinator.ManualCSharp("patch");
 
-        ReferenceEquals(patch, coordinator.Patch).ShouldBeTrue();
+        ReferenceEquals(changes, coordinator.ChangeSet).ShouldBeTrue();
 
-        // Highlights match a direct projection of the SAME Patch instance.
-        var expected = RosterHighlight.BuildFromPatch(patch!, before, after);
+        // Highlights match a direct projection of the SAME ChangeSet instance.
+        var expected = RosterHighlight.BuildFromChangeSet(changes!, before, after);
         highlights.Before.Count.ShouldBe(expected.Before.Count);
         highlights.After.Count.ShouldBe(expected.After.Count);
         foreach (var kv in expected.After)

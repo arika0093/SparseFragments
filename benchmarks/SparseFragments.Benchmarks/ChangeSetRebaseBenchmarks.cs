@@ -73,7 +73,7 @@ public class ChangeSetRebaseBenchmarks
         }
         if (empty)
         {
-            if (result.Patch.Changes.Count != 0 || !result.Patch.Invert().IsEmpty)
+            if (!result.Patch.IsEmpty || !result.Patch.Invert().IsEmpty)
             {
                 throw new InvalidOperationException(
                     "Empty rebased change sets must remain empty on inspection and inversion."

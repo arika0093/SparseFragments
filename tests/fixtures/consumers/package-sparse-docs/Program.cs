@@ -8,7 +8,6 @@
 
 KeyedCollectionsSamples.Run();
 RebaseSamples.Run();
-InspectionSamples.Run();
 MergeStrategiesSamples.Run();
 CloningAndOwnershipSamples.Run();
 ModelShapesSamples.Run();

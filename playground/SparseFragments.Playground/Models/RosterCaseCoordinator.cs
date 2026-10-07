@@ -62,7 +62,7 @@ public sealed class RosterCaseCoordinator
     {
         get
         {
-            if (IsInvalid || _patch is null || _before is null || _after is null)
+            if (IsInvalid || _changeSet is null || _before is null || _after is null)
             {
                 return (
                     new Dictionary<QuestRow, RosterRowHighlight>(),
@@ -70,7 +70,7 @@ public sealed class RosterCaseCoordinator
                 );
             }
 
-            return RosterHighlight.BuildFromPatch(_patch, _before, _after);
+            return RosterHighlight.BuildFromChangeSet(_changeSet, _before, _after);
         }
     }
 
@@ -79,33 +79,22 @@ public sealed class RosterCaseCoordinator
     {
         get
         {
-            if (IsInvalid || _patch is null || _after is null)
+            if (IsInvalid || _changeSet is null || _after is null)
             {
                 return "cannot diff: duplicate keys or invalid state";
             }
 
-            var quests = RosterInspection.QuestsChange(_patch);
-            if (quests is null)
+            var quests = RosterInspection.QuestsTransition(_changeSet);
+            if (quests.IsEmpty)
             {
                 return "no changes";
             }
 
-            if (quests.Kind == SparseChangeKind.Set)
-            {
-                return $"whole list replaced: [{string.Join(", ", _after.Rows.Select(static r => r.Id))}]";
-            }
-
-            if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
-            {
-                return "whole list cleared";
-            }
-
-            var keyed = quests.Keyed;
-            var added = keyed.Added.Select(static v => ((PlaygroundQuest)v!).Id).ToList();
-            var removed = keyed.RemovedKeys.Select(static k => (string)k!).ToList();
-            var edited = keyed.Edited.Select(static e => (string)e.Key!).ToList();
-            var order = keyed.HasOrder
-                ? keyed.KeyOrder.Select(static k => (string)k!).ToList()
+            var added = quests.Added.Select(static quest => quest.Id).ToList();
+            var removed = quests.Removed.Select(static quest => quest.Id).ToList();
+            var edited = quests.Edited.Select(static edit => edit.Key).ToList();
+            var order = quests.OrderChanged
+                ? quests.AfterOrder.ToList()
                 : _after.Rows.Select(static r => r.Id).ToList();
             return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
         }
@@ -114,16 +103,16 @@ public sealed class RosterCaseCoordinator
     /// <summary>Manual C# snippet projected from the shared ChangeSet.</summary>
     public string ManualCSharp(string variableName = "patch")
     {
-        if (IsInvalid || _patch is null || _after is null)
+        if (IsInvalid || _changeSet is null || _after is null)
         {
             return "// Cannot diff: duplicate keys or invalid state. See the ChangeSet JSON tab for the error.";
         }
 
-        return PlaygroundSnippets.RosterManualPatchCSharp(variableName, _patch, _after);
+        return PlaygroundSnippets.RosterManualPatchCSharp(variableName, _changeSet, _after);
     }
 
     /// <summary>
-    /// Static model semantics enumerated directly from <c>T.Sparse.Properties</c> (#72).
+    /// Static model semantics for the Case 3 models.
     /// This is the compile-time SparseFragments reading of the Case 3 models, independent
     /// of any particular ChangeSet instance.
     /// </summary>

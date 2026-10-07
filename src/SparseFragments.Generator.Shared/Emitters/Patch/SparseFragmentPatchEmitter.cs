@@ -148,7 +148,6 @@ internal static class SparseFragmentPatchEmitter
         SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect);
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
-        SparsePatchInspectionEmitter.AppendPatchInspection(code, modelType, members);
         SparsePatchStjEmitter.AppendPatchStj(code, members);
         code.AppendLineAt(1, "}");
         SparseChangeSetEmitter.AppendChangeSet(code, members);
