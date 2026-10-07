@@ -128,3 +128,5 @@ A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own t
 * a present result maps to a `Set` patch operation, a missing result maps to `Unset`, and a result equal to the current state stays `Unchanged` (a semantic no-op);
 * the default implementation succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
+
+The [Collaborative editing example](../examples/CollaborativeEditing/README.md) runs this workflow over HTTP: a stale save returns the latest state, the client rebases its patch onto that state, retries automatically when there are no conflicts, and otherwise shows the structured conflicts for manual resolution.

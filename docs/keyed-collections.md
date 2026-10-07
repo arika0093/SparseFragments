@@ -179,3 +179,5 @@ Keyed collections compose recursively: a keyed element type may itself hold keye
 
 * **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
 * **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `Between`/`Apply`.
+
+The [Collaborative editing example](../examples/CollaborativeEditing/README.md) persists a keyed quest list through this behavior: adds, removes, per-key edits, and reorder round-trip by key, while concurrent edits to different keys rebase cleanly and same-key edits surface as conflicts.
