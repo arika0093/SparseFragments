@@ -10,33 +10,15 @@ Annotate an ordinary C# model with `[SparseFragmentModel]` and SparseFragments g
 
 Try it live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
 
-## Fragment, Patch, and ChangeSet at a glance
-
-| Type | Represents | Typical use |
-| --- | --- | --- |
-| `Fragment` | Presence-aware partial state ("this part of the state is specified") | Layering and sparse values |
-| `Patch` | Mutable desired operation ("apply these desired operations"), baseline-free | Local mutation and command construction |
-| `ChangeSet` | Immutable before → after transition ("these values changed from before to after"), baseline-aware | Diff, rebase, and exchange |
-
-The three are siblings generated from the same model semantics, not layers around each other: a `Patch` is not an observed diff, a `ChangeSet` is not a serialized `Patch`, and a `Fragment` is not an ordinary nullable DTO. Baseline-aware algebra (`Between`, `ToPatch`, `FromPatch`, `Invert`, `Compose`, `RebaseOnto`) belongs to `ChangeSet`.
-
-## The Problem: Missing Is Not Null
-
-Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`". That distinction matters as soon as data is layered: higher-priority sources must override only what they actually set, while an explicit `null` must win over a lower layer's value and a missing member must fall through.
-
-Hand-writing this per model is boilerplate-heavy and error-prone. SparseFragments generates it from your POCOs at compile time with no runtime reflection, keeping startup cost flat and the output trim/AOT-friendly.
-
-`Optional<T>` preserves the three states — *missing*, *present null*, and *present value* — across all three representations: a `Fragment` preserves sparse state, a `Patch` preserves desired mutation intent, and a `ChangeSet` preserves the known before/after transition.
-
 ## When to Use It
 
 Each scenario below keeps an edit, override, or delta that remembers what was specified, then combines it with the representation that fits:
 
-* **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered `Merge` produces the effective state. (→ `Fragment` / `Merge`)
-* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents. (→ `Fragment` / `Patch`)
-* **Minimal persisted settings.** Persist only what differs from the defaults and replay it later. (→ `Fragment`)
-* **Local edit sessions and dirty tracking.** Accumulate user edits in a mutable patch, preview with `Apply`, or drop to cancel. The original state is never mutated. (→ `Patch`)
-* **Disconnected editing and optimistic reconciliation.** Carry a known before → after transition across a process boundary and rebase it onto concurrent state, with structured conflicts where both sides changed the same member. (→ `ChangeSet`)
+* **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered produces the effective state.
+* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents.
+* **Minimal persisted settings.** Persist only what differs from the defaults and replay it later.
+* **Local edit sessions and dirty tracking.** Accumulate user edits in a mutable patch, preview, or drop to cancel. The original state is never mutated.
+* **Disconnected editing and optimistic reconciliation.** Carry a known before → after transition across a process boundary and rebase it onto concurrent state, with structured conflicts where both sides changed the same member.
 
 ## Install
 
@@ -44,7 +26,7 @@ Each scenario below keeps an edit, override, or delta that remembers what was sp
 dotnet add package SparseFragments
 ```
 
-The generator ships inside the package as an analyzer, so this is the only setup step. See [Packages and Compatibility](#packages-and-compatibility) for runtime targets and AOT notes.
+The generator ships inside the package as an analyzer, so this is the only setup step.
 
 ## Quick Start
 
@@ -77,14 +59,6 @@ public partial class Child
 Reachable partial nested types (like `Child` here) automatically receive the generated APIs. See [Model shapes](docs/model-shapes.md) for the full rules.
 
 ### 2. Missing, null, and values
-
-`Optional<T>` carries the three states — *missing*, *present null*, and *present value* — that plain C# properties cannot distinguish:
-
-```csharp
-Optional<string?> missing = Optional<string?>.Missing;       // not specified
-Optional<string?> value = "hello";                            // present value (implicit conversion)
-Optional<string?> explicitNull = Optional<string?>.Present(null); // explicitly null
-```
 
 A generated `Fragment` makes that distinction concrete. An explicitly set `null` overrides a lower layer; an unspecified member falls through:
 
@@ -199,6 +173,59 @@ var restored = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
 ```
 
 From here, the guides pick up where the tutorial leaves off: [keyed collections](docs/keyed-collections.md) for element-wise identity and ordering, [ChangeSet rebase](docs/rebase.md) for the full disconnected client/server pass, [Fragments and patches](docs/fragments-and-patches.md) for typed member observation and serialization, [UI frameworks](docs/ui-frameworks.md) for edit sessions and `Observable` binding, [Clone & ownership](docs/cloning-and-ownership.md) for copying and reference sharing, [Model shapes](docs/model-shapes.md) for supported shapes and constructors, and [Diagnostics](docs/analyzer.md) for generator errors.
+
+## Architecture
+### The Problem: Missing Is Not Null
+
+Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`". That distinction matters as soon as data is layered: higher-priority sources must override only what they actually set, while an explicit `null` must win over a lower layer's value and a missing member must fall through.
+
+Hand-writing this per model is boilerplate-heavy and error-prone. 
+
+---
+SparseFragments takes the following approach to address this problem.
+
+### Optional
+
+`Optional<T>` carries the three states — *missing*, *present null*, and *present value* — that plain C# properties cannot distinguish:
+
+```csharp
+Optional<string?> missing = Optional<string?>.Missing; // not specified
+Optional<string?> value = "hello";                     // present value (implicit conversion)
+Optional<string?> explicitNull = Optional<string?>.Present(null); // explicitly null
+```
+
+This model is simple, yet it can represent hierarchical structure and edit state accurately.
+
+### Fragment, Patch, and ChangeSet
+
+Using the Optional concept, edit state can be modeled cleanly.
+
+| Type | Represents | Typical use |
+| --- | --- | --- |
+| `Fragment` | Presence-aware partial state ("this part of the state is specified") | Layering and sparse values |
+| `Patch` | Mutable desired operation ("apply these desired operations"), baseline-free | Local mutation and command construction |
+| `ChangeSet` | Immutable before → after transition ("these values changed from before to after"), baseline-aware | Diff, rebase, and exchange |
+
+### Source-Generated
+
+No special setup is required to use these features.  
+`[SparseFragmentModel]` generates code like the following automatically:
+
+```csharp
+partial class Settings
+{
+    public Settings DeepClone() { /* ... */ }
+    public sealed class Fragment { /* ... */ }
+    public sealed class FragmentBuilder { /* ... */ }
+    public sealed class Patch { /* ... */ }
+    public sealed class ChangeSet { /* ... */ }
+    public sealed class Observable { /* ... */ }
+}
+
+// Child types receive the same generated code as well
+```
+
+Because this code is generated ahead of time, it works without reflection (NativeAOT support)!
 
 ## Documentation
 
