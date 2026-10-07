@@ -109,7 +109,76 @@ var removal = CounterSettings.ChangeSet.Between(a, b); // Label: present → mis
 ```
 <!-- /sample -->
 
-Reach for `ChangeSet.Between` when comparing sparse states whose transition may later be inspected, serialized, inverted, composed, or rebased. Reach for `Fragment.Diff` when comparing ordinary models for persistence or defaults comparison. All baseline-dependent operations belong to ChangeSet; use a mutable `Patch` for baseline-free local operations only.
+Reach for `ChangeSet.Between` when comparing sparse states whose transition may later be observed through typed member transitions, serialized, inverted, composed, or rebased. Reach for `Fragment.Diff` when comparing ordinary models for persistence or defaults comparison. All baseline-dependent operations belong to ChangeSet; use a mutable `Patch` for baseline-free local operations only.
+
+## Observe Typed Member Transitions
+
+A `ChangeSet` is the immutable observed `before -> after` transition. Generated member names mirror the source model, so reading a transition needs no reflection, property descriptors, or `object?` casts:
+
+<!-- sample: core-typed -->
+```csharp
+var before = Optional<CounterSettings.Fragment?>.Present(
+    CounterSettings.Fragment.From(new CounterSettings { Label = "a", RetryCount = 1 }));
+var after = Optional<CounterSettings.Fragment?>.Present(
+    CounterSettings.Fragment.From(new CounterSettings { Label = "b", RetryCount = 1 }));
+
+var changes = CounterSettings.ChangeSet.Between(before, after);
+
+if (changes.Label.IsChanged)
+{
+    Console.WriteLine($"{changes.Label.Before} -> {changes.Label.After}");
+}
+// changes.Label.Before.Value == "a"
+// changes.Label.After.Value == "b"
+// changes.RetryCount.IsChanged == false
+```
+<!-- /sample -->
+
+Unchanged members remain typed and report `IsChanged == false`. `Before` / `After` preserve the missing / present-null / present-value states, so `missing -> present`, `present null -> missing`, and value changes are all observable without losing presence information. When a baseline-free operation is needed instead, cross the explicit boundary:
+
+```csharp
+var patch = changes.ToPatch();
+```
+
+Nested members recurse through the same typed shape:
+
+<!-- sample: core-nested-models -->
+```csharp
+using SparseFragments;
+
+[SparseFragmentModel]
+public partial class DocsOrder
+{
+    public string? Name { get; set; }
+
+    public DocsCustomer? Customer { get; set; }
+}
+
+public partial class DocsCustomer
+{
+    public string Name { get; set; } = string.Empty;
+}
+```
+<!-- /sample -->
+
+<!-- sample: core-nested -->
+```csharp
+var before = Optional<DocsOrder.Fragment?>.Present(
+    DocsOrder.Fragment.From(
+        new DocsOrder { Name = "a", Customer = new DocsCustomer { Name = "Ann" } }));
+var after = Optional<DocsOrder.Fragment?>.Present(
+    DocsOrder.Fragment.From(
+        new DocsOrder { Name = "a", Customer = new DocsCustomer { Name = "Bob" } }));
+
+var changes = DocsOrder.ChangeSet.Between(before, after);
+// changes.Name.IsChanged == false
+// changes.Customer.Name.IsChanged == true
+// changes.Customer.Name.Before.Value == "Ann"
+// changes.Customer.Name.After.Value == "Bob"
+```
+<!-- /sample -->
+
+`changes.Customer` is the nested `before -> after` transition for that member: it reports `IsEmpty` for the subtree while its own members expose `IsChanged` / `Before` / `After`. The root `ChangeSet` itself is not a generic enumerable — model members are heterogeneous, so there is no single element type to enumerate. Keyed collection transitions are the exception because their items share one `TKey` / `TElement` type (see [Keyed collections](keyed-collections.md)).
 
 ## Patch vs ChangeSet
 
@@ -237,6 +306,8 @@ var restored = JsonSerializer.Deserialize<Order.ChangeSet>(json, options);
 
 Registering the generated top-level Patch/ChangeSet types is sufficient for their statically reachable generated object graphs, subject to the ordinary System.Text.Json rules for dynamic/`object`/polymorphic member values: member scalar/collection types resolve through `options.TypeInfoResolver` like any other application type, so add them to the application context when the trimmer requires it.
 
+Typed convenience projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, item enumeration, and `BeforeOrder` / `AfterOrder` / `OrderChanged` are API projections over the transition, not duplicate wire fields. The canonical JSON contract carries the before/after state; deserialization recomputes the projections, so a round-tripped ChangeSet observes the same typed transitions and `ToPatch().Apply(start)` still replays the after-state.
+
 ## Which API for Which Task
 
 | Need | API | Result |
@@ -249,6 +320,8 @@ Registering the generated top-level Patch/ChangeSet types is sufficient for thei
 | Express explicit set/null/unset edits | `new T.Patch { ... }` | Patch |
 | Compose local operations | `patch.Compose(next)` | Patch |
 | Compare sparse states exactly | `T.ChangeSet.Between(before, after)` | ChangeSet |
+| Observe a member transition | `changes.Label.IsChanged` / `Before` / `After` | Member transition |
+| Observe a nested transition | `changes.Customer.Name.IsChanged` | Member transition |
 | Project a transition to operations | `changes.ToPatch()` | Patch |
 | Attach a baseline to a patch | `T.ChangeSet.FromPatch(baseline, patch)` | ChangeSet |
 | Reverse a transition | `changes.Invert()` | ChangeSet |

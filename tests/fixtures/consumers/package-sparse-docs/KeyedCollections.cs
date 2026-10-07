@@ -10,6 +10,7 @@ public static class KeyedCollectionsSamples
     public static void Run()
     {
         SinglePropertyKeyAddRemoveEdit();
+        TypedCollectionTransitions();
         ReorderByFinalKeyOrder();
         CompositeKey();
         InterfaceKey();
@@ -53,6 +54,71 @@ public static class KeyedCollectionsSamples
         DocsCheck.Require(
             servers.Single(server => server.Id == "b").Port == 2,
             "keyed edit keeps unchanged members");
+    }
+
+    private static void TypedCollectionTransitions()
+    {
+        var before = Optional<DocsInventory.Fragment?>.Present(
+            DocsInventory.Fragment.From(
+                new DocsInventory
+                {
+                    Servers = new List<DocsServer>
+                    {
+                        new() { Id = "a", Host = "A", Port = 1 },
+                        new() { Id = "b", Host = "B", Port = 2 },
+                    },
+                }));
+        var after = Optional<DocsInventory.Fragment?>.Present(
+            DocsInventory.Fragment.From(
+                new DocsInventory
+                {
+                    Servers = new List<DocsServer>
+                    {
+                        new() { Id = "b", Host = "B2", Port = 2 },
+                        new() { Id = "c", Host = "C", Port = 3 },
+                    },
+                }));
+
+        // Typed observation mirrors docs/keyed-collections.md "Observe typed
+        // collection transitions": Added/Removed/Edited projections,
+        // BeforeOrder/AfterOrder/OrderChanged, per-item enumeration, and
+        // keyed GetChange lookup.
+        var servers = DocsInventory.ChangeSet.Between(before, after).Servers;
+        DocsCheck.Require(servers.IsChanged, "collection transition is non-empty");
+        DocsCheck.Require(
+            servers.Added.Count == 1 && servers.Added.Single().Id == "c",
+            "Added carries the new element");
+        DocsCheck.Require(
+            servers.Removed.Count == 1 && servers.Removed.Single().Id == "a",
+            "Removed carries the old element");
+        DocsCheck.Require(
+            servers.Edited.Count == 1
+                && servers.Edited["b"].Host.IsChanged
+                && servers.Edited["b"].Host.Before.Value == "B"
+                && servers.Edited["b"].Host.After.Value == "B2",
+            "Edited carries the nested member transition");
+        DocsCheck.Require(
+            servers.BeforeOrder.SequenceEqual(new[] { "a", "b" }), "BeforeOrder preserved");
+        DocsCheck.Require(
+            servers.AfterOrder.SequenceEqual(new[] { "b", "c" }), "AfterOrder preserved");
+        DocsCheck.Require(servers.OrderChanged, "membership change flips OrderChanged");
+
+        var editedKeys = new List<string>();
+        foreach (var item in servers)
+        {
+            if (item.IsEdited)
+            {
+                editedKeys.Add(item.Key);
+            }
+        }
+        DocsCheck.Require(editedKeys.SequenceEqual(new[] { "b" }), "enumeration visits edits");
+
+        var edited = servers.GetChange("b");
+        DocsCheck.Require(edited.IsEdited, "GetChange observes the edited key");
+        DocsCheck.Require(
+            edited.Edit.Host.After.Value == "B2", "GetChange carries the nested change");
+        DocsCheck.Require(!edited.IsAdded && !edited.IsRemoved, "edit is neither add nor remove");
+        DocsCheck.Require(servers.GetChange("absent").IsEmpty, "unknown key is empty");
     }
 
     private static void ReorderByFinalKeyOrder()

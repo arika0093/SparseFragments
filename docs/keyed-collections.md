@@ -175,6 +175,52 @@ Concretely:
 
 Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
+## Observe Typed Collection Transitions
+
+The same `Fleet` / `Server` model observes the transition through typed projections — no reflection, property descriptors, or `object?` casts:
+
+<!-- sample: keyed-typed -->
+```csharp
+var before = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
+});
+var after = Fleet.Fragment.From(new Fleet
+{
+    Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
+});
+
+var changes = Fleet.ChangeSet.Between(before, after);
+var servers = changes.Servers;
+// servers.Added.Single().Id == "c"
+// servers.Removed.Single().Id == "a"
+// servers.Edited["b"].Host.After.Value == "B2"
+// servers.BeforeOrder.SequenceEqual(["a", "b"])
+// servers.AfterOrder.SequenceEqual(["b", "c"])
+// servers.OrderChanged == true
+foreach (var item in servers)
+{
+    if (item.IsEdited)
+    {
+        Console.WriteLine(item.Edit.Host.IsChanged);
+    }
+}
+var edited = servers.GetChange("b");
+// edited.IsEdited == true
+// edited.Edit.Host.After.Value == "B2"
+```
+<!-- /sample -->
+
+Concretely:
+
+* **Added / Removed** carry the full element values for keys that exist only in `after` / only in `before`.
+* **Edited** maps each surviving changed key to its typed nested element transition, so `servers.Edited["b"].Host` is the same `IsChanged` / `Before` / `After` shape as any other member transition.
+* **BeforeOrder / AfterOrder** carry the full key order on each side; **OrderChanged** reports whether the two orders differ. A pure reorder (same keys, different order) is a real non-empty transition whose replay reproduces the final key order — patches store final order, never a synthetic move operation.
+* **Enumeration** visits one item per changed key (added, removed, edited, or reordered). Each item reports `Key`, `IsAdded` / `IsRemoved` / `IsEdited` / `IsReordered`, `Before` / `After` element snapshots, absolute `BeforeIndex` / `AfterIndex`, and the nested `Edit` transition. Enumerating a transition with no changes visits nothing.
+* **GetChange(key)** looks up a single key's item: it returns the typed item for added/removed/edited/reordered keys and an empty item (`IsEmpty == true`, never `null`) for unchanged or unknown keys.
+
+A collection transition object may be enumerable while the root ChangeSet is not: collection items share one `TKey` / `TElement` type, whereas root model members are heterogeneous. Like the scalar projections, `Added`, `Removed`, `Edited`, enumeration, and the order views are API projections over the before/after state, not duplicate wire fields (see [Fragments and patches](fragments-and-patches.md)).
+
 ## Duplicate Keys and Key Changes
 
 * **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
