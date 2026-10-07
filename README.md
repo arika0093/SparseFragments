@@ -248,10 +248,22 @@ Because this code is generated ahead of time, it works without reflection (Nativ
 
 ## Packages and Compatibility
 
-* `SparseFragments` — core package (runtime `netstandard2.0`). Packed-package consumers are verified on `net48` (Windows-only execution), `net8.0`, and `net10.0`; the lowest compile-time surface is additionally covered by the `netstandard2.0` consumer.
-* `SparseFragments.Blazor` — Blazor edit sessions (`net8.0` / `net10.0`).
-* The generator uses no runtime reflection, keeping startup cost flat and the output trim/AOT-friendly.
+### SparseFragments
+
+* Released as `netstandard2.0`.
+  * .NET Framework 4.6.1 or later
+  * .NET (all versions)
+  * MAUI
+  * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2-0#select-net-standard-version) as well.
+* Source generation works only in *IDE* environments using Roslyn 4.3.1 or later.
+  * VisualStudio 2022: 17.3 or later
+  * JetBrains Rider: 2023.1 or later
+  * Unity: 6 or later
+
+### SparseFragments.Blazor
+
+Simple extension for `EditContext`. Requires `net8.0` or later.
 
 ## License
 
-Licensed under the Apache-2.0 License — see [LICENSE](LICENSE).
+Licensed under the Apache-2.0 License.
