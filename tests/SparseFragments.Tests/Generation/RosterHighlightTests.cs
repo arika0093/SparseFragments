@@ -4,26 +4,29 @@ namespace SparseFragments.Tests;
 
 public sealed class RosterHighlightTests
 {
-    private static RosterEditState State(params QuestRow[] rows)
+    private static PlaygroundRoster State(params PlaygroundQuest[] quests)
     {
-        var state = new RosterEditState();
-        state.Rows.AddRange(rows);
-        return state;
+        return new PlaygroundRoster { Quests = quests.ToList() };
     }
 
-    private static QuestRow Row(string id, string title = "", int points = 0, string scores = "") =>
+    private static PlaygroundQuest Quest(
+        string id,
+        string title = "",
+        int points = 0,
+        params int[] scores
+    ) =>
         new()
         {
             Id = id,
             Title = title,
             Points = points,
-            ScoresText = scores,
+            Scores = scores.ToList(),
         };
 
     private static (
-        Dictionary<QuestRow, RosterRowHighlight> Before,
-        Dictionary<QuestRow, RosterRowHighlight> After
-    ) Build(RosterEditState before, RosterEditState after)
+        Dictionary<PlaygroundQuest, RosterRowHighlight> Before,
+        Dictionary<PlaygroundQuest, RosterRowHighlight> After
+    ) Build(PlaygroundRoster before, PlaygroundRoster after)
     {
         var coordinator = new RosterCaseCoordinator();
         coordinator.Update(before, after);
@@ -33,10 +36,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void DefaultsShowAddRemoveEditAndMove()
     {
-        var (before, after) = Build(
-            RosterEditState.BeforeDefaults(),
-            RosterEditState.AfterDefaults()
-        );
+        var (before, after) = Build(RosterDefaults.Before(), RosterDefaults.After());
         after.Single(kv => kv.Key.Id == "d").Value.IsAdded.ShouldBeTrue();
         before.Single(kv => kv.Key.Id == "a").Value.IsRemoved.ShouldBeTrue();
         var edited = after.Single(kv => kv.Key.Id == "b").Value;
@@ -48,27 +48,75 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
+    public void FieldEdit()
+    {
+        var (_, after) = Build(
+            State(Quest("a", "Old", 1)),
+            State(Quest("a", "New", 1))
+        );
+        var highlight = after.Single().Value;
+        highlight.TitleChanged.ShouldBeTrue();
+        highlight.PointsChanged.ShouldBeFalse();
+        highlight.ScoresChanged.ShouldBeFalse();
+    }
+
+    [Test]
+    public void ScoresTextEditUpdatesScores()
+    {
+        // UI helper parses the text-field input into the real model list.
+        IntListText.Parse("10, 21").ShouldBe(new List<int> { 10, 21 });
+        IntListText.Parse("10, abc, 20").ShouldBe(new List<int> { 10, 20 });
+        IntListText.Format(new List<int> { 10, 20 }).ShouldBe("10, 20");
+
+        var before = State(Quest("a", scores: [10, 20]));
+        var after = State(Quest("a", scores: [10, 21]));
+        var (_, highlights) = Build(before, after);
+        highlights.Single().Value.ScoresChanged.ShouldBeTrue();
+        after.Quests.Single().Scores.ShouldBe(new List<int> { 10, 21 });
+    }
+
+    [Test]
     public void AddOnly()
     {
-        var (_, after) = Build(State(Row("a")), State(Row("a"), Row("b", "B")));
+        var (_, after) = Build(State(Quest("a")), State(Quest("a"), Quest("b", "B")));
         after.Single(kv => kv.Key.Id == "b").Value.IsAdded.ShouldBeTrue();
         after.Single(kv => kv.Key.Id == "a").Value.IsAdded.ShouldBeFalse();
     }
 
     [Test]
+    public void AddMutatesQuestsDirectly()
+    {
+        var roster = State(Quest("a"));
+        roster.Quests.Add(Quest("b", "B"));
+        roster.Quests.Count.ShouldBe(2);
+        var (_, after) = Build(State(Quest("a")), roster);
+        after.Single(kv => kv.Key.Id == "b").Value.IsAdded.ShouldBeTrue();
+    }
+
+    [Test]
     public void RemoveOnly()
     {
-        var (before, _) = Build(State(Row("a"), Row("b")), State(Row("a")));
+        var (before, _) = Build(State(Quest("a"), Quest("b")), State(Quest("a")));
         before.Single(kv => kv.Key.Id == "b").Value.IsRemoved.ShouldBeTrue();
         before.Single(kv => kv.Key.Id == "a").Value.IsRemoved.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RemoveMutatesQuestsDirectly()
+    {
+        var roster = State(Quest("a"), Quest("b"));
+        roster.Quests.RemoveAt(1);
+        roster.Quests.Single().Id.ShouldBe("a");
+        var (before, _) = Build(State(Quest("a"), Quest("b")), roster);
+        before.Single(kv => kv.Key.Id == "b").Value.IsRemoved.ShouldBeTrue();
     }
 
     [Test]
     public void ScalarMemberEdit()
     {
         var (_, after) = Build(
-            State(Row("a", "Old", 1)),
-            State(Row("a", "New", 1))
+            State(Quest("a", "Old", 1)),
+            State(Quest("a", "New", 1))
         );
         var highlight = after.Single().Value;
         highlight.TitleChanged.ShouldBeTrue();
@@ -80,8 +128,8 @@ public sealed class RosterHighlightTests
     public void ScalarCollectionEdit()
     {
         var (_, after) = Build(
-            State(Row("a", scores: "10, 20")),
-            State(Row("a", scores: "10, 21"))
+            State(Quest("a", scores: [10, 20])),
+            State(Quest("a", scores: [10, 21]))
         );
         after.Single().Value.ScoresChanged.ShouldBeTrue();
     }
@@ -89,9 +137,11 @@ public sealed class RosterHighlightTests
     [Test]
     public void FormattingOnlyScoresAreNotAnEdit()
     {
+        // Same parsed list, regardless of text formatting.
+        IntListText.Parse("10,20").ShouldBe(IntListText.Parse("10, 20"));
         var (_, after) = Build(
-            State(Row("a", scores: "10,20")),
-            State(Row("a", scores: "10, 20"))
+            State(Quest("a", scores: [10, 20])),
+            State(Quest("a", scores: [10, 20]))
         );
         var highlight = after.Single().Value;
         highlight.ScoresChanged.ShouldBeFalse();
@@ -102,8 +152,8 @@ public sealed class RosterHighlightTests
     public void MultipleMemberEditsOnOneRow()
     {
         var (_, after) = Build(
-            State(Row("a", "Old", 1, "1")),
-            State(Row("a", "New", 2, "2"))
+            State(Quest("a", "Old", 1, 1)),
+            State(Quest("a", "New", 2, 2))
         );
         var highlight = after.Single().Value;
         highlight.TitleChanged.ShouldBeTrue();
@@ -115,8 +165,8 @@ public sealed class RosterHighlightTests
     public void ReorderOnly()
     {
         var (_, after) = Build(
-            State(Row("a"), Row("b")),
-            State(Row("b"), Row("a"))
+            State(Quest("a"), Quest("b")),
+            State(Quest("b"), Quest("a"))
         );
         foreach (var highlight in after.Values)
         {
@@ -127,11 +177,31 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
+    public void ReorderPreservesRowIdentity()
+    {
+        // Simulates the SortableList OnUpdate path: the same quest instances move.
+        var first = Quest("a");
+        var second = Quest("b");
+        var roster = State(first, second);
+        var moved = roster.Quests[0];
+        roster.Quests.RemoveAt(0);
+        roster.Quests.Add(moved);
+        ReferenceEquals(roster.Quests[0], second).ShouldBeTrue();
+        ReferenceEquals(roster.Quests[1], first).ShouldBeTrue();
+
+        var (_, after) = Build(State(Quest("a"), Quest("b")), roster);
+        foreach (var highlight in after.Values)
+        {
+            highlight.Moved.ShouldBeTrue();
+        }
+    }
+
+    [Test]
     public void ReorderPlusEdit()
     {
         var (_, after) = Build(
-            State(Row("a", "A"), Row("b", "B")),
-            State(Row("b", "B2"), Row("a", "A"))
+            State(Quest("a", "A"), Quest("b", "B")),
+            State(Quest("b", "B2"), Quest("a", "A"))
         );
         var moved = after.Single(kv => kv.Key.Id == "a").Value;
         moved.Moved.ShouldBeTrue();
@@ -144,7 +214,18 @@ public sealed class RosterHighlightTests
     [Test]
     public void KeyChangeIsRemovePlusAdd()
     {
-        var (before, after) = Build(State(Row("a", "A")), State(Row("b", "A")));
+        var (before, after) = Build(State(Quest("a", "A")), State(Quest("b", "A")));
+        before.Single().Value.IsRemoved.ShouldBeTrue();
+        after.Single().Value.IsAdded.ShouldBeTrue();
+    }
+
+    [Test]
+    public void KeyEditIsOrdinaryModelMutation()
+    {
+        var roster = State(Quest("a", "A"));
+        roster.Quests[0].Id = "b";
+        roster.Quests.Single().Id.ShouldBe("b");
+        var (before, after) = Build(State(Quest("a", "A")), roster);
         before.Single().Value.IsRemoved.ShouldBeTrue();
         after.Single().Value.IsAdded.ShouldBeTrue();
     }
@@ -153,8 +234,8 @@ public sealed class RosterHighlightTests
     public void EditThenRestoreHasNoChanges()
     {
         var (before, after) = Build(
-            State(Row("a", "A", 1, "1")),
-            State(Row("a", "A", 1, "1"))
+            State(Quest("a", "A", 1, 1)),
+            State(Quest("a", "A", 1, 1))
         );
         before.Values.ShouldAllBe(static h => !h.IsRemoved && !h.Moved);
         after.Values.ShouldAllBe(static h =>
@@ -165,16 +246,49 @@ public sealed class RosterHighlightTests
     [Test]
     public void DuplicateKeysReturnEmptyMaps()
     {
-        var (before, after) = Build(State(Row("a"), Row("a")), State(Row("a")));
+        var (before, after) = Build(State(Quest("a"), Quest("a")), State(Quest("a")));
         before.ShouldBeEmpty();
         after.ShouldBeEmpty();
     }
 
     [Test]
+    public void ModelJsonAndFragmentPreviewsMatchEditorState()
+    {
+        var before = RosterDefaults.Before();
+        var after = RosterDefaults.After();
+
+        // Previews serialize the actual models directly.
+        var beforeJson = PlaygroundJson.WriteRosterModel(before);
+        beforeJson.ShouldContain("\"a\"");
+        beforeJson.ShouldContain("First");
+        var afterJson = PlaygroundJson.WriteRosterModel(after);
+        afterJson.ShouldContain("\"d\"");
+        afterJson.ShouldContain("Fourth");
+
+        var beforeFragment = PlaygroundRoster.Fragment.From(before);
+        var afterFragment = PlaygroundRoster.Fragment.From(after);
+        var beforeFragmentJson = PlaygroundJson.WriteRosterFragment(beforeFragment);
+        var afterFragmentJson = PlaygroundJson.WriteRosterFragment(afterFragment);
+        beforeFragmentJson.ShouldContain("\"a\"");
+        afterFragmentJson.ShouldContain("\"d\"");
+
+        // The shared ChangeSet derives from those same fragments exactly once.
+        var coordinator = new RosterCaseCoordinator();
+        coordinator.Update(before, after);
+        coordinator.IsInvalid.ShouldBeFalse();
+        var direct = PlaygroundRoster.ChangeSet.Between(
+            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before)),
+            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after))
+        );
+        direct.Quests.Added.Select(q => q.Id).ShouldBe(["d"]);
+        direct.Quests.Removed.Select(q => q.Id).ShouldBe(["a"]);
+    }
+
+    [Test]
     public void SharedChangeSetIsSingleSourceOfTruth()
     {
-        var before = RosterEditState.BeforeDefaults();
-        var after = RosterEditState.AfterDefaults();
+        var before = RosterDefaults.Before();
+        var after = RosterDefaults.After();
         var coordinator = new RosterCaseCoordinator();
         coordinator.Update(before, after);
 
@@ -222,8 +336,8 @@ public sealed class RosterHighlightTests
     [Test]
     public void InvalidStateIsConsistentEverywhere()
     {
-        var invalidBefore = State(Row("a"), Row("a"));
-        var invalidAfter = State(Row("a"));
+        var invalidBefore = State(Quest("a"), Quest("a"));
+        var invalidAfter = State(Quest("a"));
         var coordinator = new RosterCaseCoordinator();
         coordinator.Update(invalidBefore, invalidAfter);
 
@@ -265,19 +379,30 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
+    public void Case3HasNoWrapperTypes()
+    {
+        // QuestRow / RosterEditState scaffolding is gone; defaults are real models.
+        var playground = typeof(RosterCaseCoordinator).Assembly;
+        playground.GetType("SparseFragments.Playground.Models.QuestRow").ShouldBeNull();
+        playground.GetType("SparseFragments.Playground.Models.RosterEditState").ShouldBeNull();
+        RosterDefaults.Before().Quests.Count.ShouldBe(3);
+        RosterDefaults.After().Quests.Count.ShouldBe(3);
+    }
+
+    [Test]
     public void HighlightsFollowTypedReorderSemantics()
     {
         // Pure membership shifts are not reorders: survivors stay unmoved even
         // though absolute indexes shift. Typed IsReordered drives Moved.
-        var (_, pureAddAfter) = Build(State(Row("a"), Row("b")), State(Row("a"), Row("b"), Row("c")));
+        var (_, pureAddAfter) = Build(State(Quest("a"), Quest("b")), State(Quest("a"), Quest("b"), Quest("c")));
         foreach (var highlight in pureAddAfter.Values)
         {
             highlight.Moved.ShouldBeFalse();
         }
 
         var (_, pureRemoveAfter) = Build(
-            State(Row("a"), Row("b"), Row("c")),
-            State(Row("b"), Row("c"))
+            State(Quest("a"), Quest("b"), Quest("c")),
+            State(Quest("b"), Quest("c"))
         );
         foreach (var highlight in pureRemoveAfter.Values)
         {
@@ -285,8 +410,8 @@ public sealed class RosterHighlightTests
         }
 
         // Summary order is the typed AfterOrder, even when OrderChanged is false.
-        var before = State(Row("a"), Row("b"));
-        var after = State(Row("a"), Row("b", "B2"));
+        var before = State(Quest("a"), Quest("b"));
+        var after = State(Quest("a"), Quest("b", "B2"));
         var coordinator = new RosterCaseCoordinator();
         coordinator.Update(before, after);
         coordinator.Summary.ShouldContain("order: [a→b]");
