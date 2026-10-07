@@ -236,6 +236,25 @@ public static class PlaygroundSnippets
     }
 
     /// <summary>
+    /// One-line diff summary projected from an already-computed roster ChangeSet.
+    /// Presentation formatting only; semantic detection stays in the typed transition.
+    /// </summary>
+    public static string RosterSummary(PlaygroundRoster.ChangeSet changes)
+    {
+        var quests = changes.Quests;
+        if (quests.IsEmpty)
+        {
+            return "no changes";
+        }
+
+        var added = quests.Added.Select(static quest => quest.Id).ToList();
+        var removed = quests.Removed.Select(static quest => quest.Id).ToList();
+        var edited = quests.Edited.Select(static edit => edit.Key).ToList();
+        var order = quests.AfterOrder.ToList();
+        return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
+    }
+
+    /// <summary>
     /// Builds the keyed Add/Remove/Edit/SetOrder patch for the typed diff.
     /// Operations come from the <c>Quests</c> keyed transition on
     /// <c>PlaygroundRoster.ChangeSet</c> rather than a second manual

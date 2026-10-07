@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SparseFragments.Playground.Models;
 
 namespace SparseFragments.Tests;
@@ -23,41 +24,61 @@ public sealed class RosterHighlightTests
             Scores = scores.ToList(),
         };
 
-    private static (
-        Dictionary<PlaygroundQuest, RosterRowHighlight> Before,
-        Dictionary<PlaygroundQuest, RosterRowHighlight> After
-    ) Build(PlaygroundRoster before, PlaygroundRoster after)
+    private static PlaygroundRoster.ChangeSet Diff(PlaygroundRoster before, PlaygroundRoster after)
     {
-        var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(before, after);
-        return coordinator.Highlights(before, after);
+        return PlaygroundRoster.ChangeSet.Between(
+            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before)),
+            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after))
+        );
     }
+
+    private static PlaygroundRoster.ChangeSet? TryDiff(PlaygroundRoster before, PlaygroundRoster after)
+    {
+        try
+        {
+            return Diff(before, after);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool TitleChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item change) =>
+        change.IsEdited && change.Edit.Title.IsChanged;
+
+    private static bool PointsChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item change) =>
+        change.IsEdited && change.Edit.Points.IsChanged;
+
+    private static bool ScoresChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item change) =>
+        change.IsEdited && change.Edit.Scores.IsChanged;
 
     [Test]
     public void DefaultsShowAddRemoveEditAndMove()
     {
-        var (before, after) = Build(RosterDefaults.Before(), RosterDefaults.After());
-        after.Single(kv => kv.Key.Id == "d").Value.IsAdded.ShouldBeTrue();
-        before.Single(kv => kv.Key.Id == "a").Value.IsRemoved.ShouldBeTrue();
-        var edited = after.Single(kv => kv.Key.Id == "b").Value;
-        edited.TitleChanged.ShouldBeTrue();
-        edited.PointsChanged.ShouldBeTrue();
-        edited.ScoresChanged.ShouldBeTrue();
-        after.Single(kv => kv.Key.Id == "c").Value.Moved.ShouldBeTrue();
-        before.Single(kv => kv.Key.Id == "c").Value.Moved.ShouldBeTrue();
+        var changes = Diff(RosterDefaults.Before(), RosterDefaults.After());
+        var quests = changes.Quests;
+        quests.GetChange("d").IsAdded.ShouldBeTrue();
+        quests.GetChange("a").IsRemoved.ShouldBeTrue();
+        var edited = quests.GetChange("b");
+        edited.IsEdited.ShouldBeTrue();
+        edited.Edit.Title.IsChanged.ShouldBeTrue();
+        edited.Edit.Points.IsChanged.ShouldBeTrue();
+        edited.Edit.Scores.IsChanged.ShouldBeTrue();
+        quests.GetChange("c").IsReordered.ShouldBeTrue();
     }
 
     [Test]
     public void FieldEdit()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", "Old", 1)),
             State(Quest("a", "New", 1))
         );
-        var highlight = after.Single().Value;
-        highlight.TitleChanged.ShouldBeTrue();
-        highlight.PointsChanged.ShouldBeFalse();
-        highlight.ScoresChanged.ShouldBeFalse();
+        var change = changes.Quests.GetChange("a");
+        TitleChanged(change).ShouldBeTrue();
+        PointsChanged(change).ShouldBeFalse();
+        ScoresChanged(change).ShouldBeFalse();
     }
 
     [Test]
@@ -70,17 +91,17 @@ public sealed class RosterHighlightTests
 
         var before = State(Quest("a", scores: [10, 20]));
         var after = State(Quest("a", scores: [10, 21]));
-        var (_, highlights) = Build(before, after);
-        highlights.Single().Value.ScoresChanged.ShouldBeTrue();
+        var changes = Diff(before, after);
+        ScoresChanged(changes.Quests.GetChange("a")).ShouldBeTrue();
         after.Quests.Single().Scores.ShouldBe(new List<int> { 10, 21 });
     }
 
     [Test]
     public void AddOnly()
     {
-        var (_, after) = Build(State(Quest("a")), State(Quest("a"), Quest("b", "B")));
-        after.Single(kv => kv.Key.Id == "b").Value.IsAdded.ShouldBeTrue();
-        after.Single(kv => kv.Key.Id == "a").Value.IsAdded.ShouldBeFalse();
+        var changes = Diff(State(Quest("a")), State(Quest("a"), Quest("b", "B")));
+        changes.Quests.GetChange("b").IsAdded.ShouldBeTrue();
+        changes.Quests.GetChange("a").IsEmpty.ShouldBeTrue();
     }
 
     [Test]
@@ -89,16 +110,16 @@ public sealed class RosterHighlightTests
         var roster = State(Quest("a"));
         roster.Quests.Add(Quest("b", "B"));
         roster.Quests.Count.ShouldBe(2);
-        var (_, after) = Build(State(Quest("a")), roster);
-        after.Single(kv => kv.Key.Id == "b").Value.IsAdded.ShouldBeTrue();
+        var changes = Diff(State(Quest("a")), roster);
+        changes.Quests.GetChange("b").IsAdded.ShouldBeTrue();
     }
 
     [Test]
     public void RemoveOnly()
     {
-        var (before, _) = Build(State(Quest("a"), Quest("b")), State(Quest("a")));
-        before.Single(kv => kv.Key.Id == "b").Value.IsRemoved.ShouldBeTrue();
-        before.Single(kv => kv.Key.Id == "a").Value.IsRemoved.ShouldBeFalse();
+        var changes = Diff(State(Quest("a"), Quest("b")), State(Quest("a")));
+        changes.Quests.GetChange("b").IsRemoved.ShouldBeTrue();
+        changes.Quests.GetChange("a").IsEmpty.ShouldBeTrue();
     }
 
     [Test]
@@ -107,31 +128,31 @@ public sealed class RosterHighlightTests
         var roster = State(Quest("a"), Quest("b"));
         roster.Quests.RemoveAt(1);
         roster.Quests.Single().Id.ShouldBe("a");
-        var (before, _) = Build(State(Quest("a"), Quest("b")), roster);
-        before.Single(kv => kv.Key.Id == "b").Value.IsRemoved.ShouldBeTrue();
+        var changes = Diff(State(Quest("a"), Quest("b")), roster);
+        changes.Quests.GetChange("b").IsRemoved.ShouldBeTrue();
     }
 
     [Test]
     public void ScalarMemberEdit()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", "Old", 1)),
             State(Quest("a", "New", 1))
         );
-        var highlight = after.Single().Value;
-        highlight.TitleChanged.ShouldBeTrue();
-        highlight.PointsChanged.ShouldBeFalse();
-        highlight.ScoresChanged.ShouldBeFalse();
+        var change = changes.Quests.GetChange("a");
+        TitleChanged(change).ShouldBeTrue();
+        PointsChanged(change).ShouldBeFalse();
+        ScoresChanged(change).ShouldBeFalse();
     }
 
     [Test]
     public void ScalarCollectionEdit()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", scores: [10, 20])),
             State(Quest("a", scores: [10, 21]))
         );
-        after.Single().Value.ScoresChanged.ShouldBeTrue();
+        ScoresChanged(changes.Quests.GetChange("a")).ShouldBeTrue();
     }
 
     [Test]
@@ -139,40 +160,40 @@ public sealed class RosterHighlightTests
     {
         // Same parsed list, regardless of text formatting.
         IntListText.Parse("10,20").ShouldBe(IntListText.Parse("10, 20"));
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", scores: [10, 20])),
             State(Quest("a", scores: [10, 20]))
         );
-        var highlight = after.Single().Value;
-        highlight.ScoresChanged.ShouldBeFalse();
-        highlight.TitleChanged.ShouldBeFalse();
+        changes.IsEmpty.ShouldBeTrue();
+        var change = changes.Quests.GetChange("a");
+        change.IsEmpty.ShouldBeTrue();
     }
 
     [Test]
     public void MultipleMemberEditsOnOneRow()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", "Old", 1, 1)),
             State(Quest("a", "New", 2, 2))
         );
-        var highlight = after.Single().Value;
-        highlight.TitleChanged.ShouldBeTrue();
-        highlight.PointsChanged.ShouldBeTrue();
-        highlight.ScoresChanged.ShouldBeTrue();
+        var change = changes.Quests.GetChange("a");
+        TitleChanged(change).ShouldBeTrue();
+        PointsChanged(change).ShouldBeTrue();
+        ScoresChanged(change).ShouldBeTrue();
     }
 
     [Test]
     public void ReorderOnly()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a"), Quest("b")),
             State(Quest("b"), Quest("a"))
         );
-        foreach (var highlight in after.Values)
+        foreach (var item in changes.Quests)
         {
-            highlight.Moved.ShouldBeTrue();
-            highlight.TitleChanged.ShouldBeFalse();
-            highlight.IsAdded.ShouldBeFalse();
+            item.IsReordered.ShouldBeTrue();
+            item.IsEdited.ShouldBeFalse();
+            item.IsAdded.ShouldBeFalse();
         }
     }
 
@@ -189,34 +210,35 @@ public sealed class RosterHighlightTests
         ReferenceEquals(roster.Quests[0], second).ShouldBeTrue();
         ReferenceEquals(roster.Quests[1], first).ShouldBeTrue();
 
-        var (_, after) = Build(State(Quest("a"), Quest("b")), roster);
-        foreach (var highlight in after.Values)
+        var changes = Diff(State(Quest("a"), Quest("b")), roster);
+        foreach (var item in changes.Quests)
         {
-            highlight.Moved.ShouldBeTrue();
+            item.IsReordered.ShouldBeTrue();
         }
     }
 
     [Test]
     public void ReorderPlusEdit()
     {
-        var (_, after) = Build(
+        var changes = Diff(
             State(Quest("a", "A"), Quest("b", "B")),
             State(Quest("b", "B2"), Quest("a", "A"))
         );
-        var moved = after.Single(kv => kv.Key.Id == "a").Value;
-        moved.Moved.ShouldBeTrue();
-        moved.TitleChanged.ShouldBeFalse();
-        var edited = after.Single(kv => kv.Key.Id == "b").Value;
-        edited.Moved.ShouldBeTrue();
-        edited.TitleChanged.ShouldBeTrue();
+        var moved = changes.Quests.GetChange("a");
+        moved.IsReordered.ShouldBeTrue();
+        moved.IsEdited.ShouldBeFalse();
+        var edited = changes.Quests.GetChange("b");
+        edited.IsReordered.ShouldBeTrue();
+        edited.IsEdited.ShouldBeTrue();
+        edited.Edit.Title.IsChanged.ShouldBeTrue();
     }
 
     [Test]
     public void KeyChangeIsRemovePlusAdd()
     {
-        var (before, after) = Build(State(Quest("a", "A")), State(Quest("b", "A")));
-        before.Single().Value.IsRemoved.ShouldBeTrue();
-        after.Single().Value.IsAdded.ShouldBeTrue();
+        var changes = Diff(State(Quest("a", "A")), State(Quest("b", "A")));
+        changes.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
+        changes.Quests.GetChange("b").IsAdded.ShouldBeTrue();
     }
 
     [Test]
@@ -225,30 +247,30 @@ public sealed class RosterHighlightTests
         var roster = State(Quest("a", "A"));
         roster.Quests[0].Id = "b";
         roster.Quests.Single().Id.ShouldBe("b");
-        var (before, after) = Build(State(Quest("a", "A")), roster);
-        before.Single().Value.IsRemoved.ShouldBeTrue();
-        after.Single().Value.IsAdded.ShouldBeTrue();
+        var changes = Diff(State(Quest("a", "A")), roster);
+        changes.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
+        changes.Quests.GetChange("b").IsAdded.ShouldBeTrue();
     }
 
     [Test]
     public void EditThenRestoreHasNoChanges()
     {
-        var (before, after) = Build(
+        var changes = Diff(
             State(Quest("a", "A", 1, 1)),
             State(Quest("a", "A", 1, 1))
         );
-        before.Values.ShouldAllBe(static h => !h.IsRemoved && !h.Moved);
-        after.Values.ShouldAllBe(static h =>
-            !h.IsAdded && !h.TitleChanged && !h.PointsChanged && !h.ScoresChanged && !h.Moved
-        );
+        changes.IsEmpty.ShouldBeTrue();
+        changes.Quests.IsEmpty.ShouldBeTrue();
+        changes.Quests.GetChange("a").IsEmpty.ShouldBeTrue();
     }
 
     [Test]
-    public void DuplicateKeysReturnEmptyMaps()
+    public void DuplicateKeysAreInvalid()
     {
-        var (before, after) = Build(State(Quest("a"), Quest("a")), State(Quest("a")));
-        before.ShouldBeEmpty();
-        after.ShouldBeEmpty();
+        var before = State(Quest("a"), Quest("a"));
+        var after = State(Quest("a"));
+        Should.Throw<InvalidOperationException>(() => Diff(before, after));
+        TryDiff(before, after).ShouldBeNull();
     }
 
     [Test]
@@ -273,64 +295,78 @@ public sealed class RosterHighlightTests
         afterFragmentJson.ShouldContain("\"d\"");
 
         // The shared ChangeSet derives from those same fragments exactly once.
-        var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(before, after);
-        coordinator.IsInvalid.ShouldBeFalse();
-        var direct = PlaygroundRoster.ChangeSet.Between(
-            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before)),
-            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after))
-        );
-        direct.Quests.Added.Select(q => q.Id).ShouldBe(["d"]);
-        direct.Quests.Removed.Select(q => q.Id).ShouldBe(["a"]);
+        var changes = Diff(before, after);
+        changes.Quests.Added.Select(q => q.Id).ShouldBe(["d"]);
+        changes.Quests.Removed.Select(q => q.Id).ShouldBe(["a"]);
     }
 
     [Test]
-    public void SharedChangeSetIsSingleSourceOfTruth()
+    public void SharedChangeSetDrivesAllProjections()
     {
         var before = RosterDefaults.Before();
         var after = RosterDefaults.After();
-        var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(before, after);
+        var changes = Diff(before, after);
 
-        coordinator.IsInvalid.ShouldBeFalse();
-        var changes = coordinator.ChangeSet;
-        changes.ShouldNotBeNull();
-
-        // All projections read the shared ChangeSet without recomputing it.
-        var highlights = coordinator.Highlights(before, after);
-        var summary = coordinator.Summary;
-        var manual = coordinator.ManualCSharp("patch");
-
-        ReferenceEquals(changes, coordinator.ChangeSet).ShouldBeTrue();
-
-        // Highlights match a direct projection of the SAME ChangeSet instance.
-        var expected = RosterHighlight.BuildFromChangeSet(changes!, before, after);
-        highlights.Before.Count.ShouldBe(expected.Before.Count);
-        highlights.After.Count.ShouldBe(expected.After.Count);
-        foreach (var kv in expected.After)
-        {
-            var actual = highlights.After[kv.Key];
-            actual.IsAdded.ShouldBe(kv.Value.IsAdded);
-            actual.TitleChanged.ShouldBe(kv.Value.TitleChanged);
-            actual.PointsChanged.ShouldBe(kv.Value.PointsChanged);
-            actual.ScoresChanged.ShouldBe(kv.Value.ScoresChanged);
-            actual.Moved.ShouldBe(kv.Value.Moved);
-        }
-
-        foreach (var kv in expected.Before)
-        {
-            var actual = highlights.Before[kv.Key];
-            actual.IsRemoved.ShouldBe(kv.Value.IsRemoved);
-            actual.Moved.ShouldBe(kv.Value.Moved);
-        }
+        // Editor highlighting reads the typed transition directly.
+        changes.Quests.GetChange("d").IsAdded.ShouldBeTrue();
+        changes.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
+        changes.Quests.GetChange("b").IsEdited.ShouldBeTrue();
+        changes.Quests.GetChange("c").IsReordered.ShouldBeTrue();
 
         // Summary and snippet reflect the same diff.
+        var summary = PlaygroundSnippets.RosterSummary(changes);
         summary.ShouldContain("add:");
         summary.ShouldContain("remove:");
         summary.ShouldContain("edit:");
+        var manual = PlaygroundSnippets.RosterManualPatchCSharp("patch", changes);
         manual.ShouldContain("Quests.Add");
         manual.ShouldContain("Quests.Remove");
         manual.ShouldContain("Quests.Edit");
+
+        // ChangeSet JSON uses the same shared instance.
+        var json = JsonSerializer.Serialize(changes, new JsonSerializerOptions { WriteIndented = true });
+        json.ShouldContain("\"d\"");
+        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangeSet>(json)!;
+        roundTripped.Quests.GetChange("d").IsAdded.ShouldBeTrue();
+        roundTripped.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
+
+        // Applied preview derives lazily from the same ChangeSet via ToPatch.
+        var applied = changes.ToPatch().Apply(
+            Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before)));
+        var appliedJson = PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
+        var afterJson = PlaygroundJson.WriteRosterModel(after);
+        appliedJson.ShouldBe(afterJson);
+    }
+
+    [Test]
+    public void SummaryCorrectness()
+    {
+        var before = State(Quest("a"), Quest("b"));
+        var after = State(Quest("a"), Quest("b", "B2"));
+        var summary = PlaygroundSnippets.RosterSummary(Diff(before, after));
+        summary.ShouldContain("order: [a→b]");
+        summary.ShouldContain("edit: [b]");
+
+        var empty = PlaygroundSnippets.RosterSummary(Diff(before, State(Quest("a"), Quest("b"))));
+        empty.ShouldBe("no changes");
+    }
+
+    [Test]
+    public void ManualPatchPreviewCorrectness()
+    {
+        var before = RosterDefaults.Before();
+        var after = RosterDefaults.After();
+        var changes = Diff(before, after);
+        var manual = PlaygroundSnippets.RosterManualPatchCSharp("patch", changes);
+        manual.ShouldContain("Quests.Add");
+        manual.ShouldContain("Quests.Remove");
+        manual.ShouldContain("Quests.Edit");
+        manual.ShouldContain("SetOrder");
+
+        var empty = PlaygroundSnippets.RosterManualPatchCSharp(
+            "patch",
+            Diff(before, RosterDefaults.Before()));
+        empty.ShouldContain("No quest changes.");
     }
 
     [Test]
@@ -338,30 +374,18 @@ public sealed class RosterHighlightTests
     {
         var invalidBefore = State(Quest("a"), Quest("a"));
         var invalidAfter = State(Quest("a"));
-        var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(invalidBefore, invalidAfter);
 
-        coordinator.IsInvalid.ShouldBeTrue();
-        coordinator.Patch.ShouldBeNull();
-
-        var (before, after) = coordinator.Highlights(invalidBefore, invalidAfter);
-        before.ShouldBeEmpty();
-        after.ShouldBeEmpty();
-
-        coordinator.Summary.ShouldBe("cannot diff: duplicate keys or invalid state");
-        coordinator.ManualCSharp("patch").ShouldContain("Cannot diff");
-
-        var exception = Should.Throw<InvalidOperationException>(() => coordinator.RequirePatch());
-        exception.Message.ShouldContain("Cannot diff roster state");
+        // Duplicate keys fail the single derivation, leaving a null ChangeSet
+        // behind the page-local invalid state (same as Home.TryRefreshRosterChanges).
+        Should.Throw<InvalidOperationException>(() => Diff(invalidBefore, invalidAfter));
+        TryDiff(invalidBefore, invalidAfter).ShouldBeNull();
     }
 
     [Test]
     public void Case3DoesNotDependOnGenericInspection()
     {
-        var playground = typeof(RosterCaseCoordinator).Assembly;
+        var playground = typeof(RosterDefaults).Assembly;
         playground.GetType("SparseFragments.Playground.Models.RosterInspection").ShouldBeNull();
-
-        typeof(RosterCaseCoordinator).GetProperty("ModelMetadata").ShouldBeNull();
 
         // Summary and snippet derive from the typed Quests transition only:
         // no before/after reconstruction parameter remains on the snippet API.
@@ -370,6 +394,11 @@ public sealed class RosterHighlightTests
             .GetParameters()
             .Select(p => p.ParameterType)
             .ShouldBe([typeof(string), typeof(PlaygroundRoster.ChangeSet)]);
+        typeof(PlaygroundSnippets)
+            .GetMethod("RosterSummary")!
+            .GetParameters()
+            .Select(p => p.ParameterType)
+            .ShouldBe([typeof(PlaygroundRoster.ChangeSet)]);
 
         // Generic inspection runtime types were removed by #91 and must stay gone.
         var runtime = typeof(Optional<>).Assembly;
@@ -382,7 +411,7 @@ public sealed class RosterHighlightTests
     public void Case3HasNoWrapperTypes()
     {
         // QuestRow / RosterEditState scaffolding is gone; defaults are real models.
-        var playground = typeof(RosterCaseCoordinator).Assembly;
+        var playground = typeof(RosterDefaults).Assembly;
         playground.GetType("SparseFragments.Playground.Models.QuestRow").ShouldBeNull();
         playground.GetType("SparseFragments.Playground.Models.RosterEditState").ShouldBeNull();
         RosterDefaults.Before().Quests.Count.ShouldBe(3);
@@ -390,30 +419,54 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
-    public void HighlightsFollowTypedReorderSemantics()
+    public void Case3DoesNotReintroduceCopiedChangeGraph()
     {
-        // Pure membership shifts are not reorders: survivors stay unmoved even
-        // though absolute indexes shift. Typed IsReordered drives Moved.
-        var (_, pureAddAfter) = Build(State(Quest("a"), Quest("b")), State(Quest("a"), Quest("b"), Quest("c")));
-        foreach (var highlight in pureAddAfter.Values)
-        {
-            highlight.Moved.ShouldBeFalse();
-        }
+        var playground = typeof(RosterDefaults).Assembly;
+        playground.GetType("SparseFragments.Playground.Models.RosterCaseCoordinator").ShouldBeNull();
+        playground.GetType("SparseFragments.Playground.Models.RosterHighlight").ShouldBeNull();
+        playground.GetType("SparseFragments.Playground.Models.RosterRowHighlight").ShouldBeNull();
 
-        var (_, pureRemoveAfter) = Build(
+        var editor = playground.GetType("SparseFragments.Playground.Components.RosterEditor");
+        editor.ShouldNotBeNull();
+        var changesParam = editor!.GetProperty("Changes");
+        changesParam.ShouldNotBeNull();
+        changesParam!.PropertyType.ShouldBe(typeof(PlaygroundRoster.ChangeSet.QuestsTransition));
+
+        // The typed item surface exposes GetChange; the editor must not keep a
+        // per-row copied dictionary of presentation booleans.
+        typeof(PlaygroundRoster.ChangeSet.QuestsTransition)
+            .GetMethod("GetChange")!
+            .GetParameters()
+            .Select(p => p.ParameterType)
+            .ShouldBe([typeof(string)]);
+        editor.GetProperty("Highlights").ShouldBeNull();
+        foreach (var prop in editor.GetProperties())
+        {
+            prop.PropertyType.IsGenericType.ShouldBeFalse(
+                $"RosterEditor.{prop.Name} must not reintroduce a copied change dictionary.");
+        }
+    }
+
+    [Test]
+    public void TypedReorderSemanticsHold()
+    {
+        // Pure membership shifts are not reorders: survivors stay empty even
+        // though absolute indexes shift. Typed IsReordered drives highlighting.
+        var pureAdd = Diff(State(Quest("a"), Quest("b")), State(Quest("a"), Quest("b"), Quest("c")));
+        pureAdd.Quests.GetChange("a").IsReordered.ShouldBeFalse();
+        pureAdd.Quests.GetChange("b").IsReordered.ShouldBeFalse();
+        pureAdd.Quests.GetChange("c").IsAdded.ShouldBeTrue();
+
+        var pureRemove = Diff(
             State(Quest("a"), Quest("b"), Quest("c")),
             State(Quest("b"), Quest("c"))
         );
-        foreach (var highlight in pureRemoveAfter.Values)
-        {
-            highlight.Moved.ShouldBeFalse();
-        }
+        pureRemove.Quests.GetChange("b").IsReordered.ShouldBeFalse();
+        pureRemove.Quests.GetChange("c").IsReordered.ShouldBeFalse();
 
         // Summary order is the typed AfterOrder, even when OrderChanged is false.
         var before = State(Quest("a"), Quest("b"));
         var after = State(Quest("a"), Quest("b", "B2"));
-        var coordinator = new RosterCaseCoordinator();
-        coordinator.Update(before, after);
-        coordinator.Summary.ShouldContain("order: [a→b]");
+        PlaygroundSnippets.RosterSummary(Diff(before, after)).ShouldContain("order: [a→b]");
     }
 }

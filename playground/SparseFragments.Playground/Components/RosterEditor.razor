@@ -35,8 +35,12 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the typed keyed quest transition consumed directly via
+    /// <c>GetChange</c>. Null when the roster state is invalid.
+    /// </summary>
     [Parameter]
-    public IReadOnlyDictionary<PlaygroundQuest, RosterRowHighlight>? Highlights { get; set; }
+    public PlaygroundRoster.ChangeSet.QuestsTransition? Changes { get; set; }
 
     /// <summary>Gets or sets whether reorder controls (handle, up/down) are shown.</summary>
     [Parameter]
@@ -51,7 +55,7 @@
     public bool RemovedOnly { get; set; }
 
     private RenderFragment<(PlaygroundQuest Quest, int Index)> RowFragment => item =>
-        @<div class="@RowClass(GetHighlight(item.Quest))">
+        @<div class="@RowClass(GetRowChange(item.Quest))">
             <div class="pg-rline1">
                 <div class="pg-roster-field">
                     <span class="pg-mini notranslate" translate="no">Id <small>key</small></span>
@@ -59,29 +63,29 @@
                         Value="@item.Quest.Id"
                         ValueChanged="@(async v => { item.Quest.Id = v; await NotifyAsync(); })" />
                 </div>
-                <div class="pg-roster-field @(GetHighlight(item.Quest)?.TitleChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Quest)?.TitleChanged == true)Title</span>
+                <div class="pg-roster-field @(IsTitleChanged(GetRowChange(item.Quest)) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(IsTitleChanged(GetRowChange(item.Quest)))Title</span>
                     <FluentTextField Placeholder="title" Style="width: 100%;"
                         Value="@item.Quest.Title"
                         ValueChanged="@(async v => { item.Quest.Title = v; await NotifyAsync(); })" />
                 </div>
-                <div class="pg-roster-field @(GetHighlight(item.Quest)?.PointsChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Quest)?.PointsChanged == true)Points</span>
+                <div class="pg-roster-field @(IsPointsChanged(GetRowChange(item.Quest)) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(IsPointsChanged(GetRowChange(item.Quest)))Points</span>
                     <FluentNumberField TValue="int" Style="width: 100%;"
                         Value="@item.Quest.Points"
                         ValueChanged="@(async v => { item.Quest.Points = v; await NotifyAsync(); })" />
                 </div>
             </div>
             <div class="pg-rline2">
-                <div class="pg-roster-field @(GetHighlight(item.Quest)?.ScoresChanged == true ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@TitleDot(GetHighlight(item.Quest)?.ScoresChanged == true)Scores <small>List&lt;int&gt; whole</small></span>
+                <div class="pg-roster-field @(IsScoresChanged(GetRowChange(item.Quest)) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@TitleDot(IsScoresChanged(GetRowChange(item.Quest)))Scores <small>List&lt;int&gt; whole</small></span>
                     <IntListField Placeholder="10, 20" Style="width: 100%;"
                         Value="@item.Quest.Scores"
                         ValueChanged="@(async v => { item.Quest.Scores = v; await NotifyAsync(); })" />
                 </div>
                 <div class="pg-roster-field">
                     <span class="pg-mini notranslate" translate="no">Order</span>
-                    <div class="pg-order @(GetHighlight(item.Quest)?.Moved == true ? "pg-moved-num" : "")" title="Position in this list">@(item.Index + 1)</div>
+                    <div class="pg-order @(IsMoved(GetRowChange(item.Quest)) ? "pg-moved-num" : "")" title="Position in this list">@(item.Index + 1)</div>
                 </div>
                 <div class="pg-roster-actions">
                     @if (AllowReorder)
@@ -119,33 +123,48 @@
         return NotifyAsync();
     }
 
-    private RosterRowHighlight? GetHighlight(PlaygroundQuest quest)
+    private PlaygroundRoster.ChangeSet.QuestsTransition.Item? GetRowChange(PlaygroundQuest quest)
     {
-        if (!ShowHighlights
-            || Highlights is null
-            || !Highlights.TryGetValue(quest, out var highlight))
+        if (!ShowHighlights || Changes is null)
         {
             return null;
         }
-        if (RemovedOnly && !highlight.IsRemoved)
+        var change = Changes.GetChange(quest.Id);
+        if (change.IsEmpty)
         {
             return null;
         }
-        return highlight;
+        if (RemovedOnly && !change.IsRemoved)
+        {
+            return null;
+        }
+        return change;
     }
 
-    private static string RowClass(RosterRowHighlight? highlight)
+    private static bool IsTitleChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change) =>
+        change?.IsEdited == true && change.Edit.Title.IsChanged;
+
+    private static bool IsPointsChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change) =>
+        change?.IsEdited == true && change.Edit.Points.IsChanged;
+
+    private static bool IsScoresChanged(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change) =>
+        change?.IsEdited == true && change.Edit.Scores.IsChanged;
+
+    private static bool IsMoved(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change) =>
+        change is not null && !change.IsAdded && !change.IsRemoved && change.IsReordered;
+
+    private static string RowClass(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change)
     {
         var cls = "pg-roster-row";
-        if (highlight?.IsAdded == true)
+        if (change?.IsAdded == true)
         {
             cls += " pg-added";
         }
-        if (highlight?.IsRemoved == true)
+        if (change?.IsRemoved == true)
         {
             cls += " pg-removed";
         }
-        if (highlight is not null && !highlight.IsAdded && !highlight.IsRemoved && highlight.Moved)
+        if (IsMoved(change))
         {
             cls += " pg-moved";
         }
