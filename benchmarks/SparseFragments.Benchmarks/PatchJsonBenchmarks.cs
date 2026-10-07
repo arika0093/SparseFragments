@@ -8,6 +8,9 @@ public enum PatchJsonShape
     ScalarSet,
     ScalarUnset,
     Collection,
+    RootSet,
+    RootUnset,
+    RootNull,
 }
 
 [MemoryDiagnoser]
@@ -20,7 +23,10 @@ public class PatchJsonBenchmarks
         PatchJsonShape.Empty,
         PatchJsonShape.ScalarSet,
         PatchJsonShape.ScalarUnset,
-        PatchJsonShape.Collection
+        PatchJsonShape.Collection,
+        PatchJsonShape.RootSet,
+        PatchJsonShape.RootUnset,
+        PatchJsonShape.RootNull
     )]
     public PatchJsonShape Shape { get; set; }
 
@@ -39,8 +45,17 @@ public class PatchJsonBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _before = State(false);
-        _after = Shape == PatchJsonShape.Empty ? _before : State(true);
+        _before =
+            Shape == PatchJsonShape.RootSet
+                ? Optional<BenchChangeSetRebaseRecord.Fragment?>.Missing
+                : State(false);
+        _after = Shape switch
+        {
+            PatchJsonShape.Empty => _before,
+            PatchJsonShape.RootUnset => Optional<BenchChangeSetRebaseRecord.Fragment?>.Missing,
+            PatchJsonShape.RootNull => Optional<BenchChangeSetRebaseRecord.Fragment?>.Present(null),
+            _ => State(true),
+        };
         _patch = BenchChangeSetRebaseRecord.Patch.Between(_before, _after);
         _json = Serialize();
         Validate(Deserialize());
@@ -87,6 +102,15 @@ public class PatchJsonBenchmarks
                 "{\"Counter\":{\"kind\":\"unset\",\"kind\":\"unset\"}}",
                 "{\"Counter\":{\"kind\":\"set\",\"value\":1,\"value\":2}}",
                 "{\"Counter\":{\"other\":\"unset\"}}",
+                "{\"$whole\":{\"kind\":\"set\"}}",
+                "{\"$whole\":{\"kind\":\"unset\",\"value\":null}}",
+                "{\"$whole\":{\"kind\":\"bogus\"}}",
+                "{\"$whole\":{\"kind\":null}}",
+                "{\"$whole\":{\"value\":null}}",
+                "{\"$whole\":{\"kind\":\"unset\",\"kind\":\"unset\"}}",
+                "{\"$whole\":{\"kind\":\"set\",\"value\":null,\"value\":null}}",
+                "{\"$whole\":{\"other\":\"unset\"}}",
+                "{\"$whole\":{\"kind\":\"set\",\"value\":1}}",
             }
         )
         {
@@ -99,7 +123,7 @@ public class PatchJsonBenchmarks
                 continue;
             }
             throw new InvalidOperationException(
-                "Malformed scalar patch operations must be rejected."
+                "Malformed scalar and whole patch operations must be rejected."
             );
         }
     }
