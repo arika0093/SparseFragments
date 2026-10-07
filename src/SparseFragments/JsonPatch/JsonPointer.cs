@@ -93,8 +93,11 @@ internal static class JsonPointer
             return pointer.Substring(start, length);
         }
 
-        var builder = new StringBuilder(length);
-        builder.Append(pointer, start, firstEscape - start);
+        // Decoding only shortens the token. Keep small temporary buffers on the
+        // stack and allocate a single buffer for longer tokens.
+        Span<char> buffer = length <= 256 ? stackalloc char[length] : new char[length];
+        var written = firstEscape - start;
+        pointer.AsSpan(start, written).CopyTo(buffer);
         var end = start + length;
         var index = firstEscape;
         while (index < end)
@@ -102,7 +105,7 @@ internal static class JsonPointer
             var c = pointer[index];
             if (c != '~')
             {
-                builder.Append(c);
+                buffer[written++] = c;
                 index++;
                 continue;
             }
@@ -118,11 +121,11 @@ internal static class JsonPointer
             var next = pointer[index + 1];
             if (next == '0')
             {
-                builder.Append('~');
+                buffer[written++] = '~';
             }
             else if (next == '1')
             {
-                builder.Append('/');
+                buffer[written++] = '/';
             }
             else
             {
@@ -135,6 +138,6 @@ internal static class JsonPointer
             index += 2;
         }
 
-        return builder.ToString();
+        return buffer.Slice(0, written).ToString();
     }
 }
