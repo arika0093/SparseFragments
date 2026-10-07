@@ -17,14 +17,51 @@ public sealed class SparseEditSessionTests
             Tags = new() { "fragile" },
         };
 
+    private static Optional<OrderDto.Fragment?> Present(OrderDto.Fragment fragment) =>
+        Optional<OrderDto.Fragment?>.Present(fragment);
+
+    private static void PatchesShouldBeEquivalent(OrderDto.Patch first, OrderDto.Patch second)
+    {
+        var baseline = Present(OrderDto.Fragment.From(Order()));
+        var appliedFirst = first.Apply(baseline);
+        var appliedSecond = second.Apply(baseline);
+        OrderDto.Patch.Between(appliedFirst, appliedSecond).IsEmpty.ShouldBeTrue();
+    }
+
     [Test]
-    public void ScalarFieldEditProducesPatch()
+    public void InitialSessionHasNoChanges()
+    {
+        var session = Order().CreateEditSession();
+
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        session.CreatePatch().IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void GeneratedCreateEditSessionRequiresNoManualWiring()
+    {
+        // Compile-time proof: the parameterless generated factory yields a session
+        // exposing both ChangeSet and Patch operations without reflection.
+        var session = Order().CreateEditSession();
+
+        OrderDto.ChangeSet changes = session.CreateChangeSet();
+        OrderDto.Patch patch = session.CreatePatch();
+        changes.IsEmpty.ShouldBeTrue();
+        patch.IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ScalarFieldEditProducesChangeSet()
     {
         var session = Order().CreateEditSession();
         session.HasChanges.ShouldBeFalse();
 
         session.Model.Number = "ORD-2";
         session.HasChanges.ShouldBeTrue();
+
+        var changes = session.CreateChangeSet();
+        changes.IsEmpty.ShouldBeFalse();
 
         var patch = session.CreatePatch();
         patch.IsEmpty.ShouldBeFalse();
@@ -37,6 +74,7 @@ public sealed class SparseEditSessionTests
 
         session.Model.Customer.Email = "new@example.com";
         session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().IsEmpty.ShouldBeFalse();
         session.CreatePatch().IsEmpty.ShouldBeFalse();
     }
 
@@ -49,6 +87,7 @@ public sealed class SparseEditSessionTests
         session.Model.Number = "ORD-1";
 
         session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
         session.CreatePatch().IsEmpty.ShouldBeTrue();
     }
 
@@ -86,7 +125,10 @@ public sealed class SparseEditSessionTests
         session.Model.Lines.RemoveAll(line => line.Sku == "a");
         session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
 
-        var patch = session.CreatePatch();
+        session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().IsEmpty.ShouldBeFalse();
+
+        var patch = session.CreateChangeSet().ToPatch();
         var applied = OrderDto.Fragment.From(
             new OrderDto
             {
@@ -114,8 +156,9 @@ public sealed class SparseEditSessionTests
         session.Model.Lines = session.Model.Lines.AsEnumerable().Reverse().ToList();
 
         session.HasChanges.ShouldBeTrue();
-        var patch = session.CreatePatch();
-        var applied = OrderDto.Fragment.From(Order()).Apply(patch);
+        var changes = session.CreateChangeSet();
+        changes.IsEmpty.ShouldBeFalse();
+        var applied = OrderDto.Fragment.From(Order()).Apply(changes.ToPatch());
         applied.Lines.Value!.Select(line => line.Sku).ShouldBe(["b", "a"]);
     }
 
@@ -127,13 +170,13 @@ public sealed class SparseEditSessionTests
         session.Model.Tags.Add("heavy");
         session.HasChanges.ShouldBeTrue();
 
-        var patch = session.CreatePatch();
-        var applied = OrderDto.Fragment.From(Order()).Apply(patch);
+        var changes = session.CreateChangeSet();
+        var applied = OrderDto.Fragment.From(Order()).Apply(changes.ToPatch());
         applied.Tags.Value!.ShouldBe(["fragile", "heavy"]);
 
         session.Model.Tags = session.Model.Tags.AsEnumerable().Reverse().ToList();
-        var reorderPatch = session.CreatePatch();
-        var reordered = OrderDto.Fragment.From(Order()).Apply(reorderPatch);
+        var reorderChanges = session.CreateChangeSet();
+        var reordered = OrderDto.Fragment.From(Order()).Apply(reorderChanges.ToPatch());
         reordered.Tags.Value!.ShouldBe(["heavy", "fragile"]);
     }
 
@@ -157,8 +200,9 @@ public sealed class SparseEditSessionTests
         session.Model.Teams.Single(t => t.Name == "t1").Members.Add(new TeamMember { Id = "m2" });
         session.HasChanges.ShouldBeTrue();
 
-        var patch = session.CreatePatch();
-        patch.IsEmpty.ShouldBeFalse();
+        var changes = session.CreateChangeSet();
+        changes.IsEmpty.ShouldBeFalse();
+        changes.ToPatch().IsEmpty.ShouldBeFalse();
     }
 
     [Test]
@@ -171,6 +215,65 @@ public sealed class SparseEditSessionTests
 
         session.EditContext.IsModified().ShouldBeFalse();
         session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().IsEmpty.ShouldBeFalse();
+    }
+
+    [Test]
+    public void CreatePatchEqualsCreateChangeSetToPatch()
+    {
+        // Scalar edit.
+        var scalar = Order().CreateEditSession();
+        scalar.Model.Number = "ORD-2";
+        PatchesShouldBeEquivalent(scalar.CreatePatch(), scalar.CreateChangeSet().ToPatch());
+        scalar.CreatePatch().IsEmpty.ShouldBe(scalar.CreateChangeSet().ToPatch().IsEmpty);
+
+        // Nested edit.
+        var nested = Order().CreateEditSession();
+        nested.Model.Customer.Email = "new@example.com";
+        PatchesShouldBeEquivalent(nested.CreatePatch(), nested.CreateChangeSet().ToPatch());
+
+        // Keyed add/remove/edit.
+        var keyed = Order().CreateEditSession();
+        keyed.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+        keyed.Model.Lines.RemoveAll(line => line.Sku == "a");
+        keyed.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+        PatchesShouldBeEquivalent(keyed.CreatePatch(), keyed.CreateChangeSet().ToPatch());
+
+        // Reorder.
+        var reorder = Order().CreateEditSession();
+        reorder.Model.Lines = reorder.Model.Lines.AsEnumerable().Reverse().ToList();
+        PatchesShouldBeEquivalent(reorder.CreatePatch(), reorder.CreateChangeSet().ToPatch());
+
+        // Scalar collection.
+        var tags = Order().CreateEditSession();
+        tags.Model.Tags.Add("heavy");
+        PatchesShouldBeEquivalent(tags.CreatePatch(), tags.CreateChangeSet().ToPatch());
+
+        // Empty session.
+        var empty = Order().CreateEditSession();
+        PatchesShouldBeEquivalent(empty.CreatePatch(), empty.CreateChangeSet().ToPatch());
+        empty.CreatePatch().IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void RepeatedCreateCallsAreStable()
+    {
+        var session = Order().CreateEditSession();
+        session.Model.Number = "ORD-2";
+        session.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+
+        var firstChanges = session.CreateChangeSet();
+        var secondChanges = session.CreateChangeSet();
+        PatchesShouldBeEquivalent(firstChanges.ToPatch(), secondChanges.ToPatch());
+        firstChanges.IsEmpty.ShouldBe(secondChanges.IsEmpty);
+
+        PatchesShouldBeEquivalent(session.CreatePatch(), session.CreatePatch());
+        PatchesShouldBeEquivalent(session.CreatePatch(), session.CreateChangeSet().ToPatch());
+
+        var firstHasChanges = session.HasChanges;
+        var secondHasChanges = session.HasChanges;
+        firstHasChanges.ShouldBe(secondHasChanges);
+        firstHasChanges.ShouldBeTrue();
     }
 
     [Test]
@@ -188,9 +291,95 @@ public sealed class SparseEditSessionTests
         session.AcceptChanges();
 
         session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        session.CreatePatch().IsEmpty.ShouldBeTrue();
         session.EditContext.IsModified().ShouldBeFalse();
 
         session.Model.Number = "ORD-3";
+        session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().IsEmpty.ShouldBeFalse();
+    }
+
+    [Test]
+    public void AcceptChangesEstablishesNewBeforeState()
+    {
+        var session = Order().CreateEditSession();
+
+        session.Model.Number = "ORD-2";
+        session.AcceptChanges();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+
+        // Only touch the nested email after the accept.
+        session.Model.Customer.Email = "new@example.com";
+        var second = session.CreateChangeSet();
+        second.IsEmpty.ShouldBeFalse();
+
+        // Applied to the ORIGINAL pre-accept baseline, Number must stay ORD-1:
+        // the second ChangeSet carries no Number change, proving its before-state
+        // is the accepted ORD-2 state rather than the stale ORD-1 baseline.
+        var originalBaseline = Present(OrderDto.Fragment.From(Order()));
+        var appliedToOriginal = second.ToPatch().Apply(originalBaseline);
+        appliedToOriginal.Value!.Number.Value.ShouldBe("ORD-1");
+        appliedToOriginal.Value!.Customer.Value!.Email.Value.ShouldBe("new@example.com");
+
+        // Applied to the accepted baseline, the patch reaches the current state.
+        var acceptedBaseline = Present(
+            OrderDto.Fragment.From(
+                new OrderDto
+                {
+                    Number = "ORD-2",
+                    Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
+                    Lines = new()
+                    {
+                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
+                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
+                    },
+                    Tags = new() { "fragile" },
+                }
+            )
+        );
+        var currentFragment = Present(OrderDto.Fragment.From(session.Model));
+        OrderDto.Patch.Between(second.ToPatch().Apply(acceptedBaseline), currentFragment)
+            .IsEmpty.ShouldBeTrue();
+
+        // Inverting the ChangeSet walks back to the accepted baseline.
+        OrderDto.Patch.Between(second.Invert().ToPatch().Apply(currentFragment), acceptedBaseline)
+            .IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void SessionChangeSetSupportsRebaseOnto()
+    {
+        var session = Order().CreateEditSession();
+        session.Model.Number = "ORD-2";
+        var changes = session.CreateChangeSet();
+
+        // Disjoint authoritative update (adds a line); local scalar edit replays cleanly.
+        var authoritative = Present(
+            OrderDto.Fragment.From(
+                new OrderDto
+                {
+                    Number = "ORD-1",
+                    Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
+                    Lines = new()
+                    {
+                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
+                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
+                        new OrderLine { Sku = "c", Quantity = 3, Price = 30m },
+                    },
+                    Tags = new() { "fragile" },
+                }
+            )
+        );
+        var rebased = changes.RebaseOnto(authoritative);
+        rebased.HasConflicts.ShouldBeFalse();
+        var merged = rebased.Patch.ToPatch().Apply(authoritative);
+        merged.Value!.Number.Value.ShouldBe("ORD-2");
+        merged.Value!.Lines.Value!.Select(line => line.Sku).ShouldBe(["a", "b", "c"]);
+
+        // No automatic live-model replacement: the session still owns its own model.
+        session.Model.Number.ShouldBe("ORD-2");
+        session.Model.Lines.Count.ShouldBe(2);
         session.HasChanges.ShouldBeTrue();
     }
 
@@ -203,9 +392,12 @@ public sealed class SparseEditSessionTests
         {
             session.Model.Number = "ORD-" + i;
             session.HasChanges.ShouldBeTrue();
+            session.CreateChangeSet().IsEmpty.ShouldBeFalse();
             session.CreatePatch().IsEmpty.ShouldBeFalse();
             session.AcceptChanges();
             session.HasChanges.ShouldBeFalse();
+            session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+            session.CreatePatch().IsEmpty.ShouldBeTrue();
         }
     }
 
@@ -215,7 +407,12 @@ public sealed class SparseEditSessionTests
         var session = Order().CreateEditSession();
         var store = session.CreateValidationStore();
 
-        SparseEditSession<OrderDto, OrderDto.Fragment, OrderDto.Patch>.AddValidationError(
+        SparseEditSession<
+            OrderDto,
+            OrderDto.Fragment,
+            OrderDto.Patch,
+            OrderDto.ChangeSet
+        >.AddValidationError(
             store,
             session.Field(nameof(OrderDto.Number)),
             "Server rejected the order number."
