@@ -164,6 +164,29 @@ public class JsonPatchObjectDiffBenchmarks
                 "Nested object diffs must preserve recursion, escaping and operation order."
             );
         }
+        var independent = Diff();
+        independent[0] = 0;
+        if (!Diff().AsSpan().SequenceEqual(patch))
+        {
+            throw new InvalidOperationException(
+                "Serialized results must retain independent byte storage."
+            );
+        }
+        try
+        {
+            _ = SparseJsonPatchBridge.Diff(null, false, JsonValue.Create(double.NaN), false);
+            throw new InvalidOperationException("Non-finite JSON numbers must be rejected.");
+        }
+        catch (ArgumentException)
+        {
+            // The next serialization must still succeed after an interrupted write.
+        }
+        if (!Diff().AsSpan().SequenceEqual(patch))
+        {
+            throw new InvalidOperationException(
+                "Failed serialization must not corrupt subsequent output."
+            );
+        }
     }
 
     private string Key(int index) => (Escaped ? "a/~key-" : "key-") + index;
