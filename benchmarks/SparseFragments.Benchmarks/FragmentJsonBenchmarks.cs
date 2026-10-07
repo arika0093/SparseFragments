@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
@@ -10,6 +11,17 @@ public partial class BenchFragmentThreeFields
     public int First { get; set; }
     public int Second { get; set; }
     public int Third { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class BenchFragmentNamedFields
+{
+    [JsonPropertyName("日本語")]
+    public int Value { get; set; }
+    public int Other { get; set; }
+
+    [JsonIgnore]
+    public int Ignored { get; set; }
 }
 
 [MemoryDiagnoser]
@@ -47,6 +59,48 @@ public class FragmentJsonBenchmarks
             Encoding.UTF8.GetBytes(
                 Encoding.UTF8.GetString(_json).Replace("T", "\\u0054").Replace("t", "\\u0074")
             )
+        );
+        ValidateNamedFields();
+    }
+
+    private void ValidateNamedFields()
+    {
+        var options = new JsonSerializerOptions(_options)
+        {
+            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        };
+        var reader = new Utf8JsonReader(
+            Encoding.UTF8.GetBytes(
+                "{\"日本語\":1,\"\\u65e5本語\":2,\"Ignored\":{\"nested\":[1,2]}}"
+            )
+        );
+        reader.Read();
+        var value = BenchFragmentNamedFields.Fragment.JsonConverter.Read(
+            ref reader,
+            typeof(BenchFragmentNamedFields.Fragment),
+            options
+        )!;
+        if (value.Value.Value != 2 || value.Ignored.IsPresent || value.Other.IsPresent)
+            throw new InvalidOperationException(
+                "Explicit Unicode names, duplicate names, and ignored members must retain their behavior."
+            );
+        reader = new Utf8JsonReader(Encoding.UTF8.GetBytes("{\"unknown\":1}"));
+        reader.Read();
+        try
+        {
+            BenchFragmentNamedFields.Fragment.JsonConverter.Read(
+                ref reader,
+                typeof(BenchFragmentNamedFields.Fragment),
+                options
+            );
+        }
+        catch (JsonException exception)
+            when (exception.Message.Contains("'unknown'", StringComparison.Ordinal))
+        {
+            return;
+        }
+        throw new InvalidOperationException(
+            "Unknown member errors must retain the JSON property name."
         );
     }
 

@@ -51,6 +51,22 @@ internal static class SparseFragmentJsonEmitter
             "public sealed class FragmentJsonConverter : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
         );
         code.AppendLineAt(2, "{");
+        // Keep linear UTF-8 dispatch limited to small models; wider converters retain string dispatch.
+        var utf8Dispatch = members.Length > 0 && members.Length <= 3;
+        if (utf8Dispatch)
+        {
+            for (var i = 0; i < members.Length; i++)
+            {
+                code.AppendIndent(3)
+                    .Append("private static readonly byte[] __jsonName")
+                    .Append(i.ToString())
+                    .Append(" = new byte[] { ")
+                    .Append(
+                        string.Join(", ", System.Text.Encoding.UTF8.GetBytes(WireName(members[i])))
+                    )
+                    .AppendLine(" };");
+            }
+        }
         code.AppendLineAt(
             3,
             "private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<TMember> GetMemberTypeInfo<TMember>(global::System.Text.Json.JsonSerializerOptions options)"
@@ -83,6 +99,11 @@ internal static class SparseFragmentJsonEmitter
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) { throw new global::System.Text.Json.JsonException(\"A fragment must be a JSON object.\"); }"
         );
         code.AppendLineAt(4, "var builder = new FragmentBuilder();");
+        if (utf8Dispatch)
+            code.AppendLineAt(
+                4,
+                "var useUtf8Names = options.PropertyNamingPolicy is null && !options.PropertyNameCaseInsensitive;"
+            );
         code.AppendLineAt(4, "while (reader.Read())");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -93,7 +114,31 @@ internal static class SparseFragmentJsonEmitter
             5,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) { throw new global::System.Text.Json.JsonException(\"Expected a fragment property name.\"); }"
         );
-        code.AppendLineAt(5, "var propertyName = reader.GetString();");
+        if (utf8Dispatch)
+        {
+            code.AppendIndent(5).Append("var propertyIndex = !useUtf8Names ? -2 : ");
+            // Match visible members before ignored members, as in the string dispatch below.
+            foreach (
+                var member in members
+                    .Where(static m => !m.Property.IsJsonIgnored)
+                    .Concat(members.Where(static m => m.Property.IsJsonIgnored))
+            )
+            {
+                var index = members.IndexOf(member);
+                code.Append("reader.ValueTextEquals(__jsonName")
+                    .Append(index.ToString())
+                    .Append(") ? ")
+                    .Append(index.ToString())
+                    .Append(" : ");
+            }
+            code.AppendLine("-1;");
+            code.AppendLineAt(
+                5,
+                "var propertyName = propertyIndex < 0 ? reader.GetString() : null;"
+            );
+        }
+        else
+            code.AppendLineAt(5, "var propertyName = reader.GetString();");
         code.AppendLineAt(
             5,
             "if (!reader.Read()) { throw new global::System.Text.Json.JsonException(\"Unexpected end of fragment.\"); }"
@@ -112,13 +157,16 @@ internal static class SparseFragmentJsonEmitter
                 var property = SparseNaming.EscapeIdentifier(member.Property.Name);
                 var wireName = WireName(member);
                 var explicitName = member.Property.HasExplicitJsonPropertyName;
-                code.AppendIndent(5)
-                    .Append(first ? "if (" : "else if (")
-                    .Append("Matches(propertyName, ")
+                code.AppendIndent(5).Append(first ? "if (" : "else if (");
+                if (utf8Dispatch)
+                    code.Append("propertyIndex == ")
+                        .Append(members.IndexOf(member).ToString())
+                        .Append(" || (propertyIndex == -2 && ");
+                code.Append("Matches(propertyName, ")
                     .Append(SymbolDisplay.FormatLiteral(wireName, true))
                     .Append(", ")
                     .Append(explicitName ? "false" : "true")
-                    .AppendLine(", options))");
+                    .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
                 if (member.ChildModel is null)
                 {
                     code.AppendIndent(6)
@@ -153,16 +201,20 @@ internal static class SparseFragmentJsonEmitter
                 first = false;
             }
 
-            foreach (var ignored in ignoredMembers.Select(static member => member.Property))
+            foreach (var ignoredMember in ignoredMembers)
             {
+                var ignored = ignoredMember.Property;
                 var ignoredWireName = ignored.JsonPropertyName ?? ignored.Name;
-                code.AppendIndent(5)
-                    .Append(first ? "if (" : "else if (")
-                    .Append("Matches(propertyName, ")
+                code.AppendIndent(5).Append(first ? "if (" : "else if (");
+                if (utf8Dispatch)
+                    code.Append("propertyIndex == ")
+                        .Append(members.IndexOf(ignoredMember).ToString())
+                        .Append(" || (propertyIndex == -2 && ");
+                code.Append("Matches(propertyName, ")
                     .Append(SymbolDisplay.FormatLiteral(ignoredWireName, true))
                     .Append(", ")
                     .Append(ignored.HasExplicitJsonPropertyName ? "false" : "true")
-                    .AppendLine(", options))");
+                    .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
                 code.AppendLineAt(6, "{ reader.Skip(); }");
                 first = false;
             }
