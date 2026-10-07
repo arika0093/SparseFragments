@@ -177,7 +177,9 @@ internal static class SparseFragmentEmitter
     {
         _ = members;
         var session =
-            "global::SparseFragments.Blazor.SparseEditSession<" + modelType + ", Fragment, Patch, ChangeSet>";
+            "global::SparseFragments.Blazor.SparseEditSession<"
+            + modelType
+            + ", Fragment, Patch, ChangeSet>";
         code.AppendLineAt(
             1,
             "/// <summary>Creates a Blazor edit session capturing the current model as its baseline.</summary>"
@@ -213,7 +215,6 @@ internal static class SparseFragmentEmitter
         bool modelIsReferenceType,
         bool usesPocoCloning,
         bool isRootModel = true,
-        bool emitJsonBridge = true,
         ModelConstructorBinding? constructor = null
     )
     {
@@ -230,10 +231,10 @@ internal static class SparseFragmentEmitter
         Core.AppendFragmentClone(code, members, usesPocoCloning);
         SparseFragmentPatchEmitter.AppendFragmentMethods(code, modelType);
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        SparseJsonPatchEmitter.AppendStandaloneFragmentJson(code, members, Optional);
+        SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, Optional);
         code.AppendLineAt(1, "}");
         Core.AppendBuilder(code, members);
-        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, emitJsonBridge);
+        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members);
     }
 
     private static void AppendFragmentEquality(

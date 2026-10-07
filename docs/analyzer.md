@@ -13,7 +13,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF006](#spf006-required-member-cannot-be-constructed) | Required member cannot be constructed | Error |
 | [SPF007](#spf007-unsupported-structural-member-construction) | Unsupported structural member construction | Error |
 | [SPF008](#spf008-unsupported-deep-clone-member) | Unsupported deep clone member | Error |
-| [SPF009](#spf009-member-conflicts-with-generated-json-patch-api) | Member conflicts with generated JSON Patch API | Error |
+| [SPF009](#spf009-member-conflicts-with-generated-api) | Member conflicts with generated API | Error |
 | [SPF010](#spf010-incompatible-promoted-fragment-model) | Incompatible promoted fragment model | Error |
 | [SPF011](#spf011-structural-sequence-without-usable-key) | Structural sequence without usable key | Error |
 | [SPF012](#spf012-conflicting-sparsekey-mechanisms) | Conflicting SparseKey mechanisms | Error |
@@ -150,11 +150,11 @@ public partial class Settings
 }
 ```
 
-## SPF009: Member conflicts with generated JSON Patch API
+## SPF009: Member conflicts with generated API
 
-* Message: `Member '{0}' conflicts with a name reserved by the generated JSON Patch API`
+* Message: `Member '{0}' conflicts with a name reserved by the generated API`
 * Cause: A model member is named `JsonConverter`, `FragmentJsonConverter` or `Sparse`,
-  which collides with the generated JSON Patch bridge or the generated `Sparse`
+  which collides with the generated fragment JSON converter or the generated `Sparse`
   runtime-metadata holder (`T.Sparse.Properties`). A nested type named `Sparse`
   collides the same way.
 * Fix: Rename the member.

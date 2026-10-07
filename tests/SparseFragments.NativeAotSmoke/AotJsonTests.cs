@@ -12,11 +12,9 @@ public sealed class AotJsonTests
         return options;
     }
 
-    private static byte[] Utf8(string json) => Encoding.UTF8.GetBytes(json);
-
     // Serializes through the generated converter directly (the same path the
-    // JSON Patch bridge uses), which stays trim/NativeAOT clean unlike the
-    // reflection-dispatched JsonSerializer.Serialize overloads.
+    // Patch/ChangeSet converters use for fragments), which stays trim/NativeAOT
+    // clean unlike the reflection-dispatched JsonSerializer.Serialize overloads.
     private static string ToCanonicalJson(AotWidget.Fragment fragment, JsonSerializerOptions options)
     {
         using var stream = new MemoryStream();
@@ -26,6 +24,52 @@ public sealed class AotJsonTests
         }
 
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static string WriteChangeSet(AotWidget.ChangeSet changes, JsonSerializerOptions options)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            new AotWidget.ChangeSet.ChangeSetJsonConverter().Write(writer, changes, options);
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static AotWidget.ChangeSet ReadChangeSet(string json, JsonSerializerOptions options)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var reader = new Utf8JsonReader(bytes);
+        if (!reader.Read())
+        {
+            throw new JsonException("Empty change-set JSON.");
+        }
+
+        return new AotWidget.ChangeSet.ChangeSetJsonConverter().Read(ref reader, typeof(AotWidget.ChangeSet), options);
+    }
+
+    private static string WriteServerChangeSet(AotServerHolder.ChangeSet changes, JsonSerializerOptions options)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            new AotServerHolder.ChangeSet.ChangeSetJsonConverter().Write(writer, changes, options);
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static AotServerHolder.ChangeSet ReadServerChangeSet(string json, JsonSerializerOptions options)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var reader = new Utf8JsonReader(bytes);
+        if (!reader.Read())
+        {
+            throw new JsonException("Empty change-set JSON.");
+        }
+
+        return new AotServerHolder.ChangeSet.ChangeSetJsonConverter().Read(ref reader, typeof(AotServerHolder.ChangeSet), options);
     }
 
     private static AotWidget.Fragment JsonBaseline() =>
@@ -56,50 +100,82 @@ public sealed class AotJsonTests
     }
 
     [Test]
-    public async Task FromJsonPatchAppliesWithSourceGeneratedMetadata()
+    public async Task ChangeSetJsonRoundTripsWithSourceGeneratedMetadata()
     {
-        var baseline = JsonBaseline();
-        var jsonPatch = AotWidget.Patch.FromJsonPatch(
-            Optional<AotWidget.Fragment?>.Present(baseline),
-            Utf8("""[{"op":"replace","path":"/Name","value":"b"}]"""),
-            AotOptions()
+        var options = AotOptions();
+        var before = Optional<AotWidget.Fragment?>.Present(JsonBaseline());
+        var after = Optional<AotWidget.Fragment?>.Present(
+            new AotWidget.Fragment
+            {
+                Name = Optional<string?>.Present("b"),
+                Count = Optional<int>.Present(1),
+            }
         );
+        var changes = AotWidget.ChangeSet.Between(before, after);
+        var back = ReadChangeSet(WriteChangeSet(changes, options), options);
 
-        await Assert.That(baseline.Apply(jsonPatch).Name.Value).IsEqualTo("b");
+        await Assert.That(AotWidget.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty).IsTrue();
     }
 
     [Test]
-    public async Task ToJsonPatchExportsMemberPath()
+    public async Task KeyedChangeSetJsonPreservesIdentityAndOrder()
     {
-        var baseline = JsonBaseline();
-        var jsonPatch = AotWidget.Patch.FromJsonPatch(
-            Optional<AotWidget.Fragment?>.Present(baseline),
-            Utf8("""[{"op":"replace","path":"/Name","value":"b"}]"""),
-            AotOptions()
+        var options = AotOptions();
+        Optional<AotServerHolder.Fragment?> State(AotServerHolder m) =>
+            Optional<AotServerHolder.Fragment?>.Present(AotServerHolder.Fragment.From(m));
+        var before = State(
+            new AotServerHolder
+            {
+                Items = [new AotServer { Id = "a", Name = "A" }, new AotServer { Id = "b", Name = "B" }],
+            }
         );
-        var exported = Encoding.UTF8.GetString(
-            jsonPatch.ToJsonPatch(Optional<AotWidget.Fragment?>.Present(baseline), AotOptions()).ToArray()
+        var after = State(
+            new AotServerHolder
+            {
+                Items = [new AotServer { Id = "b", Name = "B2" }, new AotServer { Id = "c", Name = "C" }],
+            }
         );
+        var changes = AotServerHolder.ChangeSet.Between(before, after);
+        var back = ReadServerChangeSet(WriteServerChangeSet(changes, options), options);
+        var applied = back.ToPatch().Apply(before);
 
-        await Assert.That(exported.Contains("/Name")).IsTrue();
+        await Assert.That(AotServerHolder.Patch.Between(applied, after).IsEmpty).IsTrue();
+        await Assert.That(applied.Value!.Items.Value!.Select(static item => item.Id).SequenceEqual(["b", "c"])).IsTrue();
+        await Assert.That(applied.Value!.Items.Value!.Single(static item => item.Id == "b").Name).IsEqualTo("B2");
     }
 
     [Test]
-    public async Task JsonBridgeFailsFastWithoutResolverWhenReflectionIsDisabled()
+    public async Task ChangeSetJsonPreservesMissingAndNull()
     {
-        var failedFast = false;
+        var options = AotOptions();
+        var missing = Optional<AotWidget.Fragment?>.Missing;
+        var nullState = Optional<AotWidget.Fragment?>.Present(null);
+        var value = Optional<AotWidget.Fragment?>.Present(
+            new AotWidget.Fragment { Name = Optional<string?>.Present("v") }
+        );
+        foreach (var (b, a) in new[] { (missing, nullState), (nullState, value), (value, missing) })
+        {
+            var changes = AotWidget.ChangeSet.Between(b, a);
+            var back = ReadChangeSet(WriteChangeSet(changes, options), options);
+
+            await Assert.That(AotWidget.Patch.Between(back.ToPatch().Apply(b), a).IsEmpty).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task MalformedChangeSetJsonFailsWithSourceGen()
+    {
+        var options = AotOptions();
+        var failed = false;
         try
         {
-            _ = AotWidget.Patch.FromJsonPatch(
-                Optional<AotWidget.Fragment?>.Present(JsonBaseline()),
-                Utf8("""[{"op":"replace","path":"/Name","value":"c"}]""")
-            );
+            _ = ReadChangeSet("""{"before":{"state":"bogus"},"after":{"state":"missing"}}""", options);
         }
-        catch (InvalidOperationException)
+        catch (JsonException)
         {
-            failedFast = true;
+            failed = true;
         }
 
-        await Assert.That(failedFast).IsTrue();
+        await Assert.That(failed).IsTrue();
     }
 }

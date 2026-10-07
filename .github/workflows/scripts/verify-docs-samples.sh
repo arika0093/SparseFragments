@@ -85,13 +85,6 @@ check_sample "rebase" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     'Conflicts.Single()' \
     'conflict.Path'
 
-check_sample "json-patch" "docs/json-patch.md" "${docs_fixture_dir}/JsonPatchSamples.cs" \
-    'FromJsonPatch' \
-    'ToJsonPatch' \
-    'JsonPatchException' \
-    'JsonPatchErrorKind.MissingTarget' \
-    'Encoding.UTF8.GetBytes'
-
 check_sample "merge-strategies" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
     '[SparseMerge(MergeMode.Append)]' \
     '[SparseMerge(MergeMode.SetUnion)]' \
@@ -167,7 +160,6 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/merge-strategies.md \
     docs/keyed-collections.md \
     docs/rebase.md \
-    docs/json-patch.md \
     docs/cloning-and-ownership.md \
     docs/model-shapes.md \
     docs/ui-frameworks.md \

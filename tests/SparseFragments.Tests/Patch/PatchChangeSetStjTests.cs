@@ -3,6 +3,18 @@ using SparseFragments;
 
 namespace SparseFragments.Tests;
 
+[SparseFragmentModel]
+public partial class NamingWidget
+{
+    [System.Text.Json.Serialization.JsonPropertyName("customName")]
+    public string? Value { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("a/b")]
+    public int Slash { get; set; }
+
+    public int Plain { get; set; }
+}
+
 public sealed class PatchChangeSetStjTests
 {
     private static T RoundTrip<T>(T value)
@@ -277,6 +289,47 @@ public sealed class PatchChangeSetStjTests
         rebased.HasConflicts.ShouldBeFalse();
         var expected = S("Bob", 21);
         Settings.Patch.Between(rebased.Patch.ToPatch().Apply(current), expected).IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void FragmentWireNamesRoundTrip()
+    {
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        options.Converters.Add(new NamingWidget.Fragment.FragmentJsonConverter());
+
+        var fragment = new NamingWidget.Fragment
+        {
+            Value = Optional<string?>.Present("v"),
+            Slash = Optional<int>.Present(7),
+        };
+        var json = JsonSerializer.Serialize(fragment, options);
+        // Explicit wire names win over the naming policy, including escaped ones.
+        json.ShouldContain("customName");
+        json.ShouldContain("a/b");
+
+        var back = JsonSerializer.Deserialize<NamingWidget.Fragment>(json, options)!;
+        back.Value.Value.ShouldBe("v");
+        back.Slash.Value.ShouldBe(7);
+        back.Plain.IsPresent.ShouldBeFalse();
+    }
+
+    [Test]
+    public void ChangeSetRoundTripsWithExplicitWireNames()
+    {
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        options.Converters.Add(new NamingWidget.Fragment.FragmentJsonConverter());
+
+        Optional<NamingWidget.Fragment?> State(NamingWidget m) =>
+            Optional<NamingWidget.Fragment?>.Present(NamingWidget.Fragment.From(m));
+        var before = State(new NamingWidget { Value = "a", Slash = 1, Plain = 2 });
+        var after = State(new NamingWidget { Value = "b", Slash = 3, Plain = 2 });
+
+        var changes = NamingWidget.ChangeSet.Between(before, after);
+        var json = JsonSerializer.Serialize(changes, options);
+        json.ShouldContain("customName");
+
+        var back = JsonSerializer.Deserialize<NamingWidget.ChangeSet>(json, options)!;
+        NamingWidget.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
 
     [Test]

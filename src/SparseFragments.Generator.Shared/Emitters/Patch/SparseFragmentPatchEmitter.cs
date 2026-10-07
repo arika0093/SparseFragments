@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -121,14 +120,10 @@ internal static class SparseFragmentPatchEmitter
     public static void AppendPatch(
         SharedIndentedBuilder code,
         string modelType,
-        ImmutableArray<SparseMemberModel> members,
-        bool emitJsonBridge = true
+        ImmutableArray<SparseMemberModel> members
     )
     {
         var optional = Runtime + "Optional<Fragment?>";
-        var patchPrefix = SparseNaming.PatchApiPrefix(
-            members.Select(static member => member.Property.Name)
-        );
         SparsePatchStjEmitter.AppendPatchConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
@@ -155,33 +150,6 @@ internal static class SparseFragmentPatchEmitter
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
         SparsePatchInspectionEmitter.AppendPatchInspection(code, modelType, members);
         SparsePatchStjEmitter.AppendPatchStj(code, members);
-        if (emitJsonBridge)
-        {
-            var jsonPrefix = SparseNaming.JsonPatchApiPrefix(
-                members.Select(static member => member.Property.Name)
-            );
-            SparseJsonPatchEmitter.AppendFragmentJsonHelpers(
-                code,
-                "global::SparseFragments",
-                Runtime + "Optional"
-            );
-            SparseJsonPatchEmitter.AppendFromJsonPatch(
-                code,
-                "global::SparseFragments",
-                "SparseJsonPatch",
-                Runtime + "Optional",
-                jsonPrefix,
-                patchPrefix + "Between"
-            );
-            SparseJsonPatchEmitter.AppendToJsonPatch(
-                code,
-                "global::SparseFragments",
-                "SparseJsonPatch",
-                Runtime + "Optional",
-                jsonPrefix,
-                "this.Apply(baseline)"
-            );
-        }
         code.AppendLineAt(1, "}");
         SparseChangeSetEmitter.AppendChangeSet(code, members);
     }

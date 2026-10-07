@@ -9,7 +9,6 @@
 KeyedCollectionsSamples.Run();
 RebaseSamples.Run();
 InspectionSamples.Run();
-JsonPatchSamples.Run();
 MergeStrategiesSamples.Run();
 CloningAndOwnershipSamples.Run();
 ModelShapesSamples.Run();

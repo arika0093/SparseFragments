@@ -5,7 +5,7 @@
 # tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
 # Usage sections of README.md (model shape,
 # sparse construction, nested fragments, merge, typed patch, deep clone, and
-# one JSON Patch round-trip). This script guards against drift
+# one ChangeSet JSON round-trip). This script guards against drift
 # between the README and that canonical source, then builds and runs the
 # fixture against the packed packages so CI fails when the public generated
 # API breaks the documented samples.
@@ -58,8 +58,8 @@ required_tokens=(
     '.SetNull()'
     'DeepClone'
     'ToBuilder'
-    'FromJsonPatch'
-    'ToJsonPatch'
+    'ChangeSet.Between'
+    'JsonSerializer.Serialize'
 )
 for token in "${required_tokens[@]}"; do
     if ! grep -F -q "${token}" "${readme_path}"; then

@@ -27,7 +27,6 @@ public sealed class SparseFragmentsApiAudienceTests
     private static readonly string[] Plumbing =
     [
         "SparseFragments.CompilerServices.SparseFragmentRuntime",
-        "SparseFragments.CompilerServices.SparseJsonPatchBridge",
     ];
 
     [Test]

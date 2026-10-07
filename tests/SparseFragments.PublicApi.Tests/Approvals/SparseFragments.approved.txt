@@ -27,11 +27,6 @@ namespace SparseFragments.CompilerServices
         public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
         public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
     }
-    public static class SparseJsonPatchBridge
-    {
-        public static System.Text.Json.Nodes.JsonNode? Apply(System.Text.Json.Nodes.JsonNode? baseline, bool baselineIsAbsent, System.ReadOnlyMemory<byte> jsonPatch, System.StringComparison propertyNameComparison, out bool isAbsent) { }
-        public static byte[] Diff(System.Text.Json.Nodes.JsonNode? before, bool beforeIsAbsent, System.Text.Json.Nodes.JsonNode? after, bool afterIsAbsent) { }
-    }
 }
 namespace SparseFragments
 {
@@ -69,24 +64,6 @@ namespace SparseFragments
     public interface ISparseKeyed<out TKey>
     {
         TKey SparseKey { get; }
-    }
-    public enum JsonPatchErrorKind
-    {
-        MalformedDocument = 0,
-        UnknownOperation = 1,
-        MalformedPointer = 2,
-        UnmappedProperty = 3,
-        MissingTarget = 4,
-        MissingParent = 5,
-        InvalidArrayIndex = 6,
-        TestFailed = 7,
-        DeserializationFailed = 8,
-    }
-    public sealed class JsonPatchException : System.Exception
-    {
-        public JsonPatchException(SparseFragments.JsonPatchErrorKind kind, string message) { }
-        public JsonPatchException(SparseFragments.JsonPatchErrorKind kind, string message, System.Exception? innerException) { }
-        public SparseFragments.JsonPatchErrorKind Kind { get; }
     }
     public enum MergeMode
     {

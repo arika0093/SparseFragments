@@ -3,6 +3,16 @@ using SparseFragments;
 using SparseFragments.CompilerServices;
 
 [SparseFragmentModel]
+public partial class BenchWidgetNested
+{
+    public string Host { get; set; } = "localhost";
+
+    public int Port { get; set; }
+
+    public BenchWidgetNested? Child { get; set; }
+}
+
+[SparseFragmentModel]
 public partial struct BenchLeafValue
 {
     public int Count { get; set; }

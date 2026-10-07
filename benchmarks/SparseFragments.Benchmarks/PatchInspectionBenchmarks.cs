@@ -146,14 +146,9 @@ public class PatchInspectionBenchmarks
             );
         }
         CheckSnapshots(scalar[0]);
-        var baseline = Optional<BenchInspectionRecord.Fragment?>.Present(
-            BenchInspectionRecord.Fragment.From(
-                new BenchInspectionRecord { Items = keys.Select(key => Item(key, 0)).ToList() }
-            )
-        );
-        var original = _keyed.ToJsonPatch(baseline);
+        var beforeEdits = KeyedEdits().Count;
         _ = KeyedEdits();
-        if (!_keyed.ToJsonPatch(baseline).Span.SequenceEqual(original.Span))
+        if (KeyedEdits().Count != beforeEdits)
         {
             throw new InvalidOperationException("Inspection must not mutate the patch.");
         }

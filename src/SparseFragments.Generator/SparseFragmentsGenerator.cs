@@ -104,12 +104,12 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
 
     private static readonly DiagnosticDescriptor GeneratedNameCollision = new(
         SparseDiagnosticIds.GeneratedNameCollision,
-        "Member conflicts with generated JSON Patch API",
-        "Member '{0}' conflicts with a name reserved by the generated JSON Patch API",
+        "Member conflicts with generated API",
+        "Member '{0}' conflicts with a name reserved by the generated API",
         "SparseFragments",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf009-member-conflicts-with-generated-json-patch-api"
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf009-member-conflicts-with-generated-api"
     );
 
     private static readonly DiagnosticDescriptor UnsupportedRequired = new(

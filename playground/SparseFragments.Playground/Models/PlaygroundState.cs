@@ -450,13 +450,13 @@ public sealed class RosterRowHighlight
     public bool Moved { get; set; }
 }
 
-/// <summary>Builds before/after highlight maps from generated Patch inspection.</summary>
+/// <summary>Builds before/after highlight maps from a generated roster Patch.</summary>
 /// <remarks>
-/// Case 3 derives one <c>PlaygroundRoster.Patch</c> from before/after state and
+/// Case 3 derives one <c>PlaygroundRoster.ChangeSet</c> from before/after state and
 /// treats it as the source of truth: added/removed rows, per-property edit dots
-/// and final key order all come from <c>patch.Changes</c> (#73) with property
-/// identity resolved through <c>T.Sparse.Properties</c> (#72) instead of a
-/// second manual diff. Only the mapping from inspected descriptors to the
+/// and final key order all come from the ChangeSet's <c>ToPatch().Changes</c> (#73)
+/// with property identity resolved through <c>T.Sparse.Properties</c> (#72) instead
+/// of a second manual diff. Only the mapping from inspected descriptors to the
 /// existing CSS/highlight objects stays Playground-specific.
 /// </remarks>
 public static class RosterHighlight
@@ -634,9 +634,13 @@ public static class PlaygroundJson
         return options;
     }
 
-    /// <summary>Creates options for the JSON Patch bridge.</summary>
-    public static JsonSerializerOptions BridgeOptions() =>
-        new() { TypeInfoResolver = PlaygroundJsonContext.Default };
+    /// <summary>Creates options carrying the source-generated metadata for ChangeSet JSON.</summary>
+    public static JsonSerializerOptions ChangeSetOptions() =>
+        new()
+        {
+            TypeInfoResolver = PlaygroundJsonContext.Default,
+            WriteIndented = true,
+        };
 
     /// <summary>Serializes a fragment to its canonical (present-members-only) JSON.</summary>
     public static string WriteFragment(PlaygroundSettings.Fragment fragment)
