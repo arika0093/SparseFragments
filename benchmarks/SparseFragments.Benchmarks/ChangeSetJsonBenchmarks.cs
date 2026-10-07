@@ -55,6 +55,23 @@ public class ChangeSetJsonBenchmarks
         Validate(
             JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(escaped, _options)!
         );
+        using (var document = JsonDocument.Parse(_json))
+        using (var reordered = new MemoryStream())
+        {
+            using (var writer = new Utf8JsonWriter(reordered))
+            {
+                writer.WriteStartObject();
+                foreach (var property in document.RootElement.EnumerateObject().Reverse())
+                    property.WriteTo(writer);
+                writer.WriteEndObject();
+            }
+            Validate(
+                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
+                    reordered.ToArray(),
+                    _options
+                )!
+            );
+        }
         foreach (
             var invalid in new[]
             {

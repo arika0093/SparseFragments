@@ -821,12 +821,17 @@ internal static class SparsePatchStjEmitter
             4,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) throw new global::System.Text.Json.JsonException(\"Expected a change-set property name.\");"
         );
-        code.AppendLineAt(4, "var __p = reader.GetString();");
+        code.AppendLineAt(4, "var __isBefore = reader.ValueTextEquals(\"before\");");
+        code.AppendLineAt(4, "var __isAfter = !__isBefore && reader.ValueTextEquals(\"after\");");
+        code.AppendLineAt(
+            4,
+            "var __unknown = __isBefore || __isAfter ? null : reader.GetString();"
+        );
         code.AppendLineAt(
             4,
             "if (!reader.Read()) throw new global::System.Text.Json.JsonException(\"Unexpected end of change set.\");"
         );
-        code.AppendLineAt(4, "if (__p == \"before\")");
+        code.AppendLineAt(4, "if (__isBefore)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
@@ -835,7 +840,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(5, "__hasBefore = true;");
         code.AppendLineAt(5, "__before = __SparseReadOptionalFragment(ref reader, options);");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (__p == \"after\")");
+        code.AppendLineAt(4, "else if (__isAfter)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
@@ -846,7 +851,7 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "else throw new global::System.Text.Json.JsonException(\"Unknown change-set property '\" + __p + \"'.\");"
+            "else throw new global::System.Text.Json.JsonException(\"Unknown change-set property '\" + __unknown + \"'.\");"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
