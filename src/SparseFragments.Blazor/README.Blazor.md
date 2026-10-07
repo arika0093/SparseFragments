@@ -13,8 +13,10 @@ var session = order.CreateEditSession();
 
 if (session.HasChanges)
 {
+    // Baseline-aware output for transport or later reconciliation.
     var changes = session.CreateChangeSet();
     ...
+    // Baseline-free projection of the same edits for purely local application.
     var patch = session.CreatePatch();
     ...
 }

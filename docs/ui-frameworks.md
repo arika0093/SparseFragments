@@ -16,7 +16,7 @@ public partial class UiOrder
 
 ## Blazor
 
-The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic patches through the generated `CreateEditSession()` method and the `SparseEditSession` type. The session retains a baseline, exposes the live model for binding, and derives the semantic patch by comparing the baseline with the current model:
+The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic change sets through the generated `CreateEditSession()` method and the `SparseEditSession` type. The session retains a baseline, exposes the live model for binding, and derives the baseline-aware change set by comparing the baseline with the current model:
 
 <!-- sample: ui-session -->
 ```csharp
@@ -26,8 +26,8 @@ var uiSession = uiOrder.CreateEditSession();
 uiSession.Model.Number = "ORD-2";
 // uiSession.HasChanges == true
 
-var uiPatch = uiSession.CreatePatch();
-// uiPatch.IsEmpty == false
+var uiChanges = uiSession.CreateChangeSet();
+// uiChanges.IsEmpty == false
 
 uiSession.AcceptChanges();
 // uiSession.HasChanges == false
@@ -63,7 +63,7 @@ uiSession.Model.Number = "changed";
 uiSession.Model.Number = "ORD-1";   // restored
 
 // uiSession.HasChanges == false
-// uiSession.CreatePatch().IsEmpty == true
+// uiSession.CreateChangeSet().IsEmpty == true
 ```
 
 Validation flows through the ordinary `EditContext` pipeline. Continuing with the session above:
@@ -82,6 +82,8 @@ uiSession.EditContext.OnValidationRequested += (sender, _) =>
 
 Errors obtained elsewhere (for example structured rebase conflicts) surface the same way via `AddValidationError`. The model type must be a reference type.
 
+A session ChangeSet is an ordinary serializable value: send it through the application's chosen HTTP, SignalR, or message transport with `System.Text.Json`, then reconcile it on the receiving side with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction — transport configuration stays with the application.
+
 ## WPF / WinForms / .NET MAUI / WinUI / Avalonia
 
 These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
@@ -97,7 +99,7 @@ observable.Title = "New title";
 observable.PropertyChanged += (_, args) => Console.WriteLine(args.PropertyName);
 
 // ...user edits `model` through the UI framework...
-var uiPatch = WidgetDto.Patch.Between(baseline, WidgetDto.Fragment.From(model));
+var uiChanges = WidgetDto.ChangeSet.Between(baseline, WidgetDto.Fragment.From(model));
 ```
 
 ### WPF example

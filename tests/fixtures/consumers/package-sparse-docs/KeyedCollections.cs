@@ -40,9 +40,9 @@ public static class KeyedCollectionsSamples
 
         // Per-element operations derive from the before/after key sets (#45:
         // docs "Add / Remove / Edit / Reorder" section).
-        var patch = DocsInventory.Patch.Between(before, after);
-        DocsCheck.Require(!patch.IsEmpty, "keyed Between detects add/remove/edit");
-        var applied = patch.Apply(before);
+        var changes = DocsInventory.ChangeSet.Between(before, after);
+        DocsCheck.Require(!changes.IsEmpty, "keyed Between detects add/remove/edit");
+        var applied = changes.ToPatch().Apply(before);
         var servers = applied.Value!.Servers.Value!;
         DocsCheck.Require(
             servers.Select(server => server.Id).SequenceEqual(new[] { "b", "c" }),
@@ -80,9 +80,9 @@ public static class KeyedCollectionsSamples
 
         // The final key order determines the resulting order: reversing
         // ["a", "b"] is a real (non-empty) patch.
-        var patch = DocsInventory.Patch.Between(first, reordered);
-        DocsCheck.Require(!patch.IsEmpty, "keyed reorder is a non-empty patch");
-        var applied = patch.Apply(first);
+        var changes = DocsInventory.ChangeSet.Between(first, reordered);
+        DocsCheck.Require(!changes.IsEmpty, "keyed reorder is a non-empty patch");
+        var applied = changes.ToPatch().Apply(first);
         DocsCheck.Require(
             applied.Value!.Servers.Value!.Select(server => server.Id).SequenceEqual(new[] { "b", "a" }),
             "keyed reorder replay reproduces the new order");
@@ -110,7 +110,7 @@ public static class KeyedCollectionsSamples
                 }));
 
         // Ordered type-level composite: declaration order is significant.
-        var applied = DocsTenantInventory.Patch.Between(before, after).Apply(before);
+        var applied = DocsTenantInventory.ChangeSet.Between(before, after).ToPatch().Apply(before);
         DocsCheck.Require(
             applied.Value!.Servers.Value!.Single().Host == "A2",
             "composite key element edit");
@@ -139,7 +139,7 @@ public static class KeyedCollectionsSamples
                 }));
 
         // ISparseKeyed<TKey> escape hatch: normalized (case-folded) identity.
-        var applied = DocsNormalizedInventory.Patch.Between(before, after).Apply(before);
+        var applied = DocsNormalizedInventory.ChangeSet.Between(before, after).ToPatch().Apply(before);
         var servers = applied.Value!.Servers.Value!;
         DocsCheck.Require(servers.Count == 2, "interface key add");
         DocsCheck.Require(

@@ -70,6 +70,26 @@ toNull.Child.SetNull();
 var nulled = original.Apply(toNull);
 Require(nulled.Child.IsPresent && nulled.Child.Value is null, "typed nested SetNull");
 
+// Section 6b: ChangeSet captures the immutable before -> after transition.
+var changeSet = Settings.ChangeSet.Between(
+    Optional<Settings.Fragment?>.Present(original),
+    Optional<Settings.Fragment?>.Present(updated));
+Require(!changeSet.IsEmpty, "ChangeSet.Between detects the transition");
+Require(
+    Settings.Patch.Between(changeSet.ToPatch().Apply(
+        Optional<Settings.Fragment?>.Present(original)),
+        Optional<Settings.Fragment?>.Present(updated)).IsEmpty,
+    "ChangeSet.ToPatch replays the transition");
+
+// Section 6c: ChangeSets travel through ordinary System.Text.Json.
+var serialized = JsonSerializer.Serialize(changeSet);
+var deserialized = JsonSerializer.Deserialize<Settings.ChangeSet>(serialized)!;
+Require(
+    Settings.Patch.Between(deserialized.ToPatch().Apply(
+        Optional<Settings.Fragment?>.Present(original)),
+        Optional<Settings.Fragment?>.Present(updated)).IsEmpty,
+    "ChangeSet JSON round-trip");
+
 // Section 7: build and clone.
 var builder = original.ToBuilder();
 builder.Label = Optional<string?>.Missing;

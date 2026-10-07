@@ -1,6 +1,6 @@
 # Inspection
 
-Generic code often needs to answer two questions without knowing a model's members in advance: how does SparseFragments interpret this model, and what did one particular `Patch` change? `T.Sparse.Properties` answers the first; `patch.Changes` answers the second. Both are generated at compile time, read-only, and require no reflection.
+Generic code often needs to answer two questions without knowing a model's members in advance: how does SparseFragments interpret this model, and what did one particular `ChangeSet` change? `T.Sparse.Properties` answers the first; `changes.Changes` answers the second. Both are generated at compile time, read-only, and require no reflection.
 
 <!-- sample: inspection-models -->
 ```csharp
@@ -24,7 +24,7 @@ public partial class Quest
 ```
 <!-- /sample -->
 
-`T.Sparse.Properties` describes how SparseFragments interprets the model; `patch.Changes` describes which of those semantic properties are changed in a particular `Patch`:
+`T.Sparse.Properties` describes how SparseFragments interprets the model; `changes.Changes` describes which of those semantic properties are changed in a particular `ChangeSet`:
 
 <!-- sample: inspection-first -->
 ```csharp
@@ -44,8 +44,8 @@ foreach (var property in Roster.Sparse.Properties)
 // Name
 // Quests
 
-var patch = Roster.Patch.Between(before, after);
-foreach (var change in patch.Changes)
+var changes = Roster.ChangeSet.Between(before, after);
+foreach (var change in changes.Changes)
 {
     Console.WriteLine(change.Property.Name);
 }
@@ -87,9 +87,9 @@ Enumerate `T.Sparse.Properties` for generic handling. There are no typed per-pro
 
 A model member or nested type named `Sparse` collides with the generated holder and fails with [`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api): rename the member.
 
-## Patch Changes
+## ChangeSet Changes
 
-`patch.Changes` is the read-only semantic view of a generated `Patch`: the non-empty member changes in that patch instance. A whole-patch `Set`/`Unset` applies to the entire model rather than one property, so it is excluded; only member changes are enumerated.
+`changes.Changes` is the read-only semantic view of a generated `ChangeSet`: the non-empty member changes in that transition. A whole-ChangeSet `Set`/`Unset` applies to the entire model rather than one property, so it is excluded; only member changes are enumerated. A generated `Patch` exposes the same view through `patch.Changes` over the identical `T.Sparse.Properties` vocabulary, so generic code works with either type.
 
 Each `SparsePatchChange` references the corresponding `T.Sparse.Properties` descriptor through `change.Property` — the same instance, so descriptors and changes share one vocabulary for property identity. `change.Kind`, a `SparseChangeKind`, distinguishes `Set`, `Unset`, nested structural patches (`Nested`), granular keyed collections (`KeyedCollection`), and granular dictionaries (`Dictionary`). Scalar members report `Set` with the boxed value in `change.Value` (including an explicit `null`), or `Unset`.
 
@@ -106,8 +106,8 @@ var editAfter = Roster.Fragment.From(new Roster
     Quests = new() { new Quest { Id = "a", Title = "New" } },
 });
 
-var editPatch = Roster.Patch.Between(editBefore, editAfter);
-var questsChange = editPatch.Changes.Single(static change => change.Property.Name == "Quests");
+var editChanges = Roster.ChangeSet.Between(editBefore, editAfter);
+var questsChange = editChanges.Changes.Single(static change => change.Property.Name == "Quests");
 var edit = questsChange.Keyed!.Edited.Single();
 foreach (var nested in edit.NestedChanges)
 {
@@ -134,8 +134,8 @@ var keyedAfter = Roster.Fragment.From(new Roster
     Quests = new() { new Quest { Id = "b", Title = "B2" }, new Quest { Id = "c", Title = "C" } },
 });
 
-var keyedPatch = Roster.Patch.Between(keyedBefore, keyedAfter);
-var keyedChange = keyedPatch.Changes.Single(static change => change.Property.Name == "Quests");
+var keyedChanges = Roster.ChangeSet.Between(keyedBefore, keyedAfter);
+var keyedChange = keyedChanges.Changes.Single(static change => change.Property.Name == "Quests");
 var keyed = keyedChange.Keyed!;
 foreach (var added in keyed.Added)
 {
@@ -165,7 +165,7 @@ Once the two APIs above are in place, the same inspection code serves several co
 * generic editors and UI highlighting (see [UI frameworks](ui-frameworks.md) for framework binding);
 * debugging and diagnostics of unexpected patch contents.
 
-The Playground roster editor consumes `T.Sparse.Properties` and `patch.Changes` this way to highlight added, removed, edited, and moved rows; it is a live example of the workflow without extra documentation here.
+The Playground roster editor consumes `T.Sparse.Properties` and `changes.Changes` this way to highlight added, removed, edited, and moved rows; it is a live example of the workflow without extra documentation here.
 
 ## Reflection, Trimming, and NativeAOT
 

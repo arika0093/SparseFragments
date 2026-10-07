@@ -38,11 +38,11 @@ public static class UiFrameworksSamples
         var baseline = UiWidget.Fragment.From(model);
 
         model.Title = "b";
-        var patch = UiWidget.Patch.Between(baseline, UiWidget.Fragment.From(model));
-        DocsCheck.Require(!patch.IsEmpty, "baseline/current diff is the patch source");
+        var changes = UiWidget.ChangeSet.Between(baseline, UiWidget.Fragment.From(model));
+        DocsCheck.Require(!changes.IsEmpty, "baseline/current diff is the patch source");
 
         model.Title = "a";
-        var restored = UiWidget.Patch.Between(baseline, UiWidget.Fragment.From(model));
+        var restored = UiWidget.ChangeSet.Between(baseline, UiWidget.Fragment.From(model));
         DocsCheck.Require(restored.IsEmpty, "edit-then-restore is empty");
     }
 }

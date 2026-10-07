@@ -33,8 +33,8 @@ public static class InspectionSamples
         // Name
         // Quests
 
-        var patch = Roster.Patch.Between(before, after);
-        foreach (var change in patch.Changes)
+        var changes = Roster.ChangeSet.Between(before, after);
+        foreach (var change in changes.Changes)
         {
             Console.WriteLine(change.Property.Name);
         }
@@ -45,7 +45,7 @@ public static class InspectionSamples
                 .SequenceEqual(new[] { "Name", "Quests" }),
             "Properties enumerates Name then Quests");
         DocsCheck.Require(
-            patch.Changes.Select(static change => change.Property.Name)
+            changes.Changes.Select(static change => change.Property.Name)
                 .SequenceEqual(new[] { "Quests" }),
             "Changes lists the changed Quests member");
     }
@@ -87,8 +87,8 @@ public static class InspectionSamples
             Quests = new() { new Quest { Id = "a", Title = "New" } },
         });
 
-        var editPatch = Roster.Patch.Between(editBefore, editAfter);
-        var questsChange = editPatch.Changes.Single(static change => change.Property.Name == "Quests");
+        var editChanges = Roster.ChangeSet.Between(editBefore, editAfter);
+        var questsChange = editChanges.Changes.Single(static change => change.Property.Name == "Quests");
         var edit = questsChange.Keyed!.Edited.Single();
         foreach (var nested in edit.NestedChanges)
         {
@@ -117,8 +117,8 @@ public static class InspectionSamples
             Quests = new() { new Quest { Id = "b", Title = "B2" }, new Quest { Id = "c", Title = "C" } },
         });
 
-        var keyedPatch = Roster.Patch.Between(keyedBefore, keyedAfter);
-        var keyedChange = keyedPatch.Changes.Single(static change => change.Property.Name == "Quests");
+        var keyedChanges = Roster.ChangeSet.Between(keyedBefore, keyedAfter);
+        var keyedChange = keyedChanges.Changes.Single(static change => change.Property.Name == "Quests");
         var keyed = keyedChange.Keyed!;
         foreach (var added in keyed.Added)
         {
