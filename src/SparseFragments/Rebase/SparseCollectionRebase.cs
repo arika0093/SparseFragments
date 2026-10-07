@@ -177,7 +177,10 @@ internal static class SparseCollectionRebase
             ?? TryGetSetComparer(before)
             ?? EqualityComparer<T>.Default;
 
-        var desiredLookup = new HashSet<T>(desired, localComparer);
+        var borrowedDesired = desired.GetType() == typeof(HashSet<T>);
+        var desiredLookup = borrowedDesired
+            ? (HashSet<T>)desired
+            : new HashSet<T>(desired, localComparer);
         var hasRemoved = before.Any(value => !desiredLookup.Contains(value));
 
         if (hasRemoved)
@@ -198,11 +201,18 @@ internal static class SparseCollectionRebase
             return false;
         }
 
+        if (borrowedDesired)
+        {
+            desiredLookup = new HashSet<T>(desiredLookup, localComparer);
+        }
         desiredLookup.ExceptWith(before);
         var result = new HashSet<T>(current, currentComparer);
-        foreach (var value in desired.Where(desiredLookup.Contains))
+        if (desiredLookup.Count > 0)
         {
-            result.Add(value);
+            foreach (var value in desired.Where(desiredLookup.Contains))
+            {
+                result.Add(value);
+            }
         }
 
         rebased = result;
