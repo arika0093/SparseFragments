@@ -174,6 +174,8 @@ internal static class SparseChangeSetDictComposeEmitter
                 + ", "
                 + trans
                 + ".Item>("
+                + KeyedItems(member)
+                + "?.Count ?? 0, "
                 + comparer
                 + ");"
         );
@@ -196,6 +198,9 @@ internal static class SparseChangeSetDictComposeEmitter
                 + ", "
                 + trans
                 + ".Item>("
+                + "next."
+                + KeyedItems(member)
+                + "?.Count ?? 0, "
                 + comparer
                 + ");"
         );
