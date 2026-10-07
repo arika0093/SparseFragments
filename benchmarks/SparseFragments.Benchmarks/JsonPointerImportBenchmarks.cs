@@ -70,6 +70,31 @@ public class JsonPointerImportBenchmarks
                 "Pointer escapes must be decoded once and empty tokens retained."
             );
         }
+        foreach (var encodedLength in new[] { 255, 256, 257, 514 })
+        {
+            var prefix = new string('x', encodedLength - 4);
+            var key = prefix + "/~";
+            var boundaryBaseline = new JsonObject { [key] = 0 };
+            var patch = Encoding.UTF8.GetBytes(
+                "[{\"op\":\"replace\",\"path\":\"/" + prefix + "~1~0\",\"value\":1}]"
+            );
+            var boundaryActual = SparseJsonPatchBridge.Apply(
+                boundaryBaseline,
+                false,
+                patch,
+                StringComparison.Ordinal,
+                out _
+            );
+            if (
+                boundaryActual?[key]?.GetValue<int>() != 1
+                || boundaryBaseline[key]?.GetValue<int>() != 0
+            )
+            {
+                throw new InvalidOperationException(
+                    "Pointer decoding must preserve tokens across buffer-size boundaries."
+                );
+            }
+        }
         foreach (var padding in new[] { "", new string('x', 512) })
         {
             foreach (var invalid in new[] { "~", "~2" })

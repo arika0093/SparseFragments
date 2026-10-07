@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace SparseFragments;
@@ -94,50 +95,61 @@ internal static class JsonPointer
         }
 
         // Decoding only shortens the token. Keep small temporary buffers on the
-        // stack and allocate a single buffer for longer tokens.
-        Span<char> buffer = length <= 256 ? stackalloc char[length] : new char[length];
-        var written = firstEscape - start;
-        pointer.AsSpan(start, written).CopyTo(buffer);
-        var end = start + length;
-        var index = firstEscape;
-        while (index < end)
+        // stack and rent a reusable buffer for longer tokens.
+        var rented = length > 256 ? ArrayPool<char>.Shared.Rent(length) : null;
+        Span<char> buffer = rented is null ? stackalloc char[length] : rented;
+        try
         {
-            var c = pointer[index];
-            if (c != '~')
+            var written = firstEscape - start;
+            pointer.AsSpan(start, written).CopyTo(buffer);
+            var end = start + length;
+            var index = firstEscape;
+            while (index < end)
             {
-                buffer[written++] = c;
-                index++;
-                continue;
+                var c = pointer[index];
+                if (c != '~')
+                {
+                    buffer[written++] = c;
+                    index++;
+                    continue;
+                }
+
+                if (index + 1 >= end)
+                {
+                    throw new JsonPatchException(
+                        JsonPatchErrorKind.MalformedPointer,
+                        $"JSON Pointer '{pointer}' has a dangling '~' escape."
+                    );
+                }
+
+                var next = pointer[index + 1];
+                if (next == '0')
+                {
+                    buffer[written++] = '~';
+                }
+                else if (next == '1')
+                {
+                    buffer[written++] = '/';
+                }
+                else
+                {
+                    throw new JsonPatchException(
+                        JsonPatchErrorKind.MalformedPointer,
+                        $"JSON Pointer '{pointer}' has an invalid '~' escape."
+                    );
+                }
+
+                index += 2;
             }
 
-            if (index + 1 >= end)
-            {
-                throw new JsonPatchException(
-                    JsonPatchErrorKind.MalformedPointer,
-                    $"JSON Pointer '{pointer}' has a dangling '~' escape."
-                );
-            }
-
-            var next = pointer[index + 1];
-            if (next == '0')
-            {
-                buffer[written++] = '~';
-            }
-            else if (next == '1')
-            {
-                buffer[written++] = '/';
-            }
-            else
-            {
-                throw new JsonPatchException(
-                    JsonPatchErrorKind.MalformedPointer,
-                    $"JSON Pointer '{pointer}' has an invalid '~' escape."
-                );
-            }
-
-            index += 2;
+            return buffer.Slice(0, written).ToString();
         }
-
-        return buffer.Slice(0, written).ToString();
+        finally
+        {
+            if (rented is not null)
+            {
+                ArrayPool<char>.Shared.Return(rented);
+            }
+        }
     }
 }
