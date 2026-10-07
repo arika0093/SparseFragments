@@ -87,9 +87,17 @@ done
 
 # 3. Isolated rebuild: copy the fixture to a temp directory with no access to
 # the sibling Shared source tree, restore the Shared package from the local
-# feed, and compile the generator.
+# feed into a fresh global-packages directory (#79) so a stale same-version
+# cache entry cannot satisfy restore, and compile the generator. External
+# feeds stay available.
 work="$(mktemp -d)"
-trap 'rm -rf "${work}"' EXIT
+isolated_packages="$(mktemp -d)"
+trap 'rm -rf "${work}" "${isolated_packages}"' EXIT
+if command -v cygpath >/dev/null 2>&1; then
+    export NUGET_PACKAGES="$(cygpath -w "${isolated_packages}")"
+else
+    export NUGET_PACKAGES="${isolated_packages}"
+fi
 cp "${fixture_csproj}" "${work}/"
 cp "${fixture_source}" "${work}/"
 
@@ -105,9 +113,16 @@ if [[ ! -f "${dll}" ]]; then
 fi
 
 # 4. The isolated restore must have resolved the Shared package (not a
-# sibling fallback): the generated assets file records the exact version.
+# sibling fallback): the generated assets file records the exact version, and
+# the fresh global-packages dir must contain the extracted candidate (proves
+# the nupkg was consumed, not a stale cache entry).
 if ! grep -F -q "SparseFragments.Generator.Shared/${version}" "${work}/obj/project.assets.json"; then
     echo "Isolated restore did not resolve 'SparseFragments.Generator.Shared/${version}' from the local feed." >&2
+    exit 1
+fi
+lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
+if [[ ! -d "${isolated_packages}/sparsefragments.generator.shared/${lower_version}" ]]; then
+    echo "Isolated global-packages has no 'sparsefragments.generator.shared/${lower_version}': restore did not extract the candidate nupkg." >&2
     exit 1
 fi
 

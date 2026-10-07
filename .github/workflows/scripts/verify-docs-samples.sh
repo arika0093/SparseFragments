@@ -198,11 +198,43 @@ if [[ -z "${blazor_package}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
+# Isolated restore (#79): restore into a fresh global-packages directory so a
+# stale same-version entry in ~/.nuget/packages cannot satisfy restore without
+# proving the fresh nupkgs are consumable. External feeds stay available; the
+# local feed is appended via RestoreAdditionalProjectSources.
+isolated_packages="$(mktemp -d)"
+trap 'rm -rf "${isolated_packages}"' EXIT
+if command -v cygpath >/dev/null 2>&1; then
+    export NUGET_PACKAGES="$(cygpath -w "${isolated_packages}")"
+else
+    export NUGET_PACKAGES="${isolated_packages}"
+fi
+lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
+
+assert_candidate_resolved() {
+    local assets_file="$1"
+    local package_id="$2"
+    local lower_id="$3"
+    if [[ ! -f "${assets_file}" ]]; then
+        echo "Restore did not produce '${assets_file}'." >&2
+        exit 1
+    fi
+    if ! grep -F -q "${package_id}/${version}" "${assets_file}"; then
+        echo "Isolated restore did not resolve '${package_id}/${version}' (see '${assets_file}')." >&2
+        exit 1
+    fi
+    if [[ ! -d "${isolated_packages}/${lower_id}/${lower_version}" ]]; then
+        echo "Isolated global-packages has no '${lower_id}/${lower_version}': restore did not extract the candidate nupkg." >&2
+        exit 1
+    fi
+}
+
 for framework in net8.0 net10.0; do
     dotnet build "${docs_fixture_csproj}" \
         --configuration Release --framework "${framework}" \
         -p:SparseFragmentsPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
+    assert_candidate_resolved "${docs_fixture_dir}/obj/project.assets.json" "SparseFragments" "sparsefragments"
     output="$(dotnet "${docs_fixture_dir}/bin/Release/${framework}/${docs_fixture_dll}" 2>&1)"
     echo "${output}"
     if [[ "${output}" != *"${docs_success_marker}"* ]]; then
@@ -216,6 +248,8 @@ for framework in net8.0 net10.0; do
         --configuration Release --framework "${framework}" \
         -p:SparseFragmentsPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
+    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseFragments" "sparsefragments"
+    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseFragments.Blazor" "sparsefragments.blazor"
     output="$(dotnet "${blazor_fixture_dir}/bin/Release/${framework}/${blazor_fixture_dll}" 2>&1)"
     echo "${output}"
     if [[ "${output}" != *"${blazor_success_marker}"* ]]; then
