@@ -1,10 +1,13 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
 using SparseFragments.CompilerServices;
 
 [MemoryDiagnoser]
 public class JsonPatchEmptyDiffBenchmarks
 {
+    private static readonly byte[] EmptyPatch = { 91, 93 };
+
     [Params(false, true)]
     public bool Absent { get; set; }
 
@@ -34,6 +37,12 @@ public class JsonPatchEmptyDiffBenchmarks
         if (actualAbsent != Absent)
         {
             throw new InvalidOperationException("An empty diff must preserve root presence.");
+        }
+        if (Apply() is not null)
+        {
+            throw new InvalidOperationException(
+                "Empty root patches must preserve JSON null or absence."
+            );
         }
         foreach (var beforeAbsent in new[] { false, true })
         {
@@ -66,4 +75,8 @@ public class JsonPatchEmptyDiffBenchmarks
 
     [Benchmark]
     public byte[] Diff() => SparseJsonPatchBridge.Diff(null, Absent, null, Absent);
+
+    [Benchmark]
+    public JsonNode? Apply() =>
+        SparseJsonPatchBridge.Apply(null, Absent, EmptyPatch, StringComparison.Ordinal, out _);
 }
