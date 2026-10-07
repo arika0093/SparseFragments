@@ -71,12 +71,17 @@ internal static class JsonPatchEngine
         bool afterIsAbsent
     )
     {
-        var ops = new List<JsonPatchOperation>();
         if (beforeIsAbsent && afterIsAbsent)
         {
-            return new JsonPatchDocument(ops);
+            return JsonPatchDocument.Empty;
         }
 
+        if (!beforeIsAbsent && !afterIsAbsent && RfcJsonEquality.AreEqual(before, after))
+        {
+            return JsonPatchDocument.Empty;
+        }
+
+        var ops = new List<JsonPatchOperation>();
         if (beforeIsAbsent)
         {
             ops.Add(new JsonPatchOperation("add", string.Empty, null, Clone(after), true));
@@ -89,7 +94,7 @@ internal static class JsonPatchEngine
             return new JsonPatchDocument(ops);
         }
 
-        DiffNodes(before, after, string.Empty, ops);
+        DiffUnequalNodes(before, after, string.Empty, ops);
         return new JsonPatchDocument(ops);
     }
 
@@ -157,21 +162,6 @@ internal static class JsonPatchEngine
     }
 
 #pragma warning disable S1075 // RFC 6901 JSON Pointer uses slash delimiters.
-    private static void DiffNodes(
-        JsonNode? before,
-        JsonNode? after,
-        string path,
-        List<JsonPatchOperation> ops
-    )
-    {
-        if (RfcJsonEquality.AreEqual(before, after))
-        {
-            return;
-        }
-
-        DiffUnequalNodes(before, after, path, ops);
-    }
-
     // Call only after comparing the nodes so unchanged members never need a
     // path allocation, and changed members are not compared a second time.
     private static void DiffUnequalNodes(
