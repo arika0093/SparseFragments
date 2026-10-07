@@ -52,6 +52,12 @@ internal static class SparsePatchInspectionEmitter
         _ = modelType;
         var changesName = ChangesPropertyName(members);
         var escaped = SparseNaming.EscapeIdentifier(changesName);
+        // Each member contributes at most one change. Small models never need
+        // List<T>'s default capacity of four; allocate only on the first change.
+        var compact = members.Length > 0 && members.Length < 4;
+        var addChange = compact
+            ? "(list ??= new(" + members.Length + ")).Add(new "
+            : "list.Add(new ";
         code.AppendLineAt(
             2,
             "/// <summary>Gets the non-empty member changes in this patch.</summary>"
@@ -64,26 +70,34 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "get");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var list = new " + ChangeList + "();");
+        code.AppendLineAt(
+            4,
+            compact ? ChangeList + "? list = null;" : "var list = new " + ChangeList + "();"
+        );
         foreach (var member in members)
         {
             code.CancellationToken.ThrowIfCancellationRequested();
             var field = SparseFragmentPatchEmitter.Field(member);
             if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
-                AppendScalarChange(code, member, field);
+                AppendScalarChange(code, member, field, addChange);
             }
             else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
-                AppendCollectionChange(code, member, field);
+                AppendCollectionChange(code, member, field, addChange);
             }
             else
             {
-                AppendChildChange(code, member, field);
+                AppendChildChange(code, member, field, addChange);
             }
         }
 
-        code.AppendLineAt(4, "return list;");
+        code.AppendLineAt(
+            4,
+            compact
+                ? "return list is null ? " + EmptyChanges + " : (" + ReadOnlyChanges + ")list;"
+                : "return list;"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -101,14 +115,15 @@ internal static class SparsePatchInspectionEmitter
     private static void AppendScalarChange(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string field
+        string field,
+        string addChange
     )
     {
         code.AppendLineAt(4, "if (" + field + ".Kind == " + OperationKind + ".Set)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -125,7 +140,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -141,7 +156,8 @@ internal static class SparsePatchInspectionEmitter
     private static void AppendChildChange(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string field
+        string field,
+        string addChange
     )
     {
         var child = "__sparse_child_" + member.Id;
@@ -154,7 +170,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -171,7 +187,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -186,7 +202,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -203,7 +219,8 @@ internal static class SparsePatchInspectionEmitter
     private static void AppendCollectionChange(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string field
+        string field,
+        string addChange
     )
     {
         var collection = "__sparse_collection_" + member.Id;
@@ -225,7 +242,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -242,7 +259,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
@@ -257,7 +274,7 @@ internal static class SparsePatchInspectionEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
             6,
-            "list.Add(new "
+            addChange
                 + Change
                 + "(Sparse.Properties["
                 + member.Id
