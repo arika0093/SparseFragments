@@ -130,14 +130,14 @@
             <h3>Before</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterBefore">Reset</FluentButton>
         </div>
-        <RosterEditor Model="RosterBefore" AllowReorder="false" Highlights="RosterHighlights.Before" RemovedOnly="true" OnChanged="Refresh" />
+        <RosterEditor Model="RosterBefore" AllowReorder="false" Changes="RosterChanges?.Quests" RemovedOnly="true" OnChanged="Refresh" />
     </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>After</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterAfter">Reset</FluentButton>
         </div>
-        <RosterEditor Model="RosterAfter" Highlights="RosterHighlights.After" OnChanged="Refresh" />
+        <RosterEditor Model="RosterAfter" Changes="RosterChanges?.Quests" OnChanged="Refresh" />
     </FluentCard>
 </div>
 <div class="pg-grid">
@@ -222,7 +222,7 @@
     private PatchEditState PatchState = PatchEditState.Defaults();
     private PlaygroundRoster RosterBefore = RosterDefaults.Before();
     private PlaygroundRoster RosterAfter = RosterDefaults.After();
-    private readonly RosterCaseCoordinator RosterCase = new();
+    private PlaygroundRoster.ChangeSet? _rosterChanges;
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
     private string RosterBeforeTabId = "roster-before-csharp";
@@ -268,30 +268,66 @@
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterBefore)));
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterAfter)));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore));
-    private string RosterManualCSharp => Try(() => RosterCase.ManualCSharp("patch"));
-    private string RosterSummary => RosterCase.Summary;
+    private string RosterManualCSharp => Try(RosterManualPatchText);
+    private string RosterSummary => _rosterChanges is null
+        ? "cannot diff: duplicate keys or invalid state"
+        : PlaygroundSnippets.RosterSummary(_rosterChanges);
 
-    private (Dictionary<PlaygroundQuest, RosterRowHighlight> Before, Dictionary<PlaygroundQuest, RosterRowHighlight> After)
-        RosterHighlights => RosterCase.Highlights(RosterBefore, RosterAfter);
+    private PlaygroundRoster.ChangeSet? RosterChanges => _rosterChanges;
 
     private string RosterChangeSetJson => Try(() =>
     {
-        var changes = RosterCase.RequireChangeSet();
-        return JsonSerializer.Serialize(changes, PlaygroundJson.ChangeSetOptions());
+        if (_rosterChanges is null)
+        {
+            throw new InvalidOperationException("Cannot diff roster state.");
+        }
+
+        return JsonSerializer.Serialize(_rosterChanges, PlaygroundJson.ChangeSetOptions());
     });
 
     private string RosterAppliedModelJson => Try(() =>
     {
-        var patch = RosterCase.RequirePatch();
+        if (_rosterChanges is null)
+        {
+            throw new InvalidOperationException("Cannot diff roster state.");
+        }
+
+        var patch = _rosterChanges.ToPatch();
         var applied = patch.Apply(RosterBeforeOpt);
         return PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
     });
 
-    protected override void OnInitialized() => RosterCase.Update(RosterBefore, RosterAfter);
+    private string RosterManualPatchText()
+    {
+        if (_rosterChanges is null)
+        {
+            return "// Cannot diff: duplicate keys or invalid state. See the ChangeSet JSON tab for the error.";
+        }
+
+        return PlaygroundSnippets.RosterManualPatchCSharp("patch", _rosterChanges);
+    }
+
+    private bool TryRefreshRosterChanges()
+    {
+        try
+        {
+            _rosterChanges = PlaygroundRoster.ChangeSet.Between(
+                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterBefore)),
+                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterAfter)));
+            return true;
+        }
+        catch
+        {
+            _rosterChanges = null;
+            return false;
+        }
+    }
+
+    protected override void OnInitialized() => TryRefreshRosterChanges();
 
     private void Refresh()
     {
-        RosterCase.Update(RosterBefore, RosterAfter);
+        TryRefreshRosterChanges();
         StateHasChanged();
     }
 
@@ -334,13 +370,13 @@
     private void ResetRosterBefore()
     {
         RosterBefore = RosterDefaults.Before();
-        RosterCase.Update(RosterBefore, RosterAfter);
+        TryRefreshRosterChanges();
     }
 
     private void ResetRosterAfter()
     {
         RosterAfter = RosterDefaults.After();
-        RosterCase.Update(RosterBefore, RosterAfter);
+        TryRefreshRosterChanges();
     }
 
     private void ResetAll()
