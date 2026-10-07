@@ -3,9 +3,10 @@
 #
 # The canonical compile-checked source is
 # tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
-# Usage sections of README.md (model shape,
-# sparse construction, nested fragments, merge, typed patch, deep clone, and
-# one ChangeSet JSON round-trip). This script guards against drift
+# README quick-start, workflow, and end-to-end samples (model shape, Optional
+# states, Fragment layering and merge, typed Patch, Fragment diff, ChangeSet
+# transitions with invert/compose/rebase, and one ChangeSet JSON round-trip).
+# This script guards against drift
 # between the README and that canonical source, then builds and runs the
 # fixture against the packed packages so CI fails when the public generated
 # API breaks the documented samples.
@@ -53,12 +54,17 @@ required_tokens=(
     'new Child.Fragment'
     '.Merge('
     'Settings.Fragment.Diff'
+    'ApplyChanges'
     'new Settings.Patch'
+    '.Apply('
+    '.Compose('
     '.Unset()'
     '.SetNull()'
-    'DeepClone'
-    'ToBuilder'
     'ChangeSet.Between'
+    '.ToPatch()'
+    '.Invert()'
+    'RebaseOnto'
+    'HasConflicts'
     'JsonSerializer.Serialize'
 )
 for token in "${required_tokens[@]}"; do
