@@ -130,14 +130,14 @@
             <h3>Before</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterBefore">Reset</FluentButton>
         </div>
-        <RosterEditor State="RosterBefore" AllowReorder="false" Highlights="RosterHighlights.Before" RemovedOnly="true" OnChanged="Refresh" />
+        <RosterEditor Model="RosterBefore" AllowReorder="false" Highlights="RosterHighlights.Before" RemovedOnly="true" OnChanged="Refresh" />
     </FluentCard>
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>After</h3>
             <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="ResetRosterAfter">Reset</FluentButton>
         </div>
-        <RosterEditor State="RosterAfter" Highlights="RosterHighlights.After" OnChanged="Refresh" />
+        <RosterEditor Model="RosterAfter" Highlights="RosterHighlights.After" OnChanged="Refresh" />
     </FluentCard>
 </div>
 <div class="pg-grid">
@@ -220,8 +220,8 @@
     private FragmentEditState Lower = FragmentEditState.LowerDefaults();
     private FragmentEditState Higher = FragmentEditState.HigherDefaults();
     private PatchEditState PatchState = PatchEditState.Defaults();
-    private RosterEditState RosterBefore = RosterEditState.BeforeDefaults();
-    private RosterEditState RosterAfter = RosterEditState.AfterDefaults();
+    private PlaygroundRoster RosterBefore = RosterDefaults.Before();
+    private PlaygroundRoster RosterAfter = RosterDefaults.After();
     private readonly RosterCaseCoordinator RosterCase = new();
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
@@ -261,17 +261,17 @@
     });
 
     private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
-        Optional<PlaygroundRoster.Fragment?>.Present(RosterBefore.BuildFragment());
+        Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterBefore));
 
-    private string RosterBeforeCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("before", RosterBefore.ToModel()));
-    private string RosterAfterCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("after", RosterAfter.ToModel()));
-    private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterBefore.BuildFragment()));
-    private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
-    private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
+    private string RosterBeforeCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("before", RosterBefore));
+    private string RosterAfterCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("after", RosterAfter));
+    private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterBefore)));
+    private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterAfter)));
+    private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore));
     private string RosterManualCSharp => Try(() => RosterCase.ManualCSharp("patch"));
     private string RosterSummary => RosterCase.Summary;
 
-    private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
+    private (Dictionary<PlaygroundQuest, RosterRowHighlight> Before, Dictionary<PlaygroundQuest, RosterRowHighlight> After)
         RosterHighlights => RosterCase.Highlights(RosterBefore, RosterAfter);
 
     private string RosterChangeSetJson => Try(() =>
@@ -333,13 +333,13 @@
 
     private void ResetRosterBefore()
     {
-        RosterBefore = RosterEditState.BeforeDefaults();
+        RosterBefore = RosterDefaults.Before();
         RosterCase.Update(RosterBefore, RosterAfter);
     }
 
     private void ResetRosterAfter()
     {
-        RosterAfter = RosterEditState.AfterDefaults();
+        RosterAfter = RosterDefaults.After();
         RosterCase.Update(RosterBefore, RosterAfter);
     }
 

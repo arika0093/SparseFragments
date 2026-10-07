@@ -4,7 +4,7 @@ namespace SparseFragments.Playground.Models;
 
 /// <summary>
 /// Single source of truth for Playground Case 3: computes ONE
-/// <see cref="PlaygroundRoster.ChangeSet"/> per before/after state via
+/// <see cref="PlaygroundRoster.ChangeSet"/> per before/after model via
 /// <c>Between</c> and reuses it for highlights, summary, snippets, JSON and
 /// applied previews.
 /// </summary>
@@ -27,16 +27,16 @@ public sealed class RosterCaseCoordinator
     public bool IsInvalid { get; private set; } = true;
 
     /// <summary>
-    /// Recomputes the shared ChangeSet exactly once for the given state.
+    /// Recomputes the shared ChangeSet exactly once for the given models.
     /// Failures set <see cref="IsInvalid"/> and clear <see cref="ChangeSet"/>.
     /// </summary>
-    public void Update(RosterEditState before, RosterEditState after)
+    public void Update(PlaygroundRoster before, PlaygroundRoster after)
     {
         try
         {
             _changeSet = PlaygroundRoster.ChangeSet.Between(
-                Optional<PlaygroundRoster.Fragment?>.Present(before.BuildFragment()),
-                Optional<PlaygroundRoster.Fragment?>.Present(after.BuildFragment())
+                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(before)),
+                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(after))
             );
             _patch = _changeSet.ToPatch();
             IsInvalid = false;
@@ -52,15 +52,15 @@ public sealed class RosterCaseCoordinator
 
     /// <summary>Row highlights projected from the shared ChangeSet.</summary>
     public (
-        Dictionary<QuestRow, RosterRowHighlight> Before,
-        Dictionary<QuestRow, RosterRowHighlight> After
-    ) Highlights(RosterEditState before, RosterEditState after)
+        Dictionary<PlaygroundQuest, RosterRowHighlight> Before,
+        Dictionary<PlaygroundQuest, RosterRowHighlight> After
+    ) Highlights(PlaygroundRoster before, PlaygroundRoster after)
     {
         if (IsInvalid || _changeSet is null)
         {
             return (
-                new Dictionary<QuestRow, RosterRowHighlight>(),
-                new Dictionary<QuestRow, RosterRowHighlight>()
+                new Dictionary<PlaygroundQuest, RosterRowHighlight>(),
+                new Dictionary<PlaygroundQuest, RosterRowHighlight>()
             );
         }
 

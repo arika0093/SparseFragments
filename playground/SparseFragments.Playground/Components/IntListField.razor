@@ -1,0 +1,26 @@
+@using SparseFragments.Playground.Models
+
+<FluentTextField Placeholder="@Placeholder" Style="@Style"
+    Value="@IntListText.Format(Value)"
+    ValueChanged="@OnTextChanged" />
+
+@code {
+    /// <summary>Gets or sets the actual model scores list.</summary>
+    [Parameter, EditorRequired]
+    public List<int> Value { get; set; } = new();
+
+    /// <summary>Gets or sets the callback invoked with the parsed scores.</summary>
+    [Parameter]
+    public EventCallback<List<int>> ValueChanged { get; set; }
+
+    /// <summary>Gets or sets the placeholder text.</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    /// <summary>Gets or sets the field style.</summary>
+    [Parameter]
+    public string? Style { get; set; }
+
+    private Task OnTextChanged(string? text) =>
+        ValueChanged.InvokeAsync(IntListText.Parse(text ?? string.Empty));
+}

@@ -323,111 +323,6 @@ public sealed class PatchEditState
     }
 }
 
-/// <summary>One editable quest row for section 3.</summary>
-public sealed class QuestRow
-{
-    /// <summary>Gets or sets the stable key.</summary>
-    public string Id { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the title.</summary>
-    public string Title { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the points.</summary>
-    public int Points { get; set; }
-
-    /// <summary>Gets or sets comma-separated scores.</summary>
-    public string ScoresText { get; set; } = string.Empty;
-
-    /// <summary>Creates a row from a model.</summary>
-    public static QuestRow FromModel(PlaygroundQuest quest) =>
-        new()
-        {
-            Id = quest.Id,
-            Title = quest.Title,
-            Points = quest.Points,
-            ScoresText = string.Join(", ", quest.Scores),
-        };
-
-    /// <summary>Converts the row to a model.</summary>
-    public PlaygroundQuest ToModel() =>
-        new()
-        {
-            Id = Id,
-            Title = Title,
-            Points = Points,
-            Scores = ParseScores(ScoresText),
-        };
-
-    /// <summary>Parses comma- or whitespace-separated integers.</summary>
-    public static List<int> ParseScores(string text)
-    {
-        var result = new List<int>();
-        foreach (
-            var part in text.Split([',', ' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries)
-        )
-        {
-            if (int.TryParse(part.Trim(), out var value))
-            {
-                result.Add(value);
-            }
-        }
-
-        return result;
-    }
-}
-
-/// <summary>Editable before/after quest list for section 3.</summary>
-public sealed class RosterEditState
-{
-    /// <summary>Gets the rows.</summary>
-    public List<QuestRow> Rows { get; } = new();
-
-    /// <summary>Creates the default before list.</summary>
-    public static RosterEditState BeforeDefaults()
-    {
-        var state = new RosterEditState();
-        state.Rows.Add(new QuestRow { Id = "a", Title = "First", Points = 10, ScoresText = "10, 20" });
-        state.Rows.Add(new QuestRow { Id = "b", Title = "Second", Points = 20, ScoresText = "30" });
-        state.Rows.Add(new QuestRow
-        {
-            Id = "c",
-            Title = "Third",
-            Points = 30,
-            ScoresText = "40, 50",
-        });
-        return state;
-    }
-
-    /// <summary>Creates the default after list (remove a, edit b, reorder c first, add d).</summary>
-    public static RosterEditState AfterDefaults()
-    {
-        var state = new RosterEditState();
-        state.Rows.Add(new QuestRow
-        {
-            Id = "c",
-            Title = "Third",
-            Points = 30,
-            ScoresText = "40, 50",
-        });
-        state.Rows.Add(new QuestRow
-        {
-            Id = "b",
-            Title = "Second v2",
-            Points = 25,
-            ScoresText = "30, 35",
-        });
-        state.Rows.Add(new QuestRow { Id = "d", Title = "Fourth", Points = 5, ScoresText = "60" });
-        return state;
-    }
-
-    /// <summary>Converts the rows to a model.</summary>
-    public PlaygroundRoster ToModel() =>
-        new() { Quests = Rows.Select(row => row.ToModel()).ToList() };
-
-    /// <summary>Builds a fragment carrying the full list state.</summary>
-    public PlaygroundRoster.Fragment BuildFragment() => PlaygroundRoster.Fragment.From(ToModel());
-}
-
 /// <summary>Per-row edit highlight for section 3, derived live from the keyed diff.</summary>
 public sealed class RosterRowHighlight
 {
@@ -464,25 +359,25 @@ public static class RosterHighlight
     /// Pure over the typed transition surface, so it stays testable without UI.
     /// </summary>
     public static (
-        Dictionary<QuestRow, RosterRowHighlight> Before,
-        Dictionary<QuestRow, RosterRowHighlight> After
+        Dictionary<PlaygroundQuest, RosterRowHighlight> Before,
+        Dictionary<PlaygroundQuest, RosterRowHighlight> After
     ) BuildFromChangeSet(
         PlaygroundRoster.ChangeSet changes,
-        RosterEditState before,
-        RosterEditState after
+        PlaygroundRoster before,
+        PlaygroundRoster after
     )
     {
-        var beforeMap = new Dictionary<QuestRow, RosterRowHighlight>();
-        var afterMap = new Dictionary<QuestRow, RosterRowHighlight>();
+        var beforeMap = new Dictionary<PlaygroundQuest, RosterRowHighlight>();
+        var afterMap = new Dictionary<PlaygroundQuest, RosterRowHighlight>();
         var quests = changes.Quests;
         if (quests.IsEmpty)
         {
-            foreach (var row in before.Rows)
+            foreach (var row in before.Quests)
             {
                 beforeMap[row] = new RosterRowHighlight();
             }
 
-            foreach (var row in after.Rows)
+            foreach (var row in after.Quests)
             {
                 afterMap[row] = new RosterRowHighlight();
             }
@@ -490,7 +385,7 @@ public static class RosterHighlight
             return (beforeMap, afterMap);
         }
 
-        foreach (var row in after.Rows)
+        foreach (var row in after.Quests)
         {
             var item = quests.GetChange(row.Id);
             var highlight = new RosterRowHighlight
@@ -508,7 +403,7 @@ public static class RosterHighlight
             afterMap[row] = highlight;
         }
 
-        foreach (var row in before.Rows)
+        foreach (var row in before.Quests)
         {
             var item = quests.GetChange(row.Id);
             beforeMap[row] = new RosterRowHighlight
