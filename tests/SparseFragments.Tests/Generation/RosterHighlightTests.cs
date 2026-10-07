@@ -20,10 +20,20 @@ public sealed class RosterHighlightTests
             ScoresText = scores,
         };
 
+    private static (
+        Dictionary<QuestRow, RosterRowHighlight> Before,
+        Dictionary<QuestRow, RosterRowHighlight> After
+    ) Build(RosterEditState before, RosterEditState after)
+    {
+        var coordinator = new RosterCaseCoordinator();
+        coordinator.Update(before, after);
+        return coordinator.Highlights;
+    }
+
     [Test]
     public void DefaultsShowAddRemoveEditAndMove()
     {
-        var (before, after) = RosterHighlight.Build(
+        var (before, after) = Build(
             RosterEditState.BeforeDefaults(),
             RosterEditState.AfterDefaults()
         );
@@ -40,7 +50,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void AddOnly()
     {
-        var (_, after) = RosterHighlight.Build(State(Row("a")), State(Row("a"), Row("b", "B")));
+        var (_, after) = Build(State(Row("a")), State(Row("a"), Row("b", "B")));
         after.Single(kv => kv.Key.Id == "b").Value.IsAdded.ShouldBeTrue();
         after.Single(kv => kv.Key.Id == "a").Value.IsAdded.ShouldBeFalse();
     }
@@ -48,7 +58,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void RemoveOnly()
     {
-        var (before, _) = RosterHighlight.Build(State(Row("a"), Row("b")), State(Row("a")));
+        var (before, _) = Build(State(Row("a"), Row("b")), State(Row("a")));
         before.Single(kv => kv.Key.Id == "b").Value.IsRemoved.ShouldBeTrue();
         before.Single(kv => kv.Key.Id == "a").Value.IsRemoved.ShouldBeFalse();
     }
@@ -56,7 +66,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void ScalarMemberEdit()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a", "Old", 1)),
             State(Row("a", "New", 1))
         );
@@ -69,7 +79,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void ScalarCollectionEdit()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a", scores: "10, 20")),
             State(Row("a", scores: "10, 21"))
         );
@@ -79,7 +89,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void FormattingOnlyScoresAreNotAnEdit()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a", scores: "10,20")),
             State(Row("a", scores: "10, 20"))
         );
@@ -91,7 +101,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void MultipleMemberEditsOnOneRow()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a", "Old", 1, "1")),
             State(Row("a", "New", 2, "2"))
         );
@@ -104,7 +114,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void ReorderOnly()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a"), Row("b")),
             State(Row("b"), Row("a"))
         );
@@ -119,7 +129,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void ReorderPlusEdit()
     {
-        var (_, after) = RosterHighlight.Build(
+        var (_, after) = Build(
             State(Row("a", "A"), Row("b", "B")),
             State(Row("b", "B2"), Row("a", "A"))
         );
@@ -134,7 +144,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void KeyChangeIsRemovePlusAdd()
     {
-        var (before, after) = RosterHighlight.Build(State(Row("a", "A")), State(Row("b", "A")));
+        var (before, after) = Build(State(Row("a", "A")), State(Row("b", "A")));
         before.Single().Value.IsRemoved.ShouldBeTrue();
         after.Single().Value.IsAdded.ShouldBeTrue();
     }
@@ -142,7 +152,7 @@ public sealed class RosterHighlightTests
     [Test]
     public void EditThenRestoreHasNoChanges()
     {
-        var (before, after) = RosterHighlight.Build(
+        var (before, after) = Build(
             State(Row("a", "A", 1, "1")),
             State(Row("a", "A", 1, "1"))
         );
@@ -155,8 +165,77 @@ public sealed class RosterHighlightTests
     [Test]
     public void DuplicateKeysReturnEmptyMaps()
     {
-        var (before, after) = RosterHighlight.Build(State(Row("a"), Row("a")), State(Row("a")));
+        var (before, after) = Build(State(Row("a"), Row("a")), State(Row("a")));
         before.ShouldBeEmpty();
         after.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void SharedPatchIsSingleSourceOfTruth()
+    {
+        var before = RosterEditState.BeforeDefaults();
+        var after = RosterEditState.AfterDefaults();
+        var coordinator = new RosterCaseCoordinator();
+        coordinator.Update(before, after);
+
+        coordinator.IsInvalid.ShouldBeFalse();
+        var patch = coordinator.Patch;
+        patch.ShouldNotBeNull();
+
+        // All projections read the shared Patch without recomputing it.
+        var highlights = coordinator.Highlights;
+        var summary = coordinator.Summary;
+        var manual = coordinator.ManualCSharp("patch");
+
+        ReferenceEquals(patch, coordinator.Patch).ShouldBeTrue();
+
+        // Highlights match a direct projection of the SAME Patch instance.
+        var expected = RosterHighlight.BuildFromPatch(patch!, before, after);
+        highlights.Before.Count.ShouldBe(expected.Before.Count);
+        highlights.After.Count.ShouldBe(expected.After.Count);
+        foreach (var kv in expected.After)
+        {
+            var actual = highlights.After[kv.Key];
+            actual.IsAdded.ShouldBe(kv.Value.IsAdded);
+            actual.TitleChanged.ShouldBe(kv.Value.TitleChanged);
+            actual.PointsChanged.ShouldBe(kv.Value.PointsChanged);
+            actual.ScoresChanged.ShouldBe(kv.Value.ScoresChanged);
+            actual.Moved.ShouldBe(kv.Value.Moved);
+        }
+
+        foreach (var kv in expected.Before)
+        {
+            var actual = highlights.Before[kv.Key];
+            actual.IsRemoved.ShouldBe(kv.Value.IsRemoved);
+            actual.Moved.ShouldBe(kv.Value.Moved);
+        }
+
+        // Summary and snippet reflect the same diff.
+        summary.ShouldContain("add:");
+        summary.ShouldContain("remove:");
+        summary.ShouldContain("edit:");
+        manual.ShouldContain("Quests.Add");
+        manual.ShouldContain("Quests.Remove");
+        manual.ShouldContain("Quests.Edit");
+    }
+
+    [Test]
+    public void InvalidStateIsConsistentEverywhere()
+    {
+        var coordinator = new RosterCaseCoordinator();
+        coordinator.Update(State(Row("a"), Row("a")), State(Row("a")));
+
+        coordinator.IsInvalid.ShouldBeTrue();
+        coordinator.Patch.ShouldBeNull();
+
+        var (before, after) = coordinator.Highlights;
+        before.ShouldBeEmpty();
+        after.ShouldBeEmpty();
+
+        coordinator.Summary.ShouldBe("cannot diff: duplicate keys or invalid state");
+        coordinator.ManualCSharp("patch").ShouldContain("Cannot diff");
+
+        var exception = Should.Throw<InvalidOperationException>(() => coordinator.RequirePatch());
+        exception.Message.ShouldContain("Cannot diff roster state");
     }
 }

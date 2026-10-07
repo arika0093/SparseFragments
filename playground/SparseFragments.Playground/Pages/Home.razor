@@ -222,6 +222,7 @@
     private PatchEditState PatchState = PatchEditState.Defaults();
     private RosterEditState RosterBefore = RosterEditState.BeforeDefaults();
     private RosterEditState RosterAfter = RosterEditState.AfterDefaults();
+    private readonly RosterCaseCoordinator RosterCase = new();
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
     private string RosterBeforeTabId = "roster-before-csharp";
@@ -262,90 +263,39 @@
 
     private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
         Optional<PlaygroundRoster.Fragment?>.Present(RosterBefore.BuildFragment());
-    private Optional<PlaygroundRoster.Fragment?> RosterAfterOpt =>
-        Optional<PlaygroundRoster.Fragment?>.Present(RosterAfter.BuildFragment());
 
     private string RosterBeforeCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("before", RosterBefore.ToModel()));
     private string RosterAfterCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("after", RosterAfter.ToModel()));
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterBefore.BuildFragment()));
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(RosterAfter.BuildFragment()));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore.ToModel()));
-    private string RosterManualCSharp => Try(() =>
-    {
-        var patch = TryRosterPatch();
-        return patch is null
-            ? "// Cannot diff: duplicate keys or invalid state. See the JSON Patch tab for the error."
-            : PlaygroundSnippets.RosterManualPatchCSharp("patch", patch, RosterAfter);
-    });
-    private string RosterSummary => Try(RosterDiffSummary);
-
-    /// <summary>Single roster Patch shared by highlights, summary and snippets.</summary>
-    private PlaygroundRoster.Patch? TryRosterPatch()
-    {
-        try
-        {
-            return PlaygroundRoster.Patch.Between(RosterBeforeOpt, RosterAfterOpt);
-        }
-        catch
-        {
-            // Duplicate keys and friends surface through the JSON tabs, not here.
-            return null;
-        }
-    }
+    private string RosterManualCSharp => Try(() => RosterCase.ManualCSharp("patch"));
+    private string RosterSummary => RosterCase.Summary;
 
     private (Dictionary<QuestRow, RosterRowHighlight> Before, Dictionary<QuestRow, RosterRowHighlight> After)
-        RosterHighlights => RosterHighlight.Build(RosterBefore, RosterAfter);
-
-    private string RosterDiffSummary()
-    {
-        var patch = TryRosterPatch();
-        if (patch is null)
-        {
-            return "cannot diff: duplicate keys or invalid state";
-        }
-
-        var quests = patch.Changes.FirstOrDefault(static change =>
-            change.Property.Name == nameof(PlaygroundRoster.Quests));
-        if (quests is null)
-        {
-            return "no changes";
-        }
-
-        if (quests.Kind == SparseChangeKind.Set)
-        {
-            return $"whole list replaced: [{string.Join(", ", RosterAfter.Rows.Select(r => r.Id))}]";
-        }
-
-        if (quests.Kind == SparseChangeKind.Unset || quests.Keyed is null)
-        {
-            return "whole list cleared";
-        }
-
-        var keyed = quests.Keyed;
-        var added = keyed.Added.Select(v => ((PlaygroundQuest)v!).Id).ToList();
-        var removed = keyed.RemovedKeys.Select(k => (string)k!).ToList();
-        var edited = keyed.Edited.Select(e => (string)e.Key!).ToList();
-        var order = keyed.HasOrder
-            ? keyed.KeyOrder.Select(k => (string)k!).ToList()
-            : RosterAfter.Rows.Select(r => r.Id).ToList();
-        return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
-    }
+        RosterHighlights => RosterCase.Highlights;
 
     private string RosterJsonPatch => Try(() =>
     {
-        var patch = TryRosterPatch() ?? throw new InvalidOperationException("Cannot diff roster state.");
+        var patch = RosterCase.RequirePatch();
         var exported = patch.ToJsonPatch(RosterBeforeOpt, PlaygroundJson.BridgeOptions());
         return PlaygroundJson.Pretty(Encoding.UTF8.GetString(exported.ToArray()));
     });
 
     private string RosterAppliedModelJson => Try(() =>
     {
-        var patch = TryRosterPatch() ?? throw new InvalidOperationException("Cannot diff roster state.");
+        var patch = RosterCase.RequirePatch();
         var applied = patch.Apply(RosterBeforeOpt);
         return PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
     });
 
-    private void Refresh() => StateHasChanged();
+    protected override void OnInitialized() => RosterCase.Update(RosterBefore, RosterAfter);
+
+    private void Refresh()
+    {
+        RosterCase.Update(RosterBefore, RosterAfter);
+        StateHasChanged();
+    }
 
     private void OnThemeChanged(string value)
     {
@@ -383,9 +333,17 @@
 
     private void ResetPatch() => PatchState = PatchEditState.Defaults();
 
-    private void ResetRosterBefore() => RosterBefore = RosterEditState.BeforeDefaults();
+    private void ResetRosterBefore()
+    {
+        RosterBefore = RosterEditState.BeforeDefaults();
+        RosterCase.Update(RosterBefore, RosterAfter);
+    }
 
-    private void ResetRosterAfter() => RosterAfter = RosterEditState.AfterDefaults();
+    private void ResetRosterAfter()
+    {
+        RosterAfter = RosterEditState.AfterDefaults();
+        RosterCase.Update(RosterBefore, RosterAfter);
+    }
 
     private void ResetAll()
     {
