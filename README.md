@@ -1,4 +1,4 @@
-<img src="./assets/hero.png" />
+<img src="./assets/hero2.png" />
 
 # SparseFragments
 
