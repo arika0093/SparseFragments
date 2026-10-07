@@ -84,13 +84,13 @@ internal static class JsonPatchEngine
         var ops = new List<JsonPatchOperation>();
         if (beforeIsAbsent)
         {
-            ops.Add(new JsonPatchOperation("add", string.Empty, null, Clone(after), true));
+            ops.Add(JsonPatchOperation.CreateDiff("add", string.Empty, Clone(after), true));
             return new JsonPatchDocument(ops);
         }
 
         if (afterIsAbsent)
         {
-            ops.Add(new JsonPatchOperation("remove", string.Empty, null, null, false));
+            ops.Add(JsonPatchOperation.CreateDiff("remove", string.Empty, null, false));
             return new JsonPatchDocument(ops);
         }
 
@@ -181,10 +181,9 @@ internal static class JsonPatchEngine
                 }
 
                 ops.Add(
-                    new JsonPatchOperation(
+                    JsonPatchOperation.CreateDiff(
                         "remove",
                         path + "/" + JsonPointer.Escape(key),
-                        null,
                         null,
                         false
                     )
@@ -196,10 +195,9 @@ internal static class JsonPatchEngine
                 if (!beforeObject.TryGetPropertyValue(property.Key, out var beforeValue))
                 {
                     ops.Add(
-                        new JsonPatchOperation(
+                        JsonPatchOperation.CreateDiff(
                             "add",
                             path + "/" + JsonPointer.Escape(property.Key),
-                            null,
                             Clone(property.Value),
                             true
                         )
@@ -219,7 +217,7 @@ internal static class JsonPatchEngine
             return;
         }
 
-        ops.Add(new JsonPatchOperation("replace", path, null, Clone(after), true));
+        ops.Add(JsonPatchOperation.CreateDiff("replace", path, Clone(after), true));
     }
 
 #pragma warning restore S1075

@@ -6,6 +6,8 @@ namespace SparseFragments;
 /// <summary>One RFC 6902 operation.</summary>
 internal sealed class JsonPatchOperation
 {
+    private string[]? _pathTokens;
+
     /// <summary>Initializes a new instance.</summary>
     public JsonPatchOperation(string op, string path, string? from, JsonNode? value, bool hasValue)
         : this(
@@ -18,11 +20,11 @@ internal sealed class JsonPatchOperation
             hasValue
         ) { }
 
-    /// <summary>Initializes a new instance with pre-parsed pointer tokens.</summary>
+    /// <summary>Initializes a new instance with optional pre-parsed pointer tokens.</summary>
     internal JsonPatchOperation(
         string op,
         string path,
-        string[] pathTokens,
+        string[]? pathTokens,
         string? from,
         string[]? fromTokens,
         JsonNode? value,
@@ -31,7 +33,7 @@ internal sealed class JsonPatchOperation
     {
         Op = op;
         Path = path;
-        PathTokens = pathTokens;
+        _pathTokens = pathTokens;
         From = from;
         FromTokens = fromTokens;
         Value = value;
@@ -45,7 +47,15 @@ internal sealed class JsonPatchOperation
     public string Path { get; }
 
     /// <summary>The parsed target pointer tokens, reused during apply.</summary>
-    public string[] PathTokens { get; }
+    public string[] PathTokens => _pathTokens ??= JsonPointer.Parse(Path);
+
+    /// <summary>Creates a diff operation with a generated path, decoded only if applied.</summary>
+    internal static JsonPatchOperation CreateDiff(
+        string op,
+        string path,
+        JsonNode? value,
+        bool hasValue
+    ) => new JsonPatchOperation(op, path, null, null, null, value, hasValue);
 
     /// <summary>The source pointer for move/copy.</summary>
     public string? From { get; }
