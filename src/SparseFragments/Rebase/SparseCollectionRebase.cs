@@ -342,13 +342,22 @@ internal static class SparseCollectionRebase
         }
 
         desiredLookup.ExceptWith(before);
-        var resultLookup = new HashSet<T>(current, comparer);
-        var result = new List<T>(current);
-        foreach (var value in desired)
+        desiredLookup.ExceptWith(current);
+        var result = new List<T>(checked(current.Count + desiredLookup.Count));
+        result.AddRange(current);
+        if (desiredLookup.Count > 0)
         {
-            if (desiredLookup.Contains(value) && resultLookup.Add(value))
+            foreach (var value in desired)
             {
-                result.Add(value);
+                if (desiredLookup.Contains(value))
+                {
+                    desiredLookup.Remove(value);
+                    result.Add(value);
+                    if (desiredLookup.Count == 0)
+                    {
+                        break;
+                    }
+                }
             }
         }
 
