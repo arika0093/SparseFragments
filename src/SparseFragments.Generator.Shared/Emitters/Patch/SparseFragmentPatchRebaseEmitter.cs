@@ -442,6 +442,16 @@ internal static class SparseFragmentPatchRebaseEmitter
             {
                 AppendTypedSetUnionRebase(code, member, field, operation);
             }
+            else if (
+                member.MergeMode == 3
+                && member.Collection.CloneKind
+                    is SparseCloneCollectionKind.Array
+                        or SparseCloneCollectionKind.List
+                && member.Collection.ElementType.UsesDefaultScalarEquality
+            )
+            {
+                AppendTypedSequenceUnionRebase(code, member, field, operation);
+            }
             else
             {
                 AppendBoxedCollectionRebase(code, member, field, operation);
@@ -531,6 +541,72 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(6, "{");
         var operationType = operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
         code.AppendLineAt(7, "result." + field + " = " + operationType + ".Set(rebasedValues);");
+    }
+
+    private static void AppendTypedSequenceUnionRebase(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string field,
+        string operation
+    )
+    {
+        var elementType = member.Collection.ElementType.Name;
+        var valueType = SparseFragmentPatchEmitter.ValueType(member);
+        var listType = $"global::System.Collections.Generic.List<{elementType}>";
+        var readOnlyType = $"global::System.Collections.Generic.IReadOnlyList<{elementType}>";
+        string NativeInput(string state, string variable) =>
+            $"(object?){state}.Value is {readOnlyType} {variable} && ({variable} is {elementType}[] || {variable}.GetType() == typeof({listType}))";
+
+        code.AppendLineAt(6, $"{valueType} __rebasedCollection = default!;");
+        code.AppendLineAt(6, "string? reason;");
+        code.AppendLineAt(6, "bool __rebaseSucceeded;");
+        code.AppendLineAt(
+            6,
+            "if ("
+                + NativeInput("baseMember", "beforeValues")
+                + " && "
+                + NativeInput("desiredMember", "desiredValues")
+                + " && "
+                + NativeInput("currentMember", "currentValues")
+                + ")"
+        );
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.TryRebaseSequenceSetUnion<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
+        );
+        var typedResult =
+            member.Collection.CloneKind == SparseCloneCollectionKind.Array
+                ? "__typedValues.ToArray()"
+                : "__typedValues";
+        code.AppendLineAt(7, $"if (__rebaseSucceeded) __rebasedCollection = {typedResult};");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(6, "else");
+        code.AppendLineAt(6, "{");
+        foreach (var state in new[] { "before", "current", "desired" })
+        {
+            var memberState = state == "before" ? "baseMember" : state + "Member";
+            code.AppendLineAt(
+                7,
+                $"var {state}Boxed = global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Cast<object?>((global::System.Collections.IEnumerable){memberState}.Value));"
+            );
+        }
+        code.AppendLineAt(
+            7,
+            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.TryRebaseSetUnion(beforeBoxed, desiredBoxed, currentBoxed, (object? left, object? right) => {SparseWellKnownNames.ValueComparerType}.AreEqual(left, right), out var __boxedValues, out reason);"
+        );
+        var boxedResult = SparseFragmentExpressions.MaterializeCollection(
+            member,
+            $"global::System.Linq.Enumerable.Cast<{elementType}>(__boxedValues)"
+        );
+        code.AppendLineAt(7, $"if (__rebaseSucceeded) __rebasedCollection = {boxedResult};");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(6, "if (__rebaseSucceeded)");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(
+            7,
+            $"result.{field} = {operation}<{valueType}>.Set(__rebasedCollection);"
+        );
     }
 
     private static void AppendBoxedCollectionRebase(

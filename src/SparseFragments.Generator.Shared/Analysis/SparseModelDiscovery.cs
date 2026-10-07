@@ -669,8 +669,50 @@ internal static class SparseModelDiscovery
                     GetMembers(named, config, cancellationToken)
                         .Select(static member => member.Property.Name)
                 )
-                : string.Empty
+                : string.Empty,
+            UsesDefaultScalarEquality(type)
         );
+    }
+
+    private static bool UsesDefaultScalarEquality(ITypeSymbol type)
+    {
+        if (
+            type is INamedTypeSymbol nullable
+            && nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
+        )
+        {
+            return UsesDefaultScalarEquality(nullable.TypeArguments[0]);
+        }
+        return type.TypeKind == TypeKind.Enum
+            || type.SpecialType
+                is SpecialType.System_Boolean
+                    or SpecialType.System_Char
+                    or SpecialType.System_SByte
+                    or SpecialType.System_Byte
+                    or SpecialType.System_Int16
+                    or SpecialType.System_UInt16
+                    or SpecialType.System_Int32
+                    or SpecialType.System_UInt32
+                    or SpecialType.System_Int64
+                    or SpecialType.System_UInt64
+                    or SpecialType.System_IntPtr
+                    or SpecialType.System_UIntPtr
+                    or SpecialType.System_Single
+                    or SpecialType.System_Double
+                    or SpecialType.System_Decimal
+                    or SpecialType.System_DateTime
+                    or SpecialType.System_String
+            || (
+                type is INamedTypeSymbol frameworkScalar
+                && frameworkScalar.Name is "DateTimeOffset" or "TimeSpan" or "Guid"
+                && frameworkScalar.ContainingNamespace.ToDisplayString() == "System"
+                && frameworkScalar.ContainingAssembly.GetTypeByMetadataName("System.Object")
+                    is { SpecialType: SpecialType.System_Object } coreObject
+                && SymbolEqualityComparer.Default.Equals(
+                    coreObject.ContainingAssembly,
+                    frameworkScalar.ContainingAssembly
+                )
+            );
     }
 
     internal static SparsePocoCloneModel CreatePocoCloneModel(
