@@ -6,19 +6,118 @@
 
 *Source-generated partial state and typed changes for C#.*
 
-Annotate an ordinary C# model with `[SparseFragmentModel]` and SparseFragments generates typed `Fragment`, `Patch`, and `ChangeSet` types from it. Each one tells missing members apart from explicit `null`, and each one follows the model's nesting and collection rules.
+SparseFragments generates typed APIs around ordinary C# models for partial values, edits, and before → after changes.
 
-Try it live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/)
+Add `[SparseFragmentModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
 
-## When to Use It
+It helps when:
 
-Use a separate object for the edit, then combine it with the base state:
+* a settings layer must omit a property instead of assigning its default value;
+* an editor must preserve which properties the user actually changed;
+* a client must send an edit without overwriting unrelated server changes;
+* a UI needs notifications and must distinguish a touched field from a value that is still changed;
+* a collection needs to track edits by item identity rather than by array position.
 
-* **Layered overlays.** Combine defaults with per-environment, per-user, or per-tenant overrides. Each layer carries only what it changes; a priority-ordered merge produces the effective state.
-* **Partial-update APIs.** HTTP PATCH-style endpoints where "absent", "null", and "value" are three distinct intents.
-* **Minimal persisted settings.** Persist only what differs from the defaults and replay it later.
-* **Local edit sessions and dirty tracking.** Accumulate user edits in a mutable patch, preview, or drop to cancel. The original state is never mutated.
-* **Disconnected editing and optimistic reconciliation.** Send a before → after transition across a process boundary and rebase it onto changed state. Members changed on both sides come back as structured conflicts.
+Try these cases live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/).
+
+## What Problem Does It Solve?
+
+### Partial Values
+
+A settings layer often needs to distinguish “not specified” from “explicitly set to `null`”. A normal nullable property cannot represent both meanings at once.
+
+A generated `Fragment` keeps that distinction:
+
+```csharp
+var user = new Settings.Fragment { Label = (string?)null };
+var effective = defaults.Merge(user);
+```
+
+This is useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
+
+See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and merge rules.
+
+### Partial Edits
+
+A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
+
+A generated `Patch` contains only the requested operations:
+
+```csharp
+var patch = new Settings.Patch();
+patch.Database.Port = 6432;
+
+var updated = current.Apply(patch);
+```
+
+This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseFragments is useful when the edit arrives from elsewhere.
+
+See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
+
+### Before → After Changes
+
+Undo, audit output, conflict detection, and synchronization need more than the final value. They need to know what changed.
+
+A generated `ChangeSet` records that transition:
+
+```csharp
+var changes = Settings.ChangeSet.Between(before, after);
+
+changes.Database.Port.IsChanged;
+changes.Database.Port.Before;
+changes.Database.Port.After;
+```
+
+See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
+
+### Client/Server Edits
+
+A `ChangeSet` can be serialized and sent through the transport the application already uses:
+
+```csharp
+var json = JsonSerializer.Serialize(changes);
+var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+
+var rebased = incoming.RebaseOnto(current);
+```
+
+Rebasing lets the receiver preserve unrelated newer changes instead of replacing current state with a stale object. Conflicting edits are reported separately.
+
+See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, and conflict handling.
+
+### UI Editing
+
+Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
+
+Blazor edit sessions retain a baseline and derive the remaining change:
+
+```csharp
+var session = settings.CreateEditSession();
+
+session.Model.Label = "edited";
+var changes = session.CreateChangeSet();
+```
+
+Other UI frameworks can use generated `Observable` wrappers for change notification without adding binding infrastructure to the model itself.
+
+See [UI frameworks](docs/ui-frameworks.md) for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+
+### Keyed Collections
+
+Collection edits need stable identity. Array positions are not enough when items can be inserted, removed, or reordered.
+
+With a `[SparseKey]` on the element model, changes are exposed by key:
+
+```csharp
+var changes = Roster.ChangeSet.Between(before, after);
+
+changes.Quests.Added;
+changes.Quests.Removed;
+changes.Quests.Edited;
+changes.Quests.OrderChanged;
+```
+
+See [Keyed collections](docs/keyed-collections.md) for key rules and per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
 
 ## Install
 
@@ -26,212 +125,130 @@ Use a separate object for the edit, then combine it with the base state:
 dotnet add package SparseFragments
 ```
 
-The package contains the source generator, so no additional setup is needed.
+The package contains the source generator, so no additional generation step is required.
 
 ## Quick Start
 
-The samples below share one `Settings` model. They build on each other, so read them in order.
-
-### 1. Define your model
-
-All you need is `[SparseFragmentModel]` on a `partial` class:
+With .NET 10 or later, the whole example fits in a single file:
 
 ```csharp
+#:package SparseFragments@*
+
 using SparseFragments;
+
+var defaults = Settings.Fragment.From(new Settings
+{
+    Label = "default",
+    Database = new() { Host = "db.local", Port = 5432 },
+});
+
+var environment = new Settings.Fragment
+{
+    Database = new DatabaseSettings.Fragment { Port = 6432 },
+};
+
+var effective = defaults.Merge(environment);
+
+var patch = new Settings.Patch { Label = "production" };
+var updated = effective.Apply(patch);
+
+var changes = Settings.ChangeSet.Between(effective, updated);
+
+Console.WriteLine(updated.ToModel().Label); // production
+Console.WriteLine(changes.Label.IsChanged); // True
 
 [SparseFragmentModel]
 public partial class Settings
 {
     public string? Label { get; set; }
-    public Child? Child { get; set; }
-
-    [SparseMerge(MergeMode.Append)]
-    public IReadOnlyList<string> Plugins { get; set; } = [];
+    public DatabaseSettings? Database { get; set; }
 }
 
-public partial class Child
+public partial class DatabaseSettings
 {
-    public int Count { get; set; }
     public string Host { get; set; } = "localhost";
+    public int Port { get; set; } = 5432;
 }
 ```
 
-Reachable partial nested types (like `Child` here) automatically receive the generated APIs. See [Model shapes](docs/model-shapes.md) for the full rules.
+Save it as `quickstart.cs` and run:
 
-### 2. Missing, null, and values
-
-In a `Fragment`, an explicitly set `null` overrides a lower layer; an unset member falls through:
-
-```csharp
-var defaults = Settings.Fragment.From(new Settings
-{
-    Label = "fallback",
-    Child = new Child { Host = "db.local" },
-});
-
-// Explicit null is present: it overrides the lower layer.
-var clearsLabel = new Settings.Fragment { Label = (string?)null };
-// Nothing set: everything is missing, so the lower layer survives.
-var saysNothing = new Settings.Fragment();
-
-defaults.Merge(clearsLabel).ToModel().Label; // null (explicit null wins)
-defaults.Merge(saysNothing).ToModel().Label; // "fallback" (missing falls through)
+```shell
+dotnet run --file quickstart.cs
 ```
 
-### 3. Merge layered contributions
+The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after.
 
-`Merge` overlays a higher-priority fragment onto a lower-priority one. Only *present* members override; *missing* members keep the lower layer's values, including inside nested fragments:
+The [documentation](#documentation) covers the full APIs and detailed behavior.
 
-```csharp
-var lower = Settings.Fragment.From(new Settings
-{
-    Label = "base",
-    Child = new Child { Host = "db.local" },
-    Plugins = ["base-plugin"],
-});
-var higher = new Settings.Fragment
-{
-    Child = new Child.Fragment { Count = 9 }, // Host stays missing, so it falls through
-    Plugins = new[] { "extra-plugin" },       // plain values convert implicitly
-};
+## Generated API
 
-var merged = lower.Merge(higher).ToModel();
-// merged.Label       == "base"      (unset above, so the lower value survives)
-// merged.Child.Host  == "db.local" (nested fragments merge member by member)
-// merged.Child.Count == 9           (higher priority wins where present)
-// merged.Plugins     == ["base-plugin", "extra-plugin"]  (Append concatenates)
-```
+The generated types answer different questions:
 
-Per-member rules (`Replace` / `Deep` / `Append` / `SetUnion`, or your own strategy) are covered in [Merge strategies](docs/merge-strategies.md).
-
-### 4. Apply desired changes with Patch
-
-A `Patch` is a mutable list of operations applied with `Apply`. It holds only the desired changes, not the before-state:
-
-```csharp
-var patch = new Settings.Patch { Label = (string?)null }; // explicitly null, stays present
-patch.Child.Count = 9;                                    // typed nested set
-
-var updated = defaults.Apply(patch);
-// updated.Label is present null; updated.Child.Host keeps "db.local".
-// defaults is untouched: Apply never mutates its source.
-```
-
-Assignment sets a value (including explicit `null`); `Unset()` removes this layer's contribution; untouched members stay as they are:
-
-```csharp
-var clear = new Settings.Patch();
-clear.Child.SetNull(); // explicit null, beats lower layers
-var drop = new Settings.Patch();
-drop.Child.Unset();    // remove this layer's contribution
-```
-
-`Patch.IsEmpty` is true when the patch changes nothing.
-
-### 5. Capture before → after with ChangeSet
-
-Take the `defaults` and `updated` values from the previous step. A `Patch` holds desired operations; a `ChangeSet` holds one specific before → after transition:
-
-```csharp
-var before = Optional<Settings.Fragment?>.Present(defaults);
-var after = Optional<Settings.Fragment?>.Present(updated);
-
-var changes = Settings.ChangeSet.Between(before, after);
-// !changes.IsEmpty: the transition is real
-```
-
-Members mirror the source model, so reading a transition needs no casts:
-
-```csharp
-if (changes.Label.IsChanged)
-{
-    var beforeLabel = changes.Label.Before;
-    var afterLabel = changes.Label.After;
-}
-// beforeLabel.Value == "fallback"; afterLabel.Value is null (explicitly cleared)
-```
-
-Call `ToPatch()` to convert the transition back to operations and apply it to the same baseline:
-
-```csharp
-var replayed = defaults.Apply(changes.ToPatch());
-// replayed matches updated
-```
-
-`ChangeSet` also provides `FromPatch`, parameterless `Invert`, `Compose`, and `RebaseOnto`. See [Fragments and patches](docs/fragments-and-patches.md) and [ChangeSet rebase](docs/rebase.md).
-
-### 6. Beyond the basics
-
-The same types work for JSON, UI sessions, and collections. `Patch` and `ChangeSet` use the standard `System.Text.Json` APIs directly:
-
-```csharp
-using System.Text.Json;
-
-var json = JsonSerializer.Serialize(changes); // no SparseFragments wire protocol
-var restored = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
-// restored.ToPatch().Apply(before).Value matches updated
-```
-
-Details are in Documentation below: keyed collections, rebase, UI binding, cloning, model shapes, and diagnostics.
-
-## Architecture
-### The Problem: Missing Is Not Null
-
-Plain C# properties cannot distinguish "the caller did not specify this member" from "the caller explicitly set it to `null`". When data is layered, higher-priority sources must override only what they set. An explicit `null` must win over a lower layer's value, and a missing member must fall through.
-
-Writing this by hand means a presence flag per member plus merge logic, repeated for every model.
-
-### Optional
-
-`Optional<T>` holds three states that plain C# properties cannot tell apart: *missing*, *present null*, and *present value*:
-
-```csharp
-Optional<string?> missing = Optional<string?>.Missing; // not specified
-Optional<string?> value = "hello";                     // present value (implicit conversion)
-Optional<string?> explicitNull = Optional<string?>.Present(null); // explicitly null
-```
-
-### Fragment, Patch, and ChangeSet
-
-`Fragment`, `Patch`, and `ChangeSet` are built on `Optional`:
-
-| Type | Represents | Typical use |
+| Type | Question | Typical use |
 | --- | --- | --- |
-| `Fragment` | Presence-aware partial state | Hold sparse state; merge layers |
-| `Patch` | Mutable desired operations, without before-state | Collect local edits; build commands |
-| `ChangeSet` | Immutable before → after transition | Diff, rebase, and exchange |
+| `Fragment` | Which values are provided? | Layers, overrides, partially supplied values |
+| `Patch` | What should change? | Commands and local edits |
+| `ChangeSet` | What changed from before to after? | Diff, serialization, undo, compose, rebase |
 
-### Source-Generated
+The distinction is visible in a small example:
+
+```text
+Fragment
+    Label is not provided
+    Database.Port is 6432
+
+Patch
+    set Label to null
+    set Database.Port to 6432
+
+ChangeSet
+    Label: "default" -> null
+    Database.Port: 5432 -> 6432
+```
+
+All three follow the source model's nesting and configured collection behavior.
+
+### Presence Tracking
+
+`Optional<T>` represents the three states that a normal property cannot distinguish: missing, present `null`, and present value.
+
+```csharp
+Optional<string?> missing = Optional<string?>.Missing;
+Optional<string?> value = "hello";
+Optional<string?> explicitNull = Optional<string?>.Present(null);
+```
+
+Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand.
+
+### Source Generation
 
 `[SparseFragmentModel]` generates code like the following:
 
 ```csharp
 partial class Settings
 {
-    // Deep copy without retaining references
     public Settings DeepClone();
-    // Implementation of the concepts above
+
     public sealed class Fragment;
     public sealed class Patch;
     public sealed class ChangeSet;
-    // A mutable builder for a generated fragment.
     public sealed class FragmentBuilder;
-    // Bindable proxy over the live model instance
     public sealed class Observable : INotifyPropertyChanged;
 }
-
-// Child types receive the same generated code as well
 ```
 
-The code is generated at compile time, so it uses no reflection and works with NativeAOT.
+Reachable eligible `partial` nested types receive the corresponding generated APIs as well. See [Model shapes](docs/model-shapes.md) for the supported shapes and constructor rules.
+
+The code is generated at compile time, uses no reflection for these generated operations, and works with NativeAOT.
 
 ## Documentation
 
 | Capability | Documentation |
 | --- | --- |
-| Fragments, Patch operations, and JSON serialization | [Fragments and patches](docs/fragments-and-patches.md) |
+| Fragments, patch operations, and JSON serialization | [Fragments and patches](docs/fragments-and-patches.md) |
 | Layer defaults and overrides | [Merge strategies](docs/merge-strategies.md) |
-| Observe and rebase ChangeSet transitions | [ChangeSet rebase](docs/rebase.md) |
+| Observe and rebase before → after changes | [ChangeSet rebase](docs/rebase.md) |
 | Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
 | Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
 | Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
@@ -246,7 +263,7 @@ The code is generated at compile time, so it uses no reflection and works with N
   * .NET Framework 4.6.1 or later
   * .NET (all versions)
   * MAUI
-  * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2-0#select-net-standard-version) as well.
+  * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version) as well.
 * Source generation works only in *IDE* environments using Roslyn 4.3.1 or later.
   * VisualStudio 2022: 17.3 or later
   * JetBrains Rider: 2023.1 or later
