@@ -125,6 +125,21 @@ namespace SparseFragments
     {
         public SparseCloneReferenceSafeAttribute() { }
     }
+    public enum SparseCollectionKind
+    {
+        None = 0,
+        Array = 1,
+        List = 2,
+        Set = 3,
+        Dictionary = 4,
+    }
+    public enum SparseCollectionSemantic
+    {
+        None = 0,
+        ScalarSequence = 1,
+        KeyedSequence = 2,
+        Dictionary = 3,
+    }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute
     {
@@ -136,6 +151,13 @@ namespace SparseFragments
         public SparseKeyAttribute() { }
         public SparseKeyAttribute(string propertyName, params string[] additionalPropertyNames) { }
         public string[] PropertyNames { get; }
+    }
+    public enum SparseKeyKind
+    {
+        None = 0,
+        Property = 1,
+        Composite = 2,
+        Interface = 3,
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseMergeAttribute : System.Attribute
@@ -165,5 +187,41 @@ namespace SparseFragments
         CollectionAppend = 3,
         CollectionSetUnion = 4,
         CustomStrategy = 5,
+    }
+    public sealed class SparsePropertyInfo
+    {
+        public SparsePropertyInfo(
+                    string name,
+                    System.Type propertyType,
+                    bool isNullable,
+                    bool isNestedModel,
+                    System.Type? nestedModelType,
+                    SparseFragments.MergeMode mergeMode,
+                    System.Type? mergeStrategyType,
+                    SparseFragments.SparseCollectionKind collectionKind,
+                    SparseFragments.SparseCollectionSemantic collectionSemantic,
+                    SparseFragments.SparseKeyKind keyKind,
+                    System.Collections.Generic.IReadOnlyList<string> keyPropertyNames,
+                    System.Type? keyType,
+                    string jsonPropertyName,
+                    bool isRequired,
+                    bool isInitOnly,
+                    bool isReadOnly) { }
+        public SparseFragments.SparseCollectionKind CollectionKind { get; }
+        public SparseFragments.SparseCollectionSemantic CollectionSemantic { get; }
+        public bool IsInitOnly { get; }
+        public bool IsNestedModel { get; }
+        public bool IsNullable { get; }
+        public bool IsReadOnly { get; }
+        public bool IsRequired { get; }
+        public string JsonPropertyName { get; }
+        public SparseFragments.SparseKeyKind KeyKind { get; }
+        public System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        public System.Type? KeyType { get; }
+        public SparseFragments.MergeMode MergeMode { get; }
+        public System.Type? MergeStrategyType { get; }
+        public string Name { get; }
+        public System.Type? NestedModelType { get; }
+        public System.Type PropertyType { get; }
     }
 }

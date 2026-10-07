@@ -522,7 +522,8 @@ internal static class SparseModelDiscovery
             member.Property.SetMethod is null,
             jsonPropertyName,
             hasExplicitJsonPropertyName,
-            SparseJsonNaming.GetJsonIgnoreCondition(member.Property, cancellationToken)
+            SparseJsonNaming.GetJsonIgnoreCondition(member.Property, cancellationToken),
+            IsNullableType(member.Property.Type)
         );
         SparseTypeModel? childModel = null;
         string? childFragmentType = null;
@@ -566,6 +567,17 @@ internal static class SparseModelDiscovery
             childIsStructural,
             childIsReferenceType
         );
+    }
+
+    private static bool IsNullableType(ITypeSymbol type)
+    {
+        if (type.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            return true;
+        }
+
+        return type is INamedTypeSymbol named
+            && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
     }
 
     private static SparseCollectionInfo CreateCollectionInfo(

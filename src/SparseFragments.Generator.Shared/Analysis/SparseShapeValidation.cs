@@ -267,7 +267,7 @@ internal static class SparseShapeValidation
     /// names in <see cref="SparseNaming.IsCoreGeneratedName"/>).
     /// </summary>
     public static ImmutableArray<string> SparseFragmentsReservedNames { get; } =
-        ImmutableArray.Create("JsonConverter", "FragmentJsonConverter");
+        ImmutableArray.Create("JsonConverter", "FragmentJsonConverter", "Sparse");
 
     /// <summary>
     /// Shared core generated names (see <see cref="SparseNaming.IsCoreGeneratedName"/>).
@@ -292,7 +292,8 @@ internal static class SparseShapeValidation
             "ToModel",
             "ToBuilder",
             "Build",
-            "Patch"
+            "Patch",
+            "Sparse"
         );
 
     /// <summary>

@@ -28,6 +28,7 @@ internal static class SparseNaming
                 or "ToModel"
                 or "ToBuilder"
                 or "Build"
+                or "Sparse"
         || name.StartsWith("__", System.StringComparison.Ordinal);
 
     public static readonly SymbolDisplayFormat TypeFormat =

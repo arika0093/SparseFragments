@@ -158,6 +158,8 @@ internal static class SparseFragmentEmitter
             SparseObservableEmitter.AppendObservable(code, modelType, members);
         }
 
+        SparseMetadataEmitter.AppendSparseMetadata(code, members);
+
         code.AppendLine("}");
         return code.ToString();
     }
@@ -177,9 +179,7 @@ internal static class SparseFragmentEmitter
         var between = SparseNaming.PatchApiPrefix(memberNames) + "Between";
         var isEmpty = SparseNaming.WholeApiPrefix(memberNames) + "IsEmpty";
         var session =
-            "global::SparseFragments.Blazor.SparseEditSession<"
-            + modelType
-            + ", Fragment, Patch>";
+            "global::SparseFragments.Blazor.SparseEditSession<" + modelType + ", Fragment, Patch>";
         code.AppendLineAt(
             1,
             "/// <summary>Creates a Blazor edit session capturing the current model as its baseline.</summary>"

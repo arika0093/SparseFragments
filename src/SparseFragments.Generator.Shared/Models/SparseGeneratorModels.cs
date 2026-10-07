@@ -26,7 +26,8 @@ internal readonly record struct SparsePropertyModel(
     bool IsReadOnly = false,
     string? JsonPropertyName = null,
     bool HasExplicitJsonPropertyName = false,
-    int JsonIgnoreCondition = 0
+    int JsonIgnoreCondition = 0,
+    bool IsNullable = false
 )
 {
     public bool IsJsonIgnored => JsonIgnoreCondition == 1;
