@@ -386,4 +386,392 @@ public sealed class ChangeSetTests
         var patchChanges = changes.ToPatch().Changes;
         patchChanges.Count.ShouldBe(changes.Changes.Count);
     }
+
+    [Test]
+    public void TypedScalarPresenceTransitions()
+    {
+        var before = Present(MakeSettings("Alice", 1));
+        var same = Present(MakeSettings("Alice", 1));
+        var unchanged = Settings.ChangeSet.Between(before, same);
+        unchanged.Label.IsChanged.ShouldBeFalse();
+        unchanged.Label.Before.IsPresent.ShouldBeTrue();
+        unchanged.Label.Before.Value.ShouldBe("Alice");
+        unchanged.Label.After.Value.ShouldBe("Alice");
+        unchanged.RetryCount.IsChanged.ShouldBeFalse();
+
+        var after = Present(MakeSettings("Bob", 1));
+        var changes = Settings.ChangeSet.Between(before, after);
+        changes.Label.IsChanged.ShouldBeTrue();
+        changes.Label.Before.Value.ShouldBe("Alice");
+        changes.Label.After.Value.ShouldBe("Bob");
+        changes.RetryCount.IsChanged.ShouldBeFalse();
+        changes.RetryCount.Before.Value.ShouldBe(1);
+
+        var toNull = Settings.ChangeSet.Between(before, Present(MakeSettings(null, 1)));
+        toNull.Label.IsChanged.ShouldBeTrue();
+        toNull.Label.Before.Value.ShouldBe("Alice");
+        toNull.Label.After.IsPresent.ShouldBeTrue();
+        toNull.Label.After.Value.ShouldBeNull();
+
+        var unsetAfter = Optional<Settings.Fragment?>.Present(
+            new Settings.Fragment
+            {
+                Label = Optional<string?>.Missing,
+                RetryCount = Optional<int>.Present(1),
+            }
+        );
+        var unset = Settings.ChangeSet.Between(before, unsetAfter);
+        unset.Label.IsChanged.ShouldBeTrue();
+        unset.Label.Before.Value.ShouldBe("Alice");
+        unset.Label.After.IsPresent.ShouldBeFalse();
+
+        var missingBefore = Optional<Settings.Fragment?>.Present(new Settings.Fragment());
+        var setAfter = Present(MakeSettings("x", 3));
+        var missingToValue = Settings.ChangeSet.Between(missingBefore, setAfter);
+        missingToValue.Label.IsChanged.ShouldBeTrue();
+        missingToValue.Label.Before.IsPresent.ShouldBeFalse();
+        missingToValue.Label.After.Value.ShouldBe("x");
+    }
+
+    [Test]
+    public void TypedScalarCollectionBeforeAfter()
+    {
+        Optional<ScalarSequenceHolder.Fragment?> State(ScalarSequenceHolder m) =>
+            Optional<ScalarSequenceHolder.Fragment?>.Present(ScalarSequenceHolder.Fragment.From(m));
+        var before = State(new ScalarSequenceHolder { Tags = ["a", "b"], Numbers = [1, 2] });
+        var after = State(new ScalarSequenceHolder { Tags = ["c"], Numbers = [1, 2] });
+        var changes = ScalarSequenceHolder.ChangeSet.Between(before, after);
+        changes.Tags.IsChanged.ShouldBeTrue();
+        changes.Tags.Before.Value.ShouldBe(["a", "b"]);
+        changes.Tags.After.Value.ShouldBe(["c"]);
+        changes.Numbers.IsChanged.ShouldBeFalse();
+        changes.Numbers.Before.Value.ShouldBe([1, 2]);
+    }
+
+    [Test]
+    public void TypedNestedTransitions()
+    {
+        Optional<Settings.Fragment?> State(string host) =>
+            Optional<Settings.Fragment?>.Present(
+                new Settings.Fragment
+                {
+                    Nested = Optional<Nested.Fragment?>.Present(
+                        new Nested.Fragment { Host = Optional<string>.Present(host) }
+                    ),
+                }
+            );
+        var unchanged = Settings.ChangeSet.Between(State("a"), State("a"));
+        unchanged.Nested.IsEmpty.ShouldBeTrue();
+        unchanged.Nested.Host.IsChanged.ShouldBeFalse();
+
+        var changes = Settings.ChangeSet.Between(State("a"), State("b"));
+        changes.Nested.IsEmpty.ShouldBeFalse();
+        changes.Nested.Host.IsChanged.ShouldBeTrue();
+        changes.Nested.Host.Before.Value.ShouldBe("a");
+        changes.Nested.Host.After.Value.ShouldBe("b");
+        changes.Nested.Port.IsChanged.ShouldBeFalse();
+
+        var missingNested = Settings.ChangeSet.Between(
+            Optional<Settings.Fragment?>.Present(new Settings.Fragment()),
+            State("h")
+        );
+        missingNested.Nested.IsEmpty.ShouldBeFalse();
+        missingNested.Nested.Host.IsChanged.ShouldBeTrue();
+        missingNested.Nested.Host.Before.IsPresent.ShouldBeFalse();
+        missingNested.Nested.Host.After.Value.ShouldBe("h");
+    }
+
+    [Test]
+    public void TypedKeyedAddRemoveEdit()
+    {
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        var b0 = F(
+            new KeyedServer { Id = "b", Name = "b", Count = 1 },
+            new KeyedServer { Id = "c", Name = "c", Count = 2 }
+        );
+        var b1 = F(
+            new KeyedServer { Id = "b", Name = "b2", Count = 1 },
+            new KeyedServer { Id = "d", Name = "d", Count = 3 }
+        );
+        var changes = KeyedServerHolder.ChangeSet.Between(b0, b1);
+        var quests = changes.Items;
+        quests.IsChanged.ShouldBeTrue();
+        quests.IsEmpty.ShouldBeFalse();
+        quests.Added.Select(e => e.Id).ShouldBe(["d"]);
+        quests.Removed.Select(e => e.Id).ShouldBe(["c"]);
+        quests.Removed.Single().Name.ShouldBe("c");
+        quests.Edited.Count.ShouldBe(1);
+        quests.Edited.ContainsKey("b").ShouldBeTrue();
+        quests.Edited["b"].Name.IsChanged.ShouldBeTrue();
+        quests.Edited["b"].Name.Before.Value.ShouldBe("b");
+        quests.Edited["b"].Name.After.Value.ShouldBe("b2");
+        quests.BeforeOrder.ShouldBe(["b", "c"]);
+        quests.AfterOrder.ShouldBe(["b", "d"]);
+    }
+
+    [Test]
+    public void TypedKeyedNormalizationIgnoresPatchShape()
+    {
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        var b = new KeyedServer { Id = "b", Name = "b", Count = 1 };
+        var c = new KeyedServer { Id = "c", Name = "c", Count = 2 };
+        var before = F(
+            new KeyedServer { Id = "a", Name = "a", Count = 0 },
+            b,
+            c
+        );
+        var after = F(
+            b,
+            new KeyedServer { Id = "c", Name = "c", Count = 2 }
+        );
+
+        var granular = new KeyedServerHolder.Patch();
+        granular.Items.Remove("a");
+        granular.Items.SetOrder(["b", "c"]);
+        var fromGranular = KeyedServerHolder.ChangeSet.FromPatch(before, granular);
+
+        var whole = new KeyedServerHolder.Patch();
+        whole.Items.Set([b, new KeyedServer { Id = "c", Name = "c", Count = 2 }]);
+        var fromWhole = KeyedServerHolder.ChangeSet.FromPatch(before, whole);
+
+        TextCheck(fromGranular.Items, fromWhole.Items);
+        static void TextCheck(KeyedServerHolder.ChangeSet.ItemsTransition left, KeyedServerHolder.ChangeSet.ItemsTransition right)
+        {
+            left.Added.Select(e => e.Id).ShouldBe(right.Added.Select(e => e.Id).ToArray());
+            left.Removed.Select(e => e.Id).ShouldBe(right.Removed.Select(e => e.Id).ToArray());
+            left.Edited.Count.ShouldBe(right.Edited.Count);
+            left.BeforeOrder.ShouldBe(right.BeforeOrder.ToArray());
+            left.AfterOrder.ShouldBe(right.AfterOrder.ToArray());
+            left.OrderChanged.ShouldBe(right.OrderChanged);
+        }
+
+        var canonical = KeyedServerHolder.ChangeSet.Between(before, after);
+        canonical.Items.Added.Count.ShouldBe(0);
+        canonical.Items.Removed.Select(e => e.Id).ShouldBe(["a"]);
+        canonical.Items.Removed.Single().Name.ShouldBe("a");
+        canonical.Items.Edited.Count.ShouldBe(0);
+        canonical.Items.BeforeOrder.ShouldBe(["a", "b", "c"]);
+        canonical.Items.AfterOrder.ShouldBe(["b", "c"]);
+        fromGranular.Items.Removed.Select(e => e.Id).ShouldBe(["a"]);
+        fromWhole.Items.Removed.Select(e => e.Id).ShouldBe(["a"]);
+
+        _ = after;
+    }
+
+    [Test]
+    public void TypedKeyChangeIsRemovePlusAdd()
+    {
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        var changes = KeyedServerHolder.ChangeSet.Between(
+            F(new KeyedServer { Id = "a", Name = "a", Count = 1 }),
+            F(new KeyedServer { Id = "b", Name = "a", Count = 1 })
+        );
+        changes.Items.Added.Select(e => e.Id).ShouldBe(["b"]);
+        changes.Items.Removed.Select(e => e.Id).ShouldBe(["a"]);
+        changes.Items.Edited.Count.ShouldBe(0);
+    }
+
+    [Test]
+    public void TypedKeyedEnumerationAndReorderSemantics()
+    {
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        KeyedServer S(string id) => new() { Id = id, Name = id, Count = 1 };
+
+        var membership = KeyedServerHolder.ChangeSet.Between(F(S("a"), S("b"), S("c")), F(S("b"), S("c")));
+        membership.Items.OrderChanged.ShouldBeTrue();
+        membership.Items.Added.Count.ShouldBe(0);
+        membership.Items.Removed.Select(e => e.Id).ShouldBe(["a"]);
+        membership.Items.Select(i => i.Key).ShouldBe(["a"]);
+        foreach (var item in membership.Items)
+        {
+            item.IsReordered.ShouldBeFalse($"key {item.Key} must not be reordered by membership-only shift");
+        }
+        membership.Items.BeforeOrder.ShouldBe(["a", "b", "c"]);
+        membership.Items.AfterOrder.ShouldBe(["b", "c"]);
+
+        var reorder = KeyedServerHolder.ChangeSet.Between(
+            F(S("a"), S("b"), S("c")),
+            F(S("b"), S("a"), S("c"))
+        );
+        reorder.Items.OrderChanged.ShouldBeTrue();
+        reorder.Items.Added.Count.ShouldBe(0);
+        reorder.Items.Removed.Count.ShouldBe(0);
+        reorder.Items.Edited.Count.ShouldBe(0);
+        var byKey = reorder.Items.ToDictionary(i => i.Key);
+        byKey.ContainsKey("c").ShouldBeFalse();
+        byKey["a"].IsReordered.ShouldBeTrue();
+        byKey["b"].IsReordered.ShouldBeTrue();
+        byKey["a"].BeforeIndex.ShouldBe(0);
+        byKey["a"].AfterIndex.ShouldBe(1);
+        byKey["b"].BeforeIndex.ShouldBe(1);
+        byKey["b"].AfterIndex.ShouldBe(0);
+        byKey["a"].Before.Value!.Id.ShouldBe("a");
+        byKey["a"].After.Value!.Id.ShouldBe("a");
+        byKey["a"].IsAdded.ShouldBeFalse();
+        byKey["a"].IsRemoved.ShouldBeFalse();
+        byKey["a"].IsEdited.ShouldBeFalse();
+
+        var add = KeyedServerHolder.ChangeSet.Between(F(S("a"), S("b")), F(S("a"), S("b"), S("c")));
+        var addedItem = add.Items.Single(i => i.IsAdded);
+        addedItem.Key.ShouldBe("c");
+        addedItem.BeforeIndex.ShouldBe(-1);
+        addedItem.AfterIndex.ShouldBe(2);
+        addedItem.Before.IsPresent.ShouldBeFalse();
+        addedItem.After.Value!.Id.ShouldBe("c");
+        addedItem.Edit.IsEmpty.ShouldBeFalse();
+
+        var edited = KeyedServerHolder.ChangeSet.Between(
+            F(new KeyedServer { Id = "a", Name = "old", Count = 1 }),
+            F(new KeyedServer { Id = "a", Name = "new", Count = 1 })
+        );
+        var editItem = edited.Items.Single();
+        editItem.IsEdited.ShouldBeTrue();
+        editItem.IsAdded.ShouldBeFalse();
+        editItem.IsRemoved.ShouldBeFalse();
+        editItem.Before.Value!.Name.ShouldBe("old");
+        editItem.After.Value!.Name.ShouldBe("new");
+        editItem.Edit.Name.After.Value.ShouldBe("new");
+    }
+
+    [Test]
+    public void TypedDictionaryTransitions()
+    {
+        Optional<ScalarDictHolder.Fragment?> S(ScalarDictHolder m) =>
+            Optional<ScalarDictHolder.Fragment?>.Present(ScalarDictHolder.Fragment.From(m));
+        var changes = ScalarDictHolder.ChangeSet.Between(
+            S(new ScalarDictHolder { Scores = new() { ["a"] = 1, ["b"] = 2 } }),
+            S(new ScalarDictHolder { Scores = new() { ["b"] = 3, ["c"] = 4 } })
+        );
+        var scores = changes.Scores;
+        scores.IsChanged.ShouldBeTrue();
+        scores.Added.Count.ShouldBe(1);
+        scores.Added["c"].ShouldBe(4);
+        scores.Removed.Count.ShouldBe(1);
+        scores.Removed["a"].ShouldBe(1);
+        scores.Edited.Count.ShouldBe(1);
+        scores.Edited["b"].ShouldBe(3);
+        var byKey = scores.ToDictionary(i => i.Key);
+        byKey["c"].IsAdded.ShouldBeTrue();
+        byKey["c"].After.Value.ShouldBe(4);
+        byKey["a"].IsRemoved.ShouldBeTrue();
+        byKey["a"].Before.Value.ShouldBe(1);
+        byKey["b"].IsEdited.ShouldBeTrue();
+        byKey["b"].Before.Value.ShouldBe(2);
+        byKey["b"].After.Value.ShouldBe(3);
+
+        Optional<StructuralDictHolder.Fragment?> T(StructuralDictHolder m) =>
+            Optional<StructuralDictHolder.Fragment?>.Present(StructuralDictHolder.Fragment.From(m));
+        var structural = StructuralDictHolder.ChangeSet.Between(
+            T(new StructuralDictHolder { Servers = new() { ["web"] = new KeyedServer { Id = "s1", Name = "Old" } } }),
+            T(new StructuralDictHolder { Servers = new() { ["web"] = new KeyedServer { Id = "s1", Name = "New" }, ["db"] = new KeyedServer { Id = "s2", Name = "Db" } } })
+        );
+        structural.Servers.Added["db"].Id.ShouldBe("s2");
+        structural.Servers.Removed.Count.ShouldBe(0);
+        structural.Servers.Edited["web"].Name.After.Value.ShouldBe("New");
+    }
+
+    [Test]
+    public void TypedProjectionsAreReadOnly()
+    {
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        var changes = KeyedServerHolder.ChangeSet.Between(
+            F(new KeyedServer { Id = "a" }, new KeyedServer { Id = "b" }),
+            F(new KeyedServer { Id = "b", Name = "B2" }, new KeyedServer { Id = "c" })
+        );
+        Should.Throw<System.NotSupportedException>(() =>
+            ((System.Collections.Generic.IList<KeyedServer>)changes.Items.Added).Add(new KeyedServer { Id = "x" })
+        );
+        Should.Throw<System.NotSupportedException>(() =>
+            ((System.Collections.Generic.IList<KeyedServer>)changes.Items.Removed).Add(new KeyedServer { Id = "x" })
+        );
+        Should.Throw<System.NotSupportedException>(() =>
+            ((System.Collections.Generic.IList<string>)changes.Items.BeforeOrder).Add("x")
+        );
+
+        Optional<ScalarDictHolder.Fragment?> S(ScalarDictHolder m) =>
+            Optional<ScalarDictHolder.Fragment?>.Present(ScalarDictHolder.Fragment.From(m));
+        var dict = ScalarDictHolder.ChangeSet.Between(
+            S(new ScalarDictHolder { Scores = new() { ["a"] = 1 } }),
+            S(new ScalarDictHolder { Scores = new() { ["a"] = 2 } })
+        );
+        Should.Throw<System.NotSupportedException>(() =>
+            ((System.Collections.Generic.IDictionary<string, int>)dict.Scores.Edited).Add("x", 1)
+        );
+    }
+
+    [Test]
+    public void RootChangeSetIsNotEnumerable()
+    {
+        typeof(Settings.ChangeSet)
+            .GetInterfaces()
+            .ShouldNotContain(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(System.Collections.Generic.IEnumerable<>));
+        typeof(Settings.ChangeSet)
+            .GetInterfaces()
+            .ShouldNotContain(t => t == typeof(System.Collections.IEnumerable));
+    }
+
+    [Test]
+    public void TypedCompositeKeyTransition()
+    {
+        CompositeServer S(string tenant, string id) => new() { TenantId = tenant, Id = id, Name = tenant + id };
+        Optional<CompositeServerHolder.Fragment?> StateOf(CompositeServerHolder m) =>
+            Optional<CompositeServerHolder.Fragment?>.Present(CompositeServerHolder.Fragment.From(m));
+        var changes = CompositeServerHolder.ChangeSet.Between(
+            StateOf(new CompositeServerHolder { Items = [S("t1", "a")] }),
+            StateOf(new CompositeServerHolder { Items = [S("t1", "a"), S("t2", "a")] })
+        );
+        changes.Items.Added.Count.ShouldBe(1);
+        changes.Items.Removed.Count.ShouldBe(0);
+        changes.Items.Added[0].TenantId.ShouldBe("t2");
+        changes.Items.BeforeOrder.Count.ShouldBe(1);
+        changes.Items.AfterOrder.Count.ShouldBe(2);
+    }
+
+    [Test]
+    public void TypedProjectionsExcludedFromJsonContract()
+    {
+        var before = Present(MakeSettings("Alice", 1));
+        var after = Present(MakeSettings("Bob", 2));
+        var changes = Settings.ChangeSet.Between(before, after);
+        var json = System.Text.Json.JsonSerializer.Serialize(changes);
+        json.ShouldNotContain("Added");
+        json.ShouldNotContain("Removed");
+        json.ShouldNotContain("Edited");
+        json.ShouldNotContain("IsChanged");
+        json.ShouldNotContain("BeforeOrder");
+        var back = System.Text.Json.JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+        back.Label.IsChanged.ShouldBeTrue();
+        back.Label.After.Value.ShouldBe("Bob");
+        back.RetryCount.After.Value.ShouldBe(2);
+        Settings.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
+
+        Optional<KeyedServerHolder.Fragment?> F(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+        var keyed = KeyedServerHolder.ChangeSet.Between(
+            F(new KeyedServer { Id = "a", Name = "A" }),
+            F(new KeyedServer { Id = "a", Name = "B" }, new KeyedServer { Id = "b" })
+        );
+        var keyedJson = System.Text.Json.JsonSerializer.Serialize(keyed);
+        keyedJson.ShouldNotContain("Added");
+        var keyedBack = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(keyedJson)!;
+        keyedBack.Items.Added.Select(e => e.Id).ShouldBe(["b"]);
+        keyedBack.Items.Edited["a"].Name.After.Value.ShouldBe("B");
+    }
 }
