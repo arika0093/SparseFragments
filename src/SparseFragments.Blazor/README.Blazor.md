@@ -22,7 +22,14 @@ if (session.HasChanges)
     ...
 }
 
-session.AcceptChanges(editContext);
+var submitted = session.CreateChangeSet();
+var response = await SendChangesAsync(submitted.ToPayload());
+if (response.IsSuccess)
+{
+    // Advances the baseline only; later edits stay pending.
+    // The EditContext is cleared only when the session is clean.
+    session.AcceptChanges(editContext, submitted);
+}
 
 var store = session.CreateValidationStore(editContext);
 session.AddValidationError(
@@ -39,3 +46,6 @@ never from `EditContext` field tracking. Full integration guidance:
 [UI frameworks](https://github.com/arika0093/SparseFragments/blob/main/docs/ui-frameworks.md).
 Transport stays with the application: send `CreateChangeSet().ToPayload()`
 with an app-owned call, then acknowledge with `AcceptChanges(changes)`.
+When the server assigns IDs or normalizes the data, replace the model with the
+authoritative state and create a fresh session and `EditContext` instead of
+acknowledging the unassigned transition.

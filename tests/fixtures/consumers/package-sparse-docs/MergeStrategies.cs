@@ -1,8 +1,9 @@
 using SparseFragments;
 
 // Canonical compile-checked mirror of docs/merge-strategies.md (#45).
-// Covers the built-in modes users configure per member (Replace default,
-// Deep default for nested models, Append, SetUnion) and the custom
+// Covers the built-in modes users configure per member (explicit Replace,
+// Deep for nested models, Append, SetUnion; unconfigured members use
+// MergeMode.Default with the same type-dependent behavior) and the custom
 // FragmentMergeStrategy<T> extension point.
 public static class MergeStrategiesSamples
 {

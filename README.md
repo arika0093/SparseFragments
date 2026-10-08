@@ -89,19 +89,25 @@ See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, a
 
 Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
 
-Blazor edit sessions retain a baseline and derive the remaining change:
+`SparseEditSession` is synchronous editing against a retained baseline. It is not an async transport or conflict framework. Transport, persistence, and conflict decisions stay with the application:
 
 ```csharp
-var session = settings.CreateEditSession();
+var session = order.CreateEditSession();
+session.Model.Name = "Updated";
 
-session.Model.Label = "edited";
-var changes = session.CreateChangeSet();
+var submitted = session.CreateChangeSet();
+var response = await SendChangesAsync(submitted.ToPayload());
+if (response.IsSuccess)
+{
+    // Advances the baseline only. The live model is untouched,
+    // so edits made after CreateChangeSet stay pending.
+    session.AcceptChanges(submitted);
+}
 ```
 
-Writable reference models also support `Patch.ApplyInPlace` and async submit/rebase
-flows; local edits made while a request is pending are preserved or reported
-as conflicts. See [UI frameworks](docs/ui-frameworks.md) for submit response
-handling and notifications.
+`AcceptChanges()` without arguments captures the current model as the next baseline. `AcceptChanges(submitted)` advances the baseline by the submitted transition and keeps later edits pending. When additions carry server-assigned keys (for example several `Id = 0` rows), do not acknowledge the unassigned change set. Receive the persisted model or refetch it, create a fresh edit session, and refresh the UI and `EditContext`. No GUID auto-correlation or key remapping is provided. Where that refresh is not implemented, disable editing while a save is in flight.
+
+Writable reference models also support `Patch.ApplyInPlace` for identity-preserving local application. A `ChangeSet` has no `ApplyInPlace`; `ToPatch()` discards the before-state, so a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, and validation.
 
 Other UI frameworks can use generated `Observable` wrappers for change notification without adding binding infrastructure to the model itself.
 
@@ -193,8 +199,12 @@ The generated types answer different questions:
 | Type | Question | Typical use |
 | --- | --- | --- |
 | `Fragment` | Which values are provided? | Layers, overrides, partially supplied values |
-| `Patch` | What should change? | Commands and local edits |
-| `ChangeSet` | What changed from before to after? | Diff, serialization, undo, compose, rebase |
+| `Patch` | What should change? | Baseline-free commands and local edits |
+| `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
+| `ChangeSetPayload` | How does the change travel? | Transport-only typed versioned JSON (`"version": "0.1"`) |
+| `SparseEditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
+
+`Fragment` is presence-aware state and merge. `Patch` is baseline-free operations. `ChangeSet` is baseline-aware transitions plus conflict-aware rebase. `ChangeSetPayload` is transport only. `SparseEditSession` compares the retained baseline with the live model; it provides no transport or conflict framework.
 
 The distinction is visible in a small example:
 

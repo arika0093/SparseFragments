@@ -53,7 +53,7 @@ if (!changes.TryApplyTo(before, out var applied))
 | Structural sequence **with** a key | `List<Server>` where `Server` declares `[SparseKey]` | Keyed: add/remove/edit by element, reorder by key order |
 | Structural sequence **without** a key | `List<Server>` with no key declared | Generator error (`SPF011`): declare a key, or explicitly opt into `Replace`, `Append`, `SetUnion`, or a custom strategy on the member |
 
-An explicit `[SparseMerge(MergeMode.Replace)]` always selects whole-value semantics, even for a keyed list or a dictionary. This changes the generated Patch/ChangeSet shape and serialized wire format from per-key operations to a replacement value. The implicit default `Replace` still uses keyed operations when key metadata is available; key declarations continue to be validated even when explicit replacement is selected.
+An explicit `[SparseMerge(MergeMode.Replace)]` always selects whole-value semantics, even for a keyed list or a dictionary. This changes the generated Patch/ChangeSet shape and serialized wire format from per-key operations to a replacement value. The implicit `Default` still uses keyed operations when key metadata is available; key declarations continue to be validated even when explicit replacement is selected.
 
 A structural element is an element SparseFragments can patch through its generated member-level Fragment/Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
 
@@ -236,16 +236,33 @@ var after = new PendingFleet
     },
 };
 var changes = before.CreateChangeSet(after);
-// Send changes to the server, insert the added rows, and assign database IDs.
-// Once the server returns its authoritative state, accept it as the new baseline:
-// replace the local model with that state (or call the applicable AcceptChanges API).
+// Send changes.ToPayload() to the server; the server inserts the rows,
+// assigns database IDs, and may normalize or reorder them.
+// Do not acknowledge the unassigned transition with AcceptChanges.
+// Replace with the authoritative state and start a fresh session:
+var persisted = new PendingFleet
+{
+    Servers = new()
+    {
+        new PendingServer { Id = 11, Host = "client-1" },
+        new PendingServer { Id = 4, Host = "saved" },
+        new PendingServer { Id = 12, Host = "client-2" },
+    },
+};
+var session = persisted.CreateEditSession();
+// session.HasChanges == false
 ```
 <!-- /sample -->
 
 After the server inserts the rows and assigns their IDs, replace the client model
-with the authoritative returned state (or accept that state as the new baseline
-with the applicable `AcceptChanges` API). This ensures subsequent keyed edits use
-the assigned IDs rather than the sentinel.
+with the authoritative returned state (or refetch it) and create a fresh edit
+session from that state. Recreate the `EditContext` from the fresh session so
+field tracking restarts from the assigned IDs. This ensures subsequent keyed
+edits use the assigned IDs rather than the sentinel. `AcceptChanges` rejects a
+transition that would retain unassigned sentinels, so the unassigned change set
+itself is never acknowledged. No GUID auto-correlation or key remapping is
+provided. Where the authoritative refresh is not implemented, disable editing
+while a save is in flight.
 
 ## Observe Typed Collection Transitions
 

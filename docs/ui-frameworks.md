@@ -64,24 +64,52 @@ Writable reference-type models also generate `Fragment.WriteTo(model)` and
 the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>`
 properties retain their collection instance and have their contents replaced.
 Nested model values may be replaced. A model with init-only or constructor-only
-members keeps its normal edit-session APIs but cannot use in-place apply or
-submit; `BeginSubmit()` and `SubmitAsync()` throw `NotSupportedException`
+members keeps its normal edit-session APIs but cannot use in-place apply
 (see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
 
-For asynchronous persistence, `BeginSubmit()` captures the change set and
-snapshot being sent. `Complete(pending, response)` advances the baseline only
-after acceptance, or rebases edits onto server state when an accepted or
-rejected response supplies one. Local changes made during the request are
-preserved when they rebase cleanly; conflicting local values are not
-overwritten and are returned in `SparseSubmitResult.Conflicts`. `SubmitAsync`
-combines the lifecycle with an async send delegate. Send exceptions and
-cancellation leave the baseline unchanged and are rethrown. A second in-flight
-submit or completion of a stale handle throws `InvalidOperationException`.
-`Accepted()` and `Rejected(serverCurrent)` are response helpers.
+The session is synchronous. There is no async submit, transport, or conflict
+framework in `SparseEditSession`. The application sends the change set through
+its own transport, then acknowledges the submitted transition:
+
+```csharp
+var session = order.CreateEditSession();
+session.Model.Number = "Updated";
+
+var submitted = session.CreateChangeSet();
+var response = await SendChangesAsync(submitted.ToPayload());
+if (response.IsSuccess)
+{
+    // Advances the baseline only. The live model is untouched,
+    // so edits made after CreateChangeSet stay pending.
+    session.AcceptChanges(submitted);
+}
+```
+
+`AcceptChanges()` captures the current model as the next baseline.
+`AcceptChanges(submitted)` advances the retained baseline by that transition
+without touching the live model. The transition must match the retained
+baseline on every changed path; a stale or foreign change set is rejected with
+`InvalidOperationException` and the baseline stays unchanged. Send exceptions
+leave the baseline unchanged because acknowledgement never ran.
+
+When additions carry server-assigned keys, do not acknowledge the unassigned
+transition. `AcceptChanges` rejects a baseline advance that would retain
+unassigned sentinels. Instead, receive the persisted model or refetch it,
+create a fresh edit session, and recreate the `EditContext`:
+
+```csharp
+// Server persists the additions and assigns authoritative IDs.
+var persisted = await FetchPersistedOrderAsync();
+session = persisted.CreateEditSession();
+editContext = session.CreateEditContext();
+```
+
+No GUID auto-correlation or key remapping is provided. Normalization,
+reordering, and ID assignment are authoritative server state. Where that
+refresh is not implemented, disable editing while a save is in flight.
 
 The session implements `INotifyPropertyChanged`: `HasChanges` is raised after
-accept/complete operations and observable-proxy edits, while `IsSubmitting` is
-raised when the submit lifecycle starts or ends. Consumers re-read `HasChanges`
+accept operations and observable-proxy edits. Consumers re-read `HasChanges`
 instead of the session recomputing it for every model notification.
 
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()`
@@ -148,7 +176,7 @@ Blazor extension methods:
 | --- | --- |
 | `session.CreateEditContext()` | Creates a Blazor `EditContext` bound to `session.Model` |
 | `session.AcceptChanges(editContext)` | Calls the framework-neutral `AcceptChanges()` and clears the supplied context's modified flags |
-| `session.SubmitAsync(editContext, field, send)` | Submits and marks the context unmodified when no changes remain, otherwise notifies the supplied field |
+| `session.AcceptChanges(editContext, changes)` | Advances the baseline by the submitted change set; clears the context only when the session is clean, so later edits stay marked modified |
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
