@@ -86,6 +86,63 @@ public class DictionaryRemovalBuilderBenchmarks
                 "Dictionary removal builders must deduplicate removals, retain set cancellation, and preserve sources."
             );
         }
+        ValidateRemovalReinsertion();
+    }
+
+    private static void ValidateRemovalReinsertion()
+    {
+        var scalar = new BenchScalarDictHolder.Patch();
+        var structural = new BenchStructuralDictHolder.Patch();
+        var scores = new Dictionary<string, int>();
+        var servers = new Dictionary<string, BenchKeyedServer>();
+        var keys = new List<string>();
+        for (var candidate = 0; keys.Count < 64; candidate++)
+        {
+            var key = "probe-" + candidate;
+            if ((EqualityComparer<string>.Default.GetHashCode(key) & 127) == 0)
+            {
+                keys.Add(key);
+            }
+        }
+        for (var index = 0; index < 64; index++)
+        {
+            var key = keys[index];
+            scores.Add(key, index);
+            servers.Add(
+                key,
+                new()
+                {
+                    Id = key,
+                    Name = key,
+                    Count = index,
+                }
+            );
+            scalar.Scores.RemoveEntry(key);
+            structural.Servers.RemoveEntry(key);
+        }
+        scalar.Scores.SetEntry(keys[0], 0);
+        structural.Servers.SetEntry(keys[0], servers[keys[0]]);
+        scalar.Scores.RemoveEntry(keys[0]);
+        structural.Servers.RemoveEntry(keys[0]);
+        scalar.Scores.RemoveEntry(keys[0]);
+        structural.Servers.RemoveEntry(keys[0]);
+        var scalarBase = Optional<BenchScalarDictHolder.Fragment?>.Present(
+            BenchScalarDictHolder.Fragment.From(new() { Scores = scores })
+        );
+        var structuralBase = Optional<BenchStructuralDictHolder.Fragment?>.Present(
+            BenchStructuralDictHolder.Fragment.From(new() { Servers = servers })
+        );
+        if (
+            scalar.Apply(scalarBase).Value!.Scores.Value!.Count != 0
+            || structural.Apply(structuralBase).Value!.Servers.Value!.Count != 0
+            || scores.Count != 64
+            || servers.Count != 64
+        )
+        {
+            throw new InvalidOperationException(
+                "A cancelled removal must be insertable again after other removals are indexed."
+            );
+        }
     }
 
     [Benchmark]
