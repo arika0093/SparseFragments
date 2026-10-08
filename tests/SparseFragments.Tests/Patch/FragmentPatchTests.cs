@@ -123,4 +123,12 @@ public sealed class FragmentPatchTests
             .Apply(patch)
             .RetryCount.Value.ShouldBe(12);
     }
+
+    [Test]
+    public void GeneratedPatchDoesNotHaveJsonConverter()
+    {
+        typeof(Settings.Patch)
+            .GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonConverterAttribute), false)
+            .Length.ShouldBe(0);
+    }
 }

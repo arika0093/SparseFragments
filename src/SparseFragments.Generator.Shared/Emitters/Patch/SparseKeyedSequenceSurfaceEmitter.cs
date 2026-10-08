@@ -342,7 +342,6 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             facade,
             dialect
         );
-        SparsePatchStjEmitter.AppendKeyedStj(code, member, dialect);
         code.AppendLineAt(2, "}");
     }
 }

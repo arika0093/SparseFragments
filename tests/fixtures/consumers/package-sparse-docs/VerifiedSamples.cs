@@ -249,10 +249,6 @@ public static class VerifiedSamples
             CounterSettings.Patch.Between(restored.ToPatch().Apply(start), finish).IsEmpty,
             "deserialized ChangeSet replays the transition");
 
-        var patchJson = JsonSerializer.Serialize(new CounterSettings.Patch { Label = "b" });
-        var patchBack = JsonSerializer.Deserialize<CounterSettings.Patch>(patchJson)!;
-        // patchBack.Label == "b"
-        DocsCheck.Require(patchBack.Label.Value == "b", "deserialized Patch keeps the operation");
         // /sample
     }
 

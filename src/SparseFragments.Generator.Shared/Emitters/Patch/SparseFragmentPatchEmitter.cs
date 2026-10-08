@@ -141,7 +141,6 @@ internal static class SparseFragmentPatchEmitter
     )
     {
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
-        SparsePatchStjEmitter.AppendPatchConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
         SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect);
@@ -172,7 +171,6 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(2, "}");
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members, dialect);
-        SparsePatchStjEmitter.AppendPatchStj(code, members, dialect);
         code.AppendLineAt(1, "}");
         SparseChangeSetEmitter.AppendChangeSet(code, members, dialect, modelType);
     }

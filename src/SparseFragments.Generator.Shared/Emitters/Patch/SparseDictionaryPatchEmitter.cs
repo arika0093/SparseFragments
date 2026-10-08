@@ -100,7 +100,6 @@ internal static class SparseDictionaryPatchEmitter
             editedValueType,
             dialect
         );
-        SparsePatchStjEmitter.AppendDictionaryStj(code, member, dialect);
         code.AppendLineAt(2, "}");
     }
 

@@ -75,7 +75,7 @@ var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
 
 ## Apply Explicit Edits with Patch
 
-`new X.Patch { ... }` expresses edits directly: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch with `Apply`. A Patch is mutable and baseline-free: it carries desired operations without saying which state they were derived from. Patch JSON encodes this operation with the `"remove"` kind.
+`new X.Patch { ... }` expresses edits directly: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch with `Apply`. A Patch is mutable and baseline-free: it carries desired operations without saying which state they were derived from.
 
 <!-- sample: core-patch -->
 ```csharp
@@ -284,10 +284,6 @@ var changes = CounterSettings.ChangeSet.Between(start, finish);
 var json = JsonSerializer.Serialize(changes.ToPayload());
 var restored = JsonSerializer.Deserialize<CounterSettings.ChangeSetPayload>(json)!.ToChangeSet();
 // restored.ToPatch().Apply(start) replays finish
-
-var patchJson = JsonSerializer.Serialize(new CounterSettings.Patch { Label = "b" });
-var patchBack = JsonSerializer.Deserialize<CounterSettings.Patch>(patchJson)!;
-// patchBack.Label == "b"
 ```
 <!-- /sample -->
 
