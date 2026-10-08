@@ -94,7 +94,8 @@ internal static class SparseChangeSetEmitter
             prefix,
             rebase,
             between,
-            dialect
+            dialect,
+            modelType
         );
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
         SparsePatchStjEmitter.AppendChangeSetStj(code, members, dialect);

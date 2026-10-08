@@ -31,7 +31,8 @@ internal static class SparseChangeSetRebaseEmitter
         string prefix,
         string rebase,
         string between,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType
     )
     {
         _ = between;
@@ -390,6 +391,33 @@ internal static class SparseChangeSetRebaseEmitter
             AppendPragmaRestoreNullKey(code, 3);
         code.AppendLineAt(3, "return new " + rebaseResult + "(__rebased, __conflicts);");
         code.AppendLineAt(2, "}");
+        if (modelType is not null)
+        {
+            AppendModelRebase(code, modelType, optionalFragment, rebaseResult);
+        }
+    }
+
+    private static void AppendModelRebase(
+        SharedIndentedBuilder code,
+        string modelType,
+        string optionalFragment,
+        string rebaseResult
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Rebases this change onto an ordinary model.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public "
+                + rebaseResult
+                + " RebaseOnto("
+                + modelType
+                + " current) => RebaseOnto("
+                + optionalFragment
+                + ".Present(Fragment.From(current)));"
+        );
     }
 
     /// <summary>
