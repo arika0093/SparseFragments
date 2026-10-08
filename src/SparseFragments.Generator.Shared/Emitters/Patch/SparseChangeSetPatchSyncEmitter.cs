@@ -333,7 +333,8 @@ internal static class SparseChangeSetPatchSyncEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string escName,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? removalCountExpression = null
     )
     {
         var id = member.Id;
@@ -395,7 +396,11 @@ internal static class SparseChangeSetPatchSyncEmitter
             code.AppendLineAt(7, "{");
             code.AppendLineAt(
                 8,
-                "__coll" + id + ".__SparseReserveRemovals(__SparseRemovalCount" + id + "());"
+                "__coll"
+                    + id
+                    + ".__SparseReserveRemovals("
+                    + (removalCountExpression ?? "__SparseRemovalCount" + id + "()")
+                    + ");"
             );
             code.AppendLineAt(8, "__reservedRemovals" + id + " = true;");
             code.AppendLineAt(7, "}");

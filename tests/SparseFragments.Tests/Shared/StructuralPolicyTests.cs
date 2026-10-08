@@ -54,7 +54,9 @@ public sealed class StructuralPolicyTests
                 "SPF020",
                 "SPF021",
                 "SPF022",
-                "SPF023"
+                "SPF023",
+                "SPF027",
+                "SPF028"
             ),
             HintNameSuffix: ".SparseFragments.g.cs",
             PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -365,7 +367,9 @@ public sealed class StructuralPolicyTests
                 "DWN020",
                 "DWN021",
                 "DWN022",
-                "DWN023"
+                "DWN023",
+                "DWN027",
+                "DWN028"
             ),
             HintNameSuffix: ".Downstream.g.cs",
             PromotedHintNameSuffix: ".DownstreamPromoted.g.cs",

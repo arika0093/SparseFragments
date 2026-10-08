@@ -26,9 +26,11 @@ internal static class SparseChangeSetEmitter
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        ImmutableArray<string> ignoredSettablePropertyNames
+        ImmutableArray<string> ignoredSettablePropertyNames,
+        SparseEmissionFeatures? features = null
     )
     {
+        var plan = features ?? SparseEmissionFeatures.Standalone;
         var runtime = dialect.RuntimeNamespace;
         var optionalFragment = runtime + "Optional<Fragment?>";
         var rebaseResult = dialect.RebaseResult("ChangeSet");
@@ -99,11 +101,17 @@ internal static class SparseChangeSetEmitter
         // ChangeSet stays baseline-aware: blind in-place overwrite must be
         // spelled explicitly via ToPatch().ApplyInPlace, never implicitly here.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
-        SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
-        SparseChangeSetPayloadEmitter.AppendFromPayload(code, members, dialect, modelType);
+        if (plan.EmitChangePayload)
+        {
+            SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
+            SparseChangeSetPayloadEmitter.AppendFromPayload(code, members, dialect, modelType);
+        }
         code.AppendLineAt(1, "}");
         code.AppendLine();
-        SparseChangeSetPayloadEmitter.AppendPayload(code, members, dialect, modelType);
+        if (plan.EmitChangePayload)
+        {
+            SparseChangeSetPayloadEmitter.AppendPayload(code, members, dialect, modelType);
+        }
     }
 
     internal static void ComputePublicNames(

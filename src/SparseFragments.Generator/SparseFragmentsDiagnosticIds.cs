@@ -28,4 +28,6 @@ internal static class SparseFragmentsDiagnosticIds
     public const string InvalidUnassignedKey = "SPF024";
     public const string UnsupportedUnassignedKey = "SPF025";
     public const string InPlaceWriteUnavailable = "SPF026";
+    public const string InvalidEmissionPlan = "SPF027";
+    public const string UnknownProductMember = "SPF028";
 }

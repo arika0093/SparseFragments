@@ -20,6 +20,13 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadRoot = PayloadName(modelType, "Root");
         var payloadChange = PayloadName(modelType, "Change");
         var variants = members.Where(static member => !member.Property.IsJsonIgnored).ToArray();
+        // Write-only members never appear in the read projection; their
+        // transport variants below still carry the command after-state.
+        var readable = variants
+            .Where(member =>
+                dialect.GetTransport(member.Property.Name) != SparseMemberTransport.WriteOnly
+            )
+            .ToArray();
 
         code.AppendLineAt(
             1,
@@ -47,6 +54,15 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayloadCore(this);"
             );
+        if (modelType is not null && SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            SparseChangeSetPayloadProjectionEmitter.AppendCoreToPatch(
+                code,
+                members,
+                dialect,
+                modelType
+            );
+        }
         code.AppendLineAt(1, "}");
         code.AppendLine();
         code.AppendLineAt(
@@ -79,6 +95,12 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayload(this);"
             );
+            SparseChangeSetPayloadProjectionEmitter.AppendRootToPatch(
+                code,
+                members,
+                dialect,
+                modelType
+            );
         }
         code.AppendLineAt(1, "}");
         code.AppendLine();
@@ -99,7 +121,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(2, "public static " + payloadRoot + " FromFragment(Fragment value)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
         {
             var property = SparseNaming.EscapeIdentifier(member.Property.Name);
             if (SparseChangeSetBasicsEmitter.IsNested(member))
@@ -158,7 +180,7 @@ internal static class SparseChangeSetPayloadEmitter
             3,
             "if (Members is null) throw new global::System.ArgumentException(\"Root members must not be null.\", nameof(Members));"
         );
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
         {
             var valueType = SparseChangeSetBasicsEmitter.IsNested(member)
                 ? member.ChildFragmentType + "?"
@@ -177,13 +199,13 @@ internal static class SparseChangeSetPayloadEmitter
                     + ">.Missing;"
             );
         }
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
             code.AppendLineAt(3, "bool seen" + member.Id + " = false;");
         code.AppendLineAt(3, "foreach (var member in Members)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "switch (member)");
         code.AppendLineAt(4, "{");
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
         {
             code.AppendLineAt(5, "case " + payloadChange + member.Id + " item:");
             code.AppendLineAt(
@@ -236,7 +258,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return new Fragment");
         code.AppendLineAt(3, "{");
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
             code.AppendLineAt(
                 4,
                 SparseNaming.EscapeIdentifier(member.Property.Name)
@@ -340,15 +362,28 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "payload.Changes.Add(new "
-                + rootChange
-                + " { Before = __SparsePayloadRoot(__sparse_wholeBefore), After = __SparsePayloadRoot(__sparse_wholeAfter) });"
-        );
-        code.AppendLineAt(4, "return payload;");
+        if (SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            // Whole-root snapshots would leak undisclosed before-state through
+            // a different path, so they are refused while policies apply.
+            code.AppendLineAt(
+                4,
+                "throw new global::System.InvalidOperationException(\"A whole-root transition cannot be serialized while member transport policies apply.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "payload.Changes.Add(new "
+                    + rootChange
+                    + " { Before = __SparsePayloadRoot(__sparse_wholeBefore), After = __SparsePayloadRoot(__sparse_wholeAfter) });"
+            );
+            code.AppendLineAt(4, "return payload;");
+        }
         code.AppendLineAt(3, "}");
 
+        SparseDownstreamPolicy.ThrowOnInvalidTransport(members, dialect);
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
         {
             var id = member.Id;
@@ -492,24 +527,44 @@ internal static class SparseChangeSetPayloadEmitter
                 code.AppendLineAt(3, "if (" + SparseChangeSetBasicsEmitter.HasField(member) + ")");
                 code.AppendLineAt(3, "{");
                 var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
-                code.AppendLineAt(
-                    4,
-                    "payload.Changes.Add(new "
-                        + variant
-                        + " { Before = "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional("
-                        + SparseChangeSetBasicsEmitter.BeforeField(member)
-                        + "), After = "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional("
-                        + SparseChangeSetBasicsEmitter.AfterField(member)
-                        + ") });"
-                );
+                if (dialect.GetTransport(member.Property.Name) == SparseMemberTransport.Full)
+                {
+                    code.AppendLineAt(
+                        4,
+                        "payload.Changes.Add(new "
+                            + variant
+                            + " { Before = "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.BeforeField(member)
+                            + "), After = "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.AfterField(member)
+                            + ") });"
+                    );
+                }
+                else
+                {
+                    // Transport policy: the before-state stays undisclosed and
+                    // the after-state travels alone. Never fabricate a missing.
+                    code.AppendLineAt(
+                        4,
+                        "payload.Changes.Add(new "
+                            + variant
+                            + " { After = "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.AfterField(member)
+                            + ") });"
+                    );
+                }
                 code.AppendLineAt(3, "}");
             }
         }
@@ -581,6 +636,7 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadRoot = PayloadName(modelType, "Root");
         var rootChange = PayloadName(modelType, "RootChange");
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangeSetPayloadVersion, true);
+        SparseDownstreamPolicy.ThrowOnInvalidTransport(members, dialect);
         code.AppendLineAt(
             2,
             "/// <summary>Converts a validated root envelope to a change set.</summary>"
@@ -621,12 +677,23 @@ internal static class SparseChangeSetPayloadEmitter
             4,
             "if (whole.Before is null || whole.After is null) throw new global::System.ArgumentException(\"A whole-root payload must contain both endpoints.\", nameof(payload));"
         );
-        code.AppendLineAt(
-            4,
-            "return new ChangeSet(true, __SparsePayloadFragment(whole.Before), __SparsePayloadFragment(whole.After), "
-                + SparseChangeSetBasicsEmitter.MemberEmptyTail(members)
-                + ");"
-        );
+        if (SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            // A whole-root snapshot cannot prove redacted paths complete.
+            code.AppendLineAt(
+                4,
+                "throw new global::System.ArgumentException(\"A redacted payload cannot be converted to a complete ChangeSet. Use ToPatch() for the baseline-free projection.\", nameof(payload));"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "return new ChangeSet(true, __SparsePayloadFragment(whole.Before), __SparsePayloadFragment(whole.After), "
+                    + SparseChangeSetBasicsEmitter.MemberEmptyTail(members)
+                    + ");"
+            );
+        }
         code.AppendLineAt(3, "}");
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
         {
@@ -705,7 +772,12 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(4, "{");
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
         {
-            AppendFromPayloadCase(code, member, modelType);
+            SparseChangeSetPayloadRestoreEmitter.AppendFromPayloadCase(
+                code,
+                member,
+                dialect,
+                modelType
+            );
         }
         code.AppendLineAt(
             5,
@@ -800,117 +872,6 @@ internal static class SparseChangeSetPayloadEmitter
                 + "Optional<Fragment?>.Present(root.Value?.ToFragment());"
         );
         code.AppendLineAt(2, "}");
-    }
-
-    private static void AppendFromPayloadCase(
-        SharedIndentedBuilder code,
-        SparseMemberModel member,
-        string? modelType
-    )
-    {
-        var id = member.Id;
-        var variant = PayloadName(modelType, "Change") + id;
-        code.AppendLineAt(5, "case " + variant + " item:");
-        code.AppendLineAt(
-            6,
-            "if (__payloadSeen"
-                + id
-                + ") throw new global::System.ArgumentException(\"A payload cannot contain duplicate member changes.\", nameof(payload));"
-        );
-        code.AppendLineAt(6, "__payloadSeen" + id + " = true;");
-        if (SparseChangeSetBasicsEmitter.IsNested(member))
-        {
-            code.AppendLineAt(
-                6,
-                "if (item.Nested is null) throw new global::System.ArgumentException(\"Nested payload is required.\", nameof(payload));"
-            );
-            code.AppendLineAt(6, "__payloadNested" + id + " = item.Nested.ToChangeSetCore();");
-            code.AppendLineAt(6, "break;");
-        }
-        else if (
-            SparseChangeSetBasicsEmitter.IsKeyed(member)
-            || SparseChangeSetBasicsEmitter.IsDict(member)
-        )
-        {
-            var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
-            code.AppendLineAt(6, "__payloadHas" + id + " = true;");
-            code.AppendLineAt(
-                6,
-                "if (item.Items is null) throw new global::System.ArgumentException(\"Payload item changes must not be null.\", nameof(payload));"
-            );
-            code.AppendLineAt(6, "if (item.Before is not null || item.After is not null)");
-            code.AppendLineAt(6, "{");
-            code.AppendLineAt(
-                7,
-                "if (item.Before is null || item.After is null || item.Items.Count != 0) throw new global::System.ArgumentException(\"A whole collection payload must contain both endpoints and no item changes.\", nameof(payload));"
-            );
-            code.AppendLineAt(7, "__payloadWhole" + id + " = true;");
-            code.AppendLineAt(7, "__payloadBefore" + id + " = item.Before.ToOptional();");
-            code.AppendLineAt(7, "__payloadAfter" + id + " = item.After.ToOptional();");
-            code.AppendLineAt(6, "}");
-            code.AppendLineAt(6, "else");
-            code.AppendLineAt(6, "{");
-            code.AppendLineAt(
-                7,
-                "var __payloadSeenKeys"
-                    + id
-                    + " = new global::System.Collections.Generic.HashSet<"
-                    + keyType
-                    + ">();"
-            );
-            code.AppendLineAt(7, "foreach (var changeItem in item.Items)");
-            code.AppendLineAt(7, "{");
-            code.AppendLineAt(
-                8,
-                "if (changeItem is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
-            );
-            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
-            {
-                code.AppendLineAt(
-                    8,
-                    "if (!"
-                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(
-                            member,
-                            "changeItem.Key"
-                        )
-                        + " && !__payloadSeenKeys"
-                        + id
-                        + ".Add(changeItem.Key)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    8,
-                    "if (!__payloadSeenKeys"
-                        + id
-                        + ".Add(changeItem.Key)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
-                );
-            }
-            code.AppendLineAt(
-                8,
-                "__payloadItems" + id + ".Add(__SparsePayloadItem" + id + "(changeItem));"
-            );
-            code.AppendLineAt(7, "}");
-            if (SparseChangeSetBasicsEmitter.IsKeyed(member))
-            {
-                code.AppendLineAt(7, "__payloadBeforeOrder" + id + " = item.BeforeOrder;");
-                code.AppendLineAt(7, "__payloadAfterOrder" + id + " = item.AfterOrder;");
-            }
-            code.AppendLineAt(6, "}");
-            code.AppendLineAt(6, "break;");
-        }
-        else
-        {
-            code.AppendLineAt(
-                6,
-                "if (item.Before is null || item.After is null) throw new global::System.ArgumentException(\"Both transition endpoints are required.\", nameof(payload));"
-            );
-            code.AppendLineAt(6, "__payloadHas" + id + " = true;");
-            code.AppendLineAt(6, "__payloadBefore" + id + " = item.Before.ToOptional();");
-            code.AppendLineAt(6, "__payloadAfter" + id + " = item.After.ToOptional();");
-            code.AppendLineAt(6, "break;");
-        }
     }
 
     internal static string PayloadName(string? modelType, string suffix)

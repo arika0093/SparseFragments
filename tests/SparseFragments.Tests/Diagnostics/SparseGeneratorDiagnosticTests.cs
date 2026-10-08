@@ -613,6 +613,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF024"] = "#spf024-invalid-unassigned-key-sentinel",
             ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
             ["SPF026"] = "#spf026-in-place-submit-is-unavailable",
+            ["SPF027"] = "#spf027-invalid-downstream-emission-plan",
+            ["SPF028"] = "#spf028-unknown-product-member",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
@@ -623,8 +625,9 @@ public sealed class SparseGeneratorDiagnosticTests
         foreach (var (id, anchor) in expected)
         {
             var descriptor = descriptors[id];
-            descriptor
-                .DefaultSeverity.ShouldBe(id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error);
+            descriptor.DefaultSeverity.ShouldBe(
+                id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error
+            );
             descriptor.Category.ShouldBe("SparseFragments");
             descriptor.HelpLinkUri.ShouldBe(
                 "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md" + anchor
@@ -653,7 +656,9 @@ public sealed class SparseGeneratorDiagnosticTests
         info.Location.IsInSource.ShouldBeTrue();
         sources.ShouldNotBeEmpty();
         sources
-            .Any(static generated => generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal))
+            .Any(static generated =>
+                generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal)
+            )
             .ShouldBeFalse();
     }
 
@@ -923,7 +928,8 @@ public sealed class SparseGeneratorDiagnosticTests
             """;
         var (diagnostics, sources) = Run(source);
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
-        sources.Any(s => s.HintName.Contains("IgnoredJsonNameModel", StringComparison.Ordinal))
+        sources
+            .Any(s => s.HintName.Contains("IgnoredJsonNameModel", StringComparison.Ordinal))
             .ShouldBeTrue();
     }
 }

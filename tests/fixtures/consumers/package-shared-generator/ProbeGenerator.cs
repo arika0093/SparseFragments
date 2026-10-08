@@ -9,7 +9,9 @@ namespace PackageShared.Generator;
 /// Package-only downstream generator probe (#70).
 /// Exercises representative Shared categories so a missing Shared source file
 /// fails compilation: model/collection analysis, IR/model types, naming
-/// infrastructure, and emitter/helpers. All Shared sources arrive via the
+/// infrastructure, emitter/helpers, and the downstream policy/config surface
+/// (#121: feature selection, member transport and rebase policies, write
+/// contracts). All Shared sources arrive via the
 /// SparseFragments.Generator.Shared NuGet package (contentFiles +
 /// build/SparseFragments.Generator.Shared.props); there is no sibling-source
 /// fallback in PackageShared.Generator.csproj.
@@ -84,6 +86,20 @@ internal static class ProbeSurface
             typeof(SparseModelAnalyzer),
         };
 
+        // Downstream product contract (issue #121): feature selection, member
+        // transport and rebase policies, and write contracts. Touching these
+        // types keeps the probe covering the policy/config surface.
+        var features = SparseEmissionFeatures.Standalone;
+        var transport = SparseMemberTransport.RedactedBefore;
+        var memberPolicy = new SparseMemberPolicy("Secret", transport);
+        var rebase = new SparseRebasePolicy(SparseRedactedBeforeBehavior.Passthrough);
+        var write = new SparseWriteContract(
+            "global::PackageShared.WriteCmd",
+            ImmutableArray.Create(new SparseWriteMember("Secret", "NewSecret"))
+        );
+        var dependencyErrors = features.ValidateDependencies();
+        var emittedNames = features.GetEmittedTypeNames();
+
         // Emitter/helpers (Emitters/, Infrastructure/).
         var code = new SharedIndentedBuilder(cancellationToken);
         SparseFragmentEmitHelpers.AppendNullGuard(code, 1, "value");
@@ -123,6 +139,21 @@ internal static class ProbeSurface
             "// analysis=" + analysisTypes.Length + " incremental=" + incrementalTypes.Length
         );
         code.AppendLineAt(0, "// observable=" + observable + " collection=" + collection.Kind);
+        code.AppendLineAt(
+            0,
+            "// policy="
+                + memberPolicy.MemberName
+                + ":"
+                + memberPolicy.Transport
+                + " rebase="
+                + rebase.RedactedBefore
+                + " write="
+                + write.WriteModelType
+                + " deps="
+                + dependencyErrors.Length
+                + " emitted="
+                + emittedNames.Length
+        );
         return code.ToString();
     }
 }

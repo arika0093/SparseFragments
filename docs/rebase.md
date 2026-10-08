@@ -203,8 +203,20 @@ A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own t
 * the default implementation succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
 
-## No Revision History Required
+## Redacted Before-States
 
+This section is an explanation. It defines how undisclosed before-states behave.
+
+Some members must travel without their previous value, such as a write-only
+command field. Redaction is a transport policy, not a missing state: the
+in-memory `ChangeSet` stays complete and baseline-aware, while the payload
+omits the before-state and keeps the required after-state. A redacted payload
+cannot convert to a complete `ChangeSet`; project it with the payload `ToPatch()`
+instead, which applies the requested after-state without historical comparison,
+as for an explicit patch set. A strict rebase policy is available to downstream
+generators to refuse such projections. The wire version token stays `"0.1"`.
+
+## No Revision History Required
 This section is an explanation. It separates ChangeSet state from persistence concerns.
 
 Semantic rebase does not require SparseFragments to retain a Git-like revision history. Three things stay distinct:

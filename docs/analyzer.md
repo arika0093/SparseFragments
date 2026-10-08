@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF026)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF028)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -31,6 +31,8 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF024](#spf024-invalid-unassigned-key-sentinel) | Invalid unassigned key sentinel | Error |
 | [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
 | [SPF026](#spf026-in-place-submit-is-unavailable) | In-place submit is unavailable | Info |
+| [SPF027](#spf027-invalid-downstream-emission-plan) | Invalid downstream emission plan | Error |
+| [SPF028](#spf028-unknown-product-member) | Unknown product member | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -333,3 +335,22 @@ public partial class Widget
 * Message: `Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission`
 * Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo` and `Patch.ApplyInPlace`) are omitted or unavailable.
 * Fix: Make all members writable when in-place application is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.
+
+## SPF027: Invalid downstream emission plan
+
+* Message: `Invalid emission plan: {0}`
+* Cause: The owning generator selected an incoherent feature set (for example a
+  change set without its patch), or applied a redacted or write-only transport
+  policy to a member that cannot carry one. Only scalar members accept
+  non-full transports; nested members recurse through the child model's own
+  member names, and keyed or dictionary members keep full disclosure.
+* Fix: Enable the required feature families together, or move the transport
+  policy to a scalar member.
+
+## SPF028: Unknown product member
+
+* Message: `Product policy references unknown member '{0}'`
+* Cause: A member transport policy or write-contract mapping names a member
+  that the analyzed model does not declare.
+* Fix: Correct the member name in the product generator configuration so it
+  matches the source member name exactly.

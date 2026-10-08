@@ -68,6 +68,60 @@ different public vocabulary should not expose the standalone API shape; they
 should reuse the shared analysis and focused emitters to write their own surface
 and inject only product-owned extensions.
 
+## Emission features
+
+`SparseEmissionFeatures` selects which generated families appear for a model:
+`Fragment`, `Patch`, `ChangeSet`, `ChangePayload`, `Observable`, and JSON
+converters. Set it on `SparseGeneratorConfig.EmissionFeatures`. The standalone
+default emits every family; downstream products opt out explicitly so unused
+public APIs are not generated. Selections are validated before emission:
+a patch requires its fragment, a change set requires its patch, and a payload
+requires its change set. `GetEmittedTypeNames` lists the family root names used
+for collision checks.
+
+## Member transport and rebase policies
+
+`SparseMemberPolicy` assigns a transport to one member by name:
+`Full` (default), `RedactedBefore`, or `WriteOnly`. Configure policies on
+`SparsePatchDialect.MemberPolicies`. Redaction is a transport policy, not a
+missing state: in-memory change sets stay complete and baseline-aware, while
+the payload omits the undisclosed before-state and keeps the required
+after-state. Only scalar members accept non-full transports. A redacted payload
+cannot convert to a complete `ChangeSet`; the generated `ToPatchCore()` and
+`ToPatch()` projection is the explicit baseline-discarding alternative.
+Whole-root transitions and payloads are refused while any member transport
+policy applies, so undisclosed before-state cannot leak through a whole
+snapshot from a nested model.
+
+`SparseRebasePolicy` selects how redacted-before operations project:
+`Passthrough` (default) applies the requested after-state without historical
+comparison, as for an explicit patch set; `StrictFail` refuses instead. The
+wire version token stays `"0.1"`. Write-only members additionally stay out of
+the fragment read projection.
+
+## Write contracts
+
+`SparseWriteContract` targets a write command separately from the read
+projection. Set `SparsePatchDialect.WriteContract` with the fully qualified
+write-command type and optional read-to-write member mappings; unmapped members
+keep their name. Shared emits a `WriteTo` overload for that type which projects
+sparse state into an existing instance. It never assumes the read and write
+shapes are the same CLR model, and construction plus domain mapping stay
+downstream. Without a contract no write overload is emitted.
+
+## Product surface and name validation
+
+Declared product type names go in
+`SparseGeneratorConfig.ProductExtensionNames`. Analysis reports
+`InvalidEmissionPlan` for incoherent feature selections and non-scalar
+transport policies, `UnknownProductMember` for policy or mapping names that
+match no analyzed member, and `GeneratedNameCollision` for product names that
+shadow reserved or emitted family names. Product interfaces, methods,
+metadata, hint names, and diagnostics travel through the existing facilities:
+the `appendProductExtensions` callback plus the config-owned attribute,
+diagnostic ID, hint, and structural-host names. No generic plugin mechanism or
+free-form body replacement is provided.
+
 `SparseFragments.Generator` itself keeps compiling the sibling Shared sources
 directly in-repo via a `Compile` glob in
 `src/SparseFragments.Generator/SparseFragments.Generator.csproj`. That in-repo
