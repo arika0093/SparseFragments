@@ -106,41 +106,19 @@ internal static class SparseChangeSetDictBetweenEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var __beforeDict"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">((global::System.Collections.Generic.IDictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">)__before"
-                + id
-                + ".Value!, "
-                + comparer
-                + ");"
+        AppendNormalizedInput(
+            code,
+            "__beforeDict" + id,
+            "__before" + id + ".Value!",
+            keyType,
+            valueType
         );
-        code.AppendLineAt(
-            5,
-            "var __afterDict"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">((global::System.Collections.Generic.IDictionary<"
-                + keyType
-                + ", "
-                + valueType
-                + ">)__after"
-                + id
-                + ".Value!, "
-                + comparer
-                + ");"
+        AppendNormalizedInput(
+            code,
+            "__afterDict" + id,
+            "__after" + id + ".Value!",
+            keyType,
+            valueType
         );
         if (hasPatch)
         {
@@ -473,5 +451,58 @@ internal static class SparseChangeSetDictBetweenEmitter
         }
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendNormalizedInput(
+        SharedIndentedBuilder code,
+        string target,
+        string source,
+        string keyType,
+        string valueType
+    )
+    {
+        var dictionary =
+            "global::System.Collections.Generic.Dictionary<" + keyType + ", " + valueType + ">";
+        var comparer =
+            "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
+        var native = target + "Native";
+        // Between only reads these maps. Other comparers still need default-key normalization.
+        code.AppendLineAt(
+            5,
+            "var "
+                + target
+                + " = "
+                + source
+                + " is "
+                + dictionary
+                + " "
+                + native
+                + " && "
+                + native
+                + ".GetType() == typeof("
+                + dictionary
+                + ")"
+                + " && (global::System.Object.ReferenceEquals("
+                + native
+                + ".Comparer, "
+                + comparer
+                + ")"
+                + " || global::System.Object.ReferenceEquals("
+                + native
+                + ".Comparer, global::System.StringComparer.Ordinal))"
+                + " ? "
+                + native
+                + " : new "
+                + dictionary
+                + "((global::System.Collections.Generic.IDictionary<"
+                + keyType
+                + ", "
+                + valueType
+                + ">)"
+                + source
+                + ", "
+                + comparer
+                + ");"
+        );
     }
 }
