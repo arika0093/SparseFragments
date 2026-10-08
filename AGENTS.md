@@ -45,6 +45,7 @@ It is a **source-only package** compiled into the consuming generator, and downs
 - **Before writing or editing any documentation or prose (README, `docs/`, XML docs, issue/PR text), you MUST read the writing guideline first**.
   - https://github.com/blader/humanizer/blob/main/SKILL.md (remove AI writing patterns)
   - https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d (Japanese technical writing norms)
+  - https://github.com/effector/patronum/blob/main/.cursor/.agents/skills/writing-documentation-with-diataxis/SKILL.md (Diátaxis framework)
   - Do not paraphrase it into this file; follow the original.
 - Apply it to every documentation, apply the same principles.
 - Existing docs are English. Keep the language of the file you edit.
