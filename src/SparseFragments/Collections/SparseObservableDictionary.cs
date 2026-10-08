@@ -26,6 +26,9 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
     private readonly Dictionary<object, ProxyEntry> _proxies = new(
         SparseReferenceEqualityComparer.Instance
     );
+    private static readonly PropertyChangedEventArgs CountChanged = new(nameof(Count));
+    private static readonly PropertyChangedEventArgs ItemChanged = new("Item[]");
+    private int _notificationVersion;
     private bool _disposed;
 
     /// <summary>Creates a notifying view over a live mutable dictionary.</summary>
@@ -90,9 +93,11 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
     public void AddModel(TKey key, TModel value)
     {
         ThrowIfDisposed();
+        var before = _notificationVersion;
         _model.Add(key, value);
-        if (_model is not INotifyCollectionChanged)
+        if (before == _notificationVersion)
         {
+            // Pure addition cannot orphan cached proxies, so no prune is needed.
             RaiseCollectionChanged(
                 new NotifyCollectionChangedEventArgs(
                     NotifyCollectionChangedAction.Add,
@@ -114,10 +119,11 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
             return;
         }
 
+        var before = _notificationVersion;
         _model.Clear();
-        PruneProxies();
-        if (_model is not INotifyCollectionChanged)
+        if (before == _notificationVersion)
         {
+            DeactivateAll();
             RaiseCollectionChanged(
                 new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
             );
@@ -161,15 +167,18 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         }
 
         var oldView = Wrap(oldValue);
+        var before = _notificationVersion;
         var removed = _model.Remove(key);
         if (!removed)
         {
             return false;
         }
 
-        PruneProxies();
-        if (_model is not INotifyCollectionChanged)
+        if (before == _notificationVersion)
         {
+            // Only the evicted value can go stale; a duplicate reference still
+            // present under another key keeps its proxy alive.
+            PruneRemoved(oldValue);
             RaiseCollectionChanged(
                 new NotifyCollectionChangedEventArgs(
                     NotifyCollectionChangedAction.Remove,
@@ -214,12 +223,7 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
             notifying.CollectionChanged -= OnModelCollectionChanged;
         }
 
-        foreach (var entry in _proxies.Values)
-        {
-            entry.Active = false;
-        }
-
-        _proxies.Clear();
+        DeactivateAll();
     }
 
     private void Set(TKey key, TModel value)
@@ -239,10 +243,15 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         }
 
         var oldView = existed ? Wrap(oldValue!) : default;
+        var before = _notificationVersion;
         _model[key] = value;
-        PruneProxies();
-        if (_model is not INotifyCollectionChanged)
+        if (before == _notificationVersion)
         {
+            if (existed)
+            {
+                PruneRemoved(oldValue!);
+            }
+
             RaiseCollectionChanged(
                 existed
                     ? new NotifyCollectionChangedEventArgs(
@@ -266,7 +275,18 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         }
 
         var converted = ConvertArgs(args);
-        PruneProxies();
+        switch (args.Action)
+        {
+            case NotifyCollectionChangedAction.Remove:
+            case NotifyCollectionChangedAction.Replace:
+                PrunePairs(args.OldItems);
+                break;
+            case NotifyCollectionChangedAction.Reset:
+                PruneStale();
+                break;
+            // Add only introduces models, so cached proxies stay live.
+        }
+
         RaiseCollectionChanged(converted);
     }
 
@@ -309,14 +329,25 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         };
     }
 
-    private List<KeyValuePair<TKey, TView>>? ConvertItems(IList? items) =>
-        items
-            ?.Cast<KeyValuePair<TKey, TModel>>()
-            .Select(pair => new KeyValuePair<TKey, TView>(pair.Key, Wrap(pair.Value)))
-            .ToList();
+    private List<KeyValuePair<TKey, TView>>? ConvertItems(System.Collections.IList? items)
+    {
+        if (items is null)
+        {
+            return null;
+        }
+
+        var converted = new List<KeyValuePair<TKey, TView>>(items.Count);
+        foreach (KeyValuePair<TKey, TModel> pair in items)
+        {
+            converted.Add(new KeyValuePair<TKey, TView>(pair.Key, Wrap(pair.Value)));
+        }
+
+        return converted;
+    }
 
     private void RaiseCollectionChanged(NotifyCollectionChangedEventArgs args)
     {
+        _notificationVersion++;
         if (
             args.Action
             is NotifyCollectionChangedAction.Add
@@ -324,10 +355,10 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
                 or NotifyCollectionChangedAction.Reset
         )
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+            PropertyChanged?.Invoke(this, CountChanged);
         }
 
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));
+        PropertyChanged?.Invoke(this, ItemChanged);
         CollectionChanged?.Invoke(this, args);
         _onChanged();
     }
@@ -360,21 +391,107 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         return entry.View;
     }
 
-    private bool IsPresent(TModel item) => _model.Values.Any(value => ReferenceEquals(value, item));
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit scan avoids the LINQ Any delegate allocation on this hot path."
+    )]
+    private bool IsPresent(TModel item)
+    {
+        foreach (var value in _model.Values)
+        {
+            if (ReferenceEquals(value, item))
+            {
+                return true;
+            }
+        }
 
-    private void PruneProxies()
+        return false;
+    }
+
+    // Only the evicted value can go stale; a duplicate reference still present
+    // under another key keeps its proxy alive. One O(n) scan beats O(proxies * n).
+    private void PruneRemoved(TModel removed)
+    {
+        if (!_cacheReferences || removed is null)
+        {
+            return;
+        }
+
+        var key = (object)removed;
+        if (_proxies.TryGetValue(key, out var entry) && !IsPresent(removed))
+        {
+            entry.Active = false;
+            _proxies.Remove(key);
+        }
+    }
+
+    private void PrunePairs(System.Collections.IList? items)
+    {
+        if (!_cacheReferences || items is null)
+        {
+            return;
+        }
+
+        foreach (KeyValuePair<TKey, TModel> pair in items)
+        {
+            PruneRemoved(pair.Value);
+        }
+    }
+
+    // Reset may reload arbitrary content, so sweep once against a live set:
+    // O(model + proxies) instead of O(proxies * model).
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit stale-key collection avoids the Where+ToArray allocation this optimization removes."
+    )]
+    private void PruneStale()
     {
         if (!_cacheReferences)
         {
             return;
         }
 
-        var stale = _proxies.Keys.Where(key => !IsPresent((TModel)key)).ToArray();
-        foreach (var key in stale)
+        if (_model.Count == 0)
+        {
+            DeactivateAll();
+            return;
+        }
+
+        var live = new HashSet<object>(SparseReferenceEqualityComparer.Instance);
+        foreach (var value in _model.Values)
+        {
+            if (value is { } item)
+            {
+                live.Add(item);
+            }
+        }
+
+        var staleKeys = new List<object>();
+        foreach (var key in _proxies.Keys)
+        {
+            if (!live.Contains(key))
+            {
+                staleKeys.Add(key);
+            }
+        }
+
+        foreach (var key in staleKeys)
         {
             _proxies[key].Active = false;
             _proxies.Remove(key);
         }
+    }
+
+    private void DeactivateAll()
+    {
+        foreach (var entry in _proxies.Values)
+        {
+            entry.Active = false;
+        }
+
+        _proxies.Clear();
     }
 
     private void ThrowIfDisposed()

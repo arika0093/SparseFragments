@@ -27,6 +27,8 @@ public sealed class SparseObservableList<TModel, TView>
     private readonly Dictionary<object, ProxyEntry> _proxies = new(
         SparseReferenceEqualityComparer.Instance
     );
+    private static readonly PropertyChangedEventArgs CountChanged = new(nameof(Count));
+    private static readonly PropertyChangedEventArgs ItemChanged = new("Item[]");
     private int _suppressedEvents;
     private bool _disposed;
 
@@ -72,16 +74,22 @@ public sealed class SparseObservableList<TModel, TView>
     public TView this[int index]
     {
         get => Wrap(_model[index]);
-        set =>
+        set
+        {
+            ThrowIfDisposed();
+            var oldModel = _model[index];
+            var newModel = _unwrap(value);
             Mutate(
-                () => _model[index] = _unwrap(value),
+                () => _model[index] = newModel,
                 new NotifyCollectionChangedEventArgs(
                     NotifyCollectionChangedAction.Replace,
-                    Wrap(_unwrap(value)),
-                    Wrap(_model[index]),
+                    Wrap(newModel),
+                    Wrap(oldModel),
                     index
-                )
+                ),
+                () => PruneRemoved(oldModel)
             );
+        }
     }
 
     /// <summary>Moves an element and raises one Move notification.</summary>
@@ -129,19 +137,20 @@ public sealed class SparseObservableList<TModel, TView>
                 oldIndex
             )
         );
-        PruneProxies();
     }
 
     /// <summary>Adds a model value, useful when elements are exposed as observable proxies.</summary>
     public void AddModel(TModel item)
     {
+        // Pure addition cannot orphan cached proxies, so no prune is needed.
         Mutate(
             () => _model.Add(item),
             new NotifyCollectionChangedEventArgs(
                 NotifyCollectionChangedAction.Add,
                 Wrap(item),
                 _model.Count
-            )
+            ),
+            prune: null
         );
     }
 
@@ -159,7 +168,8 @@ public sealed class SparseObservableList<TModel, TView>
 
         Mutate(
             _model.Clear,
-            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset),
+            DeactivateAll
         );
     }
 
@@ -206,13 +216,15 @@ public sealed class SparseObservableList<TModel, TView>
     /// <summary>Inserts a model value, useful when elements are exposed as observable proxies.</summary>
     public void InsertModel(int index, TModel item)
     {
+        // Pure insertion cannot orphan cached proxies, so no prune is needed.
         Mutate(
             () => _model.Insert(index, item),
             new NotifyCollectionChangedEventArgs(
                 NotifyCollectionChangedAction.Add,
                 Wrap(item),
                 index
-            )
+            ),
+            prune: null
         );
     }
 
@@ -233,14 +245,16 @@ public sealed class SparseObservableList<TModel, TView>
     public void RemoveAt(int index)
     {
         ThrowIfDisposed();
-        var removed = Wrap(_model[index]);
+        var removedModel = _model[index];
+        var removed = Wrap(removedModel);
         Mutate(
             () => _model.RemoveAt(index),
             new NotifyCollectionChangedEventArgs(
                 NotifyCollectionChangedAction.Remove,
                 removed,
                 index
-            )
+            ),
+            () => PruneRemoved(removedModel)
         );
     }
 
@@ -324,6 +338,86 @@ public sealed class SparseObservableList<TModel, TView>
             notifying.CollectionChanged -= OnModelCollectionChanged;
         }
 
+        DeactivateAll();
+    }
+
+    // Only the evicted model can go stale; a duplicate reference still present
+    // elsewhere keeps its proxy alive. One O(n) scan beats O(proxies * n).
+    private void PruneRemoved(TModel removed)
+    {
+        if (!_cacheReferences || removed is null)
+        {
+            return;
+        }
+
+        var key = (object)removed;
+        if (_proxies.TryGetValue(key, out var entry) && !IsPresent(removed))
+        {
+            entry.Active = false;
+            _proxies.Remove(key);
+        }
+    }
+
+    private void PruneItems(System.Collections.IList? items)
+    {
+        if (!_cacheReferences || items is null)
+        {
+            return;
+        }
+
+        foreach (TModel item in items)
+        {
+            PruneRemoved(item);
+        }
+    }
+
+    // Reset may reload arbitrary content, so sweep once against a live set:
+    // O(model + proxies) instead of O(proxies * model).
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3267",
+        Justification = "Explicit stale-key collection avoids the Where+ToArray allocation this optimization removes."
+    )]
+    private void PruneStale()
+    {
+        if (!_cacheReferences)
+        {
+            return;
+        }
+
+        if (_model.Count == 0)
+        {
+            DeactivateAll();
+            return;
+        }
+
+        var live = new HashSet<object>(SparseReferenceEqualityComparer.Instance);
+        for (var index = 0; index < _model.Count; index++)
+        {
+            if (_model[index] is { } item)
+            {
+                live.Add(item);
+            }
+        }
+
+        var staleKeys = new List<object>();
+        foreach (var key in _proxies.Keys)
+        {
+            if (!live.Contains(key))
+            {
+                staleKeys.Add(key);
+            }
+        }
+
+        foreach (var key in staleKeys)
+        {
+            _proxies[key].Active = false;
+            _proxies.Remove(key);
+        }
+    }
+
+    private void DeactivateAll()
+    {
         foreach (var entry in _proxies.Values)
         {
             entry.Active = false;
@@ -332,14 +426,14 @@ public sealed class SparseObservableList<TModel, TView>
         _proxies.Clear();
     }
 
-    private void Mutate(Action mutation, NotifyCollectionChangedEventArgs args)
+    private void Mutate(Action mutation, NotifyCollectionChangedEventArgs args, Action? prune)
     {
         ThrowIfDisposed();
         var before = _notificationVersion;
         mutation();
         if (before == _notificationVersion)
         {
-            PruneProxies();
+            prune?.Invoke();
             RaiseCollectionChanged(args);
         }
     }
@@ -354,7 +448,18 @@ public sealed class SparseObservableList<TModel, TView>
         }
 
         var converted = ConvertArgs(args);
-        PruneProxies();
+        switch (args.Action)
+        {
+            case NotifyCollectionChangedAction.Remove:
+            case NotifyCollectionChangedAction.Replace:
+                PruneItems(args.OldItems);
+                break;
+            case NotifyCollectionChangedAction.Reset:
+                PruneStale();
+                break;
+            // Add/Move only introduce or permute models, so cached proxies stay live.
+        }
+
         RaiseCollectionChanged(converted);
     }
 
@@ -365,8 +470,8 @@ public sealed class SparseObservableList<TModel, TView>
             return new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
         }
 
-        var newItems = args.NewItems?.Cast<TModel>().Select(Wrap).ToList();
-        var oldItems = args.OldItems?.Cast<TModel>().Select(Wrap).ToList();
+        var newItems = ConvertItems(args.NewItems);
+        var oldItems = ConvertItems(args.OldItems);
         return args.Action switch
         {
             NotifyCollectionChangedAction.Add when newItems is { Count: 1 } => new(
@@ -412,6 +517,22 @@ public sealed class SparseObservableList<TModel, TView>
         };
     }
 
+    private List<TView>? ConvertItems(System.Collections.IList? items)
+    {
+        if (items is null)
+        {
+            return null;
+        }
+
+        var converted = new List<TView>(items.Count);
+        foreach (TModel item in items)
+        {
+            converted.Add(Wrap(item));
+        }
+
+        return converted;
+    }
+
     private void RaiseCollectionChanged(NotifyCollectionChangedEventArgs args)
     {
         _notificationVersion++;
@@ -422,7 +543,7 @@ public sealed class SparseObservableList<TModel, TView>
                 or NotifyCollectionChangedAction.Reset
         )
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+            PropertyChanged?.Invoke(this, CountChanged);
         }
 
         if (
@@ -434,7 +555,7 @@ public sealed class SparseObservableList<TModel, TView>
                 or NotifyCollectionChangedAction.Reset
         )
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Item[]"));
+            PropertyChanged?.Invoke(this, ItemChanged);
         }
 
         CollectionChanged?.Invoke(this, args);
@@ -480,21 +601,6 @@ public sealed class SparseObservableList<TModel, TView>
         }
 
         return false;
-    }
-
-    private void PruneProxies()
-    {
-        if (!_cacheReferences)
-        {
-            return;
-        }
-
-        var stale = _proxies.Keys.Where(key => !IsPresent((TModel)key)).ToArray();
-        foreach (var key in stale)
-        {
-            _proxies[key].Active = false;
-            _proxies.Remove(key);
-        }
     }
 
     private static TView CastView(object? value)
