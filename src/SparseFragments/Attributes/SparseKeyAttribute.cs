@@ -19,8 +19,13 @@ namespace SparseFragments;
 /// </code>
 /// <para>
 /// A property-level key may opt into a non-null unassigned sentinel with the named
-/// <see cref="Unassigned"/> property. Sentinel-valued elements are additions, not stable
-/// keyed identities; type-level composite and interface keys do not support sentinels.
+/// <see cref="Unassigned"/> property. Sentinel-valued elements in the after-state are
+/// independent additions, never stable identities: order and payload round-trips preserve
+/// each occurrence, while baselines and current keyed states reject sentinels.
+/// <see cref="Unassigned"/> lookups are not stable; accepting a change set that would
+/// promote sentinels into a baseline fails atomically. When a server assigns permanent
+/// IDs, reload the authoritative model and create a fresh edit session instead of
+/// correlating by sentinel, name, index, or equality.
 /// </para>
 /// <para>Composite keys are declared on the type with order-significant components:</para>
 /// <code>

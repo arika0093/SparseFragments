@@ -200,6 +200,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(
             3,
             "/// <remarks>Unchanged or unknown keys return <see cref=\"Item.Empty\"/> (allocation-light singleton shared across lookups). "
+                + "The unassigned sentinel is never a stable lookup: it always returns <see cref=\"Item.Empty\"/>. "
                 + "Non-empty results are the same instances produced by enumeration. "
                 + "BeforeIndex/AfterIndex are absolute collection indexes; IsReordered observes surviving-key relative rank.</remarks>"
         );

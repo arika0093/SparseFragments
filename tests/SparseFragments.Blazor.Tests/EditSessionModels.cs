@@ -58,3 +58,20 @@ public partial class OrgDto
 {
     public List<Team> Teams { get; set; } = new();
 }
+
+[SparseFragmentModel]
+public partial class BlazorUnassignedItem
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class BlazorUnassignedOrder
+{
+    public string Number { get; set; } = string.Empty;
+
+    public List<BlazorUnassignedItem> Items { get; set; } = new();
+}

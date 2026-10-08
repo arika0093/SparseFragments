@@ -253,9 +253,19 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     public TPatch CreatePatch() => _toPatch(CreateChangeSet());
 
     /// <summary>Accepts the current model state as the new baseline.</summary>
+    /// <remarks>
+    /// The candidate baseline is validated before it is retained: a live model
+    /// containing unassigned keyed sentinels or duplicate stable keys fails fast
+    /// instead of leaving future diffs unusable.
+    /// </remarks>
     public void AcceptChanges()
     {
-        _baseline = Optional<TFragment?>.Present(_fromModel(Model));
+        var candidate = Optional<TFragment?>.Present(_fromModel(Model));
+        // Fail-fast when the live model cannot serve as a keyed baseline.
+        // Probed against the retained baseline (distinct instances) because a
+        // self-diff short-circuits on reference equality without validating keys.
+        _between(candidate, _baseline);
+        _baseline = candidate;
         OnPropertyChanged(nameof(HasChanges));
     }
 
@@ -266,7 +276,10 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     /// The transition's before-state must match the retained baseline on every changed path;
     /// edits made after the change set was captured stay pending against the new baseline.
     /// The candidate baseline is fully computed before commit, so a rejected transition
-    /// leaves the retained baseline unchanged.
+    /// leaves the retained baseline unchanged. A transition that would promote unassigned
+    /// keyed sentinels into the baseline is rejected atomically; for server-assigned IDs,
+    /// reload the authoritative model and create a fresh session instead of acknowledging
+    /// the unassigned Add.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
@@ -284,6 +297,21 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             throw new InvalidOperationException(
                 "Advancing the baseline did not produce a valid model state."
             );
+        try
+        {
+            // Reject candidates that would break future keyed diffs, such as
+            // unassigned keyed sentinels. Probed against the retained baseline
+            // (distinct instances) because a self-diff short-circuits on
+            // reference equality without validating keys.
+            _between(advanced, _baseline);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidOperationException(
+                "Accepting this change set would retain an invalid baseline, such as unassigned keyed sentinels.",
+                ex
+            );
+        }
         _baseline = advanced;
         OnPropertyChanged(nameof(HasChanges));
     }
