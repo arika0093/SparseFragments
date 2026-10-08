@@ -1,6 +1,4 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Forms;
 using SparseFragments;
 
@@ -37,48 +35,6 @@ public static class SparseEditSessionExtensions
         ValidateEditContext(session, editContext);
         session.AcceptChanges();
         editContext.MarkAsUnmodified();
-    }
-
-    /// <summary>Submits a session and synchronizes Blazor modified state with remaining local changes.</summary>
-    public static async Task<SparseSubmitResult> SubmitAsync<
-        TModel,
-        TFragment,
-        TPatch,
-        TChangeSet,
-        TObservable
-    >(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
-        EditContext editContext,
-        FieldIdentifier field,
-        Func<TChangeSet, CancellationToken, Task<SparseSubmitResponse<TModel>>> send,
-        CancellationToken cancellationToken = default
-    )
-        where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
-    {
-        ValidateEditContext(session, editContext);
-        if (!ReferenceEquals(field.Model, session.Model))
-        {
-            throw new ArgumentException(
-                "The field must belong to the session's model.",
-                nameof(field)
-            );
-        }
-
-        try
-        {
-            return await session.SubmitAsync(send, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            if (session.HasChanges)
-                editContext.NotifyFieldChanged(field);
-            else
-                editContext.MarkAsUnmodified();
-        }
     }
 
     /// <summary>Creates a validation store bound to the supplied session edit context.</summary>

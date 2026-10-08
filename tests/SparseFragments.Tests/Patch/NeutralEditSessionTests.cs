@@ -171,138 +171,193 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
-    public async Task AcceptedSubmitWithoutServerStateKeepsLaterLocalEdits()
-    {
-        var model = new NeutralSessionModel { Name = "before" };
-        var session = model.CreateEditSession();
-        model.Name = "sent";
-
-        var result = await session.SubmitAsync((_, _) =>
-        {
-            model.Version = 2;
-            return System.Threading.Tasks.Task.FromResult(
-                SparseSubmitResponse<NeutralSessionModel>.Accepted()
-            );
-        });
-
-        result.Status.ShouldBe(SparseSubmitStatus.Rebased);
-        model.Name.ShouldBe("sent");
-        model.Version.ShouldBe(2);
-        session.CreateChangeSet().Name.IsChanged.ShouldBeFalse();
-        session.CreateChangeSet().Version.IsChanged.ShouldBeTrue();
-    }
-
-    [Test]
-    public async Task AcceptedServerStateIsAppliedWhileLaterDisjointEditsAreRebased()
+    public void AcceptedSubmittedChangesAdvanceOnlyBaselineKeepsLaterLiveEdits()
     {
         var model = new NeutralSessionModel { Name = "before", Version = 1 };
         var session = model.CreateEditSession();
+        var observable = session.Observable;
+        var tags = model.Tags;
         model.Name = "sent";
+        var submitted = session.CreateChangeSet();
 
-        var result = await session.SubmitAsync((_, _) =>
-        {
-            model.Version = 2;
-            return System.Threading.Tasks.Task.FromResult(
-                SparseSubmitResponse<NeutralSessionModel>.Accepted(
-                    new NeutralSessionModel { Name = "normalized", Version = 1 }
-                )
-            );
-        });
+        model.Name = "later";
+        model.Version = 2;
+        session.AcceptChanges(submitted);
 
-        result.Status.ShouldBe(SparseSubmitStatus.Rebased);
-        model.Name.ShouldBe("normalized");
-        model.Version.ShouldBe(2);
+        // Live model and proxy identities are untouched; only the baseline moves.
+        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(session.Observable, observable).ShouldBeTrue();
+        ReferenceEquals(model.Tags, tags).ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
+        var next = session.CreateChangeSet();
+        next.Name.Before.Value.ShouldBe("sent");
+        next.Name.After.Value.ShouldBe("later");
+        next.Version.Before.Value.ShouldBe(1);
+        next.Version.After.Value.ShouldBe(2);
     }
 
     [Test]
-    public async Task AcceptedServerConflictDoesNotOverwriteLaterLocalEdit()
+    public void AcceptedSubmittedChangesWithUnchangedLiveBecomesClean()
     {
         var model = new NeutralSessionModel { Name = "before" };
         var session = model.CreateEditSession();
         model.Name = "sent";
+        var submitted = session.CreateChangeSet();
 
-        var result = await session.SubmitAsync((_, _) =>
-        {
-            model.Name = "later";
-            return System.Threading.Tasks.Task.FromResult(
-                SparseSubmitResponse<NeutralSessionModel>.Accepted(
-                    new NeutralSessionModel { Name = "server" }
-                )
-            );
-        });
+        session.AcceptChanges(submitted);
 
-        result.Status.ShouldBe(SparseSubmitStatus.Conflicted);
-        result.Conflicts.Count.ShouldBeGreaterThan(0);
-        model.Name.ShouldBe("later");
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        session.CreatePatch().IsEmpty.ShouldBeTrue();
     }
 
     [Test]
-    public async Task RejectedServerStateRebasesWholeLocalEdit()
+    public void LaterSameFieldEditRemainsPendingAfterAccept()
     {
-        var model = new NeutralSessionModel { Name = "before", Version = 1 };
+        var model = new NeutralSessionModel { Name = "a" };
         var session = model.CreateEditSession();
-        model.Name = "local";
+        model.Name = "b";
+        var submitted = session.CreateChangeSet();
+        model.Name = "c";
 
-        var result = await session.SubmitAsync((_, _) =>
-            System.Threading.Tasks.Task.FromResult(
-                SparseSubmitResponse<NeutralSessionModel>.Rejected(
-                    new NeutralSessionModel { Name = "before", Version = 2 }
-                )
-            )
-        );
+        session.AcceptChanges(submitted);
 
-        result.Status.ShouldBe(SparseSubmitStatus.Rebased);
-        model.Name.ShouldBe("local");
-        model.Version.ShouldBe(2);
+        var next = session.CreateChangeSet();
+        next.Name.IsChanged.ShouldBeTrue();
+        next.Name.Before.Value.ShouldBe("b");
+        next.Name.After.Value.ShouldBe("c");
     }
 
     [Test]
-    public async Task FailedSubmitDoesNotChangeBaselineAndHandlesCannotBeReused()
+    public void NestedDictionaryAndListAdvanceOnlyBaseline()
+    {
+        var model = new NeutralSessionModel
+        {
+            Name = "before",
+            Tags = ["one"],
+            Counts = new() { ["first"] = 1 },
+            Child = new NeutralSessionChild { Value = "old" },
+        };
+        var session = model.CreateEditSession();
+        var tags = model.Tags;
+        var counts = model.Counts;
+        model.Child.Value = "new";
+        model.Tags.Add("two");
+        model.Counts["second"] = 2;
+        var submitted = session.CreateChangeSet();
+
+        model.Child.Value = "later";
+        model.Tags.Add("three");
+        model.Counts["third"] = 3;
+        session.AcceptChanges(submitted);
+
+        ReferenceEquals(model.Tags, tags).ShouldBeTrue();
+        ReferenceEquals(model.Counts, counts).ShouldBeTrue();
+        session.HasChanges.ShouldBeTrue();
+        var next = session.CreateChangeSet();
+        next.Child.Value.Before.Value.ShouldBe("new");
+        next.Child.Value.After.Value.ShouldBe("later");
+        next.Tags.Before.Value.ShouldBe(["one", "two"]);
+        next.Tags.After.Value.ShouldBe(["one", "two", "three"]);
+        next.Counts.Added.ContainsKey("third").ShouldBeTrue();
+        next.Counts.Added.ContainsKey("second").ShouldBeFalse();
+    }
+
+    [Test]
+    public void EmptyChangeSetAcceptLeavesBaselineUnchanged()
     {
         var model = new NeutralSessionModel { Name = "before" };
         var session = model.CreateEditSession();
-        model.Name = "local";
-        var pending = session.BeginSubmit();
-
-        session.IsSubmitting.ShouldBeTrue();
-        Should.Throw<InvalidOperationException>(() => session.BeginSubmit());
-        session.Complete(pending, SparseSubmitResponse<NeutralSessionModel>.Failed())
-            .Status.ShouldBe(SparseSubmitStatus.Failed);
-        session.IsSubmitting.ShouldBeFalse();
+        model.Name = "edited";
         session.HasChanges.ShouldBeTrue();
-        Should.Throw<InvalidOperationException>(() =>
-            session.Complete(pending, SparseSubmitResponse<NeutralSessionModel>.Accepted())
-        );
+        model.Name = "before";
+        var empty = session.CreateChangeSet();
+        empty.IsEmpty.ShouldBeTrue();
 
-        var stale = session.BeginSubmit();
+        session.AcceptChanges(empty);
+
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void StaleChangeSetIsRejectedWithoutPartialWrites()
+    {
+        var model = new NeutralSessionModel { Name = "a" };
+        var session = model.CreateEditSession();
+        model.Name = "b";
+        var stale = session.CreateChangeSet();
+        model.Name = "c";
         session.AcceptChanges();
-        Should.Throw<InvalidOperationException>(() =>
-            session.Complete(stale, SparseSubmitResponse<NeutralSessionModel>.Accepted())
-        );
-        await System.Threading.Tasks.Task.CompletedTask;
+
+        Should.Throw<InvalidOperationException>(() => session.AcceptChanges(stale));
+
+        // Baseline still reflects the no-arg accept; the live model is clean.
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        model.Name.ShouldBe("c");
     }
 
     [Test]
-    public async Task SendExceptionLeavesBaselineUnchangedAndRethrows()
+    public void IncompatibleChangeSetFromAnotherBaselineIsRejected()
     {
-        var model = new NeutralSessionModel { Name = "before" };
+        var model = new NeutralSessionModel { Name = "a" };
         var session = model.CreateEditSession();
-        model.Name = "local";
-
-        await Should.ThrowAsync<System.InvalidOperationException>(async () =>
-            await session.SubmitAsync((_, _) =>
-                throw new System.InvalidOperationException("transport failed")
-            )
+        model.Name = "b";
+        var foreign = new NeutralSessionModel { Name = "other" }.CreateChangeSet(
+            new NeutralSessionModel { Name = "changed" }
         );
 
-        session.IsSubmitting.ShouldBeFalse();
+        Should.Throw<InvalidOperationException>(() => session.AcceptChanges(foreign));
+
         session.HasChanges.ShouldBeTrue();
-        session.CreateChangeSet().Name.Before.Value.ShouldBe("before");
+        var current = session.CreateChangeSet();
+        current.Name.Before.Value.ShouldBe("a");
+        current.Name.After.Value.ShouldBe("b");
     }
 
     [Test]
-    public void SessionPropertyChangedTracksObservableAndSubmitState()
+    public void DoubleAcceptOfSameChangeSetIsRejected()
+    {
+        var model = new NeutralSessionModel { Name = "a" };
+        var session = model.CreateEditSession();
+        model.Name = "b";
+        var submitted = session.CreateChangeSet();
+        session.AcceptChanges(submitted);
+
+        Should.Throw<InvalidOperationException>(() => session.AcceptChanges(submitted));
+
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void NullChangeSetIsRejected()
+    {
+        var session = new NeutralSessionModel().CreateEditSession();
+
+        Should.Throw<ArgumentNullException>(() => session.AcceptChanges(null!));
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RepeatedCreateAcceptEditCyclesWithChangeSets()
+    {
+        var session = new NeutralSessionModel { Name = "n0" }.CreateEditSession();
+
+        for (var i = 1; i <= 3; i++)
+        {
+            session.Model.Name = "n" + i;
+            var submitted = session.CreateChangeSet();
+            submitted.IsEmpty.ShouldBeFalse();
+            session.AcceptChanges(submitted);
+            session.HasChanges.ShouldBeFalse();
+            session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        }
+    }
+
+    [Test]
+    public void SessionPropertyChangedTracksObservableAndAcceptChanges()
     {
         var session = new NeutralSessionModel().CreateEditSession();
         var changed = new System.Collections.Generic.List<string?>();
@@ -310,26 +365,31 @@ public sealed class NeutralEditSessionTests
 
         session.Observable.Name = "updated";
         changed.ShouldContain(nameof(session.HasChanges));
-        var pending = session.BeginSubmit();
-        changed.ShouldContain(nameof(session.IsSubmitting));
-        session.Complete(pending, SparseSubmitResponse<NeutralSessionModel>.Accepted());
-        changed.Count(name => name == nameof(session.IsSubmitting)).ShouldBe(2);
+        var submitted = session.CreateChangeSet();
+        session.AcceptChanges(submitted);
         changed.Count(name => name == nameof(session.HasChanges)).ShouldBeGreaterThan(1);
     }
 
     [Test]
-    public async System.Threading.Tasks.Task InitOnlyModelKeepsEditSessionsButDoesNotSupportSubmit()
+    public void InitOnlyModelSupportsBaselineAcceptWithoutSubmit()
     {
-        var session = new ImmutableSessionModel { Name = "immutable" }.CreateEditSession();
+        var baseline = new ImmutableSessionModel { Name = "before" };
+        var current = new ImmutableSessionModel { Name = "after" };
+        var session = baseline.CreateEditSession(current);
+        session.HasChanges.ShouldBeTrue();
+        var submitted = session.CreateChangeSet();
+        submitted.IsEmpty.ShouldBeFalse();
 
+        session.AcceptChanges(submitted);
+
+        // Snapshot-only sessions advance the retained baseline with no in-place write.
         session.HasChanges.ShouldBeFalse();
-        Should.Throw<NotSupportedException>(() => session.BeginSubmit());
-        await Should.ThrowAsync<NotSupportedException>(() =>
-            session.SubmitAsync((_, _) =>
-                System.Threading.Tasks.Task.FromResult(
-                    SparseSubmitResponse<ImmutableSessionModel>.Accepted()
-                )
-            )
-        );
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
+        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        current.Name.ShouldBe("after");
+
+        // Empty transitions stay idempotent on snapshot-only sessions.
+        session.AcceptChanges(session.CreateChangeSet());
+        session.HasChanges.ShouldBeFalse();
     }
 }

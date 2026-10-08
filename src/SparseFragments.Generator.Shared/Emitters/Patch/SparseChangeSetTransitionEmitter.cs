@@ -42,6 +42,7 @@ internal static class SparseChangeSetTransitionEmitter
             "RebaseOnto",
             "ApplyTo",
             "TryApplyTo",
+            "ApplyToBaseline",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         var propNames = new Dictionary<int, string>();

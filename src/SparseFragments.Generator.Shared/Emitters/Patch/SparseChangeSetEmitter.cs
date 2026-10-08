@@ -68,6 +68,7 @@ internal static class SparseChangeSetEmitter
         SparseChangeSetPatchSyncEmitter.AppendFromPatch(code, members, optionalFragment, modelType);
         SparseChangeSetPatchSyncEmitter.AppendToPatch(code, members, runtime, prefix, dialect);
         SparseChangeSetPatchSyncEmitter.AppendInvert(code, members, runtime, optionalFragment);
+        SparseChangeSetPatchSyncEmitter.AppendApplyToBaseline(code, optionalFragment);
         SparseChangeSetComposeEmitter.AppendCompose(
             code,
             members,
@@ -122,6 +123,7 @@ internal static class SparseChangeSetEmitter
             "RebaseOnto",
             "ApplyTo",
             "TryApplyTo",
+            "ApplyToBaseline",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         propNames = new Dictionary<int, string>();

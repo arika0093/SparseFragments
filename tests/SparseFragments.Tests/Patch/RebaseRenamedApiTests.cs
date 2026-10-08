@@ -116,26 +116,6 @@ public sealed class RebaseRenamedApiTests
     }
 
     [Test]
-    public void RejectedWithoutServerStateCannotPersistAsSuccess()
-    {
-        var model = new NeutralSessionModel { Name = "before", Version = 1 };
-        var session = model.CreateEditSession();
-        model.Name = "local";
-
-        var pending = session.BeginSubmit();
-        var result = session.Complete(
-            pending,
-            SparseSubmitResponse<NeutralSessionModel>.Rejected()
-        );
-
-        result.Status.ShouldBe(SparseSubmitStatus.Rejected);
-        result.Status.ShouldNotBe(SparseSubmitStatus.Accepted);
-        result.Status.ShouldNotBe(SparseSubmitStatus.Rebased);
-        session.HasChanges.ShouldBeTrue();
-        model.Name.ShouldBe("local");
-    }
-
-    [Test]
     public void NullableAndCustomStrategyRebase()
     {
         var baseModel = new Settings { Label = "a", RetryCount = 1 };

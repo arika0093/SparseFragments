@@ -235,6 +235,10 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("JsonUnmappedMemberHandling.Disallow");
         text.ShouldContain("FromPayloadCore");
         text.ShouldContain("ToChangeSetCore");
+        // Baseline advancement is validated sparse before-state plus patch
+        // projection, with no product runtime fallback.
+        text.ShouldContain("ApplyToBaseline");
+        text.ShouldContain("__SparseBeforeMatches(baseline)");
     }
 
     [Test]

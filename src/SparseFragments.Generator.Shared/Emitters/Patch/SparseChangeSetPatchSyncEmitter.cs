@@ -211,6 +211,41 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(2, "}");
     }
 
+    internal static void AppendApplyToBaseline(SharedIndentedBuilder code, string optionalFragment)
+    {
+        // Baseline advancement for synchronous edit sessions: the before-state
+        // check rejects stale transitions, then the patch projection computes
+        // the candidate baseline before the caller commits it.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Validates this transition against the supplied baseline and returns the advanced baseline.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Only changed paths are compared; members this change set does not encode are never validated.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
+        );
+        code.AppendLineAt(
+            2,
+            "public " + optionalFragment + " ApplyToBaseline(" + optionalFragment + " baseline)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (!__SparseBeforeMatches(baseline)) throw new global::System.InvalidOperationException(\"The change set is stale or incompatible with the supplied baseline.\");"
+        );
+        code.AppendLineAt(3, "var __advanced = ToPatch().Apply(baseline);");
+        code.AppendLineAt(
+            3,
+            "if (!__advanced.IsPresent || __advanced.Value is null) throw new global::System.InvalidOperationException(\"Advancing the baseline did not produce a valid model state.\");"
+        );
+        code.AppendLineAt(3, "return __advanced;");
+        code.AppendLineAt(2, "}");
+    }
+
     /// <summary>Emits the per-key item inverter for a sparse keyed/dict member.</summary>
     internal static void AppendItemInverter(
         SharedIndentedBuilder code,

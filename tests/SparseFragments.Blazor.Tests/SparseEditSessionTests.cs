@@ -591,37 +591,56 @@ public sealed class SparseEditSessionTests
     }
 
     [Test]
-    public async System.Threading.Tasks.Task SubmitHelperSynchronizesModifiedState()
+    public void AcceptedSubmittedChangesKeepLaterKeyedAndScalarEditsPending()
     {
         var session = Order().CreateEditSession();
-        var editContext = session.CreateEditContext();
-        var field = session.Field(nameof(OrderDto.Number));
+        var observable = session.Observable;
         session.Model.Number = "ORD-2";
+        var submitted = session.CreateChangeSet();
 
-        var accepted = await session.SubmitAsync(
-            editContext,
-            field,
-            static (_, _) =>
-                System.Threading.Tasks.Task.FromResult(SparseSubmitResponse<OrderDto>.Accepted())
-        );
-
-        accepted.Status.ShouldBe(SparseSubmitStatus.Accepted);
-        editContext.IsModified().ShouldBeFalse();
-
+        // Live edits after capture: same-field plus disjoint keyed changes.
         session.Model.Number = "ORD-3";
-        var rebased = await session.SubmitAsync(
-            editContext,
-            field,
-            (_, _) =>
+        session.Model.Lines.Add(
+            new OrderLine
             {
-                session.Model.Tags.Add("later");
-                return System.Threading.Tasks.Task.FromResult(
-                    SparseSubmitResponse<OrderDto>.Accepted()
-                );
+                Sku = "c",
+                Quantity = 3,
+                Price = 30m,
             }
         );
+        session.AcceptChanges(submitted);
 
-        rebased.Status.ShouldBe(SparseSubmitStatus.Rebased);
-        editContext.IsModified().ShouldBeTrue();
+        ReferenceEquals(session.Observable, observable).ShouldBeTrue();
+        session.HasChanges.ShouldBeTrue();
+        var next = session.CreateChangeSet();
+        next.Number.Before.Value.ShouldBe("ORD-2");
+        next.Number.After.Value.ShouldBe("ORD-3");
+        next.Lines.GetChange("c").IsAdded.ShouldBeTrue();
+        next.Lines.GetChange("a").IsEmpty.ShouldBeTrue();
+
+        // The accepted baseline is exactly the submitted state: replaying the
+        // next transition onto it reaches the live model.
+        var submittedBaseline = Present(OrderDto.Fragment.From(Order()).Apply(submitted.ToPatch()));
+        OrderDto
+            .Patch.Between(
+                next.ToPatch().Apply(submittedBaseline),
+                Present(OrderDto.Fragment.From(session.Model))
+            )
+            .IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void StaleSubmittedChangesAreRejectedWithoutBaselineChange()
+    {
+        var session = Order().CreateEditSession();
+        session.Model.Number = "ORD-2";
+        var stale = session.CreateChangeSet();
+        session.Model.Number = "ORD-3";
+        session.AcceptChanges();
+
+        Should.Throw<InvalidOperationException>(() => session.AcceptChanges(stale));
+
+        session.HasChanges.ShouldBeFalse();
+        session.CreateChangeSet().IsEmpty.ShouldBeTrue();
     }
 }

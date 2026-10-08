@@ -1,7 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace SparseFragments;
 
@@ -26,13 +24,9 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     private readonly Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> _between;
     private readonly Func<TChangeSet, TPatch> _toPatch;
     private readonly Func<TChangeSet, bool> _isEmpty;
-    private readonly Func<TChangeSet, Optional<TFragment?>, RebaseResult<TChangeSet>>? _rebase;
-    private readonly Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>>? _apply;
-    private readonly Action<TModel, TFragment>? _write;
+    private readonly Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> _advanceBaseline;
     private readonly TObservable _observable;
     private Optional<TFragment?> _baseline;
-    private SparsePendingSubmit<TChangeSet, TFragment>? _pending;
-    private long _generation;
 
     private SparseEditSession(
         TModel model,
@@ -41,10 +35,8 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, Action?, TObservable> toObservable,
-        Func<TChangeSet, Optional<TFragment?>, RebaseResult<TChangeSet>>? rebase = null,
-        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>>? apply = null,
-        Action<TModel, TFragment>? write = null,
         Action? onChanged = null
     )
     {
@@ -53,9 +45,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         _between = between;
         _toPatch = toPatch;
         _isEmpty = isEmpty;
-        _rebase = rebase;
-        _apply = apply;
-        _write = write;
+        _advanceBaseline = advanceBaseline;
         _baseline = Optional<TFragment?>.Present(baseline);
         _observable = toObservable(
             model,
@@ -74,12 +64,13 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, TObservable> toObservable
     )
     {
         if (model is null)
             throw new ArgumentNullException(nameof(model));
-        ValidateDelegates(fromModel, between, toPatch, isEmpty, toObservable);
+        ValidateDelegates(fromModel, between, toPatch, isEmpty, advanceBaseline, toObservable);
 
         return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
             model,
@@ -88,6 +79,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             between,
             toPatch,
             isEmpty,
+            advanceBaseline,
             (value, _) => toObservable(value)
         );
     }
@@ -99,13 +91,21 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, Action?, TObservable> toObservable,
         Action? onChanged = null
     )
     {
         if (model is null)
             throw new ArgumentNullException(nameof(model));
-        ValidateNotificationDelegates(fromModel, between, toPatch, isEmpty, toObservable);
+        ValidateNotificationDelegates(
+            fromModel,
+            between,
+            toPatch,
+            isEmpty,
+            advanceBaseline,
+            toObservable
+        );
         return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
             model,
             fromModel(model),
@@ -113,8 +113,9 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             between,
             toPatch,
             isEmpty,
+            advanceBaseline,
             toObservable,
-            onChanged: onChanged
+            onChanged
         );
     }
 
@@ -126,6 +127,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, TObservable> toObservable
     )
     {
@@ -133,7 +135,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             throw new ArgumentNullException(nameof(baseline));
         if (current is null)
             throw new ArgumentNullException(nameof(current));
-        ValidateDelegates(fromModel, between, toPatch, isEmpty, toObservable);
+        ValidateDelegates(fromModel, between, toPatch, isEmpty, advanceBaseline, toObservable);
 
         return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
             current,
@@ -142,6 +144,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             between,
             toPatch,
             isEmpty,
+            advanceBaseline,
             (value, _) => toObservable(value)
         );
     }
@@ -154,6 +157,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, Action?, TObservable> toObservable,
         Action? onChanged = null
     )
@@ -162,100 +166,13 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             throw new ArgumentNullException(nameof(baseline));
         if (current is null)
             throw new ArgumentNullException(nameof(current));
-        ValidateNotificationDelegates(fromModel, between, toPatch, isEmpty, toObservable);
-        return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-            current,
-            fromModel(baseline),
+        ValidateNotificationDelegates(
             fromModel,
             between,
             toPatch,
             isEmpty,
-            toObservable,
-            onChanged: onChanged
-        );
-    }
-
-    /// <summary>Creates a submit-capable edit session.</summary>
-    public static SparseEditSession<
-        TModel,
-        TFragment,
-        TPatch,
-        TChangeSet,
-        TObservable
-    > CreateWithSubmit(
-        TModel model,
-        Func<TModel, TFragment> fromModel,
-        Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
-        Func<TChangeSet, TPatch> toPatch,
-        Func<TChangeSet, bool> isEmpty,
-        Func<TModel, Action?, TObservable> toObservable,
-        Func<TChangeSet, Optional<TFragment?>, RebaseResult<TChangeSet>> rebase,
-        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> apply,
-        Action<TModel, TFragment> write,
-        Action? onChanged = null
-    )
-    {
-        if (model is null)
-            throw new ArgumentNullException(nameof(model));
-        ValidateSubmitDelegates(
-            fromModel,
-            between,
-            toPatch,
-            isEmpty,
-            toObservable,
-            rebase,
-            apply,
-            write
-        );
-        return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-            model,
-            fromModel(model),
-            fromModel,
-            between,
-            toPatch,
-            isEmpty,
-            toObservable,
-            rebase,
-            apply,
-            write,
-            onChanged
-        );
-    }
-
-    /// <summary>Creates a submit-capable session against a separate baseline model.</summary>
-    public static SparseEditSession<
-        TModel,
-        TFragment,
-        TPatch,
-        TChangeSet,
-        TObservable
-    > CreateWithSubmit(
-        TModel baseline,
-        TModel current,
-        Func<TModel, TFragment> fromModel,
-        Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
-        Func<TChangeSet, TPatch> toPatch,
-        Func<TChangeSet, bool> isEmpty,
-        Func<TModel, Action?, TObservable> toObservable,
-        Func<TChangeSet, Optional<TFragment?>, RebaseResult<TChangeSet>> rebase,
-        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> apply,
-        Action<TModel, TFragment> write,
-        Action? onChanged = null
-    )
-    {
-        if (baseline is null)
-            throw new ArgumentNullException(nameof(baseline));
-        if (current is null)
-            throw new ArgumentNullException(nameof(current));
-        ValidateSubmitDelegates(
-            fromModel,
-            between,
-            toPatch,
-            isEmpty,
-            toObservable,
-            rebase,
-            apply,
-            write
+            advanceBaseline,
+            toObservable
         );
         return new SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>(
             current,
@@ -264,41 +181,10 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             between,
             toPatch,
             isEmpty,
+            advanceBaseline,
             toObservable,
-            rebase,
-            apply,
-            write,
             onChanged
         );
-    }
-
-    private static void ValidateSubmitDelegates(
-        Func<TModel, TFragment> fromModel,
-        Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
-        Func<TChangeSet, TPatch> toPatch,
-        Func<TChangeSet, bool> isEmpty,
-        Func<TModel, Action?, TObservable> toObservable,
-        Func<TChangeSet, Optional<TFragment?>, RebaseResult<TChangeSet>> rebase,
-        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> apply,
-        Action<TModel, TFragment> write
-    )
-    {
-        if (fromModel is null)
-            throw new ArgumentNullException(nameof(fromModel));
-        if (between is null)
-            throw new ArgumentNullException(nameof(between));
-        if (toPatch is null)
-            throw new ArgumentNullException(nameof(toPatch));
-        if (isEmpty is null)
-            throw new ArgumentNullException(nameof(isEmpty));
-        if (toObservable is null)
-            throw new ArgumentNullException(nameof(toObservable));
-        if (rebase is null)
-            throw new ArgumentNullException(nameof(rebase));
-        if (apply is null)
-            throw new ArgumentNullException(nameof(apply));
-        if (write is null)
-            throw new ArgumentNullException(nameof(write));
     }
 
     private static void ValidateNotificationDelegates(
@@ -306,6 +192,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, Action?, TObservable> toObservable
     )
     {
@@ -317,6 +204,8 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             throw new ArgumentNullException(nameof(toPatch));
         if (isEmpty is null)
             throw new ArgumentNullException(nameof(isEmpty));
+        if (advanceBaseline is null)
+            throw new ArgumentNullException(nameof(advanceBaseline));
         if (toObservable is null)
             throw new ArgumentNullException(nameof(toObservable));
     }
@@ -326,6 +215,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
         Func<TChangeSet, TPatch> toPatch,
         Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
         Func<TModel, TObservable> toObservable
     )
     {
@@ -337,6 +227,8 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             throw new ArgumentNullException(nameof(toPatch));
         if (isEmpty is null)
             throw new ArgumentNullException(nameof(isEmpty));
+        if (advanceBaseline is null)
+            throw new ArgumentNullException(nameof(advanceBaseline));
         if (toObservable is null)
             throw new ArgumentNullException(nameof(toObservable));
     }
@@ -349,9 +241,6 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
 
     /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
     public bool HasChanges => !_isEmpty(CreateChangeSet());
-
-    /// <summary>Whether a submit operation is currently in flight.</summary>
-    public bool IsSubmitting => _pending is not null;
 
     /// <summary>Raised when session state or its observable model may have changed.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -367,161 +256,36 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     public void AcceptChanges()
     {
         _baseline = Optional<TFragment?>.Present(_fromModel(Model));
-        _generation++;
-        _pending = null;
         OnPropertyChanged(nameof(HasChanges));
-        OnPropertyChanged(nameof(IsSubmitting));
     }
 
-    /// <summary>Captures the change set and model snapshot to send to a server.</summary>
-    public SparsePendingSubmit<TChangeSet, TFragment> BeginSubmit()
+    /// <summary>
+    /// Advances the retained baseline by the supplied transition without touching the live model.
+    /// </summary>
+    /// <remarks>
+    /// The transition's before-state must match the retained baseline on every changed path;
+    /// edits made after the change set was captured stay pending against the new baseline.
+    /// The candidate baseline is fully computed before commit, so a rejected transition
+    /// leaves the retained baseline unchanged.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The transition is stale or incompatible with the retained baseline, or advancing
+    /// would not produce a valid model state.
+    /// </exception>
+    public void AcceptChanges(TChangeSet changes)
     {
-        EnsureSubmitSupported();
-        if (_pending is not null)
+        if (changes is null)
+            throw new ArgumentNullException(nameof(changes));
+        // Validate and project first; only a valid candidate replaces the baseline.
+        // The live model and observable proxy are never touched here.
+        var advanced = _advanceBaseline(changes, _baseline);
+        if (!advanced.IsPresent || advanced.Value is null)
             throw new InvalidOperationException(
-                "A submit is already in progress for this session."
+                "Advancing the baseline did not produce a valid model state."
             );
-        var snapshot = _fromModel(Model);
-        var pending = new SparsePendingSubmit<TChangeSet, TFragment>(
-            _between(_baseline, Optional<TFragment?>.Present(snapshot)),
-            snapshot,
-            _generation
-        );
-        _pending = pending;
-        OnPropertyChanged(nameof(IsSubmitting));
-        return pending;
-    }
-
-    /// <summary>Completes a pending submit and rebases remaining local edits if server state is supplied.</summary>
-    public SparseSubmitResult Complete(
-        SparsePendingSubmit<TChangeSet, TFragment> pending,
-        SparseSubmitResponse<TModel> response
-    )
-    {
-        EnsureSubmitSupported();
-        if (pending is null)
-            throw new ArgumentNullException(nameof(pending));
-        if (response is null)
-            throw new ArgumentNullException(nameof(response));
-        if (!ReferenceEquals(_pending, pending) || pending.Generation != _generation)
-            throw new InvalidOperationException(
-                "The submit handle is stale or does not belong to this session."
-            );
-
-        _pending = null;
-        OnPropertyChanged(nameof(IsSubmitting));
-        SparseSubmitResult result;
-        switch (response.Status)
-        {
-            case SparseSubmitStatus.Failed:
-                result = new SparseSubmitResult(SparseSubmitStatus.Failed);
-                break;
-            case SparseSubmitStatus.Accepted:
-            {
-                if (response.ServerState is null)
-                {
-                    _baseline = Optional<TFragment?>.Present(pending.Snapshot);
-                    var later = _between(
-                        Optional<TFragment?>.Present(pending.Snapshot),
-                        Optional<TFragment?>.Present(_fromModel(Model))
-                    );
-                    result = new SparseSubmitResult(
-                        _isEmpty(later) ? SparseSubmitStatus.Accepted : SparseSubmitStatus.Rebased
-                    );
-                    break;
-                }
-
-                var server = _fromModel(response.ServerState);
-                var local = _between(
-                    Optional<TFragment?>.Present(pending.Snapshot),
-                    Optional<TFragment?>.Present(_fromModel(Model))
-                );
-                var hasLaterEdits = !_isEmpty(local);
-                var rebased = _rebase!(local, Optional<TFragment?>.Present(server));
-                _baseline = Optional<TFragment?>.Present(server);
-                WriteApplied(rebased.Rebased, rebased.HasConflicts ? _fromModel(Model) : server);
-                var status = rebased.HasConflicts
-                    ? SparseSubmitStatus.Conflicted
-                    : SparseSubmitStatus.Accepted;
-                if (!rebased.HasConflicts && hasLaterEdits)
-                    status = SparseSubmitStatus.Rebased;
-                result = new SparseSubmitResult(status, rebased.Conflicts);
-                break;
-            }
-            case SparseSubmitStatus.Rejected:
-                if (response.ServerState is null)
-                {
-                    result = new SparseSubmitResult(SparseSubmitStatus.Rejected);
-                    break;
-                }
-                else
-                {
-                    var server = _fromModel(response.ServerState);
-                    var local = _between(
-                        _baseline,
-                        Optional<TFragment?>.Present(_fromModel(Model))
-                    );
-                    var rebased = _rebase!(local, Optional<TFragment?>.Present(server));
-                    _baseline = Optional<TFragment?>.Present(server);
-                    WriteApplied(
-                        rebased.Rebased,
-                        rebased.HasConflicts ? _fromModel(Model) : server
-                    );
-                    result = new SparseSubmitResult(
-                        rebased.HasConflicts
-                            ? SparseSubmitStatus.Conflicted
-                            : SparseSubmitStatus.Rebased,
-                        rebased.Conflicts
-                    );
-                    break;
-                }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(response));
-        }
-        _generation++;
+        _baseline = advanced;
         OnPropertyChanged(nameof(HasChanges));
-        return result;
-    }
-
-    /// <summary>Sends the current change set and completes the session submit lifecycle.</summary>
-    /// <remarks>Send exceptions and cancellation leave the baseline unchanged and are rethrown.</remarks>
-    public async Task<SparseSubmitResult> SubmitAsync(
-        Func<TChangeSet, CancellationToken, Task<SparseSubmitResponse<TModel>>> send,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (send is null)
-            throw new ArgumentNullException(nameof(send));
-        var pending = BeginSubmit();
-        try
-        {
-            var response = await send(pending.ChangeSet, cancellationToken).ConfigureAwait(false);
-            return Complete(pending, response);
-        }
-        catch
-        {
-            if (ReferenceEquals(_pending, pending))
-                Complete(pending, SparseSubmitResponse<TModel>.Failed());
-            throw;
-        }
-    }
-
-    private void EnsureSubmitSupported()
-    {
-        if (_rebase is null || _apply is null || _write is null)
-            throw new NotSupportedException(
-                "Submit and in-place updates are unavailable because this model has members that cannot be written in place."
-            );
-    }
-
-    private void WriteApplied(TChangeSet changes, TFragment baseline)
-    {
-        var updated = _apply!(changes, Optional<TFragment?>.Present(baseline));
-        if (!updated.IsPresent || updated.Value is null)
-            throw new InvalidOperationException(
-                "The rebased change set did not produce a model state."
-            );
-        _write!(Model, updated.Value);
     }
 
     private void OnPropertyChanged(string propertyName) =>
