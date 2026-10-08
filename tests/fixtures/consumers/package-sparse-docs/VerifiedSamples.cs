@@ -392,9 +392,23 @@ public static class VerifiedSamples
             },
         };
         var changes = before.CreateChangeSet(after);
-        // Send changes to the server, insert the added rows, and assign database IDs.
-        // Once the server returns its authoritative state, accept it as the new baseline:
-        // replace the local model with that state (or call the applicable AcceptChanges API).
+        // Send changes.ToPayload() to the server; the server inserts the rows,
+        // assigns database IDs, and may normalize or reorder them.
+        // Do not acknowledge the unassigned transition with AcceptChanges.
+        // Replace with the authoritative state and start a fresh session:
+        var persisted = new PendingFleet
+        {
+            Servers = new()
+            {
+                new PendingServer { Id = 11, Host = "client-1" },
+                new PendingServer { Id = 4, Host = "saved" },
+                new PendingServer { Id = 12, Host = "client-2" },
+            },
+        };
+        var session = persisted.CreateEditSession();
+        // session.HasChanges == false
+        DocsCheck.Require(!session.HasChanges, "fresh session on authoritative state is clean");
+        DocsCheck.Require(!changes.IsEmpty, "unassigned additions form a transition");
         // /sample
     }
 

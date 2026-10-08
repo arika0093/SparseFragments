@@ -104,7 +104,7 @@ public partial class StrategySettings
 * Message: `The configured merge mode is not supported for member '{0}'`
 * Cause: The mode does not apply to this member kind:
   `Deep` needs a nested generated model, `Append` needs an ordered collection,
-  `SetUnion` needs a collection, and numeric values outside `MergeMode` 0–4 are rejected.
+  `SetUnion` needs a collection, and numeric values outside `MergeMode` 0–5 are rejected.
 * Fix: Select a mode that matches the member kind. See [Merge strategies](merge-strategies.md).
 
 ```csharp
@@ -331,5 +331,5 @@ public partial class Widget
 ## SPF026: In-place submit is unavailable
 
 * Message: `Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission`
-* Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo`, `Patch.ApplyInPlace`, and session submit) are omitted or unavailable.
-* Fix: Make all members writable when an in-place submit workflow is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.
+* Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo` and `Patch.ApplyInPlace`) are omitted or unavailable.
+* Fix: Make all members writable when in-place application is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.

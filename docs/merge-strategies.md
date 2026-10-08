@@ -1,13 +1,14 @@
 # Merge Strategies
 
-`Merge` combines a lower-priority Fragment with a higher-priority Fragment. Missing members in the higher layer fall through to the lower layer. Most members need no configuration: scalars and ordinary collections use `Replace`, while nested generated models use `Deep`. Add `[SparseMerge]` only when you want different behavior.
+`Merge` combines a lower-priority Fragment with a higher-priority Fragment. Missing members in the higher layer fall through to the lower layer. Most members need no configuration: leave the member without `[SparseMerge]` and `MergeMode.Default` selects shape-aware behavior. Add `[SparseMerge]` only when you want different behavior.
 
 ## Built-in Modes
 
 | `MergeMode` | Behavior | Applies to |
 | --- | --- | --- |
-| `Replace` | The higher layer's present value wins | Scalars and collections (default for both) |
-| `Deep` | Recursively merge nested fragments member by member | Nested models (default for nested models) |
+| `Default` (`= 0`) | Shape-aware default: nested models merge member by member (`Deep`), everything else replaces | All members without explicit configuration |
+| `Replace` | The higher layer's present value wins | Scalars and collections (type-dependent default) |
+| `Deep` | Recursively merge nested fragments member by member | Nested models (type-dependent default for nested models) |
 | `Append` | Concatenate collections from lowest to highest priority | Collections (not sets, not scalars) |
 | `SetUnion` | Combine as an insertion-ordered set union | Collections and sets (not scalars) |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation | Any member via `[SparseMerge(typeof(Strategy))]` |
@@ -54,7 +55,7 @@ Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)). An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit default `Replace` remains granular for keyed collections.
+Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)). An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit `Default` remains granular for keyed collections: it resolves to `Deep` for nested models and to `Replace` for everything else.
 
 ### `Append`
 

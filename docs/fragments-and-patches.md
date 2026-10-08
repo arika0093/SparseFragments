@@ -268,7 +268,9 @@ ChangeSet -> Patch
 
 ## Serialize Patches and ChangeSets
 
-Generated `Patch` types have `System.Text.Json` support. Serialize a ChangeSet through its generated payload:
+Generated `Fragment` types carry `System.Text.Json` support through
+`FragmentJsonConverter`. A `ChangeSet` travels only through its generated
+transport type. Serialize a ChangeSet through its generated payload:
 
 <!-- sample: core-serialization -->
 ```csharp
@@ -293,9 +295,9 @@ Typed projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, and
 
 ### ChangeSet payload JSON
 
-Serialize and deserialize the generated `T.ChangeSetPayload`, not `T.ChangeSet`. Convert between them with `ChangeSet.ToPayload()` and `ChangeSetPayload.ToChangeSet()`. The typed member variants are suitable for OpenAPI endpoint schemas.
+Serialize and deserialize the generated `T.ChangeSetPayload`, not `T.ChangeSet`. Convert between them with `ChangeSet.ToPayload()` and `ChangeSetPayload.ToChangeSet()`. The typed member variants are suitable for OpenAPI endpoint schemas. A `Patch` has no STJ payload support of its own; cross the explicit `ToPatch()` boundary only for baseline-free local application.
 
-The top-level payload carries the `version`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
+The top-level payload carries the required string `"version": "0.1"`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
 
 ## Which API for Which Task
 

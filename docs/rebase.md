@@ -59,15 +59,17 @@ changes.ToPatch().ApplyInPlace(boundModel);
 `Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)` mutate the existing model instead of returning
 a replacement. ChangeSet has no `ApplyInPlace`; a blind overwrite must spell
 `changes.ToPatch().ApplyInPlace(model)` so conflicting edits cannot slip through
-an unguarded call. `List<T>` and `Dictionary<TKey,TValue>` properties keep their
+an unguarded call. `ToPatch()` discards the before-state, so the result is a
+baseline-free operation that can no longer rebase or report conflicts.
+`List<T>` and `Dictionary<TKey,TValue>` properties keep their
 existing collection object and replace its contents; nested model properties
-may be replaced. Get-only or init-only members prevent these APIs and submit
-support from being generated, while ordinary immutable patch/rebase APIs
+may be replaced. Get-only or init-only members prevent these in-place APIs
+from being generated, while ordinary immutable patch/rebase APIs
 remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
 
 The presence-aware APIs remain necessary when the root itself may be *missing*, *present null*, or *present value*. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` remain observable transitions only through the Fragment/Optional surface.
 
-`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
+`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** in `Rebased` plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. The application owns the decision, persistence, and transport: keep persistence atomic and decline to commit when conflicts remain, or resolve per field and retry. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
 
 <!-- sample: rebase-presence -->
 ```csharp
