@@ -23,6 +23,13 @@ public enum SparseConflictKind
 
     /// <summary>A custom merge strategy reported a conflict.</summary>
     CustomStrategy,
+
+    /// <summary>A write-only member was rebased without its before-state.</summary>
+    /// <remarks>
+    /// Secret-safe: the attached values carry no secret plaintext, and the
+    /// reason never embeds member values.
+    /// </remarks>
+    RedactedBefore,
 }
 
 /// <summary>Structured, domain-neutral information about one rebase conflict.</summary>

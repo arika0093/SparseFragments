@@ -138,7 +138,7 @@ check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/Verified
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     keyed-first-models keyed-first keyed-typed
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-e2e
+    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session
 

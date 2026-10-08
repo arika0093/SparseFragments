@@ -306,6 +306,142 @@ public sealed class SparseGeneratorDiagnosticTests
     }
 
     [Test]
+    [Arguments("wrongType")]
+    [Arguments("nestedTarget")]
+    [Arguments("keyedTarget")]
+    [Arguments("appendTarget")]
+    public void Spf027_InvalidRebasePolicyReportsErrorWithNoSource(string kind)
+    {
+        var source = kind switch
+        {
+            "wrongType" => """
+                using SparseFragments;
+                public sealed class WrongPolicy : FragmentMergeStrategy<string>
+                {
+                    public override Optional<string> Merge(Optional<string> lower, Optional<string> higher) => higher.IsPresent ? higher : lower;
+                    public override bool AreEqual(string? left, string? right) => left == right;
+                }
+                [SparseFragmentModel]
+                public partial class BadPolicyModel
+                {
+                    [SparseRebasePolicy(typeof(WrongPolicy))]
+                    public string Name { get; set; } = "";
+                }
+                """,
+            "nestedTarget" => """
+                using SparseFragments;
+                [SparseFragmentModel]
+                public partial class Spf027Child
+                {
+                    public string? Value { get; set; }
+                }
+                public sealed class Spf027ChildPolicy : FragmentRebasePolicy<Spf027Child>
+                {
+                    public override bool AreEqual(Spf027Child? left, Spf027Child? right) => left == right;
+                    public override bool TryRebase(Optional<Spf027Child> editBase, Optional<Spf027Child> desired, Optional<Spf027Child> current, out Optional<Spf027Child> rebased, out string? reason)
+                    {
+                        rebased = current;
+                        reason = null;
+                        return true;
+                    }
+                }
+                [SparseFragmentModel]
+                public partial class NestedPolicyModel
+                {
+                    [SparseRebasePolicy(typeof(Spf027ChildPolicy))]
+                    public Spf027Child Child { get; set; } = new();
+                }
+                """,
+            "keyedTarget" => """
+                using SparseFragments;
+                using System.Collections.Generic;
+                [SparseFragmentModel]
+                public partial class Spf027Item
+                {
+                    [SparseKey]
+                    public string Id { get; set; } = "";
+                    public string Name { get; set; } = "";
+                }
+                public sealed class Spf027ListPolicy : FragmentRebasePolicy<List<Spf027Item>>
+                {
+                    public override bool AreEqual(List<Spf027Item>? left, List<Spf027Item>? right) => left == right;
+                    public override bool TryRebase(Optional<List<Spf027Item>> editBase, Optional<List<Spf027Item>> desired, Optional<List<Spf027Item>> current, out Optional<List<Spf027Item>> rebased, out string? reason)
+                    {
+                        rebased = current;
+                        reason = null;
+                        return true;
+                    }
+                }
+                [SparseFragmentModel]
+                public partial class KeyedPolicyModel
+                {
+                    [SparseRebasePolicy(typeof(Spf027ListPolicy))]
+                    public List<Spf027Item> Items { get; set; } = new();
+                }
+                """,
+            "appendTarget" => """
+                using SparseFragments;
+                using System.Collections.Generic;
+                public sealed class Spf027AppendPolicy : FragmentRebasePolicy<List<string>>
+                {
+                    public override bool AreEqual(List<string>? left, List<string>? right) => left == right;
+                    public override bool TryRebase(Optional<List<string>> editBase, Optional<List<string>> desired, Optional<List<string>> current, out Optional<List<string>> rebased, out string? reason)
+                    {
+                        rebased = current;
+                        reason = null;
+                        return true;
+                    }
+                }
+                [SparseFragmentModel]
+                public partial class AppendPolicyModel
+                {
+                    [SparseMerge(MergeMode.Append)]
+                    [SparseRebasePolicy(typeof(Spf027AppendPolicy))]
+                    public List<string> Tags { get; set; } = new();
+                }
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+        var (diagnostics, sources) = Run(source);
+        var expectedArg = kind switch
+        {
+            "nestedTarget" => "Child",
+            "keyedTarget" => "Items",
+            "appendTarget" => "Tags",
+            _ => "Name",
+        };
+        AssertSingleSpf(
+            diagnostics,
+            "SPF027",
+            expectedArg,
+            "#spf027-invalid-custom-rebase-policy",
+            expectInSource: true
+        );
+        if (kind == "nestedTarget")
+        {
+            sources
+                .Any(s => s.HintName.Contains("Spf027Child", StringComparison.Ordinal))
+                .ShouldBeTrue();
+            sources
+                .Any(s => s.HintName.Contains("NestedPolicyModel", StringComparison.Ordinal))
+                .ShouldBeFalse();
+        }
+        else if (kind == "keyedTarget")
+        {
+            sources
+                .Any(s => s.HintName.Contains("Spf027Item", StringComparison.Ordinal))
+                .ShouldBeTrue();
+            sources
+                .Any(s => s.HintName.Contains("KeyedPolicyModel", StringComparison.Ordinal))
+                .ShouldBeFalse();
+        }
+        else
+        {
+            sources.ShouldBeEmpty();
+        }
+    }
+
+    [Test]
     [Arguments("deepOnScalar")]
     [Arguments("appendOnSet")]
     [Arguments("appendOnScalar")]
@@ -613,6 +749,7 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF024"] = "#spf024-invalid-unassigned-key-sentinel",
             ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
             ["SPF026"] = "#spf026-in-place-submit-is-unavailable",
+            ["SPF027"] = "#spf027-invalid-custom-rebase-policy",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
@@ -623,8 +760,9 @@ public sealed class SparseGeneratorDiagnosticTests
         foreach (var (id, anchor) in expected)
         {
             var descriptor = descriptors[id];
-            descriptor
-                .DefaultSeverity.ShouldBe(id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error);
+            descriptor.DefaultSeverity.ShouldBe(
+                id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error
+            );
             descriptor.Category.ShouldBe("SparseFragments");
             descriptor.HelpLinkUri.ShouldBe(
                 "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md" + anchor
@@ -653,7 +791,9 @@ public sealed class SparseGeneratorDiagnosticTests
         info.Location.IsInSource.ShouldBeTrue();
         sources.ShouldNotBeEmpty();
         sources
-            .Any(static generated => generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal))
+            .Any(static generated =>
+                generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal)
+            )
             .ShouldBeFalse();
     }
 
@@ -923,7 +1063,8 @@ public sealed class SparseGeneratorDiagnosticTests
             """;
         var (diagnostics, sources) = Run(source);
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
-        sources.Any(s => s.HintName.Contains("IgnoredJsonNameModel", StringComparison.Ordinal))
+        sources
+            .Any(s => s.HintName.Contains("IgnoredJsonNameModel", StringComparison.Ordinal))
             .ShouldBeTrue();
     }
 }

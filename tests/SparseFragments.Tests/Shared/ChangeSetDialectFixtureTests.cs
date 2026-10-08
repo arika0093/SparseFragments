@@ -304,4 +304,79 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.DownstreamRebase<Patch>");
         text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
     }
+
+    private static SparseMemberModel PolicyMember()
+    {
+        var property = new SparsePropertyModel(
+            "Note",
+            ScalarType("global::System.String?"),
+            IsInitOnly: false,
+            IsRequired: false,
+            IsReadOnly: false,
+            JsonPropertyName: "Note",
+            HasExplicitJsonPropertyName: false,
+            JsonIgnoreCondition: 0
+        );
+        var policy = new SparseTypeModel(
+            "global::Downstream.NotePolicy",
+            "global::Downstream.NotePolicy",
+            "global::Downstream.NotePolicy",
+            IsReferenceType: true,
+            IsFragmentModel: false,
+            PocoCloneHelperName: null
+        );
+        return new SparseMemberModel(
+            7,
+            property,
+            null,
+            SparseMergeModes.Replace,
+            SparseCollectionInfo.Unsupported,
+            null,
+            null,
+            false,
+            true,
+            RebasePolicyType: policy
+        );
+    }
+
+    [Test]
+    public void Downstream_RebaseOptionsDeriveFromRuntimeNamespace()
+    {
+        var text = EmitChangeSet(
+            ImmutableArray.Create(
+                ScalarMember(1, "Name", "global::System.String?"),
+                PolicyMember()
+            ),
+            DownstreamDialect()
+        );
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldContain("global::Downstream.ChangePayloadRebaseOptions? options = null");
+        text.ShouldContain("global::Downstream.SparseRebaseMode");
+        text.ShouldContain("global::Downstream.DownstreamConflictKind.RedactedBefore");
+        text.ShouldContain("Fragment.__sparse_rebase_policy_7.TryRebase(");
+        text.ShouldContain("RejectChangesWithRedactedBeforeValuesDuringRebase");
+    }
+
+    [Test]
+    public void Downstream_RebaseNamingIsDialectOwned()
+    {
+        var text = EmitChangeSet(
+            ImmutableArray.Create(
+                ScalarMember(1, "Name", "global::System.String?"),
+                PolicyMember()
+            ),
+            DownstreamDialect() with
+            {
+                RebaseOptionsType = "global::Downstream.DeltaOptions",
+                RebaseModeType = "global::Downstream.DeltaMode",
+                RebasePolicyField = static member => "__delta_policy_" + member.Id,
+            }
+        );
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldNotContain("ChangePayloadRebaseOptions");
+        text.ShouldContain("global::Downstream.DeltaOptions? options = null");
+        text.ShouldContain("global::Downstream.DeltaMode");
+        text.ShouldContain("Fragment.__delta_policy_7.TryRebase(");
+        text.ShouldContain("global::Downstream.DownstreamConflictKind.RedactedBefore");
+    }
 }

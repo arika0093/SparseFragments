@@ -105,6 +105,8 @@ The contract rules:
 * `Lifetime and thread-safety.` Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
 * `Rebase default.` The default `TryRebase` succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a `CustomStrategy` conflict otherwise.
 
+A member can carry both a merge strategy and a rebase policy. The strategy keeps owning `Merge`; the policy takes precedence for that member during rebase (see [ChangeSet rebase](rebase.md#rebase-policies)). A policy without any strategy needs no merge configuration at all.
+
 ## Equality and Comparer Semantics
 
 This section is a reference. It defines how set and dictionary equality works.

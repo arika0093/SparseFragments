@@ -109,6 +109,15 @@ internal static class SparseFragmentEmitter
             MergeStrategyField =
                 patchDialect.MergeStrategyField
                 ?? (member => runtime.MergeStrategyFieldPrefix + member.Id),
+            RebasePolicyField =
+                patchDialect.RebasePolicyField
+                ?? (
+                    member =>
+                        (
+                            runtime.RebasePolicyFieldPrefix
+                            ?? SparseWellKnownNames.RebasePolicyFieldPrefix
+                        ) + member.Id
+                ),
         };
         var expressions = new SparseFragmentExpressions(
             "__sparse_clone_context",
@@ -121,7 +130,8 @@ internal static class SparseFragmentEmitter
             runtime.MergeStrategyFieldPrefix,
             "__sparse_clone_context",
             runtime.ReferenceComparer,
-            expressions
+            expressions,
+            runtime.RebasePolicyFieldPrefix
         );
         _ = structuralModels;
         var portableSetView = SparseFragmentCoreEmitter.RequiresPortableSetView(
@@ -245,7 +255,14 @@ internal static class SparseFragmentEmitter
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
-        core.AppendMembers(code, members, runtime.MergeStrategyType);
+        core.AppendMembers(
+            code,
+            members,
+            runtime.MergeStrategyType,
+            appendMemberAttributes: null,
+            rebasePolicyBase: SparseFragmentPatchEmitter.GetRebasePolicyType(patchDialect),
+            rebasePolicyField: patchDialect.RebasePolicyField
+        );
         code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
         code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
         AppendFragmentEquality(code, members, runtime.OptionalType, expressions, core);

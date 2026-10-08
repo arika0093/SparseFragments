@@ -69,6 +69,15 @@ internal static class ProbeSurface
             ChildIsStructural: false,
             ChildIsReferenceType: true
         );
+        var policyType = new SparseTypeModel(
+            "global::PackageShared.Policy",
+            "global::PackageShared.Policy",
+            "global::PackageShared.Policy",
+            IsReferenceType: true,
+            IsFragmentModel: false,
+            PocoCloneHelperName: null
+        );
+        var policyMember = member with { RebasePolicyType = policyType };
         var key = new SparseKeyInfo(
             SparseKeyKind.None,
             ImmutableArray<string>.Empty,
@@ -82,7 +91,20 @@ internal static class ProbeSurface
             typeof(SparseCollectionAnalyzer),
             typeof(SparseKeyAnalyzer),
             typeof(SparseModelAnalyzer),
+            typeof(SparseMergeValidation),
         };
+
+        // Rebase policy surface (Emitters/Patch/, Analysis/). Referencing the
+        // options/policy emitters and the rebase field default proves a
+        // downstream generator can configure rebase semantics from the package
+        // without a SparseFragments runtime reference.
+        var rebaseTypes = new[]
+        {
+            typeof(SparseRebaseOptionEmitter),
+            typeof(SparseChangeSetMemberRebaseEmitter),
+            typeof(SparseFragmentPatchCollectionRebaseEmitter),
+        };
+        var rebaseFieldPrefix = SparseWellKnownNames.RebasePolicyFieldPrefix;
 
         // Emitter/helpers (Emitters/, Infrastructure/).
         var code = new SharedIndentedBuilder(cancellationToken);
@@ -120,7 +142,19 @@ internal static class ProbeSurface
         );
         code.AppendLineAt(
             0,
-            "// analysis=" + analysisTypes.Length + " incremental=" + incrementalTypes.Length
+            "// policy="
+                + policyMember.RebasePolicyType!.Value.Name
+                + " prefix="
+                + rebaseFieldPrefix
+        );
+        code.AppendLineAt(
+            0,
+            "// analysis="
+                + analysisTypes.Length
+                + " rebase="
+                + rebaseTypes.Length
+                + " incremental="
+                + incrementalTypes.Length
         );
         code.AppendLineAt(0, "// observable=" + observable + " collection=" + collection.Kind);
         return code.ToString();

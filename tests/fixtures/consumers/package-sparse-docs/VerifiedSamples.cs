@@ -26,6 +26,8 @@ public static class VerifiedSamples
         RebaseFirst();
         RebaseApplied();
         RebaseConflict();
+        RebasePolicy();
+        RebaseRedacted();
         RebaseEndToEnd();
     }
 
@@ -537,6 +539,57 @@ public static class VerifiedSamples
         }
         // /sample
     }
+
+    private static void RebasePolicy()
+    {
+        // sample: rebase-policy
+        var policyBase = new RebasePolicySettings { Label = "a", Tag = "a" };
+        var policyEdited = new RebasePolicySettings { Label = "b", Tag = "b" };
+        var policyCurrent = new RebasePolicySettings { Label = "a", Tag = "c" };
+
+        if (!policyBase.CreateChangeSet(policyEdited).TryApplyTo(policyCurrent, out var merged))
+        {
+            throw new InvalidOperationException("The policy reconciles divergent labels.");
+        }
+
+        // merged.Label == "b"
+        // merged.Tag == "b|c"
+        DocsCheck.Require(merged.Label == "b", "plain member replays");
+        DocsCheck.Require(merged.Tag == "b|c", "policy merges divergent labels");
+        // /sample
+    }
+
+    private static void RebaseRedacted()
+    {
+        // sample: rebase-redacted
+        var secretBase = new RebaseSettings { RetryCount = 1, Label = "a" };
+        var secretEdited = new RebaseSettings { RetryCount = 1, Label = "new-secret" };
+        var secretCurrent = new RebaseSettings { RetryCount = 1, Label = "other" };
+        var redacted = new ChangePayloadRebaseOptions
+        {
+            RejectChangesWithRedactedBeforeValuesDuringRebase = true,
+            RedactedBeforePaths = ["Label"],
+        };
+
+        if (
+            secretBase
+                .CreateChangeSet(secretEdited)
+                .TryApplyTo(secretCurrent, out _, out var redactedConflicts, redacted)
+        )
+        {
+            throw new InvalidOperationException("Expected a redacted-before failure.");
+        }
+
+        var redactedConflict = redactedConflicts.Single();
+        // redactedConflict.Kind == SparseConflictKind.RedactedBefore
+        // redactedConflict.Path == ["Label"]
+        DocsCheck.Require(
+            redactedConflict.Kind == SparseConflictKind.RedactedBefore,
+            "redacted-before failure is typed"
+        );
+        DocsCheck.Require(redactedConflict.PathText == "Label", "conflict names the member");
+        // /sample
+    }
 }
 
 // sample: core-models
@@ -607,5 +660,57 @@ public partial class RebaseSettings
     public string? Label { get; set; }
 
     public int RetryCount { get; set; }
+}
+
+// /sample
+
+// sample: rebase-policy-models
+[SparseFragmentModel]
+public partial class RebasePolicySettings
+{
+    public string? Label { get; set; }
+
+    [SparseRebasePolicy(typeof(ConcatLabelPolicy))]
+    public string? Tag { get; set; }
+}
+
+public sealed class ConcatLabelPolicy : FragmentRebasePolicy<string?>
+{
+    public override bool AreEqual(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.Ordinal);
+
+    public override bool TryRebase(
+        Optional<string?> editBase,
+        Optional<string?> desired,
+        Optional<string?> current,
+        out Optional<string?> rebased,
+        out string? reason
+    )
+    {
+        if (!editBase.IsPresent || !desired.IsPresent || !current.IsPresent)
+        {
+            return FragmentRebasePolicy<string?>
+                .FailOnConflict()
+                .TryRebase(editBase, desired, current, out rebased, out reason);
+        }
+
+        if (AreEqual(desired.Value, editBase.Value))
+        {
+            rebased = current;
+            reason = null;
+            return true;
+        }
+
+        if (AreEqual(current.Value, editBase.Value) || AreEqual(current.Value, desired.Value))
+        {
+            rebased = desired;
+            reason = null;
+            return true;
+        }
+
+        rebased = Optional<string?>.Present(desired.Value + "|" + current.Value);
+        reason = null;
+        return true;
+    }
 }
 // /sample

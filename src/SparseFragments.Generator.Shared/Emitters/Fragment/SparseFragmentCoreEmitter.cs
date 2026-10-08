@@ -21,10 +21,11 @@ internal sealed class SparseFragmentCoreEmitter
         string mergeStrategyFieldPrefix,
         string cloneContext,
         string referenceComparer,
-        SparseFragmentExpressions expressions
+        SparseFragmentExpressions expressions,
+        string? rebasePolicyFieldPrefix = null
     )
     {
-        _declaration = new(optional, mergeStrategyFieldPrefix);
+        _declaration = new(optional, mergeStrategyFieldPrefix, rebasePolicyFieldPrefix);
         _conversion = new(optional, cloneContext, referenceComparer, expressions);
         _merge = new(optional, mergeStrategyFieldPrefix, referenceComparer, expressions);
         _clone = new(optional, cloneContext, referenceComparer, expressions);
@@ -66,8 +67,18 @@ internal sealed class SparseFragmentCoreEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string mergeStrategy,
-        System.Action<SharedIndentedBuilder>? appendMemberAttributes = null
-    ) => _declaration.AppendMembers(code, members, mergeStrategy, appendMemberAttributes);
+        System.Action<SharedIndentedBuilder>? appendMemberAttributes = null,
+        string? rebasePolicyBase = null,
+        System.Func<SparseMemberModel, string>? rebasePolicyField = null
+    ) =>
+        _declaration.AppendMembers(
+            code,
+            members,
+            mergeStrategy,
+            appendMemberAttributes,
+            rebasePolicyBase,
+            rebasePolicyField
+        );
 
     public static void AppendCollectionCloneHelpers(
         SharedIndentedBuilder code,

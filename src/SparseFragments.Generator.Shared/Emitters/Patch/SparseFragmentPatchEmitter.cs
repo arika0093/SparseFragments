@@ -177,7 +177,11 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string>? MemberValueType = null,
         Func<SparseMemberModel, string>? CollectionPatchName = null,
         Func<SparseMemberModel, string>? MergeStrategyField = null,
-        string ChangeSetPayloadVersion = "0.1"
+        string ChangeSetPayloadVersion = "0.1",
+        string? RebaseOptionsType = null,
+        string? RebaseModeType = null,
+        string? RebasePolicyType = null,
+        Func<SparseMemberModel, string>? RebasePolicyField = null
     );
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
@@ -203,6 +207,27 @@ internal static class SparseFragmentPatchEmitter
     ) =>
         dialect.MergeStrategyField?.Invoke(member)
         ?? SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
+
+    /// <summary>Resolves the caller-owned per-rebase options type for generated signatures.</summary>
+    /// <remarks>Null falls back to the runtime namespace so downstream products
+    /// keep owning the type; Shared never substitutes a SparseFragments type.</remarks>
+    internal static string GetRebaseOptionsType(SparsePatchDialect dialect) =>
+        dialect.RebaseOptionsType ?? dialect.RuntimeNamespace + "ChangePayloadRebaseOptions";
+
+    /// <summary>Resolves the caller-owned rebase mode enum for generated dispatch.</summary>
+    internal static string GetRebaseModeType(SparsePatchDialect dialect) =>
+        dialect.RebaseModeType ?? dialect.RuntimeNamespace + "SparseRebaseMode";
+
+    /// <summary>Resolves the caller-owned rebase policy base type for generated fields.</summary>
+    internal static string GetRebasePolicyType(SparsePatchDialect dialect) =>
+        dialect.RebasePolicyType ?? dialect.RuntimeNamespace + "FragmentRebasePolicy";
+
+    internal static string GetRebasePolicyField(
+        SparsePatchDialect dialect,
+        SparseMemberModel member
+    ) =>
+        dialect.RebasePolicyField?.Invoke(member)
+        ?? SparseWellKnownNames.RebasePolicyFieldPrefix + member.Id;
 
     internal static string Kind(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperationKind";
