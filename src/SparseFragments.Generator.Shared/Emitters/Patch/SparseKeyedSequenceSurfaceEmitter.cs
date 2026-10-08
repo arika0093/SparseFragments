@@ -5,18 +5,19 @@ internal static class SparseKeyedSequenceSurfaceEmitter
 {
     internal static void EmitKeyedSequencePatch(
         SharedIndentedBuilder code,
-        SparseMemberModel member
+        SparseMemberModel member,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
         var elementType = SparseKeyedCollectionEmitter.ElementType(member);
         var keyType = SparseKeyedCollectionEmitter.KeyType(member);
         var listType = SparseKeyedCollectionEmitter.MemberListType(member);
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var operation = runtime + "FragmentOperation<" + listType + ">";
         var kind = runtime + "FragmentOperationKind";
         var optionalList = runtime + "Optional<" + listType + ">";
-        var facade = "global::SparseFragments.CompilerServices.SparseFragmentRuntime";
+        var facade = dialect.RuntimeFacade;
         var hasPatch = SparseKeyedCollectionEmitter.HasElementPatch(member);
         var editedValueType = hasPatch
             ? SparseKeyedCollectionEmitter.ElementPatchType(member)
@@ -295,7 +296,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             keyType,
             listType,
             hasPatch,
-            comparer
+            comparer,
+            runtime
         );
         SparseKeyedSequenceApplyEmitter.EmitKeyedBetween(
             code,
@@ -306,7 +308,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             listType,
             hasPatch,
             comparer,
-            facade
+            facade,
+            runtime
         );
         SparseKeyedSequenceComposeEmitter.EmitKeyedCompose(
             code,
@@ -316,7 +319,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             keyType,
             listType,
             hasPatch,
-            comparer
+            comparer,
+            runtime
         );
         code.AppendLineAt(
             3,
@@ -335,9 +339,10 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             listType,
             hasPatch,
             comparer,
-            facade
+            facade,
+            dialect
         );
-        SparsePatchStjEmitter.AppendKeyedStj(code, member);
+        SparsePatchStjEmitter.AppendKeyedStj(code, member, dialect);
         code.AppendLineAt(2, "}");
     }
 }

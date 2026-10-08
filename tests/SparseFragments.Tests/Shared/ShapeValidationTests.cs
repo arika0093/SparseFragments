@@ -89,7 +89,7 @@ public sealed class ShapeValidationTests
     }
 
     [Test]
-    public void ReservedCollisions_FindSparseFragmentsNames()
+    public void ReservedCollisions_UsesCallerProvidedNames()
     {
         var members = ImmutableArray.Create(
             ScalarMember(0, "Name"),
@@ -99,21 +99,23 @@ public sealed class ShapeValidationTests
         SparseShapeValidation
             .FindFirstReservedNameCollision(
                 members,
-                SparseShapeValidation.SparseFragmentsReservedNames
+                ImmutableArray.Create("JsonConverter", "FragmentJsonConverter")
             )
             .ShouldBe("JsonConverter");
         SparseShapeValidation
             .FindReservedNameCollisions(
                 members.Select(static member => member.Property.Name),
-                SparseShapeValidation.SparseFragmentsReservedNames
+                ImmutableArray.Create("JsonConverter", "FragmentJsonConverter")
             )
             .ShouldBe(["JsonConverter", "FragmentJsonConverter"]);
     }
 
     [Test]
-    public void ReservedCollisions_ComposeCoreAndProductNames()
+    public void ReservedCollisions_ComposeGeneratedAndProductNames()
     {
-        var reserved = SparseShapeValidation.CoreGeneratedNames.Add("CustomReserved");
+        var reserved = ImmutableArray
+            .Create("Fragment", "FragmentBuilder", "Merge")
+            .Add("CustomReserved");
         SparseShapeValidation
             .FindReservedNameCollisions(["Name", "Merge", "CustomReserved"], reserved)
             .ShouldBe(["Merge", "CustomReserved"]);

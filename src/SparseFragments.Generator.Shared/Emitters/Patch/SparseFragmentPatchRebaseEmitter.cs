@@ -13,21 +13,21 @@ internal static class SparseFragmentPatchRebaseEmitter
     public static void AppendPatchRebase(
         SharedIndentedBuilder code,
         string modelType,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         _ = modelType;
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
         var optionalFragment = runtime + "Optional<Fragment?>";
         var kind = runtime + "FragmentOperationKind";
-        var conflict = "global::SparseFragments.SparsePatchConflict";
-        var conflictKind = "global::SparseFragments.SparsePatchConflictKind";
-        var conflictList =
-            "global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>";
-        var rebaseResult = "global::SparseFragments.RebaseResult<Patch>";
+        var conflict = dialect.ConflictType;
+        var conflictKind = dialect.ConflictKindType;
+        var conflictList = "global::System.Collections.Generic.List<" + dialect.ConflictType + ">";
+        var rebaseResult = dialect.RebaseResult("Patch");
 
         AppendRebaseStateHelpers(code, runtime);
         AppendRebaseHeader(
@@ -48,11 +48,11 @@ internal static class SparseFragmentPatchRebaseEmitter
         {
             code.AppendLineAt(3, "{");
             if (member.ChildModel is not null)
-                AppendNestedMemberRebase(code, member, conflict, conflictKind);
+                AppendNestedMemberRebase(code, member, conflict, conflictKind, dialect);
             else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
-                AppendCollectionMemberRebase(code, member, conflict, conflictKind);
+                AppendCollectionMemberRebase(code, member, conflict, conflictKind, dialect);
             else
-                AppendScalarMemberRebase(code, member, kind, conflict, conflictKind);
+                AppendScalarMemberRebase(code, member, kind, conflict, conflictKind, dialect);
             code.AppendLineAt(3, "}");
         }
 
@@ -177,11 +177,12 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string conflict,
-        string conflictKind
+        string conflictKind,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var field = SparseFragmentPatchEmitter.Field(member);
+        var field = dialect.MemberField(member);
         const string baseMember = "baseMember";
         const string currentMember = "currentMember";
         const string desiredMember = "desiredMember";
@@ -232,7 +233,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(
             7,
             "var nested = "
-                + SparseFragmentPatchEmitter.CollectionPatch(member)
+                + SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member)
                 + ".Rebase("
                 + baseMember
                 + ", local."
@@ -282,11 +283,12 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string conflict,
-        string conflictKind
+        string conflictKind,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var field = SparseFragmentPatchEmitter.Field(member);
+        var field = dialect.MemberField(member);
         const string baseMember = "baseMember";
         const string currentMember = "currentMember";
         const string desiredMember = "desiredMember";
@@ -315,7 +317,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(
             6,
             "var nested = "
-                + SparseFragmentPatchEmitter.ChildPatch(member)
+                + dialect.ChildPatchName(member)
                 + "."
                 + member.ChildModel!.Value.PatchApiPrefix
                 + "Rebase("
@@ -367,23 +369,24 @@ internal static class SparseFragmentPatchRebaseEmitter
         SparseMemberModel member,
         string kind,
         string conflict,
-        string conflictKind
+        string conflictKind,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var field = SparseFragmentPatchEmitter.Field(member);
+        var field = dialect.MemberField(member);
         const string baseMember = "baseMember";
         const string currentMember = "currentMember";
         const string desiredMember = "desiredMember";
         var equality = EqualMethod(member);
         var operation = runtime + "FragmentOperation";
         string scalarKind;
-        if (member.MergeMode == 2)
+        if (member.MergeMode == SparseMergeModes.Append)
         {
             scalarKind = conflictKind + ".CollectionAppend";
         }
-        else if (member.MergeMode == 3)
+        else if (member.MergeMode == SparseMergeModes.SetUnion)
         {
             scalarKind = conflictKind + ".CollectionSetUnion";
         }
@@ -403,10 +406,11 @@ internal static class SparseFragmentPatchRebaseEmitter
                 currentMember,
                 conflict,
                 conflictKind,
-                4
+                4,
+                dialect
             );
         }
-        else if (member.MergeMode is 2 or 3)
+        else if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
         {
             code.AppendLineAt(4, "if (local." + field + ".Kind != " + kind + ".Unchanged)");
             code.AppendLineAt(4, "{");
@@ -436,25 +440,25 @@ internal static class SparseFragmentPatchRebaseEmitter
             code.AppendLineAt(5, "{");
             code.AppendLineAt(6, "handled = true;");
             if (
-                member.MergeMode == 3
+                member.MergeMode == SparseMergeModes.SetUnion
                 && member.Collection.CloneKind == SparseCloneCollectionKind.Set
             )
             {
-                AppendTypedSetUnionRebase(code, member, field, operation);
+                AppendTypedSetUnionRebase(code, member, field, operation, dialect);
             }
             else if (
-                member.MergeMode is 2 or 3
+                member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
                 && member.Collection.CloneKind
                     is SparseCloneCollectionKind.Array
                         or SparseCloneCollectionKind.List
                 && member.Collection.ElementType.UsesDefaultScalarEquality
             )
             {
-                AppendTypedSequenceRebase(code, member, field, operation);
+                AppendTypedSequenceRebase(code, member, field, operation, dialect);
             }
             else
             {
-                AppendBoxedCollectionRebase(code, member, field, operation);
+                AppendBoxedCollectionRebase(code, member, field, operation, dialect);
             }
             code.AppendLineAt(6, "}");
             code.AppendLineAt(6, "else");
@@ -524,7 +528,8 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string field,
-        string operation
+        string operation,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         code.AppendLineAt(6, "var beforeValues = baseMember.Value!;");
@@ -533,13 +538,14 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(
             6,
             "if ("
-                + SparseWellKnownNames.CollectionRebaseType
+                + dialect.RuntimeFacade
                 + ".TryRebaseSetUnion<"
                 + member.Collection.ElementType.Name
                 + ">(beforeValues, desiredValues, currentValues, out var rebasedValues, out var reason))"
         );
         code.AppendLineAt(6, "{");
-        var operationType = operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        var operationType =
+            operation + "<" + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member) + ">";
         code.AppendLineAt(7, "result." + field + " = " + operationType + ".Set(rebasedValues);");
     }
 
@@ -547,20 +553,24 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string field,
-        string operation
+        string operation,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var elementType = member.Collection.ElementType.Name;
-        var valueType = SparseFragmentPatchEmitter.ValueType(member);
+        var valueType = SparseFragmentPatchEmitter.GetMemberValueType(dialect, member);
         var listType = $"global::System.Collections.Generic.List<{elementType}>";
         var readOnlyType = $"global::System.Collections.Generic.IReadOnlyList<{elementType}>";
         var typedMethod =
-            member.MergeMode == 2 ? "TryRebaseSequenceAppend" : "TryRebaseSequenceSetUnion";
+            member.MergeMode == SparseMergeModes.Append
+                ? "TryRebaseSequenceAppend"
+                : "TryRebaseSequenceSetUnion";
         if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
         {
             typedMethod += "Array";
         }
-        var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
+        var boxedMethod =
+            member.MergeMode == SparseMergeModes.Append ? "TryRebaseAppend" : "TryRebaseSetUnion";
         string NativeInput(string state, string variable) =>
             $"(object?){state}.Value is {readOnlyType} {variable} && ({variable} is {elementType}[] || {variable}.GetType() == typeof({listType}))";
 
@@ -580,7 +590,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
             7,
-            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.{typedMethod}<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
+            $"__rebaseSucceeded = {dialect.RuntimeFacade}.{typedMethod}<{elementType}>(beforeValues, desiredValues, currentValues, null, out var __typedValues, out reason);"
         );
         code.AppendLineAt(7, "if (__rebaseSucceeded) __rebasedCollection = __typedValues;");
         code.AppendLineAt(6, "}");
@@ -596,7 +606,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         }
         code.AppendLineAt(
             7,
-            $"__rebaseSucceeded = {SparseWellKnownNames.CollectionRebaseType}.{boxedMethod}(beforeBoxed, desiredBoxed, currentBoxed, (object? left, object? right) => {SparseWellKnownNames.ValueComparerType}.AreEqual(left, right), out var __boxedValues, out reason);"
+            $"__rebaseSucceeded = {dialect.RuntimeFacade}.{boxedMethod}(beforeBoxed, desiredBoxed, currentBoxed, (object? left, object? right) => {dialect.RuntimeFacade}.AreEqual(left, right), out var __boxedValues, out reason);"
         );
         var boxedResult = SparseFragmentExpressions.MaterializeCollection(
             member,
@@ -616,7 +626,8 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string field,
-        string operation
+        string operation,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         code.AppendLineAt(
@@ -634,15 +645,20 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(
             6,
             "if ("
-                + SparseWellKnownNames.CollectionRebaseType
+                + dialect.RuntimeFacade
                 + "."
-                + (member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion")
+                + (
+                    member.MergeMode == SparseMergeModes.Append
+                        ? "TryRebaseAppend"
+                        : "TryRebaseSetUnion"
+                )
                 + "(beforeValues, desiredValues, currentValues, (object? left, object? right) => "
-                + SparseWellKnownNames.ValueComparerType
+                + dialect.RuntimeFacade
                 + ".AreEqual(left, right), out var rebasedValues, out var reason))"
         );
         code.AppendLineAt(6, "{");
-        var operationType = operation + "<" + SparseFragmentPatchEmitter.ValueType(member) + ">";
+        var operationType =
+            operation + "<" + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member) + ">";
         var materialized = SparseFragmentExpressions.MaterializeCollection(
             member,
             "global::System.Linq.Enumerable.Cast<"
@@ -665,14 +681,15 @@ internal static class SparseFragmentPatchRebaseEmitter
         string currentMember,
         string conflict,
         string conflictKind,
-        int indent
+        int indent,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
         var operationType =
-            SparseFragmentPatchEmitter.Runtime
-            + "FragmentOperation<"
-            + SparseFragmentPatchEmitter.ValueType(member)
+            SparseFragmentPatchEmitter.Operation(dialect)
+            + "<"
+            + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
             + ">";
         // Custom strategies observe every member edit (Set and Unset): the presence-aware
         // TryRebase(Optional<T>, ...) SPI can represent a missing rebased state, so unlike the
@@ -685,7 +702,8 @@ internal static class SparseFragmentPatchRebaseEmitter
             indent + 1,
             "var " + desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
         );
-        var strategyField = "Fragment." + SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
+        var strategyField =
+            "Fragment." + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member);
         code.AppendLineAt(
             indent + 1,
             "if ("

@@ -14,13 +14,18 @@ internal static class SparseMergeValidation
     ) =>
         mode switch
         {
-            < 0 or > 4 => mode.ToString(),
-            1 when !hasChild => "Deep",
-            2 when collection == SparseCollectionKind.Set =>
+            SparseMergeModes.Replace => null,
+            SparseMergeModes.Deep when !hasChild => "Deep",
+            SparseMergeModes.Deep => null,
+            SparseMergeModes.Append when collection == SparseCollectionKind.Set =>
                 "Append on set types (use an ordered collection or SetUnion)",
-            2 when collection == SparseCollectionKind.Unsupported => "Append",
-            3 when collection == SparseCollectionKind.Unsupported => "SetUnion",
-            _ => null,
+            SparseMergeModes.Append when collection == SparseCollectionKind.Unsupported => "Append",
+            SparseMergeModes.Append => null,
+            SparseMergeModes.SetUnion when collection == SparseCollectionKind.Unsupported =>
+                "SetUnion",
+            SparseMergeModes.SetUnion => null,
+            SparseMergeModes.Custom => null,
+            _ => mode.ToString(),
         };
 
     /// <summary>

@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Identifies a promoted type whose roots disagree on generated semantics (SPF010).</summary>
+/// <summary>Identifies a promoted type whose roots disagree on generated semantics.</summary>
 internal sealed record SparseIncompatiblePromotedEntry(string Key, string DisplayName)
 {
     public bool Equals(SparseIncompatiblePromotedEntry? other) =>
@@ -21,7 +21,7 @@ internal sealed record SparseIncompatiblePromotedEntry(string Key, string Displa
 /// <summary>
 /// Keyed aggregation result for promoted models: distinct emit candidates plus
 /// incompatible keys. Sorted by fully-qualified type name so hint names and
-/// SPF010 diagnostics stay deterministic regardless of root declaration order.
+/// incompatibility diagnostics stay deterministic regardless of root declaration order.
 /// </summary>
 internal sealed record SparsePromotedDedupResult(
     ImmutableArray<SparsePromotedModel> Distinct,

@@ -63,12 +63,7 @@ internal static class SparseChangeSetEmitter
         {
             SparseChangeSetBetweenEmitter.AppendModelBetween(code, modelType, optionalFragment);
         }
-        SparseChangeSetPatchSyncEmitter.AppendFromPatch(
-            code,
-            members,
-            optionalFragment,
-            modelType
-        );
+        SparseChangeSetPatchSyncEmitter.AppendFromPatch(code, members, optionalFragment, modelType);
         SparseChangeSetPatchSyncEmitter.AppendToPatch(code, members, runtime, prefix, dialect);
         SparseChangeSetPatchSyncEmitter.AppendInvert(code, members, runtime, optionalFragment);
         SparseChangeSetComposeEmitter.AppendCompose(

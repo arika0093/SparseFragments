@@ -75,7 +75,6 @@ internal static class SparseChangeSetPatchSyncEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        _ = dialect;
         var between = "Patch." + prefix + "Between";
         code.AppendLineAt(
             2,
@@ -106,7 +105,7 @@ internal static class SparseChangeSetPatchSyncEmitter
             }
             else
             {
-                var vt = SparseFragmentPatchEmitter.ValueType(member);
+                var vt = SparseFragmentPatchEmitter.GetMemberValueType(dialect, member);
                 var op = runtime + "FragmentOperation<" + vt + ">";
                 code.AppendLineAt(3, "if (" + HasField(member) + ")");
                 code.AppendLineAt(3, "{");
@@ -286,7 +285,7 @@ internal static class SparseChangeSetPatchSyncEmitter
         var id = member.Id;
         var __facade = dialect.RuntimeFacade;
         var __keyType = KeyTypeOf(member);
-        var coll = "Patch." + SparseFragmentPatchEmitter.CollectionPatch(member);
+        var coll = "Patch." + SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
         var isKeyed = IsKeyed(member);
         var hasValuePatch = isKeyed
             ? member.Collection.ElementType.IsFragmentModel

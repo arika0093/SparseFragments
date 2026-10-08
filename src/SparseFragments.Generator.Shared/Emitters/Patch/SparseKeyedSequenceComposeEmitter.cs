@@ -11,10 +11,10 @@ internal static class SparseKeyedSequenceComposeEmitter
         string keyType,
         string listType,
         bool hasPatch,
-        string comparer
+        string comparer,
+        string runtime
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
         var kind = runtime + "FragmentOperationKind";
         var operation = runtime + "FragmentOperation<" + listType + ">";
         code.AppendLineAt(3, "public " + patchName + " Compose(" + patchName + " next)");

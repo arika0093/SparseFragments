@@ -93,7 +93,7 @@ internal static class SparseModelDiscovery
                 )
                     ? (INamedTypeSymbol)property.Type
                     : null;
-            var mode = child is not null ? 1 : 0;
+            var mode = child is not null ? SparseMergeModes.Deep : SparseMergeModes.Replace;
             AttributeData? merge = null;
             foreach (var attribute in property.GetAttributes())
             {
@@ -114,16 +114,11 @@ internal static class SparseModelDiscovery
             )
             {
                 mergeStrategyType = strategyConstant.Value as INamedTypeSymbol;
-                mode = SparseModelDiagnostics.CustomMergeMode;
+                mode = SparseMergeModes.Custom;
             }
             else if (merge?.ConstructorArguments.FirstOrDefault().Value is int requestedMode)
             {
-                mode = requestedMode;
-            }
-
-            if (mode is < 0 or > SparseModelDiagnostics.CustomMergeMode)
-            {
-                mode = int.MaxValue;
+                mode = config.EffectiveMergeModeMap.Normalize(requestedMode);
             }
 
             yield return new SparseSymbolMemberModel(
@@ -215,7 +210,7 @@ internal static class SparseModelDiscovery
         }
 
         if (
-            HasUnsupportedPocoMembers(named, cancellationToken)
+            HasUnsupportedPocoMembers(named, config, cancellationToken)
             || !GetReadableProperties(named, cancellationToken).Any()
         )
         {
@@ -340,20 +335,22 @@ internal static class SparseModelDiscovery
 
     private static string StructuralHostName(
         INamedTypeSymbol type,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
         var name = type.WithNullableAnnotation(NullableAnnotation.NotAnnotated)
             .ToDisplayString(SparseNaming.TypeFormat);
         var assembly = type.ContainingAssembly?.Name ?? string.Empty;
-        return SparseWellKnownNames.StructuralHostPrefix
+        return config.StructuralHostPrefix
             + SparseNaming.GetStableTypeHash(assembly + "|" + name, cancellationToken);
     }
 
     private static bool HasUnsupportedPocoMembers(
         INamedTypeSymbol pocoType,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
-    ) => ModelConstructionPlan.HasUnsupportedStructuralMembers(pocoType, cancellationToken);
+    ) => ModelConstructionPlan.HasUnsupportedStructuralMembers(pocoType, config, cancellationToken);
 
     internal static ImmutableArray<INamedTypeSymbol> GetPocoCloneTypes(
         ImmutableArray<SparseSymbolMemberModel> members,
@@ -472,7 +469,7 @@ internal static class SparseModelDiscovery
         CancellationToken cancellationToken
     ) =>
         new(
-            StructuralHostName(type, cancellationToken),
+            StructuralHostName(type, config, cancellationToken),
             SparseNaming.NonNullableTypeName(type),
             CreateMemberModels(
                 GetMembers(type, config, cancellationToken).ToImmutableArray(),
@@ -536,7 +533,7 @@ internal static class SparseModelDiscovery
             childIsStructural =
                 !isPromoted && !IsFragmentModel(member.ChildModel, config, cancellationToken);
             var host = childIsStructural
-                ? StructuralHostName(member.ChildModel, cancellationToken)
+                ? StructuralHostName(member.ChildModel, config, cancellationToken)
                 : SparseNaming.NonNullableTypeName(member.ChildModel);
             childFragmentType = host + "." + SparseWellKnownNames.FragmentTypeName;
         }

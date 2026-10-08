@@ -11,10 +11,6 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Builds standalone generated source for a <c>[SparseFragmentModel]</c>.</summary>
 internal static class SparseFragmentEmitter
 {
-    private const string Optional = SparseWellKnownNames.OptionalType;
-    private const string MergeStrategy = SparseWellKnownNames.MergeStrategyType;
-    private const string ReferenceComparer = SparseWellKnownNames.ReferenceComparerType;
-
     public static string BuildSource(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
@@ -22,7 +18,13 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config,
+        Action<
+            SharedIndentedBuilder,
+            SparseModelInfo,
+            ImmutableArray<SparseMemberModel>
+        >? appendProductExtensions = null
     )
     {
         return BuildSourceInternal(
@@ -32,8 +34,9 @@ internal static class SparseFragmentEmitter
             structuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            emitModelExtensions: true,
-            cancellationToken
+            cancellationToken,
+            config,
+            appendProductExtensions
         );
     }
 
@@ -41,7 +44,8 @@ internal static class SparseFragmentEmitter
         SparsePromotedModel promoted,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
     )
     {
         return BuildSourceInternal(
@@ -51,13 +55,15 @@ internal static class SparseFragmentEmitter
             promoted.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            emitModelExtensions: false,
-            cancellationToken
+            cancellationToken,
+            config,
+            appendProductExtensions: null
         );
     }
 
     public static string GetPromotedHintName(
         SparseModelInfo model,
+        string suffix,
         CancellationToken cancellationToken
     )
     {
@@ -65,7 +71,7 @@ internal static class SparseFragmentEmitter
         return SparseNaming.Sanitize(fullyQualifiedName, cancellationToken)
             + "_"
             + SparseNaming.GetStableTypeHash(fullyQualifiedName, cancellationToken)
-            + ".SparsePromoted.g.cs";
+            + suffix;
     }
 
     private static string BuildSourceInternal(
@@ -75,11 +81,47 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        bool emitModelExtensions,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config,
+        Action<
+            SharedIndentedBuilder,
+            SparseModelInfo,
+            ImmutableArray<SparseMemberModel>
+        >? appendProductExtensions
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var runtime =
+            config.RuntimeDialect
+            ?? throw new ArgumentException(
+                "A runtime dialect is required for source emission.",
+                nameof(config)
+            );
+        var patchDialect =
+            config.PatchDialect
+            ?? throw new ArgumentException(
+                "A patch dialect is required for source emission.",
+                nameof(config)
+            );
+        patchDialect = patchDialect with
+        {
+            HashSetSupportsCapacity = bclHashSetSupportsCapacity,
+            MergeStrategyField =
+                patchDialect.MergeStrategyField
+                ?? (member => runtime.MergeStrategyFieldPrefix + member.Id),
+        };
+        var expressions = new SparseFragmentExpressions(
+            "__sparse_clone_context",
+            runtime.ValueComparer,
+            runtime.CollectionMerger
+        );
+        var core = new SparseFragmentCoreEmitter(
+            runtime.OptionalType,
+            runtime.MergeStrategyFieldPrefix,
+            "__sparse_clone_context",
+            runtime.ReferenceComparer,
+            expressions
+        );
         _ = structuralModels;
         var portableSetView = SparseFragmentCoreEmitter.RequiresPortableSetView(
             bclHashSetImplementsReadOnlySet,
@@ -118,7 +160,7 @@ internal static class SparseFragmentEmitter
             members,
             model.Constructor
         );
-        Core.AppendDeepClone(
+        core.AppendDeepClone(
             code,
             modelType,
             members,
@@ -127,7 +169,7 @@ internal static class SparseFragmentEmitter
             !model.IsStruct
         );
         foreach (var poco in pocoCloneModels)
-            Core.AppendPocoCloneHelper(
+            core.AppendPocoCloneHelper(
                 code,
                 poco.Model.ModelTypeName,
                 poco.CloneHelperName,
@@ -145,6 +187,10 @@ internal static class SparseFragmentEmitter
             members,
             !model.IsStruct,
             !pocoCloneModels.IsEmpty,
+            core,
+            expressions,
+            runtime,
+            patchDialect,
             constructor: model.Constructor,
             hashSetSupportsCapacity: bclHashSetSupportsCapacity
         );
@@ -154,10 +200,7 @@ internal static class SparseFragmentEmitter
         }
 
         code.AppendLine("}");
-        if (emitModelExtensions)
-        {
-            SparseModelExtensionsEmitter.Append(code, model, members);
-        }
+        appendProductExtensions?.Invoke(code, model, members);
 
         return code.ToString();
     }
@@ -182,39 +225,56 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseMemberModel> members,
         bool modelIsReferenceType,
         bool usesPocoCloning,
+        SparseFragmentCoreEmitter core,
+        SparseFragmentExpressions expressions,
+        SparseRuntimeDialect runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect? patchDialect,
         bool isRootModel = true,
         ModelConstructorBinding? constructor = null,
         bool hashSetSupportsCapacity = false
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
-        Core.AppendMembers(code, members, MergeStrategy);
+        core.AppendMembers(code, members, runtime.MergeStrategyType);
         code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
         code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
-        AppendFragmentEquality(code, members);
-        Core.AppendFromModel(code, modelType, members, modelIsReferenceType, usesPocoCloning);
+        AppendFragmentEquality(code, members, runtime.OptionalType, expressions, core);
+        core.AppendFromModel(code, modelType, members, modelIsReferenceType, usesPocoCloning);
         SparseFragmentCoreEmitter.AppendToModel(code, modelType, members, isRootModel, constructor);
-        Core.AppendMerge(code, members);
-        Core.AppendApplyChanges(code, members);
-        Core.AppendDiff(code, modelType, members, modelIsReferenceType);
-        Core.AppendFragmentClone(code, members, usesPocoCloning);
-        SparseFragmentPatchEmitter.AppendFragmentMethods(code, modelType);
+        core.AppendMerge(code, members);
+        core.AppendApplyChanges(code, members);
+        core.AppendDiff(code, modelType, members, modelIsReferenceType);
+        core.AppendFragmentClone(code, members, usesPocoCloning);
+        SparseFragmentPatchEmitter.AppendFragmentMethods(code, modelType, runtime.Namespace);
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, Optional);
+        SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, runtime.OptionalType);
         code.AppendLineAt(1, "}");
-        Core.AppendBuilder(code, members);
-        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, hashSetSupportsCapacity);
+        core.AppendBuilder(code, members);
+        SparseFragmentPatchEmitter.AppendPatch(
+            code,
+            modelType,
+            members,
+            hashSetSupportsCapacity,
+            patchDialect
+        );
     }
 
     private static void AppendFragmentEquality(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        string optionalType,
+        SparseFragmentExpressions expressions,
+        SparseFragmentCoreEmitter core
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
         code.AppendLineAt(
             2,
-            "internal static bool __SparseAreEqual(global::SparseFragments.Optional<Fragment?> left, global::SparseFragments.Optional<Fragment?> right)"
+            "internal static bool __SparseAreEqual("
+                + optionalType
+                + "<Fragment?> left, "
+                + optionalType
+                + "<Fragment?> right)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
@@ -256,9 +316,13 @@ internal static class SparseFragmentEmitter
             code.AppendIndent(2)
                 .Append("internal static bool __SparseEqual_")
                 .Append(member.Id)
-                .Append("(global::SparseFragments.Optional<")
+                .Append("(")
+                .Append(optionalType)
+                .Append("<")
                 .Append(valueType)
-                .Append("> left, global::SparseFragments.Optional<")
+                .Append("> left, ")
+                .Append(optionalType)
+                .Append("<")
                 .Append(valueType)
                 .AppendLine("> right)");
             code.AppendLineAt(2, "{");
@@ -271,25 +335,15 @@ internal static class SparseFragmentEmitter
             }
             else if (member.MergeStrategyType is not null)
             {
-                equality = Core.MergeStrategyField(member) + ".AreEqual(left.Value, right.Value)";
+                equality = core.MergeStrategyField(member) + ".AreEqual(left.Value, right.Value)";
             }
             else
             {
-                equality = Expressions.ValueEqualityExpression(member, "left.Value", "right.Value");
+                equality = expressions.ValueEqualityExpression(member, "left.Value", "right.Value");
             }
             code.AppendLineAt(3, "return " + equality + ";");
             code.AppendLineAt(2, "}");
         }
         code.AppendLine();
     }
-
-    private static readonly SparseFragmentExpressions Expressions = new("__sparse_clone_context");
-
-    private static readonly SparseFragmentCoreEmitter Core = new(
-        Optional,
-        SparseWellKnownNames.MergeStrategyFieldPrefix,
-        "__sparse_clone_context",
-        ReferenceComparer,
-        Expressions
-    );
 }

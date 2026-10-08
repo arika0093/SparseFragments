@@ -18,6 +18,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private const string ModelAttributeName = "SparseFragments.SparseFragmentModelAttribute";
     private const string MergeAttributeName = "SparseFragments.SparseMergeAttribute";
     private const string MergeStrategyBaseName = "SparseFragments.FragmentMergeStrategy<T>";
+
     private const string EmitIsExternalInitOption =
         "build_property.SparseFragmentsEmitIsExternalInit";
     private const string IsExternalInitHintName = "SparseFragments.IsExternalInit.g.cs";
@@ -45,14 +46,89 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         + "}\n";
 
     private static readonly SparseGeneratorConfig Configuration = new(
-        ModelAttributeName,
-        MergeAttributeName,
-        MergeStrategyBaseName,
-        "SparseFragments.SparseCloneReferenceSafeAttribute"
+        ModelAttributeMetadataName: ModelAttributeName,
+        MergeAttributeMetadataName: MergeAttributeName,
+        MergeStrategyBaseMetadataName: MergeStrategyBaseName,
+        CloneReferenceSafeAttributeMetadataName: "SparseFragments.SparseCloneReferenceSafeAttribute",
+        KeyAttributeMetadataName: "SparseFragments.SparseKeyAttribute",
+        KeyedInterfaceMetadataName: "SparseFragments.ISparseKeyed<TKey>",
+        KeyPropertyName: "SparseKey",
+        MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4),
+        DiagnosticIds: new SparseDiagnosticIdMap(
+            SparseFragmentsDiagnosticIds.MustBePartial,
+            SparseFragmentsDiagnosticIds.UnsupportedModel,
+            SparseFragmentsDiagnosticIds.MissingConstructor,
+            SparseFragmentsDiagnosticIds.InvalidMergeStrategy,
+            SparseFragmentsDiagnosticIds.UnsupportedMerge,
+            SparseFragmentsDiagnosticIds.UnsupportedRequired,
+            SparseFragmentsDiagnosticIds.UnsupportedStructural,
+            SparseFragmentsDiagnosticIds.UnsupportedClone,
+            SparseFragmentsDiagnosticIds.GeneratedNameCollision,
+            SparseFragmentsDiagnosticIds.IncompatiblePromotedModel,
+            SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence,
+            SparseFragmentsDiagnosticIds.ConflictingKeyMechanisms,
+            SparseFragmentsDiagnosticIds.MultiplePropertyKeys,
+            SparseFragmentsDiagnosticIds.InvalidKeyAttributeShape,
+            SparseFragmentsDiagnosticIds.MissingKeyComponent,
+            SparseFragmentsDiagnosticIds.DuplicateKeyComponent,
+            SparseFragmentsDiagnosticIds.InaccessibleKeyProperty,
+            SparseFragmentsDiagnosticIds.NullableKey,
+            SparseFragmentsDiagnosticIds.UnsupportedKeyShape,
+            SparseFragmentsDiagnosticIds.InvalidKeyedInterface,
+            SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName
+        ),
+        HintNameSuffix: ".SparseFragments.g.cs",
+        PromotedHintNameSuffix: ".SparsePromoted.g.cs",
+        StructuralHostPrefix: "__SparseStructural_",
+        RuntimeDialect: new SparseRuntimeDialect(
+            "global::SparseFragments.",
+            "global::SparseFragments.Optional",
+            "global::SparseFragments.FragmentMergeStrategy",
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "__sparse_merge_strategy_"
+        ),
+        PatchDialect: new SparseFragmentPatchEmitter.SparsePatchDialect(
+            "global::SparseFragments.",
+            "__sparse_whole",
+            "__SparseMembersEmpty",
+            SparseFragmentPatchEmitter.Field,
+            static _ => string.Empty,
+            "Apply",
+            false,
+            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
+            "global::SparseFragments.SparsePatchConflict",
+            "global::SparseFragments.SparsePatchConflictKind",
+            static payload => "global::SparseFragments.RebaseResult<" + payload + ">",
+            SparseFragmentPatchEmitter.ChildPatch,
+            SparseFragmentPatchEmitter.DefaultChildChangeSet,
+            MergeStrategyField: static member => "__sparse_merge_strategy_" + member.Id
+        ),
+        ReservedGeneratedNames: ImmutableArray.Create(
+            "Fragment",
+            "FragmentBuilder",
+            "Empty",
+            "IsEmpty",
+            "Merge",
+            "ApplyChanges",
+            "Diff",
+            "DeepClone",
+            "From",
+            "ToModel",
+            "ToBuilder",
+            "Build",
+            "Patch",
+            "JsonConverter",
+            "FragmentJsonConverter",
+            "ApplyTo",
+            "TryApplyTo"
+        )
     );
 
     private static readonly DiagnosticDescriptor MustBePartial = new(
-        SparseDiagnosticIds.MustBePartial,
+        SparseFragmentsDiagnosticIds.MustBePartial,
         "Sparse fragment model must be partial",
         "Model '{0}' must be declared partial",
         "SparseFragments",
@@ -61,7 +137,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf001-sparse-fragment-model-must-be-partial"
     );
     private static readonly DiagnosticDescriptor UnsupportedModel = new(
-        SparseDiagnosticIds.UnsupportedModel,
+        SparseFragmentsDiagnosticIds.UnsupportedModel,
         "Unsupported sparse fragment model",
         "Model '{0}' must be a top-level, non-generic, non-abstract class or struct",
         "SparseFragments",
@@ -70,7 +146,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf002-unsupported-sparse-fragment-model"
     );
     private static readonly DiagnosticDescriptor MissingConstructor = new(
-        SparseDiagnosticIds.MissingConstructor,
+        SparseFragmentsDiagnosticIds.MissingConstructor,
         "Model needs a supported constructor",
         "Class model '{0}' must have a parameterless constructor or a constructor whose parameters match public readable properties by name and type; a setter, when present, must be public",
         "SparseFragments",
@@ -79,7 +155,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf003-model-needs-a-supported-constructor"
     );
     private static readonly DiagnosticDescriptor InvalidMergeStrategy = new(
-        SparseDiagnosticIds.InvalidMergeStrategy,
+        SparseFragmentsDiagnosticIds.InvalidMergeStrategy,
         "Invalid custom merge strategy",
         "Merge strategy for member '{0}' must derive from FragmentMergeStrategy<TMember> and be a concrete, accessible type",
         "SparseFragments",
@@ -88,7 +164,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf004-invalid-custom-merge-strategy"
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
-        SparseDiagnosticIds.UnsupportedMerge,
+        SparseFragmentsDiagnosticIds.UnsupportedMerge,
         "Unsupported merge mode",
         "The configured merge mode is not supported for member '{0}'",
         "SparseFragments",
@@ -97,7 +173,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf005-unsupported-merge-mode"
     );
     private static readonly DiagnosticDescriptor UnsupportedStructural = new(
-        SparseDiagnosticIds.UnsupportedStructural,
+        SparseFragmentsDiagnosticIds.UnsupportedStructural,
         "Unsupported structural member construction",
         "Member '{0}' has an unsupported structural type; provide a supported public constructor and properties, decorate it as a fragment model, or explicitly select MergeMode.Replace",
         "SparseFragments",
@@ -106,7 +182,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf007-unsupported-structural-member-construction"
     );
     private static readonly DiagnosticDescriptor UnsupportedClone = new(
-        SparseDiagnosticIds.UnsupportedClone,
+        SparseFragmentsDiagnosticIds.UnsupportedClone,
         "Unsupported deep clone member",
         "Member '{0}' has a reference shape that cannot be deeply cloned safely (unsupported type or constructor-bound cycle); use a supported structural type or collection, or explicitly mark a reference-safe property with SparseCloneReferenceSafe",
         "SparseFragments",
@@ -116,7 +192,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor GeneratedNameCollision = new(
-        SparseDiagnosticIds.GeneratedNameCollision,
+        SparseFragmentsDiagnosticIds.GeneratedNameCollision,
         "Member conflicts with generated API",
         "Member '{0}' conflicts with a name reserved by the generated API",
         "SparseFragments",
@@ -126,7 +202,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor UnsupportedRequired = new(
-        SparseDiagnosticIds.UnsupportedRequired,
+        SparseFragmentsDiagnosticIds.UnsupportedRequired,
         "Required member cannot be constructed",
         "Required member '{0}' must be represented by an accessible public property in the fragment construction plan",
         "SparseFragments",
@@ -136,7 +212,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor IncompatiblePromotedModel = new(
-        SparseDiagnosticIds.IncompatiblePromotedModel,
+        SparseFragmentsDiagnosticIds.IncompatiblePromotedModel,
         "Incompatible promoted fragment model",
         "Promoted model '{0}' requires incompatible generated semantics from different roots",
         "SparseFragments",
@@ -146,7 +222,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
-        SparseDiagnosticIds.UnkeyedStructuralSequence,
+        SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence,
         "Structural sequence without usable key",
         "Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
         "SparseFragments",
@@ -156,7 +232,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor ConflictingKeyMechanisms = new(
-        SparseDiagnosticIds.ConflictingKeyMechanisms,
+        SparseFragmentsDiagnosticIds.ConflictingKeyMechanisms,
         "Conflicting SparseKey mechanisms",
         "Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them",
         "SparseFragments",
@@ -166,7 +242,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor MultiplePropertyKeys = new(
-        SparseDiagnosticIds.MultiplePropertyKeys,
+        SparseFragmentsDiagnosticIds.MultiplePropertyKeys,
         "Multiple SparseKey properties",
         "Type '{0}' marks more than one property with [SparseKey]; multiple property-level keys are not a composite key, use a single type-level [SparseKey(nameof(...), ...)] declaration instead",
         "SparseFragments",
@@ -176,7 +252,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor InvalidKeyAttributeShape = new(
-        SparseDiagnosticIds.InvalidKeyAttributeShape,
+        SparseFragmentsDiagnosticIds.InvalidKeyAttributeShape,
         "Invalid SparseKey declaration",
         "SparseKey declaration on '{0}' is invalid; property-level [SparseKey] takes no arguments and type-level [SparseKey] requires at least one property name",
         "SparseFragments",
@@ -186,7 +262,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor MissingKeyComponent = new(
-        SparseDiagnosticIds.MissingKeyComponent,
+        SparseFragmentsDiagnosticIds.MissingKeyComponent,
         "Missing SparseKey component",
         "Key component '{0}' does not resolve to a property of the model",
         "SparseFragments",
@@ -196,7 +272,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor DuplicateKeyComponent = new(
-        SparseDiagnosticIds.DuplicateKeyComponent,
+        SparseFragmentsDiagnosticIds.DuplicateKeyComponent,
         "Duplicate SparseKey component",
         "Duplicate key component '{0}'; type-level key components must resolve to distinct properties",
         "SparseFragments",
@@ -206,7 +282,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor InaccessibleKeyProperty = new(
-        SparseDiagnosticIds.InaccessibleKeyProperty,
+        SparseFragmentsDiagnosticIds.InaccessibleKeyProperty,
         "Inaccessible SparseKey property",
         "Key property '{0}' must be a publicly readable instance property; static, indexer, or non-publicly-readable properties cannot serve as stable identity",
         "SparseFragments",
@@ -216,7 +292,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor NullableKey = new(
-        SparseDiagnosticIds.NullableKey,
+        SparseFragmentsDiagnosticIds.NullableKey,
         "Nullable SparseKey",
         "Key '{0}' must not be nullable; nullable key values/types are not supported for keyed collection identity",
         "SparseFragments",
@@ -226,7 +302,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor UnsupportedKeyShape = new(
-        SparseDiagnosticIds.UnsupportedKeyShape,
+        SparseFragmentsDiagnosticIds.UnsupportedKeyShape,
         "Unsupported SparseKey shape",
         "Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity",
         "SparseFragments",
@@ -236,7 +312,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor InvalidKeyedInterface = new(
-        SparseDiagnosticIds.InvalidKeyedInterface,
+        SparseFragmentsDiagnosticIds.InvalidKeyedInterface,
         "Invalid ISparseKeyed implementation",
         "Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type",
         "SparseFragments",
@@ -246,7 +322,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
 
     private static readonly DiagnosticDescriptor DuplicateJsonPropertyName = new(
-        SparseDiagnosticIds.DuplicateJsonPropertyName,
+        SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName,
         "Duplicate JSON property name",
         "Multiple members map to the same JSON property name '{0}'",
         "SparseFragments",
@@ -355,7 +431,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                         null,
                         ImmutableArray.Create(
                             new SparseGeneratorDiagnostic(
-                                SparseDiagnosticIds.IncompatiblePromotedModel,
+                                SparseFragmentsDiagnosticIds.IncompatiblePromotedModel,
                                 null,
                                 entry.DisplayName
                             )
@@ -477,7 +553,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             analysis.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            cancellationToken
+            cancellationToken,
+            Configuration,
+            SparseModelExtensionsEmitter.Append
         );
         return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);
     }
@@ -485,27 +563,27 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private static DiagnosticDescriptor GetDescriptor(string id) =>
         id switch
         {
-            SparseDiagnosticIds.MustBePartial => MustBePartial,
-            SparseDiagnosticIds.UnsupportedModel => UnsupportedModel,
-            SparseDiagnosticIds.MissingConstructor => MissingConstructor,
-            SparseDiagnosticIds.InvalidMergeStrategy => InvalidMergeStrategy,
-            SparseDiagnosticIds.UnsupportedMerge => UnsupportedMerge,
-            SparseDiagnosticIds.UnsupportedRequired => UnsupportedRequired,
-            SparseDiagnosticIds.UnsupportedStructural => UnsupportedStructural,
-            SparseDiagnosticIds.UnsupportedClone => UnsupportedClone,
-            SparseDiagnosticIds.GeneratedNameCollision => GeneratedNameCollision,
-            SparseDiagnosticIds.IncompatiblePromotedModel => IncompatiblePromotedModel,
-            SparseDiagnosticIds.UnkeyedStructuralSequence => UnkeyedStructuralSequence,
-            SparseDiagnosticIds.ConflictingKeyMechanisms => ConflictingKeyMechanisms,
-            SparseDiagnosticIds.MultiplePropertyKeys => MultiplePropertyKeys,
-            SparseDiagnosticIds.InvalidKeyAttributeShape => InvalidKeyAttributeShape,
-            SparseDiagnosticIds.MissingKeyComponent => MissingKeyComponent,
-            SparseDiagnosticIds.DuplicateKeyComponent => DuplicateKeyComponent,
-            SparseDiagnosticIds.InaccessibleKeyProperty => InaccessibleKeyProperty,
-            SparseDiagnosticIds.NullableKey => NullableKey,
-            SparseDiagnosticIds.UnsupportedKeyShape => UnsupportedKeyShape,
-            SparseDiagnosticIds.InvalidKeyedInterface => InvalidKeyedInterface,
-            SparseDiagnosticIds.DuplicateJsonPropertyName => DuplicateJsonPropertyName,
+            SparseFragmentsDiagnosticIds.MustBePartial => MustBePartial,
+            SparseFragmentsDiagnosticIds.UnsupportedModel => UnsupportedModel,
+            SparseFragmentsDiagnosticIds.MissingConstructor => MissingConstructor,
+            SparseFragmentsDiagnosticIds.InvalidMergeStrategy => InvalidMergeStrategy,
+            SparseFragmentsDiagnosticIds.UnsupportedMerge => UnsupportedMerge,
+            SparseFragmentsDiagnosticIds.UnsupportedRequired => UnsupportedRequired,
+            SparseFragmentsDiagnosticIds.UnsupportedStructural => UnsupportedStructural,
+            SparseFragmentsDiagnosticIds.UnsupportedClone => UnsupportedClone,
+            SparseFragmentsDiagnosticIds.GeneratedNameCollision => GeneratedNameCollision,
+            SparseFragmentsDiagnosticIds.IncompatiblePromotedModel => IncompatiblePromotedModel,
+            SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence => UnkeyedStructuralSequence,
+            SparseFragmentsDiagnosticIds.ConflictingKeyMechanisms => ConflictingKeyMechanisms,
+            SparseFragmentsDiagnosticIds.MultiplePropertyKeys => MultiplePropertyKeys,
+            SparseFragmentsDiagnosticIds.InvalidKeyAttributeShape => InvalidKeyAttributeShape,
+            SparseFragmentsDiagnosticIds.MissingKeyComponent => MissingKeyComponent,
+            SparseFragmentsDiagnosticIds.DuplicateKeyComponent => DuplicateKeyComponent,
+            SparseFragmentsDiagnosticIds.InaccessibleKeyProperty => InaccessibleKeyProperty,
+            SparseFragmentsDiagnosticIds.NullableKey => NullableKey,
+            SparseFragmentsDiagnosticIds.UnsupportedKeyShape => UnsupportedKeyShape,
+            SparseFragmentsDiagnosticIds.InvalidKeyedInterface => InvalidKeyedInterface,
+            SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName => DuplicateJsonPropertyName,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 
@@ -521,7 +599,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         // analysis diagnostics) but run on the shared collision primitive.
         var promotedCollision = SparseShapeValidation.FindFirstReservedNameCollision(
             promoted.Members,
-            SparseShapeValidation.SparseFragmentsReservedNames
+            Configuration.EffectiveReservedGeneratedNames
         );
         if (promotedCollision is not null)
         {
@@ -530,7 +608,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 null,
                 ImmutableArray.Create(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.GeneratedNameCollision,
+                        Configuration.EffectiveDiagnosticIds.GeneratedNameCollision,
                         null,
                         promotedCollision
                     )
@@ -538,12 +616,17 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             );
         }
 
-        var hint = SparseFragmentEmitter.GetPromotedHintName(promoted.Model, cancellationToken);
+        var hint = SparseFragmentEmitter.GetPromotedHintName(
+            promoted.Model,
+            Configuration.PromotedHintNameSuffix,
+            cancellationToken
+        );
         var source = SparseFragmentEmitter.BuildPromotedSource(
             promoted,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            cancellationToken
+            cancellationToken,
+            Configuration
         );
         return new SparseGenerationResult(
             hint,

@@ -12,6 +12,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
 {
     public static bool HasUnsupportedStructuralMembers(
         INamedTypeSymbol pocoType,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
@@ -43,7 +44,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
 
                 // Computed key metadata ([SparseKey] or ISparseKeyed<>.SparseKey) is
                 // identity, not construction state: it is extracted, never overlaid.
-                if (IsComputedKeyMetadata(property, pocoType, cancellationToken))
+                if (IsComputedKeyMetadata(property, pocoType, config, cancellationToken))
                 {
                     continue;
                 }
@@ -113,6 +114,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
     private static bool IsComputedKeyMetadata(
         IPropertySymbol property,
         INamedTypeSymbol pocoType,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
@@ -125,14 +127,14 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
         foreach (var attribute in property.GetAttributes())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (attribute.AttributeClass?.ToDisplayString() == "SparseFragments.SparseKeyAttribute")
+            if (attribute.AttributeClass?.ToDisplayString() == config.KeyAttributeMetadataName)
             {
                 return true;
             }
         }
 
         if (
-            string.Equals(property.Name, "SparseKey", StringComparison.Ordinal)
+            string.Equals(property.Name, config.KeyPropertyName, StringComparison.Ordinal)
             && property.GetMethod?.DeclaredAccessibility == Accessibility.Public
         )
         {
@@ -141,7 +143,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                 cancellationToken.ThrowIfCancellationRequested();
                 if (
                     implemented.OriginalDefinition?.ToDisplayString()
-                    == "SparseFragments.ISparseKeyed<TKey>"
+                    == config.KeyedInterfaceMetadataName
                 )
                 {
                     return true;

@@ -41,8 +41,8 @@ internal sealed class SparseFragmentMergeEmitter
             }
 
             if (
-                (member.MergeMode == 1 && member.ChildModel is not null)
-                || member.MergeMode is 2 or 3
+                (member.MergeMode == SparseMergeModes.Deep && member.ChildModel is not null)
+                || member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             )
             {
                 replaceOnly = false;
@@ -101,12 +101,12 @@ internal sealed class SparseFragmentMergeEmitter
             {
                 expression = $"{MergeStrategyField(member)}.Merge({lower}, {higher})";
             }
-            else if (member.MergeMode == 1 && member.ChildModel is not null)
+            else if (member.MergeMode == SparseMergeModes.Deep && member.ChildModel is not null)
             {
                 expression =
                     $"{higher}.IsPresent ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present(({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null) ? {lower}.Value!.Merge({higher}.Value!) : {higher}.Value) : {lower}";
             }
-            else if (member.MergeMode is 2 or 3)
+            else if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
             {
                 var merged = Expressions.BuildCollectionMerge(
                     member,

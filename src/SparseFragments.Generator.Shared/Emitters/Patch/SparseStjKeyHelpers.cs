@@ -55,11 +55,15 @@ internal static class SparseStjKeyHelpers
     internal static bool IsDict(SparseMemberModel m) =>
         SparseKeyedCollectionEmitter.IsDictionary(m);
 
-    internal static string ScalarValueType(SparseMemberModel m) =>
-        SparseFragmentPatchEmitter.ValueType(m);
+    internal static string ScalarValueType(
+        SparseMemberModel m,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => SparseFragmentPatchEmitter.GetMemberValueType(dialect, m);
 
-    internal static string CollectionPatchType(SparseMemberModel m) =>
-        SparseFragmentPatchEmitter.CollectionPatch(m);
+    internal static string CollectionPatchType(
+        SparseMemberModel m,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, m);
 
     internal static string KeyTypeOf(SparseMemberModel m)
     {

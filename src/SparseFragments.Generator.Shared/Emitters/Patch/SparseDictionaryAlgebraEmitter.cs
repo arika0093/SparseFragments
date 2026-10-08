@@ -207,15 +207,19 @@ internal static class SparseDictionaryAlgebraEmitter
         string facade,
         string comparer,
         bool hasPatch,
-        string editedValueType
+        string editedValueType,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         // Rebase (simplified key-wise).
+        var resultType = dialect.RebaseResult(patchName);
+        var conflictType = dialect.ConflictType;
+        var conflictKindType = dialect.ConflictKindType;
         code.AppendLineAt(
             3,
-            "public static global::SparseFragments.RebaseResult<"
-                + patchName
-                + "> Rebase("
+            "public static "
+                + resultType
+                + " Rebase("
                 + optionalDict
                 + " baseState, "
                 + patchName
@@ -230,30 +234,34 @@ internal static class SparseDictionaryAlgebraEmitter
         );
         code.AppendLineAt(
             4,
-            "if (local.__SparseIsEmpty()) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+            "if (local.__SparseIsEmpty()) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
         code.AppendLineAt(4, "var result = new " + patchName + "();");
         code.AppendLineAt(
             4,
-            "var conflicts = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
+            "var conflicts = new global::System.Collections.Generic.List<" + conflictType + ">();"
         );
         code.AppendLineAt(4, optionalDict + " desired;");
         code.AppendLineAt(4, "try { desired = local.Apply(baseState); }");
         code.AppendLineAt(
             4,
-            "catch (global::System.InvalidOperationException ex) { conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.Nested, "
+            "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
+                + conflictType
+                + "(new string[0], "
+                + conflictKindType
+                + ".Nested, "
                 + runtime
                 + "Optional<object?>.Missing, "
                 + runtime
                 + "Optional<object?>.Missing, "
                 + runtime
-                + "Optional<object?>.Missing, ex.Message)); return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + "Optional<object?>.Missing, ex.Message)); return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(4, "if (local.__whole.Kind != " + kind + ".Unchanged)");
         code.AppendLineAt(4, "{");
@@ -265,9 +273,9 @@ internal static class SparseDictionaryAlgebraEmitter
                 + keyType
                 + ", "
                 + valueType
-                + ">(baseState.Value, currentState.Value)) { result.__whole = local.__whole; return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + ">(baseState.Value, currentState.Value)) { result.__whole = local.__whole; return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(
             5,
@@ -277,15 +285,19 @@ internal static class SparseDictionaryAlgebraEmitter
                 + keyType
                 + ", "
                 + valueType
-                + ">(desired.Value, currentState.Value)) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+                + ">(desired.Value, currentState.Value)) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
         code.AppendLineAt(
             5,
-            "conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.Nested, "
+            "conflicts.Add(new "
+                + conflictType
+                + "(new string[0], "
+                + conflictKindType
+                + ".Nested, "
                 + runtime
                 + "Optional<object?>.Missing, "
                 + runtime
@@ -293,10 +305,7 @@ internal static class SparseDictionaryAlgebraEmitter
                 + runtime
                 + "Optional<object?>.Missing, \"The whole dictionary conflicts with a concurrent change.\"));"
         );
-        code.AppendLineAt(
-            5,
-            "return new global::SparseFragments.RebaseResult<" + patchName + ">(result, conflicts);"
-        );
+        code.AppendLineAt(5, "return new " + resultType + "(result, conflicts);");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
@@ -320,9 +329,9 @@ internal static class SparseDictionaryAlgebraEmitter
                 + editedValueType
                 + ">(local.__edited, "
                 + comparer
-                + "); return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + "); return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(
             4,
@@ -332,9 +341,9 @@ internal static class SparseDictionaryAlgebraEmitter
                 + keyType
                 + ", "
                 + valueType
-                + ">(desired.Value, currentState.Value)) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+                + ">(desired.Value, currentState.Value)) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
@@ -469,7 +478,11 @@ internal static class SparseDictionaryAlgebraEmitter
             code.AppendLineAt(5, "}");
             code.AppendLineAt(
                 5,
-                "else conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                "else conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)b), "
                     + runtime
@@ -527,7 +540,11 @@ internal static class SparseDictionaryAlgebraEmitter
             );
             code.AppendLineAt(
                 5,
-                "if (!desiredEqCurrent) conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                "if (!desiredEqCurrent) conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)b), "
                     + runtime
@@ -538,10 +555,7 @@ internal static class SparseDictionaryAlgebraEmitter
             SparseKeyedCollectionEmitter.AppendPendingKeyLoopEnd(code);
         }
 
-        code.AppendLineAt(
-            4,
-            "return new global::SparseFragments.RebaseResult<" + patchName + ">(result, conflicts);"
-        );
+        code.AppendLineAt(4, "return new " + resultType + "(result, conflicts);");
         code.AppendLineAt(3, "}");
     }
 

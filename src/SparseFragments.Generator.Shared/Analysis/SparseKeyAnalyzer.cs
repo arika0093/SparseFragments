@@ -55,14 +55,6 @@ internal sealed record SparseKeyInfo(
 /// </remarks>
 internal static class SparseKeyAnalyzer
 {
-    /// <summary>Metadata name of the computed-identity escape hatch.</summary>
-    public const string KeyedInterfaceMetadataName = "SparseFragments.ISparseKeyed<TKey>";
-
-    /// <summary>Name of the interface key property.</summary>
-    public const string SparseKeyPropertyName = "SparseKey";
-
-    private const string KeyAttributeMetadataName = "SparseFragments.SparseKeyAttribute";
-
     /// <summary>Determines whether an element type declares any key metadata.</summary>
     public static bool HasKeyDeclaration(
         INamedTypeSymbol element,
@@ -106,9 +98,9 @@ internal static class SparseKeyAnalyzer
     /// <summary>Collects key-shape diagnostics for an element type.</summary>
     /// <remarks>
     /// Returns an empty array when the element has no key declaration at all (callers
-    /// then report SPF011 for structural sequences that require keyed semantics) or
+    /// then report the configured unkeyed-sequence diagnostic for structural sequences) or
     /// when its single mechanism is fully valid. Any conflict or invalid shape yields
-    /// one or more SPF012–SPF020 diagnostics and no key.
+    /// one or more configured key-shape diagnostics and no key.
     /// </remarks>
     public static ImmutableArray<SparseGeneratorDiagnostic> CollectDiagnostics(
         INamedTypeSymbol element,
@@ -128,7 +120,7 @@ internal static class SparseKeyAnalyzer
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.ConflictingKeyMechanisms,
+                    config.EffectiveDiagnosticIds.ConflictingKeyMechanisms,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -139,7 +131,7 @@ internal static class SparseKeyAnalyzer
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.MultiplePropertyKeys,
+                    config.EffectiveDiagnosticIds.MultiplePropertyKeys,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -156,9 +148,9 @@ internal static class SparseKeyAnalyzer
     /// must fail generation of the analyzed root.
     /// </summary>
     /// <remarks>
-    /// SPF011 itself is still owned by <see cref="SparseModelDiagnostics"/> for root
-    /// members; this helper only reports SPF012–SPF020 shape errors so callers can
-    /// prefer specific key diagnostics over the generic unkeyed-sequence error.
+    /// The generic unkeyed-sequence diagnostic is still owned by
+    /// <see cref="SparseModelDiagnostics"/> for root members; this helper only reports
+    /// specific key-shape errors so callers can prefer them.
     /// </remarks>
     public static ImmutableArray<SparseGeneratorDiagnostic> CollectNestedKeyDiagnostics(
         ImmutableArray<SparseSymbolMemberModel> rootMembers,
@@ -239,8 +231,8 @@ internal static class SparseKeyAnalyzer
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (
-            member.MergeMode is 2 or 3
-            || member.MergeMode == SparseModelDiagnostics.CustomMergeMode
+            member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
+            || member.MergeMode == SparseMergeModes.Custom
         )
         {
             return false;
@@ -272,7 +264,6 @@ internal static class SparseKeyAnalyzer
         CancellationToken cancellationToken
     )
     {
-        _ = config;
         var mechanisms = new KeyMechanisms();
 
         foreach (var property in GetAllProperties(element, cancellationToken))
@@ -281,7 +272,7 @@ internal static class SparseKeyAnalyzer
             foreach (var attribute in property.GetAttributes())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (attribute.AttributeClass?.ToDisplayString() == KeyAttributeMetadataName)
+                if (attribute.AttributeClass?.ToDisplayString() == config.KeyAttributeMetadataName)
                 {
                     mechanisms.PropertyMarks.Add(property);
                     mechanisms.PropertyMarkAttributes.Add(attribute);
@@ -293,7 +284,7 @@ internal static class SparseKeyAnalyzer
         foreach (var attribute in element.GetAttributes())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (attribute.AttributeClass?.ToDisplayString() == KeyAttributeMetadataName)
+            if (attribute.AttributeClass?.ToDisplayString() == config.KeyAttributeMetadataName)
             {
                 mechanisms.TypeAttributes.Add(attribute);
             }
@@ -303,7 +294,8 @@ internal static class SparseKeyAnalyzer
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (
-                implemented.OriginalDefinition?.ToDisplayString() == KeyedInterfaceMetadataName
+                implemented.OriginalDefinition?.ToDisplayString()
+                    == config.KeyedInterfaceMetadataName
                 && implemented.TypeArguments.Length == 1
             )
             {
@@ -368,7 +360,7 @@ internal static class SparseKeyAnalyzer
                 return false;
             }
 
-            if (GetKeyTypeProblem(property.Type, config, cancellationToken) is not null)
+            if (GetKeyTypeProblem(property.Type, cancellationToken) is not null)
             {
                 return false;
             }
@@ -383,7 +375,7 @@ internal static class SparseKeyAnalyzer
 
         if (mechanisms.TypeAttributes.Count > 0 && mechanisms.KindCount == 1)
         {
-            return TryBuildCompositeInfo(element, mechanisms, config, cancellationToken, out info);
+            return TryBuildCompositeInfo(element, mechanisms, cancellationToken, out info);
         }
 
         if (mechanisms.KeyedInterfaces.Count > 0 && mechanisms.KindCount == 1)
@@ -397,7 +389,6 @@ internal static class SparseKeyAnalyzer
     private static bool TryBuildCompositeInfo(
         INamedTypeSymbol element,
         KeyMechanisms mechanisms,
-        SparseGeneratorConfig config,
         CancellationToken cancellationToken,
         out SparseKeyInfo? info
     )
@@ -428,7 +419,7 @@ internal static class SparseKeyAnalyzer
 
             if (
                 !readable.TryGetValue(name, out var property)
-                || GetKeyTypeProblem(property.Type, config, cancellationToken) is not null
+                || GetKeyTypeProblem(property.Type, cancellationToken) is not null
             )
             {
                 return false;
@@ -490,12 +481,12 @@ internal static class SparseKeyAnalyzer
             return false;
         }
 
-        if (GetKeyTypeProblem(keyType, config, cancellationToken) is not null)
+        if (GetKeyTypeProblem(keyType, cancellationToken) is not null)
         {
             return false;
         }
 
-        if (!HasPublicReadableSparseKey(element, cancellationToken))
+        if (!HasPublicReadableSparseKey(element, config, cancellationToken))
         {
             return false;
         }
@@ -510,12 +501,13 @@ internal static class SparseKeyAnalyzer
 
     private static bool HasPublicReadableSparseKey(
         INamedTypeSymbol element,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
         foreach (
-            var property in element.GetMembers(SparseKeyPropertyName).OfType<IPropertySymbol>()
+            var property in element.GetMembers(config.KeyPropertyName).OfType<IPropertySymbol>()
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -549,7 +541,7 @@ internal static class SparseKeyAnalyzer
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.InvalidKeyAttributeShape,
+                        config.EffectiveDiagnosticIds.InvalidKeyAttributeShape,
                         property.Locations.FirstOrDefault(),
                         element.Name + "." + property.Name
                     )
@@ -558,7 +550,7 @@ internal static class SparseKeyAnalyzer
             }
 
             // Only validate the property itself when it is the single mechanism;
-            // conflicts (SPF012) and multiples (SPF013) already explain the failure.
+            // conflicting or multiple key declarations already explain the failure.
             if (mechanisms.KindCount != 1 || mechanisms.PropertyMarks.Count != 1)
             {
                 continue;
@@ -568,7 +560,7 @@ internal static class SparseKeyAnalyzer
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.InaccessibleKeyProperty,
+                        config.EffectiveDiagnosticIds.InaccessibleKeyProperty,
                         property.Locations.FirstOrDefault(),
                         element.Name + "." + property.Name
                     )
@@ -594,7 +586,7 @@ internal static class SparseKeyAnalyzer
                 cancellationToken.ThrowIfCancellationRequested();
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.ConflictingKeyMechanisms,
+                        config.EffectiveDiagnosticIds.ConflictingKeyMechanisms,
                         AttributeLocation(extra, element),
                         element.Name
                     )
@@ -621,7 +613,7 @@ internal static class SparseKeyAnalyzer
                 {
                     diagnostics.Add(
                         new SparseGeneratorDiagnostic(
-                            SparseDiagnosticIds.InvalidKeyAttributeShape,
+                            config.EffectiveDiagnosticIds.InvalidKeyAttributeShape,
                             AttributeLocation(attribute, element),
                             element.Name
                         )
@@ -654,7 +646,7 @@ internal static class SparseKeyAnalyzer
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.InvalidKeyedInterface,
+                        config.EffectiveDiagnosticIds.InvalidKeyedInterface,
                         element.Locations.FirstOrDefault(),
                         element.Name
                     )
@@ -675,7 +667,7 @@ internal static class SparseKeyAnalyzer
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.InvalidKeyAttributeShape,
+                    config.EffectiveDiagnosticIds.InvalidKeyAttributeShape,
                     AttributeLocation(attribute, element),
                     element.Name
                 )
@@ -692,7 +684,7 @@ internal static class SparseKeyAnalyzer
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.DuplicateKeyComponent,
+                        config.EffectiveDiagnosticIds.DuplicateKeyComponent,
                         AttributeLocation(attribute, element),
                         element.Name + "." + name
                     )
@@ -706,8 +698,8 @@ internal static class SparseKeyAnalyzer
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
                         offender is null
-                            ? SparseDiagnosticIds.MissingKeyComponent
-                            : SparseDiagnosticIds.InaccessibleKeyProperty,
+                            ? config.EffectiveDiagnosticIds.MissingKeyComponent
+                            : config.EffectiveDiagnosticIds.InaccessibleKeyProperty,
                         (offender?.Locations.FirstOrDefault())
                             ?? AttributeLocation(attribute, element),
                         element.Name + "." + name
@@ -746,7 +738,7 @@ internal static class SparseKeyAnalyzer
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.InvalidKeyedInterface,
+                    config.EffectiveDiagnosticIds.InvalidKeyedInterface,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -755,12 +747,12 @@ internal static class SparseKeyAnalyzer
         }
 
         var keyType = distinctKeys[0];
-        var problem = GetKeyTypeProblem(keyType, config, cancellationToken);
+        var problem = GetKeyTypeProblem(keyType, cancellationToken);
         if (problem == KeyTypeProblem.Nullable)
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.NullableKey,
+                    config.EffectiveDiagnosticIds.NullableKey,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -772,7 +764,7 @@ internal static class SparseKeyAnalyzer
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.UnsupportedKeyShape,
+                    config.EffectiveDiagnosticIds.UnsupportedKeyShape,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -780,11 +772,11 @@ internal static class SparseKeyAnalyzer
             return;
         }
 
-        if (!HasPublicReadableSparseKey(element, cancellationToken))
+        if (!HasPublicReadableSparseKey(element, config, cancellationToken))
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.InvalidKeyedInterface,
+                    config.EffectiveDiagnosticIds.InvalidKeyedInterface,
                     element.Locations.FirstOrDefault(),
                     element.Name
                 )
@@ -801,12 +793,12 @@ internal static class SparseKeyAnalyzer
         CancellationToken cancellationToken
     )
     {
-        switch (GetKeyTypeProblem(keyType, config, cancellationToken))
+        switch (GetKeyTypeProblem(keyType, cancellationToken))
         {
             case KeyTypeProblem.Nullable:
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.NullableKey,
+                        config.EffectiveDiagnosticIds.NullableKey,
                         property.Locations.FirstOrDefault(),
                         element.Name + "." + property.Name
                     )
@@ -815,7 +807,7 @@ internal static class SparseKeyAnalyzer
             case KeyTypeProblem.Collection:
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.UnsupportedKeyShape,
+                        config.EffectiveDiagnosticIds.UnsupportedKeyShape,
                         property.Locations.FirstOrDefault(),
                         element.Name + "." + property.Name
                     )
@@ -832,7 +824,6 @@ internal static class SparseKeyAnalyzer
 
     private static KeyTypeProblem? GetKeyTypeProblem(
         ITypeSymbol type,
-        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
@@ -863,7 +854,6 @@ internal static class SparseKeyAnalyzer
             return KeyTypeProblem.Collection;
         }
 
-        _ = config;
         return null;
     }
 

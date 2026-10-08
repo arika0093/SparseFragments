@@ -129,7 +129,7 @@ internal static class SparsePatchStjReadEmitter
             code.AppendLineAt(5, "__seen_" + member.Id + " = true;");
             if (SparseStjKeyHelpers.IsScalar(member))
             {
-                var field = SparseFragmentPatchEmitter.Field(member);
+                var field = dialect.MemberField(member);
                 code.AppendLineAt(
                     5,
                     "result."
@@ -141,7 +141,7 @@ internal static class SparsePatchStjReadEmitter
             }
             else if (SparseStjKeyHelpers.IsNested(member))
             {
-                var field = SparseFragmentPatchEmitter.Field(member);
+                var field = dialect.MemberField(member);
                 var child = SparseStjKeyHelpers.ChildPatchType(member, dialect);
                 code.AppendLineAt(
                     5,
@@ -168,8 +168,8 @@ internal static class SparsePatchStjReadEmitter
             }
             else
             {
-                var field = SparseFragmentPatchEmitter.Field(member);
-                var coll = SparseStjKeyHelpers.CollectionPatchType(member);
+                var field = dialect.MemberField(member);
+                var coll = SparseStjKeyHelpers.CollectionPatchType(member, dialect);
                 code.AppendLineAt(
                     5,
                     "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"A collection patch must be a JSON object.\");"
@@ -312,7 +312,7 @@ internal static class SparsePatchStjReadEmitter
         {
             if (!SparseStjKeyHelpers.IsScalar(member))
                 continue;
-            var vt = SparseStjKeyHelpers.ScalarValueType(member);
+            var vt = SparseStjKeyHelpers.ScalarValueType(member, dialect);
             code.AppendLineAt(
                 2,
                 "private static "

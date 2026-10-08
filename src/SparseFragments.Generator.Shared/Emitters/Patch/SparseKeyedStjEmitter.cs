@@ -119,7 +119,7 @@ internal static class SparseKeyedStjEmitter
         code.AppendLineAt(3, "}");
         code.AppendLine();
         // Read.
-        var patchName = SparseStjKeyHelpers.CollectionPatchType(member);
+        var patchName = SparseStjKeyHelpers.CollectionPatchType(member, dialect);
         code.AppendLineAt(
             3,
             "internal static "

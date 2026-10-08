@@ -83,7 +83,7 @@ internal static class SparsePromotedDiscovery
             return false;
         }
 
-        if (ModelConstructionPlan.HasUnsupportedStructuralMembers(type, cancellationToken))
+        if (ModelConstructionPlan.HasUnsupportedStructuralMembers(type, config, cancellationToken))
         {
             return false;
         }

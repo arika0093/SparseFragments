@@ -116,7 +116,7 @@ internal static class SparseDictionaryStjEmitter
         code.AppendLineAt(4, "writer.WriteEndObject();");
         code.AppendLineAt(3, "}");
         code.AppendLine();
-        var patchName = SparseStjKeyHelpers.CollectionPatchType(member);
+        var patchName = SparseStjKeyHelpers.CollectionPatchType(member, dialect);
         code.AppendLineAt(
             3,
             "internal static "

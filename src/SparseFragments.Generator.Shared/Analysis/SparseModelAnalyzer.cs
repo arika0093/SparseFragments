@@ -7,14 +7,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SparseFragments.Generator.Shared;
 
-internal sealed record SparseGeneratorConfig(
-    string ModelAttributeMetadataName,
-    string MergeAttributeMetadataName,
-    string MergeStrategyBaseMetadataName,
-    string CloneReferenceSafeAttributeMetadataName,
-    SparseStructuralPolicy StructuralPolicy = SparseStructuralPolicy.AtomicReplace
-);
-
 /// <summary>Orchestrates model analysis: shape validation, member discovery and diagnostics.</summary>
 /// <remarks>
 /// Each analysis phase is owned by a focused component: <see cref="SparseModelDiscovery"/>
@@ -39,13 +31,21 @@ internal static class SparseModelAnalyzer
         switch (SparseShapeValidation.ValidateRootShape(model, declaration, cancellationToken))
         {
             case SparseRootShapeProblem.MustBePartial:
-                return Failure(SparseDiagnosticIds.MustBePartial, location, model.Name);
+                return Failure(config.EffectiveDiagnosticIds.MustBePartial, location, model.Name);
             case SparseRootShapeProblem.RefLikeModel:
             case SparseRootShapeProblem.FileLocalModel:
             case SparseRootShapeProblem.UnsupportedModel:
-                return Failure(SparseDiagnosticIds.UnsupportedModel, location, model.Name);
+                return Failure(
+                    config.EffectiveDiagnosticIds.UnsupportedModel,
+                    location,
+                    model.Name
+                );
             case SparseRootShapeProblem.MissingConstructor:
-                return Failure(SparseDiagnosticIds.MissingConstructor, location, model.Name);
+                return Failure(
+                    config.EffectiveDiagnosticIds.MissingConstructor,
+                    location,
+                    model.Name
+                );
         }
 
         var members = SparseModelDiscovery
@@ -69,16 +69,16 @@ internal static class SparseModelAnalyzer
 
         // Formerly a late render-time check: reserved generated-name collisions
         // now fail during analysis on the shared collision primitive, keeping
-        // the historical single SPF009 with no source location.
+        // the historical single generated-name diagnostic with no source location.
         var reservedCollision = SparseShapeValidation.FindFirstReservedNameCollision(
             memberModels,
-            SparseShapeValidation.SparseFragmentsReservedNames
+            config.EffectiveReservedGeneratedNames
         );
         if (reservedCollision is not null)
         {
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.GeneratedNameCollision,
+                    config.EffectiveDiagnosticIds.GeneratedNameCollision,
                     null,
                     reservedCollision
                 )
@@ -97,7 +97,7 @@ internal static class SparseModelAnalyzer
             );
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.DuplicateJsonPropertyName,
+                    config.EffectiveDiagnosticIds.DuplicateJsonPropertyName,
                     owner?.Locations.FirstOrDefault(),
                     duplicate
                 )
@@ -121,7 +121,7 @@ internal static class SparseModelAnalyzer
             SparseNaming.Sanitize(fullyQualifiedName, cancellationToken)
             + "_"
             + SparseNaming.GetStableTypeHash(fullyQualifiedName, cancellationToken)
-            + SparseWellKnownNames.HintNameSuffix;
+            + config.HintNameSuffix;
         var pocoCloneModels = SparseModelDiscovery
             .GetPocoCloneTypes(members, config, cancellationToken)
             .Select(pocoType =>

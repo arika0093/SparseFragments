@@ -10,7 +10,7 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Collects validation diagnostics for discovered models and members.</summary>
 internal static class SparseModelDiagnostics
 {
-    internal const int CustomMergeMode = 4;
+    internal const int CustomMergeMode = SparseMergeModes.Custom;
 
     internal static void CollectMemberDiagnostics(
         INamedTypeSymbol model,
@@ -29,7 +29,7 @@ internal static class SparseModelDiagnostics
         )
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.UnsupportedRequired,
+                    config.EffectiveDiagnosticIds.UnsupportedRequired,
                     member.Locations.FirstOrDefault(),
                     member.Name
                 )
@@ -38,15 +38,15 @@ internal static class SparseModelDiagnostics
         foreach (var property in UnsupportedStructuralMembers(model, config, cancellationToken))
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.UnsupportedStructural,
+                    config.EffectiveDiagnosticIds.UnsupportedStructural,
                     property.Locations.FirstOrDefault(),
                     property.Name
                 )
             );
 
         // Members whose element declares key metadata but whose key is invalid fail
-        // with the precise SPF012–SPF020 cause. Precompute them so downstream
-        // artifact diagnostics (notably SPF008 from clone analysis) stay silent:
+        // with the precise key-shape cause. Precompute them so downstream
+        // artifact diagnostics from clone analysis stay silent:
         // the invalid declaration itself is the actionable failure.
         var keyErrorProperties = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         foreach (var member in members)
@@ -80,7 +80,7 @@ internal static class SparseModelDiagnostics
             cloneReported.Add(property);
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.UnsupportedClone,
+                    config.EffectiveDiagnosticIds.UnsupportedClone,
                     property.Locations.FirstOrDefault(),
                     property.Name
                 )
@@ -106,7 +106,7 @@ internal static class SparseModelDiagnostics
             cloneReported.Add(property);
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
-                    SparseDiagnosticIds.UnsupportedClone,
+                    config.EffectiveDiagnosticIds.UnsupportedClone,
                     property.Locations.FirstOrDefault(),
                     property.Name
                 )
@@ -132,7 +132,7 @@ internal static class SparseModelDiagnostics
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.InvalidMergeStrategy,
+                        config.EffectiveDiagnosticIds.InvalidMergeStrategy,
                         member.Property.Locations.FirstOrDefault(),
                         member.Property.Name
                     )
@@ -150,7 +150,7 @@ internal static class SparseModelDiagnostics
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.UnsupportedMerge,
+                        config.EffectiveDiagnosticIds.UnsupportedMerge,
                         member.Property.Locations.FirstOrDefault(),
                         member.Property.Name
                     )
@@ -160,8 +160,8 @@ internal static class SparseModelDiagnostics
             // Key validation runs for every member whose element declares key metadata,
             // even when keyed semantics are not required (scalar fallback or an explicit
             // whole-collection merge mode): an invalid declaration must fail with its
-            // own SPF012–SPF020 cause rather than being silently ignored. Members with
-            // no declaration keep the SPF011 unkeyed-sequence check below.
+            // own key-shape cause rather than being silently ignored. Members with
+            // no declaration keep the unkeyed-sequence check below.
             var reportedKeyError = false;
             if (
                 member.Collection.ElementType is INamedTypeSymbol keyedElement
@@ -193,7 +193,7 @@ internal static class SparseModelDiagnostics
             {
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
-                        SparseDiagnosticIds.UnkeyedStructuralSequence,
+                        config.EffectiveDiagnosticIds.UnkeyedStructuralSequence,
                         member.Property.Locations.FirstOrDefault(),
                         member.Property.Name
                     )
@@ -277,7 +277,7 @@ internal static class SparseModelDiagnostics
                         attribute.AttributeClass?.ToDisplayString()
                             == config.MergeAttributeMetadataName
                         && attribute.ConstructorArguments.FirstOrDefault().Value is int mode
-                        && mode == 0
+                        && config.EffectiveMergeModeMap.Normalize(mode) == SparseMergeModes.Replace
                     );
                 if (!replace)
                     yield return property;

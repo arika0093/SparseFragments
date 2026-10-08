@@ -263,51 +263,8 @@ internal static class SparseShapeValidation
     }
 
     /// <summary>
-    /// Reserved generated names owned by this generator (extra to the shared core
-    /// names in <see cref="SparseNaming.IsCoreGeneratedName"/>).
-    /// </summary>
-    public static ImmutableArray<string> SparseFragmentsReservedNames { get; } =
-        ImmutableArray.Create(
-            "JsonConverter",
-            "FragmentJsonConverter",
-            "ApplyTo",
-            "TryApplyTo"
-        );
-
-    /// <summary>
-    /// Shared core generated names (see <see cref="SparseNaming.IsCoreGeneratedName"/>).
-    /// </summary>
-    /// <remarks>
-    /// Downstream generators compose these with their own reserved names and pass
-    /// the union to <see cref="FindReservedNameCollisions"/>; the
-    /// <c>__</c>-prefix rule from <see cref="SparseNaming.IsCoreGeneratedName"/>
-    /// applies on top for caller-supplied checks.
-    /// </remarks>
-    public static ImmutableArray<string> CoreGeneratedNames { get; } =
-        ImmutableArray.Create(
-            "Fragment",
-            "FragmentBuilder",
-            "Empty",
-            "IsEmpty",
-            "Merge",
-            "ApplyChanges",
-            "Diff",
-            "DeepClone",
-            "From",
-            "ToModel",
-            "ToBuilder",
-            "Build",
-            "Patch"
-        );
-
-    /// <summary>
     /// Finds member names colliding with generator-reserved names, in member order.
     /// </summary>
-    /// <remarks>
-    /// Each generator passes its own reserved set (typically
-    /// <see cref="CoreGeneratedNames"/> plus product extras) while sharing this
-    /// collision primitive.
-    /// </remarks>
     public static ImmutableArray<string> FindReservedNameCollisions(
         IEnumerable<string> memberNames,
         ImmutableArray<string> reservedNames

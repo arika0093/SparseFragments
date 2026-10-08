@@ -12,22 +12,26 @@ internal static class SparseKeyedSequenceRebaseEmitter
         string listType,
         bool hasPatch,
         string comparer,
-        string facade
+        string facade,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        // Placeholder: full keyed rebase emitted in follow-up edit (kept small here to land the type first).
+        var runtime = dialect.RuntimeNamespace;
+        var resultType = dialect.RebaseResult(patchName);
+        var conflictType = dialect.ConflictType;
+        var conflictKindType = dialect.ConflictKindType;
         code.AppendLineAt(
             3,
-            "public static global::SparseFragments.RebaseResult<"
-                + patchName
-                + "> Rebase("
-                + SparseFragmentPatchEmitter.Runtime
+            "public static "
+                + resultType
+                + " Rebase("
+                + runtime
                 + "Optional<"
                 + listType
                 + "> baseState, "
                 + patchName
                 + " local, "
-                + SparseFragmentPatchEmitter.Runtime
+                + runtime
                 + "Optional<"
                 + listType
                 + "> currentState)"
@@ -39,73 +43,73 @@ internal static class SparseKeyedSequenceRebaseEmitter
         );
         code.AppendLineAt(
             4,
-            "if (local.__SparseIsEmpty()) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+            "if (local.__SparseIsEmpty()) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
         code.AppendLineAt(4, "var result = new " + patchName + "();");
         code.AppendLineAt(
             4,
-            "var conflicts = new global::System.Collections.Generic.List<global::SparseFragments.SparsePatchConflict>();"
+            "var conflicts = new global::System.Collections.Generic.List<" + conflictType + ">();"
         );
-        code.AppendLineAt(
-            4,
-            SparseFragmentPatchEmitter.Runtime + "Optional<" + listType + "> desired;"
-        );
+        code.AppendLineAt(4, runtime + "Optional<" + listType + "> desired;");
         code.AppendLineAt(4, "try { desired = local.Apply(baseState); }");
         code.AppendLineAt(
             4,
-            "catch (global::System.InvalidOperationException ex) { conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.Nested, "
-                + SparseFragmentPatchEmitter.Runtime
+            "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
+                + conflictType
+                + "(new string[0], "
+                + conflictKindType
+                + ".Nested, "
+                + runtime
                 + "Optional<object?>.Missing, "
-                + SparseFragmentPatchEmitter.Runtime
+                + runtime
                 + "Optional<object?>.Missing, "
-                + SparseFragmentPatchEmitter.Runtime
-                + "Optional<object?>.Missing, ex.Message)); return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + runtime
+                + "Optional<object?>.Missing, ex.Message)); return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(
             4,
-            "if (local.__whole.Kind != "
-                + SparseFragmentPatchEmitter.Runtime
-                + "FragmentOperationKind.Unchanged)"
+            "if (local.__whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)"
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
             "if ("
                 + facade
-                + ".AreEqual((object?)baseState.Value, (object?)currentState.Value)) { result.__whole = local.__whole; return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + ".AreEqual((object?)baseState.Value, (object?)currentState.Value)) { result.__whole = local.__whole; return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(
             5,
             "var desiredState = desired; if ("
                 + facade
-                + ".AreEqual((object?)desiredState.Value, (object?)currentState.Value)) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+                + ".AreEqual((object?)desiredState.Value, (object?)currentState.Value)) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
         code.AppendLineAt(
             5,
-            "conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[0], global::SparseFragments.SparsePatchConflictKind.Nested, "
-                + SparseFragmentPatchEmitter.Runtime
+            "conflicts.Add(new "
+                + conflictType
+                + "(new string[0], "
+                + conflictKindType
+                + ".Nested, "
+                + runtime
                 + "Optional<object?>.Missing, "
-                + SparseFragmentPatchEmitter.Runtime
+                + runtime
                 + "Optional<object?>.Missing, "
-                + SparseFragmentPatchEmitter.Runtime
+                + runtime
                 + "Optional<object?>.Missing, \"The whole collection conflicts with a concurrent change.\"));"
         );
-        code.AppendLineAt(
-            5,
-            "return new global::SparseFragments.RebaseResult<" + patchName + ">(result, conflicts);"
-        );
+        code.AppendLineAt(5, "return new " + resultType + "(result, conflicts);");
         code.AppendLineAt(4, "}");
         // Granular: if base == current keep local; if desired == current drop; else per-key merge with nested rebase where possible.
         // NOTE: desired is computed defensively below (missing/duplicate base yields a conflict, not a throw).
@@ -125,25 +129,31 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + "); result.__order = local.__order is null ? null : new global::System.Collections.Generic.List<"
                 + keyType
-                + ">(local.__order); return new global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">(result, conflicts); }"
+                + ">(local.__order); return new "
+                + resultType
+                + "(result, conflicts); }"
         );
         code.AppendLineAt(
             4,
             "if (desired.IsPresent == currentState.IsPresent && "
                 + facade
-                + ".AreEqual((object?)desired.Value, (object?)currentState.Value)) return global::SparseFragments.RebaseResult<"
-                + patchName
-                + ">.Success(new "
+                + ".AreEqual((object?)desired.Value, (object?)currentState.Value)) return "
+                + resultType
+                + ".Success(new "
                 + patchName
                 + "());"
         );
-        EmitKeyedRebasePerKey(code, member, elementType, keyType, hasPatch, comparer, facade);
-        code.AppendLineAt(
-            4,
-            "return new global::SparseFragments.RebaseResult<" + patchName + ">(result, conflicts);"
+        EmitKeyedRebasePerKey(
+            code,
+            member,
+            elementType,
+            keyType,
+            hasPatch,
+            comparer,
+            facade,
+            dialect
         );
+        code.AppendLineAt(4, "return new " + resultType + "(result, conflicts);");
         code.AppendLineAt(3, "}");
     }
 
@@ -154,10 +164,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
         string keyType,
         bool hasPatch,
         string comparer,
-        string facade
+        string facade,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
+        var conflictType = dialect.ConflictType;
+        var conflictKindType = dialect.ConflictKindType;
         // Build maps. Capacity hints use a netstandard2.0-safe
         // ICollection/IReadOnlyCollection probe (0 when the member shape
         // exposes no Count); duplicate-key validation is unchanged.
@@ -385,7 +398,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
                 6,
-                "conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                "conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)b), "
                     + runtime
@@ -438,8 +455,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + facade
                     + ".KeyOrderEquals<"
                     + keyType
-                    + ">(desiredOrder, currentOrder)) conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { \""
-                    + "order\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                    + ">(desiredOrder, currentOrder)) conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { \"order\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)baseOrder), "
                     + runtime
@@ -497,7 +517,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
             code.AppendLineAt(5, "{");
             code.AppendLineAt(
                 6,
-                "conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                "conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)b), "
                     + runtime
@@ -549,8 +573,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + facade
                     + ".KeyOrderEquals<"
                     + keyType
-                    + ">(desiredOrder, currentOrder)) conflicts.Add(new global::SparseFragments.SparsePatchConflict(new string[] { \""
-                    + "order\" }, global::SparseFragments.SparsePatchConflictKind.Nested, "
+                    + ">(desiredOrder, currentOrder)) conflicts.Add(new "
+                    + conflictType
+                    + "(new string[] { \"order\" }, "
+                    + conflictKindType
+                    + ".Nested, "
                     + runtime
                     + "Optional<object?>.Present((object?)baseOrder), "
                     + runtime

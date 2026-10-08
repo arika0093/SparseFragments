@@ -108,6 +108,65 @@ public sealed class ChangeSetDialectFixtureTests
         return new SparseMemberModel(id, property, null, 2, collection, null, null, false, true);
     }
 
+    private static SparseMemberModel KeyedMember()
+    {
+        var element = ScalarType("global::Ns.Item");
+        var list = ScalarType("global::System.Collections.Generic.List<global::Ns.Item>");
+        var collection = new SparseCollectionInfo(
+            SparseCollectionKind.List,
+            SparseCloneCollectionKind.List,
+            element,
+            null,
+            "System.Collections.Generic.List<T>",
+            SparseCollectionSemantic.KeyedSequence,
+            ImmutableArray.Create("Id"),
+            "global::System.Int32",
+            SparseKeyKind.Property
+        );
+        return new SparseMemberModel(
+            4,
+            new SparsePropertyModel("Items", list, JsonPropertyName: "Items"),
+            null,
+            0,
+            collection,
+            null,
+            null,
+            false,
+            true
+        );
+    }
+
+    private static SparseMemberModel DictionaryMember()
+    {
+        var key = ScalarType("global::System.Int32");
+        var value = ScalarType("global::System.String");
+        var dictionary = ScalarType(
+            "global::System.Collections.Generic.Dictionary<global::System.Int32, global::System.String>"
+        );
+        var collection = new SparseCollectionInfo(
+            SparseCollectionKind.Unsupported,
+            SparseCloneCollectionKind.Dictionary,
+            key,
+            value,
+            "System.Collections.Generic.Dictionary<TKey, TValue>",
+            SparseCollectionSemantic.Dictionary,
+            ImmutableArray<string>.Empty,
+            "global::System.Int32",
+            SparseKeyKind.None
+        );
+        return new SparseMemberModel(
+            5,
+            new SparsePropertyModel("Values", dictionary, JsonPropertyName: "Values"),
+            null,
+            0,
+            collection,
+            null,
+            null,
+            false,
+            true
+        );
+    }
+
     private static ImmutableArray<SparseMemberModel> FixtureMembers() =>
         ImmutableArray.Create(
             ScalarMember(0, "Name", "global::System.String?"),
@@ -192,5 +251,54 @@ public sealed class ChangeSetDialectFixtureTests
         var text = code.ToString();
         text.ShouldNotContain("global::SparseFragments");
         text.ShouldContain("global::Downstream.FragmentOperation<");
+    }
+
+    [Test]
+    public void Downstream_KeyedCollectionPatchContainsNoSparseFragmentsRuntime()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseKeyedSequenceSurfaceEmitter.EmitKeyedSequencePatch(
+            code,
+            KeyedMember(),
+            DownstreamDialect()
+        );
+        var text = code.ToString();
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldContain("global::Downstream.DownstreamRebase<ItemsPatch>");
+        text.ShouldContain("global::Downstream.DownstreamConflict");
+        text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
+    }
+
+    [Test]
+    public void Downstream_DictionaryPatchContainsNoSparseFragmentsRuntime()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseDictionaryPatchEmitter.EmitDictionaryPatch(
+            code,
+            DictionaryMember(),
+            DownstreamDialect()
+        );
+        var text = code.ToString();
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldContain("global::Downstream.DownstreamRebase<ValuesPatch>");
+        text.ShouldContain("global::Downstream.DownstreamConflict");
+        text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
+    }
+
+    [Test]
+    public void Downstream_FullPatchContainsNoSparseFragmentsRuntime()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseFragmentPatchEmitter.AppendPatch(
+            code,
+            "global::Ns.Model",
+            FixtureMembers(),
+            patchDialect: DownstreamDialect()
+        );
+        var text = code.ToString();
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldContain("global::Downstream.Optional<");
+        text.ShouldContain("global::Downstream.DownstreamRebase<Patch>");
+        text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
     }
 }

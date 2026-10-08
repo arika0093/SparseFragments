@@ -3,17 +3,21 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits the dictionary patch surface plus Apply and Between algebra.</summary>
 internal static class SparseDictionaryPatchEmitter
 {
-    internal static void EmitDictionaryPatch(SharedIndentedBuilder code, SparseMemberModel member)
+    internal static void EmitDictionaryPatch(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
     {
         var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
         var keyType = SparseKeyedCollectionEmitter.KeyType(member);
         var valueType = SparseKeyedCollectionEmitter.DictionaryValueType(member);
         var dictType = SparseKeyedCollectionEmitter.DictionaryType(member);
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var operation = runtime + "FragmentOperation<" + dictType + ">";
         var kind = runtime + "FragmentOperationKind";
         var optionalDict = runtime + "Optional<" + dictType + ">";
-        var facade = "global::SparseFragments.CompilerServices.SparseFragmentRuntime";
+        var facade = dialect.RuntimeFacade;
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
         var hasPatch = SparseKeyedCollectionEmitter.HasValuePatch(member);
@@ -93,9 +97,10 @@ internal static class SparseDictionaryPatchEmitter
             facade,
             comparer,
             hasPatch,
-            editedValueType
+            editedValueType,
+            dialect
         );
-        SparsePatchStjEmitter.AppendDictionaryStj(code, member);
+        SparsePatchStjEmitter.AppendDictionaryStj(code, member, dialect);
         code.AppendLineAt(2, "}");
     }
 

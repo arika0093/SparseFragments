@@ -101,7 +101,8 @@ internal static class SparseKeyedCollectionEmitter
 
     public static void EmitCollectionPatches(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         foreach (var member in members)
@@ -113,11 +114,11 @@ internal static class SparseKeyedCollectionEmitter
 
             if (IsDictionary(member))
             {
-                SparseDictionaryPatchEmitter.EmitDictionaryPatch(code, member);
+                SparseDictionaryPatchEmitter.EmitDictionaryPatch(code, member, dialect);
             }
             else
             {
-                SparseKeyedSequenceSurfaceEmitter.EmitKeyedSequencePatch(code, member);
+                SparseKeyedSequenceSurfaceEmitter.EmitKeyedSequencePatch(code, member, dialect);
             }
         }
     }
@@ -177,9 +178,12 @@ internal static class SparseKeyedCollectionEmitter
         code.AppendLineAt(indent, "}");
     }
 
-    internal static string MaterializeSequence(SparseMemberModel member, string variable)
+    internal static string MaterializeSequence(
+        SparseMemberModel member,
+        string variable,
+        string runtime
+    )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
         var collection = member.Collection;
         // CloneKind Array (includes IEnumerable/IReadOnlyList/array) -> ToArray; else new List.
         if (collection.CloneKind == SparseCloneCollectionKind.Array)

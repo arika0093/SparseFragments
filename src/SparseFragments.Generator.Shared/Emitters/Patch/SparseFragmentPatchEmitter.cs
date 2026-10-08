@@ -30,7 +30,11 @@ internal static class SparseFragmentPatchEmitter
 
     internal static readonly SparseFragmentExpressions Expressions = new("__sparse_patch_context");
 
-    public static void AppendFragmentMethods(SharedIndentedBuilder code, string modelType)
+    public static void AppendFragmentMethods(
+        SharedIndentedBuilder code,
+        string modelType,
+        string runtimeNamespace = Runtime
+    )
     {
         _ = modelType;
         code.AppendLineAt(2, "public Patch ToPatch() => new(this);");
@@ -42,7 +46,7 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(
             3,
-            "var result = patch.Apply(" + Runtime + "Optional<Fragment?>.Present(this));"
+            "var result = patch.Apply(" + runtimeNamespace + "Optional<Fragment?>.Present(this));"
         );
         code.AppendLineAt(
             3,
@@ -67,7 +71,10 @@ internal static class SparseFragmentPatchEmitter
         Func<string, string> RebaseResult,
         Func<SparseMemberModel, string> ChildPatchName,
         Func<SparseMemberModel, string> ChildChangeSetName,
-        bool HashSetSupportsCapacity = false
+        bool HashSetSupportsCapacity = false,
+        Func<SparseMemberModel, string>? MemberValueType = null,
+        Func<SparseMemberModel, string>? CollectionPatchName = null,
+        Func<SparseMemberModel, string>? MergeStrategyField = null
     );
 
     internal static SparsePatchDialect StandaloneDialect(bool hashSetSupportsCapacity = false) =>
@@ -94,6 +101,23 @@ internal static class SparseFragmentPatchEmitter
 
     internal static string Operation(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperation";
+
+    internal static string GetMemberValueType(
+        SparsePatchDialect dialect,
+        SparseMemberModel member
+    ) => dialect.MemberValueType?.Invoke(member) ?? ValueType(member);
+
+    internal static string GetCollectionPatchName(
+        SparsePatchDialect dialect,
+        SparseMemberModel member
+    ) => dialect.CollectionPatchName?.Invoke(member) ?? CollectionPatch(member);
+
+    internal static string GetMergeStrategyField(
+        SparsePatchDialect dialect,
+        SparseMemberModel member
+    ) =>
+        dialect.MergeStrategyField?.Invoke(member)
+        ?? SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
 
     internal static string Kind(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperationKind";
@@ -135,16 +159,17 @@ internal static class SparseFragmentPatchEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        bool hashSetSupportsCapacity = false
+        bool hashSetSupportsCapacity = false,
+        SparsePatchDialect? patchDialect = null
     )
     {
-        var optional = Runtime + "Optional<Fragment?>";
+        var dialect = patchDialect ?? StandaloneDialect(hashSetSupportsCapacity);
+        var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
         SparsePatchStjEmitter.AppendPatchConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
-        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members);
-        SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, Runtime, Field);
-        var dialect = StandaloneDialect(hashSetSupportsCapacity);
+        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect);
+        SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,
             modelType,
@@ -169,9 +194,9 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "return Fragment.From(current).Apply(this).ToModel();");
         code.AppendLineAt(2, "}");
-        SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
-        SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
-        SparsePatchStjEmitter.AppendPatchStj(code, members);
+        SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
+        SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members, dialect);
+        SparsePatchStjEmitter.AppendPatchStj(code, members, dialect);
         code.AppendLineAt(1, "}");
         SparseChangeSetEmitter.AppendChangeSet(code, members, dialect, modelType);
     }

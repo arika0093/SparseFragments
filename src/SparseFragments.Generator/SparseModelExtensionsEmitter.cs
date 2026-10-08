@@ -1,7 +1,8 @@
 using System.Collections.Immutable;
 using System.Threading;
+using SparseFragments.Generator.Shared;
 
-namespace SparseFragments.Generator.Shared;
+namespace SparseFragments.Generator;
 
 /// <summary>Emits framework-neutral model extension APIs in a stable top-level container.</summary>
 internal static class SparseModelExtensionsEmitter

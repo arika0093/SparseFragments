@@ -54,11 +54,11 @@ internal static class SparsePatchStjWriteEmitter
         foreach (var member in members)
         {
             var name = member.Property.Name;
-            var field = SparseFragmentPatchEmitter.Field(member);
+            var field = dialect.MemberField(member);
             var lit = SparseStjKeyHelpers.Lit(name);
             if (SparseStjKeyHelpers.IsScalar(member))
             {
-                var vt = SparseStjKeyHelpers.ScalarValueType(member);
+                var vt = SparseStjKeyHelpers.ScalarValueType(member, dialect);
                 code.AppendLineAt(
                     3,
                     "if (value."

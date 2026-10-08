@@ -144,7 +144,7 @@ internal sealed class SparseFragmentExpressions(
             return $"{CollectionMerger}.MergeSet<{elementType}>({lower}, {higher})";
         }
 
-        if (member.MergeMode == 3)
+        if (member.MergeMode == SparseMergeModes.SetUnion)
         {
             var method =
                 member.Collection.Kind == SparseCollectionKind.List

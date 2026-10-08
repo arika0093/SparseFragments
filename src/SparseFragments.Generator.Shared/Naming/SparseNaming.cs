@@ -12,23 +12,6 @@ namespace SparseFragments.Generator.Shared;
 internal static class SparseNaming
 {
     public const int InitialSchemaVersion = 1;
-    public const int CustomMergeMode = 4;
-
-    public static bool IsCoreGeneratedName(string name) =>
-        name
-            is "Fragment"
-                or "FragmentBuilder"
-                or "Empty"
-                or "IsEmpty"
-                or "Merge"
-                or "ApplyChanges"
-                or "Diff"
-                or "DeepClone"
-                or "From"
-                or "ToModel"
-                or "ToBuilder"
-                or "Build"
-        || name.StartsWith("__", System.StringComparison.Ordinal);
 
     public static readonly SymbolDisplayFormat TypeFormat =
         SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
@@ -102,10 +85,10 @@ internal static class SparseNaming
     public static string MergeModeName(int mode) =>
         mode switch
         {
-            1 => "Deep",
-            2 => "Append",
-            3 => "SetUnion",
-            4 => "Custom",
+            SparseMergeModes.Deep => "Deep",
+            SparseMergeModes.Append => "Append",
+            SparseMergeModes.SetUnion => "SetUnion",
+            SparseMergeModes.Custom => "Custom",
             _ => "Replace",
         };
 }

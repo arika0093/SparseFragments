@@ -158,16 +158,12 @@ internal static class SparseCollectionAnalyzer
         );
     }
 
-    /// <summary>Metadata name of the key attribute declared by the runtime.</summary>
-    /// <remarks>The analyzer resolves it by metadata name so analysis degrades to "no key" when absent.</remarks>
-    public const string KeyAttributeMetadataName = "SparseFragments.SparseKeyAttribute";
-
     /// <summary>Determines whether an element type needs keyed granular semantics.</summary>
     /// <remarks>
     /// Keyed semantics apply only to fragment/promotable elements (types with
     /// generated Fragment/Patch). Plain POCO sequences remain atomic scalar
     /// sequences to preserve backward compatibility; only fragment element
-    /// sequences without a usable key report SPF011.
+    /// sequences without a usable key report the configured unkeyed-sequence diagnostic.
     /// </remarks>
     public static bool IsStructuralElement(
         ITypeSymbol element,
@@ -224,7 +220,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Discovers the structural key of an element type.</summary>
-    /// <remarks>Exactly one key mechanism may apply; conflicts yield no key (see SPF012–SPF020).</remarks>
+    /// <remarks>Exactly one key mechanism may apply; conflicts yield no key and diagnostics.</remarks>
     public static bool TryDiscoverKeys(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -256,7 +252,7 @@ internal static class SparseCollectionAnalyzer
         out SparseKeyInfo? info
     ) => SparseKeyAnalyzer.TryGetKeyInfo(element, config, cancellationToken, out info);
 
-    /// <summary>Determines whether a member requires the SPF011 unkeyed-sequence diagnostic.</summary>
+    /// <summary>Determines whether a member requires the configured unkeyed-sequence diagnostic.</summary>
     /// <remarks>
     /// Escape hatch: explicit <c>Append</c>/<c>SetUnion</c>/<c>Custom</c> merge modes
     /// keep legacy whole-collection semantics without a key. <c>Replace</c> (whether
@@ -270,11 +266,9 @@ internal static class SparseCollectionAnalyzer
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        // MergeMode integers mirror SparseFragments.MergeMode: 0 Replace, 1 Deep,
-        // 2 Append, 3 SetUnion, 4 Custom.
         if (
-            member.MergeMode is 2 or 3
-            || member.MergeMode == SparseModelDiagnostics.CustomMergeMode
+            member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
+            || member.MergeMode == SparseMergeModes.Custom
         )
         {
             return false;

@@ -209,7 +209,8 @@ internal static class SparseChangeSetRebaseEmitter
             }
             else if (member.MergeStrategyType is not null)
             {
-                var strat = "Fragment." + SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
+                var strat =
+                    "Fragment." + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member);
                 code.AppendLineAt(4, "if (" + HasField(member) + ")");
                 code.AppendLineAt(4, "{");
                 code.AppendLineAt(
@@ -288,7 +289,7 @@ internal static class SparseChangeSetRebaseEmitter
                 code.AppendLineAt(4, "    }");
                 code.AppendLineAt(4, "}");
             }
-            else if (member.MergeMode is 2 or 3)
+            else if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
             {
                 AppendMergeCollectionRebase(code, member, esc, lit, runtime, dialect);
             }
@@ -405,10 +406,7 @@ internal static class SparseChangeSetRebaseEmitter
         string rebaseResult
     )
     {
-        code.AppendLineAt(
-            2,
-            "/// <summary>Rebases this change onto an ordinary model.</summary>"
-        );
+        code.AppendLineAt(2, "/// <summary>Rebases this change onto an ordinary model.</summary>");
         code.AppendLineAt(
             2,
             "public "
@@ -460,9 +458,7 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "var __state = "
-                + optionalFragment
-                + ".Present(Fragment.From(current));"
+            "var __state = " + optionalFragment + ".Present(Fragment.From(current));"
         );
         code.AppendLineAt(3, "ChangeSet __toApply;");
         code.AppendLineAt(3, "if (__SparseBeforeMatches(__state))");
@@ -520,11 +516,12 @@ internal static class SparseChangeSetRebaseEmitter
         var comparer = dialect.RuntimeFacade;
         var conflict = dialect.ConflictType;
         var kind =
-            member.MergeMode == 2
+            member.MergeMode == SparseMergeModes.Append
                 ? dialect.ConflictKindType + ".CollectionAppend"
                 : dialect.ConflictKindType + ".CollectionSetUnion";
         var isSet =
-            member.MergeMode == 3 && member.Collection.CloneKind == SparseCloneCollectionKind.Set;
+            member.MergeMode == SparseMergeModes.SetUnion
+            && member.Collection.CloneKind == SparseCloneCollectionKind.Set;
         var isTypedSequence =
             !isSet
             && member.Collection.CloneKind
@@ -595,10 +592,15 @@ internal static class SparseChangeSetRebaseEmitter
         else if (isTypedSequence)
         {
             var typedMethod =
-                member.MergeMode == 2 ? "TryRebaseSequenceAppend" : "TryRebaseSequenceSetUnion";
+                member.MergeMode == SparseMergeModes.Append
+                    ? "TryRebaseSequenceAppend"
+                    : "TryRebaseSequenceSetUnion";
             if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
                 typedMethod += "Array";
-            var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
+            var boxedMethod =
+                member.MergeMode == SparseMergeModes.Append
+                    ? "TryRebaseAppend"
+                    : "TryRebaseSetUnion";
             var readOnly = "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">";
             var list = "global::System.Collections.Generic.List<" + elementType + ">";
             string NativeInput(string state, string variable) =>
@@ -715,7 +717,10 @@ internal static class SparseChangeSetRebaseEmitter
         }
         else
         {
-            var boxedMethod = member.MergeMode == 2 ? "TryRebaseAppend" : "TryRebaseSetUnion";
+            var boxedMethod =
+                member.MergeMode == SparseMergeModes.Append
+                    ? "TryRebaseAppend"
+                    : "TryRebaseSetUnion";
             code.AppendLineAt(
                 5,
                 "        var __bb"

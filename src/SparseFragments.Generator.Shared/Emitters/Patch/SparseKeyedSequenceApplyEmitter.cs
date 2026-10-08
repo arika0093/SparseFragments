@@ -10,10 +10,10 @@ internal static class SparseKeyedSequenceApplyEmitter
         string keyType,
         string listType,
         bool hasPatch,
-        string comparer
+        string comparer,
+        string runtime
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
         var optionalList = runtime + "Optional<" + listType + ">";
         var kind = runtime + "FragmentOperationKind";
         code.AppendLineAt(3, "public " + optionalList + " Apply(" + optionalList + " current)");
@@ -194,7 +194,9 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "return " + SparseKeyedCollectionEmitter.MaterializeSequence(member, "result") + ";"
+            "return "
+                + SparseKeyedCollectionEmitter.MaterializeSequence(member, "result", runtime)
+                + ";"
         );
         code.AppendLineAt(3, "}");
     }
@@ -208,10 +210,10 @@ internal static class SparseKeyedSequenceApplyEmitter
         string listType,
         bool hasPatch,
         string comparer,
-        string facade
+        string facade,
+        string runtime
     )
     {
-        var runtime = SparseFragmentPatchEmitter.Runtime;
         var optionalList = runtime + "Optional<" + listType + ">";
         var operation = runtime + "FragmentOperation<" + listType + ">";
         code.AppendLineAt(

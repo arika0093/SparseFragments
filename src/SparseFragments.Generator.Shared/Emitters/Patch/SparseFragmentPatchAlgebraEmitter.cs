@@ -9,18 +9,23 @@ internal static class SparseFragmentPatchAlgebraEmitter
     public static void AppendPatchAlgebra(
         SharedIndentedBuilder code,
         string modelType,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         _ = modelType;
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
-        var runtime = SparseFragmentPatchEmitter.Runtime;
+        var runtime = dialect.RuntimeNamespace;
         var optionalFragment = runtime + "Optional<Fragment?>";
         var wholeOperation = runtime + "FragmentOperation<Fragment?>";
         var kind = runtime + "FragmentOperationKind";
-        var expressions = SparseFragmentPatchEmitter.Expressions;
+        var expressions = new SparseFragmentExpressions(
+            "__sparse_patch_context",
+            dialect.RuntimeFacade,
+            dialect.RuntimeFacade
+        );
 
         SparseSemanticBetweenEmitter.AppendBetweenMethod(
             code,
@@ -31,31 +36,30 @@ internal static class SparseFragmentPatchAlgebraEmitter
                 wholeOperation,
                 "__sparse_whole",
                 prefix,
-                SparseFragmentPatchEmitter.Field,
+                dialect.MemberField,
                 static member =>
                     member.ChildModel is null
                     && !SparseFragmentPatchEmitter.IsCollectionPatch(member),
-                SparseFragmentPatchEmitter.ValueType,
+                member => SparseFragmentPatchEmitter.GetMemberValueType(dialect, member),
                 (member, beforeValue, afterValue) =>
                     member.MergeStrategyType is null
                         ? expressions.ValueEqualityExpression(member, beforeValue, afterValue)
                         : "Fragment."
-                            + SparseWellKnownNames.MergeStrategyFieldPrefix
-                            + member.Id
+                            + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member)
                             + ".AreEqual("
                             + beforeValue
                             + ", "
                             + afterValue
                             + ")",
-                static (member, before, after) =>
+                (member, before, after) =>
                     SparseFragmentPatchEmitter.IsCollectionPatch(member)
-                        ? SparseFragmentPatchEmitter.CollectionPatch(member)
+                        ? SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member)
                             + ".Between("
                             + before
                             + ", "
                             + after
                             + ")"
-                        : SparseFragmentPatchEmitter.ChildPatch(member)
+                        : dialect.ChildPatchName(member)
                             + "."
                             + member.ChildModel!.Value.PatchApiPrefix
                             + "Between("
@@ -85,9 +89,9 @@ internal static class SparseFragmentPatchAlgebraEmitter
             code.AppendLineAt(
                 4,
                 "result."
-                    + SparseFragmentPatchEmitter.Field(member)
+                    + dialect.MemberField(member)
                     + " = next."
-                    + SparseFragmentPatchEmitter.Field(member)
+                    + dialect.MemberField(member)
                     + ";"
             );
         }
@@ -97,7 +101,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
         code.AppendLineAt(3, "result.__sparse_whole = this.__sparse_whole;");
         foreach (var member in members)
         {
-            var field = SparseFragmentPatchEmitter.Field(member);
+            var field = dialect.MemberField(member);
             if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 code.AppendLineAt(
