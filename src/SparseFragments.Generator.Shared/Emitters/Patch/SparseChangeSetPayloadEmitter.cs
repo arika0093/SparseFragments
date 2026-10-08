@@ -27,7 +27,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "public class " + payloadCore);
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(2, "public int Version { get; set; } = 1;");
+        AppendJsonProperty(code, 2, "Changes", 1);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.List<"
@@ -45,7 +45,11 @@ internal static class SparseChangeSetPayloadEmitter
             );
         code.AppendLineAt(1, "}");
         code.AppendLine();
-        code.AppendLineAt(1, "public sealed class ChangeSetPayload : " + payloadCore + " { }");
+        code.AppendLineAt(1, "public sealed class ChangeSetPayload : " + payloadCore);
+        code.AppendLineAt(1, "{");
+        AppendJsonProperty(code, 2, "Version", 0);
+        code.AppendLineAt(2, "public int Version { get; set; } = 1;");
+        code.AppendLineAt(1, "}");
         code.AppendLine();
 
         code.AppendLineAt(
@@ -54,6 +58,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "public sealed class " + payloadRoot);
         code.AppendLineAt(1, "{");
+        AppendJsonProperty(code, 2, "Members", 0);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.List<"
@@ -250,8 +255,10 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "{");
         AppendIgnoreNull(code, 2);
+        AppendJsonProperty(code, 2, "Before", 0);
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? Before { get; set; }");
         AppendIgnoreNull(code, 2);
+        AppendJsonProperty(code, 2, "After", 1);
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? After { get; set; }");
         code.AppendLineAt(1, "}");
         code.AppendLine();
@@ -505,7 +512,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(2, "internal static ChangeSet FromPayload(" + payloadCore + " payload)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "if (payload is null) throw new global::System.ArgumentNullException(nameof(payload));");
-        code.AppendLineAt(3, "if (payload.Version != 1) throw new global::System.ArgumentException(\"Unsupported ChangeSet payload version.\", nameof(payload));");
+        code.AppendLineAt(3, "if (payload is ChangeSetPayload rootPayload && rootPayload.Version != 1) throw new global::System.ArgumentException(\"Unsupported ChangeSet payload version.\", nameof(payload));");
         code.AppendLineAt(3, "if (payload.Changes is null) throw new global::System.ArgumentException(\"Payload changes must not be null.\", nameof(payload));");
         code.AppendLineAt(3, "if (payload.Changes.Count == 1 && payload.Changes[0] is " + rootChange + " whole)");
         code.AppendLineAt(3, "{");
@@ -823,12 +830,14 @@ internal static class SparseChangeSetPayloadEmitter
                 + "?"
             : SparseChangeSetBasicsEmitter.FragmentValueType(member);
         AppendIgnoreNull(code, 2);
+        AppendJsonProperty(code, 2, "Value", 0);
         code.AppendLineAt(2, "public " + endpoint + "<" + memberValueType + ">? Value { get; set; }");
         if (SparseChangeSetBasicsEmitter.IsNested(member))
         {
             var childModelType = member.ChildModel!.Value.NonNullableName;
             var childPayload = childModelType + "." + PayloadName(childModelType, "Core");
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "Nested", 1);
             code.AppendLineAt(2, "public " + childPayload + "? Nested { get; set; }");
         }
         else if (
@@ -838,9 +847,12 @@ internal static class SparseChangeSetPayloadEmitter
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "Before", 2);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? Before { get; set; }");
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "After", 3);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
+            AppendJsonProperty(code, 2, "Items", 4);
             code.AppendLineAt(
                 2,
                 "public global::System.Collections.Generic.List<"
@@ -852,6 +864,7 @@ internal static class SparseChangeSetPayloadEmitter
             {
                 var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
                 AppendIgnoreNull(code, 2);
+                AppendJsonProperty(code, 2, "BeforeOrder", 5);
                 code.AppendLineAt(
                     2,
                     "public global::System.Collections.Generic.List<"
@@ -859,6 +872,7 @@ internal static class SparseChangeSetPayloadEmitter
                         + ">? BeforeOrder { get; set; }"
                 );
                 AppendIgnoreNull(code, 2);
+                AppendJsonProperty(code, 2, "AfterOrder", 6);
                 code.AppendLineAt(
                     2,
                     "public global::System.Collections.Generic.List<"
@@ -871,8 +885,10 @@ internal static class SparseChangeSetPayloadEmitter
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "Before", 0);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? Before { get; set; }");
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "After", 1);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
         }
         code.AppendLineAt(1, "}");
@@ -900,31 +916,39 @@ internal static class SparseChangeSetPayloadEmitter
             );
             code.AppendLineAt(1, "public sealed class " + PayloadName(modelType, "Item") + id);
             code.AppendLineAt(1, "{");
+            AppendJsonProperty(code, 2, "Key", 0);
             code.AppendLineAt(2, "public " + keyType + " Key { get; set; } = default!;");
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "Before", 4);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? Before { get; set; }"
             );
             AppendIgnoreNull(code, 2);
+            AppendJsonProperty(code, 2, "After", 5);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? After { get; set; }"
             );
+            AppendJsonProperty(code, 2, "Kind", 1);
             code.AppendLineAt(
                 2,
                 "public " + runtime + "ChangeSetPayloadItemKind Kind { get; set; }"
             );
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
+                AppendJsonProperty(code, 2, "BeforeIndex", 2);
                 code.AppendLineAt(2, "public int BeforeIndex { get; set; } = -1;");
+                AppendJsonProperty(code, 2, "AfterIndex", 3);
                 code.AppendLineAt(2, "public int AfterIndex { get; set; } = -1;");
                 AppendIgnoreDefault(code, 2);
+                AppendJsonProperty(code, 2, "IsReordered", 6);
                 code.AppendLineAt(2, "public bool IsReordered { get; set; }");
             }
             if (isModelValue)
             {
                 AppendIgnoreNull(code, 2);
+                AppendJsonProperty(code, 2, "Edit", 7);
                 code.AppendLineAt(2, "public " + childName + "? Edit { get; set; }");
             }
             code.AppendLineAt(1, "}");
@@ -947,6 +971,19 @@ internal static class SparseChangeSetPayloadEmitter
             indent,
             "[global::System.Text.Json.Serialization.JsonIgnore(Condition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]"
         );
+
+    private static void AppendJsonProperty(SharedIndentedBuilder code, int indent, string name, int order)
+    {
+        var jsonName = char.ToLowerInvariant(name[0]) + name.Substring(1);
+        code.AppendLineAt(
+            indent,
+            "[global::System.Text.Json.Serialization.JsonPropertyName(\"" + jsonName + "\")]"
+        );
+        code.AppendLineAt(
+            indent,
+            "[global::System.Text.Json.Serialization.JsonPropertyOrder(" + order + ")]"
+        );
+    }
 
     private static void AppendIgnoreDefault(SharedIndentedBuilder code, int indent) =>
         code.AppendLineAt(

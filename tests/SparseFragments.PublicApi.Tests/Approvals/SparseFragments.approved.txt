@@ -4,7 +4,11 @@ namespace SparseFragments
     public sealed class ChangeSetPayloadEndpoint<T>
     {
         public ChangeSetPayloadEndpoint() { }
+        [System.Text.Json.Serialization.JsonPropertyName("state")]
+        [System.Text.Json.Serialization.JsonPropertyOrder(0)]
         public SparseFragments.ChangeSetPayloadState State { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        [System.Text.Json.Serialization.JsonPropertyOrder(1)]
         public T Value { get; set; }
         public SparseFragments.Optional<T> ToOptional() { }
         public static SparseFragments.ChangeSetPayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
@@ -12,16 +16,23 @@ namespace SparseFragments
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadItemKind>))]
     public enum ChangeSetPayloadItemKind
     {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("add")]
         Add = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("remove")]
         Remove = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("edit")]
         Edit = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("reorder")]
         Reorder = 3,
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadState>))]
     public enum ChangeSetPayloadState
     {
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("missing")]
         Missing = 0,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("null")]
         Null = 1,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
         Value = 2,
     }
     public abstract class FragmentMergeStrategy<T>

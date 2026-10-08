@@ -33,7 +33,7 @@ public sealed class ChangeSetPayloadTests
         var json = JsonSerializer.Serialize(payload);
         var restored = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!;
 
-        json.ShouldContain("\"State\":\"Value\"");
+        json.ShouldContain("\"state\":\"value\"");
         restored.Version.ShouldBe(1);
         restored.Changes.ShouldHaveSingleItem();
         restored.Changes[0].GetType().Name.ShouldContain("ChangeSetPayloadChange");
@@ -82,8 +82,8 @@ public sealed class ChangeSetPayloadTests
 
         payload.Changes.ShouldHaveSingleItem();
         json.ShouldContain("\"member\":\"$root\"");
-        json.ShouldContain("\"Members\":[");
-        json.ShouldContain("\"State\":\"Missing\"");
+        json.ShouldContain("\"members\":[");
+        json.ShouldContain("\"state\":\"missing\"");
         json.ShouldNotContain("Member1");
         Settings.Patch
             .Between(payload.ToChangeSet().ToPatch().Apply(Optional<Settings.Fragment?>.Missing), after)
@@ -117,7 +117,7 @@ public sealed class ChangeSetPayloadTests
             var restored = RoundTrip(payload).ToChangeSet();
 
             json.ShouldContain("\"member\":\"$root\"");
-            json.ShouldContain("\"Members\":[");
+            json.ShouldContain("\"members\":[");
             json.ShouldNotContain("Member1");
             Settings.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
         }
@@ -143,7 +143,21 @@ public sealed class ChangeSetPayloadTests
             }
         );
 
-        var restored = RoundTrip(Settings.ChangeSet.Between(before, after).ToPayload()).ToChangeSet();
+        var payload = Settings.ChangeSet.Between(before, after).ToPayload();
+        var json = JsonSerializer.Serialize(payload);
+        using (var document = JsonDocument.Parse(json))
+        {
+            document
+                .RootElement.EnumerateObject()
+                .Select(property => property.Name)
+                .ShouldBe(["version", "changes"]);
+            var nested = document
+                .RootElement.GetProperty("changes")[0]
+                .GetProperty("nested");
+            nested.TryGetProperty("version", out _).ShouldBeFalse();
+            nested.TryGetProperty("changes", out _).ShouldBeTrue();
+        }
+        var restored = RoundTrip(payload).ToChangeSet();
         Settings.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
 
@@ -181,31 +195,31 @@ public sealed class ChangeSetPayloadTests
         var payload = KeyedServerHolder.ChangeSet.Between(before, after).ToPayload();
         var json = JsonSerializer.Serialize(payload);
 
-        json.ShouldContain("\"Kind\":\"Edit\"");
-        json.ShouldNotContain("\"Before\":null");
-        json.ShouldNotContain("\"After\":null");
-        json.ShouldNotContain("\"Edit\":null");
-        json.ShouldNotContain("\"IsReordered\":false");
+        json.ShouldContain("\"kind\":\"edit\"");
+        json.ShouldNotContain("\"before\":null");
+        json.ShouldNotContain("\"after\":null");
+        json.ShouldNotContain("\"edit\":null");
+        json.ShouldNotContain("\"isReordered\":false");
         using (var document = JsonDocument.Parse(json))
         {
             var itemChanges = document
-                .RootElement.GetProperty("Changes")
+                .RootElement.GetProperty("changes")
                 .EnumerateArray()
                 .Single(change => change.GetProperty("member").GetString() == "Items");
-            var items = itemChanges.GetProperty("Items").EnumerateArray().ToArray();
-            var edited = items.Single(item => item.GetProperty("Key").GetString() == "b");
-            edited.TryGetProperty("Before", out _).ShouldBeFalse();
-            edited.TryGetProperty("After", out _).ShouldBeFalse();
-            edited.GetProperty("Edit")
-                .GetProperty("Changes")
+            var items = itemChanges.GetProperty("items").EnumerateArray().ToArray();
+            var edited = items.Single(item => item.GetProperty("key").GetString() == "b");
+            edited.TryGetProperty("before", out _).ShouldBeFalse();
+            edited.TryGetProperty("after", out _).ShouldBeFalse();
+            edited.GetProperty("edit")
+                .GetProperty("changes")
                 .EnumerateArray()
                 .Select(change => change.GetProperty("member").GetString())
                 .ShouldNotContain("Id");
-            items.Single(item => item.GetProperty("Key").GetString() == "c")
-                .TryGetProperty("Before", out _)
+            items.Single(item => item.GetProperty("key").GetString() == "c")
+                .TryGetProperty("before", out _)
                 .ShouldBeFalse();
-            items.Single(item => item.GetProperty("Key").GetString() == "a")
-                .TryGetProperty("After", out _)
+            items.Single(item => item.GetProperty("key").GetString() == "a")
+                .TryGetProperty("after", out _)
                 .ShouldBeFalse();
         }
         var restored = RoundTrip(payload).ToChangeSet();
@@ -219,10 +233,10 @@ public sealed class ChangeSetPayloadTests
         var orderAfter = KeyedState(Server("b", "B"), Server("a", "A"), Server("c", "C"));
         var orderPayload = KeyedServerHolder.ChangeSet.Between(orderBefore, orderAfter).ToPayload();
         var orderJson = JsonSerializer.Serialize(orderPayload);
-        orderJson.ShouldContain("\"Kind\":\"Reorder\"");
-        orderJson.ShouldContain("\"IsReordered\":true");
-        orderJson.ShouldNotContain("\"Before\":null");
-        orderJson.ShouldNotContain("\"After\":null");
+        orderJson.ShouldContain("\"kind\":\"reorder\"");
+        orderJson.ShouldContain("\"isReordered\":true");
+        orderJson.ShouldNotContain("\"before\":null");
+        orderJson.ShouldNotContain("\"after\":null");
         var orderRestored = RoundTrip(orderPayload).ToChangeSet();
         KeyedServerHolder.Patch
             .Between(orderRestored.ToPatch().Apply(orderBefore), orderAfter)
@@ -262,17 +276,17 @@ public sealed class ChangeSetPayloadTests
         using (var document = JsonDocument.Parse(structuralJson))
         {
             var itemChanges = document
-                .RootElement.GetProperty("Changes")
+                .RootElement.GetProperty("changes")
                 .EnumerateArray()
                 .Single(change => change.GetProperty("member").GetString() == "Servers");
             var edited = itemChanges
-                .GetProperty("Items")
+                .GetProperty("items")
                 .EnumerateArray()
-                .Single(item => item.GetProperty("Key").GetString() == "a");
-            edited.TryGetProperty("Before", out _).ShouldBeFalse();
-            edited.TryGetProperty("After", out _).ShouldBeFalse();
-            edited.GetProperty("Edit")
-                .GetProperty("Changes")
+                .Single(item => item.GetProperty("key").GetString() == "a");
+            edited.TryGetProperty("before", out _).ShouldBeFalse();
+            edited.TryGetProperty("after", out _).ShouldBeFalse();
+            edited.GetProperty("edit")
+                .GetProperty("changes")
                 .EnumerateArray()
                 .Select(change => change.GetProperty("member").GetString())
                 .ShouldBe(["Name"]);

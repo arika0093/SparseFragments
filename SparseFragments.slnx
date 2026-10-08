@@ -9,6 +9,7 @@
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
     <Project Path="tests/SparseFragments.Blazor.Tests/SparseFragments.Blazor.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
+    <Project Path="tests/SparseFragments.NativeAotFixtures/SparseFragments.NativeAotFixtures.csproj" />
     <Project Path="tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">

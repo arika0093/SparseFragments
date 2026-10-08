@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference Include="../SparseFragments.NativeAotFixtures/SparseFragments.NativeAotFixtures.csproj" />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"

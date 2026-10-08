@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SparseFragments.NativeAotFixtures;
 
 namespace SparseFragments.NativeAotSmoke;
 
@@ -79,4 +80,6 @@ public partial class AotServerHolder
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(AotServer))]
 [JsonSerializable(typeof(List<AotServer>))]
+[JsonSerializable(typeof(PayloadRoot.ChangeSetPayload), TypeInfoPropertyName = "PayloadRootChangeSetPayload")]
+[JsonSerializable(typeof(PayloadCollection.ChangeSetPayload), TypeInfoPropertyName = "PayloadCollectionChangeSetPayload")]
 internal sealed partial class AotSerializerContext : JsonSerializerContext { }

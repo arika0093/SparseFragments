@@ -291,7 +291,7 @@ var patchBack = JsonSerializer.Deserialize<CounterSettings.Patch>(patchJson)!;
 ```
 <!-- /sample -->
 
-NativeAOT source-generated metadata for generated ChangeSet payloads is not yet verified.
+NativeAOT source-generated metadata for generated ChangeSet payloads is exercised by the `SparseFragments.NativeAotSmoke` tests.
 
 Typed projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, and `BeforeOrder` / `AfterOrder` are not duplicated in the payload; `ToChangeSet()` reconstructs them.
 
@@ -299,7 +299,7 @@ Typed projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, and
 
 Serialize and deserialize the generated `T.ChangeSetPayload`, not `T.ChangeSet`. Convert between them with `ChangeSet.ToPayload()` and `ChangeSetPayload.ToChangeSet()`. The typed member variants are suitable for OpenAPI endpoint schemas.
 
-Keyed and dictionary model edits carry only their nested `Edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
+The top-level payload carries the `version`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
 
 ## Which API for Which Task
 
