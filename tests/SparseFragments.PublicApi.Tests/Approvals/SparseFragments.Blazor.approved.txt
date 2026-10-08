@@ -1,0 +1,43 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseFragments")]
+namespace SparseFragments.Blazor
+{
+    public static class SparseEditSessionExtensions
+    {
+        public static void AcceptChanges<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+        public static void AcceptChanges<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext, TChangeSet changes)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+        public static void AddValidationError<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.FieldIdentifier field, string message)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.EditContext CreateEditContext<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.ValidationMessageStore CreateValidationStore<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel, TFragment, TPatch, TChangeSet, TObservable>(this SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session, string fieldName)
+            where TModel :  class
+            where TFragment :  class
+            where TPatch :  class
+            where TChangeSet :  class
+            where TObservable :  class { }
+    }
+}

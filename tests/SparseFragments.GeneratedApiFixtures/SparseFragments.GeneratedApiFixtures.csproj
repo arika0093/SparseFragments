@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SparseFragments.GeneratedApiFixtures</RootNamespace>
+    <AssemblyName>SparseFragments.GeneratedApiFixtures</AssemblyName>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Fixture library, not a test runner: undo tests/Directory.Build.props. -->
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"
+    />
+  </ItemGroup>
+  <!-- tests/Directory.Build.props adds the test platform to every project under
+    tests/; this fixture ships no tests, so drop it to keep the assembly clean. -->
+  <ItemGroup>
+    <PackageReference Remove="TUnit" />
+    <PackageReference Remove="Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+</Project>

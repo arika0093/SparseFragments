@@ -11,6 +11,7 @@
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
     <Project Path="tests/SparseFragments.NativeAotFixtures/SparseFragments.NativeAotFixtures.csproj" />
     <Project Path="tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj" />
+    <Project Path="tests/SparseFragments.GeneratedApiFixtures/SparseFragments.GeneratedApiFixtures.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj" />
