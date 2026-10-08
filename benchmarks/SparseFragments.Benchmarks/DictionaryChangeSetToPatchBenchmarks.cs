@@ -6,6 +6,7 @@ public enum DictionaryChangeSetProjectionOperation
     Add,
     Remove,
     Edit,
+    Mixed,
 }
 
 [MemoryDiagnoser]
@@ -70,7 +71,10 @@ public class DictionaryChangeSetToPatchBenchmarks
         (Operation == DictionaryChangeSetProjectionOperation.Add && step == 0)
         || (Operation == DictionaryChangeSetProjectionOperation.Remove && step == 1);
 
-    private IEnumerable<int> Keys(int step) => Enumerable.Range(0, IsEmptyStep(step) ? 0 : Size);
+    private IEnumerable<int> Keys(int step) =>
+        Operation == DictionaryChangeSetProjectionOperation.Mixed
+            ? Enumerable.Range(0, Size).Where(index => index % 3 != (step == 0 ? 0 : 1))
+            : Enumerable.Range(0, IsEmptyStep(step) ? 0 : Size);
 
     private Optional<BenchScalarDictHolder.Fragment?> ScalarState(int step) =>
         Optional<BenchScalarDictHolder.Fragment?>.Present(
