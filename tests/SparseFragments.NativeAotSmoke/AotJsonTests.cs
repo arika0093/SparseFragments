@@ -16,7 +16,10 @@ public sealed class AotJsonTests
     // Serializes through the generated converter directly (the same path the
     // Patch converter uses for fragments), which stays trim/NativeAOT
     // clean unlike the reflection-dispatched JsonSerializer.Serialize overloads.
-    private static string ToCanonicalJson(AotWidget.Fragment fragment, JsonSerializerOptions options)
+    private static string ToCanonicalJson(
+        AotWidget.Fragment fragment,
+        JsonSerializerOptions options
+    )
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
@@ -49,9 +52,14 @@ public sealed class AotJsonTests
     [Test]
     public async Task FragmentPreservesExplicitNullInJson()
     {
-        var explicitNullFragment = new AotWidget.Fragment { Name = Optional<string?>.Present(null) };
+        var explicitNullFragment = new AotWidget.Fragment
+        {
+            Name = Optional<string?>.Present(null),
+        };
 
-        await Assert.That(ToCanonicalJson(explicitNullFragment, AotOptions()).Contains("\"Name\":null")).IsTrue();
+        await Assert
+            .That(ToCanonicalJson(explicitNullFragment, AotOptions()).Contains("\"Name\":null"))
+            .IsTrue();
     }
 
     [Test]
@@ -78,8 +86,16 @@ public sealed class AotJsonTests
         using (var document = JsonDocument.Parse(json))
         {
             await Assert
-                .That(document.RootElement.EnumerateObject().Select(property => property.Name).SequenceEqual(["version", "changes"]))
+                .That(
+                    document
+                        .RootElement.EnumerateObject()
+                        .Select(property => property.Name)
+                        .SequenceEqual(["version", "changes"])
+                )
                 .IsTrue();
+            await Assert
+                .That(document.RootElement.GetProperty("version").GetString())
+                .IsEqualTo("0.1");
             var nested = document
                 .RootElement.GetProperty("changes")
                 .EnumerateArray()
@@ -93,7 +109,12 @@ public sealed class AotJsonTests
                 .Single(change => change.GetProperty("member").GetString() == "Label")
                 .GetProperty("after");
             await Assert
-                .That(endpoint.EnumerateObject().Select(property => property.Name).SequenceEqual(["state", "value"]))
+                .That(
+                    endpoint
+                        .EnumerateObject()
+                        .Select(property => property.Name)
+                        .SequenceEqual(["state", "value"])
+                )
                 .IsTrue();
         }
         await Assert.That(json.Contains("\"state\":\"value\"")).IsTrue();
@@ -101,7 +122,11 @@ public sealed class AotJsonTests
             .Deserialize(json, AotSerializerContext.Default.PayloadRootChangeSetPayload)!
             .ToChangeSet();
         await Assert
-            .That(PayloadRoot.Patch.Between(restored.ToPatch().Apply(widgetBefore), widgetAfter).IsEmpty)
+            .That(
+                PayloadRoot
+                    .Patch.Between(restored.ToPatch().Apply(widgetBefore), widgetAfter)
+                    .IsEmpty
+            )
             .IsTrue();
 
         Optional<PayloadCollection.Fragment?> ServerState(params PayloadItem[] items) =>
@@ -128,23 +153,33 @@ public sealed class AotJsonTests
             .EnumerateArray()
             .Single(item => item.GetProperty("key").GetString() == "a");
         await Assert
-            .That(editedItem.EnumerateObject().Select(property => property.Name).SequenceEqual(["key", "kind", "beforeIndex", "afterIndex", "edit"]))
+            .That(
+                editedItem
+                    .EnumerateObject()
+                    .Select(property => property.Name)
+                    .SequenceEqual(["key", "kind", "beforeIndex", "afterIndex", "edit"])
+            )
             .IsTrue();
+        await Assert.That(editedItem.GetProperty("kind").GetString()).IsEqualTo("edit");
         await Assert
-            .That(editedItem.GetProperty("kind").GetString())
-            .IsEqualTo("edit");
-        await Assert
-            .That(serverItems.EnumerateArray().Single(item => item.GetProperty("key").GetString() == "b").GetProperty("kind").GetString())
+            .That(
+                serverItems
+                    .EnumerateArray()
+                    .Single(item => item.GetProperty("key").GetString() == "b")
+                    .GetProperty("kind")
+                    .GetString()
+            )
             .IsEqualTo("add");
-        var serverRestored = JsonSerializer.Deserialize(
-            serverJson,
-            AotSerializerContext.Default.PayloadCollectionChangeSetPayload
-        )!
+        var serverRestored = JsonSerializer
+            .Deserialize(
+                serverJson,
+                AotSerializerContext.Default.PayloadCollectionChangeSetPayload
+            )!
             .ToChangeSet();
         await Assert
             .That(
-                PayloadCollection.Patch
-                    .Between(serverRestored.ToPatch().Apply(serverBefore), serverAfter)
+                PayloadCollection
+                    .Patch.Between(serverRestored.ToPatch().Apply(serverBefore), serverAfter)
                     .IsEmpty
             )
             .IsTrue();

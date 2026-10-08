@@ -25,6 +25,10 @@ internal static class SparseChangeSetPayloadEmitter
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
+        code.AppendLineAt(
+            1,
+            "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
+        );
         code.AppendLineAt(1, "public class " + payloadCore);
         code.AppendLineAt(1, "{");
         AppendJsonProperty(code, 2, "Changes", 1);
@@ -32,9 +36,41 @@ internal static class SparseChangeSetPayloadEmitter
             2,
             "public global::System.Collections.Generic.List<"
                 + payloadChange
-                + "> Changes { get; set; } = new();"
+                + ">? Changes { get; set; }"
         );
         if (modelType is not null)
+            code.AppendLineAt(
+                2,
+                "internal "
+                    + modelType
+                    + ".ChangeSet ToChangeSetCore() => "
+                    + modelType
+                    + ".ChangeSet.FromPayloadCore(this);"
+            );
+        code.AppendLineAt(1, "}");
+        code.AppendLine();
+        code.AppendLineAt(
+            1,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
+        );
+        code.AppendLineAt(
+            1,
+            "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
+        );
+        code.AppendLineAt(1, "public sealed class ChangeSetPayload : " + payloadCore);
+        code.AppendLineAt(1, "{");
+        AppendJsonProperty(code, 2, "Version", 0);
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets or sets the provisional wire version token.</summary>"
+        );
+        code.AppendLineAt(2, "public string? Version { get; set; }");
+        if (modelType is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts this validated root envelope to a change set.</summary>"
+            );
             code.AppendLineAt(
                 2,
                 "public "
@@ -43,12 +79,7 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayload(this);"
             );
-        code.AppendLineAt(1, "}");
-        code.AppendLine();
-        code.AppendLineAt(1, "public sealed class ChangeSetPayload : " + payloadCore);
-        code.AppendLineAt(1, "{");
-        AppendJsonProperty(code, 2, "Version", 0);
-        code.AppendLineAt(2, "public int Version { get; set; } = 1;");
+        }
         code.AppendLineAt(1, "}");
         code.AppendLine();
 
@@ -273,7 +304,13 @@ internal static class SparseChangeSetPayloadEmitter
 
         foreach (var member in variants)
         {
-            AppendMemberPayload(code, member, endpoint, dialect, modelType);
+            SparseChangeSetPayloadItemEmitter.AppendMemberPayload(
+                code,
+                member,
+                endpoint,
+                dialect,
+                modelType
+            );
             code.AppendLine();
         }
     }
@@ -290,9 +327,17 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadRoot = PayloadName(modelType, "Root");
         var payloadChange = PayloadName(modelType, "Change");
         var rootChange = PayloadName(modelType, "RootChange");
+        var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangeSetPayloadVersion, true);
         code.AppendLineAt(2, "public ChangeSetPayload ToPayload()");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var payload = new ChangeSetPayload();");
+        code.AppendLineAt(
+            3,
+            "var payload = new ChangeSetPayload { Version = "
+                + versionLiteral
+                + ", Changes = new global::System.Collections.Generic.List<"
+                + payloadChange
+                + ">() };"
+        );
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -535,7 +580,12 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadCore = PayloadName(modelType, "Core");
         var payloadRoot = PayloadName(modelType, "Root");
         var rootChange = PayloadName(modelType, "RootChange");
-        code.AppendLineAt(2, "internal static ChangeSet FromPayload(" + payloadCore + " payload)");
+        var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangeSetPayloadVersion, true);
+        code.AppendLineAt(
+            2,
+            "/// <summary>Converts a validated root envelope to a change set.</summary>"
+        );
+        code.AppendLineAt(2, "public static ChangeSet FromPayload(ChangeSetPayload payload)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
@@ -543,7 +593,20 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(
             3,
-            "if (payload is ChangeSetPayload rootPayload && rootPayload.Version != 1) throw new global::System.ArgumentException(\"Unsupported ChangeSet payload version.\", nameof(payload));"
+            "if (!global::System.String.Equals(payload.Version, "
+                + versionLiteral
+                + ", global::System.StringComparison.Ordinal)) throw new global::System.ArgumentException(\"Unsupported ChangeSet payload version.\", nameof(payload));"
+        );
+        code.AppendLineAt(3, "return FromPayloadCore(payload);");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "internal static ChangeSet FromPayloadCore(" + payloadCore + " payload)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (payload is null) throw new global::System.ArgumentNullException(nameof(payload));"
         );
         code.AppendLineAt(
             3,
@@ -761,7 +824,7 @@ internal static class SparseChangeSetPayloadEmitter
                 6,
                 "if (item.Nested is null) throw new global::System.ArgumentException(\"Nested payload is required.\", nameof(payload));"
             );
-            code.AppendLineAt(6, "__payloadNested" + id + " = item.Nested.ToChangeSet();");
+            code.AppendLineAt(6, "__payloadNested" + id + " = item.Nested.ToChangeSetCore();");
             code.AppendLineAt(6, "break;");
         }
         else if (
@@ -769,6 +832,7 @@ internal static class SparseChangeSetPayloadEmitter
             || SparseChangeSetBasicsEmitter.IsDict(member)
         )
         {
+            var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
             code.AppendLineAt(6, "__payloadHas" + id + " = true;");
             code.AppendLineAt(
                 6,
@@ -786,8 +850,43 @@ internal static class SparseChangeSetPayloadEmitter
             code.AppendLineAt(6, "}");
             code.AppendLineAt(6, "else");
             code.AppendLineAt(6, "{");
+            code.AppendLineAt(
+                7,
+                "var __payloadSeenKeys"
+                    + id
+                    + " = new global::System.Collections.Generic.HashSet<"
+                    + keyType
+                    + ">();"
+            );
             code.AppendLineAt(7, "foreach (var changeItem in item.Items)");
             code.AppendLineAt(7, "{");
+            code.AppendLineAt(
+                8,
+                "if (changeItem is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
+            );
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            {
+                code.AppendLineAt(
+                    8,
+                    "if (!"
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                            member,
+                            "changeItem.Key"
+                        )
+                        + " && !__payloadSeenKeys"
+                        + id
+                        + ".Add(changeItem.Key)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    8,
+                    "if (!__payloadSeenKeys"
+                        + id
+                        + ".Add(changeItem.Key)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
+                );
+            }
             code.AppendLineAt(
                 8,
                 "__payloadItems" + id + ".Add(__SparsePayloadItem" + id + "(changeItem));"
@@ -814,166 +913,6 @@ internal static class SparseChangeSetPayloadEmitter
         }
     }
 
-    private static void AppendMemberPayload(
-        SharedIndentedBuilder code,
-        SparseMemberModel member,
-        string endpoint,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
-    )
-    {
-        var id = member.Id;
-        var runtime = dialect.RuntimeNamespace;
-        var payloadChange = PayloadName(modelType, "Change");
-        code.AppendLineAt(
-            1,
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
-        );
-        code.AppendLineAt(1, "public sealed class " + payloadChange + id + " : " + payloadChange);
-        code.AppendLineAt(1, "{");
-        var memberValueType = SparseChangeSetBasicsEmitter.IsNested(member)
-            ? member.ChildModel!.Value.NonNullableName
-                + "."
-                + PayloadName(member.ChildModel.Value.NonNullableName, "Root")
-                + "?"
-            : SparseChangeSetBasicsEmitter.FragmentValueType(member);
-        AppendIgnoreNull(code, 2);
-        AppendJsonProperty(code, 2, "Value", 0);
-        code.AppendLineAt(
-            2,
-            "public " + endpoint + "<" + memberValueType + ">? Value { get; set; }"
-        );
-        if (SparseChangeSetBasicsEmitter.IsNested(member))
-        {
-            var childModelType = member.ChildModel!.Value.NonNullableName;
-            var childPayload = childModelType + "." + PayloadName(childModelType, "Core");
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "Nested", 1);
-            code.AppendLineAt(2, "public " + childPayload + "? Nested { get; set; }");
-        }
-        else if (
-            SparseChangeSetBasicsEmitter.IsKeyed(member)
-            || SparseChangeSetBasicsEmitter.IsDict(member)
-        )
-        {
-            var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "Before", 2);
-            code.AppendLineAt(
-                2,
-                "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
-            );
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "After", 3);
-            code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
-            AppendJsonProperty(code, 2, "Items", 4);
-            code.AppendLineAt(
-                2,
-                "public global::System.Collections.Generic.List<"
-                    + PayloadName(modelType, "Item")
-                    + id
-                    + "> Items { get; set; } = new();"
-            );
-            if (SparseChangeSetBasicsEmitter.IsKeyed(member))
-            {
-                var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
-                AppendIgnoreNull(code, 2);
-                AppendJsonProperty(code, 2, "BeforeOrder", 5);
-                code.AppendLineAt(
-                    2,
-                    "public global::System.Collections.Generic.List<"
-                        + keyType
-                        + ">? BeforeOrder { get; set; }"
-                );
-                AppendIgnoreNull(code, 2);
-                AppendJsonProperty(code, 2, "AfterOrder", 6);
-                code.AppendLineAt(
-                    2,
-                    "public global::System.Collections.Generic.List<"
-                        + keyType
-                        + ">? AfterOrder { get; set; }"
-                );
-            }
-        }
-        else
-        {
-            var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "Before", 0);
-            code.AppendLineAt(
-                2,
-                "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
-            );
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "After", 1);
-            code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
-        }
-        code.AppendLineAt(1, "}");
-
-        if (
-            SparseChangeSetBasicsEmitter.IsKeyed(member)
-            || SparseChangeSetBasicsEmitter.IsDict(member)
-        )
-        {
-            var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
-            var itemValueType = SparseChangeSetBasicsEmitter.IsKeyed(member)
-                ? SparseChangeSetBasicsEmitter.ElementTypeOf(member)
-                : SparseChangeSetBasicsEmitter.ValueTypeOf(member);
-            var isModelValue = SparseChangeSetBasicsEmitter.IsKeyed(member)
-                ? member.Collection.ElementType.IsFragmentModel
-                : member.Collection.ValueType?.IsFragmentModel == true;
-            var childName = SparseChangeSetBasicsEmitter.IsKeyed(member)
-                ? member.Collection.ElementType.NonNullableName
-                    + "."
-                    + PayloadName(member.Collection.ElementType.NonNullableName, "Core")
-                : member.Collection.ValueType?.NonNullableName
-                    + "."
-                    + PayloadName(member.Collection.ValueType!.Value.NonNullableName, "Core");
-            code.AppendLineAt(
-                1,
-                "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
-            );
-            code.AppendLineAt(1, "public sealed class " + PayloadName(modelType, "Item") + id);
-            code.AppendLineAt(1, "{");
-            AppendJsonProperty(code, 2, "Key", 0);
-            code.AppendLineAt(2, "public " + keyType + " Key { get; set; } = default!;");
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "Before", 4);
-            code.AppendLineAt(
-                2,
-                "public " + endpoint + "<" + itemValueType + ">? Before { get; set; }"
-            );
-            AppendIgnoreNull(code, 2);
-            AppendJsonProperty(code, 2, "After", 5);
-            code.AppendLineAt(
-                2,
-                "public " + endpoint + "<" + itemValueType + ">? After { get; set; }"
-            );
-            AppendJsonProperty(code, 2, "Kind", 1);
-            code.AppendLineAt(
-                2,
-                "public " + runtime + "ChangeSetPayloadItemKind Kind { get; set; }"
-            );
-            if (SparseChangeSetBasicsEmitter.IsKeyed(member))
-            {
-                AppendJsonProperty(code, 2, "BeforeIndex", 2);
-                code.AppendLineAt(2, "public int BeforeIndex { get; set; } = -1;");
-                AppendJsonProperty(code, 2, "AfterIndex", 3);
-                code.AppendLineAt(2, "public int AfterIndex { get; set; } = -1;");
-                AppendIgnoreDefault(code, 2);
-                AppendJsonProperty(code, 2, "IsReordered", 6);
-                code.AppendLineAt(2, "public bool IsReordered { get; set; }");
-            }
-            if (isModelValue)
-            {
-                AppendIgnoreNull(code, 2);
-                AppendJsonProperty(code, 2, "Edit", 7);
-                code.AppendLineAt(2, "public " + childName + "? Edit { get; set; }");
-            }
-            code.AppendLineAt(1, "}");
-        }
-    }
-
     internal static string PayloadName(string? modelType, string suffix)
     {
         var source = (modelType ?? "SparseGeneratedModel").Replace("global::", string.Empty);
@@ -985,13 +924,13 @@ internal static class SparseChangeSetPayloadEmitter
         return name + "ChangeSetPayload" + suffix;
     }
 
-    private static void AppendIgnoreNull(SharedIndentedBuilder code, int indent) =>
+    internal static void AppendIgnoreNull(SharedIndentedBuilder code, int indent) =>
         code.AppendLineAt(
             indent,
             "[global::System.Text.Json.Serialization.JsonIgnore(Condition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]"
         );
 
-    private static void AppendJsonProperty(
+    internal static void AppendJsonProperty(
         SharedIndentedBuilder code,
         int indent,
         string name,
@@ -1009,7 +948,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
     }
 
-    private static void AppendIgnoreDefault(SharedIndentedBuilder code, int indent) =>
+    internal static void AppendIgnoreDefault(SharedIndentedBuilder code, int indent) =>
         code.AppendLineAt(
             indent,
             "[global::System.Text.Json.Serialization.JsonIgnore(Condition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]"

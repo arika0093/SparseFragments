@@ -220,6 +220,26 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
         // Nested naming is supplied by the dialect, not hard-coded.
         text.ShouldContain("global::Downstream.Delta_2");
+        // Provisional wire version comes from the dialect, defaulting to 0.1.
+        text.ShouldContain("\"0.1\"");
+        text.ShouldContain("JsonUnmappedMemberHandling.Disallow");
+        text.ShouldContain("FromPayloadCore");
+        text.ShouldContain("ToChangeSetCore");
+    }
+
+    [Test]
+    public void Downstream_PayloadVersionIsDialectOwned()
+    {
+        var text = EmitChangeSet(
+            FixtureMembers(),
+            DownstreamDialect() with
+            {
+                ChangeSetPayloadVersion = "9.9",
+            }
+        );
+        text.ShouldContain("\"9.9\"");
+        text.ShouldNotContain("\"0.1\"");
+        text.ShouldNotContain("global::SparseFragments");
     }
 
     [Test]

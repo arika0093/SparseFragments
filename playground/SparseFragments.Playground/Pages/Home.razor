@@ -192,7 +192,7 @@
     </FluentDialogHeader>
     <FluentDialogBody>
         <p class="pg-hint">Paste a ChangeSet JSON document exported from the merged baseline and preview its applied result.</p>
-        <FluentTextArea Rows="8" Placeholder='{"Version":1,"Changes":[{"member":"Label","Before":{"State":2,"Value":"..."},"After":{"State":2,"Value":"..."}}]}'
+        <FluentTextArea Rows="8" Placeholder='{"version":"0.1","changes":[{"member":"Label","before":{"state":"value","value":"..."},"after":{"state":"value","value":"..."}}]}'
             translate="no"
             Value="@_importText"
             ValueChanged="@(v => _importText = v ?? string.Empty)"
@@ -232,7 +232,7 @@
     private string RosterBeforeTabId = "roster-before-csharp";
     private string RosterAfterTabId = "roster-after-csharp";
     private bool _importHidden = true;
-    private string _importText = """{"Version":1,"Changes":[]}""";
+    private string _importText = """{"version":"0.1","changes":[]}""";
     private string? _importError;
     private string? _importResult;
 
@@ -395,7 +395,7 @@
         RosterBeforeTabId = "roster-before-csharp";
         RosterAfterTabId = "roster-after-csharp";
         _importHidden = true;
-        _importText = """{"Version":1,"Changes":[]}""";
+        _importText = """{"version":"0.1","changes":[]}""";
         _importError = null;
         _importResult = null;
     }

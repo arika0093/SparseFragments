@@ -176,7 +176,8 @@ internal static class SparseFragmentPatchEmitter
         bool HashSetSupportsCapacity = false,
         Func<SparseMemberModel, string>? MemberValueType = null,
         Func<SparseMemberModel, string>? CollectionPatchName = null,
-        Func<SparseMemberModel, string>? MergeStrategyField = null
+        Func<SparseMemberModel, string>? MergeStrategyField = null,
+        string ChangeSetPayloadVersion = "0.1"
     );
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>

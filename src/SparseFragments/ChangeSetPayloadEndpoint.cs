@@ -33,6 +33,14 @@ public sealed class ChangeSetPayloadEndpoint<T>
     /// <summary>Converts this endpoint to an optional value.</summary>
     public Optional<T> ToOptional()
     {
+        if (State == ChangeSetPayloadState.Missing && Value is not null)
+            throw new InvalidOperationException(
+                "A missing payload endpoint must not contain a value."
+            );
+        if (State == ChangeSetPayloadState.Null && Value is not null)
+            throw new InvalidOperationException(
+                "A null payload endpoint must not contain a value."
+            );
         return State switch
         {
             ChangeSetPayloadState.Missing => Optional<T>.Missing,

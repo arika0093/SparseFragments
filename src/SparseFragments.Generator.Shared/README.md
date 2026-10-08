@@ -50,8 +50,9 @@ downstream enum does not need to reuse `SparseFragments.MergeMode`.
 
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
 helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch
-runtime/facade, conflict/result types, nested member names, and member
-field/value types. `ReservedGeneratedNames` is caller-owned and defaults to an
+runtime/facade, conflict/result types, nested member names, member
+field/value types, and the provisional ChangeSet payload version token
+(`ChangeSetPayloadVersion`, default `"0.1"`). `ReservedGeneratedNames` is caller-owned and defaults to an
 empty set; include all names reserved by the generated API. Pass the same config
 through analysis and source emission; this lets a consuming generator emit
 against runtime types it owns instead of adding a SparseFragments runtime
