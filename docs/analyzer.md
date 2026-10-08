@@ -331,5 +331,5 @@ public partial class Widget
 ## SPF026: In-place submit is unavailable
 
 * Message: `Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission`
-* Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo`, `Patch.ApplyInPlace`, `ChangeSet.ApplyInPlace`, and session submit) are omitted or unavailable.
+* Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo`, `Patch.ApplyInPlace`, and session submit) are omitted or unavailable.
 * Fix: Make all members writable when an in-place submit workflow is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.

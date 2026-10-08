@@ -98,7 +98,7 @@ session.Model.Label = "edited";
 var changes = session.CreateChangeSet();
 ```
 
-Writable reference models also support `ApplyInPlace` and async submit/rebase
+Writable reference models also support `Patch.ApplyInPlace` and async submit/rebase
 flows; local edits made while a request is pending are preserved or reported
 as conflicts. See [UI frameworks](docs/ui-frameworks.md) for submit response
 handling and notifications.

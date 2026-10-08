@@ -49,16 +49,17 @@ ChangeSet.RebaseOnto(C)
 For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
 
 When the destination object is already bound to a UI, mutable generated models
-also support in-place application:
+also support in-place application through the baseline-free Patch API:
 
 ```csharp
 var changes = baseline.CreateChangeSet(edited);
-changes.ApplyInPlace(boundModel);
+changes.ToPatch().ApplyInPlace(boundModel);
 ```
 
-`Fragment.WriteTo(model)`, `Patch.ApplyInPlace(model)`, and
-`ChangeSet.ApplyInPlace(model)` mutate the existing model instead of returning
-a replacement. `List<T>` and `Dictionary<TKey,TValue>` properties keep their
+`Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)` mutate the existing model instead of returning
+a replacement. ChangeSet has no `ApplyInPlace`; a blind overwrite must spell
+`changes.ToPatch().ApplyInPlace(model)` so conflicting edits cannot slip through
+an unguarded call. `List<T>` and `Dictionary<TKey,TValue>` properties keep their
 existing collection object and replace its contents; nested model properties
 may be replaced. Get-only or init-only members prevent these APIs and submit
 support from being generated, while ordinary immutable patch/rebase APIs

@@ -36,8 +36,8 @@ The original fragment is never mutated (`Apply` builds a new one), but the patch
 
 ## In-place application
 
-For writable reference-type models, generated `Fragment.WriteTo(model)`,
-`Patch.ApplyInPlace(model)`, and `ChangeSet.ApplyInPlace(model)` preserve the
+For writable reference-type models, generated `Fragment.WriteTo(model)` and
+`Patch.ApplyInPlace(model)` preserve the
 root model identity. A `List<T>` or `Dictionary<TKey,TValue>` property also
 preserves its existing collection instance while replacing its contents.
 Other members are assigned from the computed result, so nested model objects

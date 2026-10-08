@@ -59,8 +59,8 @@ transition to a baseline-free patch. `AcceptChanges()` captures the current
 state as the next baseline. These APIs live in `SparseFragments` and do not
 require a UI-framework package.
 
-Writable reference-type models also generate `Fragment.WriteTo(model)`,
-`Patch.ApplyInPlace(model)`, and `ChangeSet.ApplyInPlace(model)`. They update
+Writable reference-type models also generate `Fragment.WriteTo(model)` and
+`Patch.ApplyInPlace(model)`. They update
 the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>`
 properties retain their collection instance and have their contents replaced.
 Nested model values may be replaced. A model with init-only or constructor-only

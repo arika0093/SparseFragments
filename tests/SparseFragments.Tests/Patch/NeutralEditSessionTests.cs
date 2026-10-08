@@ -117,7 +117,21 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
-    public void FragmentPatchAndChangeSetWriteIntoExistingModelAndPreserveCollectionIdentity()
+    public void FragmentAndPatchWriteIntoExistingModelAndPreserveCollectionIdentity()
+    {
+        var patchModel = new NeutralSessionModel { Name = "before" };
+        var patchTags = patchModel.Tags;
+        new NeutralSessionModel.Patch { Name = "patched" }.ApplyInPlace(patchModel);
+        patchModel.Name.ShouldBe("patched");
+        ReferenceEquals(patchTags, patchModel.Tags).ShouldBeTrue();
+
+        var fragmentModel = new NeutralSessionModel { Name = "before" };
+        new NeutralSessionModel.Fragment { Name = "fragment" }.WriteTo(fragmentModel);
+        fragmentModel.Name.ShouldBe("fragment");
+    }
+
+    [Test]
+    public void ChangeSetRequiresExplicitPatchForInPlaceWhileTryApplyToStaysConflictAware()
     {
         var model = new NeutralSessionModel
         {
@@ -135,7 +149,8 @@ public sealed class NeutralEditSessionTests
         model.Counts["second"] = 2;
         model.Child.Value = "new";
 
-        session.CreateChangeSet().ApplyInPlace(model);
+        // Blind overwrite stays explicit via ToPatch(); ChangeSet has no ApplyInPlace.
+        session.CreateChangeSet().ToPatch().ApplyInPlace(model);
 
         model.Name.ShouldBe("after");
         model.Tags.ShouldBe(["one", "two"]);
@@ -145,15 +160,14 @@ public sealed class NeutralEditSessionTests
         ReferenceEquals(counts, model.Counts).ShouldBeTrue();
         ReferenceEquals(child, model.Child).ShouldBeFalse();
 
-        var patchModel = new NeutralSessionModel { Name = "before" };
-        var patchTags = patchModel.Tags;
-        new NeutralSessionModel.Patch { Name = "patched" }.ApplyInPlace(patchModel);
-        patchModel.Name.ShouldBe("patched");
-        ReferenceEquals(patchTags, patchModel.Tags).ShouldBeTrue();
-
-        var fragmentModel = new NeutralSessionModel { Name = "before" };
-        new NeutralSessionModel.Fragment { Name = "fragment" }.WriteTo(fragmentModel);
-        fragmentModel.Name.ShouldBe("fragment");
+        var baseline = new NeutralSessionModel { Name = "before" };
+        var edited = new NeutralSessionModel { Name = "edited" };
+        var concurrent = new NeutralSessionModel { Name = "concurrent" };
+        var conflicting = baseline.CreateChangeSet(edited);
+        conflicting.TryApplyTo(concurrent, out _, out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
+        conflicts.Count.ShouldBeGreaterThan(0);
+        concurrent.Name.ShouldBe("concurrent");
     }
 
     [Test]

@@ -310,8 +310,7 @@ internal static class SparseFragmentPatchEmitter
             members,
             dialect,
             modelType,
-            ignoredSettablePropertyNames,
-            canWriteInPlace
+            ignoredSettablePropertyNames
         );
     }
 }
