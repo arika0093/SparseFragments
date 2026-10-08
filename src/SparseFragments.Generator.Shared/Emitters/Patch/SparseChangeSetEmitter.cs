@@ -10,11 +10,6 @@ internal static class SparseChangeSetEmitter
 {
     public static void AppendChangeSet(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    ) => AppendChangeSet(code, members, SparseFragmentPatchEmitter.StandaloneDialect(), null);
-
-    public static void AppendChangeSet(
-        SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     ) => AppendChangeSet(code, members, dialect, null);

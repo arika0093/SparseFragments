@@ -191,8 +191,7 @@ internal static class SparseFragmentEmitter
             expressions,
             runtime,
             patchDialect,
-            constructor: model.Constructor,
-            hashSetSupportsCapacity: bclHashSetSupportsCapacity
+            constructor: model.Constructor
         );
         if (!model.IsStruct)
         {
@@ -228,10 +227,9 @@ internal static class SparseFragmentEmitter
         SparseFragmentCoreEmitter core,
         SparseFragmentExpressions expressions,
         SparseRuntimeDialect runtime,
-        SparseFragmentPatchEmitter.SparsePatchDialect? patchDialect,
+        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
         bool isRootModel = true,
-        ModelConstructorBinding? constructor = null,
-        bool hashSetSupportsCapacity = false
+        ModelConstructorBinding? constructor = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
@@ -250,13 +248,7 @@ internal static class SparseFragmentEmitter
         SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, runtime.OptionalType);
         code.AppendLineAt(1, "}");
         core.AppendBuilder(code, members);
-        SparseFragmentPatchEmitter.AppendPatch(
-            code,
-            modelType,
-            members,
-            hashSetSupportsCapacity,
-            patchDialect
-        );
+        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, patchDialect);
     }
 
     private static void AppendFragmentEquality(

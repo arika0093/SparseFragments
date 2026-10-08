@@ -3,8 +3,8 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Shared expressions for model/fragment clones, semantic equality and built-in collection merging.</summary>
 internal sealed class SparseFragmentExpressions(
     string cloneContext,
-    string valueComparer = SparseWellKnownNames.ValueComparerType,
-    string collectionMerger = SparseWellKnownNames.CollectionMergerType
+    string valueComparer,
+    string collectionMerger
 )
 {
     private string ValueComparer { get; } = valueComparer;

@@ -55,7 +55,10 @@ field/value types. `ReservedGeneratedNames` is caller-owned and defaults to an
 empty set; include all names reserved by the generated API. Pass the same config
 through analysis and source emission; this lets a consuming generator emit
 against runtime types it owns instead of adding a SparseFragments runtime
-dependency.
+dependency. Full source emission requires both dialects, and the Patch/STJ
+emitters require an explicit patch dialect; Shared provides no implicit
+SparseFragments runtime fallback. The product generator owns and supplies its
+runtime defaults.
 
 `SparseFragmentEmitter` retains the standalone `Fragment`/`Patch` API vocabulary.
 It does not add product-specific model extension APIs unless the caller supplies

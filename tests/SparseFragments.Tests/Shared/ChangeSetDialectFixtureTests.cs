@@ -209,16 +209,6 @@ public sealed class ChangeSetDialectFixtureTests
     }
 
     [Test]
-    public void Standalone_EmitsSparseFragmentsRuntime()
-    {
-        var text = EmitChangeSet(FixtureMembers(), SparseFragmentPatchEmitter.StandaloneDialect());
-        text.ShouldContain("global::SparseFragments.Optional<");
-        text.ShouldContain("global::SparseFragments.RebaseResult<ChangeSet>");
-        text.ShouldContain("global::SparseFragments.SparsePatchConflict");
-        text.ShouldContain("global::SparseFragments.CompilerServices.SparseFragmentRuntime");
-    }
-
-    [Test]
     public void Downstream_ContainsNoSparseFragmentsRuntime()
     {
         var text = EmitChangeSet(FixtureMembers(), DownstreamDialect());
@@ -293,7 +283,7 @@ public sealed class ChangeSetDialectFixtureTests
             code,
             "global::Ns.Model",
             FixtureMembers(),
-            patchDialect: DownstreamDialect()
+            dialect: DownstreamDialect()
         );
         var text = code.ToString();
         text.ShouldNotContain("global::SparseFragments");

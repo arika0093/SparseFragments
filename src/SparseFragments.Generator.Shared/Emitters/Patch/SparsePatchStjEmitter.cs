@@ -29,11 +29,6 @@ internal static class SparsePatchStjEmitter
 
     public static void AppendPatchStj(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    ) => AppendPatchStj(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
-
-    public static void AppendPatchStj(
-        SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
@@ -63,11 +58,6 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }
-
-    public static void AppendChangeSetStj(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    ) => AppendChangeSetStj(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
 
     public static void AppendChangeSetStj(
         SharedIndentedBuilder code,
@@ -133,17 +123,11 @@ internal static class SparsePatchStjEmitter
         code.AppendLineAt(2, "}");
     }
 
-    public static void AppendKeyedStj(SharedIndentedBuilder code, SparseMemberModel member) =>
-        AppendKeyedStj(code, member, SparseFragmentPatchEmitter.StandaloneDialect());
-
     public static void AppendKeyedStj(
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     ) => SparseKeyedStjEmitter.AppendKeyedStj(code, member, dialect);
-
-    public static void AppendDictionaryStj(SharedIndentedBuilder code, SparseMemberModel member) =>
-        AppendDictionaryStj(code, member, SparseFragmentPatchEmitter.StandaloneDialect());
 
     public static void AppendDictionaryStj(
         SharedIndentedBuilder code,

@@ -11,8 +11,6 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparseFragmentPatchEmitter
 {
-    internal const string Runtime = "global::SparseFragments.";
-
     internal static string Field(SparseMemberModel member) => "__sparse_patch_member_" + member.Id;
 
     internal static string ValueType(SparseMemberModel member) =>
@@ -28,12 +26,10 @@ internal static class SparseFragmentPatchEmitter
     internal static string CollectionPatch(SparseMemberModel member) =>
         SparseKeyedCollectionEmitter.CollectionPatchName(member);
 
-    internal static readonly SparseFragmentExpressions Expressions = new("__sparse_patch_context");
-
     public static void AppendFragmentMethods(
         SharedIndentedBuilder code,
         string modelType,
-        string runtimeNamespace = Runtime
+        string runtimeNamespace
     )
     {
         _ = modelType;
@@ -76,24 +72,6 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string>? CollectionPatchName = null,
         Func<SparseMemberModel, string>? MergeStrategyField = null
     );
-
-    internal static SparsePatchDialect StandaloneDialect(bool hashSetSupportsCapacity = false) =>
-        new(
-            Runtime,
-            "__sparse_whole",
-            "__SparseMembersEmpty",
-            Field,
-            static _ => string.Empty,
-            "Apply",
-            false,
-            "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
-            "global::SparseFragments.SparsePatchConflict",
-            "global::SparseFragments.SparsePatchConflictKind",
-            static payload => "global::SparseFragments.RebaseResult<" + payload + ">",
-            static member => ChildPatch(member),
-            static member => DefaultChildChangeSet(member),
-            hashSetSupportsCapacity
-        );
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
         member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
@@ -159,11 +137,9 @@ internal static class SparseFragmentPatchEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        bool hashSetSupportsCapacity = false,
-        SparsePatchDialect? patchDialect = null
+        SparsePatchDialect dialect
     )
     {
-        var dialect = patchDialect ?? StandaloneDialect(hashSetSupportsCapacity);
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
         SparsePatchStjEmitter.AppendPatchConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class Patch");

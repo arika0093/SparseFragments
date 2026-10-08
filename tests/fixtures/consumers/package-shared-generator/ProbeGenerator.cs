@@ -87,7 +87,11 @@ internal static class ProbeSurface
         // Emitter/helpers (Emitters/, Infrastructure/).
         var code = new SharedIndentedBuilder(cancellationToken);
         SparseFragmentEmitHelpers.AppendNullGuard(code, 1, "value");
-        var expressions = new SparseFragmentExpressions("__cloneContext");
+        var expressions = new SparseFragmentExpressions(
+            "__cloneContext",
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Runtime"
+        );
         var clone = expressions.CloneValueExpression(elementType, "value");
         var observable = SparseObservableEmitter.ObservableTypeName(
             ImmutableArray<SparseMemberModel>.Empty
