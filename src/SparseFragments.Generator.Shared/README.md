@@ -74,3 +74,17 @@ directly in-repo via a `Compile` glob in
 path remains canonical inside this repository; this package exists for
 external/downstream generators (for example Configlue, which migrates from a
 submodule-based Shared source transport to this package).
+
+## Mixed redacted operations
+
+Payload endpoints use the `ChangeSetPayloadState.Redacted` token
+(`"redacted"`) for before-states the sender could not disclose. A redacted
+before-state paired with a concrete after-state is an explicit write-only
+operation: generated payload readers route it to a baseline-free blind patch
+instead of a baseline-aware transition. `FromPayload` and `ToChangeSet` fail
+with a typed error naming the redacted paths, while `ToPatch()`,
+`InvertReversibleChanges()`, and `TryApplyMixedTo()` handle the mixed
+request. After-states must stay concrete; a redacted after-state is malformed.
+The wire version stays `"0.1"`. No configuration is needed: the mixed surface
+uses only sibling generated names, the configured runtime namespace, and the
+configured conflict types.

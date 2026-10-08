@@ -234,7 +234,11 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("\"0.1\"");
         text.ShouldContain("JsonUnmappedMemberHandling.Disallow");
         text.ShouldContain("FromPayloadCore");
-        text.ShouldContain("ToChangeSetCore");
+        // Mixed requests partition through the shared reader (issue #119);
+        // nested conversion stays on the dialect-owned change-set name.
+        text.ShouldContain("__SparseMixedPartition");
+        text.ShouldContain("IsRedacted");
+        text.ShouldContain("InvertReversibleChanges");
         // Baseline advancement is validated sparse before-state plus patch
         // projection, with no product runtime fallback.
         text.ShouldContain("ApplyToBaseline");

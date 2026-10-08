@@ -30,9 +30,29 @@ public sealed class ChangeSetPayloadEndpoint<T>
         };
     }
 
+    /// <summary>Creates a redacted endpoint with no usable value.</summary>
+    /// <remarks>
+    /// A redacted endpoint marks a before-state the sender could not disclose
+    /// (issue #119). It carries no value by construction and never converts to
+    /// <see cref="Optional{T}"/>; project it through a baseline-free patch instead.
+    /// </remarks>
+    public static ChangeSetPayloadEndpoint<T> Redacted() =>
+        new() { State = ChangeSetPayloadState.Redacted };
+
+    /// <summary>Whether this endpoint redacts its value.</summary>
+    public bool IsRedacted => State == ChangeSetPayloadState.Redacted;
+
     /// <summary>Converts this endpoint to an optional value.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the endpoint is redacted. A redacted before-state has no known
+    /// value to restore, so it cannot form a baseline-aware transition.
+    /// </exception>
     public Optional<T> ToOptional()
     {
+        if (State == ChangeSetPayloadState.Redacted)
+            throw new InvalidOperationException(
+                "A redacted payload endpoint has no known value. Project it through a baseline-free patch instead of converting it to an optional value."
+            );
         if (State == ChangeSetPayloadState.Missing && Value is not null)
             throw new InvalidOperationException(
                 "A missing payload endpoint must not contain a value."
@@ -75,6 +95,16 @@ public enum ChangeSetPayloadState
     /// <summary>The endpoint carries a value.</summary>
     [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
     Value,
+
+    /// <summary>The endpoint value was redacted by the sender.</summary>
+    /// <remarks>
+    /// Redacted marks an unavailable before-state (issue #119). It does not mean
+    /// <see cref="Missing"/> and does not delete anything: a redacted before-state
+    /// paired with a concrete after-state is an explicit write-only operation.
+    /// After-states must stay concrete; a redacted after-state is malformed.
+    /// </remarks>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
+    Redacted,
 }
 
 /// <summary>The operation represented by a keyed or dictionary payload item.</summary>

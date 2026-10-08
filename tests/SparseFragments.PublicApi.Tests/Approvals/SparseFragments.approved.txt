@@ -4,6 +4,7 @@ namespace SparseFragments
     public sealed class ChangeSetPayloadEndpoint<T>
     {
         public ChangeSetPayloadEndpoint() { }
+        public bool IsRedacted { get; }
         [System.Text.Json.Serialization.JsonPropertyName("state")]
         [System.Text.Json.Serialization.JsonPropertyOrder(0)]
         public SparseFragments.ChangeSetPayloadState State { get; set; }
@@ -12,6 +13,7 @@ namespace SparseFragments
         public T Value { get; set; }
         public SparseFragments.Optional<T> ToOptional() { }
         public static SparseFragments.ChangeSetPayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
+        public static SparseFragments.ChangeSetPayloadEndpoint<T> Redacted() { }
     }
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadItemKind>))]
     public enum ChangeSetPayloadItemKind
@@ -34,6 +36,8 @@ namespace SparseFragments
         Null = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
         Value = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
+        Redacted = 3,
     }
     public abstract class FragmentMergeStrategy<T>
     {
@@ -79,6 +83,60 @@ namespace SparseFragments
         SetUnion = 4,
         Custom = 5,
     }
+    public enum MixedAfterKind
+    {
+        Value = 0,
+        Null = 1,
+        Missing = 2,
+    }
+    public static class MixedChangeAlgebra
+    {
+        public const string WholeRootPath = "$root";
+        public static bool CanFormChangeSet(System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> operations, out System.Collections.Generic.IReadOnlyList<string> blindPaths) { }
+        public static SparseFragments.MixedComposeResult Compose(SparseFragments.MixedMemberOperation first, SparseFragments.MixedMemberOperation second) { }
+        public static SparseFragments.MixedSequenceComposition ComposeSequences(System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> first, System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> second) { }
+        public static SparseFragments.MixedRollbackPlan CreateRollbackPlan(System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> operations) { }
+        public static void EnsurePassthrough(SparseFragments.RedactedBeforePolicy policy, string? parameterName = null) { }
+    }
+    public readonly struct MixedComposeResult : System.IEquatable<SparseFragments.MixedComposeResult>
+    {
+        public MixedComposeResult(bool succeeded, string path, SparseFragments.MixedHistoryKind resultHistory, SparseFragments.MixedAfterKind resultAfter, bool requiresContinuityCheck, bool resultIsWholeRoot, string? failureReason) { }
+        public string? FailureReason { get; init; }
+        public string Path { get; init; }
+        public bool RequiresContinuityCheck { get; init; }
+        public SparseFragments.MixedAfterKind ResultAfter { get; init; }
+        public SparseFragments.MixedHistoryKind ResultHistory { get; init; }
+        public bool ResultIsWholeRoot { get; init; }
+        public bool Succeeded { get; init; }
+    }
+    public enum MixedHistoryKind
+    {
+        Transition = 0,
+        BlindSet = 1,
+    }
+    public readonly struct MixedMemberOperation : System.IEquatable<SparseFragments.MixedMemberOperation>
+    {
+        public MixedMemberOperation(string path, SparseFragments.MixedHistoryKind history, SparseFragments.MixedAfterKind after) { }
+        public MixedMemberOperation(string path, SparseFragments.MixedHistoryKind history, SparseFragments.MixedAfterKind after, bool isWholeRoot) { }
+        public SparseFragments.MixedAfterKind After { get; init; }
+        public SparseFragments.MixedHistoryKind History { get; init; }
+        public bool IsWholeRoot { get; init; }
+        public string Path { get; init; }
+    }
+    public sealed class MixedRollbackPlan
+    {
+        public MixedRollbackPlan(System.Collections.Generic.IEnumerable<string> reversiblePaths, System.Collections.Generic.IEnumerable<string> skippedPaths) { }
+        public bool IsComplete { get; }
+        public System.Collections.Generic.IReadOnlyList<string> ReversiblePaths { get; }
+        public System.Collections.Generic.IReadOnlyList<string> SkippedPaths { get; }
+    }
+    public sealed class MixedSequenceComposition
+    {
+        public MixedSequenceComposition(bool succeeded, System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> composed, System.Collections.Generic.IEnumerable<SparseFragments.MixedComposeResult> failures) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.MixedMemberOperation> Composed { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.MixedComposeResult> Failures { get; }
+        public bool Succeeded { get; }
+    }
     public static class OptionalExtensions
     {
         public static void CopyFrom<T>(ref this SparseFragments.Optional<T> target, SparseFragments.Optional<T> source) { }
@@ -104,6 +162,10 @@ namespace SparseFragments
         public bool HasConflicts { get; }
         public TChange Rebased { get; }
         public static SparseFragments.RebaseResult<TChange> Success(TChange rebased) { }
+    }
+    public enum RedactedBeforePolicy
+    {
+        Passthrough = 0,
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute

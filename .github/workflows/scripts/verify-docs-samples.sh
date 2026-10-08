@@ -139,6 +139,8 @@ check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSam
     keyed-first-models keyed-first keyed-typed
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-e2e
+check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
+    mixed-apply
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session
 
