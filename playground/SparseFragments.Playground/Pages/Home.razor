@@ -264,9 +264,6 @@
         return PlaygroundJson.WriteSettingsChangeSet(changes);
     });
 
-    private Optional<PlaygroundRoster.Fragment?> RosterBeforeOpt =>
-        Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterBefore));
-
     private string RosterBeforeCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("before", RosterBefore));
     private string RosterAfterCSharp => Try(() => PlaygroundSnippets.RosterModelCSharp("after", RosterAfter));
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterBefore)));
@@ -298,9 +295,12 @@
             throw new InvalidOperationException("Cannot diff roster state.");
         }
 
-        var patch = _rosterChanges.ToPatch();
-        var applied = patch.Apply(RosterBeforeOpt);
-        return PlaygroundJson.WriteRosterModel(applied.Value!.ToModel());
+        if (!_rosterChanges.TryApplyTo(RosterBefore, out var applied))
+        {
+            throw new InvalidOperationException("The roster changes conflict with the baseline.");
+        }
+
+        return PlaygroundJson.WriteRosterModel(applied);
     });
 
     private string RosterManualPatchText()
@@ -317,9 +317,7 @@
     {
         try
         {
-            _rosterChanges = PlaygroundRoster.ChangeSet.Between(
-                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterBefore)),
-                Optional<PlaygroundRoster.Fragment?>.Present(PlaygroundRoster.Fragment.From(RosterAfter)));
+            _rosterChanges = PlaygroundRoster.ChangeSet.Between(RosterBefore, RosterAfter);
             return true;
         }
         catch

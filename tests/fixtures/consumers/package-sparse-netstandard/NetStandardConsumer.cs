@@ -148,6 +148,51 @@ public static class NetStandardConsumerCheck
         );
         Require(changesJson.Contains("patched"), "ChangeSet JSON export");
 
+        var modelBefore = new NetStandardSettings
+        {
+            Label = "before",
+            Child = new NetStandardChild { Count = 7, Host = "model-host" },
+        };
+        var modelAfter = new NetStandardSettings
+        {
+            Label = "after",
+            Child = new NetStandardChild { Count = 9, Host = "model-host" },
+        };
+        var modelChanges = NetStandardSettings.ChangeSet.Between(modelBefore, modelAfter);
+        var modelPatch = new NetStandardSettings.Patch { Label = "patched-model" };
+        var fromModelPatch = NetStandardSettings.ChangeSet.FromPatch(modelBefore, modelPatch);
+        Require(!fromModelPatch.IsEmpty, "model-baseline FromPatch");
+        var appliedModel = modelPatch.ApplyTo(modelBefore);
+        Require(appliedModel.Label == "patched-model", "model Patch.ApplyTo");
+        Require(modelBefore.Label == "before", "model Patch.ApplyTo isolation");
+
+        var currentModel = modelBefore.DeepClone();
+        currentModel.Child!.Host = "server-host";
+        if (modelChanges.TryApplyTo(currentModel, out var updatedModel))
+        {
+            Require(updatedModel.Child!.Count == 9, "ChangeSet model application");
+            Require(updatedModel.Child.Host == "server-host", "ChangeSet disjoint rebase");
+        }
+        else
+        {
+            throw new InvalidOperationException("Failed: conflict-free model application");
+        }
+
+        var conflictingModel = modelBefore.DeepClone();
+        conflictingModel.Label = "server-label";
+        if (
+            modelChanges.TryApplyTo(
+                conflictingModel,
+                out var conflictedModel,
+                out var modelConflicts
+            )
+        )
+        {
+            throw new InvalidOperationException("Failed: model conflict should be reported");
+        }
+        Require(conflictedModel is null, "conflicted application has no model");
+        Require(modelConflicts.Count > 0, "model application returns conflict details");
+
         return "SparseFragments netstandard2.0 consumer passed.";
     }
 

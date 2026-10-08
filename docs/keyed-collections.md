@@ -24,20 +24,23 @@ public partial class Server
 
 <!-- sample: keyed-first -->
 ```csharp
-var before = Fleet.Fragment.From(new Fleet
+var before = new Fleet
 {
     Servers = new() { new Server { Id = "a", Host = "old" } },
-});
-var after = Fleet.Fragment.From(new Fleet
+};
+var after = new Fleet
 {
     Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
-});
+};
 
 var changes = Fleet.ChangeSet.Between(before, after); // add/remove/edit by key
-var applied = changes.ToPatch().Apply(before);        // original untouched
+if (!changes.TryApplyTo(before, out var applied))
+{
+    throw new InvalidOperationException("The keyed changes conflict.");
+}
 
-// applied.Value!.Servers.Value!.Count == 2
-// applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new"
+// applied.Servers.Count == 2
+// applied.Servers.Single(s => s.Id == "a").Host == "new"
 ```
 <!-- /sample -->
 

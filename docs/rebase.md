@@ -18,21 +18,18 @@ public partial class RebaseSettings
 
 <!-- sample: rebase-first -->
 ```csharp
-var baseState = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "a" }));
-var editedState = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2, Label = "a" }));
-var currentState = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "b" }));
+var baseModel = new RebaseSettings { RetryCount = 1, Label = "a" };
+var editedModel = new RebaseSettings { RetryCount = 2, Label = "a" };
+var currentModel = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-// The ChangeSet carries its own before-state: only the current state is needed.
-var changes = RebaseSettings.ChangeSet.Between(baseState, editedState);
-var rebased = changes.RebaseOnto(currentState);
+var changes = RebaseSettings.ChangeSet.Between(baseModel, editedModel);
+if (!changes.TryApplyTo(currentModel, out var reconciled))
+{
+    throw new InvalidOperationException("The change conflicts with the current model.");
+}
 
-var reconciled = rebased.Patch.ToPatch().Apply(currentState);
-// !rebased.HasConflicts
-// reconciled.Value!.RetryCount.Value == 2
-// reconciled.Value!.Label.Value == "b"
+// reconciled.RetryCount == 2
+// reconciled.Label == "b"
 ```
 <!-- /sample -->
 
@@ -49,9 +46,28 @@ server loads only current state C
 ChangeSet.RebaseOnto(C)
 ```
 
-All states are presence-aware `Optional<Fragment?>` values, so *missing*, *present null*, and *present value* participate in reconciliation exactly as they do in merge: `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` are all observable transitions.
+For ordinary, present non-null DTOs, `ChangeSet.Between(before, edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The model overloads snapshot the models into Fragments and delegate to the same rebase semantics.
 
-Rebase returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** (in `result.Patch`) plus **structured conflicts** (in `result.Conflicts`, with `result.HasConflicts` summarizing) for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet.
+The presence-aware APIs remain necessary when the root itself may be *missing*, *present null*, or *present value*. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` remain observable transitions only through the Fragment/Optional surface.
+
+`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
+
+<!-- sample: rebase-presence -->
+```csharp
+var missing = Optional<RebaseSettings.Fragment?>.Missing;
+var presentNull = Optional<RebaseSettings.Fragment?>.Present(null);
+var rootChange = RebaseSettings.ChangeSet.Between(missing, presentNull);
+RebaseResult<RebaseSettings.ChangeSet> result = rootChange.RebaseOnto(missing);
+
+if (result.HasConflicts)
+{
+    throw new InvalidOperationException("The root transition conflicts.");
+}
+
+var applied = result.Patch.ToPatch().Apply(missing);
+// applied.IsPresent && applied.Value is null
+```
+<!-- /sample -->
 
 ## The Three Outcomes
 
@@ -72,18 +88,18 @@ The local transition is already present in `current` (someone else made the same
 
 <!-- sample: rebase-applied -->
 ```csharp
-var appliedBase = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1 }));
-var appliedEdited = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
-var alreadyThere = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
+var appliedBase = new RebaseSettings { RetryCount = 1 };
+var appliedEdited = new RebaseSettings { RetryCount = 2 };
+var alreadyThere = new RebaseSettings { RetryCount = 2 };
 
 // Current == After: the change is already present, so rebase is a no-op.
-var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited)
-    .RebaseOnto(alreadyThere);
-// !noOp.HasConflicts
-// noOp.Patch.IsEmpty == true
+var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited);
+if (!noOp.TryApplyTo(alreadyThere, out var unchanged))
+{
+    throw new InvalidOperationException("The change conflicts with the current model.");
+}
+
+// unchanged.RetryCount == 2
 ```
 <!-- /sample -->
 
@@ -93,18 +109,19 @@ Local and current changed the same member differently: the member is excluded fr
 
 <!-- sample: rebase-conflict -->
 ```csharp
-var conflictBase = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1 }));
-var conflictEdited = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
-var conflictCurrent = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 3 }));
+var conflictBase = new RebaseSettings { RetryCount = 1 };
+var conflictEdited = new RebaseSettings { RetryCount = 2 };
+var conflictCurrent = new RebaseSettings { RetryCount = 3 };
 
-var conflicted = RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
-    .RebaseOnto(conflictCurrent);
+if (
+    RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
+        .TryApplyTo(conflictCurrent, out _, out var conflicts)
+)
+{
+    throw new InvalidOperationException("Expected a conflict.");
+}
 
-var conflict = conflicted.Conflicts.Single();
-// conflicted.HasConflicts == true
+var conflict = conflicts.Single();
 // conflict.Kind == SparsePatchConflictKind.Scalar
 // conflict.Path == ["RetryCount"]
 ```
@@ -135,7 +152,7 @@ Conflict kinds:
 
 Nested conflicts expose the full member path: a local `Nested.Host = "b"` against a concurrent `Nested.Host = "c"` (from base `"a"`) reports `Path == ["Nested", "Host"]` with the three values attached, so UI code can offer per-field resolution.
 
-Clean paths may remain in the rebased ChangeSet while conflicts are reported separately. Applications commonly keep persistence atomic and decline to commit when any conflict remains: check `HasConflicts` first, apply and save only when it is false, and otherwise return the structured conflicts to the caller.
+Clean paths may remain in the rebased ChangeSet while conflicts are reported separately. Applications commonly keep persistence atomic and decline to commit when any conflict remains. The detailed `TryApplyTo` overload returns `false` and exposes structured conflicts without returning a partially applied model.
 
 ## Collection and Structural Behavior
 
@@ -182,7 +199,7 @@ sealed record UpdateOrderRequest(
     Order.ChangeSet Changes);
 ```
 
-The handler deserializes the ChangeSet, loads only the current database state, calls `RebaseOnto(current)`, and — when there are no conflicts — saves under the normal concurrency token. When conflicts remain, it returns the structured conflicts instead of saving.
+The handler deserializes the ChangeSet, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and — when there are no conflicts — saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
 
 ## End-to-End Example
 
@@ -195,9 +212,7 @@ using System.Text.Json;
 // Server sends DTO (state A); the client edits A -> B and creates a ChangeSet.
 var stateA = new RebaseSettings { RetryCount = 1, Label = "a" };
 var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
-var outgoing = RebaseSettings.ChangeSet.Between(
-    Optional<RebaseSettings.Fragment?>.Present(RebaseSettings.Fragment.From(stateA)),
-    Optional<RebaseSettings.Fragment?>.Present(RebaseSettings.Fragment.From(stateB)));
+var outgoing = RebaseSettings.ChangeSet.Between(stateA, stateB);
 
 // The ChangeSet travels as JSON through the application's own transport.
 var json = JsonSerializer.Serialize(outgoing);
@@ -205,16 +220,20 @@ var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSet>(json)!;
 
 // Meanwhile the server moved A -> C. The server loads only the current state:
 // no historical snapshots are required because the ChangeSet carries its own before-state.
-var stateC = Optional<RebaseSettings.Fragment?>.Present(
-    RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "b" }));
-var arrival = incoming.RebaseOnto(stateC);
+var stateC = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-// !arrival.HasConflicts, so apply and save under the normal DB concurrency token.
-// Conflicts would instead return structured conflict information without saving.
-var saved = arrival.Patch.ToPatch().Apply(stateC);
-// saved.Value!.RetryCount.Value == 2
-// saved.Value!.Label.Value == "b"
+if (incoming.TryApplyTo(stateC, out var saved, out var conflicts))
+{
+    // Save under the normal DB concurrency token.
+    // saved.RetryCount == 2
+    // saved.Label == "b"
+}
+else
+{
+    // Surface conflicts without saving a partially applied model.
+    // conflicts contains paths, kinds, and base/local/current values.
+}
 ```
 <!-- /sample -->
 
-The transport in the middle can be HTTP, SignalR, or any message bus the application already uses — SparseFragments only requires that the serialized ChangeSet arrives intact. The two terminal branches stay the same everywhere: no conflicts means apply and save under the application's concurrency token; conflicts mean surface `arrival.Conflicts` (paths, kinds, and base/local/current values) without saving.
+The transport in the middle can be HTTP, SignalR, or any message bus the application already uses — SparseFragments only requires that the serialized ChangeSet arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base/local/current values without saving.

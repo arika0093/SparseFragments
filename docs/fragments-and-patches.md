@@ -98,6 +98,8 @@ remove.RetryCount.Unset();
 
 `T.ChangeSet.Between(beforeSparse, afterSparse)` takes sparse contribution states (`Optional<Fragment?>`) and returns the immutable before → after transition. It preserves presence transitions such as `present → missing` exactly, including the root `Missing` / present-null / present-value states. Replay it with `ToPatch()` followed by `Apply`, or reconcile it against newer state with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). A ChangeSet carries the before-state required for the transitions it represents — it does not store a mandatory full baseline snapshot beyond that semantic information.
 
+For ordinary, present non-null model roots, the same algebra has convenience overloads: `ChangeSet.Between(beforeModel, afterModel)`, `ChangeSet.FromPatch(baselineModel, patch)`, and model-targeted apply/rebase methods. These snapshot through `Fragment.From` and delegate to the presence-aware behavior; use the `Optional<Fragment?>` overloads when root Missing / Present(null) semantics matter.
+
 <!-- sample: core-between -->
 ```csharp
 var a = Optional<CounterSettings.Fragment?>.Present(
@@ -342,10 +344,15 @@ Callers still use ordinary `System.Text.Json`; SparseFragments adds no separate 
 | Express explicit set/null/unset edits | `new T.Patch { ... }` | Patch |
 | Compose local operations | `patch.Compose(next)` | Patch |
 | Compare sparse states exactly | `T.ChangeSet.Between(before, after)` | ChangeSet |
+| Compare ordinary present models | `T.ChangeSet.Between(beforeModel, afterModel)` | ChangeSet |
 | Observe a member transition | `changes.Label.IsChanged` / `Before` / `After` | Member transition |
 | Observe a nested transition | `changes.Customer.Name.IsChanged` | Member transition |
 | Project a transition to operations | `changes.ToPatch()` | Patch |
 | Attach a baseline to a patch | `T.ChangeSet.FromPatch(baseline, patch)` | ChangeSet |
+| Apply a Patch to an ordinary model | `patch.ApplyTo(model)` | New model |
+| Rebase onto an ordinary model | `changes.RebaseOnto(model)` | Rebase result |
+| Apply a ChangeSet if conflict-free | `changes.TryApplyTo(model, out updated)` | `true` + model, or `false` |
+| Get ChangeSet conflict details | `changes.TryApplyTo(model, out updated, out conflicts)` | Conflicts on `false` |
 | Reverse a transition | `changes.Invert()` | ChangeSet |
 | Chain contiguous transitions | `first.Compose(second)` | ChangeSet |
 | Reconcile against newer state | `changes.RebaseOnto(current)` | ChangeSet + conflicts |

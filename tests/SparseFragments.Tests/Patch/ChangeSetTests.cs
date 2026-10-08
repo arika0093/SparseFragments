@@ -180,6 +180,154 @@ public sealed class ChangeSetTests
         var changes = StrategySettings.ChangeSet.Between(before, after);
         changes.IsEmpty.ShouldBeFalse();
         StrategySettings.Patch.Between(changes.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
+
+        var beforeModel = new StrategySettings { Values = [1, 2] };
+        var afterModel = new StrategySettings { Values = [3, 4] };
+        var modelChanges = StrategySettings.ChangeSet.Between(beforeModel, afterModel);
+        if (!modelChanges.TryApplyTo(beforeModel, out var applied))
+        {
+            throw new InvalidOperationException("Expected custom strategy model application.");
+        }
+        applied.Values.ShouldBe([3, 4]);
+    }
+
+    [Test]
+    public void ModelBetweenMatchesPresenceAwareBetween()
+    {
+        var before = new Settings
+        {
+            Label = "before",
+            RetryCount = 1,
+            Nested = new Nested { Host = "before-host" },
+            Plugins = ["base"],
+        };
+        var after = new Settings
+        {
+            Label = null,
+            RetryCount = 2,
+            Nested = null,
+            Plugins = ["base", "extra"],
+        };
+        var beforeState = Present(Settings.Fragment.From(before));
+        var afterState = Present(Settings.Fragment.From(after));
+
+        var changes = Settings.ChangeSet.Between(before, after);
+        var expected = Settings.ChangeSet.Between(beforeState, afterState);
+
+        changes.IsEmpty.ShouldBe(expected.IsEmpty);
+        Settings.Patch.Between(
+            changes.ToPatch().Apply(beforeState),
+            expected.ToPatch().Apply(beforeState)
+        ).IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ModelBetweenAndTryApplyToSupportKeyedCollections()
+    {
+        var before = new KeyedServerHolder
+        {
+            Items =
+            [
+                new KeyedServer { Id = "a", Name = "old", Count = 1 },
+                new KeyedServer { Id = "b", Name = "keep", Count = 2 },
+            ],
+        };
+        var after = new KeyedServerHolder
+        {
+            Items =
+            [
+                new KeyedServer { Id = "a", Name = "new", Count = 1 },
+                new KeyedServer { Id = "c", Name = "added", Count = 3 },
+            ],
+        };
+        var changes = KeyedServerHolder.ChangeSet.Between(before, after);
+
+        if (!changes.TryApplyTo(before, out var updated, out var conflicts))
+        {
+            throw new InvalidOperationException(
+                "Expected keyed model application to be clean: "
+                    + string.Join(", ", conflicts.Select(static conflict => conflict.PathText))
+            );
+        }
+
+        updated.Items.Select(static item => item.Id).ShouldBe(["a", "c"]);
+        updated.Items.Single(static item => item.Id == "a").Name.ShouldBe("new");
+        updated.Items.Single(static item => item.Id == "c").Count.ShouldBe(3);
+        before.Items.Select(static item => item.Id).ShouldBe(["a", "b"]);
+        before.Items[0].Name.ShouldBe("old");
+    }
+
+    [Test]
+    public void ModelTryApplyToPreservesKeyedReorder()
+    {
+        var before = new KeyedServerHolder
+        {
+            Items =
+            [
+                new KeyedServer { Id = "a", Name = "a" },
+                new KeyedServer { Id = "b", Name = "b" },
+            ],
+        };
+        var after = new KeyedServerHolder
+        {
+            Items =
+            [
+                new KeyedServer { Id = "b", Name = "b" },
+                new KeyedServer { Id = "a", Name = "a" },
+            ],
+        };
+        var changes = KeyedServerHolder.ChangeSet.Between(before, after);
+
+        if (!changes.TryApplyTo(before, out var updated))
+        {
+            throw new InvalidOperationException("Expected the keyed reorder to be clean.");
+        }
+
+        updated.Items.Select(static item => item.Id).ShouldBe(["b", "a"]);
+    }
+
+    [Test]
+    public void ModelFromPatchMatchesPresenceAwareFromPatch()
+    {
+        var baseline = MakeSettings("Alice", 1).ToModel();
+        var patch = new Settings.Patch { Label = (string?)null };
+        patch.Nested.Host = "db.local";
+
+        var changes = Settings.ChangeSet.FromPatch(baseline, patch);
+        var expected = Settings.ChangeSet.FromPatch(
+            Present(Settings.Fragment.From(baseline)),
+            patch
+        );
+
+        Settings.Patch.Between(
+            changes.ToPatch().Apply(Present(Settings.Fragment.From(baseline))),
+            expected.ToPatch().Apply(Present(Settings.Fragment.From(baseline)))
+        ).IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void PatchApplyToModelMatchesFragmentPathWithoutMutatingSource()
+    {
+        var current = new Settings
+        {
+            Label = "before",
+            RetryCount = 1,
+            Nested = new Nested { Host = "before-host", Port = 5000 },
+            Plugins = ["base"],
+        };
+        var patch = new Settings.Patch { Label = "after" };
+        patch.Nested.Host = "after-host";
+
+        var expected = Settings.Fragment.From(current).Apply(patch).ToModel();
+        var actual = patch.ApplyTo(current);
+
+        Settings.Patch.Between(
+            Present(Settings.Fragment.From(actual)),
+            Present(Settings.Fragment.From(expected))
+        ).IsEmpty.ShouldBeTrue();
+        current.Label.ShouldBe("before");
+        current.Nested!.Host.ShouldBe("before-host");
+        current.Plugins.ShouldBe(["base"]);
     }
 
     [Test]
@@ -265,6 +413,76 @@ public sealed class ChangeSetTests
         result.HasConflicts.ShouldBeFalse();
         var expected = Present(MakeSettings("Bob", 21));
         Settings.Patch.Between(result.Patch.ToPatch().Apply(current), expected).IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ModelRebaseMatchesPresenceAwareRebase()
+    {
+        var baseline = MakeSettings("Alice", 20).ToModel();
+        var edited = MakeSettings("Alice", 21).ToModel();
+        var current = MakeSettings("Bob", 20).ToModel();
+        var changes = Settings.ChangeSet.Between(baseline, edited);
+
+        var actual = changes.RebaseOnto(current);
+        var expected = changes.RebaseOnto(Present(Settings.Fragment.From(current)));
+
+        actual.HasConflicts.ShouldBe(expected.HasConflicts);
+        Settings.Patch.Between(
+            actual.Patch.ToPatch().Apply(Present(Settings.Fragment.From(current))),
+            expected.Patch.ToPatch().Apply(Present(Settings.Fragment.From(current)))
+        ).IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ModelRebaseRecognizesAlreadyAppliedChange()
+    {
+        var changes = Settings.ChangeSet.Between(
+            MakeSettings("Alice", 1).ToModel(),
+            MakeSettings("Bob", 1).ToModel()
+        );
+        var current = MakeSettings("Bob", 1).ToModel();
+        var rebased = changes.RebaseOnto(current);
+
+        rebased.HasConflicts.ShouldBeFalse();
+        rebased.Patch.IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void TryApplyToReturnsNonNullModelWhenConflictFree()
+    {
+        var changes = Settings.ChangeSet.Between(
+            MakeSettings("Alice", 20).ToModel(),
+            MakeSettings("Alice", 21).ToModel()
+        );
+        var current = MakeSettings("Bob", 20).ToModel();
+
+        if (!changes.TryApplyTo(current, out var updated))
+        {
+            throw new InvalidOperationException("Expected conflict-free application.");
+        }
+
+        updated.RetryCount.ShouldBe(21);
+        updated.Label.ShouldBe("Bob");
+    }
+
+    [Test]
+    public void TryApplyToReturnsConflictsWithoutPartiallyAppliedModel()
+    {
+        var changes = Settings.ChangeSet.Between(
+            MakeSettings("Alice", 1).ToModel(),
+            MakeSettings("Bob", 2).ToModel()
+        );
+        var current = MakeSettings("Carol", 1).ToModel();
+
+        if (changes.TryApplyTo(current, out var updated, out var conflicts))
+        {
+            throw new InvalidOperationException("Expected a conflict.");
+        }
+
+        updated.ShouldBeNull();
+        conflicts.Select(static conflict => conflict.PathText).ShouldContain("Label");
+        conflicts.ShouldNotContain(static conflict => conflict.PathText == "RetryCount");
+        current.RetryCount.ShouldBe(1);
     }
 
     [Test]

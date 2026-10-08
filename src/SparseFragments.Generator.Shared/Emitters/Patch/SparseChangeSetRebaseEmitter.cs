@@ -394,6 +394,7 @@ internal static class SparseChangeSetRebaseEmitter
         if (modelType is not null)
         {
             AppendModelRebase(code, modelType, optionalFragment, rebaseResult);
+            AppendModelTryApply(code, modelType, optionalFragment, dialect.ConflictType);
         }
     }
 
@@ -418,6 +419,76 @@ internal static class SparseChangeSetRebaseEmitter
                 + optionalFragment
                 + ".Present(Fragment.From(current)));"
         );
+    }
+
+    private static void AppendModelTryApply(
+        SharedIndentedBuilder code,
+        string modelType,
+        string optionalFragment,
+        string conflictType
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this change to an ordinary model if it can be rebased without conflicts.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryApplyTo("
+                + modelType
+                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                + modelType
+                + "? updated)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "return TryApplyTo(current, out updated, out _);");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this change to an ordinary model and returns structured conflicts when rebasing fails.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryApplyTo("
+                + modelType
+                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                + modelType
+                + "? updated, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "var __state = "
+                + optionalFragment
+                + ".Present(Fragment.From(current));"
+        );
+        code.AppendLineAt(3, "ChangeSet __toApply;");
+        code.AppendLineAt(3, "if (__SparseBeforeMatches(__state))");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "__toApply = this;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "else");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __rebase = RebaseOnto(__state);");
+        code.AppendLineAt(4, "if (__rebase.HasConflicts)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "updated = null;");
+        code.AppendLineAt(5, "conflicts = __rebase.Conflicts;");
+        code.AppendLineAt(5, "return false;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "__toApply = __rebase.Patch;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "var __applied = __toApply.ToPatch().Apply(__state);");
+        code.AppendLineAt(
+            3,
+            "if (!__applied.IsPresent || __applied.Value is null) throw new global::System.InvalidOperationException(\"The rebased change does not produce a non-null model root. Use the presence-aware Fragment/Optional API for root presence transitions.\");"
+        );
+        code.AppendLineAt(3, "updated = __applied.Value.ToModel();");
+        code.AppendLineAt(3, "conflicts = null;");
+        code.AppendLineAt(3, "return true;");
+        code.AppendLineAt(2, "}");
     }
 
     /// <summary>

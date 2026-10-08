@@ -18,33 +18,26 @@ public static class KeyedCollectionsSamples
 
     private static void SinglePropertyKeyAddRemoveEdit()
     {
-        var before = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "a", Host = "A", Port = 1 },
-                        new() { Id = "b", Host = "B", Port = 2 },
-                    },
-                }));
-        var after = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "b", Host = "B2", Port = 2 },
-                        new() { Id = "c", Host = "C", Port = 3 },
-                    },
-                }));
+        var before = new DocsInventory
+        {
+            Servers = new List<DocsServer> { new() { Id = "a", Host = "old" } },
+        };
+        var after = new DocsInventory
+        {
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "a", Host = "new" },
+                new() { Id = "b", Host = string.Empty },
+            },
+        };
 
-        // Per-element operations derive from the before/after key sets (#45:
-        // docs "Add / Remove / Edit / Reorder" section).
         var changes = DocsInventory.ChangeSet.Between(before, after);
         DocsCheck.Require(!changes.IsEmpty, "keyed Between detects add/remove/edit");
-        var applied = changes.ToPatch().Apply(before);
-        var servers = applied.Value!.Servers.Value!;
+        if (!changes.TryApplyTo(before, out var applied))
+        {
+            throw new InvalidOperationException("The keyed changes conflict.");
+        }
+        var servers = applied.Servers;
         DocsCheck.Require(
             servers.Select(server => server.Id).SequenceEqual(new[] { "b", "c" }),
             "keyed apply holds [b, c]: b edited in place, a removed, c added");

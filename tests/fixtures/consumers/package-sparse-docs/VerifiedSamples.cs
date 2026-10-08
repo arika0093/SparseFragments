@@ -260,23 +260,26 @@ public static class VerifiedSamples
     private static void KeyedFirst()
     {
         // sample: keyed-first
-        var before = Fleet.Fragment.From(new Fleet
+        var before = new Fleet
         {
             Servers = new() { new Server { Id = "a", Host = "old" } },
-        });
-        var after = Fleet.Fragment.From(new Fleet
+        };
+        var after = new Fleet
         {
             Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
-        });
+        };
 
         var changes = Fleet.ChangeSet.Between(before, after); // add/remove/edit by key
-        var applied = changes.ToPatch().Apply(before);        // original untouched
+        if (!changes.TryApplyTo(before, out var applied))
+        {
+            throw new InvalidOperationException("The keyed changes conflict.");
+        }
 
-        // applied.Value!.Servers.Value!.Count == 2
-        // applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new"
-        DocsCheck.Require(applied.Value!.Servers.Value!.Count == 2, "added element present");
+        // applied.Servers.Count == 2
+        // applied.Servers.Single(s => s.Id == "a").Host == "new"
+        DocsCheck.Require(applied.Servers.Count == 2, "added element present");
         DocsCheck.Require(
-            applied.Value!.Servers.Value!.Single(s => s.Id == "a").Host == "new", "edit by key");
+            applied.Servers.Single(s => s.Id == "a").Host == "new", "edit by key");
         // /sample
     }
 
@@ -331,65 +334,60 @@ public static class VerifiedSamples
     private static void RebaseFirst()
     {
         // sample: rebase-first
-        var baseState = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "a" }));
-        var editedState = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2, Label = "a" }));
-        var currentState = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "b" }));
+        var baseModel = new RebaseSettings { RetryCount = 1, Label = "a" };
+        var editedModel = new RebaseSettings { RetryCount = 2, Label = "a" };
+        var currentModel = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-        // The ChangeSet carries its own before-state: only the current state is needed.
-        var changes = RebaseSettings.ChangeSet.Between(baseState, editedState);
-        var rebased = changes.RebaseOnto(currentState);
+        var changes = RebaseSettings.ChangeSet.Between(baseModel, editedModel);
+        if (!changes.TryApplyTo(currentModel, out var reconciled))
+        {
+            throw new InvalidOperationException("The change conflicts with the current model.");
+        }
 
-        var reconciled = rebased.Patch.ToPatch().Apply(currentState);
-        // !rebased.HasConflicts
-        // reconciled.Value!.RetryCount.Value == 2
-        // reconciled.Value!.Label.Value == "b"
-        DocsCheck.Require(!rebased.HasConflicts, "disjoint edits replay cleanly");
-        DocsCheck.Require(reconciled.Value!.RetryCount.Value == 2, "local edit kept");
-        DocsCheck.Require(reconciled.Value!.Label.Value == "b", "concurrent edit kept");
+        // reconciled.RetryCount == 2
+        // reconciled.Label == "b"
+        DocsCheck.Require(reconciled.RetryCount == 2, "local edit kept");
+        DocsCheck.Require(reconciled.Label == "b", "concurrent edit kept");
         // /sample
     }
 
     private static void RebaseApplied()
     {
         // sample: rebase-applied
-        var appliedBase = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1 }));
-        var appliedEdited = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
-        var alreadyThere = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
+        var appliedBase = new RebaseSettings { RetryCount = 1 };
+        var appliedEdited = new RebaseSettings { RetryCount = 2 };
+        var alreadyThere = new RebaseSettings { RetryCount = 2 };
 
         // Current == After: the change is already present, so rebase is a no-op.
-        var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited)
-            .RebaseOnto(alreadyThere);
-        // !noOp.HasConflicts
-        // noOp.Patch.IsEmpty == true
-        DocsCheck.Require(!noOp.HasConflicts, "already-applied rebase has no conflicts");
-        DocsCheck.Require(noOp.Patch.IsEmpty, "already-applied rebase is a semantic no-op");
+        var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited);
+        if (!noOp.TryApplyTo(alreadyThere, out var unchanged))
+        {
+            throw new InvalidOperationException("The change conflicts with the current model.");
+        }
+
+        // unchanged.RetryCount == 2
+        DocsCheck.Require(unchanged.RetryCount == 2, "already-applied rebase is a no-op");
         // /sample
     }
 
     private static void RebaseConflict()
     {
         // sample: rebase-conflict
-        var conflictBase = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1 }));
-        var conflictEdited = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 2 }));
-        var conflictCurrent = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 3 }));
+        var conflictBase = new RebaseSettings { RetryCount = 1 };
+        var conflictEdited = new RebaseSettings { RetryCount = 2 };
+        var conflictCurrent = new RebaseSettings { RetryCount = 3 };
 
-        var conflicted = RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
-            .RebaseOnto(conflictCurrent);
+        if (
+            RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
+                .TryApplyTo(conflictCurrent, out _, out var conflicts)
+        )
+        {
+            throw new InvalidOperationException("Expected a conflict.");
+        }
 
-        var conflict = conflicted.Conflicts.Single();
-        // conflicted.HasConflicts == true
+        var conflict = conflicts.Single();
         // conflict.Kind == SparsePatchConflictKind.Scalar
         // conflict.Path == ["RetryCount"]
-        DocsCheck.Require(conflicted.HasConflicts, "divergent edits conflict");
         DocsCheck.Require(conflict.Kind == SparsePatchConflictKind.Scalar, "conflict kind is Scalar");
         DocsCheck.Require(
             conflict.Path.SequenceEqual(new[] { "RetryCount" }), "conflict path names the member");
@@ -401,15 +399,32 @@ public static class VerifiedSamples
         // /sample
     }
 
+    private static void RebasePresence()
+    {
+        // sample: rebase-presence
+        var missing = Optional<RebaseSettings.Fragment?>.Missing;
+        var presentNull = Optional<RebaseSettings.Fragment?>.Present(null);
+        var rootChange = RebaseSettings.ChangeSet.Between(missing, presentNull);
+        RebaseResult<RebaseSettings.ChangeSet> result = rootChange.RebaseOnto(missing);
+
+        if (result.HasConflicts)
+        {
+            throw new InvalidOperationException("The root transition conflicts.");
+        }
+
+        var applied = result.Patch.ToPatch().Apply(missing);
+        // applied.IsPresent && applied.Value is null
+        DocsCheck.Require(applied.IsPresent && applied.Value is null, "root presence preserved");
+        // /sample
+    }
+
     private static void RebaseEndToEnd()
     {
         // sample: rebase-e2e
         // Server sends DTO (state A); the client edits A -> B and creates a ChangeSet.
         var stateA = new RebaseSettings { RetryCount = 1, Label = "a" };
         var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
-        var outgoing = RebaseSettings.ChangeSet.Between(
-            Optional<RebaseSettings.Fragment?>.Present(RebaseSettings.Fragment.From(stateA)),
-            Optional<RebaseSettings.Fragment?>.Present(RebaseSettings.Fragment.From(stateB)));
+        var outgoing = RebaseSettings.ChangeSet.Between(stateA, stateB);
 
         // The ChangeSet travels as JSON through the application's own transport.
         var json = JsonSerializer.Serialize(outgoing);
@@ -417,18 +432,22 @@ public static class VerifiedSamples
 
         // Meanwhile the server moved A -> C. The server loads only the current state:
         // no historical snapshots are required because the ChangeSet carries its own before-state.
-        var stateC = Optional<RebaseSettings.Fragment?>.Present(
-            RebaseSettings.Fragment.From(new RebaseSettings { RetryCount = 1, Label = "b" }));
-        var arrival = incoming.RebaseOnto(stateC);
+        var stateC = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-        // !arrival.HasConflicts, so apply and save under the normal DB concurrency token.
-        // Conflicts would instead return structured conflict information without saving.
-        var saved = arrival.Patch.ToPatch().Apply(stateC);
-        // saved.Value!.RetryCount.Value == 2
-        // saved.Value!.Label.Value == "b"
-        DocsCheck.Require(!arrival.HasConflicts, "end-to-end rebase has no conflicts");
-        DocsCheck.Require(saved.Value!.RetryCount.Value == 2, "client edit applied");
-        DocsCheck.Require(saved.Value!.Label.Value == "b", "server edit preserved");
+        if (incoming.TryApplyTo(stateC, out var saved, out var conflicts))
+        {
+            // Save under the normal DB concurrency token.
+            // saved.RetryCount == 2
+            // saved.Label == "b"
+            DocsCheck.Require(saved.RetryCount == 2, "client edit applied");
+            DocsCheck.Require(saved.Label == "b", "server edit preserved");
+        }
+        else
+        {
+            // Surface conflicts without saving a partially applied model.
+            // conflicts contains paths, kinds, and base/local/current values.
+            DocsCheck.Require(conflicts.Count > 0, "structured conflicts returned");
+        }
         // /sample
     }
 }

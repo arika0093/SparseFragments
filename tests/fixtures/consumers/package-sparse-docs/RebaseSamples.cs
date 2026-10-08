@@ -11,53 +11,51 @@ public static class RebaseSamples
         DisjointEditsReplayCleanly();
         AlreadyAppliedEditsBecomeNoOps();
         ConflictingEditsProduceStructuredConflicts();
+        PresenceAwareRootStateRebases();
     }
 
     private static void DisjointEditsReplayCleanly()
     {
-        var baseState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 1, Label = "a" }));
-        var editedState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 2, Label = "a" }));
-        var currentState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 1, Label = "b" }));
-
-        var changes = RebaseDocsSettings.ChangeSet.Between(baseState, editedState);
-        RebaseResult<RebaseDocsSettings.ChangeSet> result = changes.RebaseOnto(currentState);
-        DocsCheck.Require(!result.HasConflicts, "disjoint rebase has no conflicts");
-        var applied = result.Patch.ToPatch().Apply(currentState);
+        var baseModel = new RebaseDocsSettings { RetryCount = 1, Label = "a" };
+        var editedModel = new RebaseDocsSettings { RetryCount = 2, Label = "a" };
+        var currentModel = new RebaseDocsSettings { RetryCount = 1, Label = "b" };
+        var changes = RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel);
+        if (!changes.TryApplyTo(currentModel, out var applied))
+        {
+            throw new InvalidOperationException("Expected a conflict-free rebase.");
+        }
         DocsCheck.Require(
-            applied.Value!.RetryCount.Value == 2 && applied.Value.Label.Value == "b",
+            applied.RetryCount == 2 && applied.Label == "b",
             "disjoint rebase replays local edit and keeps concurrent edit");
     }
 
     private static void AlreadyAppliedEditsBecomeNoOps()
     {
-        var baseState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 1 }));
-        var editedState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 2 }));
-
-        var result = RebaseDocsSettings.ChangeSet.Between(baseState, editedState)
-            .RebaseOnto(editedState);
-        DocsCheck.Require(!result.HasConflicts, "already-applied rebase has no conflicts");
-        DocsCheck.Require(result.Patch.IsEmpty, "already-applied rebase is a semantic no-op");
+        var baseModel = new RebaseDocsSettings { RetryCount = 1 };
+        var editedModel = new RebaseDocsSettings { RetryCount = 2 };
+        var alreadyThere = new RebaseDocsSettings { RetryCount = 2 };
+        var noOp = RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel);
+        if (!noOp.TryApplyTo(alreadyThere, out var applied))
+        {
+            throw new InvalidOperationException("The change conflicts with the current model.");
+        }
+        DocsCheck.Require(applied.RetryCount == 2, "already-applied rebase keeps the current value");
     }
 
     private static void ConflictingEditsProduceStructuredConflicts()
     {
-        var baseState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 1 }));
-        var editedState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 2 }));
-        var currentState = Optional<RebaseDocsSettings.Fragment?>.Present(
-            RebaseDocsSettings.Fragment.From(new RebaseDocsSettings { RetryCount = 3 }));
-
-        var result = RebaseDocsSettings.ChangeSet.Between(baseState, editedState)
-            .RebaseOnto(currentState);
-        DocsCheck.Require(result.HasConflicts, "divergent edits conflict");
-        DocsCheck.Require(result.Conflicts.Count == 1, "one structured conflict");
-        var conflict = result.Conflicts.Single();
+        var baseModel = new RebaseDocsSettings { RetryCount = 1 };
+        var editedModel = new RebaseDocsSettings { RetryCount = 2 };
+        var currentModel = new RebaseDocsSettings { RetryCount = 3 };
+        if (
+            RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel)
+                .TryApplyTo(currentModel, out _, out var conflicts)
+        )
+        {
+            throw new InvalidOperationException("Expected a conflict.");
+        }
+        DocsCheck.Require(conflicts.Count == 1, "one structured conflict");
+        var conflict = conflicts.Single();
         DocsCheck.Require(
             conflict.Kind == SparsePatchConflictKind.Scalar,
             "conflict kind is Scalar");
@@ -69,6 +67,19 @@ public static class RebaseSamples
                 && Equals(conflict.LocalValue.Value, 2)
                 && Equals(conflict.CurrentValue.Value, 3),
             "conflict carries base/local/current values");
+    }
+
+    private static void PresenceAwareRootStateRebases()
+    {
+        var missing = Optional<RebaseDocsSettings.Fragment?>.Missing;
+        var presentNull = Optional<RebaseDocsSettings.Fragment?>.Present(null);
+        var rootChange = RebaseDocsSettings.ChangeSet.Between(missing, presentNull);
+        RebaseResult<RebaseDocsSettings.ChangeSet> result = rootChange.RebaseOnto(missing);
+        DocsCheck.Require(!result.HasConflicts, "missing-to-null root transition rebases");
+        var applied = result.Patch.ToPatch().Apply(missing);
+        DocsCheck.Require(
+            applied.IsPresent && applied.Value is null,
+            "root rebase preserves present-null state");
     }
 }
 
