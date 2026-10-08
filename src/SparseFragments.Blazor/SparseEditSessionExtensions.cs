@@ -37,6 +37,28 @@ public static class SparseEditSessionExtensions
         editContext.MarkAsUnmodified();
     }
 
+    /// <summary>Accepts a previously generated change set and synchronizes Blazor modified state.</summary>
+    /// <remarks>
+    /// The session model instance is preserved; only the baseline advances. Later live
+    /// edits remain pending, so the context is cleared only when the session is clean.
+    /// </remarks>
+    public static void AcceptChanges<TModel, TFragment, TPatch, TChangeSet, TObservable>(
+        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+        EditContext editContext,
+        TChangeSet changes
+    )
+        where TModel : class
+        where TFragment : class
+        where TPatch : class
+        where TChangeSet : class
+        where TObservable : class
+    {
+        ValidateEditContext(session, editContext);
+        session.AcceptChanges(changes);
+        if (!session.HasChanges)
+            editContext.MarkAsUnmodified();
+    }
+
     /// <summary>Creates a validation store bound to the supplied session edit context.</summary>
     public static ValidationMessageStore CreateValidationStore<
         TModel,
