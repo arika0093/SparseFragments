@@ -234,11 +234,11 @@ public sealed class PatchEditState
         new()
         {
             EnabledOp = PatchKind.Unchanged,
-            RetryOp = PatchKind.Unchanged,
+            RetryOp = PatchKind.Unset,
             LabelOp = NullPatchKind.Set,
             LabelValue = "patched!",
             NestedOp = NestedPatchKind.Set,
-            HostOp = PatchKind.Unchanged,
+            HostOp = PatchKind.Unset,
             PortOp = PatchKind.Set,
             PortValue = 9000,
             PluginsOp = PatchKind.Unchanged,

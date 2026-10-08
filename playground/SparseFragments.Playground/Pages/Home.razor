@@ -174,9 +174,6 @@
         <span class="pg-hint">@RosterSummary</span>
     </div>
     <FluentTabs>
-        <FluentTab Label="ChangeSet (C#)" Id="roster-changeset-csharp">
-            <MonacoView Content="@RosterChangeSetCSharp" Language="csharp" Height="270px" />
-        </FluentTab>
         <FluentTab Label="Patch (C#)" Id="roster-patch-manual">
             <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
         </FluentTab>
@@ -272,7 +269,6 @@
     private string RosterBeforeFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterBefore)));
     private string RosterAfterFragmentJson => Try(() => PlaygroundJson.WriteRosterFragment(PlaygroundRoster.Fragment.From(RosterAfter)));
     private string RosterBeforeModelJson => Try(() => PlaygroundJson.WriteRosterModel(RosterBefore));
-    private string RosterChangeSetCSharp => PlaygroundSnippets.RosterChangeSetCSharp("before", "after");
     private string RosterManualCSharp => Try(RosterManualPatchText);
     private string RosterSummary => _rosterChanges is null
         ? "cannot diff: duplicate keys or invalid state"

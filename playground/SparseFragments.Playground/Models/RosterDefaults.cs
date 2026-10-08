@@ -19,15 +19,15 @@ public static class RosterDefaults
         };
     }
 
-    /// <summary>Creates the default after roster (remove a, edit b, reorder c first, add d).</summary>
+    /// <summary>Creates the default after roster (remove a, retitle b, add a score to c, add d).</summary>
     public static PlaygroundRoster After()
     {
         return new PlaygroundRoster
         {
             Quests = new List<PlaygroundQuest>
             {
-                new() { Id = "c", Title = "Third", Points = 30, Scores = new List<int> { 40, 50 } },
-                new() { Id = "b", Title = "Second v2", Points = 25, Scores = new List<int> { 30, 35 } },
+                new() { Id = "b", Title = "Second v2", Points = 20, Scores = new List<int> { 30 } },
+                new() { Id = "c", Title = "Third", Points = 30, Scores = new List<int> { 40, 50, 60 } },
                 new() { Id = "d", Title = "Fourth", Points = 5, Scores = new List<int> { 60 } },
             },
         };
