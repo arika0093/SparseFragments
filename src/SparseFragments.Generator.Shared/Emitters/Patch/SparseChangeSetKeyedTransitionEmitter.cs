@@ -38,6 +38,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         var optElement = runtime + "Optional<" + elementType + ">";
         var elementCs = ElementChangeSetOf(member);
         var elementFrag = ElementFragmentOf(member);
+        var optionalElementFragment = runtime + "Optional<" + elementFrag + "?>";
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
         var facade = dialect.RuntimeFacade;
@@ -185,7 +186,11 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             4,
             "public static Item Empty { get; } = new Item(default!, default, default, -1, -1, false, false, false, false, "
                 + elementCs
-                + ".Between(default, default), true);"
+                + ".Between("
+                + optionalElementFragment
+                + ".Missing, "
+                + optionalElementFragment
+                + ".Missing), true);"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(

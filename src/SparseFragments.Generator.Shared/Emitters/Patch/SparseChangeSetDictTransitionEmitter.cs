@@ -43,6 +43,7 @@ internal static class SparseChangeSetDictTransitionEmitter
         var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
         var valueCs = hasPatch ? ValueChangeSetOf(member) : null;
         var valueFrag = hasPatch ? ValueFragmentOf(member) : null;
+        var optionalValueFragment = hasPatch ? runtime + "Optional<" + valueFrag + "?>" : null;
         var editedType = hasPatch ? valueCs! : valueType;
         code.AppendLineAt(
             2,
@@ -204,7 +205,11 @@ internal static class SparseChangeSetDictTransitionEmitter
                 4,
                 "public static Item Empty { get; } = new Item(default!, default, default, false, false, false, "
                     + valueCs
-                    + ".Between(default, default), true);"
+                    + ".Between("
+                    + optionalValueFragment
+                    + ".Missing, "
+                    + optionalValueFragment
+                    + ".Missing), true);"
             );
         else
             code.AppendLineAt(

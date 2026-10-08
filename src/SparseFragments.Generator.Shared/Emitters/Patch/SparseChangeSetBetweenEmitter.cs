@@ -202,4 +202,30 @@ internal static class SparseChangeSetBetweenEmitter
         code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", args) + ");");
         code.AppendLineAt(2, "}");
     }
+
+    internal static void AppendModelBetween(
+        SharedIndentedBuilder code,
+        string modelType,
+        string optionalFragment
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public static ChangeSet Between(" + modelType + " before, " + modelType + " after)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "return Between("
+                + optionalFragment
+                + ".Present(Fragment.From(before)), "
+                + optionalFragment
+                + ".Present(Fragment.From(after)));"
+        );
+        code.AppendLineAt(2, "}");
+    }
 }

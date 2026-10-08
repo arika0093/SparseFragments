@@ -11,12 +11,19 @@ internal static class SparseChangeSetEmitter
     public static void AppendChangeSet(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
-    ) => AppendChangeSet(code, members, SparseFragmentPatchEmitter.StandaloneDialect());
+    ) => AppendChangeSet(code, members, SparseFragmentPatchEmitter.StandaloneDialect(), null);
 
     public static void AppendChangeSet(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    ) => AppendChangeSet(code, members, dialect, null);
+
+    public static void AppendChangeSet(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -52,6 +59,10 @@ internal static class SparseChangeSetEmitter
             optionalFragment,
             dialect
         );
+        if (modelType is not null)
+        {
+            SparseChangeSetBetweenEmitter.AppendModelBetween(code, modelType, optionalFragment);
+        }
         SparseChangeSetPatchSyncEmitter.AppendFromPatch(code, members, runtime, optionalFragment);
         SparseChangeSetPatchSyncEmitter.AppendToPatch(code, members, runtime, prefix, dialect);
         SparseChangeSetPatchSyncEmitter.AppendInvert(code, members, runtime, optionalFragment);

@@ -224,7 +224,9 @@
     private PlaygroundRoster RosterAfter = RosterDefaults.After();
     private PlaygroundRoster.ChangeSet? _rosterChanges;
     private static readonly PlaygroundRoster.ChangeSet EmptyRosterChangeSet =
-        PlaygroundRoster.ChangeSet.Between(default, default);
+        PlaygroundRoster.ChangeSet.Between(
+            Optional<PlaygroundRoster.Fragment?>.Missing,
+            Optional<PlaygroundRoster.Fragment?>.Missing);
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
     private string RosterBeforeTabId = "roster-before-csharp";

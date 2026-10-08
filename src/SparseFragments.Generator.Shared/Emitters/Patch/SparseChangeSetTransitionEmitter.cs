@@ -40,6 +40,8 @@ internal static class SparseChangeSetTransitionEmitter
             "Invert",
             "Compose",
             "RebaseOnto",
+            "ApplyTo",
+            "TryApplyTo",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         var propNames = new Dictionary<int, string>();
@@ -222,6 +224,7 @@ internal static class SparseChangeSetTransitionEmitter
     )
     {
         var childCs = ChildChangeSet(member, dialect);
+        var runtime = dialect.RuntimeNamespace;
         var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
         code.AppendLineAt(
             2,
@@ -252,7 +255,19 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "return " + NestedField(member) + " ?? " + childCs + ".Between(default, default);"
+            "return "
+                + NestedField(member)
+                + " ?? "
+                + childCs
+                + ".Between("
+                + runtime
+                + "Optional<"
+                + member.ChildFragmentType
+                + "?>.Missing, "
+                + runtime
+                + "Optional<"
+                + member.ChildFragmentType
+                + "?>.Missing);"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
