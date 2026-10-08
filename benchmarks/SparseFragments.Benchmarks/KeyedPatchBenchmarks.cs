@@ -663,9 +663,9 @@ public class KeyedRebaseBenchmarks
         var clean = Rebase_Clean();
         var alreadyApplied = Rebase_AlreadyApplied();
         var conflict = Rebase_Conflict();
-        var cleanItems = clean.Patch.Apply(_concurrentAddState).Value!.Items.Value!;
-        var appliedItems = alreadyApplied.Patch.Apply(_desiredState).Value!.Items.Value!;
-        var conflictItems = conflict.Patch.Apply(_divergentState).Value!.Items.Value!;
+        var cleanItems = clean.Rebased.Apply(_concurrentAddState).Value!.Items.Value!;
+        var appliedItems = alreadyApplied.Rebased.Apply(_desiredState).Value!.Items.Value!;
+        var conflictItems = conflict.Rebased.Apply(_divergentState).Value!.Items.Value!;
         if (
             clean.HasConflicts
             || alreadyApplied.HasConflicts

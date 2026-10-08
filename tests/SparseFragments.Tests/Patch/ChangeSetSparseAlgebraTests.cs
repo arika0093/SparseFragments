@@ -35,7 +35,13 @@ public sealed class ChangeSetSparseAlgebraTests
             ),
         };
 
-    private static KeyedServer Srv(string id, string name) => new() { Id = id, Name = name, Count = 1 };
+    private static KeyedServer Srv(string id, string name) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            Count = 1,
+        };
 
     private static Optional<KeyedServerHolder.Fragment?> KState(params KeyedServer[] items) =>
         Optional<KeyedServerHolder.Fragment?>.Present(
@@ -55,7 +61,10 @@ public sealed class ChangeSetSparseAlgebraTests
     {
         // First changes Label only; second was produced from an unrelated Label snapshot
         // and changes RetryCount only. Unrelated state must not prevent composition.
-        var first = Settings.ChangeSet.Between(Present(State("Alice", 1)), Present(State("Bob", 1)));
+        var first = Settings.ChangeSet.Between(
+            Present(State("Alice", 1)),
+            Present(State("Bob", 1))
+        );
         var second = Settings.ChangeSet.Between(
             Present(State("unrelated", 20)),
             Present(State("unrelated", 21))
@@ -81,7 +90,10 @@ public sealed class ChangeSetSparseAlgebraTests
     {
         // Host and Port leaves share the Nested parent but change independently and were
         // produced from differing Host snapshots. No whole-Database equality is required.
-        var first = Settings.ChangeSet.Between(Present(NestState("a", 1)), Present(NestState("b", 1)));
+        var first = Settings.ChangeSet.Between(
+            Present(NestState("a", 1)),
+            Present(NestState("b", 1))
+        );
         var second = Settings.ChangeSet.Between(
             Present(NestState("unrelated", 1)),
             Present(NestState("unrelated", 2))
@@ -106,8 +118,14 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void ContiguousOverlappingScalarCompose()
     {
-        var first = Settings.ChangeSet.Between(Present(State("Alice", 1)), Present(State("Bob", 1)));
-        var second = Settings.ChangeSet.Between(Present(State("Bob", 1)), Present(State("Carol", 1)));
+        var first = Settings.ChangeSet.Between(
+            Present(State("Alice", 1)),
+            Present(State("Bob", 1))
+        );
+        var second = Settings.ChangeSet.Between(
+            Present(State("Bob", 1)),
+            Present(State("Carol", 1))
+        );
 
         var composed = first.Compose(second);
 
@@ -124,8 +142,14 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void RoundTripComposeNormalizesToNoOp()
     {
-        var first = Settings.ChangeSet.Between(Present(State("Alice", 1)), Present(State("Bob", 1)));
-        var second = Settings.ChangeSet.Between(Present(State("Bob", 1)), Present(State("Alice", 1)));
+        var first = Settings.ChangeSet.Between(
+            Present(State("Alice", 1)),
+            Present(State("Bob", 1))
+        );
+        var second = Settings.ChangeSet.Between(
+            Present(State("Bob", 1)),
+            Present(State("Alice", 1))
+        );
 
         first.Compose(second).IsEmpty.ShouldBeTrue();
     }
@@ -133,7 +157,10 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void NonContiguousOverlappingScalarThrows()
     {
-        var first = Settings.ChangeSet.Between(Present(State("Alice", 1)), Present(State("Bob", 1)));
+        var first = Settings.ChangeSet.Between(
+            Present(State("Alice", 1)),
+            Present(State("Bob", 1))
+        );
         var broken = Settings.ChangeSet.Between(
             Present(State("Dave", 9)),
             Present(State("Carol", 9))
@@ -147,7 +174,9 @@ public sealed class ChangeSetSparseAlgebraTests
     public void MissingNullValueContinuity()
     {
         // Missing -> "x" then "x" -> Missing collapses back to no change on that path.
-        var missingBefore = Present(new Settings.Fragment { RetryCount = Optional<int>.Present(3) });
+        var missingBefore = Present(
+            new Settings.Fragment { RetryCount = Optional<int>.Present(3) }
+        );
         var set = Present(State("x", 3));
         var create = Settings.ChangeSet.Between(missingBefore, set);
         var remove = Settings.ChangeSet.Between(set, missingBefore);
@@ -196,7 +225,16 @@ public sealed class ChangeSetSparseAlgebraTests
         KeyedServer S(string id) => Srv(id, id);
         var s0 = KState(S("a"), S("b"), S("c"));
         var s1 = KState(S("b"), S("a"), S("c"));
-        var s2 = KState(S("b"), new KeyedServer { Id = "a", Name = "A2", Count = 1 }, S("c"));
+        var s2 = KState(
+            S("b"),
+            new KeyedServer
+            {
+                Id = "a",
+                Name = "A2",
+                Count = 1,
+            },
+            S("c")
+        );
         var first = KeyedServerHolder.ChangeSet.Between(s0, s1);
         var second = KeyedServerHolder.ChangeSet.Between(s1, s2);
 
@@ -211,7 +249,10 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void NonContiguousKeyedComposeThrows()
     {
-        var first = KeyedServerHolder.ChangeSet.Between(KState(Srv("a", "A")), KState(Srv("a", "A"), Srv("b", "B")));
+        var first = KeyedServerHolder.ChangeSet.Between(
+            KState(Srv("a", "A")),
+            KState(Srv("a", "A"), Srv("b", "B"))
+        );
         var broken = KeyedServerHolder.ChangeSet.Between(
             KState(Srv("a", "A"), Srv("x", "X")),
             KState(Srv("a", "A"))
@@ -238,10 +279,7 @@ public sealed class ChangeSetSparseAlgebraTests
         var deletion = Settings.ChangeSet.Between(s1, missing);
         var first = Settings.ChangeSet.Between(Present(State("zero", 1)), s1);
         var composedDeletion = first.Compose(deletion);
-        AssertSameSettings(
-            composedDeletion.ToPatch().Apply(Present(State("zero", 1))),
-            missing
-        );
+        AssertSameSettings(composedDeletion.ToPatch().Apply(Present(State("zero", 1))), missing);
 
         // Mismatched shared baseline still throws on the overlapping path.
         var other = Settings.ChangeSet.Between(Present(State("other", 9)), s2);
@@ -253,18 +291,21 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void RebaseUnrelatedConcurrentChangeNeedsNoBaseline()
     {
-        var changes = Settings.ChangeSet.Between(Present(State("Alice", 20)), Present(State("Alice", 21)));
+        var changes = Settings.ChangeSet.Between(
+            Present(State("Alice", 20)),
+            Present(State("Alice", 21))
+        );
         var current = Present(State("Bob", 20));
 
         var result = changes.RebaseOnto(current);
 
         result.HasConflicts.ShouldBeFalse();
         // The rebased transition is relative to the supplied current state.
-        result.Patch.RetryCount.IsChanged.ShouldBeTrue();
-        result.Patch.RetryCount.Before.Value.ShouldBe(20);
-        result.Patch.RetryCount.After.Value.ShouldBe(21);
-        result.Patch.Label.IsChanged.ShouldBeFalse();
-        AssertSameSettings(result.Patch.ToPatch().Apply(current), Present(State("Bob", 21)));
+        result.Rebased.RetryCount.IsChanged.ShouldBeTrue();
+        result.Rebased.RetryCount.Before.Value.ShouldBe(20);
+        result.Rebased.RetryCount.After.Value.ShouldBe(21);
+        result.Rebased.Label.IsChanged.ShouldBeFalse();
+        AssertSameSettings(result.Rebased.ToPatch().Apply(current), Present(State("Bob", 21)));
     }
 
     [Test]
@@ -277,13 +318,16 @@ public sealed class ChangeSetSparseAlgebraTests
         var result = changes.RebaseOnto(after);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.IsEmpty.ShouldBeTrue();
+        result.Rebased.IsEmpty.ShouldBeTrue();
     }
 
     [Test]
     public void ScalarConflictKeepsCleanPath()
     {
-        var changes = Settings.ChangeSet.Between(Present(State("Alice", 1)), Present(State("Bob", 2)));
+        var changes = Settings.ChangeSet.Between(
+            Present(State("Alice", 1)),
+            Present(State("Bob", 2))
+        );
         var current = Present(State("Carol", 1));
 
         var result = changes.RebaseOnto(current);
@@ -291,12 +335,12 @@ public sealed class ChangeSetSparseAlgebraTests
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Count.ShouldBe(1);
         result.Conflicts[0].Path.ShouldBe(["Label"]);
-        result.Conflicts[0].Kind.ShouldBe(SparsePatchConflictKind.Scalar);
+        result.Conflicts[0].Kind.ShouldBe(SparseConflictKind.Scalar);
         // The non-conflicting path stays available relative to current.
-        result.Patch.Label.IsChanged.ShouldBeFalse();
-        result.Patch.RetryCount.IsChanged.ShouldBeTrue();
-        result.Patch.RetryCount.After.Value.ShouldBe(2);
-        AssertSameSettings(result.Patch.ToPatch().Apply(current), Present(State("Carol", 2)));
+        result.Rebased.Label.IsChanged.ShouldBeFalse();
+        result.Rebased.RetryCount.IsChanged.ShouldBeTrue();
+        result.Rebased.RetryCount.After.Value.ShouldBe(2);
+        AssertSameSettings(result.Rebased.ToPatch().Apply(current), Present(State("Carol", 2)));
     }
 
     [Test]
@@ -320,30 +364,52 @@ public sealed class ChangeSetSparseAlgebraTests
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Count.ShouldBe(1);
         result.Conflicts[0].Path.ShouldBe(["Nested", "Host"]);
-        result.Patch.Label.IsChanged.ShouldBeTrue();
-        result.Patch.Label.After.Value.ShouldBe("L1");
-        AssertSameSettings(result.Patch.ToPatch().Apply(current), Both("L1", "c"));
+        result.Rebased.Label.IsChanged.ShouldBeTrue();
+        result.Rebased.Label.After.Value.ShouldBe("L1");
+        AssertSameSettings(result.Rebased.ToPatch().Apply(current), Both("L1", "c"));
     }
 
     [Test]
     public void KeyedConcurrentAddMergesCleanly()
     {
         var before = KState(Srv("a", "x"), Srv("b", "B"));
-        var edited = KState(new KeyedServer { Id = "a", Name = "y", Count = 1 }, Srv("b", "B"));
+        var edited = KState(
+            new KeyedServer
+            {
+                Id = "a",
+                Name = "y",
+                Count = 1,
+            },
+            Srv("b", "B")
+        );
         var current = KState(Srv("a", "x"), Srv("b", "B"), Srv("c", "C"));
         var changes = KeyedServerHolder.ChangeSet.Between(before, edited);
 
         var result = changes.RebaseOnto(current);
 
         result.HasConflicts.ShouldBeFalse();
-        var expected = KState(new KeyedServer { Id = "a", Name = "y", Count = 1 }, Srv("b", "B"), Srv("c", "C"));
-        KeyedServerHolder.Patch.Between(result.Patch.ToPatch().Apply(current), expected).IsEmpty.ShouldBeTrue();
+        var expected = KState(
+            new KeyedServer
+            {
+                Id = "a",
+                Name = "y",
+                Count = 1,
+            },
+            Srv("b", "B"),
+            Srv("c", "C")
+        );
+        KeyedServerHolder
+            .Patch.Between(result.Rebased.ToPatch().Apply(current), expected)
+            .IsEmpty.ShouldBeTrue();
     }
 
     [Test]
     public void KeyedEditConflictReported()
     {
-        var changes = KeyedServerHolder.ChangeSet.Between(KState(Srv("a", "x")), KState(Srv("a", "y")));
+        var changes = KeyedServerHolder.ChangeSet.Between(
+            KState(Srv("a", "x")),
+            KState(Srv("a", "y"))
+        );
 
         var result = changes.RebaseOnto(KState(Srv("a", "z")));
 
@@ -367,14 +433,18 @@ public sealed class ChangeSetSparseAlgebraTests
         var merged = changes.RebaseOnto(PluginsOf("p1", "p3"));
 
         merged.HasConflicts.ShouldBeFalse();
-        merged.Patch.Plugins.IsChanged.ShouldBeTrue();
-        merged.Patch.Plugins.After.Value.ShouldBe(["p1", "p3", "p2"]);
-        Settings.Patch.Between(merged.Patch.ToPatch().Apply(PluginsOf("p1", "p3")), PluginsOf("p1", "p3", "p2"))
+        merged.Rebased.Plugins.IsChanged.ShouldBeTrue();
+        merged.Rebased.Plugins.After.Value.ShouldBe(["p1", "p3", "p2"]);
+        Settings
+            .Patch.Between(
+                merged.Rebased.ToPatch().Apply(PluginsOf("p1", "p3")),
+                PluginsOf("p1", "p3", "p2")
+            )
             .IsEmpty.ShouldBeTrue();
 
         var diverged = changes.RebaseOnto(PluginsOf("other"));
         diverged.HasConflicts.ShouldBeTrue();
-        diverged.Conflicts[0].Kind.ShouldBe(SparsePatchConflictKind.CollectionAppend);
+        diverged.Conflicts[0].Kind.ShouldBe(SparseConflictKind.CollectionAppend);
         diverged.Conflicts[0].Path.ShouldBe(["Plugins"]);
     }
 
@@ -392,14 +462,15 @@ public sealed class ChangeSetSparseAlgebraTests
         var merged = changes.RebaseOnto(SetOf("a", "c"));
 
         merged.HasConflicts.ShouldBeFalse();
-        SetSettings.Patch.Between(merged.Patch.ToPatch().Apply(SetOf("a", "c")), SetOf("a", "c", "b"))
+        SetSettings
+            .Patch.Between(merged.Rebased.ToPatch().Apply(SetOf("a", "c")), SetOf("a", "c", "b"))
             .IsEmpty.ShouldBeTrue();
 
         // A removal edit cannot merge beside a concurrent change.
         var removal = SetSettings.ChangeSet.Between(SetOf("a", "b"), SetOf("a"));
         var conflicted = removal.RebaseOnto(SetOf("a", "b", "c"));
         conflicted.HasConflicts.ShouldBeTrue();
-        conflicted.Conflicts[0].Kind.ShouldBe(SparsePatchConflictKind.CollectionSetUnion);
+        conflicted.Conflicts[0].Kind.ShouldBe(SparseConflictKind.CollectionSetUnion);
     }
 
     [Test]
@@ -413,16 +484,16 @@ public sealed class ChangeSetSparseAlgebraTests
 
         var replayed = changes.RebaseOnto(ValuesOf(1, 2));
         replayed.HasConflicts.ShouldBeFalse();
-        replayed.Patch.Values.IsChanged.ShouldBeTrue();
-        replayed.Patch.Values.Before.Value.ShouldBe([1, 2]);
-        replayed.Patch.Values.After.Value.ShouldBe([3, 4]);
+        replayed.Rebased.Values.IsChanged.ShouldBeTrue();
+        replayed.Rebased.Values.Before.Value.ShouldBe([1, 2]);
+        replayed.Rebased.Values.After.Value.ShouldBe([3, 4]);
 
         var applied = changes.RebaseOnto(ValuesOf(3, 4));
         applied.HasConflicts.ShouldBeFalse();
-        applied.Patch.IsEmpty.ShouldBeTrue();
+        applied.Rebased.IsEmpty.ShouldBeTrue();
 
         var conflicted = changes.RebaseOnto(ValuesOf(9, 9));
         conflicted.HasConflicts.ShouldBeTrue();
-        conflicted.Conflicts[0].Kind.ShouldBe(SparsePatchConflictKind.CustomStrategy);
+        conflicted.Conflicts[0].Kind.ShouldBe(SparseConflictKind.CustomStrategy);
     }
 }

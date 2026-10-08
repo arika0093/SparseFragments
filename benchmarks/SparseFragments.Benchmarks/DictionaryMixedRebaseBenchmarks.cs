@@ -64,8 +64,8 @@ public class DictionaryMixedRebaseBenchmarks
         );
         var scalar = Scalar();
         var value = Structural();
-        var scalarActual = scalar.Patch.Apply(_scalarCurrent).Value!.Scores.Value!;
-        var valueActual = value.Patch.Apply(_valueCurrent).Value!.Values.Value!;
+        var scalarActual = scalar.Rebased.Apply(_scalarCurrent).Value!.Scores.Value!;
+        var valueActual = value.Rebased.Apply(_valueCurrent).Value!.Values.Value!;
         var expected = new Dictionary<string, int>(current, comparer) { ["local"] = -4 };
         if (!ConflictingEdits)
         {

@@ -86,7 +86,7 @@ public class SetUnionRebaseBenchmarks
             out var reason
         );
         var generated = Generated();
-        var actual = generated.Patch.Apply(_generatedCurrent).Value!.Values.Value!;
+        var actual = generated.Rebased.Apply(_generatedCurrent).Value!.Values.Value!;
         var conflict = Scenario == SetReplayScenario.RemovalConflict;
         if (
             success == conflict

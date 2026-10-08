@@ -131,34 +131,39 @@ public sealed class ListClassPatchTests
         empty.Items.IsPresent.ShouldBeTrue();
         empty.Items.Value.ShouldBeEmpty();
 
-        ClassListHolder.Patch.Between(
-            Optional<ClassListHolder.Fragment?>.Present(missing),
-            Optional<ClassListHolder.Fragment?>.Present(empty)
-        ).IsEmpty.ShouldBeFalse();
+        ClassListHolder
+            .Patch.Between(
+                Optional<ClassListHolder.Fragment?>.Present(missing),
+                Optional<ClassListHolder.Fragment?>.Present(empty)
+            )
+            .IsEmpty.ShouldBeFalse();
 
         // Distinct empty-list instances compare equal.
-        ClassListHolder.Patch.Between(
-            Optional<ClassListHolder.Fragment?>.Present(empty),
-            Optional<ClassListHolder.Fragment?>.Present(new ClassListHolder.Fragment
-            {
-                Items = Optional<List<ListChildItem>>.Present(new List<ListChildItem>()),
-            })
-        ).IsEmpty.ShouldBeTrue();
+        ClassListHolder
+            .Patch.Between(
+                Optional<ClassListHolder.Fragment?>.Present(empty),
+                Optional<ClassListHolder.Fragment?>.Present(
+                    new ClassListHolder.Fragment
+                    {
+                        Items = Optional<List<ListChildItem>>.Present(new List<ListChildItem>()),
+                    }
+                )
+            )
+            .IsEmpty.ShouldBeTrue();
 
-        ClassListHolder.Patch.Between(
-            Optional<ClassListHolder.Fragment?>.Present(empty),
-            Optional<ClassListHolder.Fragment?>.Present(populated)
-        ).IsEmpty.ShouldBeFalse();
+        ClassListHolder
+            .Patch.Between(
+                Optional<ClassListHolder.Fragment?>.Present(empty),
+                Optional<ClassListHolder.Fragment?>.Present(populated)
+            )
+            .IsEmpty.ShouldBeFalse();
     }
 
     [Test]
     public void PatchReplacesWholeListAndPreservesOriginal()
     {
         var original = ClassListHolder.Fragment.From(Model(Item("a"), Item("b")));
-        var patch = new ClassListHolder.Patch
-        {
-            Items = new List<ListChildItem> { Item("c", 9) },
-        };
+        var patch = new ClassListHolder.Patch { Items = new List<ListChildItem> { Item("c", 9) } };
 
         patch.IsEmpty.ShouldBeFalse();
         new ClassListHolder.Patch().IsEmpty.ShouldBeTrue();
@@ -197,10 +202,7 @@ public sealed class ListClassPatchTests
             new NullableClassListHolder { Items = new List<ListChildItem> { Item("a") } }
         );
 
-        var toNull = new NullableClassListHolder.Patch
-        {
-            Items = (List<ListChildItem>?)null,
-        };
+        var toNull = new NullableClassListHolder.Patch { Items = (List<ListChildItem>?)null };
         var nulled = basis.Apply(toNull);
         nulled.Items.IsPresent.ShouldBeTrue();
         nulled.Items.Value.ShouldBeNull();
@@ -209,13 +211,12 @@ public sealed class ListClassPatchTests
         {
             Items = FragmentOperation<List<ListChildItem>?>.Remove,
         };
-        unset.Apply(Optional<NullableClassListHolder.Fragment?>.Present(nulled)).Value!.Items.IsPresent.ShouldBeFalse();
+        unset
+            .Apply(Optional<NullableClassListHolder.Fragment?>.Present(nulled))
+            .Value!.Items.IsPresent.ShouldBeFalse();
         nulled.Apply(unset).Items.IsPresent.ShouldBeFalse();
 
-        var toEmpty = new NullableClassListHolder.Patch
-        {
-            Items = new List<ListChildItem>(),
-        };
+        var toEmpty = new NullableClassListHolder.Patch { Items = new List<ListChildItem>() };
         var emptied = basis.Apply(toEmpty);
         emptied.Items.IsPresent.ShouldBeTrue();
         emptied.Items.Value.ShouldNotBeNull();
@@ -263,8 +264,11 @@ public sealed class ListClassPatchTests
         var diff = ClassListHolder.Fragment.Diff(before, after);
 
         diff.Items.IsPresent.ShouldBeTrue();
-        ClassListHolder.Fragment.From(before).ApplyChanges(diff).Items.Value!
-            .Select(item => item.Name).ShouldBe(["b", "a"]);
+        ClassListHolder
+            .Fragment.From(before)
+            .ApplyChanges(diff)
+            .Items.Value!.Select(item => item.Name)
+            .ShouldBe(["b", "a"]);
     }
 
     [Test]
@@ -326,10 +330,7 @@ public sealed class ListClassPatchTests
                 ClassListHolder.Fragment.From(Model(Item("x")))
             )
         );
-        var second = new ClassListHolder.Patch
-        {
-            Items = new List<ListChildItem> { Item("y") },
-        };
+        var second = new ClassListHolder.Patch { Items = new List<ListChildItem> { Item("y") } };
         SameFragment(second.Apply(first.Apply(before)), first.Compose(second).Apply(before))
             .ShouldBeTrue();
 
@@ -353,7 +354,10 @@ public sealed class ListClassPatchTests
         // Whole-list replacement: no per-element nested patch, just Set.
         var patch = new FragmentChildListHolder.Patch
         {
-            Items = new List<FragmentChild> { new() { Name = "c", Count = 3 } },
+            Items = new List<FragmentChild>
+            {
+                new() { Name = "c", Count = 3 },
+            },
         };
 
         var result = original.Apply(patch);
@@ -363,16 +367,25 @@ public sealed class ListClassPatchTests
 
         var before = new FragmentChildListHolder
         {
-            Items = new List<FragmentChild> { new() { Name = "a", Count = 1 } },
+            Items = new List<FragmentChild>
+            {
+                new() { Name = "a", Count = 1 },
+            },
         };
         var after = new FragmentChildListHolder
         {
-            Items = new List<FragmentChild> { new() { Name = "b", Count = 2 } },
+            Items = new List<FragmentChild>
+            {
+                new() { Name = "b", Count = 2 },
+            },
         };
         var diff = FragmentChildListHolder.Fragment.Diff(before, after);
         diff.Items.IsPresent.ShouldBeTrue();
-        FragmentChildListHolder.Fragment.From(before).ApplyChanges(diff)
-            .Items.Value!.Single().Name.ShouldBe("b");
+        FragmentChildListHolder
+            .Fragment.From(before)
+            .ApplyChanges(diff)
+            .Items.Value!.Single()
+            .Name.ShouldBe("b");
 
         // Elements are deep-cloned through From.
         var source = new FragmentChild { Name = "a", Count = 1 };
@@ -390,10 +403,7 @@ public sealed class ListClassPatchTests
             Optional<ClassListHolder.Fragment?>.Present(ClassListHolder.Fragment.From(model));
 
         var baseState = State(Model(Item("a")));
-        var local = new ClassListHolder.Patch
-        {
-            Items = new List<ListChildItem> { Item("b") },
-        };
+        var local = new ClassListHolder.Patch { Items = new List<ListChildItem> { Item("b") } };
 
         // Current untouched (same sparse state): local edit survives.
         // NOTE: List<plain class> uses reference equality for elements, so a
@@ -401,23 +411,19 @@ public sealed class ListClassPatchTests
         // Reuse the same state to mean "untouched".
         var kept = ClassListHolder.Patch.Rebase(baseState, local, baseState);
         kept.HasConflicts.ShouldBeFalse();
-        kept.Patch.Apply(baseState).Value!.Items.Value!.Single().Name.ShouldBe("b");
+        kept.Rebased.Apply(baseState).Value!.Items.Value!.Single().Name.ShouldBe("b");
 
         // Already applied: becomes a no-op.
         var desired = local.Apply(baseState);
         var alreadyApplied = ClassListHolder.Patch.Rebase(baseState, local, desired);
         alreadyApplied.HasConflicts.ShouldBeFalse();
-        alreadyApplied.Patch.IsEmpty.ShouldBeTrue();
+        alreadyApplied.Rebased.IsEmpty.ShouldBeTrue();
 
         // Concurrent divergent edit: scalar conflict on Items.
-        var conflicted = ClassListHolder.Patch.Rebase(
-            baseState,
-            local,
-            State(Model(Item("c")))
-        );
+        var conflicted = ClassListHolder.Patch.Rebase(baseState, local, State(Model(Item("c"))));
         conflicted.HasConflicts.ShouldBeTrue();
         conflicted.Conflicts.Single().Path.ShouldBe(["Items"]);
-        conflicted.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.Scalar);
+        conflicted.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.Scalar);
     }
 
     private static bool SameFragment(

@@ -283,11 +283,11 @@ internal static class SparseChangeSetDictRebaseEmitter
                     + lit
                     + "));"
             );
-            code.AppendLineAt(7, "if (__nr.Conflicts.Count == 0 && !__nr.Patch.IsEmpty)");
+            code.AppendLineAt(7, "if (__nr.Conflicts.Count == 0 && !__nr.Rebased.IsEmpty)");
             code.AppendLineAt(7, "{");
             code.AppendLineAt(
                 8,
-                "var __applied = __nr.Patch.ToPatch().Apply("
+                "var __applied = __nr.Rebased.ToPatch().Apply("
                     + runtime
                     + "Optional<"
                     + valueFrag
@@ -315,7 +315,7 @@ internal static class SparseChangeSetDictRebaseEmitter
                     + id
                     + ".Add(new "
                     + trans
-                    + ".Item(__it.Key!, __nb, __na2, false, false, true, __nr.Patch, false));"
+                    + ".Item(__it.Key!, __nb, __na2, false, false, true, __nr.Rebased, false));"
             );
             code.AppendLineAt(8, "}");
             code.AppendLineAt(7, "}");

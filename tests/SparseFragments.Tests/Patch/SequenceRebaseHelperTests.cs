@@ -210,13 +210,16 @@ public sealed class SequenceRebaseHelperTests
     public void GeneratedSequenceSetUnionRebasesCleanUnion()
     {
         var baseState = FragmentState(["a"]);
-        var local = new SequenceSetSettings.Patch { Values = new List<string> { "a", "b" } };
+        var local = new SequenceSetSettings.Patch
+        {
+            Values = new List<string> { "a", "b" },
+        };
         var currentState = FragmentState(["a", "c"]);
 
         var result = SequenceSetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var values = Apply(result.Patch, currentState).Value!.Values.Value!;
+        var values = Apply(result.Rebased, currentState).Value!.Values.Value!;
         values.ShouldBe(["a", "c", "b"]);
     }
 
@@ -230,7 +233,7 @@ public sealed class SequenceRebaseHelperTests
         var result = SequenceSetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeTrue();
-        result.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.CollectionSetUnion);
+        result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionSetUnion);
         result.Conflicts.Single().Path.ShouldBe(["Values"]);
     }
 
@@ -243,7 +246,7 @@ public sealed class SequenceRebaseHelperTests
         var result = SequenceSetSettings.Patch.Rebase(baseState, local, baseState);
 
         result.HasConflicts.ShouldBeFalse();
-        Apply(result.Patch, baseState).Value!.Values.Value!.ShouldBe(["a"]);
+        Apply(result.Rebased, baseState).Value!.Values.Value!.ShouldBe(["a"]);
     }
 
     private static (

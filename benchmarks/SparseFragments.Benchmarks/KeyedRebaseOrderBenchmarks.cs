@@ -67,7 +67,7 @@ public class KeyedRebaseOrderBenchmarks
         _current = State(current);
         _local = BenchValueKeyedHolder.Patch.Between(_before, State(desired));
         var result = Rebase();
-        var actual = result.Patch.Apply(_current).Value!.Items.Value!;
+        var actual = result.Rebased.Apply(_current).Value!.Items.Value!;
         var expected = mixed
             ? current
                 .Where(item => conflictingEdits || item.Id != 0)

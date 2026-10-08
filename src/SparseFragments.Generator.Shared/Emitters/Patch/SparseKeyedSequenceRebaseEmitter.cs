@@ -435,13 +435,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
             );
             code.AppendLineAt(
                 6,
-                "if (!nested.HasConflicts && !nested.Patch.__SparseIsEmpty()) (result.__edited ??= new global::System.Collections.Generic.Dictionary<"
+                "if (!nested.HasConflicts && !nested.Rebased.__SparseIsEmpty()) (result.__edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
                     + ", "
                     + elementPatch
                     + ">("
                     + comparer
-                    + "))[k] = nested.Patch;"
+                    + "))[k] = nested.Rebased;"
             );
             code.AppendLineAt(
                 6,

@@ -81,16 +81,16 @@ public sealed class SparseSubmitResult
 {
     internal SparseSubmitResult(
         SparseSubmitStatus status,
-        IReadOnlyList<SparsePatchConflict>? conflicts = null
+        IReadOnlyList<SparseConflict>? conflicts = null
     )
     {
         Status = status;
-        Conflicts = conflicts ?? System.Array.Empty<SparsePatchConflict>();
+        Conflicts = conflicts ?? System.Array.Empty<SparseConflict>();
     }
 
     /// <summary>The submit outcome.</summary>
     public SparseSubmitStatus Status { get; }
 
     /// <summary>Conflicts reported while rebasing against server state.</summary>
-    public IReadOnlyList<SparsePatchConflict> Conflicts { get; }
+    public IReadOnlyList<SparseConflict> Conflicts { get; }
 }

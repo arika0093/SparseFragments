@@ -57,7 +57,7 @@ public class DictionaryRebaseComparerBenchmarks
         _current = State(current);
         _local = BenchScalarDictHolder.Patch.Between(_before, State(desired));
         var result = Rebase();
-        var actual = result.Patch.Apply(_current).Value!.Scores.Value!;
+        var actual = result.Rebased.Apply(_current).Value!.Scores.Value!;
         var conflict = Scenario == DictionaryRebaseScenario.Conflict;
         if (
             result.HasConflicts != conflict

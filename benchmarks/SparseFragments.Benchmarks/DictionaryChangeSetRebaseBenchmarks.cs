@@ -48,15 +48,15 @@ public class DictionaryChangeSetRebaseBenchmarks
         var conflict = State == DictionaryChangeSetRebaseState.Conflict;
         var replay = State == DictionaryChangeSetRebaseState.Replay;
         var expected = replay ? after : _current;
-        var applied = result.Patch.ToPatch().Apply(_current);
+        var applied = result.Rebased.ToPatch().Apply(_current);
         if (
             _change.IsEmpty
             || result.HasConflicts != conflict
             || result.Conflicts.Count != (conflict ? Size : 0)
-            || result.Patch.IsEmpty == replay
+            || result.Rebased.IsEmpty == replay
             || !BenchScalarDictHolder.Patch.Between(applied, expected).IsEmpty
             || !BenchScalarDictHolder
-                .Patch.Between(result.Patch.Invert().ToPatch().Apply(applied), _current)
+                .Patch.Between(result.Rebased.Invert().ToPatch().Apply(applied), _current)
                 .IsEmpty
             || !_current.Value.Scores.Value!.SequenceEqual(original)
             || !BenchScalarDictHolder.Patch.Between(before, Fragment(0)).IsEmpty
@@ -88,18 +88,18 @@ public class DictionaryChangeSetRebaseBenchmarks
         var change = BenchEqualityDictHolder.ChangeSet.Between(before, after);
         var current = EqualityFragment(0);
         var replay = change.RebaseOnto(current);
-        var applied = replay.Patch.ToPatch().Apply(current);
+        var applied = replay.Rebased.ToPatch().Apply(current);
         var alreadyApplied = change.RebaseOnto(EqualityFragment(1));
         if (
             change.IsEmpty
             || replay.HasConflicts
-            || replay.Patch.IsEmpty
+            || replay.Rebased.IsEmpty
             || !BenchEqualityDictHolder.Patch.Between(applied, after).IsEmpty
             || !BenchEqualityDictHolder
-                .Patch.Between(replay.Patch.Invert().ToPatch().Apply(applied), before)
+                .Patch.Between(replay.Rebased.Invert().ToPatch().Apply(applied), before)
                 .IsEmpty
             || alreadyApplied.HasConflicts
-            || !alreadyApplied.Patch.IsEmpty
+            || !alreadyApplied.Rebased.IsEmpty
         )
         {
             throw new InvalidOperationException(
@@ -120,7 +120,7 @@ public class DictionaryChangeSetRebaseBenchmarks
             !customResult.HasConflicts
             || customResult.Conflicts.Count != 1
             || customResult.Conflicts[0].PathText != "CustomValues.key"
-            || !customResult.Patch.IsEmpty
+            || !customResult.Rebased.IsEmpty
         )
         {
             throw new InvalidOperationException("Custom struct rebase must use object equality.");

@@ -47,10 +47,7 @@ Require(
     "patch composition"
 );
 var between = Settings.Patch.Between(before, applied);
-Require(
-    between.Apply(before).Value!.Child.Value!.Host.Value == "next",
-    "sparse Between"
-);
+Require(between.Apply(before).Value!.Child.Value!.Host.Value == "next", "sparse Between");
 var upstream = original.ToBuilder();
 upstream.Label = Optional<string?>.Present("upstream");
 var local = new Settings.Patch();
@@ -61,7 +58,7 @@ var rebased = Settings.Patch.Rebase(
     Optional<Settings.Fragment?>.Present(upstream.Build())
 );
 Require(!rebased.HasConflicts, "structured rebase");
-var replayed = rebased.Patch.Apply(Optional<Settings.Fragment?>.Present(upstream.Build()));
+var replayed = rebased.Rebased.Apply(Optional<Settings.Fragment?>.Present(upstream.Build()));
 Require(
     replayed.Value!.Label.Value == "upstream" && replayed.Value.Child.Value!.Count.Value == 12,
     "replay on current state"

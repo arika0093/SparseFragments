@@ -79,9 +79,9 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __local = ToPatch();");
         code.AppendLineAt(4, "var __rb = " + rebase + "(__sparse_wholeBefore, __local, current);");
-        code.AppendLineAt(4, "if (__rb.Conflicts.Count == 0 && __rb.Patch.__SparseIsEmpty())");
+        code.AppendLineAt(4, "if (__rb.Conflicts.Count == 0 && __rb.Rebased.__SparseIsEmpty())");
         code.AppendLineAt(5, "return " + rebaseResult + ".Success(Between(current, current));");
-        code.AppendLineAt(4, "var __ra = __rb.Patch.Apply(current);");
+        code.AppendLineAt(4, "var __ra = __rb.Rebased.Apply(current);");
         code.AppendLineAt(
             4,
             "return new " + rebaseResult + "(Between(current, __ra), __rb.Conflicts);"
@@ -194,9 +194,9 @@ internal static class SparseChangeSetRebaseEmitter
                         + member.Id
                         + " = __nr"
                         + member.Id
-                        + ".Patch.IsEmpty ? null : __nr"
+                        + ".Rebased.IsEmpty ? null : __nr"
                         + member.Id
-                        + ".Patch;"
+                        + ".Rebased;"
                 );
                 code.AppendLineAt(4, "}");
             }
@@ -482,7 +482,7 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(5, "conflicts = __rebase.Conflicts;");
         code.AppendLineAt(5, "return false;");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "__toApply = __rebase.Patch;");
+        code.AppendLineAt(4, "__toApply = __rebase.Rebased;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "var __applied = __toApply.ToPatch().Apply(__state);");
         code.AppendLineAt(

@@ -43,7 +43,7 @@ public sealed class PatchAlgebraNamingTests
         var composed = patch.SparseCompose(new AlgebraNamedRoot.Patch { Compose = 8 });
         var rebased = AlgebraNamedRoot.Patch.SparseRebase(before, composed, before);
         rebased.HasConflicts.ShouldBeFalse();
-        var result = Apply(rebased.Patch, before).Value!;
+        var result = Apply(rebased.Rebased, before).Value!;
         result.Compose.Value.ShouldBe(8);
         result.@class.Value.ShouldBe(5);
         result.Child.Value!.Compose.Value.ShouldBe(6);
@@ -53,7 +53,7 @@ public sealed class PatchAlgebraNamingTests
         restored.Child.Value!.Compose.Value.ShouldBe(3);
         // Rebase and composition do not consume or mutate the original transition.
         Apply(patch, before).Value!.Compose.Value.ShouldBe(4);
-        Apply(rebased.Patch, before).Value!.Compose.Value.ShouldBe(8);
+        Apply(rebased.Rebased, before).Value!.Compose.Value.ShouldBe(8);
     }
 
     private static Optional<AlgebraNamedRoot.Fragment?> Apply(

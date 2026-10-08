@@ -47,7 +47,9 @@ Require(inverted.Value!.Label.Value == "original", "invert round-trip");
 
 var changes = NetFxSettings.ChangeSet.Between(before, edits.Apply(before));
 var changesJson = JsonSerializer.Serialize(changes.ToPayload());
-var imported = JsonSerializer.Deserialize<NetFxSettings.ChangeSetPayload>(changesJson)?.ToChangeSet();
+var imported = JsonSerializer
+    .Deserialize<NetFxSettings.ChangeSetPayload>(changesJson)
+    ?.ToChangeSet();
 if (imported is null)
 {
     throw new InvalidOperationException("Failed: ChangeSet payload JSON deserialize");
@@ -85,7 +87,7 @@ var local = new NetFxSettings.Patch();
 local.Child.Count = 12;
 var rebased = NetFxSettings.Patch.Rebase(before, local, current);
 Require(!rebased.HasConflicts, "rebase disjoint merge");
-var replayed = rebased.Patch.Apply(current);
+var replayed = rebased.Rebased.Apply(current);
 Require(
     replayed.Value!.Label.Value == "upstream"
         && replayed.Value.Child.Value!.Count.Value == 12
@@ -102,7 +104,7 @@ var conflicted = NetFxSettings.Patch.Rebase(before, conflictLocal, conflictCurre
 Require(conflicted.HasConflicts, "rebase conflict detection");
 Require(
     conflicted.Conflicts.Count == 1
-        && conflicted.Conflicts[0].Kind == SparsePatchConflictKind.Scalar
+        && conflicted.Conflicts[0].Kind == SparseConflictKind.Scalar
         && conflicted.Conflicts[0].Path.Count == 1
         && conflicted.Conflicts[0].Path[0] == "Label",
     "rebase structured conflict"
@@ -110,10 +112,8 @@ Require(
 
 Console.WriteLine("SparseFragments net48 consumer passed.");
 
-static bool Same(
-    Optional<NetFxSettings.Fragment?> left,
-    Optional<NetFxSettings.Fragment?> right
-) => NetFxSettings.Patch.Between(left, right).IsEmpty;
+static bool Same(Optional<NetFxSettings.Fragment?> left, Optional<NetFxSettings.Fragment?> right) =>
+    NetFxSettings.Patch.Between(left, right).IsEmpty;
 
 static void Require(bool condition, string capability)
 {

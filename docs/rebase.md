@@ -81,7 +81,7 @@ if (result.HasConflicts)
     throw new InvalidOperationException("The root transition conflicts.");
 }
 
-var applied = result.Patch.ToPatch().Apply(missing);
+var applied = result.Rebased.ToPatch().Apply(missing);
 // applied.IsPresent && applied.Value is null
 ```
 <!-- /sample -->
@@ -139,14 +139,14 @@ if (
 }
 
 var conflict = conflicts.Single();
-// conflict.Kind == SparsePatchConflictKind.Scalar
+// conflict.Kind == SparseConflictKind.Scalar
 // conflict.Path == ["RetryCount"]
 ```
 <!-- /sample -->
 
 ## Structured Conflicts
 
-Each `SparsePatchConflict` reports where the conflict occurred and the base/local/current values involved.
+Each `SparseConflict` reports where the conflict occurred and the base/local/current values involved.
 
 | Member | Meaning |
 | --- | --- |

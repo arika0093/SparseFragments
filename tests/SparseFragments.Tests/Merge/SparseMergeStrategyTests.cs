@@ -382,7 +382,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = result.Patch.Apply(currentState);
+        var applied = result.Rebased.Apply(currentState);
         applied.IsPresent.ShouldBeTrue();
         applied.Value!.Note.IsPresent.ShouldBeTrue();
         applied.Value!.Note.Value.ShouldBeNull();
@@ -402,8 +402,8 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Remove);
-        var applied = result.Patch.Apply(currentState);
+        result.Rebased.Note.Kind.ShouldBe(FragmentOperationKind.Remove);
+        var applied = result.Rebased.Apply(currentState);
         applied.Value!.Note.IsPresent.ShouldBeFalse();
     }
 
@@ -417,7 +417,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceCountSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = result.Patch.Apply(currentState);
+        var applied = result.Rebased.Apply(currentState);
         applied.Value!.Count.IsPresent.ShouldBeTrue();
         applied.Value!.Count.Value.ShouldBe(0);
     }
@@ -435,7 +435,7 @@ public sealed class PresenceAwareCustomRebaseTests
 
         result.HasConflicts.ShouldBeTrue();
         var conflict = result.Conflicts.Single();
-        conflict.Kind.ShouldBe(SparsePatchConflictKind.CustomStrategy);
+        conflict.Kind.ShouldBe(SparseConflictKind.CustomStrategy);
         conflict.BaseValue.IsPresent.ShouldBeFalse();
         conflict.LocalValue.IsPresent.ShouldBeTrue();
         conflict.LocalValue.Value.ShouldBeNull();
@@ -456,8 +456,8 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
-        result.Patch.Apply(currentState).Value!.Note.Value.ShouldBe("b");
+        result.Rebased.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
+        result.Rebased.Apply(currentState).Value!.Note.Value.ShouldBe("b");
     }
 
     [Test]
@@ -474,7 +474,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
+        result.Rebased.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
     }
 
     [Test]

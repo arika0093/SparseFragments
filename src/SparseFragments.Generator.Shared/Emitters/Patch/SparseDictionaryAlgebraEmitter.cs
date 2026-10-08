@@ -467,13 +467,13 @@ internal static class SparseDictionaryAlgebraEmitter
             );
             code.AppendLineAt(
                 6,
-                "if (!nested.HasConflicts && !nested.Patch.__SparseIsEmpty()) (result.__edited ??= new global::System.Collections.Generic.Dictionary<"
+                "if (!nested.HasConflicts && !nested.Rebased.__SparseIsEmpty()) (result.__edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
                     + ", "
                     + valuePatch
                     + ">("
                     + comparer
-                    + "))[k] = nested.Patch; else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithPathPrefix(((object?)k)?.ToString() ?? \"<null>\"));"
+                    + "))[k] = nested.Rebased; else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithPathPrefix(((object?)k)?.ToString() ?? \"<null>\"));"
             );
             code.AppendLineAt(5, "}");
             code.AppendLineAt(

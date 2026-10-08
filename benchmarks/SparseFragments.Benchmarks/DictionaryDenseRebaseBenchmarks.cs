@@ -49,8 +49,8 @@ public class DictionaryDenseRebaseBenchmarks
         );
         var scalar = Scalar();
         var value = Structural();
-        var scalarActual = scalar.Patch.Apply(_scalarCurrent).Value!.Scores.Value!;
-        var valueActual = value.Patch.Apply(_valueCurrent).Value!.Values.Value!;
+        var scalarActual = scalar.Rebased.Apply(_scalarCurrent).Value!.Scores.Value!;
+        var valueActual = value.Rebased.Apply(_valueCurrent).Value!.Values.Value!;
         var conflictCount = ConflictingEdits ? Size / 2 : 0;
         if (
             scalar.Conflicts.Count != conflictCount

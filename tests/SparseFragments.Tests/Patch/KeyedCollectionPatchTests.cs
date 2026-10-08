@@ -89,7 +89,12 @@ public partial class AssignedServerHolder
 public sealed class KeyedCollectionPatchTests
 {
     private static KeyedServer Server(string id, string name = "", int count = 0) =>
-        new() { Id = id, Name = name, Count = count };
+        new()
+        {
+            Id = id,
+            Name = name,
+            Count = count,
+        };
 
     private static KeyedServerHolder Holder(params KeyedServer[] items) =>
         new() { Items = items.ToList() };
@@ -172,7 +177,9 @@ public sealed class KeyedCollectionPatchTests
     {
         Optional<AssignedServerHolder.Fragment?> F(params AssignedServer[] items) =>
             Optional<AssignedServerHolder.Fragment?>.Present(
-                AssignedServerHolder.Fragment.From(new AssignedServerHolder { Items = items.ToList() })
+                AssignedServerHolder.Fragment.From(
+                    new AssignedServerHolder { Items = items.ToList() }
+                )
             );
 
         var before = F(new AssignedServer { Id = 7, Name = "existing" });
@@ -184,17 +191,28 @@ public sealed class KeyedCollectionPatchTests
 
         var patch = AssignedServerHolder.Patch.Between(before, after);
         var applied = patch.Apply(before);
-        applied.Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+        applied
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
         var changes = AssignedServerHolder.ChangeSet.Between(before, after);
         changes.IsEmpty.ShouldBeFalse();
-        changes.ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+        changes
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
         changes.Items.AfterOrder.ShouldBe([0, 7, 0]);
         changes.Items.Added.Select(item => item.Name).ShouldBe(["first", "second"]);
         changes.Items.GetChange(0).IsEmpty.ShouldBeTrue();
-        var payloadRoundTrip = System.Text.Json.JsonSerializer.Deserialize<AssignedServerHolder.ChangeSetPayload>(
-            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
-        )!.ToChangeSet();
-        payloadRoundTrip.ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name)
+        var payloadRoundTrip = System
+            .Text.Json.JsonSerializer.Deserialize<AssignedServerHolder.ChangeSetPayload>(
+                System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+            )!
+            .ToChangeSet();
+        payloadRoundTrip
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["first", "existing", "second"]);
         var payloadJson = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
         using (var document = System.Text.Json.JsonDocument.Parse(payloadJson))
@@ -210,13 +228,21 @@ public sealed class KeyedCollectionPatchTests
         var edited = F(new AssignedServer { Id = 7, Name = "updated" });
         var first = AssignedServerHolder.ChangeSet.Between(before, edited);
         var second = AssignedServerHolder.ChangeSet.Between(edited, after);
-        first.Compose(second).ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+        first
+            .Compose(second)
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
 
         var manualFirst = new AssignedServerHolder.Patch();
         manualFirst.Items.Add(new AssignedServer { Name = "manual-first" });
         var manualSecond = new AssignedServerHolder.Patch();
         manualSecond.Items.Add(new AssignedServer { Name = "manual-second" });
-        manualFirst.Compose(manualSecond).Apply(before).Value!.Items.Value!.Select(item => item.Name)
+        manualFirst
+            .Compose(manualSecond)
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["existing", "manual-first", "manual-second"]);
 
         var concurrent = F(
@@ -225,13 +251,17 @@ public sealed class KeyedCollectionPatchTests
         );
         var rebased = changes.RebaseOnto(concurrent);
         rebased.HasConflicts.ShouldBeFalse();
-        rebased.Patch.ToPatch().Apply(concurrent).Value!.Items.Value!.Select(item => item.Name)
+        rebased
+            .Rebased.ToPatch()
+            .Apply(concurrent)
+            .Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["existing", "concurrent", "first", "second"]);
         var patchRebased = AssignedServerHolder.Patch.Rebase(before, patch, concurrent);
         patchRebased.HasConflicts.ShouldBeFalse();
-        patchRebased.Patch.Apply(concurrent).Value!.Items.Value!.Select(item => item.Name)
+        patchRebased
+            .Rebased.Apply(concurrent)
+            .Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["existing", "concurrent", "first", "second"]);
-
     }
 
     [Test]
@@ -239,12 +269,21 @@ public sealed class KeyedCollectionPatchTests
     {
         Optional<AssignedServerHolder.Fragment?> F(params AssignedServer[] items) =>
             Optional<AssignedServerHolder.Fragment?>.Present(
-                AssignedServerHolder.Fragment.From(new AssignedServerHolder { Items = items.ToList() })
+                AssignedServerHolder.Fragment.From(
+                    new AssignedServerHolder { Items = items.ToList() }
+                )
             );
         var invalidBaseline = F(new AssignedServer { Id = 0 });
         var valid = F(new AssignedServer { Id = 1 });
-        Should.Throw<InvalidOperationException>(() => AssignedServerHolder.Patch.Between(invalidBaseline, valid));
-        Should.Throw<InvalidOperationException>(() => AssignedServerHolder.Patch.Between(valid, F(new AssignedServer { Id = 1 }, new AssignedServer { Id = 1 })));
+        Should.Throw<InvalidOperationException>(() =>
+            AssignedServerHolder.Patch.Between(invalidBaseline, valid)
+        );
+        Should.Throw<InvalidOperationException>(() =>
+            AssignedServerHolder.Patch.Between(
+                valid,
+                F(new AssignedServer { Id = 1 }, new AssignedServer { Id = 1 })
+            )
+        );
     }
 
     [Test]
@@ -268,10 +307,17 @@ public sealed class KeyedCollectionPatchTests
     public void CompositeKeysDistinguishTenants()
     {
         CompositeServer S(string tenant, string id, string name = "") =>
-            new() { TenantId = tenant, Id = id, Name = name };
+            new()
+            {
+                TenantId = tenant,
+                Id = id,
+                Name = name,
+            };
 
         Optional<CompositeServerHolder.Fragment?> StateOf(CompositeServerHolder m) =>
-            Optional<CompositeServerHolder.Fragment?>.Present(CompositeServerHolder.Fragment.From(m));
+            Optional<CompositeServerHolder.Fragment?>.Present(
+                CompositeServerHolder.Fragment.From(m)
+            );
 
         var before = StateOf(new CompositeServerHolder { Items = [S("t1", "a", "A")] });
         var after = StateOf(
@@ -295,7 +341,11 @@ public sealed class KeyedCollectionPatchTests
                 {
                     Groups = new()
                     {
-                        new ServerGroup { Name = "g1", Servers = new() { Server("a", "A") } },
+                        new ServerGroup
+                        {
+                            Name = "g1",
+                            Servers = new() { Server("a", "A") },
+                        },
                     },
                 }
             )
@@ -351,8 +401,18 @@ public sealed class KeyedCollectionPatchTests
         Optional<ScalarDictHolder.Fragment?> SOf(ScalarDictHolder m) =>
             Optional<ScalarDictHolder.Fragment?>.Present(ScalarDictHolder.Fragment.From(m));
 
-        var before = SOf(new ScalarDictHolder { Scores = new() { ["a"] = 1, ["b"] = 2 } });
-        var after = SOf(new ScalarDictHolder { Scores = new() { ["b"] = 3, ["c"] = 4 } });
+        var before = SOf(
+            new ScalarDictHolder
+            {
+                Scores = new() { ["a"] = 1, ["b"] = 2 },
+            }
+        );
+        var after = SOf(
+            new ScalarDictHolder
+            {
+                Scores = new() { ["b"] = 3, ["c"] = 4 },
+            }
+        );
 
         var patch = ScalarDictHolder.Patch.Between(before, after);
         patch.IsEmpty.ShouldBeFalse();
@@ -397,17 +457,19 @@ public sealed class KeyedCollectionPatchTests
         KeyedServerHolder.Patch.Between(composed.Apply(b0), b2).IsEmpty.ShouldBeTrue();
 
         var inverted = composed.Invert(b0);
-        KeyedServerHolder.Patch.Between(inverted.Apply(composed.Apply(b0)), b0).IsEmpty.ShouldBeTrue();
+        KeyedServerHolder
+            .Patch.Between(inverted.Apply(composed.Apply(b0)), b0)
+            .IsEmpty.ShouldBeTrue();
 
         // Rebase: untouched current keeps local.
         var kept = KeyedServerHolder.Patch.Rebase(b0, first, b0);
         kept.HasConflicts.ShouldBeFalse();
-        KeyedServerHolder.Patch.Between(kept.Patch.Apply(b0), b1).IsEmpty.ShouldBeTrue();
+        KeyedServerHolder.Patch.Between(kept.Rebased.Apply(b0), b1).IsEmpty.ShouldBeTrue();
 
         // Rebase: already applied becomes empty.
         var already = KeyedServerHolder.Patch.Rebase(b0, first, b1);
         already.HasConflicts.ShouldBeFalse();
-        already.Patch.IsEmpty.ShouldBeTrue();
+        already.Rebased.IsEmpty.ShouldBeTrue();
 
         // Rebase: concurrent divergent edit conflicts.
         var divergent = State(Holder(Server("a", "Conflict")));
@@ -445,12 +507,13 @@ public sealed class KeyedCollectionPatchTests
 
         // The typed payload round-trip preserves the same keyed semantics.
         var changes = KeyedServerHolder.ChangeSet.Between(present, afterOpt);
-        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(
-            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
-        )!
+        var roundTripped = System
+            .Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(
+                System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+            )!
             .ToChangeSet();
-        KeyedServerHolder.Patch
-            .Between(roundTripped.ToPatch().Apply(present), applied)
+        KeyedServerHolder
+            .Patch.Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
     }
 
@@ -471,12 +534,13 @@ public sealed class KeyedCollectionPatchTests
         applied.Value!.Tags.Value!.ShouldBe(["a", "b", "c"]);
 
         var changes = ScalarSequenceHolder.ChangeSet.Between(present, afterOpt);
-        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<ScalarSequenceHolder.ChangeSetPayload>(
-            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
-        )!
+        var roundTripped = System
+            .Text.Json.JsonSerializer.Deserialize<ScalarSequenceHolder.ChangeSetPayload>(
+                System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+            )!
             .ToChangeSet();
-        ScalarSequenceHolder.Patch
-            .Between(roundTripped.ToPatch().Apply(present), applied)
+        ScalarSequenceHolder
+            .Patch.Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
     }
 }

@@ -439,7 +439,7 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
                 var hasLaterEdits = !_isEmpty(local);
                 var rebased = _rebase!(local, Optional<TFragment?>.Present(server));
                 _baseline = Optional<TFragment?>.Present(server);
-                WriteApplied(rebased.Patch, rebased.HasConflicts ? _fromModel(Model) : server);
+                WriteApplied(rebased.Rebased, rebased.HasConflicts ? _fromModel(Model) : server);
                 var status = rebased.HasConflicts
                     ? SparseSubmitStatus.Conflicted
                     : SparseSubmitStatus.Accepted;
@@ -463,7 +463,10 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
                     );
                     var rebased = _rebase!(local, Optional<TFragment?>.Present(server));
                     _baseline = Optional<TFragment?>.Present(server);
-                    WriteApplied(rebased.Patch, rebased.HasConflicts ? _fromModel(Model) : server);
+                    WriteApplied(
+                        rebased.Rebased,
+                        rebased.HasConflicts ? _fromModel(Model) : server
+                    );
                     result = new SparseSubmitResult(
                         rebased.HasConflicts
                             ? SparseSubmitStatus.Conflicted

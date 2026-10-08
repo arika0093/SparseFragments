@@ -429,11 +429,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + lit
                 + "));"
         );
-        code.AppendLineAt(7, "if (__nr.Conflicts.Count == 0 && !__nr.Patch.IsEmpty)");
+        code.AppendLineAt(7, "if (__nr.Conflicts.Count == 0 && !__nr.Rebased.IsEmpty)");
         code.AppendLineAt(7, "{");
         code.AppendLineAt(
             8,
-            "var __applied = __nr.Patch.ToPatch().Apply("
+            "var __applied = __nr.Rebased.ToPatch().Apply("
                 + runtime
                 + "Optional<"
                 + elementFrag
@@ -470,7 +470,7 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + id
                 + ".Add(new "
                 + trans
-                + ".Item(__it.Key, __nb, __na2, __bi2, __bi2, false, false, true, __it.IsReordered, __nr.Patch, false)); __cmap"
+                + ".Item(__it.Key, __nb, __na2, __bi2, __bi2, false, false, true, __it.IsReordered, __nr.Rebased, false)); __cmap"
                 + id
                 + "[__it.Key] = __um;"
         );

@@ -11,8 +11,18 @@ public sealed class SparseEditSessionTests
             Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
             Lines = new()
             {
-                new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
-                new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
+                new OrderLine
+                {
+                    Sku = "a",
+                    Quantity = 1,
+                    Price = 10m,
+                },
+                new OrderLine
+                {
+                    Sku = "b",
+                    Quantity = 2,
+                    Price = 20m,
+                },
             },
             Tags = new() { "fragile" },
         };
@@ -109,9 +119,7 @@ public sealed class SparseEditSessionTests
         editContext.Validate().ShouldBeTrue();
 
         session.Model.Number = "";
-        editContext.NotifyFieldChanged(
-            new FieldIdentifier(session.Model, nameof(OrderDto.Number))
-        );
+        editContext.NotifyFieldChanged(new FieldIdentifier(session.Model, nameof(OrderDto.Number)));
         editContext.Validate().ShouldBeFalse();
         editContext.GetValidationMessages().ShouldContain("Number is required.");
     }
@@ -122,7 +130,14 @@ public sealed class SparseEditSessionTests
         var baseline = Order();
         var session = baseline.CreateEditSession();
 
-        session.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+        session.Model.Lines.Add(
+            new OrderLine
+            {
+                Sku = "c",
+                Quantity = 3,
+                Price = 30m,
+            }
+        );
         session.Model.Lines.RemoveAll(line => line.Sku == "a");
         session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
 
@@ -130,19 +145,31 @@ public sealed class SparseEditSessionTests
         session.CreateChangeSet().IsEmpty.ShouldBeFalse();
 
         var patch = session.CreateChangeSet().ToPatch();
-        var applied = OrderDto.Fragment.From(
-            new OrderDto
-            {
-                Number = "ORD-1",
-                Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
-                Lines = new()
+        var applied = OrderDto
+            .Fragment.From(
+                new OrderDto
                 {
-                    new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
-                    new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
-                },
-                Tags = new() { "fragile" },
-            }
-        ).Apply(patch);
+                    Number = "ORD-1",
+                    Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
+                    Lines = new()
+                    {
+                        new OrderLine
+                        {
+                            Sku = "a",
+                            Quantity = 1,
+                            Price = 10m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "b",
+                            Quantity = 2,
+                            Price = 20m,
+                        },
+                    },
+                    Tags = new() { "fragile" },
+                }
+            )
+            .Apply(patch);
 
         var lines = applied.Lines.Value!;
         lines.Select(line => line.Sku).ShouldBe(["b", "c"]);
@@ -191,7 +218,14 @@ public sealed class SparseEditSessionTests
                 new Team
                 {
                     Name = "t1",
-                    Members = new() { new TeamMember { Id = "m1", Skills = new() { "c#" } } },
+                    Members = new()
+                    {
+                        new TeamMember
+                        {
+                            Id = "m1",
+                            Skills = new() { "c#" },
+                        },
+                    },
                 },
             },
         };
@@ -236,7 +270,14 @@ public sealed class SparseEditSessionTests
 
         // Keyed add/remove/edit.
         var keyed = Order().CreateEditSession();
-        keyed.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+        keyed.Model.Lines.Add(
+            new OrderLine
+            {
+                Sku = "c",
+                Quantity = 3,
+                Price = 30m,
+            }
+        );
         keyed.Model.Lines.RemoveAll(line => line.Sku == "a");
         keyed.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
         PatchesShouldBeEquivalent(keyed.CreatePatch(), keyed.CreateChangeSet().ToPatch());
@@ -262,7 +303,14 @@ public sealed class SparseEditSessionTests
     {
         var session = Order().CreateEditSession();
         session.Model.Number = "ORD-2";
-        session.Model.Lines.Add(new OrderLine { Sku = "c", Quantity = 3, Price = 30m });
+        session.Model.Lines.Add(
+            new OrderLine
+            {
+                Sku = "c",
+                Quantity = 3,
+                Price = 30m,
+            }
+        );
 
         var firstChanges = session.CreateChangeSet();
         var secondChanges = session.CreateChangeSet();
@@ -285,9 +333,7 @@ public sealed class SparseEditSessionTests
         var editContext = session.CreateEditContext();
 
         session.Model.Number = "ORD-2";
-        editContext.NotifyFieldChanged(
-            new FieldIdentifier(session.Model, nameof(OrderDto.Number))
-        );
+        editContext.NotifyFieldChanged(new FieldIdentifier(session.Model, nameof(OrderDto.Number)));
         editContext.IsModified().ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
 
@@ -334,19 +380,31 @@ public sealed class SparseEditSessionTests
                     Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
                     Lines = new()
                     {
-                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
-                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
+                        new OrderLine
+                        {
+                            Sku = "a",
+                            Quantity = 1,
+                            Price = 10m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "b",
+                            Quantity = 2,
+                            Price = 20m,
+                        },
                     },
                     Tags = new() { "fragile" },
                 }
             )
         );
         var currentFragment = Present(OrderDto.Fragment.From(session.Model));
-        OrderDto.Patch.Between(second.ToPatch().Apply(acceptedBaseline), currentFragment)
+        OrderDto
+            .Patch.Between(second.ToPatch().Apply(acceptedBaseline), currentFragment)
             .IsEmpty.ShouldBeTrue();
 
         // Inverting the ChangeSet walks back to the accepted baseline.
-        OrderDto.Patch.Between(second.Invert().ToPatch().Apply(currentFragment), acceptedBaseline)
+        OrderDto
+            .Patch.Between(second.Invert().ToPatch().Apply(currentFragment), acceptedBaseline)
             .IsEmpty.ShouldBeTrue();
     }
 
@@ -366,9 +424,24 @@ public sealed class SparseEditSessionTests
                     Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
                     Lines = new()
                     {
-                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
-                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
-                        new OrderLine { Sku = "c", Quantity = 3, Price = 30m },
+                        new OrderLine
+                        {
+                            Sku = "a",
+                            Quantity = 1,
+                            Price = 10m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "b",
+                            Quantity = 2,
+                            Price = 20m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "c",
+                            Quantity = 3,
+                            Price = 30m,
+                        },
                     },
                     Tags = new() { "fragile" },
                 }
@@ -376,7 +449,7 @@ public sealed class SparseEditSessionTests
         );
         var rebased = changes.RebaseOnto(authoritative);
         rebased.HasConflicts.ShouldBeFalse();
-        var merged = rebased.Patch.ToPatch().Apply(authoritative);
+        var merged = rebased.Rebased.ToPatch().Apply(authoritative);
         merged.Value!.Number.Value.ShouldBe("ORD-2");
         merged.Value!.Lines.Value!.Select(line => line.Sku).ShouldBe(["a", "b", "c"]);
 
@@ -400,16 +473,16 @@ public sealed class SparseEditSessionTests
         changes.IsEmpty.ShouldBeFalse();
 
         var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
-        var restored = System.Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSetPayload>(json)!.ToChangeSet();
+        var restored = System
+            .Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSetPayload>(json)!
+            .ToChangeSet();
         restored.IsEmpty.ShouldBeFalse();
 
         // Same apply semantics from the session baseline.
         PatchesShouldBeEquivalent(changes.ToPatch(), restored.ToPatch());
         var baseline = Present(OrderDto.Fragment.From(Order()));
-        OrderDto.Patch.Between(
-            changes.ToPatch().Apply(baseline),
-            restored.ToPatch().Apply(baseline)
-        )
+        OrderDto
+            .Patch.Between(changes.ToPatch().Apply(baseline), restored.ToPatch().Apply(baseline))
             .IsEmpty.ShouldBeTrue();
 
         // Same rebase semantics onto a disjoint authoritative state.
@@ -421,9 +494,24 @@ public sealed class SparseEditSessionTests
                     Customer = new OrderCustomer { Name = "Ada", Email = "ada@example.com" },
                     Lines = new()
                     {
-                        new OrderLine { Sku = "a", Quantity = 1, Price = 10m },
-                        new OrderLine { Sku = "b", Quantity = 2, Price = 20m },
-                        new OrderLine { Sku = "c", Quantity = 3, Price = 30m },
+                        new OrderLine
+                        {
+                            Sku = "a",
+                            Quantity = 1,
+                            Price = 10m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "b",
+                            Quantity = 2,
+                            Price = 20m,
+                        },
+                        new OrderLine
+                        {
+                            Sku = "c",
+                            Quantity = 3,
+                            Price = 30m,
+                        },
                     },
                     Tags = new() { "fragile" },
                 }
@@ -434,16 +522,15 @@ public sealed class SparseEditSessionTests
         rebasedRestored.HasConflicts.ShouldBe(rebasedOriginal.HasConflicts);
         rebasedRestored.HasConflicts.ShouldBeFalse();
         PatchesShouldBeEquivalent(
-            rebasedOriginal.Patch.ToPatch(),
-            rebasedRestored.Patch.ToPatch()
+            rebasedOriginal.Rebased.ToPatch(),
+            rebasedRestored.Rebased.ToPatch()
         );
-        var mergedOriginal = rebasedOriginal.Patch.ToPatch().Apply(authoritative);
-        var mergedRestored = rebasedRestored.Patch.ToPatch().Apply(authoritative);
+        var mergedOriginal = rebasedOriginal.Rebased.ToPatch().Apply(authoritative);
+        var mergedRestored = rebasedRestored.Rebased.ToPatch().Apply(authoritative);
         OrderDto.Patch.Between(mergedOriginal, mergedRestored).IsEmpty.ShouldBeTrue();
         mergedRestored.Value!.Number.Value.ShouldBe("ORD-2");
         mergedRestored.Value!.Customer.Value!.Email.Value.ShouldBe("new@example.com");
-        mergedRestored.Value!.Lines.Value!.Single(line => line.Sku == "b")
-            .Quantity.ShouldBe(9);
+        mergedRestored.Value!.Lines.Value!.Single(line => line.Sku == "b").Quantity.ShouldBe(9);
     }
 
     [Test]
@@ -515,9 +602,7 @@ public sealed class SparseEditSessionTests
             editContext,
             field,
             static (_, _) =>
-                System.Threading.Tasks.Task.FromResult(
-                    SparseSubmitResponse<OrderDto>.Accepted()
-                )
+                System.Threading.Tasks.Task.FromResult(SparseSubmitResponse<OrderDto>.Accepted())
         );
 
         accepted.Status.ShouldBe(SparseSubmitStatus.Accepted);

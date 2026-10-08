@@ -18,7 +18,7 @@ public sealed class FragmentPatchRebaseTests
         {
             var result = Settings.Patch.Rebase(baseline, new Settings.Patch(), current);
             result.HasConflicts.ShouldBeFalse();
-            result.Patch.IsEmpty.ShouldBeTrue();
+            result.Rebased.IsEmpty.ShouldBeTrue();
         }
     }
 
@@ -34,7 +34,7 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseline, local, baseline);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, baseline).Value!.ToModel();
+        var applied = Apply(result.Rebased, baseline).Value!.ToModel();
         applied.RetryCount.ShouldBe(8);
         applied.Nested!.Port.ShouldBe(7000);
     }
@@ -56,10 +56,10 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseline, local, current);
 
         result.HasConflicts.ShouldBeFalse();
-        Apply(result.Patch, current).Value!.Plugins.Value.ShouldBe(["a", "b"]);
+        Apply(result.Rebased, current).Value!.Plugins.Value.ShouldBe(["a", "b"]);
         SemanticOracle.AssertEqual(
             current,
-            Apply(result.Patch, current),
+            Apply(result.Rebased, current),
             "rebasing an already-applied addition is a semantic no-op"
         );
     }
@@ -74,12 +74,12 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var model = Apply(result.Patch, currentState).Value!.ToModel();
+        var model = Apply(result.Rebased, currentState).Value!.ToModel();
         model.RetryCount.ShouldBe(2);
         model.Label.ShouldBe("b");
         SemanticOracle.AssertEqual(
             State(new Settings { RetryCount = 2, Label = "b" }),
-            Apply(result.Patch, currentState),
+            Apply(result.Rebased, currentState),
             "rebased scalar edits apply cleanly onto current"
         );
     }
@@ -94,10 +94,10 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.IsEmpty.ShouldBeTrue();
+        result.Rebased.IsEmpty.ShouldBeTrue();
         SemanticOracle.AssertEqual(
             currentState,
-            Apply(result.Patch, currentState),
+            Apply(result.Rebased, currentState),
             "rebasing an already-applied edit is a semantic no-op"
         );
     }
@@ -113,7 +113,7 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeTrue();
         var conflict = result.Conflicts.Single();
-        conflict.Kind.ShouldBe(SparsePatchConflictKind.Scalar);
+        conflict.Kind.ShouldBe(SparseConflictKind.Scalar);
         conflict.Path.ShouldBe(["RetryCount"]);
         conflict.BaseValue.Value.ShouldBe(1);
         conflict.LocalValue.Value.ShouldBe(2);
@@ -159,12 +159,17 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var model = Apply(result.Patch, currentState).Value!.ToModel();
+        var model = Apply(result.Rebased, currentState).Value!.ToModel();
         model.Nested!.Host.ShouldBe("changed");
         model.Nested.Port.ShouldBe(2);
         SemanticOracle.AssertEqual(
-            State(new Settings { Nested = new Nested { Host = "changed", Port = 2 } }),
-            Apply(result.Patch, currentState),
+            State(
+                new Settings
+                {
+                    Nested = new Nested { Host = "changed", Port = 2 },
+                }
+            ),
+            Apply(result.Rebased, currentState),
             "rebased nested edit applies cleanly onto current"
         );
     }
@@ -186,7 +191,7 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        Apply(result.Patch, currentState).Value!.Plugins.Value.ShouldBe(["a", "c", "b"]);
+        Apply(result.Rebased, currentState).Value!.Plugins.Value.ShouldBe(["a", "c", "b"]);
     }
 
     [Test]
@@ -206,7 +211,7 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeTrue();
-        result.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.CollectionAppend);
+        result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionAppend);
         result.Conflicts.Single().Path.ShouldBe(["Plugins"]);
     }
 
@@ -233,7 +238,7 @@ public sealed class FragmentPatchRebaseTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var values = Apply(result.Patch, currentState).Value!.Values.Value!;
+        var values = Apply(result.Rebased, currentState).Value!.Values.Value!;
         values.ShouldContain("a");
         values.ShouldContain("b");
         values.ShouldContain("c");
@@ -246,7 +251,7 @@ public sealed class FragmentPatchRebaseTests
                     ),
                 }
             ),
-            Apply(result.Patch, currentState),
+            Apply(result.Rebased, currentState),
             "rebased set-union edit applies cleanly onto current"
         );
     }
@@ -268,7 +273,7 @@ public sealed class FragmentPatchRebaseTests
         var result = TraceSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        Apply(result.Patch, currentState).Value!.Tags.Value.ShouldBe(["a", "c", "b"]);
+        Apply(result.Rebased, currentState).Value!.Tags.Value.ShouldBe(["a", "c", "b"]);
     }
 
     [Test]
@@ -282,7 +287,7 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeTrue();
-        result.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.WholeContribution);
+        result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.WholeContribution);
         result.Conflicts.Single().Path.ShouldBeEmpty();
     }
 
@@ -297,10 +302,10 @@ public sealed class FragmentPatchRebaseTests
         var result = Settings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        Apply(result.Patch, currentState).Value!.RetryCount.Value.ShouldBe(5);
+        Apply(result.Rebased, currentState).Value!.RetryCount.Value.ShouldBe(5);
         SemanticOracle.AssertEqual(
             State(new Settings { RetryCount = 5 }),
-            Apply(result.Patch, currentState),
+            Apply(result.Rebased, currentState),
             "whole-contribution rebase applies when current matches base"
         );
     }

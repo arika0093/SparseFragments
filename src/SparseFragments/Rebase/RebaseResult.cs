@@ -2,9 +2,9 @@ using System.ComponentModel;
 
 namespace SparseFragments;
 
-/// <summary>The reason a rebased patch could not be reconciled with a concurrent change.</summary>
+/// <summary>The reason a rebased change could not be reconciled with a concurrent change.</summary>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public enum SparsePatchConflictKind
+public enum SparseConflictKind
 {
     /// <summary>The whole contribution was changed concurrently.</summary>
     WholeContribution,
@@ -27,12 +27,12 @@ public enum SparsePatchConflictKind
 
 /// <summary>Structured, domain-neutral information about one rebase conflict.</summary>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class SparsePatchConflict
+public sealed class SparseConflict
 {
     /// <summary>Creates a conflict with the given details.</summary>
-    public SparsePatchConflict(
+    public SparseConflict(
         IEnumerable<string> path,
-        SparsePatchConflictKind kind,
+        SparseConflictKind kind,
         Optional<object?> baseValue,
         Optional<object?> localValue,
         Optional<object?> currentValue,
@@ -55,7 +55,7 @@ public sealed class SparsePatchConflict
     public string PathText => string.Join(".", Path);
 
     /// <summary>The conflict kind.</summary>
-    public SparsePatchConflictKind Kind { get; }
+    public SparseConflictKind Kind { get; }
 
     /// <summary>The baseline presence-aware value.</summary>
     public Optional<object?> BaseValue { get; }
@@ -70,7 +70,7 @@ public sealed class SparsePatchConflict
     public string? Reason { get; }
 
     /// <summary>Returns a copy of this conflict with one path segment prepended.</summary>
-    public SparsePatchConflict WithPathPrefix(string segment)
+    public SparseConflict WithPathPrefix(string segment)
     {
         ArgumentNullException.ThrowIfNull(segment);
         var prefix = new string[Path.Count + 1];
@@ -80,32 +80,32 @@ public sealed class SparsePatchConflict
             prefix[index + 1] = Path[index];
         }
 
-        return new SparsePatchConflict(prefix, Kind, BaseValue, LocalValue, CurrentValue, Reason);
+        return new SparseConflict(prefix, Kind, BaseValue, LocalValue, CurrentValue, Reason);
     }
 }
 
-/// <summary>The result of rebasing a patch onto a newer sparse state.</summary>
-/// <typeparam name="TPatch">The generated patch type.</typeparam>
+/// <summary>The result of rebasing a change onto a newer sparse state.</summary>
+/// <typeparam name="TChange">The generated patch or change-set type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class RebaseResult<TPatch>
+public sealed class RebaseResult<TChange>
 {
     /// <summary>Creates a rebase result.</summary>
-    public RebaseResult(TPatch patch, IEnumerable<SparsePatchConflict> conflicts)
+    public RebaseResult(TChange rebased, IEnumerable<SparseConflict> conflicts)
     {
         ArgumentNullException.ThrowIfNull(conflicts);
-        Patch = patch;
+        Rebased = rebased;
         Conflicts = Array.AsReadOnly(conflicts.ToArray());
     }
 
-    /// <summary>The rebased patch, excluding conflicting members.</summary>
-    public TPatch Patch { get; }
+    /// <summary>The rebased change, excluding conflicting members.</summary>
+    public TChange Rebased { get; }
 
     /// <summary>The detected conflicts.</summary>
-    public IReadOnlyList<SparsePatchConflict> Conflicts { get; }
+    public IReadOnlyList<SparseConflict> Conflicts { get; }
 
     /// <summary>Whether any conflict was detected.</summary>
     public bool HasConflicts => Conflicts.Count > 0;
 
     /// <summary>Creates a conflict-free rebase result.</summary>
-    public static RebaseResult<TPatch> Success(TPatch patch) => new(patch, []);
+    public static RebaseResult<TChange> Success(TChange rebased) => new(rebased, []);
 }

@@ -18,14 +18,14 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, currentState).Value!.Values.Value!;
+        var applied = Apply(result.Rebased, currentState).Value!.Values.Value!;
         applied.Count.ShouldBe(3);
         applied.Contains("b", StringComparer.OrdinalIgnoreCase).ShouldBeTrue();
         applied.Contains("c", StringComparer.OrdinalIgnoreCase).ShouldBeTrue();
         ComparerOf(applied).ShouldBe(StringComparer.OrdinalIgnoreCase);
         SemanticOracle.AssertEqual(
             FragmentState(IgnoreCaseSet("a", "b", "c")),
-            Apply(result.Patch, currentState),
+            Apply(result.Rebased, currentState),
             "rebased case-insensitive additions apply cleanly onto current"
         );
     }
@@ -43,10 +43,8 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, currentState).Value!.Values.Value!;
-        SparseFragmentRuntime
-            .AreSetEqual(applied, currentState.Value!.Values.Value)
-            .ShouldBeTrue();
+        var applied = Apply(result.Rebased, currentState).Value!.Values.Value!;
+        SparseFragmentRuntime.AreSetEqual(applied, currentState.Value!.Values.Value).ShouldBeTrue();
         ComparerOf(applied).ShouldBe(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -63,10 +61,8 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, currentState).Value!.Values.Value!;
-        SparseFragmentRuntime
-            .AreSetEqual(applied, currentState.Value!.Values.Value)
-            .ShouldBeTrue();
+        var applied = Apply(result.Rebased, currentState).Value!.Values.Value!;
+        SparseFragmentRuntime.AreSetEqual(applied, currentState.Value!.Values.Value).ShouldBeTrue();
     }
 
     [Test]
@@ -82,7 +78,7 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, currentState).Value!.Values.Value!;
+        var applied = Apply(result.Rebased, currentState).Value!.Values.Value!;
         applied.Count.ShouldBe(1);
         applied.Contains("a", StringComparer.OrdinalIgnoreCase).ShouldBeTrue();
         ComparerOf(applied).ShouldBe(StringComparer.OrdinalIgnoreCase);
@@ -101,7 +97,7 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeTrue();
-        result.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.CollectionSetUnion);
+        result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionSetUnion);
         result.Conflicts.Single().Path.ShouldBe(["Values"]);
     }
 
@@ -125,7 +121,7 @@ public sealed class SetUnionRebaseComparerTests
         var result = SetSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        var applied = Apply(result.Patch, currentState).Value!.Values.Value!;
+        var applied = Apply(result.Rebased, currentState).Value!.Values.Value!;
         applied.Count.ShouldBe(3);
         applied.ShouldContain("a");
         applied.ShouldContain("b");
@@ -157,7 +153,7 @@ public sealed class SetUnionRebaseComparerTests
         // The comparer is part of the set value, so the current set counts as
         // concurrently changed even though its elements match the baseline.
         result.HasConflicts.ShouldBeTrue();
-        result.Conflicts.Single().Kind.ShouldBe(SparsePatchConflictKind.CollectionSetUnion);
+        result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionSetUnion);
         result.Conflicts.Single().Path.ShouldBe(["Values"]);
     }
 

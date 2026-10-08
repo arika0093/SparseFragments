@@ -50,12 +50,12 @@ public class ChangeSetRebaseBenchmarks
         var result = Rebase();
         var empty = Shape is ChangeSetRebaseShape.Empty or ChangeSetRebaseShape.AlreadyApplied;
         var conflict = Shape == ChangeSetRebaseShape.Conflict;
-        var actual = result.Patch.ToPatch().Apply(_current);
+        var actual = result.Rebased.ToPatch().Apply(_current);
         var expectedCounter = Shape == ChangeSetRebaseShape.Replay ? 1 : currentCounter;
         if (
             result.HasConflicts != conflict
             || result.Conflicts.Count != (conflict ? 1 : 0)
-            || result.Patch.IsEmpty != (empty || conflict)
+            || result.Rebased.IsEmpty != (empty || conflict)
             || !actual.IsPresent
             || actual.Value is null
             || actual.Value.Counter.Value != expectedCounter
@@ -73,14 +73,14 @@ public class ChangeSetRebaseBenchmarks
         }
         if (empty)
         {
-            if (!result.Patch.IsEmpty || !result.Patch.Invert().IsEmpty)
+            if (!result.Rebased.IsEmpty || !result.Rebased.Invert().IsEmpty)
             {
                 throw new InvalidOperationException(
                     "Empty rebased change sets must remain empty on inspection and inversion."
                 );
             }
-            var repeated = result.Patch.RebaseOnto(State(3, "newer"));
-            if (repeated.HasConflicts || !repeated.Patch.IsEmpty)
+            var repeated = result.Rebased.RebaseOnto(State(3, "newer"));
+            if (repeated.HasConflicts || !repeated.Rebased.IsEmpty)
             {
                 throw new InvalidOperationException(
                     "Empty rebased change sets must remain empty on later states."
@@ -100,10 +100,10 @@ public class ChangeSetRebaseBenchmarks
         )
         {
             var rebased = emptyChange.RebaseOnto(state);
-            var applied = rebased.Patch.ToPatch().Apply(state);
+            var applied = rebased.Rebased.ToPatch().Apply(state);
             if (
                 rebased.HasConflicts
-                || !rebased.Patch.IsEmpty
+                || !rebased.Rebased.IsEmpty
                 || applied.IsPresent != state.IsPresent
                 || applied.GetValueOrDefault() is not null
             )

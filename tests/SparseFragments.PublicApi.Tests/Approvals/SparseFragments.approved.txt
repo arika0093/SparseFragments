@@ -97,18 +97,39 @@ namespace SparseFragments
         public static SparseFragments.Optional<T> Present(T? value) { }
         public static SparseFragments.Optional<T> op_Implicit(T? value) { }
     }
-    public sealed class RebaseResult<TPatch>
+    public sealed class RebaseResult<TChange>
     {
-        public RebaseResult(TPatch patch, System.Collections.Generic.IEnumerable<SparseFragments.SparsePatchConflict> conflicts) { }
-        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchConflict> Conflicts { get; }
+        public RebaseResult(TChange rebased, System.Collections.Generic.IEnumerable<SparseFragments.SparseConflict> conflicts) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
         public bool HasConflicts { get; }
-        public TPatch Patch { get; }
-        public static SparseFragments.RebaseResult<TPatch> Success(TPatch patch) { }
+        public TChange Rebased { get; }
+        public static SparseFragments.RebaseResult<TChange> Success(TChange rebased) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
     {
         public SparseCloneReferenceSafeAttribute() { }
+    }
+    public sealed class SparseConflict
+    {
+        public SparseConflict(System.Collections.Generic.IEnumerable<string> path, SparseFragments.SparseConflictKind kind, SparseFragments.Optional<object?> baseValue, SparseFragments.Optional<object?> localValue, SparseFragments.Optional<object?> currentValue, string? reason) { }
+        public SparseFragments.Optional<object?> BaseValue { get; }
+        public SparseFragments.Optional<object?> CurrentValue { get; }
+        public SparseFragments.SparseConflictKind Kind { get; }
+        public SparseFragments.Optional<object?> LocalValue { get; }
+        public System.Collections.Generic.IReadOnlyList<string> Path { get; }
+        public string PathText { get; }
+        public string? Reason { get; }
+        public SparseFragments.SparseConflict WithPathPrefix(string segment) { }
+    }
+    public enum SparseConflictKind
+    {
+        WholeContribution = 0,
+        Nested = 1,
+        Scalar = 2,
+        CollectionAppend = 3,
+        CollectionSetUnion = 4,
+        CustomStrategy = 5,
     }
     public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
         where TModel :  class
@@ -211,27 +232,6 @@ namespace SparseFragments
         public bool Remove(TView item) { }
         public void RemoveAt(int index) { }
     }
-    public sealed class SparsePatchConflict
-    {
-        public SparsePatchConflict(System.Collections.Generic.IEnumerable<string> path, SparseFragments.SparsePatchConflictKind kind, SparseFragments.Optional<object?> baseValue, SparseFragments.Optional<object?> localValue, SparseFragments.Optional<object?> currentValue, string? reason) { }
-        public SparseFragments.Optional<object?> BaseValue { get; }
-        public SparseFragments.Optional<object?> CurrentValue { get; }
-        public SparseFragments.SparsePatchConflictKind Kind { get; }
-        public SparseFragments.Optional<object?> LocalValue { get; }
-        public System.Collections.Generic.IReadOnlyList<string> Path { get; }
-        public string PathText { get; }
-        public string? Reason { get; }
-        public SparseFragments.SparsePatchConflict WithPathPrefix(string segment) { }
-    }
-    public enum SparsePatchConflictKind
-    {
-        WholeContribution = 0,
-        Nested = 1,
-        Scalar = 2,
-        CollectionAppend = 3,
-        CollectionSetUnion = 4,
-        CustomStrategy = 5,
-    }
     public sealed class SparsePendingSubmit<TChangeSet, TFragment>
         where TChangeSet :  class
         where TFragment :  class
@@ -251,7 +251,7 @@ namespace SparseFragments
     }
     public sealed class SparseSubmitResult
     {
-        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePatchConflict> Conflicts { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
         public SparseFragments.SparseSubmitStatus Status { get; }
     }
     public enum SparseSubmitStatus

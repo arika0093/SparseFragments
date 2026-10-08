@@ -111,12 +111,12 @@ public class GeneratedSequenceAppendRebaseBenchmarks
             integer.Conflicts.Count != conflicts
             || text.Conflicts.Count != conflicts
             || nullable.Conflicts.Count != conflicts
-            || !integer.Patch.Apply(_integerCurrent).Value!.Values.Value!.SequenceEqual(expected)
+            || !integer.Rebased.Apply(_integerCurrent).Value!.Values.Value!.SequenceEqual(expected)
             || !text
-                .Patch.Apply(_stringCurrent)
+                .Rebased.Apply(_stringCurrent)
                 .Value!.Values.Value!.SequenceEqual(Strings(expected))
             || !nullable
-                .Patch.Apply(_nullableCurrent)
+                .Rebased.Apply(_nullableCurrent)
                 .Value!.Values.Value!.SequenceEqual(NullableValues(expected))
             || !_integerBefore.Value!.Values.Value!.SequenceEqual(before)
             || !_integerCurrent.Value!.Values.Value!.SequenceEqual(current)
@@ -185,7 +185,7 @@ public class GeneratedSequenceAppendRebaseBenchmarks
         var result = BenchGeneratedIntegerAppend.Patch.Rebase(before, local, current);
         if (
             result.HasConflicts
-            || !result.Patch.Apply(current).Value!.Values.Value!.SequenceEqual([2, 1, 4, 3])
+            || !result.Rebased.Apply(current).Value!.Values.Value!.SequenceEqual([2, 1, 4, 3])
         )
         {
             throw new InvalidOperationException(
@@ -225,7 +225,7 @@ public class GeneratedSequenceAppendRebaseBenchmarks
         var result = BenchGeneratedCustomAppend.Patch.Rebase(before, local, current);
         if (
             result.Conflicts.Count != 1
-            || result.Patch.Apply(current).Value!.Values.Value![0].Count != 0
+            || result.Rebased.Apply(current).Value!.Values.Value![0].Count != 0
         )
         {
             throw new InvalidOperationException(

@@ -71,7 +71,7 @@ public class SequenceUnionFallbackBenchmarks
             || generated.Conflicts.Count != (conflict ? 1 : 0)
             || (!conflict && !actual.SequenceEqual(expected.Cast<object?>()))
             || !generated
-                .Patch.Apply(_generatedCurrent)
+                .Rebased.Apply(_generatedCurrent)
                 .Value!.Values.Value!.Select(value => (value.Id, value.Count))
                 .SequenceEqual(expected.Select(value => (value.Id, value.Count)))
             || !_before.SequenceEqual(before.Cast<object?>())

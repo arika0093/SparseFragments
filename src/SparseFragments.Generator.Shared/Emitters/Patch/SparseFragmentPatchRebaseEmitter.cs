@@ -242,7 +242,7 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + currentMember
                 + ");"
         );
-        code.AppendLineAt(7, "result." + field + " = nested.Patch;");
+        code.AppendLineAt(7, "result." + field + " = nested.Rebased;");
         code.AppendLineAt(7, "foreach (var nestedConflict in nested.Conflicts)");
         code.AppendLineAt(7, "{");
         code.AppendLineAt(
@@ -328,7 +328,7 @@ internal static class SparseFragmentPatchRebaseEmitter
                 + currentMember
                 + ");"
         );
-        code.AppendLineAt(6, "result." + field + " = nested.Patch;");
+        code.AppendLineAt(6, "result." + field + " = nested.Rebased;");
         code.AppendLineAt(6, "foreach (var nestedConflict in nested.Conflicts)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(

@@ -90,7 +90,7 @@ check_sample "rebase" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     'RebaseOnto' \
     'RebaseResult' \
     'HasConflicts' \
-    'SparsePatchConflictKind.Scalar' \
+    'SparseConflictKind.Scalar' \
     'conflicts.Single()' \
     'conflict.Path'
 
