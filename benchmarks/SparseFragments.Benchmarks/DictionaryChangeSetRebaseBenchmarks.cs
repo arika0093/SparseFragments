@@ -78,13 +78,98 @@ public class DictionaryChangeSetRebaseBenchmarks
                 throw new InvalidOperationException("Every conflicting key must retain its path.");
             }
         }
+        ValidateEqualitySemantics();
     }
+
+    private void ValidateEqualitySemantics()
+    {
+        var before = EqualityFragment(0);
+        var after = EqualityFragment(1);
+        var change = BenchEqualityDictHolder.ChangeSet.Between(before, after);
+        var current = EqualityFragment(0);
+        var replay = change.RebaseOnto(current);
+        var applied = replay.Patch.ToPatch().Apply(current);
+        var alreadyApplied = change.RebaseOnto(EqualityFragment(1));
+        if (
+            change.IsEmpty
+            || replay.HasConflicts
+            || replay.Patch.IsEmpty
+            || !BenchEqualityDictHolder.Patch.Between(applied, after).IsEmpty
+            || !BenchEqualityDictHolder
+                .Patch.Between(replay.Patch.Invert().ToPatch().Apply(applied), before)
+                .IsEmpty
+            || alreadyApplied.HasConflicts
+            || !alreadyApplied.Patch.IsEmpty
+        )
+        {
+            throw new InvalidOperationException(
+                "Dictionary rebase must retain nullable, NaN, enum, custom object, and sequence equality."
+            );
+        }
+
+        // This struct's typed equality treats 1 and 11 as equal; object equality does not.
+        var customBefore = CustomFragment(0, 1);
+        var customAfter = CustomFragment(1, 2);
+        var customCurrent = CustomFragment(
+            2,
+            Operation == DictionaryChangeSetRebaseOperation.Add ? 12 : 11
+        );
+        var customChange = BenchEqualityDictHolder.ChangeSet.Between(customBefore, customAfter);
+        var customResult = customChange.RebaseOnto(customCurrent);
+        if (
+            !customResult.HasConflicts
+            || customResult.Conflicts.Count != 1
+            || customResult.Conflicts[0].PathText != "CustomValues.key"
+            || !customResult.Patch.IsEmpty
+        )
+        {
+            throw new InvalidOperationException("Custom struct rebase must use object equality.");
+        }
+    }
+
+    private Optional<BenchEqualityDictHolder.Fragment?> EqualityFragment(int step)
+    {
+        var empty = IsEmptyStep(step);
+        return Optional<BenchEqualityDictHolder.Fragment?>.Present(
+            BenchEqualityDictHolder.Fragment.From(
+                new()
+                {
+                    NullableValues = empty ? new() : new() { ["key"] = step == 0 ? null : 1 },
+                    Text = empty ? new() : new() { ["key"] = step == 0 ? null : "next" },
+                    Numbers = empty ? new() : new() { ["key"] = step == 0 ? double.NaN : 1d },
+                    Modes = empty
+                        ? new()
+                        : new() { ["key"] = step == 0 ? MergeMode.Append : MergeMode.SetUnion },
+                    CustomValues = empty
+                        ? new()
+                        : new() { ["key"] = new BenchCustomScalar(step + 1) },
+                    Sequences = empty
+                        ? new()
+                        : new() { ["key"] = new BenchEnumerableScalar(step + 1) },
+                }
+            )
+        );
+    }
+
+    private Optional<BenchEqualityDictHolder.Fragment?> CustomFragment(int step, int value) =>
+        Optional<BenchEqualityDictHolder.Fragment?>.Present(
+            BenchEqualityDictHolder.Fragment.From(
+                new()
+                {
+                    CustomValues = IsEmptyStep(step)
+                        ? new()
+                        : new() { ["key"] = new BenchCustomScalar(value) },
+                }
+            )
+        );
+
+    private bool IsEmptyStep(int step) =>
+        (Operation == DictionaryChangeSetRebaseOperation.Add && step == 0)
+        || (Operation == DictionaryChangeSetRebaseOperation.Remove && step == 1);
 
     private Optional<BenchScalarDictHolder.Fragment?> Fragment(int step)
     {
-        var empty =
-            (Operation == DictionaryChangeSetRebaseOperation.Add && step == 0)
-            || (Operation == DictionaryChangeSetRebaseOperation.Remove && step == 1);
+        var empty = IsEmptyStep(step);
         var values = new Dictionary<string, int>(empty ? 0 : Size, StringComparer.Ordinal);
         if (!empty)
         {
