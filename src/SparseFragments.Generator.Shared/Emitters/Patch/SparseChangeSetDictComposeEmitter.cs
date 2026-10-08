@@ -286,7 +286,7 @@ internal static class SparseChangeSetDictComposeEmitter
             7,
             "if (!"
                 + facade
-                + ".AreEqual((object?)__a1.After.Value, (object?)__a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
         code.AppendLineAt(7, "continue;");
         code.AppendLineAt(6, "}");
@@ -294,9 +294,7 @@ internal static class SparseChangeSetDictComposeEmitter
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
             7,
-            "if ("
-                + facade
-                + ".AreEqual((object?)__a1.Before.Value, (object?)__a2.After.Value)) continue;"
+            "if (" + facade + ".AreEqual(__a1.Before.Value, __a2.After.Value)) continue;"
         );
         if (hasPatch)
         {
@@ -360,7 +358,7 @@ internal static class SparseChangeSetDictComposeEmitter
             7,
             "if (!"
                 + facade
-                + ".AreEqual((object?)__a1.After.Value, (object?)__a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
         if (hasPatch)
         {
@@ -406,7 +404,7 @@ internal static class SparseChangeSetDictComposeEmitter
             7,
             "if (!"
                 + facade
-                + ".AreEqual((object?)__a1.After.Value, (object?)__a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
         if (hasPatch)
         {
@@ -475,13 +473,11 @@ internal static class SparseChangeSetDictComposeEmitter
                 7,
                 "if (!"
                     + facade
-                    + ".AreEqual((object?)__a1.After.Value, (object?)__a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                    + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
             );
             code.AppendLineAt(
                 7,
-                "if ("
-                    + facade
-                    + ".AreEqual((object?)__a1.Before.Value, (object?)__a2.After.Value)) { continue; }"
+                "if (" + facade + ".AreEqual(__a1.Before.Value, __a2.After.Value)) { continue; }"
             );
             code.AppendLineAt(
                 7,
