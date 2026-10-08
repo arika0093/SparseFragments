@@ -318,7 +318,7 @@ internal static class SparseChangeSetMatchEmitter
                         + id
                         + ".Value!.TryGetValue(__it.Key!, out var __cv) || !"
                         + facade
-                        + ".AreEqual((object?)__cv, (object?)__it.Before.Value)) return false;"
+                        + ".AreEqual(__cv, __it.Before.Value)) return false;"
                 );
         }
         else
@@ -344,7 +344,7 @@ internal static class SparseChangeSetMatchEmitter
                         + id
                         + ".Value!.TryGetValue(__it.Key!, out var __cv2) || !"
                         + facade
-                        + ".AreEqual((object?)__cv2, (object?)__it.After.Value)) return false;"
+                        + ".AreEqual(__cv2, __it.After.Value)) return false;"
                 );
         }
     }
