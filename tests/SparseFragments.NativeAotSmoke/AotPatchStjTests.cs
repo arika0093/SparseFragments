@@ -54,29 +54,6 @@ public sealed class AotPatchStjTests
         return new AotServerHolder.Patch.PatchJsonConverter().Read(ref reader, typeof(AotServerHolder.Patch), options);
     }
 
-    private static string WriteChangeSet(AotWidget.ChangeSet changes, JsonSerializerOptions options)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            new AotWidget.ChangeSet.ChangeSetJsonConverter().Write(writer, changes, options);
-        }
-
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static AotWidget.ChangeSet ReadChangeSet(string json, JsonSerializerOptions options)
-    {
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var reader = new Utf8JsonReader(bytes);
-        if (!reader.Read())
-        {
-            throw new JsonException("Empty change-set JSON.");
-        }
-
-        return new AotWidget.ChangeSet.ChangeSetJsonConverter().Read(ref reader, typeof(AotWidget.ChangeSet), options);
-    }
-
     [Test]
     public async Task PatchEmptyRoundTripsWithSourceGen()
     {
@@ -154,22 +131,6 @@ public sealed class AotPatchStjTests
         var reorderBack = ReadServerPatch(WriteServerPatch(reorder, options), options);
 
         await Assert.That(AotServerHolder.Patch.Between(reorderBack.Apply(before), reorderAfter).IsEmpty).IsTrue();
-    }
-
-    [Test]
-    public async Task ChangeSetRoundTripsWithSourceGen()
-    {
-        var options = AotOptions();
-        var before = Optional<AotWidget.Fragment?>.Present(
-            new AotWidget.Fragment { Name = Optional<string?>.Present("a") }
-        );
-        var after = Optional<AotWidget.Fragment?>.Present(
-            new AotWidget.Fragment { Name = Optional<string?>.Present("b") }
-        );
-        var changes = AotWidget.ChangeSet.Between(before, after);
-        var back = ReadChangeSet(WriteChangeSet(changes, options), options);
-
-        await Assert.That(AotWidget.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty).IsTrue();
     }
 
     [Test]

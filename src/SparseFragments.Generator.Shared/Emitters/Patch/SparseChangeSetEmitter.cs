@@ -29,7 +29,6 @@ internal static class SparseChangeSetEmitter
         );
         var between = "Patch." + prefix + "Between";
         var rebase = "Patch." + prefix + "Rebase";
-        SparsePatchStjEmitter.AppendChangeSetConverterAttribute(code);
         code.AppendLineAt(1, "public sealed class ChangeSet");
         code.AppendLineAt(1, "{");
         SparseChangeSetBasicsEmitter.AppendFields(
@@ -88,8 +87,11 @@ internal static class SparseChangeSetEmitter
             modelType
         );
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
-        SparsePatchStjEmitter.AppendChangeSetStj(code, members, dialect);
+        SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
+        SparseChangeSetPayloadEmitter.AppendFromPayload(code, members, dialect, modelType);
         code.AppendLineAt(1, "}");
+        code.AppendLine();
+        SparseChangeSetPayloadEmitter.AppendPayload(code, members, dialect, modelType);
     }
 
     internal static void ComputePublicNames(

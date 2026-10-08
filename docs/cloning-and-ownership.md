@@ -27,7 +27,7 @@ Do not mutate a shared object after assigning it if the Fragment/Patch must rema
 | `ToModel` | Shares: the model aliases fragment member references |
 | `DeepClone` | Snapshots, except members marked `[SparseCloneReferenceSafe]`, which stay shared |
 | Whole-contribution `Set(model)` | Snapshots (goes through `From`) |
-| ChangeSet/Patch JSON deserialization | Snapshots (freshly deserialized values) |
+| ChangeSet payload/Patch JSON deserialization | Snapshots (freshly deserialized values) |
 | Granular keyed-collection edits | New container, shared element references |
 
 SparseFragments does not clone every assigned value during `Merge` or `Apply`, so those operations may reuse caller-provided references.

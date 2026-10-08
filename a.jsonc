@@ -1,0 +1,114 @@
+{
+  "Version": 1,
+  "Changes": [
+    {
+      "member": "Quests",
+      "Items": [
+        {
+          "Key": "b",
+          "Kind": "Edit",
+          "BeforeIndex": 1,
+          "AfterIndex": 0,
+          "Edit": {
+            "Version": 1,
+            "Changes": [
+              {
+                "member": "Title",
+                "Before": {
+                  "State": "Value",
+                  "Value": "Second"
+                },
+                "After": {
+                  "State": "Value",
+                  "Value": "Second v2"
+                }
+              }
+            ] // Editには変更されたメンバーだけを含める。
+          }
+        },
+        {
+          "Key": "c",
+          "Kind": "Edit",
+          "BeforeIndex": 2,
+          "AfterIndex": 1,
+          "Edit": {
+            "Version": 1,
+            "Changes": [
+              {
+                "member": "Scores",
+                "Before": {
+                  "State": "Value",
+                  "Value": [
+                    40,
+                    50
+                  ]
+                },
+                "After": {
+                  "State": "Value",
+                  "Value": [
+                    40,
+                    50,
+                    60
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "Key": "d",
+          "Before": {
+            "State": "Missing",
+            "Value": null
+          },
+          "After": {
+            "State": "Value",
+            "Value": {
+              "Id": "d",
+              "Title": "Fourth",
+              "Points": 5,
+              "Scores": [
+                60
+              ]
+            }
+          },
+          "Kind": "Add",
+          "BeforeIndex": -1,
+          "AfterIndex": 2
+        },
+        {
+          "Key": "a",
+          "Before": {
+            "State": "Value",
+            "Value": {
+              "Id": "a",
+              "Title": "First",
+              "Points": 10,
+              "Scores": [
+                10,
+                20
+              ]
+            }
+          },
+          "After": {
+            "State": "Missing",
+            "Value": null
+          },
+          "Kind": "Remove",
+          "BeforeIndex": 0,
+          "AfterIndex": -1
+        }
+      ],
+      "BeforeOrder": [
+        "a",
+        "b",
+        "c"
+      ],
+      "AfterOrder": [
+        "b",
+        "c",
+        "d"
+      ]
+    }
+  ]
+}

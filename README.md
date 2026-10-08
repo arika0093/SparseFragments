@@ -72,11 +72,11 @@ See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions
 
 ### Client/Server Edits
 
-A `ChangeSet` can be serialized and sent through the transport the application already uses:
+A `ChangeSet` can be sent through the transport the application already uses by converting it to its generated payload:
 
 ```csharp
-var json = JsonSerializer.Serialize(changes);
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+var json = JsonSerializer.Serialize(changes.ToPayload());
+var incoming = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
 
 var rebased = incoming.RebaseOnto(current);
 ```
@@ -233,6 +233,7 @@ partial class Settings
     public sealed class Fragment;
     public sealed class Patch;
     public sealed class ChangeSet;
+    public sealed class ChangeSetPayload;
     public sealed class FragmentBuilder;
     public sealed class Observable : INotifyPropertyChanged;
 }

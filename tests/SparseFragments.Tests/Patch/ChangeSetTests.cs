@@ -843,8 +843,8 @@ public sealed class ChangeSetTests
         byKey["a"].AfterIndex.ShouldBe(1);
         byKey["b"].BeforeIndex.ShouldBe(1);
         byKey["b"].AfterIndex.ShouldBe(0);
-        byKey["a"].Before.Value!.Id.ShouldBe("a");
-        byKey["a"].After.Value!.Id.ShouldBe("a");
+        byKey["a"].Before.IsPresent.ShouldBeFalse();
+        byKey["a"].After.IsPresent.ShouldBeFalse();
         byKey["a"].IsAdded.ShouldBeFalse();
         byKey["a"].IsRemoved.ShouldBeFalse();
         byKey["a"].IsEdited.ShouldBeFalse();
@@ -866,8 +866,8 @@ public sealed class ChangeSetTests
         editItem.IsEdited.ShouldBeTrue();
         editItem.IsAdded.ShouldBeFalse();
         editItem.IsRemoved.ShouldBeFalse();
-        editItem.Before.Value!.Name.ShouldBe("old");
-        editItem.After.Value!.Name.ShouldBe("new");
+        editItem.Before.IsPresent.ShouldBeFalse();
+        editItem.After.IsPresent.ShouldBeFalse();
         editItem.Edit.Name.After.Value.ShouldBe("new");
     }
 
@@ -969,18 +969,18 @@ public sealed class ChangeSetTests
     }
 
     [Test]
-    public void TypedProjectionsExcludedFromJsonContract()
+    public void PayloadExcludesTypedConvenienceProjections()
     {
         var before = Present(MakeSettings("Alice", 1));
         var after = Present(MakeSettings("Bob", 2));
         var changes = Settings.ChangeSet.Between(before, after);
-        var json = System.Text.Json.JsonSerializer.Serialize(changes);
+        var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldNotContain("Added");
         json.ShouldNotContain("Removed");
         json.ShouldNotContain("Edited");
         json.ShouldNotContain("IsChanged");
         json.ShouldNotContain("BeforeOrder");
-        var back = System.Text.Json.JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+        var back = System.Text.Json.JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
         back.Label.IsChanged.ShouldBeTrue();
         back.Label.After.Value.ShouldBe("Bob");
         back.RetryCount.After.Value.ShouldBe(2);
@@ -994,9 +994,9 @@ public sealed class ChangeSetTests
             F(new KeyedServer { Id = "a", Name = "A" }),
             F(new KeyedServer { Id = "a", Name = "B" }, new KeyedServer { Id = "b" })
         );
-        var keyedJson = System.Text.Json.JsonSerializer.Serialize(keyed);
+        var keyedJson = System.Text.Json.JsonSerializer.Serialize(keyed.ToPayload());
         keyedJson.ShouldNotContain("Added");
-        var keyedBack = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(keyedJson)!;
+        var keyedBack = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(keyedJson)!.ToChangeSet();
         keyedBack.Items.Added.Select(e => e.Id).ShouldBe(["b"]);
         keyedBack.Items.Edited["a"].Name.After.Value.ShouldBe("B");
     }

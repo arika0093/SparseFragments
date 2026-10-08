@@ -42,7 +42,7 @@ public sealed class PatchChangeSetStjTests
             Optional<Settings.Fragment?>.Missing,
             Optional<Settings.Fragment?>.Missing
         );
-        RoundTrip(cs).IsEmpty.ShouldBeTrue();
+        RoundTrip(cs.ToPayload()).ToChangeSet().IsEmpty.ShouldBeTrue();
     }
 
     [Test]
@@ -79,7 +79,7 @@ public sealed class PatchChangeSetStjTests
             var back = RoundTrip(patch);
             Settings.Patch.Between(back.Apply(b), a).IsEmpty.ShouldBeTrue($"patch {b} -> {a}");
             var cs = Settings.ChangeSet.Between(b, a);
-            var csBack = RoundTrip(cs);
+            var csBack = RoundTrip(cs.ToPayload()).ToChangeSet();
             Settings.Patch.Between(csBack.ToPatch().Apply(b), a).IsEmpty.ShouldBeTrue($"changeset {b} -> {a}");
         }
 
@@ -129,7 +129,7 @@ public sealed class PatchChangeSetStjTests
         ScalarSequenceHolder.Patch.Between(back.Apply(before), after).IsEmpty.ShouldBeTrue();
 
         var cs = ScalarSequenceHolder.ChangeSet.Between(before, after);
-        var csBack = RoundTrip(cs);
+        var csBack = RoundTrip(cs.ToPayload()).ToChangeSet();
         ScalarSequenceHolder.Patch.Between(csBack.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
 
@@ -244,7 +244,7 @@ public sealed class PatchChangeSetStjTests
         foreach (var (b, a) in new[] { (missing, missing), (missing, nullState), (nullState, value), (value, missing), (value, value) })
         {
             var cs = Settings.ChangeSet.Between(b, a);
-            var back = RoundTrip(cs);
+            var back = RoundTrip(cs.ToPayload()).ToChangeSet();
             back.IsEmpty.ShouldBe(cs.IsEmpty);
             Settings.Patch.Between(back.ToPatch().Apply(b), a).IsEmpty.ShouldBeTrue();
         }
@@ -270,8 +270,8 @@ public sealed class PatchChangeSetStjTests
         Settings.Patch.Between(p1.Compose(p2).Apply(b0), b2).IsEmpty.ShouldBeTrue();
         Settings.Patch.Between(RoundTrip(p1).Invert(b0).Apply(p1.Apply(b0)), b0).IsEmpty.ShouldBeTrue();
 
-        var c1 = RoundTrip(Settings.ChangeSet.Between(b0, b1));
-        var c2 = RoundTrip(Settings.ChangeSet.Between(b1, b2));
+        var c1 = RoundTrip(Settings.ChangeSet.Between(b0, b1).ToPayload()).ToChangeSet();
+        var c2 = RoundTrip(Settings.ChangeSet.Between(b1, b2).ToPayload()).ToChangeSet();
         Settings.Patch.Between(c1.Compose(c2).ToPatch().Apply(b0), b2).IsEmpty.ShouldBeTrue();
         Settings.Patch.Between(c1.Invert().ToPatch().Apply(b1), b0).IsEmpty.ShouldBeTrue();
 
@@ -284,7 +284,7 @@ public sealed class PatchChangeSetStjTests
             }
         );
         var current = S("Bob", 20);
-        var changes = RoundTrip(Settings.ChangeSet.Between(baseState, edited));
+        var changes = RoundTrip(Settings.ChangeSet.Between(baseState, edited).ToPayload()).ToChangeSet();
         var rebased = changes.RebaseOnto(current);
         rebased.HasConflicts.ShouldBeFalse();
         var expected = S("Bob", 21);
@@ -325,10 +325,11 @@ public sealed class PatchChangeSetStjTests
         var after = State(new NamingWidget { Value = "b", Slash = 3, Plain = 2 });
 
         var changes = NamingWidget.ChangeSet.Between(before, after);
-        var json = JsonSerializer.Serialize(changes, options);
-        json.ShouldContain("customName");
+        var payload = changes.ToPayload();
+        var json = JsonSerializer.Serialize(payload, options);
+        json.ShouldContain("\"member\":\"Value\"");
 
-        var back = JsonSerializer.Deserialize<NamingWidget.ChangeSet>(json, options)!;
+        var back = JsonSerializer.Deserialize<NamingWidget.ChangeSetPayload>(json, options)!.ToChangeSet();
         NamingWidget.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
 
@@ -349,27 +350,6 @@ public sealed class PatchChangeSetStjTests
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<Settings.Patch>("""{"$whole":{"kind":"set"}}""")
-        );
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"version":1,"changes":{"before":{"state":"missing"}}}"""
-            )
-        );
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"version":1,"changes":{"Label":{"before":{"state":"bogus"},"after":{"state":"missing"}}}}"""
-            )
-        );
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"version":1,"changes":{"Label":{"before":{"state":"missing"},"after":{"state":"missing"},"extra":{}}}}"""
-            )
-        );
-        // The pre-v1 unversioned body is not accepted as a v1 document.
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.ChangeSet>(
-                """{"Label":{"before":{"state":"value","value":"a"},"after":{"state":"value","value":"b"}}}"""
-            )
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<KeyedServerHolder.Patch>("""{"Items":{"added":"nope"}}""")

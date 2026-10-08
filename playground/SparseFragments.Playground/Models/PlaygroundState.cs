@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using SparseFragments;
 using SparseFragments.Playground.Models;
 
@@ -340,65 +341,36 @@ public static class PlaygroundJson
         return options;
     }
 
-    /// <summary>Creates options carrying the source-generated metadata for ChangeSet JSON.</summary>
+    /// <summary>
+    /// Creates options for ChangeSet payload JSON. Generated payload types are not visible to the
+    /// System.Text.Json source generator, so they resolve through the reflection fallback.
+    /// </summary>
     public static JsonSerializerOptions ChangeSetOptions() =>
         new()
         {
-            TypeInfoResolver = PlaygroundJsonContext.Default,
+            TypeInfoResolver = JsonTypeInfoResolver.Combine(
+                PlaygroundJsonContext.Default,
+                new DefaultJsonTypeInfoResolver()
+            ),
             WriteIndented = true,
         };
 
-    /// <summary>
-    /// Serializes a settings ChangeSet through the generated converter directly.
-    /// This stays trim/NativeAOT clean: <c>JsonSerializer.Serialize</c> dispatch would
-    /// require <c>ChangeSet</c> metadata on the source-generated context and throws
-    /// <c>NotSupportedException</c> otherwise.
-    /// </summary>
-    public static string WriteSettingsChangeSet(PlaygroundSettings.ChangeSet changes)
-    {
-        var options = ChangeSetOptions();
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-        {
-            new PlaygroundSettings.ChangeSet.ChangeSetJsonConverter().Write(
-                writer,
-                changes,
-                options
-            );
-        }
+    /// <summary>Serializes a settings ChangeSet as its typed payload DTO.</summary>
+    public static string WriteSettingsChangeSet(PlaygroundSettings.ChangeSet changes) =>
+        JsonSerializer.Serialize(changes.ToPayload(), ChangeSetOptions());
 
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
+    /// <summary>Serializes a roster ChangeSet as its typed payload DTO.</summary>
+    public static string WriteRosterChangeSet(PlaygroundRoster.ChangeSet changes) =>
+        JsonSerializer.Serialize(changes.ToPayload(), ChangeSetOptions());
 
-    /// <summary>Serializes a roster ChangeSet through the generated converter directly.</summary>
-    public static string WriteRosterChangeSet(PlaygroundRoster.ChangeSet changes)
-    {
-        var options = ChangeSetOptions();
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-        {
-            new PlaygroundRoster.ChangeSet.ChangeSetJsonConverter().Write(writer, changes, options);
-        }
-
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    /// <summary>Deserializes a settings ChangeSet through the generated converter directly.</summary>
+    /// <summary>Deserializes a settings ChangeSet from its typed payload DTO.</summary>
     public static PlaygroundSettings.ChangeSet ReadSettingsChangeSet(string json)
     {
-        var options = ChangeSetOptions();
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var reader = new Utf8JsonReader(bytes);
-        if (!reader.Read())
-        {
-            throw new JsonException("Empty change-set JSON.");
-        }
-
-        return new PlaygroundSettings.ChangeSet.ChangeSetJsonConverter().Read(
-            ref reader,
-            typeof(PlaygroundSettings.ChangeSet),
-            options
+        var payload = JsonSerializer.Deserialize<PlaygroundSettings.ChangeSetPayload>(
+            json,
+            ChangeSetOptions()
         );
+        return payload?.ToChangeSet() ?? throw new JsonException("The ChangeSet JSON deserialized to null.");
     }
 
     /// <summary>Serializes a fragment to its canonical (present-members-only) JSON.</summary>

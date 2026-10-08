@@ -290,24 +290,40 @@ internal static class SparseChangeSetDictBetweenEmitter
                     + trans
                     + ".Item(__kv.Key, __b, default, false, true, false, __edit, false)); }"
             );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __edited"
-                    + id
-                    + ") { var __b = "
-                    + optValue
-                    + ".Present(__beforeDict"
-                    + id
-                    + "[__kv.Key]); var __a = "
-                    + optValue
-                    + ".Present(__afterDict"
-                    + id
-                    + "[__kv.Key]); __list"
-                    + id
-                    + ".Add(new "
-                    + trans
-                    + ".Item(__kv.Key, __b, __a, false, false, true, __kv.Value, false)); }"
-            );
+            if (hasPatch)
+            {
+                code.AppendLineAt(
+                    6,
+                    "foreach (var __kv in __edited"
+                        + id
+                        + ") __list"
+                        + id
+                        + ".Add(new "
+                        + trans
+                        + ".Item(__kv.Key, default, default, false, false, true, __kv.Value, false));"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    6,
+                    "foreach (var __kv in __edited"
+                        + id
+                        + ") { var __b = "
+                        + optValue
+                        + ".Present(__beforeDict"
+                        + id
+                        + "[__kv.Key]); var __a = "
+                        + optValue
+                        + ".Present(__afterDict"
+                        + id
+                        + "[__kv.Key]); __list"
+                        + id
+                        + ".Add(new "
+                        + trans
+                        + ".Item(__kv.Key, __b, __a, false, false, true, __kv.Value, false)); }"
+                );
+            }
             code.AppendLineAt(6, "__items" + id + " = __list" + id + ";");
             code.AppendLineAt(5, "}");
         }

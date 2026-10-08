@@ -38,6 +38,7 @@ internal static class SparseChangeSetDictComposeEmitter
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
         var facade = dialect.RuntimeFacade;
         var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
+        var valueType = hasPatch ? member.Collection.ValueType!.Value.NonNullableName : null;
         var valueCs = hasPatch ? ValueChangeSetOf(member) : null;
         var valueFrag = hasPatch ? ValueFragmentOf(member) : null;
         var trans = TransNameFor(members, member);
@@ -355,39 +356,33 @@ internal static class SparseChangeSetDictComposeEmitter
         );
         code.AppendLineAt(6, "if (__a1!.IsAdded && __a2!.IsEdited)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(
-            7,
-            "if (!"
-                + facade
-                + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
-        );
         if (hasPatch)
         {
-            code.AppendLineAt(
-                7,
-                runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?> __ea2 = "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__a2.After.Value!));"
-            );
-            code.AppendLineAt(7, "var __edit2 = " + valueCs + ".Between(default, __ea2);");
+            code.AppendLineAt(7, "var __edit2 = __a1.Edit.Compose(__a2.Edit);");
+            code.AppendLineAt(7, "var __addedState = __edit2.ToPatch().Apply(default);");
+            code.AppendLineAt(7, "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce a value.\");");
+            code.AppendLineAt(7, "var __addedValue = __addedState.Value!.ToModel();");
             code.AppendLineAt(
                 7,
                 "__net"
                     + id
                     + "[__k!] = new "
                     + trans
-                    + ".Item(__k!, default, __a2.After, true, false, false, __edit2, false);"
+                    + ".Item(__k!, default, "
+                    + runtime
+                    + "Optional<"
+                    + valueType
+                    + ">.Present(__addedValue), true, false, false, __edit2, false);"
             );
         }
         else
         {
+            code.AppendLineAt(
+                7,
+                "if (!"
+                    + facade
+                    + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+            );
             code.AppendLineAt(
                 7,
                 "__net"
@@ -401,39 +396,33 @@ internal static class SparseChangeSetDictComposeEmitter
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "if (__a1!.IsEdited && __a2!.IsRemoved)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(
-            7,
-            "if (!"
-                + facade
-                + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
-        );
         if (hasPatch)
         {
-            code.AppendLineAt(
-                7,
-                runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?> __eb1 = "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__a1.Before.Value!));"
-            );
-            code.AppendLineAt(7, "var __redit = " + valueCs + ".Between(__eb1, default);");
+            code.AppendLineAt(7, "var __removedEdit = __a1.Edit.Compose(__a2.Edit);");
+            code.AppendLineAt(7, "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);");
+            code.AppendLineAt(7, "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce a value.\");");
+            code.AppendLineAt(7, "var __removedValue = __removedState.Value!.ToModel();");
             code.AppendLineAt(
                 7,
                 "__net"
                     + id
                     + "[__k!] = new "
                     + trans
-                    + ".Item(__k!, __a1.Before, default, false, true, false, __redit, false);"
+                    + ".Item(__k!, "
+                    + runtime
+                    + "Optional<"
+                    + valueType
+                    + ">.Present(__removedValue), default, false, true, false, __removedEdit, false);"
             );
         }
         else
         {
+            code.AppendLineAt(
+                7,
+                "if (!"
+                    + facade
+                    + ".AreEqual(__a1.After.Value, __a2.Before.Value)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+            );
             code.AppendLineAt(
                 7,
                 "__net"

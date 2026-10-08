@@ -440,7 +440,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             runtime
                 + "Optional<"
                 + elementType
-                + "> __ib = __inBefore ? "
+                + "> __ib = __inBefore && !__isEdited && !__isReordered ? "
                 + runtime
                 + "Optional<"
                 + elementType
@@ -456,15 +456,18 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         );
         code.AppendLineAt(
             8,
-            "__list"
-                + id
-                + ".Add(new "
-                + trans
-                + ".Item(__k, __ib, "
+            runtime
+                + "Optional<"
+                + elementType
+                + "> __ia = !__isEdited && !__isReordered ? "
                 + runtime
                 + "Optional<"
                 + elementType
-                + ">.Present(__a), __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit, false));"
+                + ">.Present(__a) : default; __list"
+                + id
+                + ".Add(new "
+                + trans
+                + ".Item(__k, __ib, __ia, __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit, false));"
         );
         code.AppendLineAt(7, "}");
         code.AppendLineAt(6, "}");

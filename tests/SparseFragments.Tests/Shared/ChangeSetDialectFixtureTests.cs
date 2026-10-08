@@ -223,17 +223,6 @@ public sealed class ChangeSetDialectFixtureTests
     }
 
     [Test]
-    public void Downstream_ChangeSetStjContainsNoSparseFragmentsRuntime()
-    {
-        var code = new SharedIndentedBuilder(CancellationToken.None);
-        SparsePatchStjEmitter.AppendChangeSetStj(code, FixtureMembers(), DownstreamDialect());
-        var text = code.ToString();
-        text.ShouldNotContain("global::SparseFragments");
-        text.ShouldContain("global::Downstream.Optional<");
-        text.ShouldContain("global::Downstream.Delta_2");
-    }
-
-    [Test]
     public void Downstream_PatchStjContainsNoSparseFragmentsRuntime()
     {
         var code = new SharedIndentedBuilder(CancellationToken.None);

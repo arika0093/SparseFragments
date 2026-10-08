@@ -56,7 +56,7 @@ public sealed class SparseKeyedDictChangeSetTests
         changes.Items.Edited.Count.ShouldBe(1);
         changes.Items.Edited.ContainsKey("k7").ShouldBeTrue();
 
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
         // Unchanged element payloads must not be retained/serialized (wide names fail obviously).
         json.ShouldNotContain("k5-original-");
         json.ShouldNotContain("k150-original-");
@@ -66,12 +66,12 @@ public sealed class SparseKeyedDictChangeSetTests
             before,
             KState(items.Select(s => new KeyedServer { Id = s.Id, Name = "CHANGED-" + s.Id, Count = 2 }).ToArray())
         );
-        var fullJson = JsonSerializer.Serialize(full);
+        var fullJson = JsonSerializer.Serialize(full.ToPayload());
         (json.Length * 3 < fullJson.Length).ShouldBeTrue(
             $"sparse single {json.Length} should scale vs full {fullJson.Length}"
         );
 
-        var back = JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(json)!.ToChangeSet();
         back.Items.Edited.ContainsKey("k7").ShouldBeTrue();
         back.Items.GetChange("k0").IsEmpty.ShouldBeTrue();
         AssertKeyedReplay(before, after, back);
@@ -89,10 +89,10 @@ public sealed class SparseKeyedDictChangeSetTests
         changes.Scores.Removed.Count.ShouldBe(0);
         changes.Scores.Edited.Count.ShouldBe(1);
 
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldContain("9999");
         json.ShouldNotContain("key150");
-        var back = JsonSerializer.Deserialize<ScalarDictHolder.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<ScalarDictHolder.ChangeSetPayload>(json)!.ToChangeSet();
         back.Scores.Edited["key7"].ShouldBe(9999);
         back.Scores.GetChange("key0").IsEmpty.ShouldBeTrue();
         ScalarDictHolder.Patch
@@ -144,9 +144,9 @@ public sealed class SparseKeyedDictChangeSetTests
         mixed.Items.GetChange("a").IsRemoved.ShouldBeTrue();
         mixed.Items.GetChange("c").IsEdited.ShouldBeTrue();
         AssertKeyedReplay(KState(S("a"), S("b"), S("c")), KState(S("c", "C2"), S("d")), mixed);
-        var mixedBack = JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-            JsonSerializer.Serialize(mixed)
-        )!;
+        var mixedBack = JsonSerializer
+            .Deserialize<KeyedServerHolder.ChangeSetPayload>(JsonSerializer.Serialize(mixed.ToPayload()))!
+            .ToChangeSet();
         AssertKeyedReplay(KState(S("a"), S("b"), S("c")), KState(S("c", "C2"), S("d")), mixedBack);
     }
 
@@ -173,9 +173,9 @@ public sealed class SparseKeyedDictChangeSetTests
             };
         var changes = ClusterHolder.ChangeSet.Between(State(Before()), State(After()));
         changes.Groups.IsChanged.ShouldBeTrue();
-        var back = JsonSerializer.Deserialize<ClusterHolder.ChangeSet>(
-            JsonSerializer.Serialize(changes)
-        )!;
+        var back = JsonSerializer
+            .Deserialize<ClusterHolder.ChangeSetPayload>(JsonSerializer.Serialize(changes.ToPayload()))!
+            .ToChangeSet();
         ClusterHolder.Patch.Between(back.ToPatch().Apply(State(Before())), State(After())).IsEmpty.ShouldBeTrue();
         back.Invert().Invert().IsEmpty.ShouldBeFalse();
     }
@@ -365,23 +365,4 @@ public sealed class SparseKeyedDictChangeSetTests
         ScalarDictHolder.Patch.Between(dInverted.ToPatch().Apply(dAfter), dBefore).IsEmpty.ShouldBeTrue();
     }
 
-    [Test]
-    public void MalformedSparseJsonCannotBuildInvalidTransitions()
-    {
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-                """{"version":1,"changes":{"Items":{"items":[{"key":"a","kind":"bogus","after":{"Id":"a","Name":"x","Count":0},"beforeIndex":-1,"afterIndex":0}]}}}"""
-            )
-        );
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-                """{"version":1,"changes":{"Items":{"items":[]}}}"""
-            )
-        );
-        Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<ScalarDictHolder.ChangeSet>(
-                """{"version":1,"changes":{"Scores":{"items":[{"key":"a","kind":"edit","before":1,"after":1}]}}}"""
-            )
-        );
-    }
 }

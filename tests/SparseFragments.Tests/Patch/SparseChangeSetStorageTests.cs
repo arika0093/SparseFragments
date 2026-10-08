@@ -102,7 +102,7 @@ public sealed class SparseChangeSetStorageTests
         var before = WideState();
         var after = WideState(alpha: "a2");
         var changes = WideWidget.ChangeSet.Between(before, after);
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
 
         json.ShouldContain("Alpha");
         json.ShouldContain("a2");
@@ -121,12 +121,12 @@ public sealed class SparseChangeSetStorageTests
             WideState(),
             WideState("a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2")
         );
-        var allJson = JsonSerializer.Serialize(allChanged);
+        var allJson = JsonSerializer.Serialize(allChanged.ToPayload());
         (json.Length * 3 < allJson.Length).ShouldBeTrue(
             $"sparse single {json.Length} should scale vs full {allJson.Length}"
         );
 
-        var back = JsonSerializer.Deserialize<WideWidget.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<WideWidget.ChangeSetPayload>(json)!.ToChangeSet();
         back.Alpha.IsChanged.ShouldBeTrue();
         back.Alpha.After.Value.ShouldBe("a2");
         back.Bravo.IsChanged.ShouldBeFalse();
@@ -164,12 +164,12 @@ public sealed class SparseChangeSetStorageTests
         changes.Nested.Port.IsChanged.ShouldBeFalse();
         changes.Nested.Port.Before.IsPresent.ShouldBeFalse();
 
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldContain("Host");
         json.ShouldNotContain("Label");
         json.ShouldNotContain("Port");
 
-        var back = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
         back.Nested.Host.After.Value.ShouldBe("b");
         back.Nested.Port.IsChanged.ShouldBeFalse();
         Settings.Patch.Between(back.ToPatch().Apply(State("a")), State("b")).IsEmpty.ShouldBeTrue();
@@ -189,9 +189,9 @@ public sealed class SparseChangeSetStorageTests
         changes.Values.Before.Value.ShouldBe([1, 2]);
         changes.Values.After.Value.ShouldBe([3, 4]);
 
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldContain("Values");
-        var back = JsonSerializer.Deserialize<StrategySettings.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<StrategySettings.ChangeSetPayload>(json)!.ToChangeSet();
         back.Values.After.Value.ShouldBe([3, 4]);
         StrategySettings.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
@@ -221,10 +221,10 @@ public sealed class SparseChangeSetStorageTests
         changes.Servers.Edited.ContainsKey("b").ShouldBeTrue();
         changes.Servers.Edited["b"].Name.After.Value.ShouldBe("B2");
 
-        var json = JsonSerializer.Serialize(changes);
+        var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldNotContain("Title");
 
-        var back = JsonSerializer.Deserialize<ServerGroupHolder.ChangeSet>(json)!;
+        var back = JsonSerializer.Deserialize<ServerGroupHolder.ChangeSetPayload>(json)!.ToChangeSet();
         back.Servers.Added.Select(e => e.Id).ShouldBe(["c"]);
         back.Servers.Removed.Select(e => e.Id).ShouldBe(["a"]);
         back.Servers.Edited["b"].Name.After.Value.ShouldBe("B2");
@@ -248,9 +248,9 @@ public sealed class SparseChangeSetStorageTests
         foreach (var (b, a) in new[] { (missing, missing), (missing, nullState), (nullState, value), (value, missing), (value, value) })
         {
             var changes = Settings.ChangeSet.Between(b, a);
-            var back = JsonSerializer.Deserialize<Settings.ChangeSet>(
-                JsonSerializer.Serialize(changes)
-            )!;
+            var back = JsonSerializer
+                .Deserialize<Settings.ChangeSetPayload>(JsonSerializer.Serialize(changes.ToPayload()))!
+                .ToChangeSet();
             back.IsEmpty.ShouldBe(changes.IsEmpty);
             back.Invert().Invert().IsEmpty.ShouldBe(changes.IsEmpty);
             Settings.Patch.Between(back.ToPatch().Apply(b), a).IsEmpty.ShouldBeTrue();
@@ -303,8 +303,11 @@ public sealed class SparseChangeSetStorageTests
         var b1 = S("b", 1);
         var b2 = S("b", 2);
 
-        T RoundTrip<T>(T value) =>
-            JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
+        Settings.ChangeSet RoundTrip(Settings.ChangeSet value) =>
+            JsonSerializer.Deserialize<Settings.ChangeSetPayload>(
+                JsonSerializer.Serialize(value.ToPayload())
+            )!
+                .ToChangeSet();
 
         var c1 = RoundTrip(Settings.ChangeSet.Between(b0, b1));
         var c2 = RoundTrip(Settings.ChangeSet.Between(b1, b2));

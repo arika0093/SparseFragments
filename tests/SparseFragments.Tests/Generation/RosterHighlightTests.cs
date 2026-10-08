@@ -323,10 +323,10 @@ public sealed class RosterHighlightTests
         manual.ShouldContain("Quests.Remove");
         manual.ShouldContain("Quests.Edit");
 
-        // ChangeSet JSON uses the same shared instance.
-        var json = JsonSerializer.Serialize(changes, new JsonSerializerOptions { WriteIndented = true });
+        // The typed payload JSON uses the same shared instance.
+        var json = JsonSerializer.Serialize(changes.ToPayload(), new JsonSerializerOptions { WriteIndented = true });
         json.ShouldContain("\"d\"");
-        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangeSet>(json)!;
+        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangeSetPayload>(json)!.ToChangeSet();
         roundTripped.Quests.GetChange("d").IsAdded.ShouldBeTrue();
         roundTripped.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
 

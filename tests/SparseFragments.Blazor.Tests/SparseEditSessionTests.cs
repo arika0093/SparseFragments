@@ -389,8 +389,8 @@ public sealed class SparseEditSessionTests
     [Test]
     public void EditSessionChangeSet_SerializeDeserialize_PreservesRebaseAndApplySemantics()
     {
-        // #87/#102: one representative end-to-end test over the serialization
-        // boundary (ordinary System.Text.Json), not the full #86 matrix.
+        // #87/#102: one representative end-to-end test over the typed payload
+        // serialization boundary, not the full #86 matrix.
         var session = Order().CreateEditSession();
         session.Model.Number = "ORD-2";
         session.Model.Customer.Email = "new@example.com";
@@ -399,8 +399,8 @@ public sealed class SparseEditSessionTests
         var changes = session.CreateChangeSet();
         changes.IsEmpty.ShouldBeFalse();
 
-        var json = System.Text.Json.JsonSerializer.Serialize(changes);
-        var restored = System.Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSet>(json)!;
+        var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
+        var restored = System.Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSetPayload>(json)!.ToChangeSet();
         restored.IsEmpty.ShouldBeFalse();
 
         // Same apply semantics from the session baseline.

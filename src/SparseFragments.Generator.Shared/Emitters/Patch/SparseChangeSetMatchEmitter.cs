@@ -208,42 +208,25 @@ internal static class SparseChangeSetMatchEmitter
         if (isKeyed)
         {
             var elementFrag = ElementFragmentOf(member);
-            var elementCs = ElementChangeSetOf(member);
-            // Fragment-aware per-key equality via nested ChangeSet emptiness
-            // (handles cloned element instances with equal values).
-            // Between(a,b).IsEmpty == equal; mismatch is !IsEmpty.
+            // Nested match helpers validate only the child paths represented by Edit.
             var mismatchBefore =
                 "!"
-                + elementCs
-                + ".Between("
+                + "__it.Edit.__SparseBeforeMatches("
                 + runtime
                 + "Optional<"
                 + elementFrag
                 + "?>.Present("
                 + elementFrag
-                + ".From(__it.Before.Value!)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__e))).IsEmpty";
+                + ".From(__e)))";
             var mismatchAfter =
                 "!"
-                + elementCs
-                + ".Between("
+                + "__it.Edit.__SparseAfterMatches("
                 + runtime
                 + "Optional<"
                 + elementFrag
                 + "?>.Present("
                 + elementFrag
-                + ".From(__e)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__it.After.Value!))).IsEmpty";
+                + ".From(__e)))";
             // Emitter-side branch on Before/After avoids unreachable runtime
             // string comparisons in generated code.
             if (side == "Before")
@@ -290,7 +273,7 @@ internal static class SparseChangeSetMatchEmitter
             // Scalar and fragment dictionary values share comparer-based endpoint
             // checks here (nested fragment deltas are validated by value equality
             // at the match-probe level; structural conflicts surface in rebase).
-            EmitDictMatchProbes(code, id, side, facade);
+            EmitDictMatchProbes(code, member, id, side, runtime, facade);
         }
         code.AppendLineAt(4, "}");
         // Added keys must be absent on the Before side and present on the After side is
@@ -301,36 +284,68 @@ internal static class SparseChangeSetMatchEmitter
 
     internal static void EmitDictMatchProbes(
         SharedIndentedBuilder code,
+        SparseMemberModel member,
         int id,
         string side,
+        string runtime,
         string facade
     )
     {
+        var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
+        var valueFrag = hasPatch ? ValueFragmentOf(member) : null;
         // Dictionary keys in generated models are reference types; the null-forgiving
         // operator satisfies interface-dictionary nullable analysis.
         if (side == "Before")
         {
             code.AppendLineAt(5, "if (__it.IsAdded) continue;");
-            code.AppendLineAt(
-                5,
-                "if (!__cur"
-                    + id
-                    + ".Value!.TryGetValue(__it.Key!, out var __cv) || !"
-                    + facade
-                    + ".AreEqual((object?)__cv, (object?)__it.Before.Value)) return false;"
-            );
+            if (hasPatch)
+                code.AppendLineAt(
+                    5,
+                    "if (!__cur"
+                        + id
+                        + ".Value!.TryGetValue(__it.Key!, out var __cv) || !__it.Edit.__SparseBeforeMatches("
+                        + runtime
+                        + "Optional<"
+                        + valueFrag
+                        + "?>.Present("
+                        + valueFrag
+                        + ".From(__cv)))) return false;"
+                );
+            else
+                code.AppendLineAt(
+                    5,
+                    "if (!__cur"
+                        + id
+                        + ".Value!.TryGetValue(__it.Key!, out var __cv) || !"
+                        + facade
+                        + ".AreEqual((object?)__cv, (object?)__it.Before.Value)) return false;"
+                );
         }
         else
         {
             code.AppendLineAt(5, "if (__it.IsRemoved) continue;");
-            code.AppendLineAt(
-                5,
-                "if (!__cur"
-                    + id
-                    + ".Value!.TryGetValue(__it.Key!, out var __cv2) || !"
-                    + facade
-                    + ".AreEqual((object?)__cv2, (object?)__it.After.Value)) return false;"
-            );
+            if (hasPatch)
+                code.AppendLineAt(
+                    5,
+                    "if (!__cur"
+                        + id
+                        + ".Value!.TryGetValue(__it.Key!, out var __cv2) || !__it.Edit.__SparseAfterMatches("
+                        + runtime
+                        + "Optional<"
+                        + valueFrag
+                        + "?>.Present("
+                        + valueFrag
+                        + ".From(__cv2)))) return false;"
+                );
+            else
+                code.AppendLineAt(
+                    5,
+                    "if (!__cur"
+                        + id
+                        + ".Value!.TryGetValue(__it.Key!, out var __cv2) || !"
+                        + facade
+                        + ".AreEqual((object?)__cv2, (object?)__it.After.Value)) return false;"
+                );
         }
     }
 

@@ -14,7 +14,7 @@ using SparseFragments;
 // capacity+comparer HashSet<T> constructor exists in the consumer
 // compilation): an Append list, a SetUnion hash set, a Replace dictionary,
 // a Deep nested model, plus typed patch algebra, builders, DeepClone, and
-// ChangeSet JSON transport.
+// ChangeSet payload JSON transport.
 public static class NetStandardConsumerCheck
 {
     public static string Run()
@@ -129,24 +129,26 @@ public static class NetStandardConsumerCheck
         var fragmentClone = original.DeepClone();
         Require(fragmentClone.Label.Value == "original", "fragment DeepClone");
 
-        // ChangeSet JSON transport (standard System.Text.Json over the generated converters).
+        // ChangeSet payload JSON transport (ordinary System.Text.Json).
         var baseline = new NetStandardSettings.Fragment { Label = "base" };
         var baselineOpt = Optional<NetStandardSettings.Fragment?>.Present(baseline);
         var editedBaseline = new NetStandardSettings.Fragment { Label = "patched" };
         var changes = NetStandardSettings.ChangeSet.Between(
             baselineOpt,
             Optional<NetStandardSettings.Fragment?>.Present(editedBaseline));
-        var changesJson = JsonSerializer.Serialize(changes);
-        var restoredChanges = JsonSerializer.Deserialize<NetStandardSettings.ChangeSet>(changesJson);
+        var changesJson = JsonSerializer.Serialize(changes.ToPayload());
+        var restoredChanges = JsonSerializer
+            .Deserialize<NetStandardSettings.ChangeSetPayload>(changesJson)
+            ?.ToChangeSet();
         if (restoredChanges is null)
         {
-            throw new InvalidOperationException("Failed: ChangeSet JSON deserialize");
+            throw new InvalidOperationException("Failed: ChangeSet payload JSON deserialize");
         }
         Require(
             restoredChanges.ToPatch().Apply(baselineOpt).Value!.Label.Value == "patched",
-            "ChangeSet JSON round-trip"
+            "ChangeSet payload JSON round-trip"
         );
-        Require(changesJson.Contains("patched"), "ChangeSet JSON export");
+        Require(changesJson.Contains("patched"), "ChangeSet payload JSON export");
 
         var modelBefore = new NetStandardSettings
         {

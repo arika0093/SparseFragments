@@ -242,9 +242,8 @@ public static class VerifiedSamples
 
         var changes = CounterSettings.ChangeSet.Between(start, finish);
 
-        // SparseFragments defines no transport protocol: use ordinary System.Text.Json.
-        var json = JsonSerializer.Serialize(changes);
-        var restored = JsonSerializer.Deserialize<CounterSettings.ChangeSet>(json)!;
+        var json = JsonSerializer.Serialize(changes.ToPayload());
+        var restored = JsonSerializer.Deserialize<CounterSettings.ChangeSetPayload>(json)!.ToChangeSet();
         // restored.ToPatch().Apply(start) replays finish
         DocsCheck.Require(
             CounterSettings.Patch.Between(restored.ToPatch().Apply(start), finish).IsEmpty,
@@ -426,9 +425,9 @@ public static class VerifiedSamples
         var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
         var outgoing = stateA.CreateChangeSet(stateB);
 
-        // The ChangeSet travels as JSON through the application's own transport.
-        var json = JsonSerializer.Serialize(outgoing);
-        var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSet>(json)!;
+        // The typed payload travels as JSON through the application's own transport.
+        var json = JsonSerializer.Serialize(outgoing.ToPayload());
+        var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSetPayload>(json)!.ToChangeSet();
 
         // Meanwhile the server moved A -> C. The server loads only the current state:
         // no historical snapshots are required because the ChangeSet carries its own before-state.

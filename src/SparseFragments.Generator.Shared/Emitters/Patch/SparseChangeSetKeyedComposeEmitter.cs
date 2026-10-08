@@ -33,6 +33,7 @@ internal static class SparseChangeSetKeyedComposeEmitter
         var id = member.Id;
         var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
         var keyType = KeyTypeOf(member);
+        var elementType = ElementTypeOf(member);
         var elementCs = ElementChangeSetOf(member);
         var elementFrag = ElementFragmentOf(member);
         var comparer =
@@ -499,89 +500,46 @@ internal static class SparseChangeSetKeyedComposeEmitter
             6,
             "{ throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\"); }"
         );
-        // Added then edited: continuity first.After == second.Before.
+        // Added then edited: compose the nested transitions and materialize only the final added value.
         code.AppendLineAt(6, "if (__a1!.IsAdded && __a2!.IsEdited)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(
-            7,
-            "if (!"
-                + elementCs
-                + ".Between("
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a1.After.Value!)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a2.Before.Value!))).IsEmpty) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
-        );
-        code.AppendLineAt(
-            7,
-            runtime
-                + "Optional<"
-                + elementFrag
-                + "?> __ea2 = "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a2.After.Value!));"
-        );
-        code.AppendLineAt(7, "var __edit2 = " + elementCs + ".Between(default, __ea2);");
+        code.AppendLineAt(7, "var __edit2 = __a1.Edit.Compose(__a2.Edit);");
+        code.AppendLineAt(7, "var __addedState = __edit2.ToPatch().Apply(default);");
+        code.AppendLineAt(7, "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce an element value.\");");
+        code.AppendLineAt(7, "var __addedValue = __addedState.Value!.ToModel();");
         code.AppendLineAt(
             7,
             "__net"
                 + id
                 + "[__k] = new "
                 + trans
-                + ".Item(__k, default, __a2.After, -1, __a2.AfterIndex, true, false, false, false, __edit2, false);"
+                + ".Item(__k, default, "
+                + runtime
+                + "Optional<"
+                + elementType
+                + ">.Present(__addedValue), -1, __a2.AfterIndex, true, false, false, false, __edit2, false);"
         );
         code.AppendLineAt(6, "continue;");
         code.AppendLineAt(6, "}");
-        // Edited then removed: continuity first.After == second.Before.
+        // Edited then removed: invert the composed transition to recover only the required removed value.
         code.AppendLineAt(6, "if ((__a1!.IsEdited || __a1!.IsReordered) && __a2!.IsRemoved)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(
-            7,
-            "if (__a1.IsEdited && !"
-                + elementCs
-                + ".Between("
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a1.After.Value!)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a2.Before.Value!))).IsEmpty) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
-        );
+        code.AppendLineAt(7, "var __removedEdit = __a1.IsEdited ? __a1.Edit.Compose(__a2.Edit) : __a2.Edit;");
+        code.AppendLineAt(7, "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);");
+        code.AppendLineAt(7, "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce an element value.\");");
+        code.AppendLineAt(7, "var __removedValue = __removedState.Value!.ToModel();");
         code.AppendLineAt(
             7,
             "__net"
                 + id
                 + "[__k] = new "
                 + trans
-                + ".Item(__k, __a1.Before.IsPresent ? __a1.Before : __a2.Before, default, __a1.BeforeIndex >= 0 ? __a1.BeforeIndex : __a2.BeforeIndex, -1, false, true, false, false, "
-                + elementCs
-                + ".Between(__a1.IsEdited ? "
+                + ".Item(__k, "
                 + runtime
                 + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a1.Before.Value!)) : default, default), false);"
+                + elementType
+                + ">.Present(__removedValue), default, __a1.BeforeIndex >= 0 ? __a1.BeforeIndex : __a2.BeforeIndex, -1, false, true, false, false, __removedEdit, false);"
         );
-        // Fixup Before when first was reorder-only (no Before stored? reorder-only has Before present).
         code.AppendLineAt(6, "continue;");
         code.AppendLineAt(6, "}");
         // Edited/edited (or reorder-involved) continuity via nested compose; scalar fallback via equality.

@@ -150,7 +150,7 @@ the same way via
 `uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`.
 The model type must be a reference type.
 
-A session ChangeSet is an ordinary serializable value: send it through the application's chosen HTTP, SignalR, or message transport with `System.Text.Json`, then reconcile it on the receiving side with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction — transport configuration stays with the application.
+A session ChangeSet is sent through its generated `T.ChangeSetPayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction — transport configuration stays with the application.
 
 ## WPF / WinForms / .NET MAUI / WinUI / Avalonia
 

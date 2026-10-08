@@ -268,7 +268,7 @@ ChangeSet -> Patch
 
 ## Serialize Patches and ChangeSets
 
-SparseFragments defines no JSON transport protocol. Generated `Patch` and `ChangeSet` types serialize through the ordinary `System.Text.Json` APIs:
+Generated `Patch` types have `System.Text.Json` support. Serialize a ChangeSet through its generated payload:
 
 <!-- sample: core-serialization -->
 ```csharp
@@ -281,9 +281,8 @@ var finish = Optional<CounterSettings.Fragment?>.Present(
 
 var changes = CounterSettings.ChangeSet.Between(start, finish);
 
-// SparseFragments defines no transport protocol: use ordinary System.Text.Json.
-var json = JsonSerializer.Serialize(changes);
-var restored = JsonSerializer.Deserialize<CounterSettings.ChangeSet>(json)!;
+var json = JsonSerializer.Serialize(changes.ToPayload());
+var restored = JsonSerializer.Deserialize<CounterSettings.ChangeSetPayload>(json)!.ToChangeSet();
 // restored.ToPatch().Apply(start) replays finish
 
 var patchJson = JsonSerializer.Serialize(new CounterSettings.Patch { Label = "b" });
@@ -292,45 +291,15 @@ var patchBack = JsonSerializer.Deserialize<CounterSettings.Patch>(patchJson)!;
 ```
 <!-- /sample -->
 
-For NativeAOT, register the generated top-level types on the normal application-owned source-generated context:
+NativeAOT source-generated metadata for generated ChangeSet payloads is not yet verified.
 
-```csharp
-[JsonSerializable(typeof(Order.Patch))]
-[JsonSerializable(typeof(Order.ChangeSet))]
-internal partial class AppJsonContext : JsonSerializerContext;
-```
+Typed projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, and `BeforeOrder` / `AfterOrder` are not duplicated in the payload; `ToChangeSet()` reconstructs them.
 
-```csharp
-var options = new JsonSerializerOptions { TypeInfoResolver = AppJsonContext.Default };
-var json = JsonSerializer.Serialize(changes, options);
-var restored = JsonSerializer.Deserialize<Order.ChangeSet>(json, options);
-```
+### ChangeSet payload JSON
 
-Registering the generated top-level Patch/ChangeSet types is sufficient for their statically reachable generated object graphs, subject to the ordinary System.Text.Json rules for dynamic/`object`/polymorphic member values: member scalar/collection types resolve through `options.TypeInfoResolver` like any other application type, so add them to the application context when the trimmer requires it.
+Serialize and deserialize the generated `T.ChangeSetPayload`, not `T.ChangeSet`. Convert between them with `ChangeSet.ToPayload()` and `ChangeSetPayload.ToChangeSet()`. The typed member variants are suitable for OpenAPI endpoint schemas.
 
-Typed convenience projections such as `IsChanged`, keyed `Added` / `Removed` / `Edited`, item enumeration, and `BeforeOrder` / `AfterOrder` / `OrderChanged` are API projections over the transition, not duplicate wire fields. The canonical JSON contract carries only the changed-path transition state (`$whole` for whole-root transitions, per-member before/after otherwise — never full fragments); deserialization recomputes the projections, so a round-tripped ChangeSet observes the same typed transitions and `ToPatch().Apply(start)` still replays the after-state.
-
-### ChangeSet JSON v1
-
-ChangeSet JSON is a versioned SparseFragments format beginning with version 1. The serialized document is a root envelope with a required integer `version` and a `changes` object carrying the v1 body grammar:
-
-```json
-{
-  "version": 1,
-  "changes": {
-    "Label": {
-      "before": { "state": "value", "value": "a" },
-      "after": { "state": "value", "value": "b" }
-    }
-  }
-}
-```
-
-An empty ChangeSet serializes as `{"version": 1, "changes": {}}`. The `version` and `changes` names are wire-format metadata and always use those exact names, independent of `JsonSerializerOptions.PropertyNamingPolicy`; model-derived member names inside `changes` keep the existing `JsonPropertyName` / naming-policy behavior. Nested ChangeSets reuse the body grammar directly and never emit nested envelopes. Readers require exactly version 1, reject missing/duplicate/non-integer/unsupported versions, missing/duplicate `changes`, and unknown envelope properties, independent of root property order. The pre-v1 unversioned shape is not accepted.
-
-For keyed collection edits, each item's `before` and `after` objects contain only the changed members; the key is already carried by the item's `key` field. Adds and removes still carry the full item value, and reorder-only entries retain their endpoints.
-
-Callers still use ordinary `System.Text.Json`; SparseFragments adds no separate public JSON codec API and generates no JSON Schema. `Patch` JSON is not versioned by this contract, and the format carries no transport metadata, timestamps, revisions, ETags, model type names, or persistence policy. Future incompatible ChangeSet format changes require a new version.
+Keyed and dictionary model edits carry only their nested `Edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
 
 ## Which API for Which Task
 

@@ -381,8 +381,10 @@ public sealed class KeyedGetChangeTests
         var after = Keyed(S("a", "a2"), S("c"));
         var changes = KeyedServerHolder.ChangeSet.Between(before, after);
 
-        var json = System.Text.Json.JsonSerializer.Serialize(changes);
-        var back = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(json)!;
+        var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
+        var back = System.Text.Json.JsonSerializer
+            .Deserialize<KeyedServerHolder.ChangeSetPayload>(json)!
+            .ToChangeSet();
 
         back.Items.GetChange("a").IsEdited.ShouldBeTrue();
         back.Items.GetChange("a").Edit.Name.After.Value.ShouldBe("a2");

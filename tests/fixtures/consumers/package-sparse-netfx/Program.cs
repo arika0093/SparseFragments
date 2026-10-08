@@ -6,7 +6,7 @@ using SparseFragments;
 // fallback when SparseFragmentsPackageVersion is set) and executes
 // representative generated/runtime behavior inside a real .NET Framework
 // process: fragments, nested patches, merge, deep clone, collections, and a
-// ChangeSet JSON round-trip (so System.Text.Json is loaded and exercised too).
+// ChangeSet payload JSON round-trip (so System.Text.Json is loaded and exercised too).
 var original = NetFxSettings.Fragment.From(
     new NetFxSettings
     {
@@ -46,16 +46,16 @@ var inverted = edits.Invert(before).Apply(edits.Apply(before));
 Require(inverted.Value!.Label.Value == "original", "invert round-trip");
 
 var changes = NetFxSettings.ChangeSet.Between(before, edits.Apply(before));
-var changesJson = JsonSerializer.Serialize(changes);
-var imported = JsonSerializer.Deserialize<NetFxSettings.ChangeSet>(changesJson);
+var changesJson = JsonSerializer.Serialize(changes.ToPayload());
+var imported = JsonSerializer.Deserialize<NetFxSettings.ChangeSetPayload>(changesJson)?.ToChangeSet();
 if (imported is null)
 {
-    throw new InvalidOperationException("Failed: changeset json deserialize");
+    throw new InvalidOperationException("Failed: ChangeSet payload JSON deserialize");
 }
 var roundTripped = imported.ToPatch().Apply(before);
 Require(
     NetFxSettings.Patch.Between(roundTripped, edits.Apply(before)).IsEmpty,
-    "changeset json semantic round-trip"
+    "ChangeSet payload JSON semantic round-trip"
 );
 
 // Patch algebra: composed patch matches sequential apply (nested + presence transition).

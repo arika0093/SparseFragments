@@ -1,35 +1,29 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseFragments")]
-namespace SparseFragments.CompilerServices
-{
-    public static class SparseFragmentRuntime
-    {
-        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? left, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? right) { }
-        public static bool AreEqual(object? left, object? right) { }
-        public static bool AreEqual<T>(T? left, T? right) { }
-        public static bool AreSequenceEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
-        public static bool AreSetEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
-        public static System.Collections.Generic.Dictionary<object, object> CreateCloneContext() { }
-        public static System.Collections.Generic.HashSet<System.Collections.Generic.KeyValuePair<object, object>> CreateDiffCycleContext() { }
-        public static System.Collections.Generic.HashSet<object> CreateFromCycleContext() { }
-        public static void EnsureUniqueKeys<TKey>(System.Collections.Generic.IEnumerable<TKey> keys, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
-        public static bool KeyOrderEquals<TKey>(System.Collections.Generic.IReadOnlyList<TKey> left, System.Collections.Generic.IReadOnlyList<TKey> right, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
-        public static System.Collections.Generic.List<T> MergeAppendList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
-        public static T[] MergeDistinctArray<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
-        public static System.Collections.Generic.List<T> MergeDistinctList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
-        public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
-        public static bool TryExplainCollectionProvenance<T>(SparseFragments.MergeMode mode, System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?> effective, System.Collections.Generic.IEqualityComparer<T>? comparer, out int[] origins, out string? reason) { }
-        public static bool TryExplainSetProvenance<T>(System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?> effective, out int[] origins, out string? reason) { }
-        public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
-        public static bool TryRebaseSequenceAppend<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out System.Collections.Generic.List<T> rebased, out string? reason) { }
-        public static bool TryRebaseSequenceAppendArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
-        public static bool TryRebaseSequenceSetUnion<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out System.Collections.Generic.List<T> rebased, out string? reason) { }
-        public static bool TryRebaseSequenceSetUnionArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
-        public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
-        public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
-    }
-}
 namespace SparseFragments
 {
+    public sealed class ChangeSetPayloadEndpoint<T>
+    {
+        public ChangeSetPayloadEndpoint() { }
+        public SparseFragments.ChangeSetPayloadState State { get; set; }
+        public T Value { get; set; }
+        public SparseFragments.Optional<T> ToOptional() { }
+        public static SparseFragments.ChangeSetPayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadItemKind>))]
+    public enum ChangeSetPayloadItemKind
+    {
+        Add = 0,
+        Remove = 1,
+        Edit = 2,
+        Reorder = 3,
+    }
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadState>))]
+    public enum ChangeSetPayloadState
+    {
+        Missing = 0,
+        Null = 1,
+        Value = 2,
+    }
     public abstract class FragmentMergeStrategy<T>
     {
         protected FragmentMergeStrategy() { }
@@ -160,5 +154,34 @@ namespace SparseFragments
         CollectionAppend = 3,
         CollectionSetUnion = 4,
         CustomStrategy = 5,
+    }
+}
+namespace SparseFragments.CompilerServices
+{
+    public static class SparseFragmentRuntime
+    {
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? left, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? right) { }
+        public static bool AreEqual(object? left, object? right) { }
+        public static bool AreEqual<T>(T? left, T? right) { }
+        public static bool AreSequenceEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
+        public static bool AreSetEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
+        public static System.Collections.Generic.Dictionary<object, object> CreateCloneContext() { }
+        public static System.Collections.Generic.HashSet<System.Collections.Generic.KeyValuePair<object, object>> CreateDiffCycleContext() { }
+        public static System.Collections.Generic.HashSet<object> CreateFromCycleContext() { }
+        public static void EnsureUniqueKeys<TKey>(System.Collections.Generic.IEnumerable<TKey> keys, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static bool KeyOrderEquals<TKey>(System.Collections.Generic.IReadOnlyList<TKey> left, System.Collections.Generic.IReadOnlyList<TKey> right, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static System.Collections.Generic.List<T> MergeAppendList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static T[] MergeDistinctArray<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static System.Collections.Generic.List<T> MergeDistinctList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static bool TryExplainCollectionProvenance<T>(SparseFragments.MergeMode mode, System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?> effective, System.Collections.Generic.IEqualityComparer<T>? comparer, out int[] origins, out string? reason) { }
+        public static bool TryExplainSetProvenance<T>(System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?> effective, out int[] origins, out string? reason) { }
+        public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
+        public static bool TryRebaseSequenceAppend<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out System.Collections.Generic.List<T> rebased, out string? reason) { }
+        public static bool TryRebaseSequenceAppendArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
+        public static bool TryRebaseSequenceSetUnion<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out System.Collections.Generic.List<T> rebased, out string? reason) { }
+        public static bool TryRebaseSequenceSetUnionArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
+        public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
+        public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
     }
 }

@@ -51,10 +51,10 @@ Require(changes.Database.Port.After.Value == 7432, "typed nested transition Afte
 var replayed = effective.Apply(changes.ToPatch());
 Require(replayed.ToModel().Label == "production", "ChangeSet.ToPatch replays the transition");
 
-// Client/Server Edits: ChangeSet crosses process boundaries as ordinary System.Text.Json.
-var json = JsonSerializer.Serialize(changes);
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSet>(json)!;
-Require(incoming.Label.IsChanged, "ChangeSet JSON round-trip preserves transitions");
+// Client/Server Edits: the typed payload crosses process boundaries as ordinary System.Text.Json.
+var json = JsonSerializer.Serialize(changes.ToPayload());
+var incoming = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
+Require(incoming.Label.IsChanged, "ChangeSet payload JSON round-trip preserves transitions");
 var rebased = incoming.RebaseOnto(updated);
 Require(!rebased.HasConflicts, "rebase onto current has no conflicts");
 

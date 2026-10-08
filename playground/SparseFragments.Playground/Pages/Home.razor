@@ -177,7 +177,7 @@
         <FluentTab Label="Patch (C#)" Id="roster-patch-manual">
             <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
         </FluentTab>
-        <FluentTab Label="ChangeSet JSON" Id="roster-changeset-json">
+        <FluentTab Label="ChangeSet (JSON)" Id="roster-changeset-json">
             <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
         </FluentTab>
         <FluentTab Label="Applied (JSON)" Id="roster-applied-json">
@@ -192,7 +192,7 @@
     </FluentDialogHeader>
     <FluentDialogBody>
         <p class="pg-hint">Paste a ChangeSet JSON document exported from the merged baseline and preview its applied result.</p>
-        <FluentTextArea Rows="8" Placeholder='{"before":{"state":"value","value":{"Label":"..."}},"after":{"state":"value","value":{"Label":"..."}}}'
+        <FluentTextArea Rows="8" Placeholder='{"Version":1,"Changes":[{"member":"Label","Before":{"State":2,"Value":"..."},"After":{"State":2,"Value":"..."}}]}'
             translate="no"
             Value="@_importText"
             ValueChanged="@(v => _importText = v ?? string.Empty)"
@@ -232,7 +232,7 @@
     private string RosterBeforeTabId = "roster-before-csharp";
     private string RosterAfterTabId = "roster-after-csharp";
     private bool _importHidden = true;
-    private string _importText = """{"before":{"state":"missing"},"after":{"state":"missing"}}""";
+    private string _importText = """{"Version":1,"Changes":[]}""";
     private string? _importError;
     private string? _importResult;
 
@@ -395,7 +395,7 @@
         RosterBeforeTabId = "roster-before-csharp";
         RosterAfterTabId = "roster-after-csharp";
         _importHidden = true;
-        _importText = """{"before":{"state":"missing"},"after":{"state":"missing"}}""";
+        _importText = """{"Version":1,"Changes":[]}""";
         _importError = null;
         _importResult = null;
     }

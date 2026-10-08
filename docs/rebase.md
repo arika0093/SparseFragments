@@ -196,10 +196,10 @@ An application request therefore wraps the ChangeSet in its own envelope:
 sealed record UpdateOrderRequest(
     Guid OrderId,
     byte[] RowVersion,
-    Order.ChangeSet Changes);
+    Order.ChangeSetPayload Changes);
 ```
 
-The handler deserializes the ChangeSet, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and — when there are no conflicts — saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
+The handler converts the payload with `ToChangeSet()`, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and — when there are no conflicts — saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
 
 ## End-to-End Example
 
@@ -214,9 +214,9 @@ var stateA = new RebaseSettings { RetryCount = 1, Label = "a" };
 var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
 var outgoing = stateA.CreateChangeSet(stateB);
 
-// The ChangeSet travels as JSON through the application's own transport.
-var json = JsonSerializer.Serialize(outgoing);
-var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSet>(json)!;
+// The typed payload travels as JSON through the application's own transport.
+var json = JsonSerializer.Serialize(outgoing.ToPayload());
+var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSetPayload>(json)!.ToChangeSet();
 
 // Meanwhile the server moved A -> C. The server loads only the current state:
 // no historical snapshots are required because the ChangeSet carries its own before-state.
@@ -236,4 +236,4 @@ else
 ```
 <!-- /sample -->
 
-The transport in the middle can be HTTP, SignalR, or any message bus the application already uses — SparseFragments only requires that the serialized ChangeSet arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base/local/current values without saving.
+The transport in the middle can be HTTP, SignalR, or any message bus the application already uses — SparseFragments only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base/local/current values without saving.

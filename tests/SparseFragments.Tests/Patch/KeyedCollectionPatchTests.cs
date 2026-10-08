@@ -338,11 +338,12 @@ public sealed class KeyedCollectionPatchTests
         var applied = patch.Apply(present);
         applied.Value!.Items.Value!.Single(s => s.Id == "a").Name.ShouldBe("A2");
 
-        // The ChangeSet JSON round-trip preserves the same keyed semantics.
+        // The typed payload round-trip preserves the same keyed semantics.
         var changes = KeyedServerHolder.ChangeSet.Between(present, afterOpt);
-        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSet>(
-            System.Text.Json.JsonSerializer.Serialize(changes)
-        )!;
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(
+            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+        )!
+            .ToChangeSet();
         KeyedServerHolder.Patch
             .Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
@@ -365,9 +366,10 @@ public sealed class KeyedCollectionPatchTests
         applied.Value!.Tags.Value!.ShouldBe(["a", "b", "c"]);
 
         var changes = ScalarSequenceHolder.ChangeSet.Between(present, afterOpt);
-        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<ScalarSequenceHolder.ChangeSet>(
-            System.Text.Json.JsonSerializer.Serialize(changes)
-        )!;
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<ScalarSequenceHolder.ChangeSetPayload>(
+            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+        )!
+            .ToChangeSet();
         ScalarSequenceHolder.Patch
             .Between(roundTripped.ToPatch().Apply(present), applied)
             .IsEmpty.ShouldBeTrue();
