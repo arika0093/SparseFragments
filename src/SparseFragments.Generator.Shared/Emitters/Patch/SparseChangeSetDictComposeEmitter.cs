@@ -216,18 +216,6 @@ internal static class SparseChangeSetDictComposeEmitter
         );
         code.AppendLineAt(
             5,
-            "var __net"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + trans
-                + ".Item>("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            5,
             "var __keys"
                 + id
                 + " = new global::System.Collections.Generic.HashSet<"
@@ -239,6 +227,42 @@ internal static class SparseChangeSetDictComposeEmitter
                 + ");"
         );
         code.AppendLineAt(5, "__keys" + id + ".UnionWith(__map2" + id + ".Keys);");
+        // Keys present in only one input always survive composition.
+        // Reserve their count without allocating for fully overlapping cancellations.
+        code.AppendLineAt(
+            5,
+            "var __capacity"
+                + id
+                + " = (__keys"
+                + id
+                + ".Count - __map1"
+                + id
+                + ".Count) + (__keys"
+                + id
+                + ".Count - __map2"
+                + id
+                + ".Count);"
+        );
+        var netType =
+            "global::System.Collections.Generic.Dictionary<" + keyType + ", " + trans + ".Item>";
+        code.AppendLineAt(
+            5,
+            "var __net"
+                + id
+                + " = __capacity"
+                + id
+                + " == 0 ? new "
+                + netType
+                + "("
+                + comparer
+                + ") : new "
+                + netType
+                + "(__capacity"
+                + id
+                + ", "
+                + comparer
+                + ");"
+        );
         code.AppendLineAt(5, "foreach (var __k in __keys" + id + ")");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(
