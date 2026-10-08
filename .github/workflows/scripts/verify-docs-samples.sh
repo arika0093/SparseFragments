@@ -113,10 +113,10 @@ check_sample "model-shapes" "docs/model-shapes.md" "${docs_fixture_dir}/ModelSha
     'Diff'
 
 check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
-    '.Observable(' \
+    'CreateEditSession' \
+    'session.Observable' \
     'PropertyChanged' \
-    'ChangeSet.Between' \
-    'Fragment.From'
+    'CreateChangeSet'
 
 # 1b. Exact sample verification (#68). Annotated fenced blocks in the guides
 # must match their canonical fixture regions exactly (after normalization),

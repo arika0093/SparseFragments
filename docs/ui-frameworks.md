@@ -14,6 +14,58 @@ public partial class UiOrder
 ```
 <!-- /sample -->
 
+## Framework-neutral edit sessions
+
+Every generated model has a stable, hashed top-level extension container in its
+namespace. Its `CreateChangeSet` extension compares a baseline to an explicit
+current model, and reference-type models also have a neutral edit-session
+factory:
+
+```csharp
+var baseline = new UiOrder { Number = "ORD-1" };
+var current = new UiOrder { Number = "ORD-2" };
+var directChanges = baseline.CreateChangeSet(current);
+
+var session = baseline.CreateEditSession();
+var separateBaselineSession = baseline.CreateEditSession(current);
+
+session.Model.Number = "ORD-2";
+var changes = session.CreateChangeSet();
+// changes.Number.Before == "ORD-1"; changes.Number.After == "ORD-2"
+
+session.AcceptChanges();
+// session.HasChanges == false
+```
+
+The session retains a private fragment snapshot as its baseline and exposes the
+live model as `Model`, alongside a stable typed `Observable` proxy over the same
+instance. The one-model factory captures that model as the baseline and edits
+it; the two-model overload retains the `current` instance and snapshots
+`baseline` separately. `HasChanges` and `CreateChangeSet()` always compare that
+baseline with the model's current state, so edit-then-restore is clean even if a
+UI control reported that a field was touched. `CreatePatch()` projects the same
+transition to a baseline-free patch. `AcceptChanges()` captures the current
+state as the next baseline. These APIs live in `SparseFragments` and do not
+require a UI-framework package.
+
+For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()`
+maps `Optional<Model?>` to the generated, model-specific observable proxy while
+preserving missing, present-null, and present-value states:
+
+```csharp
+Optional<UiOrder.Observable?> proxy =
+    Optional<UiOrder?>.Present(session.Model).ToObservable();
+```
+
+The generated extension container is an implementation detail with a
+deterministic hash-based name; call the extensions rather than naming the
+container directly. Framework-specific packages can adapt the neutral session
+without adding framework references to its generated code.
+When `SparseFragments.Blazor` is referenced, its generated instance
+`CreateEditSession()` continues to coexist and takes precedence over the
+same-named one-model extension; the explicit-baseline overload remains
+available.
+
 ## Blazor
 
 The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic change sets through the generated `CreateEditSession()` method and the `SparseEditSession` type. The session retains a baseline, exposes the live model for binding, and derives the baseline-aware change set by comparing the baseline with the current model:
@@ -88,18 +140,18 @@ A session ChangeSet is an ordinary serializable value: send it through the appli
 
 These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
 
-Nested models surface as child proxies that propagate changes to the root callback, and replacing a nested member or collection rebuilds the corresponding proxy and notification. Without a session, snapshot a baseline, let the UI mutate the plain model, and diff the baseline against the current state:
+Nested models surface as child proxies that propagate changes to the root callback, and replacing a nested member or collection rebuilds the corresponding proxy and notification. Create a neutral edit session and bind its observable proxy; the session tracks the same underlying model:
 
 ```csharp
-var baseline = WidgetDto.Fragment.From(model); // snapshot, isolated copy
-var observable = new WidgetDto.Observable(model, onChanged: () => HasUnsavedChanges = true);
+var session = model.CreateEditSession(onChanged: () => HasUnsavedChanges = true);
+var observable = session.Observable;
 
 // bind the UI to `observable`; edits flow into the same live `model`
 observable.Title = "New title";
 observable.PropertyChanged += (_, args) => Console.WriteLine(args.PropertyName);
 
 // ...user edits `model` through the UI framework...
-var uiChanges = WidgetDto.ChangeSet.Between(baseline, WidgetDto.Fragment.From(model));
+var uiChanges = session.CreateChangeSet();
 ```
 
 ### WPF example
@@ -110,7 +162,9 @@ var uiChanges = WidgetDto.ChangeSet.Between(baseline, WidgetDto.Fragment.From(mo
 ```
 
 ```csharp
-DataContext = new WidgetDto.Observable(model, () => SaveCommand.NotifyCanExecuteChanged());
+var session = model.CreateEditSession(
+    onChanged: () => SaveCommand.NotifyCanExecuteChanged());
+DataContext = session.Observable;
 ```
 
 WinForms, .NET MAUI, WinUI, and Avalonia use the same `Observable` wrapper over the underlying model; only the framework-specific binding setup differs.

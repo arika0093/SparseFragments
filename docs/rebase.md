@@ -22,7 +22,7 @@ var baseModel = new RebaseSettings { RetryCount = 1, Label = "a" };
 var editedModel = new RebaseSettings { RetryCount = 2, Label = "a" };
 var currentModel = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-var changes = RebaseSettings.ChangeSet.Between(baseModel, editedModel);
+var changes = baseModel.CreateChangeSet(editedModel);
 if (!changes.TryApplyTo(currentModel, out var reconciled))
 {
     throw new InvalidOperationException("The change conflicts with the current model.");
@@ -46,7 +46,7 @@ server loads only current state C
 ChangeSet.RebaseOnto(C)
 ```
 
-For ordinary, present non-null DTOs, `ChangeSet.Between(before, edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The model overloads snapshot the models into Fragments and delegate to the same rebase semantics.
+For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
 
 The presence-aware APIs remain necessary when the root itself may be *missing*, *present null*, or *present value*. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` remain observable transitions only through the Fragment/Optional surface.
 
@@ -93,7 +93,7 @@ var appliedEdited = new RebaseSettings { RetryCount = 2 };
 var alreadyThere = new RebaseSettings { RetryCount = 2 };
 
 // Current == After: the change is already present, so rebase is a no-op.
-var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited);
+var noOp = appliedBase.CreateChangeSet(appliedEdited);
 if (!noOp.TryApplyTo(alreadyThere, out var unchanged))
 {
     throw new InvalidOperationException("The change conflicts with the current model.");
@@ -114,7 +114,7 @@ var conflictEdited = new RebaseSettings { RetryCount = 2 };
 var conflictCurrent = new RebaseSettings { RetryCount = 3 };
 
 if (
-    RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
+    conflictBase.CreateChangeSet(conflictEdited)
         .TryApplyTo(conflictCurrent, out _, out var conflicts)
 )
 {
@@ -212,7 +212,7 @@ using System.Text.Json;
 // Server sends DTO (state A); the client edits A -> B and creates a ChangeSet.
 var stateA = new RebaseSettings { RetryCount = 1, Label = "a" };
 var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
-var outgoing = RebaseSettings.ChangeSet.Between(stateA, stateB);
+var outgoing = stateA.CreateChangeSet(stateB);
 
 // The ChangeSet travels as JSON through the application's own transport.
 var json = JsonSerializer.Serialize(outgoing);

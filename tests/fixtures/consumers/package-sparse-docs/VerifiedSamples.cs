@@ -269,7 +269,7 @@ public static class VerifiedSamples
             Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
         };
 
-        var changes = Fleet.ChangeSet.Between(before, after); // add/remove/edit by key
+        var changes = before.CreateChangeSet(after); // add/remove/edit by key
         if (!changes.TryApplyTo(before, out var applied))
         {
             throw new InvalidOperationException("The keyed changes conflict.");
@@ -286,16 +286,16 @@ public static class VerifiedSamples
     private static void KeyedTyped()
     {
         // sample: keyed-typed
-        var before = Fleet.Fragment.From(new Fleet
+        var before = new Fleet
         {
             Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
-        });
-        var after = Fleet.Fragment.From(new Fleet
+        };
+        var after = new Fleet
         {
             Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
-        });
+        };
 
-        var changes = Fleet.ChangeSet.Between(before, after);
+        var changes = before.CreateChangeSet(after);
         var servers = changes.Servers;
         // servers.Added.Single().Id == "c"
         // servers.Removed.Single().Id == "a"
@@ -338,7 +338,7 @@ public static class VerifiedSamples
         var editedModel = new RebaseSettings { RetryCount = 2, Label = "a" };
         var currentModel = new RebaseSettings { RetryCount = 1, Label = "b" };
 
-        var changes = RebaseSettings.ChangeSet.Between(baseModel, editedModel);
+        var changes = baseModel.CreateChangeSet(editedModel);
         if (!changes.TryApplyTo(currentModel, out var reconciled))
         {
             throw new InvalidOperationException("The change conflicts with the current model.");
@@ -359,7 +359,7 @@ public static class VerifiedSamples
         var alreadyThere = new RebaseSettings { RetryCount = 2 };
 
         // Current == After: the change is already present, so rebase is a no-op.
-        var noOp = RebaseSettings.ChangeSet.Between(appliedBase, appliedEdited);
+        var noOp = appliedBase.CreateChangeSet(appliedEdited);
         if (!noOp.TryApplyTo(alreadyThere, out var unchanged))
         {
             throw new InvalidOperationException("The change conflicts with the current model.");
@@ -378,7 +378,7 @@ public static class VerifiedSamples
         var conflictCurrent = new RebaseSettings { RetryCount = 3 };
 
         if (
-            RebaseSettings.ChangeSet.Between(conflictBase, conflictEdited)
+            conflictBase.CreateChangeSet(conflictEdited)
                 .TryApplyTo(conflictCurrent, out _, out var conflicts)
         )
         {
@@ -424,7 +424,7 @@ public static class VerifiedSamples
         // Server sends DTO (state A); the client edits A -> B and creates a ChangeSet.
         var stateA = new RebaseSettings { RetryCount = 1, Label = "a" };
         var stateB = new RebaseSettings { RetryCount = 2, Label = "a" };
-        var outgoing = RebaseSettings.ChangeSet.Between(stateA, stateB);
+        var outgoing = stateA.CreateChangeSet(stateB);
 
         // The ChangeSet travels as JSON through the application's own transport.
         var json = JsonSerializer.Serialize(outgoing);

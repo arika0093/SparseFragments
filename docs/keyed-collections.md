@@ -33,7 +33,7 @@ var after = new Fleet
     Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
 };
 
-var changes = Fleet.ChangeSet.Between(before, after); // add/remove/edit by key
+var changes = before.CreateChangeSet(after); // add/remove/edit by key
 if (!changes.TryApplyTo(before, out var applied))
 {
     throw new InvalidOperationException("The keyed changes conflict.");
@@ -149,22 +149,22 @@ Keys must be stable and comparable:
 
 ## Add / Remove / Edit / Reorder
 
-`ChangeSet.Between` derives per-element operations from the before/after key sets; `ToPatch().Apply` replays them. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `ChangeSet.Between(applied, after).IsEmpty` holds).
+`before.CreateChangeSet(after)` derives per-element operations from the before/after key sets; `ToPatch().ApplyTo` replays them to a model. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `applied.CreateChangeSet(after).IsEmpty` holds).
 
 The same `Fleet` / `Server` model shows each operation with ordinary values:
 
 ```csharp
-var before = Fleet.Fragment.From(new Fleet
+var before = new Fleet
 {
     Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
-});
-var after = Fleet.Fragment.From(new Fleet
+};
+var after = new Fleet
 {
     Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
-});
+};
 
-var changes = Fleet.ChangeSet.Between(before, after);
-var applied = changes.ToPatch().Apply(before);
+var changes = before.CreateChangeSet(after);
+var applied = changes.ToPatch().ApplyTo(before);
 // applied holds keys ["b", "c"]; "b" was edited in place, "a" removed, "c" added.
 ```
 
@@ -184,16 +184,16 @@ The same `Fleet` / `Server` model observes the transition through typed projecti
 
 <!-- sample: keyed-typed -->
 ```csharp
-var before = Fleet.Fragment.From(new Fleet
+var before = new Fleet
 {
     Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
-});
-var after = Fleet.Fragment.From(new Fleet
+};
+var after = new Fleet
 {
     Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
-});
+};
 
-var changes = Fleet.ChangeSet.Between(before, after);
+var changes = before.CreateChangeSet(after);
 var servers = changes.Servers;
 // servers.Added.Single().Id == "c"
 // servers.Removed.Single().Id == "a"
@@ -227,4 +227,4 @@ A collection transition object may be enumerable while the root ChangeSet is not
 ## Duplicate Keys and Key Changes
 
 * **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
-* **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `ChangeSet.Between`/`ToPatch`/`Apply`.
+* **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `CreateChangeSet`/`ToPatch`/`ApplyTo`.

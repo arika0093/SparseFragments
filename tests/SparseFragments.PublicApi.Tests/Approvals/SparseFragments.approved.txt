@@ -104,6 +104,22 @@ namespace SparseFragments
     {
         public SparseCloneReferenceSafeAttribute() { }
     }
+    public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
+        where TModel :  class
+        where TFragment :  class
+        where TPatch :  class
+        where TChangeSet :  class
+        where TObservable :  class
+    {
+        public bool HasChanges { get; }
+        public TModel Model { get; }
+        public TObservable Observable { get; }
+        public void AcceptChanges() { }
+        public TChangeSet CreateChangeSet() { }
+        public TPatch CreatePatch() { }
+        public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel model, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TModel, TObservable> toObservable) { }
+        public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel baseline, TModel current, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TModel, TObservable> toObservable) { }
+    }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute
     {

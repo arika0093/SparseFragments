@@ -1,9 +1,9 @@
 using SparseFragments;
 
 // Canonical compile-checked mirror of docs/ui-frameworks.md (#48).
-// Covers the shared UI editing model: bind the generated T.Observable proxy,
-// keep editing the underlying live model, and derive patches from
-// baseline-versus-current comparison.
+// Covers the shared UI editing model: bind the session's generated Observable
+// proxy, keep editing the underlying live model, and derive patches from the
+// session baseline.
 public static class UiFrameworksSamples
 {
     public static void Run()
@@ -16,7 +16,8 @@ public static class UiFrameworksSamples
     {
         var model = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "n" } };
         var seen = new List<string>();
-        var observable = new UiWidget.Observable(model);
+        var session = model.CreateEditSession();
+        var observable = session.Observable;
         observable.PropertyChanged += (_, args) => seen.Add(args.PropertyName ?? "<null>");
 
         observable.Title = "b";
@@ -35,14 +36,14 @@ public static class UiFrameworksSamples
     private static void PatchFromBaselineVersusCurrent()
     {
         var model = new UiWidget { Title = "a" };
-        var baseline = UiWidget.Fragment.From(model);
+        var session = model.CreateEditSession();
 
         model.Title = "b";
-        var changes = UiWidget.ChangeSet.Between(baseline, UiWidget.Fragment.From(model));
+        var changes = session.CreateChangeSet();
         DocsCheck.Require(!changes.IsEmpty, "baseline/current diff is the patch source");
 
         model.Title = "a";
-        var restored = UiWidget.ChangeSet.Between(baseline, UiWidget.Fragment.From(model));
+        var restored = session.CreateChangeSet();
         DocsCheck.Require(restored.IsEmpty, "edit-then-restore is empty");
     }
 }

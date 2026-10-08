@@ -242,6 +242,10 @@ public static class PlaygroundSnippets
         return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
     }
 
+    /// <summary>Builds the model extension call deriving the roster ChangeSet.</summary>
+    public static string RosterChangeSetCSharp(string baselineName, string currentName) =>
+        $"var changes = {baselineName}.CreateChangeSet({currentName});";
+
     /// <summary>
     /// Builds the keyed Add/Remove/Edit/SetOrder patch for the typed diff.
     /// Operations come from the <c>Quests</c> keyed transition on

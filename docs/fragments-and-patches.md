@@ -98,7 +98,7 @@ remove.RetryCount.Unset();
 
 `T.ChangeSet.Between(beforeSparse, afterSparse)` takes sparse contribution states (`Optional<Fragment?>`) and returns the immutable before → after transition. It preserves presence transitions such as `present → missing` exactly, including the root `Missing` / present-null / present-value states. Replay it with `ToPatch()` followed by `Apply`, or reconcile it against newer state with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). A ChangeSet carries the before-state required for the transitions it represents — it does not store a mandatory full baseline snapshot beyond that semantic information.
 
-For ordinary, present non-null model roots, the same algebra has convenience overloads: `ChangeSet.Between(beforeModel, afterModel)`, `ChangeSet.FromPatch(baselineModel, patch)`, and model-targeted apply/rebase methods. These snapshot through `Fragment.From` and delegate to the presence-aware behavior; use the `Optional<Fragment?>` overloads when root Missing / Present(null) semantics matter.
+For ordinary, present non-null model roots, prefer the generated extensions: `beforeModel.CreateChangeSet(afterModel)` and `model.CreateEditSession()`. `CreateChangeSet` delegates to `T.ChangeSet.Between`, while the session retains a baseline as an edit continues. `ChangeSet.FromPatch(baselineModel, patch)` and model-targeted apply/rebase methods are also available. These APIs snapshot through `Fragment.From` and delegate to the presence-aware behavior; use the `Optional<Fragment?>` overloads when root Missing / Present(null) semantics matter.
 
 <!-- sample: core-between -->
 ```csharp
@@ -344,7 +344,7 @@ Callers still use ordinary `System.Text.Json`; SparseFragments adds no separate 
 | Express explicit set/null/unset edits | `new T.Patch { ... }` | Patch |
 | Compose local operations | `patch.Compose(next)` | Patch |
 | Compare sparse states exactly | `T.ChangeSet.Between(before, after)` | ChangeSet |
-| Compare ordinary present models | `T.ChangeSet.Between(beforeModel, afterModel)` | ChangeSet |
+| Compare ordinary present models | `beforeModel.CreateChangeSet(afterModel)` | ChangeSet |
 | Observe a member transition | `changes.Label.IsChanged` / `Before` / `After` | Member transition |
 | Observe a nested transition | `changes.Customer.Name.IsChanged` | Member transition |
 | Project a transition to operations | `changes.ToPatch()` | Patch |

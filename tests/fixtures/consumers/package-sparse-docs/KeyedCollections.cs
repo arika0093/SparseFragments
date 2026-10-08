@@ -31,7 +31,7 @@ public static class KeyedCollectionsSamples
             },
         };
 
-        var changes = DocsInventory.ChangeSet.Between(before, after);
+        var changes = before.CreateChangeSet(after);
         DocsCheck.Require(!changes.IsEmpty, "keyed Between detects add/remove/edit");
         if (!changes.TryApplyTo(before, out var applied))
         {
@@ -51,32 +51,28 @@ public static class KeyedCollectionsSamples
 
     private static void TypedCollectionTransitions()
     {
-        var before = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "a", Host = "A", Port = 1 },
-                        new() { Id = "b", Host = "B", Port = 2 },
-                    },
-                }));
-        var after = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "b", Host = "B2", Port = 2 },
-                        new() { Id = "c", Host = "C", Port = 3 },
-                    },
-                }));
+        var before = new DocsInventory
+        {
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "a", Host = "A", Port = 1 },
+                new() { Id = "b", Host = "B", Port = 2 },
+            },
+        };
+        var after = new DocsInventory
+        {
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "b", Host = "B2", Port = 2 },
+                new() { Id = "c", Host = "C", Port = 3 },
+            },
+        };
 
         // Typed observation mirrors docs/keyed-collections.md "Observe typed
         // collection transitions": Added/Removed/Edited projections,
         // BeforeOrder/AfterOrder/OrderChanged, per-item enumeration, and
         // keyed GetChange lookup.
-        var servers = DocsInventory.ChangeSet.Between(before, after).Servers;
+        var servers = before.CreateChangeSet(after).Servers;
         DocsCheck.Require(servers.IsChanged, "collection transition is non-empty");
         DocsCheck.Require(
             servers.Added.Count == 1 && servers.Added.Single().Id == "c",
@@ -116,90 +112,78 @@ public static class KeyedCollectionsSamples
 
     private static void ReorderByFinalKeyOrder()
     {
-        var first = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "a", Host = "A" },
-                        new() { Id = "b", Host = "B" },
-                    },
-                }));
-        var reordered = Optional<DocsInventory.Fragment?>.Present(
-            DocsInventory.Fragment.From(
-                new DocsInventory
-                {
-                    Servers = new List<DocsServer>
-                    {
-                        new() { Id = "b", Host = "B" },
-                        new() { Id = "a", Host = "A" },
-                    },
-                }));
+        var first = new DocsInventory
+        {
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "a", Host = "A" },
+                new() { Id = "b", Host = "B" },
+            },
+        };
+        var reordered = new DocsInventory
+        {
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "b", Host = "B" },
+                new() { Id = "a", Host = "A" },
+            },
+        };
 
         // The final key order determines the resulting order: reversing
         // ["a", "b"] is a real (non-empty) patch.
-        var changes = DocsInventory.ChangeSet.Between(first, reordered);
+        var changes = first.CreateChangeSet(reordered);
         DocsCheck.Require(!changes.IsEmpty, "keyed reorder is a non-empty patch");
-        var applied = changes.ToPatch().Apply(first);
+        var applied = changes.ToPatch().ApplyTo(first);
         DocsCheck.Require(
-            applied.Value!.Servers.Value!.Select(server => server.Id).SequenceEqual(new[] { "b", "a" }),
+            applied.Servers.Select(server => server.Id).SequenceEqual(new[] { "b", "a" }),
             "keyed reorder replay reproduces the new order");
     }
 
     private static void CompositeKey()
     {
-        var before = Optional<DocsTenantInventory.Fragment?>.Present(
-            DocsTenantInventory.Fragment.From(
-                new DocsTenantInventory
-                {
-                    Servers = new List<DocsTenantServer>
-                    {
-                        new() { TenantId = "t1", Id = "a", Host = "A" },
-                    },
-                }));
-        var after = Optional<DocsTenantInventory.Fragment?>.Present(
-            DocsTenantInventory.Fragment.From(
-                new DocsTenantInventory
-                {
-                    Servers = new List<DocsTenantServer>
-                    {
-                        new() { TenantId = "t1", Id = "a", Host = "A2" },
-                    },
-                }));
+        var before = new DocsTenantInventory
+        {
+            Servers = new List<DocsTenantServer>
+            {
+                new() { TenantId = "t1", Id = "a", Host = "A" },
+            },
+        };
+        var after = new DocsTenantInventory
+        {
+            Servers = new List<DocsTenantServer>
+            {
+                new() { TenantId = "t1", Id = "a", Host = "A2" },
+            },
+        };
 
         // Ordered type-level composite: declaration order is significant.
-        var applied = DocsTenantInventory.ChangeSet.Between(before, after).ToPatch().Apply(before);
+        var applied = before.CreateChangeSet(after).ToPatch().ApplyTo(before);
         DocsCheck.Require(
-            applied.Value!.Servers.Value!.Single().Host == "A2",
+            applied.Servers.Single().Host == "A2",
             "composite key element edit");
     }
 
     private static void InterfaceKey()
     {
-        var before = Optional<DocsNormalizedInventory.Fragment?>.Present(
-            DocsNormalizedInventory.Fragment.From(
-                new DocsNormalizedInventory
-                {
-                    Servers = new List<DocsNormalizedServer>
-                    {
-                        new() { Tenant = "acme", Id = 1, Host = "A" },
-                    },
-                }));
-        var after = Optional<DocsNormalizedInventory.Fragment?>.Present(
-            DocsNormalizedInventory.Fragment.From(
-                new DocsNormalizedInventory
-                {
-                    Servers = new List<DocsNormalizedServer>
-                    {
-                        new() { Tenant = "acme", Id = 1, Host = "A2" },
-                        new() { Tenant = "acme", Id = 2, Host = "B" },
-                    },
-                }));
+        var before = new DocsNormalizedInventory
+        {
+            Servers = new List<DocsNormalizedServer>
+            {
+                new() { Tenant = "acme", Id = 1, Host = "A" },
+            },
+        };
+        var after = new DocsNormalizedInventory
+        {
+            Servers = new List<DocsNormalizedServer>
+            {
+                new() { Tenant = "acme", Id = 1, Host = "A2" },
+                new() { Tenant = "acme", Id = 2, Host = "B" },
+            },
+        };
 
         // ISparseKeyed<TKey> escape hatch: normalized (case-folded) identity.
-        var applied = DocsNormalizedInventory.ChangeSet.Between(before, after).ToPatch().Apply(before);
-        var servers = applied.Value!.Servers.Value!;
+        var applied = before.CreateChangeSet(after).ToPatch().ApplyTo(before);
+        var servers = applied.Servers;
         DocsCheck.Require(servers.Count == 2, "interface key add");
         DocsCheck.Require(
             servers.Single(server => server.Id == 1).Host == "A2",

@@ -34,6 +34,7 @@ internal static class SparseFragmentEmitter
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
             emitBlazorEditSession,
+            emitModelExtensions: true,
             cancellationToken
         );
     }
@@ -53,6 +54,7 @@ internal static class SparseFragmentEmitter
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
             emitBlazorEditSession: false,
+            emitModelExtensions: false,
             cancellationToken
         );
     }
@@ -77,6 +79,7 @@ internal static class SparseFragmentEmitter
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
         bool emitBlazorEditSession,
+        bool emitModelExtensions,
         CancellationToken cancellationToken
     )
     {
@@ -160,6 +163,11 @@ internal static class SparseFragmentEmitter
         }
 
         code.AppendLine("}");
+        if (emitModelExtensions)
+        {
+            SparseModelExtensionsEmitter.Append(code, model, members);
+        }
+
         return code.ToString();
     }
 

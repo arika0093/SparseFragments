@@ -19,7 +19,7 @@ public static class RebaseSamples
         var baseModel = new RebaseDocsSettings { RetryCount = 1, Label = "a" };
         var editedModel = new RebaseDocsSettings { RetryCount = 2, Label = "a" };
         var currentModel = new RebaseDocsSettings { RetryCount = 1, Label = "b" };
-        var changes = RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel);
+        var changes = baseModel.CreateChangeSet(editedModel);
         if (!changes.TryApplyTo(currentModel, out var applied))
         {
             throw new InvalidOperationException("Expected a conflict-free rebase.");
@@ -34,7 +34,7 @@ public static class RebaseSamples
         var baseModel = new RebaseDocsSettings { RetryCount = 1 };
         var editedModel = new RebaseDocsSettings { RetryCount = 2 };
         var alreadyThere = new RebaseDocsSettings { RetryCount = 2 };
-        var noOp = RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel);
+        var noOp = baseModel.CreateChangeSet(editedModel);
         if (!noOp.TryApplyTo(alreadyThere, out var applied))
         {
             throw new InvalidOperationException("The change conflicts with the current model.");
@@ -48,7 +48,7 @@ public static class RebaseSamples
         var editedModel = new RebaseDocsSettings { RetryCount = 2 };
         var currentModel = new RebaseDocsSettings { RetryCount = 3 };
         if (
-            RebaseDocsSettings.ChangeSet.Between(baseModel, editedModel)
+            baseModel.CreateChangeSet(editedModel)
                 .TryApplyTo(currentModel, out _, out var conflicts)
         )
         {
