@@ -180,6 +180,73 @@ Concretely:
 
 Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
+## Database-assigned keys
+
+For client-created elements whose database identity is assigned later, opt in to one
+property-level sentinel:
+
+<!-- sample: keyed-unassigned-model -->
+```csharp
+[SparseFragmentModel]
+public partial class PendingFleet
+{
+    public List<PendingServer> Servers { get; set; } = new();
+}
+
+public partial class PendingServer
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
+
+    public string Host { get; set; } = string.Empty;
+}
+```
+<!-- /sample -->
+
+An element with `Id == 0` is always a new addition. Any number of such elements may
+appear in the after-state, and their positions are preserved. The sentinel is never
+implicit: without `Unassigned`, keys remain unique exactly as before. Composite
+`[SparseKey(...)]` keys and `ISparseKeyed<TKey>` are not supported with a sentinel
+(`SPF025`); a sentinel incompatible with the marked property's key type is an error
+(`SPF024`).
+
+An unassigned element cannot appear in a before/baseline collection for `Between`,
+`Apply`, `Compose`, or `Rebase`; the operation throws `InvalidOperationException`.
+Because it has no stable identity, an unassigned element cannot be edited or removed
+by key. Assign a real key first, then treat the persisted element as part of the
+baseline.
+
+The keyed-patch JSON shape for collections without unassigned elements is unchanged.
+When unassigned additions need explicit ordering, the ordinary `"order"` array may
+contain repeated sentinel key values. Each occurrence identifies the next
+sentinel-valued item in `"added"` order (ordinary keys continue to identify their
+elements directly). Thus `[0, 7, 0]` positions two `"added"` items with key `0`
+around key `7`; no additional JSON property or tagged key format is introduced.
+
+<!-- sample: keyed-unassigned-flow -->
+```csharp
+var before = new PendingFleet { Servers = new() { new PendingServer { Id = 4 } } };
+var after = new PendingFleet
+{
+    Servers = new()
+    {
+        new PendingServer { Id = 0, Host = "client-1" },
+        new PendingServer { Id = 4, Host = "saved" },
+        new PendingServer { Id = 0, Host = "client-2" },
+    },
+};
+var changes = before.CreateChangeSet(after);
+// Send changes to the server, insert the added rows, and assign database IDs.
+// Once the server returns its authoritative state, accept it as the new baseline:
+// replace the local model with that state (or call the applicable AcceptChanges API).
+```
+<!-- /sample -->
+
+After the server inserts the rows and assigns their IDs, replace the client model
+with the authoritative returned state (or accept that state as the new baseline
+with the applicable `AcceptChanges` API). This ensures subsequent keyed edits use
+the assigned IDs rather than the sentinel.
+
 ## Observe Typed Collection Transitions
 
 The same `Fleet` / `Server` model observes the transition through typed projections — no reflection, property descriptors, or `object?` casts:

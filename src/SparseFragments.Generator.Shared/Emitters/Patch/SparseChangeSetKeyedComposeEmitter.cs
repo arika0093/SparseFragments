@@ -63,6 +63,30 @@ internal static class SparseChangeSetKeyedComposeEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __first" + id + "_has = " + HasField(member) + ";");
         code.AppendLineAt(4, "var __second" + id + "_has = next." + HasField(member) + ";");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if (__second"
+                    + id
+                    + "_has) { if (next."
+                    + KeyedWholeFlag(member)
+                    + ") { var __nextBefore = next."
+                    + KeyedWholeBefore(member)
+                    + "; if (__nextBefore.IsPresent && (object?)__nextBefore.Value is not null) foreach (var __item in __nextBefore.Value!) if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                        member,
+                        "__SparseKeyOf_ChangeSet_" + id + "(__item)"
+                    )
+                    + ") throw new global::System.InvalidOperationException(\"A ChangeSet whose before-state contains an unassigned key cannot be composed.\"); } else if (next."
+                    + KeyedBeforeOrder(member)
+                    + " is not null) foreach (var __baselineKey in next."
+                    + KeyedBeforeOrder(member)
+                    + ") if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__baselineKey")
+                    + ") throw new global::System.InvalidOperationException(\"A ChangeSet whose before-state contains an unassigned key cannot be composed.\"); }"
+            );
+        }
         code.AppendLineAt(4, "if (!__first" + id + "_has)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -200,6 +224,19 @@ internal static class SparseChangeSetKeyedComposeEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                5,
+                "if (next."
+                    + KeyedBeforeOrder(member)
+                    + " is not null) foreach (var __baselineKey in next."
+                    + KeyedBeforeOrder(member)
+                    + ") if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__baselineKey")
+                    + ") throw new global::System.InvalidOperationException(\"A ChangeSet whose before-state contains an unassigned key cannot be composed.\");"
+            );
+        }
         // Granular + granular per-key merge.
         code.AppendLineAt(
             5,
@@ -240,16 +277,38 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + comparer
                 + ");"
         );
-        code.AppendLineAt(
-            5,
-            "if (next."
-                + KeyedItems(member)
-                + " is not null) foreach (var __it in next."
-                + KeyedItems(member)
-                + ") __map2"
-                + id
-                + "[__it.Key] = __it;"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                5,
+                "var __unassignedNetItems"
+                    + id
+                    + " = new global::System.Collections.Generic.List<"
+                    + trans
+                    + ".Item>(); if (next."
+                    + KeyedItems(member)
+                    + " is not null) foreach (var __it in next."
+                    + KeyedItems(member)
+                    + ") { if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__it.Key")
+                    + ") { if (!__it.IsAdded) throw new global::System.InvalidOperationException(\"An unassigned key cannot be used as a baseline change.\"); __unassignedNetItems"
+                    + id
+                    + ".Add(__it); } else __map2"
+                    + id
+                    + "[__it.Key] = __it; }"
+            );
+        }
+        else
+            code.AppendLineAt(
+                5,
+                "if (next."
+                    + KeyedItems(member)
+                    + " is not null) foreach (var __it in next."
+                    + KeyedItems(member)
+                    + ") __map2"
+                    + id
+                    + "[__it.Key] = __it;"
+            );
         code.AppendLineAt(
             5,
             "var __keys"
@@ -743,7 +802,9 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         code.AppendLineAt(6, "__naO" + id + " = __no;");
         code.AppendLineAt(5, "}");
-        code.AppendLineAt(5, "if (__net" + id + ".Count == 0) { }");
+        code.AppendLineAt(5, "if (__net" + id + ".Count == 0" +
+            (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? " && __unassignedNetItems" + id + ".Count == 0" : "") +
+            ") { }");
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__cb" + id + "_has = true;");
@@ -759,16 +820,38 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         // Enumeration: net after-order then net removed in net before-order (mirrors Between).
         code.AppendLineAt(6, "if (__naO" + id + " is not null)");
-        code.AppendLineAt(
-            6,
-            "{ foreach (var __k in __naO"
-                + id
-                + ") if (__net"
-                + id
-                + ".TryGetValue(__k, out var __e) && !__e.IsRemoved) __elist"
-                + id
-                + ".Add(__e); }"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                6,
+                "{ var __unassignedIndex = 0; foreach (var __k in __naO"
+                    + id
+                    + ") { if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") { if (__unassignedIndex < __unassignedNetItems"
+                    + id
+                    + ".Count) __elist"
+                    + id
+                    + ".Add(__unassignedNetItems"
+                    + id
+                    + "[__unassignedIndex++]); continue; } if (__net"
+                    + id
+                    + ".TryGetValue(__k, out var __e) && !__e.IsRemoved) __elist"
+                    + id
+                    + ".Add(__e); } }"
+            );
+        }
+        else
+            code.AppendLineAt(
+                6,
+                "{ foreach (var __k in __naO"
+                    + id
+                    + ") if (__net"
+                    + id
+                    + ".TryGetValue(__k, out var __e) && !__e.IsRemoved) __elist"
+                    + id
+                    + ".Add(__e); }"
+            );
         code.AppendLineAt(
             6,
             "else foreach (var __kv in __net"
@@ -777,6 +860,17 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + id
                 + ".Add(__kv.Value);"
         );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                6,
+                "if (__naO"
+                    + id
+                    + " is null) __elist"
+                    + id
+                    + ".AddRange(__unassignedNetItems"
+                    + id
+                    + ");"
+            );
         code.AppendLineAt(6, "if (__nbO" + id + " is not null)");
         code.AppendLineAt(
             6,

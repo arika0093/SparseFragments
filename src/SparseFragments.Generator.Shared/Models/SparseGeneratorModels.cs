@@ -46,7 +46,8 @@ internal readonly record struct SparseCollectionInfo(
     SparseCollectionSemantic Semantic = default,
     ImmutableArray<string> KeyPropertyNames = default,
     string? KeyTypeName = null,
-    SparseKeyKind KeyKind = default
+    SparseKeyKind KeyKind = default,
+    string? UnassignedKeyExpression = null
 )
 {
     public static SparseCollectionInfo Unsupported { get; } =
@@ -59,7 +60,8 @@ internal readonly record struct SparseCollectionInfo(
             SparseCollectionSemantic.None,
             ImmutableArray<string>.Empty,
             null,
-            SparseKeyKind.None
+            SparseKeyKind.None,
+            null
         );
 
     /// <summary>Sequence of scalar (non-structural) elements; needs no key.</summary>

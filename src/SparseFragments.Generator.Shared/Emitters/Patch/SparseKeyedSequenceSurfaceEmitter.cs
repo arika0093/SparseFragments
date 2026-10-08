@@ -112,14 +112,30 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "var key = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(element);"
         );
-        code.AppendLineAt(
-            4,
-            "if (__added is not null) foreach (var existing in __added) if ("
-                + comparer
-                + ".Equals("
-                + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                + "(existing), key)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection patch.\");"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + " && __added is not null) foreach (var existing in __added) if ("
+                    + comparer
+                    + ".Equals("
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(existing), key)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection patch.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "if (__added is not null) foreach (var existing in __added) if ("
+                    + comparer
+                    + ".Equals("
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(existing), key)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection patch.\");"
+            );
+        }
         code.AppendLineAt(
             4,
             "if (__edited is not null && __edited.ContainsKey(key)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
@@ -138,6 +154,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         code.AppendLineAt(3, "public void Remove(" + keyType + " key)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "EnsureGranular(\"Remove\");");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + ") throw new global::System.InvalidOperationException(\"An unassigned element cannot be removed by key.\");"
+            );
         code.AppendLineAt(
             4,
             "if (__added is not null) { for (var i = __added.Count - 1; i >= 0; i--) if ("
@@ -166,6 +189,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             code.AppendLineAt(3, "public " + elementPatch + " Edit(" + keyType + " key)");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(4, "EnsureGranular(\"Edit\");");
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+                code.AppendLineAt(
+                    4,
+                    "if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        + ") throw new global::System.InvalidOperationException(\"An unassigned element cannot be edited by key.\");"
+                );
             code.AppendLineAt(
                 4,
                 "if (__removed is not null) foreach (var r in __removed) if ("
@@ -212,6 +242,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 4,
                 "var key = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(element);"
             );
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+                code.AppendLineAt(
+                    4,
+                    "if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        + ") throw new global::System.InvalidOperationException(\"An unassigned element cannot be updated by key; add it as a new item instead.\");"
+                );
             code.AppendLineAt(
                 4,
                 "if (__removed is not null) foreach (var r in __removed) if ("
@@ -256,7 +293,21 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "var list = new global::System.Collections.Generic.List<" + keyType + ">(keys);"
         );
-        code.AppendLineAt(4, facade + ".EnsureUniqueKeys<" + keyType + ">(list);");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "var __seenOrder = new global::System.Collections.Generic.HashSet<"
+                    + keyType
+                    + ">("
+                    + comparer
+                    + "); foreach (var __key in list) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__key")
+                    + " && !__seenOrder.Add(__key)) throw new global::System.InvalidOperationException(\"Duplicate order key.\");"
+            );
+        }
+        else
+            code.AppendLineAt(4, facade + ".EnsureUniqueKeys<" + keyType + ">(list);");
         code.AppendLineAt(4, "__order = list;");
         code.AppendLineAt(3, "}");
         // Internal sparse setter for ChangeSet.ToPatch; installs an already-built element patch.

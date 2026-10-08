@@ -41,7 +41,8 @@ internal enum SparseKeyKind
 internal sealed record SparseKeyInfo(
     SparseKeyKind Kind,
     ImmutableArray<string> PropertyNames,
-    string KeyTypeName
+    string KeyTypeName,
+    string? UnassignedKeyExpression = null
 );
 
 /// <summary>Discovers and validates SparseFragments key metadata on element types.</summary>
@@ -369,10 +370,16 @@ internal static class SparseKeyAnalyzer
                 return false;
             }
 
+            if (!TryGetUnassignedExpression(attribute, property.Type, out var sentinel, out _))
+            {
+                return false;
+            }
+
             info = new SparseKeyInfo(
                 SparseKeyKind.Property,
                 ImmutableArray.Create(property.Name),
-                NonNullableTypeName(property.Type)
+                NonNullableTypeName(property.Type),
+                sentinel
             );
             return true;
         }
@@ -528,6 +535,116 @@ internal static class SparseKeyAnalyzer
         return false;
     }
 
+    private static bool HasUnassignedNamedArgument(AttributeData attribute) =>
+        attribute.NamedArguments.Any(static argument => argument.Key == "Unassigned");
+
+    private static bool TryGetUnassignedExpression(
+        AttributeData attribute,
+        ITypeSymbol keyType,
+        out string? expression,
+        out string? error
+    )
+    {
+        expression = null;
+        error = null;
+        var named = attribute.NamedArguments.FirstOrDefault(static argument =>
+            argument.Key == "Unassigned"
+        );
+        if (named.Key is null)
+            return true;
+
+        var constant = named.Value;
+        var sourceType = constant.Type;
+        if (
+            constant.IsNull
+            || constant.Value is null
+            || sourceType is null
+            || constant.Kind is not (TypedConstantKind.Primitive or TypedConstantKind.Enum)
+        )
+        {
+            error = "Unassigned must be a non-null constant convertible to the key property type.";
+            return false;
+        }
+
+        if (
+            sourceType.SpecialType != keyType.SpecialType
+            && !SymbolEqualityComparer.Default.Equals(sourceType, keyType)
+            && !CanConvertNumericConstant(constant.Value, sourceType.SpecialType, keyType.SpecialType)
+        )
+        {
+            error = "Unassigned is not convertible to the key property type.";
+            return false;
+        }
+
+        var literal = constant.Value switch
+        {
+            string text => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(text, true),
+            char character => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(character, true),
+            bool boolean => boolean ? "true" : "false",
+            _ => Convert.ToString(constant.Value, System.Globalization.CultureInfo.InvariantCulture)!,
+        };
+        if (constant.Value is long)
+            literal += "L";
+        else if (constant.Value is ulong)
+            literal += "UL";
+        else if (constant.Value is uint)
+            literal += "U";
+        else if (constant.Value is float)
+            literal += "F";
+        else if (constant.Value is decimal)
+            literal += "M";
+        expression = "(" + NonNullableTypeName(keyType) + ")(" + literal + ")";
+        return true;
+    }
+
+    private static bool CanConvertNumericConstant(
+        object value,
+        SpecialType sourceType,
+        SpecialType targetType
+    )
+    {
+        var runtimeType = targetType switch
+        {
+            SpecialType.System_SByte => typeof(sbyte),
+            SpecialType.System_Byte => typeof(byte),
+            SpecialType.System_Int16 => typeof(short),
+            SpecialType.System_UInt16 => typeof(ushort),
+            SpecialType.System_Int32 => typeof(int),
+            SpecialType.System_UInt32 => typeof(uint),
+            SpecialType.System_Int64 => typeof(long),
+            SpecialType.System_UInt64 => typeof(ulong),
+            SpecialType.System_Single => typeof(float),
+            SpecialType.System_Double => typeof(double),
+            SpecialType.System_Decimal => typeof(decimal),
+            _ => null,
+        };
+        if (runtimeType is null || !IsNumeric(sourceType))
+            return false;
+
+        try
+        {
+            _ = Convert.ChangeType(value, runtimeType, System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsNumeric(SpecialType type) =>
+        type is SpecialType.System_SByte
+            or SpecialType.System_Byte
+            or SpecialType.System_Int16
+            or SpecialType.System_UInt16
+            or SpecialType.System_Int32
+            or SpecialType.System_UInt32
+            or SpecialType.System_Int64
+            or SpecialType.System_UInt64
+            or SpecialType.System_Single
+            or SpecialType.System_Double
+            or SpecialType.System_Decimal;
+
     private static void CollectMechanismDiagnostics(
         INamedTypeSymbol element,
         KeyMechanisms mechanisms,
@@ -559,6 +676,18 @@ internal static class SparseKeyAnalyzer
                         config.EffectiveDiagnosticIds.InvalidKeyAttributeShape,
                         property.Locations.FirstOrDefault(),
                         element.Name + "." + property.Name
+                    )
+                );
+                continue;
+            }
+
+            if (!TryGetUnassignedExpression(attribute, property.Type, out _, out var sentinelError))
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        "SPF024",
+                        property.Locations.FirstOrDefault(),
+                        element.Name + "." + property.Name + ": " + sentinelError
                     )
                 );
                 continue;
@@ -611,13 +740,24 @@ internal static class SparseKeyAnalyzer
 
         if (mechanisms.TypeAttributes.Count == 1 && mechanisms.KindCount == 1)
         {
-            CollectCompositeDiagnostics(
-                element,
-                mechanisms.TypeAttributes[0],
-                config,
-                diagnostics,
-                cancellationToken
-            );
+            if (HasUnassignedNamedArgument(mechanisms.TypeAttributes[0]))
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        "SPF025",
+                        AttributeLocation(mechanisms.TypeAttributes[0], element),
+                        element.Name
+                    )
+                );
+            }
+            else
+                CollectCompositeDiagnostics(
+                    element,
+                    mechanisms.TypeAttributes[0],
+                    config,
+                    diagnostics,
+                    cancellationToken
+                );
         }
         else
         {
@@ -900,7 +1040,7 @@ internal static class SparseKeyAnalyzer
     }
 
     private static bool HasAttributeArguments(AttributeData attribute) =>
-        attribute.ConstructorArguments.Length > 0 || attribute.NamedArguments.Length > 0;
+        attribute.ConstructorArguments.Length > 0;
 
     private static bool TryExtractComponentNames(
         AttributeData attribute,

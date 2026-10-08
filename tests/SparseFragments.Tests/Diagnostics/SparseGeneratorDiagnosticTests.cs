@@ -610,6 +610,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF021"] = "#spf021-duplicate-json-property-name",
             ["SPF022"] = "#spf022-sparseignore-on-key",
             ["SPF023"] = "#spf023-sparseignore-on-unsupported-property",
+            ["SPF024"] = "#spf024-invalid-unassigned-key-sentinel",
+            ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)

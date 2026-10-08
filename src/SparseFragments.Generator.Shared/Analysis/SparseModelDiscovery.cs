@@ -611,6 +611,7 @@ internal static class SparseModelDiscovery
         var keyPropertyNames = ImmutableArray<string>.Empty;
         string? keyTypeName = null;
         var keyKind = SparseKeyKind.None;
+        string? unassignedKeyExpression = null;
         if (
             semantic == SparseCollectionSemantic.KeyedSequence
             && collection.ElementType is INamedTypeSymbol namedElement
@@ -626,6 +627,7 @@ internal static class SparseModelDiscovery
             keyPropertyNames = discovered.PropertyNames;
             keyTypeName = discovered.KeyTypeName;
             keyKind = discovered.Kind;
+            unassignedKeyExpression = discovered.UnassignedKeyExpression;
         }
 
         return new SparseCollectionInfo(
@@ -637,7 +639,8 @@ internal static class SparseModelDiscovery
             semantic,
             keyPropertyNames,
             keyTypeName,
-            keyKind
+            keyKind,
+            unassignedKeyExpression
         );
     }
 

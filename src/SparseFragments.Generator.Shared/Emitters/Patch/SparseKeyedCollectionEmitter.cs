@@ -130,6 +130,23 @@ internal static class SparseKeyedCollectionEmitter
 
     internal static string KeyOfMethod(SparseMemberModel member) => "__SparseKeyOf_" + member.Id;
 
+    internal static string IsUnassignedMethod(SparseMemberModel member) =>
+        "__SparseIsUnassigned_" + member.Id;
+
+    internal static bool HasUnassignedKey(SparseMemberModel member) =>
+        member.Collection.UnassignedKeyExpression is not null;
+
+    internal static string IsUnassignedExpression(SparseMemberModel member, string key) =>
+        HasUnassignedKey(member)
+            ? "global::System.Collections.Generic.EqualityComparer<"
+                + KeyType(member)
+                + ">.Default.Equals("
+                + key
+                + ", "
+                + member.Collection.UnassignedKeyExpression
+                + ")"
+            : "false";
+
     internal static void EmitKeyOf(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -181,6 +198,19 @@ internal static class SparseKeyedCollectionEmitter
         }
 
         code.AppendLineAt(indent, "}");
+        if (HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                indent,
+                "private static bool "
+                    + IsUnassignedMethod(member)
+                    + "("
+                    + KeyType(member)
+                    + " key) => "
+                    + IsUnassignedExpression(member, "key")
+                    + ";"
+            );
+        }
     }
 
     internal static string MaterializeSequence(

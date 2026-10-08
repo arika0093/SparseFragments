@@ -48,6 +48,17 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         code.AppendLineAt(4, "if (" + HasField(member) + ")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(4, "var __curM" + id + " = __cur." + esc + ";");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + KeyedBeforeOrder(member)
+                    + " is not null) foreach (var __baselineKey in "
+                    + KeyedBeforeOrder(member)
+                    + ") if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__baselineKey")
+                    + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed ChangeSet.\");"
+            );
         // Whole presence/null transitions: replay via member patch rebase is not sparse;
         // report member conflict unless already applied, else keep whole.
         code.AppendLineAt(4, "if (" + KeyedWholeFlag(member) + ")");
@@ -152,7 +163,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + id
                 + ".Value!) { var __ck = __SparseKeyOf_ChangeSet_"
                 + id
-                + "(__e); if (!__cmap"
+                + "(__e); "
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ck") + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the current baseline of a keyed ChangeSet.\"); "
+                    : "")
+                + "if (!__cmap"
                 + id
                 + ".TryAdd(__ck, __e)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); __corder"
                 + id
@@ -179,40 +194,103 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         // Added: replay when absent; already-applied when equal; conflict otherwise.
         code.AppendLineAt(6, "if (__it.IsAdded)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(
-            6,
-            "if (!__cmap"
-                + id
-                + ".ContainsKey(__it.Key)) { __any"
-                + id
-                + " = true; "
-                + optElement
-                + " __na = "
-                + optElement
-                + ".Present(__it.After.Value!); "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?> __nea = "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__it.After.Value!)); var __nedit = "
-                + elementCs
-                + ".Between(default, __nea); __rlist"
-                + id
-                + ".Add(new "
-                + trans
-                + ".Item(__it.Key, default, __na, -1, __corder"
-                + id
-                + ".Count, true, false, false, false, __nedit, false)); __cmap"
-                + id
-                + "[__it.Key] = __it.After.Value!; __corder"
-                + id
-                + ".Add(__it.Key); }"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                6,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__it.Key")
+                    + ") { __any"
+                    + id
+                    + " = true; "
+                    + optElement
+                    + " __ua = "
+                    + optElement
+                    + ".Present(__it.After.Value!); "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?> __uea = "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?>.Present("
+                    + elementFrag
+                    + ".From(__it.After.Value!)); var __uedit = "
+                    + elementCs
+                    + ".Between(default, __uea); __rlist"
+                    + id
+                    + ".Add(new "
+                    + trans
+                    + ".Item(__it.Key, default, __ua, -1, __corder"
+                    + id
+                    + ".Count, true, false, false, false, __uedit, false)); } else "
+                    + "if (!__cmap"
+                    + id
+                    + ".ContainsKey(__it.Key)) { __any"
+                    + id
+                    + " = true; "
+                    + optElement
+                    + " __na = "
+                    + optElement
+                    + ".Present(__it.After.Value!); "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?> __nea = "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?>.Present("
+                    + elementFrag
+                    + ".From(__it.After.Value!)); var __nedit = "
+                    + elementCs
+                    + ".Between(default, __nea); __rlist"
+                    + id
+                    + ".Add(new "
+                    + trans
+                    + ".Item(__it.Key, default, __na, -1, __corder"
+                    + id
+                    + ".Count, true, false, false, false, __nedit, false)); __cmap"
+                    + id
+                    + "[__it.Key] = __it.After.Value!; __corder"
+                    + id
+                    + ".Add(__it.Key); }"
+            );
+        else
+            code.AppendLineAt(
+                6,
+                "if (!__cmap"
+                    + id
+                    + ".ContainsKey(__it.Key)) { __any"
+                    + id
+                    + " = true; "
+                    + optElement
+                    + " __na = "
+                    + optElement
+                    + ".Present(__it.After.Value!); "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?> __nea = "
+                    + runtime
+                    + "Optional<"
+                    + elementFrag
+                    + "?>.Present("
+                    + elementFrag
+                    + ".From(__it.After.Value!)); var __nedit = "
+                    + elementCs
+                    + ".Between(default, __nea); __rlist"
+                    + id
+                    + ".Add(new "
+                    + trans
+                    + ".Item(__it.Key, default, __na, -1, __corder"
+                    + id
+                    + ".Count, true, false, false, false, __nedit, false)); __cmap"
+                    + id
+                    + "[__it.Key] = __it.After.Value!; __corder"
+                    + id
+                    + ".Add(__it.Key); }"
+            );
         code.AppendLineAt(
             6,
             "else if (!"
@@ -430,9 +508,68 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + id
                 + " = null;"
         );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(5, "bool __unassignedOnlyAdds" + id + " = false;");
+            code.AppendLineAt(
+                5,
+                "if ("
+                    + KeyedBeforeOrder(member)
+                    + " is not null && "
+                    + KeyedAfterOrder(member)
+                    + " is not null) { var __ordinaryAfter = new global::System.Collections.Generic.List<"
+                    + keyType
+                    + ">(); foreach (var __orderKey in "
+                    + KeyedAfterOrder(member)
+                    + ") if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__orderKey")
+                    + ") __ordinaryAfter.Add(__orderKey); if ("
+                    + facade
+                    + ".KeyOrderEquals<"
+                    + keyType
+                    + ">("
+                    + KeyedBeforeOrder(member)
+                    + ", __ordinaryAfter)) foreach (var __candidate in "
+                    + KeyedItems(member)
+                    + " ?? new global::System.Collections.Generic.List<"
+                    + trans
+                    + ".Item>()) if (__candidate.IsAdded && "
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__candidate.Key")
+                    + ") { __unassignedOnlyAdds"
+                    + id
+                    + " = true; break; } }"
+            );
+            code.AppendLineAt(
+                5,
+                "if (__unassignedOnlyAdds"
+                    + id
+                    + ") { __nbO"
+                    + id
+                    + " = new global::System.Collections.Generic.List<"
+                    + keyType
+                    + ">(__corder"
+                    + id
+                    + "); __naO"
+                    + id
+                    + " = new global::System.Collections.Generic.List<"
+                    + keyType
+                    + ">(__corder"
+                    + id
+                    + "); foreach (var __newItem in __rlist"
+                    + id
+                    + ") if (__newItem.IsAdded && "
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__newItem.Key")
+                    + ") __naO"
+                    + id
+                    + ".Add(__newItem.Key); }"
+            );
+        }
         code.AppendLineAt(
             5,
             "if ("
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                    ? "__unassignedOnlyAdds" + id + " || ("
+                    : "")
                 + KeyedBeforeOrder(member)
                 + " is not null && "
                 + KeyedAfterOrder(member)
@@ -444,7 +581,13 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + KeyedBeforeOrder(member)
                 + ", "
                 + KeyedAfterOrder(member)
-                + ")) { __nbO"
+                + "))"
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? ")" : "")
+                + " { "
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                    ? "if (!__unassignedOnlyAdds" + id + ") { "
+                    : "")
+                + "__nbO"
                 + id
                 + " = new global::System.Collections.Generic.List<"
                 + keyType
@@ -456,11 +599,16 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + keyType
                 + ">(__corder"
                 + id
-                + "); }"
+                + ");"
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? " }" : "")
+                + " }"
         );
         code.AppendLineAt(
             5,
             "else if ("
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                    ? "!__unassignedOnlyAdds" + id + " && "
+                    : "")
                 + KeyedBeforeOrder(member)
                 + " is not null && "
                 + KeyedAfterOrder(member)

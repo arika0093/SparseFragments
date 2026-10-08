@@ -351,6 +351,24 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf023-sparseignore-on-unsupported-property"
     );
+    private static readonly DiagnosticDescriptor InvalidUnassignedKey = new(
+        SparseFragmentsDiagnosticIds.InvalidUnassignedKey,
+        "Invalid unassigned key sentinel",
+        "Invalid unassigned key sentinel: {0}",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf024-invalid-unassigned-key-sentinel"
+    );
+    private static readonly DiagnosticDescriptor UnsupportedUnassignedKey = new(
+        SparseFragmentsDiagnosticIds.UnsupportedUnassignedKey,
+        "Unsupported unassigned key sentinel",
+        "Unassigned key sentinels are not supported for composite or interface keys on '{0}'",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf025-unsupported-unassigned-key-sentinel"
+    );
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -608,6 +626,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.SparseIgnoreOnKey => SparseIgnoreOnKey,
             SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty =>
                 SparseIgnoreUnsupportedProperty,
+            SparseFragmentsDiagnosticIds.InvalidUnassignedKey => InvalidUnassignedKey,
+            SparseFragmentsDiagnosticIds.UnsupportedUnassignedKey => UnsupportedUnassignedKey,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

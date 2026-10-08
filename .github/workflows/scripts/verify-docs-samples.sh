@@ -136,7 +136,7 @@ check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/Verified
     core-models core-create core-layering core-diff core-patch core-between \
     core-changeset core-typed core-nested-models core-nested core-algebra core-serialization
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    keyed-first-models keyed-first keyed-typed
+    keyed-first-models keyed-first keyed-typed keyed-unassigned-model keyed-unassigned-flow
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-e2e
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \

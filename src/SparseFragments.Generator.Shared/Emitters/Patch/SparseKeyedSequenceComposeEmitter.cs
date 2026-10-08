@@ -62,10 +62,30 @@ internal static class SparseKeyedSequenceComposeEmitter
         );
         code.AppendLineAt(
             4,
-            "if (__added is not null) foreach (var item in __added) thisAdded["
-                + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                + "(item)] = item;"
+            "var thisUnassignedAdded = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">();"
         );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if (__added is not null) foreach (var item in __added) { var k = "
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(item); if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") thisUnassignedAdded.Add(item); else thisAdded[k] = item; }"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "if (__added is not null) foreach (var item in __added) thisAdded["
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(item)] = item;"
+            );
+        }
         code.AppendLineAt(
             4,
             "var nextAdded = new global::System.Collections.Generic.Dictionary<"
@@ -78,10 +98,30 @@ internal static class SparseKeyedSequenceComposeEmitter
         );
         code.AppendLineAt(
             4,
-            "if (next.__added is not null) foreach (var item in next.__added) nextAdded["
-                + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                + "(item)] = item;"
+            "var nextUnassignedAdded = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">();"
         );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if (next.__added is not null) foreach (var item in next.__added) { var k = "
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(item); if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") nextUnassignedAdded.Add(item); else nextAdded[k] = item; }"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "if (next.__added is not null) foreach (var item in next.__added) nextAdded["
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(item)] = item;"
+            );
+        }
         code.AppendLineAt(
             4,
             "var thisRemoved = new global::System.Collections.Generic.HashSet<"
@@ -184,7 +224,7 @@ internal static class SparseKeyedSequenceComposeEmitter
             code.AppendLineAt(4, "}");
             code.AppendLineAt(
                 4,
-                "if (next.__added is not null) foreach (var item in next.__added) netAdded.Add(item);"
+                "foreach (var item in thisUnassignedAdded) netAdded.Add(item); if (next.__added is not null) foreach (var item in next.__added) netAdded.Add(item);"
             );
             code.AppendLineAt(
                 4,
@@ -263,7 +303,7 @@ internal static class SparseKeyedSequenceComposeEmitter
             code.AppendLineAt(4, "}");
             code.AppendLineAt(
                 4,
-                "if (next.__added is not null) foreach (var item in next.__added) netAdded.Add(item);"
+                "foreach (var item in thisUnassignedAdded) netAdded.Add(item); if (next.__added is not null) foreach (var item in next.__added) netAdded.Add(item);"
             );
             code.AppendLineAt(
                 4,

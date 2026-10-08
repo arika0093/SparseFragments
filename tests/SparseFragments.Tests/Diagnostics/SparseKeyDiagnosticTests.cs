@@ -167,6 +167,38 @@ public sealed class SparseKeyDiagnosticTests
     }
 
     [Test]
+    public void Spf024_IncompatibleUnassignedSentinelReportsError()
+    {
+        const string element = """
+            public partial class Keyed
+            {
+                [SparseKey(Unassigned = "none")]
+                public int Id { get; set; }
+            }
+            """;
+        var (diagnostics, sources) = Run(WithHolder(element));
+        AssertSpfIds(diagnostics, ["SPF024"]);
+        diagnostics.Single(d => d.Id == "SPF024").GetMessage().ShouldContain("not convertible");
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void Spf025_CompositeSentinelIsRejected()
+    {
+        const string element = """
+            [SparseKey(nameof(Tenant), nameof(Id), Unassigned = 0)]
+            public partial class Keyed
+            {
+                public int Tenant { get; set; }
+                public int Id { get; set; }
+            }
+            """;
+        var (diagnostics, sources) = Run(WithHolder(element));
+        AssertSpfIds(diagnostics, ["SPF025"]);
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
     public void Spf015_MissingComponentReportsError()
     {
         const string element = """

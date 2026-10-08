@@ -71,6 +71,21 @@ public partial class StructuralDictHolder
     public Dictionary<string, KeyedServer> Servers { get; set; } = new();
 }
 
+[SparseFragmentModel]
+public partial class AssignedServer
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class AssignedServerHolder
+{
+    public List<AssignedServer> Items { get; set; } = new();
+}
+
 public sealed class KeyedCollectionPatchTests
 {
     private static KeyedServer Server(string id, string name = "", int count = 0) =>
@@ -124,6 +139,9 @@ public sealed class KeyedCollectionPatchTests
 
         var patch = KeyedServerHolder.Patch.Between(before, after);
         patch.IsEmpty.ShouldBeFalse();
+        System.Text.Json.JsonSerializer.Serialize(patch).ShouldBe(
+            """{"Items":{"order":["c","a","b"]}}"""
+        );
 
         var applied = patch.Apply(before);
         applied.Value!.Items.Value!.Select(s => s.Id).ShouldBe(["c", "a", "b"]);
@@ -140,6 +158,80 @@ public sealed class KeyedCollectionPatchTests
         var patch = new KeyedServerHolder.Patch();
         patch.Items.Add(Server("x"));
         Should.Throw<InvalidOperationException>(() => patch.Items.Add(Server("x")));
+    }
+
+    [Test]
+    public void UnassignedSentinelsAreIndependentAddsAndPreserveOrder()
+    {
+        Optional<AssignedServerHolder.Fragment?> F(params AssignedServer[] items) =>
+            Optional<AssignedServerHolder.Fragment?>.Present(
+                AssignedServerHolder.Fragment.From(new AssignedServerHolder { Items = items.ToList() })
+            );
+
+        var before = F(new AssignedServer { Id = 7, Name = "existing" });
+        var after = F(
+            new AssignedServer { Id = 0, Name = "first" },
+            new AssignedServer { Id = 7, Name = "existing" },
+            new AssignedServer { Id = 0, Name = "second" }
+        );
+
+        var patch = AssignedServerHolder.Patch.Between(before, after);
+        var applied = patch.Apply(before);
+        applied.Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+        var changes = AssignedServerHolder.ChangeSet.Between(before, after);
+        changes.IsEmpty.ShouldBeFalse();
+        changes.ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+        changes.Items.AfterOrder.ShouldBe([0, 7, 0]);
+        changes.Items.Added.Select(item => item.Name).ShouldBe(["first", "second"]);
+        changes.Items.GetChange(0).IsEmpty.ShouldBeTrue();
+        var payloadRoundTrip = System.Text.Json.JsonSerializer.Deserialize<AssignedServerHolder.ChangeSetPayload>(
+            System.Text.Json.JsonSerializer.Serialize(changes.ToPayload())
+        )!.ToChangeSet();
+        payloadRoundTrip.ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
+
+        var edited = F(new AssignedServer { Id = 7, Name = "updated" });
+        var first = AssignedServerHolder.ChangeSet.Between(before, edited);
+        var second = AssignedServerHolder.ChangeSet.Between(edited, after);
+        first.Compose(second).ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+
+        var manualFirst = new AssignedServerHolder.Patch();
+        manualFirst.Items.Add(new AssignedServer { Name = "manual-first" });
+        var manualSecond = new AssignedServerHolder.Patch();
+        manualSecond.Items.Add(new AssignedServer { Name = "manual-second" });
+        manualFirst.Compose(manualSecond).Apply(before).Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["existing", "manual-first", "manual-second"]);
+
+        var concurrent = F(
+            new AssignedServer { Id = 7, Name = "existing" },
+            new AssignedServer { Id = 9, Name = "concurrent" }
+        );
+        var rebased = changes.RebaseOnto(concurrent);
+        rebased.HasConflicts.ShouldBeFalse();
+        rebased.Patch.ToPatch().Apply(concurrent).Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["existing", "concurrent", "first", "second"]);
+        var patchRebased = AssignedServerHolder.Patch.Rebase(before, patch, concurrent);
+        patchRebased.HasConflicts.ShouldBeFalse();
+        patchRebased.Patch.Apply(concurrent).Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["existing", "concurrent", "first", "second"]);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(patch);
+        json.ShouldContain("\"order\":[0,7,0]");
+        var roundTrip = System.Text.Json.JsonSerializer.Deserialize<AssignedServerHolder.Patch>(json)!;
+        roundTrip.Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
+    }
+
+    [Test]
+    public void UnassignedKeysAreRejectedInBaselineAndOrdinaryDuplicatesStillFail()
+    {
+        Optional<AssignedServerHolder.Fragment?> F(params AssignedServer[] items) =>
+            Optional<AssignedServerHolder.Fragment?>.Present(
+                AssignedServerHolder.Fragment.From(new AssignedServerHolder { Items = items.ToList() })
+            );
+        var invalidBaseline = F(new AssignedServer { Id = 0 });
+        var valid = F(new AssignedServer { Id = 1 });
+        Should.Throw<InvalidOperationException>(() => AssignedServerHolder.Patch.Between(invalidBaseline, valid));
+        Should.Throw<InvalidOperationException>(() => AssignedServerHolder.Patch.Between(valid, F(new AssignedServer { Id = 1 }, new AssignedServer { Id = 1 })));
     }
 
     [Test]

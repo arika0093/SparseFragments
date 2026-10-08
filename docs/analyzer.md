@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF023)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF025)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -28,6 +28,8 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF021](#spf021-duplicate-json-property-name) | Duplicate JSON property name | Error |
 | [SPF022](#spf022-sparseignore-on-key) | SparseIgnore on key | Error |
 | [SPF023](#spf023-sparseignore-on-unsupported-property) | SparseIgnore on unsupported property | Error |
+| [SPF024](#spf024-invalid-unassigned-key-sentinel) | Invalid unassigned key sentinel | Error |
+| [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -307,3 +309,20 @@ public partial class Widget
     public string? Second { get; set; }
 }
 ```
+
+## SPF024: Invalid unassigned key sentinel
+
+* Message: `Invalid unassigned key sentinel: {0}`
+* Cause: A property-level `[SparseKey(Unassigned = ...)]` value is null, is not a
+  compile-time constant, or is not compatible with the key property's type.
+* Fix: Use a non-null sentinel constant convertible to the marked key property type.
+  Unassigned sentinels are opt-in and are supported only for property-level keys.
+  See [database-assigned keys](keyed-collections.md#database-assigned-keys).
+
+## SPF025: Unsupported unassigned key sentinel
+
+* Message: `Unassigned key sentinels are not supported for composite or interface keys on '{0}'`
+* Cause: `Unassigned` was specified on a type-level composite key declaration.
+  `ISparseKeyed<TKey>` likewise does not support unassigned sentinels.
+* Fix: Use one property-level `[SparseKey(Unassigned = ...)]` key, or omit the
+  sentinel and retain the existing unique-key requirement.

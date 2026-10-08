@@ -17,6 +17,11 @@ namespace SparseFragments;
 ///     public string Host { get; set; } = "";
 /// }
 /// </code>
+/// <para>
+/// A property-level key may opt into a non-null unassigned sentinel with the named
+/// <see cref="Unassigned"/> property. Sentinel-valued elements are additions, not stable
+/// keyed identities; type-level composite and interface keys do not support sentinels.
+/// </para>
 /// <para>Composite keys are declared on the type with order-significant components:</para>
 /// <code>
 /// [SparseKey(nameof(TenantId), nameof(Id))]
@@ -35,6 +40,12 @@ namespace SparseFragments;
 )]
 public sealed class SparseKeyAttribute : Attribute
 {
+    /// <summary>
+    /// Optional key value reserved for elements whose identity has not yet been assigned.
+    /// Property-level use only.
+    /// </summary>
+    public object? Unassigned { get; set; }
+
     /// <summary>Marks a property as the stable key. Property-level use only.</summary>
     public SparseKeyAttribute() { }
 

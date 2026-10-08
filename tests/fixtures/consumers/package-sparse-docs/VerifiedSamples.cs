@@ -22,6 +22,7 @@ public static class VerifiedSamples
         CoreSerialization();
         KeyedFirst();
         KeyedTyped();
+        KeyedUnassignedFlow();
         RebaseFirst();
         RebaseApplied();
         RebaseConflict();
@@ -326,6 +327,26 @@ public static class VerifiedSamples
         // /sample
     }
 
+    private static void KeyedUnassignedFlow()
+    {
+        // sample: keyed-unassigned-flow
+        var before = new PendingFleet { Servers = new() { new PendingServer { Id = 4 } } };
+        var after = new PendingFleet
+        {
+            Servers = new()
+            {
+                new PendingServer { Id = 0, Host = "client-1" },
+                new PendingServer { Id = 4, Host = "saved" },
+                new PendingServer { Id = 0, Host = "client-2" },
+            },
+        };
+        var changes = before.CreateChangeSet(after);
+        // Send changes to the server, insert the added rows, and assign database IDs.
+        // Once the server returns its authoritative state, accept it as the new baseline:
+        // replace the local model with that state (or call the applicable AcceptChanges API).
+        // /sample
+    }
+
     private static void RebaseFirst()
     {
         // sample: rebase-first
@@ -468,6 +489,22 @@ public partial class Server
 {
     [SparseKey]
     public string Id { get; set; } = string.Empty;
+
+    public string Host { get; set; } = string.Empty;
+}
+// /sample
+
+// sample: keyed-unassigned-model
+[SparseFragmentModel]
+public partial class PendingFleet
+{
+    public List<PendingServer> Servers { get; set; } = new();
+}
+
+public partial class PendingServer
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
 
     public string Host { get; set; } = string.Empty;
 }

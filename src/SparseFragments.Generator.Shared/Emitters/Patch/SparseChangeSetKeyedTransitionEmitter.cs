@@ -216,7 +216,23 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + comparer
                 + ");"
         );
-        code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                5,
+                "foreach (var __item in _items) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__item.Key")
+                    + ") __lookup[__item.Key] = __item;"
+            );
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + ") return Item.Empty;"
+            );
+        }
+        else
+            code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
         code.AppendLineAt(5, "_lookup = __lookup;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
@@ -308,6 +324,13 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "if (__beforeHas) foreach (var __item in before.Value!)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __k = __SparseKeyOf_ChangeSet_" + member.Id + "(__item);");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed transition.\");"
+            );
         code.AppendLineAt(
             4,
             "if (!__beforeMap.TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
@@ -326,9 +349,22 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + elementType
                 + ">(__comparer);"
         );
+        code.AppendLineAt(
+            3,
+            "var __unassignedAfter = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">();"
+        );
         code.AppendLineAt(3, "if (__afterHas) foreach (var __item in after.Value!)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __k = __SparseKeyOf_ChangeSet_" + member.Id + "(__item);");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") { __afterOrder.Add(__k); __unassignedAfter.Add(__item); continue; }"
+            );
         code.AppendLineAt(
             4,
             "if (!__afterMap.TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
@@ -339,10 +375,20 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             3,
             "var __added = new global::System.Collections.Generic.List<" + elementType + ">();"
         );
-        code.AppendLineAt(
-            3,
-            "foreach (var __k in __afterOrder) if (!__beforeMap.ContainsKey(__k)) __added.Add(__afterMap[__k]);"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                3,
+                "var __unassignedAddedIndex = 0; foreach (var __k in __afterOrder) { if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") { __added.Add(__unassignedAfter[__unassignedAddedIndex++]); continue; } if (!__beforeMap.ContainsKey(__k)) __added.Add(__afterMap[__k]); }"
+            );
+        }
+        else
+            code.AppendLineAt(
+                3,
+                "foreach (var __k in __afterOrder) if (!__beforeMap.ContainsKey(__k)) __added.Add(__afterMap[__k]);"
+            );
         code.AppendLineAt(
             3,
             "var __removed = new global::System.Collections.Generic.List<" + elementType + ">();"
@@ -442,16 +488,49 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + keyType
                 + ", int>(__comparer);"
         );
-        code.AppendLineAt(
-            3,
-            "for (var __i = 0; __i < __afterOrder.Count; __i++) __afterIndex[__afterOrder[__i]] = __i;"
-        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(
+                3,
+                "for (var __i = 0; __i < __afterOrder.Count; __i++) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__afterOrder[__i]")
+                    + ") __afterIndex[__afterOrder[__i]] = __i;"
+            );
+        else
+            code.AppendLineAt(
+                3,
+                "for (var __i = 0; __i < __afterOrder.Count; __i++) __afterIndex[__afterOrder[__i]] = __i;"
+            );
         code.AppendLineAt(
             3,
             "var __items = new global::System.Collections.Generic.List<" + trans + ".Item>();"
         );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(3, "var __afterPosition = 0; var __unassignedPosition = 0;");
         code.AppendLineAt(3, "foreach (var __k in __afterOrder)");
         code.AppendLineAt(3, "{");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") { var __ua = __unassignedAfter[__unassignedPosition++]; var __uaEdit = "
+                    + elementCs
+                    + ".Between(default, "
+                    + optionalElementFragment
+                    + ".Present("
+                    + elementFrag
+                    + ".From(__ua))); __items.Add(new "
+                    + trans
+                    + ".Item(__k, default, "
+                    + runtime
+                    + "Optional<"
+                    + elementType
+                    + ">.Present(__ua), -1, __afterPosition++, true, false, false, false, __uaEdit, false)); continue; }"
+            );
+        }
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            code.AppendLineAt(4, "__afterPosition++;");
         code.AppendLineAt(4, "bool __inBefore = __beforeMap.TryGetValue(__k, out var __b);");
         code.AppendLineAt(4, "var __a = __afterMap[__k];");
         code.AppendLineAt(4, "bool __isEdited = __edited.TryGetValue(__k, out var __edit);");

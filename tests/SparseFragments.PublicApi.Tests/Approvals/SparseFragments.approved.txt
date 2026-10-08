@@ -141,6 +141,7 @@ namespace SparseFragments
         public SparseKeyAttribute() { }
         public SparseKeyAttribute(string propertyName, params string[] additionalPropertyNames) { }
         public string[] PropertyNames { get; }
+        public object? Unassigned { get; set; }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseMergeAttribute : System.Attribute
