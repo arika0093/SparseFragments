@@ -240,7 +240,13 @@ internal static class SparseChangeSetDictBetweenEmitter
                     + id
                     + " = new global::System.Collections.Generic.List<"
                     + trans
-                    + ".Item>();"
+                    + ".Item>(__added"
+                    + id
+                    + ".Count + __removed"
+                    + id
+                    + ".Count + __edited"
+                    + id
+                    + ".Count);"
             );
             code.AppendLineAt(
                 6,
@@ -414,7 +420,13 @@ internal static class SparseChangeSetDictBetweenEmitter
                     + id
                     + " = new global::System.Collections.Generic.List<"
                     + trans
-                    + ".Item>();"
+                    + ".Item>(__added"
+                    + id
+                    + ".Count + __removed"
+                    + id
+                    + ".Count + __edited"
+                    + id
+                    + ".Count);"
             );
             code.AppendLineAt(
                 6,
