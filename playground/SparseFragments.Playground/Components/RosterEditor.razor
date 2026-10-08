@@ -37,10 +37,10 @@
 
     /// <summary>
     /// Gets or sets the typed keyed quest transition consumed directly via
-    /// <c>GetChange</c>. Null when the roster state is invalid.
+    /// <c>GetChange</c>. Pass an empty transition when the roster state is invalid.
     /// </summary>
     [Parameter]
-    public PlaygroundRoster.ChangeSet.QuestsTransition? Changes { get; set; }
+    public PlaygroundRoster.ChangeSet.QuestsTransition Changes { get; set; } = null!;
 
     /// <summary>Gets or sets whether reorder controls (handle, up/down) are shown.</summary>
     [Parameter]
@@ -125,7 +125,7 @@
 
     private PlaygroundRoster.ChangeSet.QuestsTransition.Item? GetRowChange(PlaygroundQuest quest)
     {
-        if (!ShowHighlights || Changes is null)
+        if (!ShowHighlights || !Changes.IsChanged)
         {
             return null;
         }
