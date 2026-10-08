@@ -374,7 +374,7 @@ internal static class SparseChangeSetDictBetweenEmitter
                 6,
                 "if (!"
                     + facade
-                    + ".AreEqual((object?)__b, (object?)__kv.Value)) __edited"
+                    + ".AreEqual(__b, __kv.Value)) __edited"
                     + id
                     + "[__kv.Key] = __kv.Value;"
             );
