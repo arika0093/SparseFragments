@@ -161,6 +161,14 @@ internal static class SparseFragmentPatchEmitter
             "public " + optional + " Apply(" + optional + " current)"
         );
         SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect);
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this patch to an ordinary model and returns a new model.</summary>"
+        );
+        code.AppendLineAt(2, "public " + modelType + " ApplyTo(" + modelType + " current)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "return Fragment.From(current).Apply(this).ToModel();");
+        code.AppendLineAt(2, "}");
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members);
         SparsePatchStjEmitter.AppendPatchStj(code, members);

@@ -86,9 +86,7 @@ public static class PlaygroundSnippets
     {
         if (state.EnabledOp == PatchKind.Set)
         {
-            sb.AppendLine(
-                $"{variableName}.Enabled = FragmentOperation<bool>.Set({BoolLiteral(state.EnabledValue)});"
-            );
+            sb.AppendLine($"{variableName}.Enabled = {BoolLiteral(state.EnabledValue)};");
         }
         else if (state.EnabledOp == PatchKind.Unset)
         {
@@ -98,9 +96,7 @@ public static class PlaygroundSnippets
         }
         if (state.RetryOp == PatchKind.Set)
         {
-            sb.AppendLine(
-                $"{variableName}.RetryCount = FragmentOperation<int>.Set({state.RetryValue});"
-            );
+            sb.AppendLine($"{variableName}.RetryCount = {state.RetryValue};");
         }
         else if (state.RetryOp == PatchKind.Unset)
         {
@@ -110,9 +106,7 @@ public static class PlaygroundSnippets
         }
         if (state.LabelOp == NullPatchKind.Set)
         {
-            sb.AppendLine(
-                $"{variableName}.Label = FragmentOperation<string?>.Set({StringLiteral(state.LabelValue)});"
-            );
+            sb.AppendLine($"{variableName}.Label = {StringLiteral(state.LabelValue)};");
         }
         else if (state.LabelOp == NullPatchKind.SetNull)
         {
@@ -138,9 +132,7 @@ public static class PlaygroundSnippets
         {
             if (state.HostOp == PatchKind.Set)
             {
-                sb.AppendLine(
-                    $"{variableName}.Nested.Host = FragmentOperation<string>.Set({StringLiteral(state.HostValue)});"
-                );
+                sb.AppendLine($"{variableName}.Nested.Host = {StringLiteral(state.HostValue)};");
             }
             else if (state.HostOp == PatchKind.Unset)
             {
@@ -150,9 +142,7 @@ public static class PlaygroundSnippets
             }
             if (state.PortOp == PatchKind.Set)
             {
-                sb.AppendLine(
-                    $"{variableName}.Nested.Port = FragmentOperation<int>.Set({state.PortValue});"
-                );
+                sb.AppendLine($"{variableName}.Nested.Port = {state.PortValue};");
             }
             else if (state.PortOp == PatchKind.Unset)
             {
@@ -163,9 +153,7 @@ public static class PlaygroundSnippets
         }
         if (state.PluginsOp == PatchKind.Set)
         {
-            sb.AppendLine(
-                $"{variableName}.Plugins = FragmentOperation<System.Collections.Generic.IReadOnlyList<string>>.Set({StringArrayLiteral(state.PluginsText)});"
-            );
+            sb.AppendLine($"{variableName}.Plugins = {StringArrayLiteral(state.PluginsText)};");
         }
         else if (state.PluginsOp == PatchKind.Unset)
         {

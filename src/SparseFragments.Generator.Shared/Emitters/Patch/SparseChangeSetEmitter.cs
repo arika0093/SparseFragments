@@ -116,6 +116,8 @@ internal static class SparseChangeSetEmitter
             "Invert",
             "Compose",
             "RebaseOnto",
+            "ApplyTo",
+            "TryApplyTo",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         propNames = new Dictionary<int, string>();
