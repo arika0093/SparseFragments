@@ -166,9 +166,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             6,
             "else if (!"
                 + facade
-                + ".AreEqual((object?)__curM"
+                + ".AreEqual(__curM"
                 + id
-                + ".Value![__it.Key!], (object?)__it.After.Value))"
+                + ".Value![__it.Key!], __it.After.Value))"
         );
         code.AppendLineAt(
             6,
@@ -196,9 +196,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             6,
             "else if (!"
                 + facade
-                + ".AreEqual((object?)__curM"
+                + ".AreEqual(__curM"
                 + id
-                + ".Value![__it.Key!], (object?)__it.Before.Value))"
+                + ".Value![__it.Key!], __it.Before.Value))"
         );
         code.AppendLineAt(
             6,
@@ -343,14 +343,8 @@ internal static class SparseChangeSetDictRebaseEmitter
                     + runtime
                     + "Optional<object?>.Missing, \"The dictionary entry conflicts with a concurrent change.\")); }"
             );
-            code.AppendLineAt(
-                6,
-                "else if (" + facade + ".AreEqual((object?)__cev2, (object?)__it.After.Value)) { }"
-            );
-            code.AppendLineAt(
-                6,
-                "else if (!" + facade + ".AreEqual((object?)__cev2, (object?)__it.Before.Value))"
-            );
+            code.AppendLineAt(6, "else if (" + facade + ".AreEqual(__cev2, __it.After.Value)) { }");
+            code.AppendLineAt(6, "else if (!" + facade + ".AreEqual(__cev2, __it.Before.Value))");
             code.AppendLineAt(
                 6,
                 "{ __conflicts.Add(new "
