@@ -41,9 +41,26 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + " item)"
         );
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "if (item is null) throw new global::System.ArgumentException(\"Payload item is required.\");");
-        code.AppendLineAt(3, "var before = item.Before is null ? " + runtime + "Optional<" + itemValueType + ">.Missing : item.Before.ToOptional();");
-        code.AppendLineAt(3, "var after = item.After is null ? " + runtime + "Optional<" + itemValueType + ">.Missing : item.After.ToOptional();");
+        code.AppendLineAt(
+            3,
+            "if (item is null) throw new global::System.ArgumentException(\"Payload item is required.\");"
+        );
+        code.AppendLineAt(
+            3,
+            "var before = item.Before is null ? "
+                + runtime
+                + "Optional<"
+                + itemValueType
+                + ">.Missing : item.Before.ToOptional();"
+        );
+        code.AppendLineAt(
+            3,
+            "var after = item.After is null ? "
+                + runtime
+                + "Optional<"
+                + itemValueType
+                + ">.Missing : item.After.ToOptional();"
+        );
         var beforeIsPresent = itemValueIsReference
             ? "before.IsPresent && before.Value is not null"
             : "before.IsPresent";
@@ -89,10 +106,13 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + "Optional<"
                 + valueFrag
                 + "?>.Missing)";
-            var derivedEdit =
-                valueCs + ".Between(" + beforeFragment + ", " + afterFragment + ")";
+            var derivedEdit = valueCs + ".Between(" + beforeFragment + ", " + afterFragment + ")";
             var edit = hasEdit
-                ? "(" + edited + " ? item.Edit?.ToChangeSet() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : " + derivedEdit + ")"
+                ? "("
+                    + edited
+                    + " ? item.Edit?.ToChangeSet() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : "
+                    + derivedEdit
+                    + ")"
                 : derivedEdit;
             code.AppendLineAt(
                 3,
@@ -143,8 +163,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + "Optional<"
                 + valueFrag
                 + "?>.Missing)";
-            var derivedEdit =
-                valueCs + ".Between(" + beforeFragment + ", " + afterFragment + ")";
+            var derivedEdit = valueCs + ".Between(" + beforeFragment + ", " + afterFragment + ")";
             code.AppendLineAt(
                 3,
                 "return new "
