@@ -63,9 +63,11 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
             || _structuralBefore.Value.Servers.Value[key].Count != Size - 1
             || _structuralAfter.Value!.Servers.Value![key].Count != (Edit ? -1 : Size - 1)
         )
+        {
             throw new InvalidOperationException(
                 "Dictionary differences must preserve endpoints and keep source maps and elements unchanged."
             );
+        }
 
         // ChangeSet keys use the declared default comparer, even when input maps ignore case.
         // Renaming 'key' to 'KEY' must remove the old key and add the new key.
@@ -91,9 +93,11 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
             || afterMap.Keys.Single() != "KEY"
             || afterMap["KEY"] != 2
         )
+        {
             throw new InvalidOperationException(
                 "Input comparers must not change declared key semantics or mutate source maps."
             );
+        }
     }
 
     private Dictionary<string, TValue> NewMap<TValue>(int capacity)
@@ -114,7 +118,9 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
     {
         var values = NewMap<int>(Size);
         for (var index = 0; index < Size; index++)
+        {
             values.Add("key-" + index, after && Edit && index == Size - 1 ? -1 : index);
+        }
         return ScalarFragment(values);
     }
 
@@ -129,6 +135,7 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
     {
         var values = NewMap<BenchKeyedServer>(Size);
         for (var index = 0; index < Size; index++)
+        {
             values.Add(
                 "key-" + index,
                 new()
@@ -138,6 +145,7 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
                     Count = after && Edit && index == Size - 1 ? -1 : index,
                 }
             );
+        }
         return Optional<BenchStructuralDictHolder.Fragment?>.Present(
             new() { Servers = Optional<Dictionary<string, BenchKeyedServer>>.Present(values) }
         );
