@@ -16,6 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
     <ProjectReference Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj" />
+    <ProjectReference Include="../../src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
+    <ProjectReference Include="../SparseFragments.GeneratedApiFixtures/SparseFragments.GeneratedApiFixtures.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Approvals/**/*.approved.txt" CopyToOutputDirectory="PreserveNewest" />
