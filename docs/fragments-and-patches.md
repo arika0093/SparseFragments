@@ -326,6 +326,8 @@ ChangeSet JSON is a versioned SparseFragments format beginning with version 1. T
 
 An empty ChangeSet serializes as `{"version": 1, "changes": {}}`. The `version` and `changes` names are wire-format metadata and always use those exact names, independent of `JsonSerializerOptions.PropertyNamingPolicy`; model-derived member names inside `changes` keep the existing `JsonPropertyName` / naming-policy behavior. Nested ChangeSets reuse the body grammar directly and never emit nested envelopes. Readers require exactly version 1, reject missing/duplicate/non-integer/unsupported versions, missing/duplicate `changes`, and unknown envelope properties, independent of root property order. The pre-v1 unversioned shape is not accepted.
 
+For keyed collection edits, each item's `before` and `after` objects contain only the changed members; the key is already carried by the item's `key` field. Adds and removes still carry the full item value, and reorder-only entries retain their endpoints.
+
 Callers still use ordinary `System.Text.Json`; SparseFragments adds no separate public JSON codec API and generates no JSON Schema. `Patch` JSON is not versioned by this contract, and the format carries no transport metadata, timestamps, revisions, ETags, model type names, or persistence policy. Future incompatible ChangeSet format changes require a new version.
 
 ## Which API for Which Task

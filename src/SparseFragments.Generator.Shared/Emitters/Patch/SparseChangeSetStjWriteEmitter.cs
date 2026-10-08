@@ -7,6 +7,124 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits ChangeSet STJ write path.</summary>
 internal static class SparseChangeSetStjWriteEmitter
 {
+    internal static void AppendSparseEndpointWrite(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "internal static void __SparseWriteSparseEndpointStj(global::System.Text.Json.Utf8JsonWriter writer, Fragment endpoint, ChangeSet changes, global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (changes.__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "((Fragment.FragmentJsonConverter)Fragment.JsonConverter).Write(writer, endpoint, options);"
+        );
+        code.AppendLineAt(4, "return;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "writer.WriteStartObject();");
+        foreach (var member in members.Where(static m => !m.Property.IsJsonIgnored))
+        {
+            var property = SparseNaming.EscapeIdentifier(member.Property.Name);
+            var wire = SparseStjKeyHelpers.Lit(SparseStjKeyHelpers.ChangeSetWireName(member));
+            var include = SparseStjKeyHelpers.ChangeSetIsNested(member)
+                ? "changes.__sparse_nested_" + member.Id + " is not null"
+                : "changes.__sparse_has_" + member.Id;
+            code.AppendLineAt(3, "if ((" + include + ") && endpoint." + property + ".IsPresent)");
+            code.AppendLineAt(3, "{");
+            var indent = 4;
+            if (member.Property.IsJsonIgnoreWhenWritingNull)
+            {
+                code.AppendLineAt(4, "if ((object?)endpoint." + property + ".Value is not null)");
+                code.AppendLineAt(4, "{");
+                indent = 5;
+            }
+            else if (member.Property.IsJsonIgnoreWhenWritingDefault)
+            {
+                var valueType = SparseStjKeyHelpers.ChangeSetValueType(member);
+                code.AppendLineAt(
+                    4,
+                    "if (!global::System.Collections.Generic.EqualityComparer<"
+                        + valueType
+                        + ">.Default.Equals(endpoint."
+                        + property
+                        + ".Value!, default))"
+                );
+                code.AppendLineAt(4, "{");
+                indent = 5;
+            }
+            code.AppendLineAt(
+                indent,
+                "writer.WritePropertyName("
+                    + (
+                        member.Property.HasExplicitJsonPropertyName
+                            ? wire
+                            : "options.PropertyNamingPolicy?.ConvertName(" + wire + ") ?? " + wire
+                    )
+                    + ");"
+            );
+            if (SparseStjKeyHelpers.ChangeSetIsNested(member))
+            {
+                var childCs = SparseStjKeyHelpers.ChangeSetChildChangeSet(member, dialect);
+                var childFragment = member.ChildFragmentType!;
+                code.AppendLineAt(indent, "if (endpoint." + property + ".Value is null)");
+                code.AppendLineAt(indent, "{");
+                code.AppendLineAt(indent + 1, "writer.WriteNullValue();");
+                code.AppendLineAt(indent, "}");
+                code.AppendLineAt(
+                    indent,
+                    "else if (changes.__sparse_nested_" + member.Id + " is null)"
+                );
+                code.AppendLineAt(indent, "{");
+                code.AppendLineAt(
+                    indent + 1,
+                    childFragment
+                        + ".JsonConverter.Write(writer, endpoint."
+                        + property
+                        + ".Value, options);"
+                );
+                code.AppendLineAt(indent, "}");
+                code.AppendLineAt(indent, "else");
+                code.AppendLineAt(indent, "{");
+                code.AppendLineAt(
+                    indent + 1,
+                    childCs
+                        + ".__SparseWriteSparseEndpointStj(writer, endpoint."
+                        + property
+                        + ".Value, changes.__sparse_nested_"
+                        + member.Id
+                        + "!, options);"
+                );
+                code.AppendLineAt(indent, "}");
+            }
+            else
+            {
+                var valueType = SparseStjKeyHelpers.ChangeSetValueType(member);
+                code.AppendLineAt(
+                    indent,
+                    "global::System.Text.Json.JsonSerializer.Serialize<"
+                        + valueType
+                        + ">(writer, endpoint."
+                        + property
+                        + ".Value!, GetMemberTypeInfo<"
+                        + valueType
+                        + ">(options));"
+                );
+            }
+            if (indent > 4)
+            {
+                code.AppendLineAt(4, "}");
+            }
+            code.AppendLineAt(3, "}");
+        }
+        code.AppendLineAt(3, "writer.WriteEndObject();");
+        code.AppendLineAt(2, "}");
+    }
+
     internal static void AppendChangeSetWireHelpers(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
@@ -209,6 +327,19 @@ internal static class SparseChangeSetStjWriteEmitter
         var elementType = isKeyed
             ? SparseStjKeyHelpers.ElementTypeOf(member)
             : SparseStjKeyHelpers.ValueTypeOf(member);
+        var hasFragmentElement = isKeyed || SparseStjKeyHelpers.HasValuePatch(member);
+        string? elementChangeSet = null;
+        string? elementFragment = null;
+        if (isKeyed)
+        {
+            elementChangeSet = SparseStjKeyHelpers.SparseElementChangeSet(member);
+            elementFragment = SparseStjKeyHelpers.SparseElementFragment(member);
+        }
+        else if (hasFragmentElement)
+        {
+            elementChangeSet = SparseStjKeyHelpers.SparseValueChangeSet(member);
+            elementFragment = SparseStjKeyHelpers.SparseValueFragment(member);
+        }
         code.AppendLineAt(3, "if (value.__sparse_has_" + id + ")");
         code.AppendLineAt(3, "{");
         if (explicitName)
@@ -262,26 +393,80 @@ internal static class SparseChangeSetStjWriteEmitter
         code.AppendLineAt(5, "if (__it.Before.IsPresent)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "writer.WritePropertyName(\"before\");");
-        code.AppendLineAt(
-            6,
-            "global::System.Text.Json.JsonSerializer.Serialize<"
-                + elementType
-                + ">(writer, __it.Before.Value!, GetMemberTypeInfo<"
-                + elementType
-                + ">(options));"
-        );
+        if (hasFragmentElement)
+        {
+            code.AppendLineAt(6, "if (__it.IsEdited)");
+            code.AppendLineAt(6, "{");
+            code.AppendLineAt(
+                7,
+                elementChangeSet
+                    + ".__SparseWriteSparseEndpointStj(writer, "
+                    + elementFragment
+                    + ".From(__it.Before.Value!), __it.Edit, options);"
+            );
+            code.AppendLineAt(6, "}");
+            code.AppendLineAt(6, "else");
+            code.AppendLineAt(6, "{");
+            code.AppendLineAt(
+                7,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + elementType
+                    + ">(writer, __it.Before.Value!, GetMemberTypeInfo<"
+                    + elementType
+                    + ">(options));"
+            );
+            code.AppendLineAt(6, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                6,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + elementType
+                    + ">(writer, __it.Before.Value!, GetMemberTypeInfo<"
+                    + elementType
+                    + ">(options));"
+            );
+        }
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "if (__it.After.IsPresent)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "writer.WritePropertyName(\"after\");");
-        code.AppendLineAt(
-            6,
-            "global::System.Text.Json.JsonSerializer.Serialize<"
-                + elementType
-                + ">(writer, __it.After.Value!, GetMemberTypeInfo<"
-                + elementType
-                + ">(options));"
-        );
+        if (hasFragmentElement)
+        {
+            code.AppendLineAt(6, "if (__it.IsEdited)");
+            code.AppendLineAt(6, "{");
+            code.AppendLineAt(
+                7,
+                elementChangeSet
+                    + ".__SparseWriteSparseEndpointStj(writer, "
+                    + elementFragment
+                    + ".From(__it.After.Value!), __it.Edit, options);"
+            );
+            code.AppendLineAt(6, "}");
+            code.AppendLineAt(6, "else");
+            code.AppendLineAt(6, "{");
+            code.AppendLineAt(
+                7,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + elementType
+                    + ">(writer, __it.After.Value!, GetMemberTypeInfo<"
+                    + elementType
+                    + ">(options));"
+            );
+            code.AppendLineAt(6, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                6,
+                "global::System.Text.Json.JsonSerializer.Serialize<"
+                    + elementType
+                    + ">(writer, __it.After.Value!, GetMemberTypeInfo<"
+                    + elementType
+                    + ">(options));"
+            );
+        }
         code.AppendLineAt(5, "}");
         if (isKeyed)
         {

@@ -95,6 +95,8 @@ internal static class SparsePatchStjEmitter
             );
             code.AppendLine();
         }
+        SparseChangeSetStjWriteEmitter.AppendSparseEndpointWrite(code, members, dialect);
+        code.AppendLine();
         SparseChangeSetStjWriteEmitter.AppendChangeSetWrite(code, members, dialect);
         code.AppendLine();
         SparseChangeSetStjReadEmitter.AppendChangeSetRead(code, members, dialect);

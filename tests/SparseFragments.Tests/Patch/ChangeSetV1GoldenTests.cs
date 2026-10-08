@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SparseFragments.Playground.Models;
 
 namespace SparseFragments.Tests;
 
@@ -40,16 +41,22 @@ public sealed class ChangeSetV1GoldenTests
         """{"version":1,"changes":{"Items":{"items":[{"key":"a","kind":"remove","before":{"Id":"a","Name":"A","Count":1},"beforeIndex":0,"afterIndex":-1}],"beforeOrder":["a","b"],"afterOrder":["b"]}}}""";
 
     private const string KeyedEditV1 =
-        """{"version":1,"changes":{"Items":{"items":[{"key":"a","kind":"edit","before":{"Id":"a","Name":"A0","Count":1},"after":{"Id":"a","Name":"A1","Count":1},"beforeIndex":0,"afterIndex":0}],"beforeOrder":["a","b"],"afterOrder":["a","b"]}}}""";
+        """{"version":1,"changes":{"Items":{"items":[{"key":"a","kind":"edit","before":{"Name":"A0"},"after":{"Name":"A1"},"beforeIndex":0,"afterIndex":0}],"beforeOrder":["a","b"],"afterOrder":["a","b"]}}}""";
 
     private const string KeyedReorderV1 =
         """{"version":1,"changes":{"Items":{"items":[{"key":"b","kind":"reorder","before":{"Id":"b","Name":"B","Count":1},"after":{"Id":"b","Name":"B","Count":1},"beforeIndex":1,"afterIndex":0},{"key":"a","kind":"reorder","before":{"Id":"a","Name":"A","Count":1},"after":{"Id":"a","Name":"A","Count":1},"beforeIndex":0,"afterIndex":1}],"beforeOrder":["a","b","c"],"afterOrder":["b","a","c"]}}}""";
 
     private const string KeyedMixedV1 =
-        """{"version":1,"changes":{"Items":{"items":[{"key":"c","kind":"edit","before":{"Id":"c","Name":"C","Count":1},"after":{"Id":"c","Name":"C2","Count":1},"beforeIndex":2,"afterIndex":0},{"key":"d","kind":"add","after":{"Id":"d","Name":"D","Count":1},"beforeIndex":-1,"afterIndex":1},{"key":"a","kind":"remove","before":{"Id":"a","Name":"A","Count":1},"beforeIndex":0,"afterIndex":-1},{"key":"b","kind":"remove","before":{"Id":"b","Name":"B","Count":1},"beforeIndex":1,"afterIndex":-1}],"beforeOrder":["a","b","c"],"afterOrder":["c","d"]}}}""";
+        """{"version":1,"changes":{"Items":{"items":[{"key":"c","kind":"edit","before":{"Name":"C"},"after":{"Name":"C2"},"beforeIndex":2,"afterIndex":0},{"key":"d","kind":"add","after":{"Id":"d","Name":"D","Count":1},"beforeIndex":-1,"afterIndex":1},{"key":"a","kind":"remove","before":{"Id":"a","Name":"A","Count":1},"beforeIndex":0,"afterIndex":-1},{"key":"b","kind":"remove","before":{"Id":"b","Name":"B","Count":1},"beforeIndex":1,"afterIndex":-1}],"beforeOrder":["a","b","c"],"afterOrder":["c","d"]}}}""";
+
+    private const string PlaygroundTitleEditV1 =
+        """{"version":1,"changes":{"Quests":{"items":[{"key":"c","kind":"edit","before":{"Title":"Third"},"after":{"Title":"Third test"},"beforeIndex":2,"afterIndex":2}],"beforeOrder":["a","b","c"],"afterOrder":["a","b","c"]}}}""";
 
     private const string DictV1 =
         """{"version":1,"changes":{"Scores":{"items":[{"key":"c","kind":"add","after":4},{"key":"a","kind":"remove","before":1},{"key":"b","kind":"edit","before":2,"after":3}]}}}""";
+
+    private const string StructuralDictEditV1 =
+        """{"version":1,"changes":{"Servers":{"items":[{"key":"web","kind":"edit","before":{"Name":"Old"},"after":{"Name":"New"}}]}}}""";
 
     private const string CompositeKeyV1 =
         """{"version":1,"changes":{"Items":{"items":[{"key":["t2","a"],"kind":"add","after":{"TenantId":"t2","Id":"a","Name":"N2"},"beforeIndex":-1,"afterIndex":1}],"beforeOrder":[["t1","a"]],"afterOrder":[["t1","a"],["t2","a"]]}}}""";
@@ -298,6 +305,28 @@ public sealed class ChangeSetV1GoldenTests
     }
 
     [Test]
+    public void Writer_EmitsSparsePlaygroundKeyedEditAndRoundTrips()
+    {
+        var beforeModel = RosterDefaults.Before();
+        var afterModel = RosterDefaults.Before();
+        afterModel.Quests[2].Title = "Third test";
+        var before = Optional<PlaygroundRoster.Fragment?>.Present(
+            PlaygroundRoster.Fragment.From(beforeModel)
+        );
+        var after = Optional<PlaygroundRoster.Fragment?>.Present(
+            PlaygroundRoster.Fragment.From(afterModel)
+        );
+
+        var json = JsonSerializer.Serialize(PlaygroundRoster.ChangeSet.Between(before, after));
+        AssertStructuralEqual(PlaygroundTitleEditV1, json);
+
+        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangeSet>(json)!;
+        PlaygroundRoster
+            .Patch.Between(roundTripped.ToPatch().Apply(before), after)
+            .IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
     public void Writer_EmitsDictionaryCompositeNamingFixtures()
     {
         AssertStructuralEqual(
@@ -309,6 +338,30 @@ public sealed class ChangeSetV1GoldenTests
                 )
             )
         );
+
+        Optional<StructuralDictHolder.Fragment?> StructuralState(
+            Dictionary<string, KeyedServer> servers
+        ) =>
+            Optional<StructuralDictHolder.Fragment?>.Present(
+                StructuralDictHolder.Fragment.From(new StructuralDictHolder { Servers = servers })
+            );
+        var structuralBefore = StructuralState(
+            new() { ["web"] = Server("s1", "Old", 1) }
+        );
+        var structuralAfter = StructuralState(
+            new() { ["web"] = Server("s1", "New", 1) }
+        );
+        var structuralJson = JsonSerializer.Serialize(
+            StructuralDictHolder.ChangeSet.Between(structuralBefore, structuralAfter)
+        );
+        AssertStructuralEqual(StructuralDictEditV1, structuralJson);
+        var structuralBack = JsonSerializer.Deserialize<StructuralDictHolder.ChangeSet>(
+            structuralJson
+        )!;
+        StructuralDictHolder.Patch.Between(
+            structuralBack.ToPatch().Apply(structuralBefore),
+            structuralAfter
+        ).IsEmpty.ShouldBeTrue();
 
         Optional<CompositeServerHolder.Fragment?> CState(CompositeServerHolder m) =>
             Optional<CompositeServerHolder.Fragment?>.Present(
