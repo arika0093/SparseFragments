@@ -109,7 +109,8 @@ internal readonly record struct SparseMemberModel(
     bool ChildIsStructural,
     bool ChildIsReferenceType,
     bool PortableSetView = false,
-    bool HasExplicitMergeMode = false
+    bool HasExplicitMergeMode = false,
+    bool RedactBefore = false
 );
 
 internal readonly record struct SparseModelInfo(

@@ -70,6 +70,14 @@ internal static class SparseModelDiscovery
                 attribute.AttributeClass?.ToDisplayString() == config.IgnoreAttributeMetadataName
             );
 
+    internal static bool IsRedactBefore(IPropertySymbol property, SparseGeneratorConfig config) =>
+        property
+            .GetAttributes()
+            .Any(attribute =>
+                attribute.AttributeClass?.ToDisplayString()
+                == config.RedactBeforeAttributeMetadataName
+            );
+
     internal static IEnumerable<SparseSymbolMemberModel> GetMembers(
         INamedTypeSymbol model,
         SparseGeneratorConfig config,
@@ -577,7 +585,8 @@ internal static class SparseModelDiscovery
             childFragmentType,
             childIsStructural,
             childIsReferenceType,
-            HasExplicitMergeMode: member.HasExplicitMergeMode
+            HasExplicitMergeMode: member.HasExplicitMergeMode,
+            RedactBefore: IsRedactBefore(member.Property, config)
         );
     }
 

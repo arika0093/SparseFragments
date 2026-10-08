@@ -100,7 +100,8 @@ internal static class SparseChangeSetEmitter
         // spelled explicitly via ToPatch().ApplyInPlace, never implicitly here.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
         SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
-        SparseChangeSetPayloadEmitter.AppendFromPayload(code, members, dialect, modelType);
+        SparseChangePayloadReaderEmitter.AppendFromPayload(code, members, dialect, modelType);
+        SparseChangePayloadPatchSyncEmitter.AppendPatchFromCore(code, members, dialect, modelType);
         code.AppendLineAt(1, "}");
         code.AppendLine();
         SparseChangeSetPayloadEmitter.AppendPayload(code, members, dialect, modelType);

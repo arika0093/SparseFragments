@@ -76,7 +76,7 @@ A `ChangeSet` can be sent through the transport the application already uses by 
 
 ```csharp
 var json = JsonSerializer.Serialize(changes.ToPayload());
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
+var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
 
 var rebased = incoming.RebaseOnto(current);
 ```
@@ -197,10 +197,10 @@ The generated types answer different questions:
 | `Fragment` | Which values are provided? | Layers, overrides, partially supplied values |
 | `Patch` | What should change? | Baseline-free commands and local edits |
 | `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
-| `ChangeSetPayload` | How does the change travel? | Transport-only typed versioned JSON (`"version": "0.1"`) |
+| `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON (`"version": "0.1"`) |
 | `SparseEditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
 
-`Fragment` is presence-aware state and merge. `Patch` is baseline-free operations. `ChangeSet` is baseline-aware transitions plus conflict-aware rebase. `ChangeSetPayload` is transport only. `SparseEditSession` compares the retained baseline with the live model; it provides no transport or conflict framework.
+`Fragment` is presence-aware state and merge. `Patch` is baseline-free operations. `ChangeSet` is baseline-aware transitions plus conflict-aware rebase. `ChangePayload` is transport only: one envelope carries `ChangeSet` transitions and `Patch` commands member by member, with `missing`, `null`, `value`, and `redacted` endpoint states. Members marked `[SparseRedactBefore]` travel without their before-state; such envelopes convert with `ToPatch()`, while `ToChangeSet()` accepts only complete histories. `SparseEditSession` compares the retained baseline with the live model; it provides no transport or conflict framework.
 
 The distinction is visible in a small example:
 
@@ -244,7 +244,7 @@ partial class Settings
     public sealed class Fragment;
     public sealed class Patch;
     public sealed class ChangeSet;
-    public sealed class ChangeSetPayload;
+    public sealed class ChangePayload;
     public sealed class FragmentBuilder;
     public sealed class Observable : INotifyPropertyChanged;
 }

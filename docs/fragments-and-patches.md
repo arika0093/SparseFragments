@@ -1,8 +1,8 @@
 # Fragments and Patches
 
-A `Fragment` is sparse state: for every model member it records missing, present, or explicitly null. A `Patch` is a set of operations over that sparse state (set a value, set an explicit null, remove a contribution, or leave it unchanged). A `ChangeSet` is the immutable before to after transition between two sparse states.
+A `Fragment` is sparse state: for every model member it records missing, present, or explicitly null. A `Patch` is a set of operations over that sparse state (set a value, set an explicit null, remove a contribution, or leave it unchanged). A `ChangeSet` is the immutable before to after transition between two sparse states. A `ChangePayload` is the versioned JSON envelope that carries a `ChangeSet`, a `Patch`, or both member by member across a process boundary.
 
-The three answer different questions: a fragment says *what is specified*, a patch says *what to change* ("set these values"), and a change set says *what changed* ("these values changed from X to Y"). The task table at the end maps each need to its API.
+The four answer different questions: a fragment says *what is specified*, a patch says *what to change* ("set these values"), a change set says *what changed* ("these values changed from X to Y"), and a change payload says *what travels* ("apply these transitions and commands"). The task table at the end maps each need to its API.
 
 <!-- sample: core-models -->
 ```csharp
@@ -225,7 +225,7 @@ var changes = DocsOrder.ChangeSet.Between(before, after);
 
 The root `ChangeSet` itself is not a generic enumerable. Model members are heterogeneous, so there is no single element type to enumerate. Keyed collection transitions are the exception because their items share one `TKey` and `TElement` type (see [Keyed collections](keyed-collections.md)).
 
-## Patch vs ChangeSet
+## Patch vs ChangeSet vs ChangePayload
 
 This section is an explanation. It states when each type applies.
 
@@ -240,6 +240,12 @@ ChangeSet
     immutable before -> after transition
     baseline-aware
     supports invert / compose / rebase
+
+ChangePayload
+    "apply these transitions and commands"
+    versioned JSON envelope ("version": "0.1")
+    carries ChangeSet transitions and Patch commands member by member
+    converts back with ToChangeSet or ToPatch
 ```
 
 <!-- sample: core-changeset -->
@@ -266,6 +272,8 @@ var fromPatch = CounterSettings.ChangeSet.FromPatch(start, desired);
 <!-- /sample -->
 
 `ChangeSet.ToPatch()` is the explicit information-loss boundary. It discards the before-state and returns the equivalent desired-operation patch. There is no silent mixed composition back into a ChangeSet. A baseline-free Patch can introduce a changed path whose before-state is unknown, so the composition stays explicit.
+
+The client and server models may differ. A read projection can expose `HasPassword` while the write side accepts `NewPassword`, and the envelope does not require one shared CLR type on both sides: it names members and carries typed values, and each side converts the envelope into its own `Patch` or `ChangeSet`. The library performs no domain-specific model mapping.
 
 ## Compose and Invert ChangeSets
 
@@ -341,23 +349,65 @@ var changes = CounterSettings.ChangeSet.Between(start, finish);
 
 var json = JsonSerializer.Serialize(changes.ToPayload());
 var restored = JsonSerializer
-    .Deserialize<CounterSettings.ChangeSetPayload>(json)!
+    .Deserialize<CounterSettings.ChangePayload>(json)!
     .ToChangeSet();
 // restored.ToPatch().Apply(start) replays finish
 ```
 <!-- /sample -->
 
-NativeAOT source-generated metadata for generated ChangeSet payloads is exercised by the `SparseFragments.NativeAotSmoke` tests.
+NativeAOT source-generated metadata for generated ChangePayload types is exercised by the `SparseFragments.NativeAotSmoke` tests.
 
 Typed projections such as `IsChanged`, keyed `Added`, `Removed`, and `Edited`, and `BeforeOrder` and `AfterOrder` are not duplicated in the payload; `ToChangeSet()` reconstructs them.
 
-### ChangeSet payload JSON
+### ChangePayload JSON
 
 This subsection is a reference. It defines the wire format.
 
-Serialize and deserialize the generated `T.ChangeSetPayload`, not `T.ChangeSet`. Convert between them with `ChangeSet.ToPayload()` and `ChangeSetPayload.ToChangeSet()`. The typed member variants are suitable for OpenAPI endpoint schemas. A `Patch` has no STJ payload support of its own; cross the explicit `ToPatch()` boundary only for baseline-free local application.
+Serialize and deserialize the generated `T.ChangePayload`, not `T.ChangeSet` or `T.Patch`. A `ChangeSet` enters the envelope with `ToPayload()`; a `Patch` enters it with `ChangePayload.FromPatch(patch)`, which redacts every before-state by construction. The `changes` array mixes both kinds member by member: one member can carry a regular before/after transition while another carries a baseline-free command. The typed member variants are suitable for OpenAPI endpoint schemas.
 
-The top-level payload carries the required string `"version": "0.1"`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` ChangeSet; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
+Each endpoint carries a `state`: `missing` (known absent), `null` (explicit null), `value` (with a `value`), or `redacted` (deliberately undisclosed). Redacted is never read as missing. A redacted before-state must arrive with an explicit desired after-state; envelopes that omit it, or that redact an after-state, are rejected.
+
+`ToChangeSet()` rebuilds a complete `ChangeSet` and rejects redacted or otherwise incomplete histories instead of fabricating the missing baseline. `ToPatch()` is the explicit baseline-discarding projection and accepts them. Mark members whose previous values must not travel with `[SparseRedactBefore]`; `ToPayload()` then emits a redacted before-state while the after-state still travels, including nested models, keyed items, dictionaries, and whole-root before snapshots. An after-state can itself be sensitive: logging, diagnostics, UI, and history must not echo it.
+
+The top-level payload carries the required string `"version": "0.1"`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` payload; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
+
+<!-- sample: core-change-payload-models -->
+```csharp
+using SparseFragments;
+
+[SparseFragmentModel]
+public partial class LoginSettings
+{
+    public string? DisplayName { get; set; }
+
+    [SparseRedactBefore]
+    public string? Password { get; set; }
+}
+```
+<!-- /sample -->
+
+<!-- sample: core-change-payload -->
+```csharp
+var current = LoginSettings.Fragment.From(
+    new LoginSettings { DisplayName = "a", Password = "before-password" }
+);
+
+var rotation = new LoginSettings.Patch { Password = "after-password" };
+
+// A command needs no baseline: the envelope redacts what it never observed.
+var command = LoginSettings.ChangePayload.FromPatch(rotation);
+var applied = current.Apply(command.ToPatch());
+// applied.DisplayName.Value == "a"
+// applied.Password.Value == "after-password"
+
+var transition = LoginSettings.ChangeSet.Between(
+    Optional<LoginSettings.Fragment?>.Present(current),
+    Optional<LoginSettings.Fragment?>.Present(applied)
+);
+var wire = JsonSerializer.Serialize(transition.ToPayload());
+// wire carries "after-password" but never "before-password"
+```
+<!-- /sample -->
 
 ## Which API for Which Task
 

@@ -48,7 +48,7 @@ Require(inverted.Value!.Label.Value == "original", "invert round-trip");
 var changes = NetFxSettings.ChangeSet.Between(before, edits.Apply(before));
 var changesJson = JsonSerializer.Serialize(changes.ToPayload());
 var imported = JsonSerializer
-    .Deserialize<NetFxSettings.ChangeSetPayload>(changesJson)
+    .Deserialize<NetFxSettings.ChangePayload>(changesJson)
     ?.ToChangeSet();
 if (imported is null)
 {

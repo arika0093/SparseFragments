@@ -134,7 +134,8 @@ check_block() {
 
 check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     core-models core-create core-layering core-diff core-patch core-between \
-    core-changeset core-typed core-nested-models core-nested core-algebra core-serialization
+    core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
+    core-change-payload-models core-change-payload
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     keyed-first-models keyed-first keyed-typed
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \

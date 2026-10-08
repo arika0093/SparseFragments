@@ -42,7 +42,7 @@ public sealed class BlazorUnassignedLifecycleTests
 
         var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
         var restored = System
-            .Text.Json.JsonSerializer.Deserialize<BlazorUnassignedOrder.ChangeSetPayload>(json)!
+            .Text.Json.JsonSerializer.Deserialize<BlazorUnassignedOrder.ChangePayload>(json)!
             .ToChangeSet();
         restored
             .ToPatch()

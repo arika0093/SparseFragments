@@ -20,7 +20,7 @@ public partial class PayloadValueHolder
     public Dictionary<string, PayloadValueItem> Values { get; set; } = new();
 }
 
-public sealed class ChangeSetPayloadTests
+public sealed class ChangePayloadTests
 {
     private static KeyedServer Server(string id, string name, int count = 0) =>
         new()
@@ -53,13 +53,13 @@ public sealed class ChangeSetPayloadTests
 
         var payload = changes.ToPayload();
         var json = JsonSerializer.Serialize(payload);
-        var restored = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!;
+        var restored = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!;
 
         json.ShouldContain("\"state\":\"value\"");
         json.ShouldContain("\"version\":\"0.1\"");
         restored.Version.ShouldBe("0.1");
         restored.Changes!.ShouldHaveSingleItem();
-        restored.Changes![0].GetType().Name.ShouldContain("ChangeSetPayloadChange");
+        restored.Changes![0].GetType().Name.ShouldContain("ChangePayloadChange");
         var endpointProperty = restored.Changes![0].GetType().GetProperty("After")!;
         var endpoint = endpointProperty.GetValue(restored.Changes![0])!;
         var endpointType = endpoint.GetType();
@@ -455,10 +455,10 @@ public sealed class ChangeSetPayloadTests
     [Test]
     public void Payload_RejectsUnsupportedVersionsAndDuplicateMemberChanges()
     {
-        var payload = new Settings.ChangeSetPayload { Version = "0.2" };
+        var payload = new Settings.ChangePayload { Version = "0.2" };
         Should.Throw<ArgumentException>(() => payload.ToChangeSet());
 
-        var future = new Settings.ChangeSetPayload { Version = "1.0" };
+        var future = new Settings.ChangePayload { Version = "1.0" };
         Should.Throw<ArgumentException>(() => future.ToChangeSet());
 
         var source = Settings.ChangeSet.Between(
@@ -485,7 +485,7 @@ public sealed class ChangeSetPayloadTests
             .ToPayload();
         var json = JsonSerializer.Serialize(empty);
         json.ShouldBe("""{"version":"0.1","changes":[]}""");
-        var restored = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!;
+        var restored = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!;
         restored.Version.ShouldBe("0.1");
         restored.Changes!.ShouldBeEmpty();
     }
@@ -503,11 +503,11 @@ public sealed class ChangeSetPayloadTests
     [Arguments("""{"version":"0.1","changes":[],"unknown":1}""")]
     public void Payload_RejectsMalformedEnvelopes(string json)
     {
-        Settings.ChangeSetPayload? payload = null;
+        Settings.ChangePayload? payload = null;
         var deserialized = false;
         try
         {
-            payload = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json);
+            payload = JsonSerializer.Deserialize<Settings.ChangePayload>(json);
             deserialized = true;
         }
         catch (System.Text.Json.JsonException)
@@ -528,7 +528,7 @@ public sealed class ChangeSetPayloadTests
     {
         // STJ object deserialization is last-wins for duplicate properties; the
         // envelope is still valid when the winning values are well-formed.
-        var payload = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!;
+        var payload = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!;
         payload.Version.ShouldBe("0.1");
         payload.Changes!.ShouldBeEmpty();
         payload.ToChangeSet().IsEmpty.ShouldBeTrue();
@@ -542,10 +542,10 @@ public sealed class ChangeSetPayloadTests
     [Arguments("""{"version":"0.1","changes":[{"member":"Label"}]}""")]
     public void Payload_RejectsMalformedMemberVariants(string json)
     {
-        Settings.ChangeSetPayload? payload;
+        Settings.ChangePayload? payload;
         try
         {
-            payload = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json);
+            payload = JsonSerializer.Deserialize<Settings.ChangePayload>(json);
         }
         catch (System.Text.Json.JsonException)
         {
@@ -565,10 +565,10 @@ public sealed class ChangeSetPayloadTests
     {
         var nested =
             """{"version":"0.1","changes":[{"member":"Nested","nested":{"changes":[{"member":"Bogus","before":{"state":"missing"},"after":{"state":"missing"}}]}}]}""";
-        Settings.ChangeSetPayload? payload;
+        Settings.ChangePayload? payload;
         try
         {
-            payload = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(nested);
+            payload = JsonSerializer.Deserialize<Settings.ChangePayload>(nested);
         }
         catch (System.Text.Json.JsonException)
         {
@@ -595,10 +595,10 @@ public sealed class ChangeSetPayloadTests
             duplicated == json
                 ? """{"version":"0.1","changes":[{"member":"Items","items":[{"key":"a","kind":"add","beforeIndex":-1,"afterIndex":0,"after":{"state":"value","value":{"Id":"a","Name":"A","Count":0}}},{"key":"a","kind":"add","beforeIndex":-1,"afterIndex":0,"after":{"state":"value","value":{"Id":"a","Name":"A","Count":0}}}]}]}"""
                 : duplicated;
-        KeyedServerHolder.ChangeSetPayload? restored;
+        KeyedServerHolder.ChangePayload? restored;
         try
         {
-            restored = JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(candidate);
+            restored = JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(candidate);
         }
         catch (System.Text.Json.JsonException)
         {
@@ -622,7 +622,7 @@ public sealed class ChangeSetPayloadTests
     {
         try
         {
-            var payload = JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(json);
+            var payload = JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(json);
             if (payload is null)
             {
                 return;
@@ -639,23 +639,23 @@ public sealed class ChangeSetPayloadTests
     [Test]
     public void Endpoint_RejectsNullValueStateWithoutValue()
     {
-        var endpoint = new ChangeSetPayloadEndpoint<string> { State = ChangeSetPayloadState.Value };
+        var endpoint = new ChangePayloadEndpoint<string> { State = ChangePayloadState.Value };
         Should.Throw<InvalidOperationException>(() => endpoint.ToOptional());
     }
 
     [Test]
     public void Endpoint_RejectsInconsistentStateValueCombinations()
     {
-        var missingWithValue = new ChangeSetPayloadEndpoint<string>
+        var missingWithValue = new ChangePayloadEndpoint<string>
         {
-            State = ChangeSetPayloadState.Missing,
+            State = ChangePayloadState.Missing,
             Value = "oops",
         };
         Should.Throw<InvalidOperationException>(() => missingWithValue.ToOptional());
 
-        var nullWithValue = new ChangeSetPayloadEndpoint<string>
+        var nullWithValue = new ChangePayloadEndpoint<string>
         {
-            State = ChangeSetPayloadState.Null,
+            State = ChangePayloadState.Null,
             Value = "oops",
         };
         Should.Throw<InvalidOperationException>(() => nullWithValue.ToOptional());

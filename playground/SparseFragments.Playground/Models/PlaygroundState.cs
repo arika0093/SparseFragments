@@ -366,7 +366,7 @@ public static class PlaygroundJson
     /// <summary>Deserializes a settings ChangeSet from its typed payload DTO.</summary>
     public static PlaygroundSettings.ChangeSet ReadSettingsChangeSet(string json)
     {
-        var payload = JsonSerializer.Deserialize<PlaygroundSettings.ChangeSetPayload>(
+        var payload = JsonSerializer.Deserialize<PlaygroundSettings.ChangePayload>(
             json,
             ChangeSetOptions()
         );

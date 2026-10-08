@@ -100,7 +100,7 @@ public sealed class SparseKeyedDictChangeSetTests
         );
 
         var back = JsonSerializer
-            .Deserialize<KeyedServerHolder.ChangeSetPayload>(json)!
+            .Deserialize<KeyedServerHolder.ChangePayload>(json)!
             .ToChangeSet();
         back.Items.Edited.ContainsKey("k7").ShouldBeTrue();
         back.Items.GetChange("k0").IsEmpty.ShouldBeTrue();
@@ -123,7 +123,7 @@ public sealed class SparseKeyedDictChangeSetTests
         json.ShouldContain("9999");
         json.ShouldNotContain("key150");
         var back = JsonSerializer
-            .Deserialize<ScalarDictHolder.ChangeSetPayload>(json)!
+            .Deserialize<ScalarDictHolder.ChangePayload>(json)!
             .ToChangeSet();
         back.Scores.Edited["key7"].ShouldBe(9999);
         back.Scores.GetChange("key0").IsEmpty.ShouldBeTrue();
@@ -180,7 +180,7 @@ public sealed class SparseKeyedDictChangeSetTests
         mixed.Items.GetChange("c").IsEdited.ShouldBeTrue();
         AssertKeyedReplay(KState(S("a"), S("b"), S("c")), KState(S("c", "C2"), S("d")), mixed);
         var mixedBack = JsonSerializer
-            .Deserialize<KeyedServerHolder.ChangeSetPayload>(
+            .Deserialize<KeyedServerHolder.ChangePayload>(
                 JsonSerializer.Serialize(mixed.ToPayload())
             )!
             .ToChangeSet();
@@ -228,7 +228,7 @@ public sealed class SparseKeyedDictChangeSetTests
         var changes = ClusterHolder.ChangeSet.Between(State(Before()), State(After()));
         changes.Groups.IsChanged.ShouldBeTrue();
         var back = JsonSerializer
-            .Deserialize<ClusterHolder.ChangeSetPayload>(
+            .Deserialize<ClusterHolder.ChangePayload>(
                 JsonSerializer.Serialize(changes.ToPayload())
             )!
             .ToChangeSet();

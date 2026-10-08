@@ -6,7 +6,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
     internal static void EmitKeyedSequencePatch(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType = null
     )
     {
         var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
@@ -393,6 +394,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             facade,
             dialect
         );
+        if (modelType is not null)
+            SparseChangePayloadCollectionExportEmitter.AppendCollectionExport(
+                code,
+                member,
+                dialect,
+                modelType
+            );
         code.AppendLineAt(2, "}");
     }
 }

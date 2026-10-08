@@ -50,6 +50,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private static readonly SparseGeneratorConfig Configuration = new(
         ModelAttributeMetadataName: ModelAttributeName,
         IgnoreAttributeMetadataName: "SparseFragments.SparseIgnoreAttribute",
+        RedactBeforeAttributeMetadataName: "SparseFragments.SparseRedactBeforeAttribute",
         MergeAttributeMetadataName: MergeAttributeName,
         MergeStrategyBaseMetadataName: MergeStrategyBaseName,
         CloneReferenceSafeAttributeMetadataName: "SparseFragments.SparseCloneReferenceSafeAttribute",

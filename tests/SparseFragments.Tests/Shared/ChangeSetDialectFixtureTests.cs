@@ -214,7 +214,7 @@ public sealed class ChangeSetDialectFixtureTests
     )
     {
         var code = new SharedIndentedBuilder(CancellationToken.None);
-        SparseChangeSetEmitter.AppendChangeSet(code, members, dialect);
+        SparseChangeSetEmitter.AppendChangeSet(code, members, dialect, "global::Ns.Model");
         return code.ToString();
     }
 
@@ -235,6 +235,13 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("JsonUnmappedMemberHandling.Disallow");
         text.ShouldContain("FromPayloadCore");
         text.ShouldContain("ToChangeSetCore");
+        // The unified transport carries transitions and commands together.
+        text.ShouldContain("ChangePayload");
+        text.ShouldNotContain("ChangeSetPayload");
+        text.ShouldContain("ChangePayloadState.Redacted");
+        text.ShouldContain("ToPatchCore");
+        text.ShouldContain("PatchFromPayloadCore");
+        text.ShouldContain("FromPatch");
         // Baseline advancement is validated sparse before-state plus patch
         // projection, with no product runtime fallback.
         text.ShouldContain("ApplyToBaseline");
@@ -248,7 +255,7 @@ public sealed class ChangeSetDialectFixtureTests
             FixtureMembers(),
             DownstreamDialect() with
             {
-                ChangeSetPayloadVersion = "9.9",
+                ChangePayloadVersion = "9.9",
             }
         );
         text.ShouldContain("\"9.9\"");
@@ -303,5 +310,27 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.Optional<");
         text.ShouldContain("global::Downstream.DownstreamRebase<Patch>");
         text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
+        // Baseline-free commands build the unified envelope from the patch side.
+        text.ShouldContain("ToChangePayloadCore");
+        text.ShouldContain("Redacted()");
+    }
+
+    [Test]
+    public void Downstream_RedactedMemberEmitsNoBeforeValue()
+    {
+        var members = ImmutableArray.Create(
+            ScalarMember(0, "Name", "global::System.String?"),
+            ScalarMember(1, "Secret", "global::System.String?") with
+            {
+                RedactBefore = true,
+            }
+        );
+        var text = EmitChangeSet(members, DownstreamDialect());
+        text.ShouldNotContain("global::SparseFragments");
+        // The redacted member redacts unconditionally; the plain member follows
+        // the ambient flag.
+        text.ShouldContain(".Redacted()");
+        text.ShouldContain("redactBefores");
+        text.ShouldContain("IsPresent && (true))");
     }
 }

@@ -44,15 +44,17 @@ sources were written against:
 The shared analysis and source emitter accept a product-owned
 `SparseGeneratorConfig`. Keep the downstream attribute and interface metadata
 names, merge enum values, reserved generated names, diagnostic IDs, and
-hint/structural-host suffixes in that configuration. Merge enum values are
+hint/structural-host suffixes in that configuration. This includes the
+redaction attribute metadata name: members carrying the downstream redaction
+attribute emit a redacted before-state from `ToPayload()`. Merge enum values are
 normalized to shared semantic modes before validation and emission; the
 downstream enum does not need to reuse `SparseFragments.MergeMode`.
 
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
 helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch
 runtime/facade, conflict/result types, nested member names, member
-field/value types, and the provisional ChangeSet payload version token
-(`ChangeSetPayloadVersion`, default `"0.1"`). `ReservedGeneratedNames` is caller-owned and defaults to an
+field/value types, and the provisional ChangePayload version token
+(`ChangePayloadVersion`, default `"0.1"`). `ReservedGeneratedNames` is caller-owned and defaults to an
 empty set; include all names reserved by the generated API. Pass the same config
 through analysis and source emission; this lets a consuming generator emit
 against runtime types it owns instead of adding a SparseFragments runtime
@@ -60,6 +62,12 @@ dependency. Full source emission requires both dialects, and the Patch/STJ
 emitters require an explicit patch dialect; Shared provides no implicit
 SparseFragments runtime fallback. The product generator owns and supplies its
 runtime defaults.
+
+Each model emits a unified `ChangePayload` envelope carrying baseline-aware
+transitions and baseline-free commands side by side, with `missing`, `null`,
+`value`, and `redacted` endpoint states. `ToChangeSet()` accepts only complete
+histories; `ToPatch()` projects any envelope without a baseline, and
+`FromPatch()` builds a command envelope without one.
 
 `SparseFragmentEmitter` retains the standalone `Fragment`/`Patch` API vocabulary.
 It does not add product-specific model extension APIs unless the caller supplies

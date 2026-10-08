@@ -53,7 +53,7 @@ Require(replayed.ToModel().Label == "production", "ChangeSet.ToPatch replays the
 
 // Client/Server Edits: the typed payload crosses process boundaries as ordinary System.Text.Json.
 var json = JsonSerializer.Serialize(changes.ToPayload());
-var incoming = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
+var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
 Require(incoming.Label.IsChanged, "ChangeSet payload JSON round-trip preserves transitions");
 var rebased = incoming.RebaseOnto(updated);
 Require(!rebased.HasConflicts, "rebase onto current has no conflicts");

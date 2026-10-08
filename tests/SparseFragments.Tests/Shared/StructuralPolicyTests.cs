@@ -24,6 +24,7 @@ public sealed class StructuralPolicyTests
         new(
             ModelAttributeMetadataName: ModelAttribute,
             IgnoreAttributeMetadataName: "SparseFragments.SparseIgnoreAttribute",
+            RedactBeforeAttributeMetadataName: "SparseFragments.SparseRedactBeforeAttribute",
             MergeAttributeMetadataName: MergeAttribute,
             MergeStrategyBaseMetadataName: MergeBase,
             CloneReferenceSafeAttributeMetadataName: CloneSafe,
@@ -335,6 +336,7 @@ public sealed class StructuralPolicyTests
         var config = new SparseGeneratorConfig(
             ModelAttributeMetadataName: "Downstream.ModelAttribute",
             IgnoreAttributeMetadataName: "Downstream.IgnoreAttribute",
+            RedactBeforeAttributeMetadataName: "Downstream.RedactBeforeAttribute",
             MergeAttributeMetadataName: "Downstream.MergeAttribute",
             MergeStrategyBaseMetadataName: "Downstream.MergeStrategy<T>",
             CloneReferenceSafeAttributeMetadataName: "Downstream.CloneSafeAttribute",

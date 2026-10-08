@@ -177,7 +177,7 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string>? MemberValueType = null,
         Func<SparseMemberModel, string>? CollectionPatchName = null,
         Func<SparseMemberModel, string>? MergeStrategyField = null,
-        string ChangeSetPayloadVersion = "0.1"
+        string ChangePayloadVersion = "0.1"
     );
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
@@ -252,7 +252,7 @@ internal static class SparseFragmentPatchEmitter
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
-        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect);
+        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect, modelType);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,
@@ -305,6 +305,12 @@ internal static class SparseFragmentPatchEmitter
         }
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members, dialect);
+        SparseChangePayloadPatchSyncEmitter.AppendPatchToPayloadCore(
+            code,
+            members,
+            dialect,
+            modelType
+        );
         code.AppendLineAt(1, "}");
         SparseChangeSetEmitter.AppendChangeSet(
             code,

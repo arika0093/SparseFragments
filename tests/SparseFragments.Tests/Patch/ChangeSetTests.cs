@@ -1201,7 +1201,7 @@ public sealed class ChangeSetTests
         json.ShouldNotContain("IsChanged");
         json.ShouldNotContain("BeforeOrder");
         var back = System
-            .Text.Json.JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!
+            .Text.Json.JsonSerializer.Deserialize<Settings.ChangePayload>(json)!
             .ToChangeSet();
         back.Label.IsChanged.ShouldBeTrue();
         back.Label.After.Value.ShouldBe("Bob");
@@ -1219,7 +1219,7 @@ public sealed class ChangeSetTests
         var keyedJson = System.Text.Json.JsonSerializer.Serialize(keyed.ToPayload());
         keyedJson.ShouldNotContain("Added");
         var keyedBack = System
-            .Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangeSetPayload>(keyedJson)!
+            .Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(keyedJson)!
             .ToChangeSet();
         keyedBack.Items.Added.Select(e => e.Id).ShouldBe(["b"]);
         keyedBack.Items.Edited["a"].Name.After.Value.ShouldBe("B");

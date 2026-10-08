@@ -175,7 +175,7 @@ public sealed class RebaseRenamedApiTests
 
         var outgoing = stateA.CreateChangeSet(stateB);
         var json = JsonSerializer.Serialize(outgoing.ToPayload());
-        var incoming = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
+        var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
 
         var ok = incoming.TryApplyTo(stateC, out var saved, out var conflicts);
 

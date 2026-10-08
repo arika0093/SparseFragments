@@ -474,7 +474,7 @@ public sealed class SparseEditSessionTests
 
         var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
         var restored = System
-            .Text.Json.JsonSerializer.Deserialize<OrderDto.ChangeSetPayload>(json)!
+            .Text.Json.JsonSerializer.Deserialize<OrderDto.ChangePayload>(json)!
             .ToChangeSet();
         restored.IsEmpty.ShouldBeFalse();
 

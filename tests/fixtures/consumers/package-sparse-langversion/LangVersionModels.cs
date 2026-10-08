@@ -158,7 +158,7 @@ namespace LangVersionProbe
                 Optional<ProbeSettings.Fragment?>.Present(editedBaseline));
             var changesJson = JsonSerializer.Serialize(changes.ToPayload());
             var restoredChanges = JsonSerializer
-                .Deserialize<ProbeSettings.ChangeSetPayload>(changesJson)
+                .Deserialize<ProbeSettings.ChangePayload>(changesJson)
                 ?.ToChangeSet();
             if (restoredChanges is null)
             {

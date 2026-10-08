@@ -54,7 +54,7 @@ public sealed class FragmentAndChangeSetJsonTests
         var json = JsonSerializer.Serialize(payload, options);
         json.ShouldContain("\"member\":\"Value\"");
 
-        var restored = JsonSerializer.Deserialize<NamingWidget.ChangeSetPayload>(json, options)!
+        var restored = JsonSerializer.Deserialize<NamingWidget.ChangePayload>(json, options)!
             .ToChangeSet();
         NamingWidget.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }

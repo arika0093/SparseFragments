@@ -126,7 +126,7 @@ public sealed class SparseChangeSetStorageTests
             $"sparse single {json.Length} should scale vs full {allJson.Length}"
         );
 
-        var back = JsonSerializer.Deserialize<WideWidget.ChangeSetPayload>(json)!.ToChangeSet();
+        var back = JsonSerializer.Deserialize<WideWidget.ChangePayload>(json)!.ToChangeSet();
         back.Alpha.IsChanged.ShouldBeTrue();
         back.Alpha.After.Value.ShouldBe("a2");
         back.Bravo.IsChanged.ShouldBeFalse();
@@ -169,7 +169,7 @@ public sealed class SparseChangeSetStorageTests
         json.ShouldNotContain("Label");
         json.ShouldNotContain("Port");
 
-        var back = JsonSerializer.Deserialize<Settings.ChangeSetPayload>(json)!.ToChangeSet();
+        var back = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
         back.Nested.Host.After.Value.ShouldBe("b");
         back.Nested.Port.IsChanged.ShouldBeFalse();
         Settings.Patch.Between(back.ToPatch().Apply(State("a")), State("b")).IsEmpty.ShouldBeTrue();
@@ -192,7 +192,7 @@ public sealed class SparseChangeSetStorageTests
         var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldContain("Values");
         var back = JsonSerializer
-            .Deserialize<StrategySettings.ChangeSetPayload>(json)!
+            .Deserialize<StrategySettings.ChangePayload>(json)!
             .ToChangeSet();
         back.Values.After.Value.ShouldBe([3, 4]);
         StrategySettings.Patch.Between(back.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
@@ -233,7 +233,7 @@ public sealed class SparseChangeSetStorageTests
         json.ShouldNotContain("Title");
 
         var back = JsonSerializer
-            .Deserialize<ServerGroupHolder.ChangeSetPayload>(json)!
+            .Deserialize<ServerGroupHolder.ChangePayload>(json)!
             .ToChangeSet();
         back.Servers.Added.Select(e => e.Id).ShouldBe(["c"]);
         back.Servers.Removed.Select(e => e.Id).ShouldBe(["a"]);
@@ -268,7 +268,7 @@ public sealed class SparseChangeSetStorageTests
         {
             var changes = Settings.ChangeSet.Between(b, a);
             var back = JsonSerializer
-                .Deserialize<Settings.ChangeSetPayload>(
+                .Deserialize<Settings.ChangePayload>(
                     JsonSerializer.Serialize(changes.ToPayload())
                 )!
                 .ToChangeSet();
@@ -328,7 +328,7 @@ public sealed class SparseChangeSetStorageTests
 
         Settings.ChangeSet RoundTrip(Settings.ChangeSet value) =>
             JsonSerializer
-                .Deserialize<Settings.ChangeSetPayload>(
+                .Deserialize<Settings.ChangePayload>(
                     JsonSerializer.Serialize(value.ToPayload())
                 )!
                 .ToChangeSet();

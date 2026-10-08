@@ -63,7 +63,7 @@ public sealed class AotJsonTests
     }
 
     [Test]
-    public async Task ChangeSetPayloadRoundTripsWithSourceGenAndNormalizedJson()
+    public async Task ChangePayloadRoundTripsWithSourceGenAndNormalizedJson()
     {
         Optional<PayloadRoot.Fragment?> WidgetState(string label, string name) =>
             Optional<PayloadRoot.Fragment?>.Present(
@@ -81,7 +81,7 @@ public sealed class AotJsonTests
         var changes = PayloadRoot.ChangeSet.Between(widgetBefore, widgetAfter);
         var json = JsonSerializer.Serialize(
             changes.ToPayload(),
-            AotSerializerContext.Default.PayloadRootChangeSetPayload
+            AotSerializerContext.Default.PayloadRootChangePayload
         );
         using (var document = JsonDocument.Parse(json))
         {
@@ -119,7 +119,7 @@ public sealed class AotJsonTests
         }
         await Assert.That(json.Contains("\"state\":\"value\"")).IsTrue();
         var restored = JsonSerializer
-            .Deserialize(json, AotSerializerContext.Default.PayloadRootChangeSetPayload)!
+            .Deserialize(json, AotSerializerContext.Default.PayloadRootChangePayload)!
             .ToChangeSet();
         await Assert
             .That(
@@ -141,7 +141,7 @@ public sealed class AotJsonTests
         var serverChanges = PayloadCollection.ChangeSet.Between(serverBefore, serverAfter);
         var serverJson = JsonSerializer.Serialize(
             serverChanges.ToPayload(),
-            AotSerializerContext.Default.PayloadCollectionChangeSetPayload
+            AotSerializerContext.Default.PayloadCollectionChangePayload
         );
         using var serverDocument = JsonDocument.Parse(serverJson);
         var serverItems = serverDocument
@@ -173,7 +173,7 @@ public sealed class AotJsonTests
         var serverRestored = JsonSerializer
             .Deserialize(
                 serverJson,
-                AotSerializerContext.Default.PayloadCollectionChangeSetPayload
+                AotSerializerContext.Default.PayloadCollectionChangePayload
             )!
             .ToChangeSet();
         await Assert
@@ -183,6 +183,49 @@ public sealed class AotJsonTests
                     .IsEmpty
             )
             .IsTrue();
+    }
+
+    [Test]
+    public async Task ChangePayloadRedactsBeforeStateWithSourceGen()
+    {
+        Optional<PayloadSecret.Fragment?> SecretState(string? label, string? token) =>
+            Optional<PayloadSecret.Fragment?>.Present(
+                PayloadSecret.Fragment.From(new PayloadSecret { Label = label, Token = token })
+            );
+
+        var before = SecretState("before", "before-token");
+        var after = SecretState("after", "after-token");
+        var json = JsonSerializer.Serialize(
+            PayloadSecret.ChangeSet.Between(before, after).ToPayload(),
+            AotSerializerContext.Default.PayloadSecretChangePayload
+        );
+
+        await Assert.That(json.Contains("\"version\":\"0.1\"")).IsTrue();
+        await Assert.That(json.Contains("\"state\":\"redacted\"")).IsTrue();
+        await Assert.That(json.Contains("before-token")).IsFalse();
+
+        var restored = JsonSerializer
+            .Deserialize(json, AotSerializerContext.Default.PayloadSecretChangePayload)!
+            .ToPatch();
+        await Assert
+            .That(PayloadSecret.Patch.Between(restored.Apply(before), after).IsEmpty)
+            .IsTrue();
+
+        var incomplete = JsonSerializer.Deserialize(
+            json,
+            AotSerializerContext.Default.PayloadSecretChangePayload
+        )!;
+        var rejected = false;
+        try
+        {
+            incomplete.ToChangeSet();
+        }
+        catch (ArgumentException)
+        {
+            rejected = true;
+        }
+
+        await Assert.That(rejected).IsTrue();
     }
 
     [Test]

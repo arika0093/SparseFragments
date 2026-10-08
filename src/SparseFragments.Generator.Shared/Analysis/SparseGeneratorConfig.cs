@@ -7,6 +7,7 @@ internal sealed record SparseGeneratorConfig
     public SparseGeneratorConfig(
         string ModelAttributeMetadataName,
         string IgnoreAttributeMetadataName,
+        string RedactBeforeAttributeMetadataName,
         string MergeAttributeMetadataName,
         string MergeStrategyBaseMetadataName,
         string CloneReferenceSafeAttributeMetadataName,
@@ -26,6 +27,7 @@ internal sealed record SparseGeneratorConfig
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
         this.IgnoreAttributeMetadataName = IgnoreAttributeMetadataName;
+        this.RedactBeforeAttributeMetadataName = RedactBeforeAttributeMetadataName;
         this.MergeAttributeMetadataName = MergeAttributeMetadataName;
         this.MergeStrategyBaseMetadataName = MergeStrategyBaseMetadataName;
         this.CloneReferenceSafeAttributeMetadataName = CloneReferenceSafeAttributeMetadataName;
@@ -46,6 +48,8 @@ internal sealed record SparseGeneratorConfig
     public string ModelAttributeMetadataName { get; init; }
 
     public string IgnoreAttributeMetadataName { get; init; }
+
+    public string RedactBeforeAttributeMetadataName { get; init; }
 
     public string MergeAttributeMetadataName { get; init; }
 

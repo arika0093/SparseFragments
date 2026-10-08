@@ -19,7 +19,7 @@ public sealed class UnassignedKeyLifecycleTests
         AssignedServerHolder.ChangeSet changes
     ) =>
         JsonSerializer
-            .Deserialize<AssignedServerHolder.ChangeSetPayload>(PayloadJson(changes))!
+            .Deserialize<AssignedServerHolder.ChangePayload>(PayloadJson(changes))!
             .ToChangeSet();
 
     private static Optional<AssignedServerHolder.Fragment?> H(AssignedServerHolder model) =>

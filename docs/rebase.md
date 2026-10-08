@@ -229,7 +229,7 @@ An application request therefore wraps the ChangeSet in its own envelope:
 sealed record UpdateOrderRequest(
     Guid OrderId,
     byte[] RowVersion,
-    Order.ChangeSetPayload Changes);
+    Order.ChangePayload Changes);
 ```
 
 The handler converts the payload with `ToChangeSet()`, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and, when there are no conflicts, saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
@@ -252,7 +252,7 @@ var outgoing = stateA.CreateChangeSet(stateB);
 // The typed payload travels as JSON through the application's own transport.
 var json = JsonSerializer.Serialize(outgoing.ToPayload());
 var incoming = JsonSerializer
-    .Deserialize<RebaseSettings.ChangeSetPayload>(json)!
+    .Deserialize<RebaseSettings.ChangePayload>(json)!
     .ToChangeSet();
 
 // Meanwhile the server moved A -> C. The server loads only the current state:

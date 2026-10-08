@@ -20,6 +20,7 @@ public static class VerifiedSamples
         CoreNested();
         CoreAlgebra();
         CoreSerialization();
+        CoreChangePayload();
         KeyedFirst();
         KeyedTyped();
         KeyedUnassignedFlow();
@@ -276,7 +277,7 @@ public static class VerifiedSamples
 
         var json = JsonSerializer.Serialize(changes.ToPayload());
         var restored = JsonSerializer
-            .Deserialize<CounterSettings.ChangeSetPayload>(json)!
+            .Deserialize<CounterSettings.ChangePayload>(json)!
             .ToChangeSet();
         // restored.ToPatch().Apply(start) replays finish
         DocsCheck.Require(
@@ -284,6 +285,37 @@ public static class VerifiedSamples
             "deserialized ChangeSet replays the transition"
         );
 
+        // /sample
+    }
+
+    private static void CoreChangePayload()
+    {
+        // sample: core-change-payload
+        var current = LoginSettings.Fragment.From(
+            new LoginSettings { DisplayName = "a", Password = "before-password" }
+        );
+
+        var rotation = new LoginSettings.Patch { Password = "after-password" };
+
+        // A command needs no baseline: the envelope redacts what it never observed.
+        var command = LoginSettings.ChangePayload.FromPatch(rotation);
+        var applied = current.Apply(command.ToPatch());
+        // applied.DisplayName.Value == "a"
+        // applied.Password.Value == "after-password"
+        DocsCheck.Require(applied.DisplayName.Value == "a", "untouched member kept");
+        DocsCheck.Require(
+            applied.Password.Value == "after-password",
+            "baseline-free command applied"
+        );
+
+        var transition = LoginSettings.ChangeSet.Between(
+            Optional<LoginSettings.Fragment?>.Present(current),
+            Optional<LoginSettings.Fragment?>.Present(applied)
+        );
+        var wire = JsonSerializer.Serialize(transition.ToPayload());
+        // wire carries "after-password" but never "before-password"
+        DocsCheck.Require(!wire.Contains("before-password"), "before-state stays undisclosed");
+        DocsCheck.Require(wire.Contains("after-password"), "desired state travels");
         // /sample
     }
 
@@ -514,7 +546,7 @@ public static class VerifiedSamples
         // The typed payload travels as JSON through the application's own transport.
         var json = JsonSerializer.Serialize(outgoing.ToPayload());
         var incoming = JsonSerializer
-            .Deserialize<RebaseSettings.ChangeSetPayload>(json)!
+            .Deserialize<RebaseSettings.ChangePayload>(json)!
             .ToChangeSet();
 
         // Meanwhile the server moved A -> C. The server loads only the current state:
@@ -546,6 +578,18 @@ public partial class CounterSettings
     public string? Label { get; set; }
 
     public int RetryCount { get; set; }
+}
+
+// /sample
+
+// sample: core-change-payload-models
+[SparseFragmentModel]
+public partial class LoginSettings
+{
+    public string? DisplayName { get; set; }
+
+    [SparseRedactBefore]
+    public string? Password { get; set; }
 }
 
 // /sample

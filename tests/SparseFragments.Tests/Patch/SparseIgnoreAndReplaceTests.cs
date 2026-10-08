@@ -120,7 +120,7 @@ public sealed class SparseIgnoreAndReplaceTests
         );
         var sequenceJson = JsonSerializer.Serialize(sequenceChanges.ToPayload());
         var sequenceRoundTrip = JsonSerializer
-            .Deserialize<ReplaceSequenceHolder.ChangeSetPayload>(sequenceJson)!
+            .Deserialize<ReplaceSequenceHolder.ChangePayload>(sequenceJson)!
             .ToChangeSet();
         sequenceRoundTrip
             .ToPatch()
@@ -148,7 +148,7 @@ public sealed class SparseIgnoreAndReplaceTests
         );
         var keyedJson = JsonSerializer.Serialize(keyedChange.ToPayload());
         var keyedRoundTrip = JsonSerializer
-            .Deserialize<ReplaceKeyedSequenceHolder.ChangeSetPayload>(keyedJson)!
+            .Deserialize<ReplaceKeyedSequenceHolder.ChangePayload>(keyedJson)!
             .ToChangeSet();
         keyedRoundTrip
             .TryApplyTo(keyedBefore, out var keyedUpdated, out var keyedConflicts)
@@ -184,7 +184,7 @@ public sealed class SparseIgnoreAndReplaceTests
         );
         var serialized = JsonSerializer.Serialize(dictChanges.ToPayload());
         var roundTripped = JsonSerializer
-            .Deserialize<ReplaceDictionaryHolder.ChangeSetPayload>(serialized)!
+            .Deserialize<ReplaceDictionaryHolder.ChangePayload>(serialized)!
             .ToChangeSet();
         roundTripped
             .ToPatch()

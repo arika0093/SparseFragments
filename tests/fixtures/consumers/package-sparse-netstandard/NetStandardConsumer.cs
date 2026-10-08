@@ -138,7 +138,7 @@ public static class NetStandardConsumerCheck
             Optional<NetStandardSettings.Fragment?>.Present(editedBaseline));
         var changesJson = JsonSerializer.Serialize(changes.ToPayload());
         var restoredChanges = JsonSerializer
-            .Deserialize<NetStandardSettings.ChangeSetPayload>(changesJson)
+            .Deserialize<NetStandardSettings.ChangePayload>(changesJson)
             ?.ToChangeSet();
         if (restoredChanges is null)
         {

@@ -1,20 +1,21 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseFragments")]
 namespace SparseFragments
 {
-    public sealed class ChangeSetPayloadEndpoint<T>
+    public sealed class ChangePayloadEndpoint<T>
     {
-        public ChangeSetPayloadEndpoint() { }
+        public ChangePayloadEndpoint() { }
         [System.Text.Json.Serialization.JsonPropertyName("state")]
         [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-        public SparseFragments.ChangeSetPayloadState State { get; set; }
+        public SparseFragments.ChangePayloadState State { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("value")]
         [System.Text.Json.Serialization.JsonPropertyOrder(1)]
         public T Value { get; set; }
         public SparseFragments.Optional<T> ToOptional() { }
-        public static SparseFragments.ChangeSetPayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
+        public static SparseFragments.ChangePayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
+        public static SparseFragments.ChangePayloadEndpoint<T> Redacted() { }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadItemKind>))]
-    public enum ChangeSetPayloadItemKind
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangePayloadItemKind>))]
+    public enum ChangePayloadItemKind
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("add")]
         Add = 0,
@@ -25,8 +26,8 @@ namespace SparseFragments
         [System.Text.Json.Serialization.JsonStringEnumMemberName("reorder")]
         Reorder = 3,
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangeSetPayloadState>))]
-    public enum ChangeSetPayloadState
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangePayloadState>))]
+    public enum ChangePayloadState
     {
         [System.Text.Json.Serialization.JsonStringEnumMemberName("missing")]
         Missing = 0,
@@ -34,6 +35,8 @@ namespace SparseFragments
         Null = 1,
         [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
         Value = 2,
+        [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
+        Redacted = 3,
     }
     public abstract class FragmentMergeStrategy<T>
     {
@@ -226,6 +229,11 @@ namespace SparseFragments
         public void Move(int oldIndex, int newIndex) { }
         public bool Remove(TView item) { }
         public void RemoveAt(int index) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    public sealed class SparseRedactBeforeAttribute : System.Attribute
+    {
+        public SparseRedactBeforeAttribute() { }
     }
 }
 namespace SparseFragments.CompilerServices

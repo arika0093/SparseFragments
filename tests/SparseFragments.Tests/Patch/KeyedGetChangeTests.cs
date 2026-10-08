@@ -383,7 +383,7 @@ public sealed class KeyedGetChangeTests
 
         var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
         var back = System.Text.Json.JsonSerializer
-            .Deserialize<KeyedServerHolder.ChangeSetPayload>(json)!
+            .Deserialize<KeyedServerHolder.ChangePayload>(json)!
             .ToChangeSet();
 
         back.Items.GetChange("a").IsEdited.ShouldBeTrue();

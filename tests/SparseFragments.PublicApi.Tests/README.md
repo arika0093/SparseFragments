@@ -10,7 +10,7 @@ This suite pins the public surface that v0.1 supports. It runs in the
 - `SparseFragments.GeneratedApiFixtures.approved.txt`: compiled output of the
   generator for the fixture models in
   `../SparseFragments.GeneratedApiFixtures`. It covers `Fragment`, `Patch`,
-  `ChangeSet`, `ChangeSetPayload`, `Observable`, `FragmentBuilder`, typed
+  `ChangeSet`, `ChangePayload`, `Observable`, `FragmentBuilder`, typed
   transitions, model extensions (`CreateChangeSet`, `CreateEditSession`,
   `ToObservable`), and the absence of removed APIs such as `Submit` and
   `ChangeSet.ApplyInPlace`.

@@ -48,7 +48,7 @@ public sealed class GeneratedApiApprovalTests
                     "Fragment",
                     "Patch",
                     "ChangeSet",
-                    "ChangeSetPayload",
+                    "ChangePayload",
                     "Observable",
                     "FragmentBuilder",
                 }
@@ -74,6 +74,10 @@ public sealed class GeneratedApiApprovalTests
 
             var patch = AssertNested(model, "Patch");
             AssertMethods(patch, ["Between", "Apply", "ApplyTo"]);
+
+            // The unified transport converts both directions explicitly.
+            var changePayload = AssertNested(model, "ChangePayload");
+            AssertMethods(changePayload, ["ToChangeSet", "ToPatch", "FromPatch"]);
 
             var extensions = AssertExtensionContainer(model);
             AssertMethods(extensions, ["CreateChangeSet", "CreateEditSession", "ToObservable"]);

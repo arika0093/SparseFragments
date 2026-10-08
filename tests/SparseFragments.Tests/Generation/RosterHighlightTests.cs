@@ -329,7 +329,7 @@ public sealed class RosterHighlightTests
         // The typed payload JSON uses the same shared instance.
         var json = JsonSerializer.Serialize(changes.ToPayload(), new JsonSerializerOptions { WriteIndented = true });
         json.ShouldContain("\"d\"");
-        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangeSetPayload>(json)!.ToChangeSet();
+        var roundTripped = JsonSerializer.Deserialize<PlaygroundRoster.ChangePayload>(json)!.ToChangeSet();
         roundTripped.Quests.GetChange("d").IsAdded.ShouldBeTrue();
         roundTripped.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
 

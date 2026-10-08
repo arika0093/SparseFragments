@@ -52,21 +52,36 @@ internal static class SparseChangeSetPayloadItemEmitter
             3,
             "if (item.Kind != "
                 + runtime
-                + "ChangeSetPayloadItemKind.Add && item.Kind != "
+                + "ChangePayloadItemKind.Add && item.Kind != "
                 + runtime
-                + "ChangeSetPayloadItemKind.Remove && item.Kind != "
+                + "ChangePayloadItemKind.Remove && item.Kind != "
                 + runtime
-                + "ChangeSetPayloadItemKind.Edit && item.Kind != "
+                + "ChangePayloadItemKind.Edit && item.Kind != "
                 + runtime
-                + "ChangeSetPayloadItemKind.Reorder) throw new global::System.ArgumentException(\"Unsupported payload item kind.\");"
+                + "ChangePayloadItemKind.Reorder) throw new global::System.ArgumentException(\"Unsupported payload item kind.\");"
         );
         if (!isKeyed)
             code.AppendLineAt(
                 3,
                 "if (item.Kind == "
                     + runtime
-                    + "ChangeSetPayloadItemKind.Reorder) throw new global::System.ArgumentException(\"Reorder is not supported for dictionary payload items.\");"
+                    + "ChangePayloadItemKind.Reorder) throw new global::System.ArgumentException(\"Reorder is not supported for dictionary payload items.\");"
             );
+        // Redacted item histories only support the baseline-discarding
+        // projection; check states before ToOptional so the error names the
+        // conversion rather than the endpoint read.
+        code.AppendLineAt(
+            3,
+            "if (item.Before is not null && item.Before.State == "
+                + runtime
+                + "ChangePayloadState.Redacted) throw new global::System.ArgumentException(\"A redacted payload cannot convert to a ChangeSet. Project it with ToPatch instead.\");"
+        );
+        code.AppendLineAt(
+            3,
+            "if (item.After is not null && item.After.State == "
+                + runtime
+                + "ChangePayloadState.Redacted) throw new global::System.ArgumentException(\"A payload after-state must be observable.\");"
+        );
         code.AppendLineAt(
             3,
             "var before = item.Before is null ? "
@@ -83,9 +98,9 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + itemValueType
                 + ">.Missing : item.After.ToOptional();"
         );
-        var added = "item.Kind == " + runtime + "ChangeSetPayloadItemKind.Add";
-        var removed = "item.Kind == " + runtime + "ChangeSetPayloadItemKind.Remove";
-        var edited = "item.Kind == " + runtime + "ChangeSetPayloadItemKind.Edit";
+        var added = "item.Kind == " + runtime + "ChangePayloadItemKind.Add";
+        var removed = "item.Kind == " + runtime + "ChangePayloadItemKind.Remove";
+        var edited = "item.Kind == " + runtime + "ChangePayloadItemKind.Edit";
         // Kind/endpooint consistency: reject invalid payloads before producing an unsafe ChangeSet.
         code.AppendLineAt(3, "if (" + added + ")");
         code.AppendLineAt(3, "{");
@@ -459,10 +474,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                 "public " + endpoint + "<" + itemValueType + ">? After { get; set; }"
             );
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Kind", 1);
-            code.AppendLineAt(
-                2,
-                "public " + runtime + "ChangeSetPayloadItemKind Kind { get; set; }"
-            );
+            code.AppendLineAt(2, "public " + runtime + "ChangePayloadItemKind Kind { get; set; }");
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "BeforeIndex", 2);
