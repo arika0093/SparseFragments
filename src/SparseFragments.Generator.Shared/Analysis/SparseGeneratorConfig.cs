@@ -227,14 +227,24 @@ internal sealed record SparseRuntimeDialect
 
 internal readonly record struct SparseMergeModeMap
 {
-    public SparseMergeModeMap(int Replace, int Deep, int Append, int SetUnion, int Custom)
+    public SparseMergeModeMap(
+        int Default,
+        int Replace,
+        int Deep,
+        int Append,
+        int SetUnion,
+        int Custom
+    )
     {
+        this.Default = Default;
         this.Replace = Replace;
         this.Deep = Deep;
         this.Append = Append;
         this.SetUnion = SetUnion;
         this.Custom = Custom;
     }
+
+    public int Default { get; init; }
 
     public int Replace { get; init; }
 
@@ -250,6 +260,7 @@ internal readonly record struct SparseMergeModeMap
     {
         var matches = 0;
         var normalized = int.MaxValue;
+        Match(Default, SparseMergeModes.Default);
         Match(Replace, SparseMergeModes.Replace);
         Match(Deep, SparseMergeModes.Deep);
         Match(Append, SparseMergeModes.Append);
@@ -270,9 +281,14 @@ internal readonly record struct SparseMergeModeMap
 
 internal static class SparseMergeModes
 {
-    public const int Replace = 0;
-    public const int Deep = 1;
-    public const int Append = 2;
-    public const int SetUnion = 3;
-    public const int Custom = 4;
+    public const int Default = 0;
+    public const int Replace = 1;
+    public const int Deep = 2;
+    public const int Append = 3;
+    public const int SetUnion = 4;
+    public const int Custom = 5;
+
+    /// <summary>Whether the mode deep-merges a nested model value.</summary>
+    public static bool IsDeepMerge(int mode, bool hasChild) =>
+        (mode == Deep || mode == Default) && hasChild;
 }

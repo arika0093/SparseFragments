@@ -14,6 +14,7 @@ internal static class SparseMergeValidation
     ) =>
         mode switch
         {
+            SparseMergeModes.Default => null,
             SparseMergeModes.Replace => null,
             SparseMergeModes.Deep when !hasChild => "Deep",
             SparseMergeModes.Deep => null,

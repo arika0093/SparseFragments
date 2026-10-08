@@ -62,7 +62,7 @@ internal static class ProbeSurface
             1,
             property,
             null,
-            0,
+            SparseMergeModes.Replace,
             collection,
             null,
             null,

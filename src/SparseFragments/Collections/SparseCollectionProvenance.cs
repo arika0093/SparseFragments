@@ -13,7 +13,7 @@ internal static class SparseCollectionProvenance
     /// <summary>
     /// Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.
     /// </summary>
-    /// <param name="mode">The fragment merge mode. Only Replace, Append, and SetUnion are supported.</param>
+    /// <param name="mode">The fragment merge mode. Only Default, Replace, Append, and SetUnion are supported.</param>
     /// <param name="contributions">Contribution values from lowest to highest priority. Missing contributes nothing; present null resets.</param>
     /// <param name="effective">The merged effective value using the same presence convention.</param>
     /// <param name="comparer">Element equality. Defaults to <see cref="EqualityComparer{T}.Default"/>, matching <see cref="SparseCollectionMerger"/> sequence semantics.</param>
@@ -31,7 +31,8 @@ internal static class SparseCollectionProvenance
     {
         return mode switch
         {
-            MergeMode.Replace => TryExplainReplace(
+            // Default collections merge by whole-value replacement.
+            MergeMode.Default or MergeMode.Replace => TryExplainReplace(
                 contributions,
                 effective,
                 comparer,

@@ -54,7 +54,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         KeyAttributeMetadataName: "SparseFragments.SparseKeyAttribute",
         KeyedInterfaceMetadataName: "SparseFragments.ISparseKeyed<TKey>",
         KeyPropertyName: "SparseKey",
-        MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4),
+        MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
         DiagnosticIds: new SparseDiagnosticIdMap(
             SparseFragmentsDiagnosticIds.MustBePartial,
             SparseFragmentsDiagnosticIds.UnsupportedModel,

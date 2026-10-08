@@ -30,7 +30,7 @@ public sealed class StructuralPolicyTests
             KeyAttributeMetadataName: "SparseFragments.SparseKeyAttribute",
             KeyedInterfaceMetadataName: "SparseFragments.ISparseKeyed<TKey>",
             KeyPropertyName: "SparseKey",
-            MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4),
+            MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
             DiagnosticIds: new SparseDiagnosticIdMap(
                 "SPF001",
                 "SPF002",
@@ -268,7 +268,7 @@ public sealed class StructuralPolicyTests
                 [AttributeUsage(AttributeTargets.Class)]
                 public sealed class ModelAttribute : Attribute { }
 
-                public enum MergeMode { Replace = 20, Deep = 30, Append = 40, SetUnion = 50, Custom = 60 }
+                public enum MergeMode { Default = 10, Replace = 20, Deep = 30, Append = 40, SetUnion = 50, Custom = 60 }
 
                 [AttributeUsage(AttributeTargets.Property)]
                 public sealed class MergeAttribute : Attribute
@@ -341,7 +341,7 @@ public sealed class StructuralPolicyTests
             KeyAttributeMetadataName: "Downstream.IdentityAttribute",
             KeyedInterfaceMetadataName: "Downstream.IKeyed<TKey>",
             KeyPropertyName: "Identity",
-            MergeModeMap: new SparseMergeModeMap(20, 30, 40, 50, 60),
+            MergeModeMap: new SparseMergeModeMap(10, 20, 30, 40, 50, 60),
             DiagnosticIds: new SparseDiagnosticIdMap(
                 "DWN001",
                 "DWN002",

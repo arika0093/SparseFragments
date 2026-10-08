@@ -259,8 +259,8 @@ internal static class SparseCollectionAnalyzer
     /// <summary>Determines whether a member requires the configured unkeyed-sequence diagnostic.</summary>
     /// <remarks>
     /// Explicit <c>Replace</c>, <c>Append</c>, <c>SetUnion</c>, and <c>Custom</c>
-    /// merge modes use whole-collection semantics without a key. An implicit
-    /// default <c>Replace</c> and explicit <c>Deep</c> still require keyed identity.
+    /// merge modes use whole-collection semantics without a key. <c>Default</c>
+    /// and explicit <c>Deep</c> still require keyed identity.
     /// </remarks>
     public static bool IsUnkeyedStructuralSequence(
         SparseSymbolMemberModel member,

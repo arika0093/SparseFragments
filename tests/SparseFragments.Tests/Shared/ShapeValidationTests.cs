@@ -79,7 +79,7 @@ public sealed class ShapeValidationTests
             id,
             property,
             null,
-            0,
+            SparseMergeModes.Replace,
             SparseCollectionInfo.Unsupported,
             null,
             null,

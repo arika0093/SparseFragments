@@ -30,7 +30,7 @@ public sealed class ChangeSetDialectFixtureTests
             id,
             property,
             null,
-            0,
+            SparseMergeModes.Replace,
             SparseCollectionInfo.Unsupported,
             null,
             null,
@@ -63,7 +63,7 @@ public sealed class ChangeSetDialectFixtureTests
                 null,
                 PatchApiPrefix: string.Empty
             ),
-            1,
+            SparseMergeModes.Deep,
             SparseCollectionInfo.Unsupported,
             null,
             "global::Ns.Child.Fragment",
@@ -105,7 +105,17 @@ public sealed class ChangeSetDialectFixtureTests
             null,
             SparseKeyKind.None
         );
-        return new SparseMemberModel(id, property, null, 2, collection, null, null, false, true);
+        return new SparseMemberModel(
+            id,
+            property,
+            null,
+            SparseMergeModes.Append,
+            collection,
+            null,
+            null,
+            false,
+            true
+        );
     }
 
     private static SparseMemberModel KeyedMember()
@@ -127,7 +137,7 @@ public sealed class ChangeSetDialectFixtureTests
             4,
             new SparsePropertyModel("Items", list, JsonPropertyName: "Items"),
             null,
-            0,
+            SparseMergeModes.Replace,
             collection,
             null,
             null,
@@ -158,7 +168,7 @@ public sealed class ChangeSetDialectFixtureTests
             5,
             new SparsePropertyModel("Values", dictionary, JsonPropertyName: "Values"),
             null,
-            0,
+            SparseMergeModes.Replace,
             collection,
             null,
             null,

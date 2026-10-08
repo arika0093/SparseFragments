@@ -30,7 +30,7 @@ public sealed class SemanticBetweenEmitterTests
             id,
             property,
             null,
-            0,
+            SparseMergeModes.Replace,
             SparseCollectionInfo.Unsupported,
             null,
             null,
@@ -63,7 +63,7 @@ public sealed class SemanticBetweenEmitterTests
                 null,
                 PatchApiPrefix: string.Empty
             ),
-            1,
+            SparseMergeModes.Deep,
             SparseCollectionInfo.Unsupported,
             null,
             "global::Ns.Child.Fragment",

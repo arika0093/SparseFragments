@@ -85,6 +85,7 @@ internal static class SparseNaming
     public static string MergeModeName(int mode) =>
         mode switch
         {
+            SparseMergeModes.Default => "Default",
             SparseMergeModes.Deep => "Deep",
             SparseMergeModes.Append => "Append",
             SparseMergeModes.SetUnion => "SetUnion",

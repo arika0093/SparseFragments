@@ -72,11 +72,12 @@ namespace SparseFragments
     }
     public enum MergeMode
     {
-        Replace = 0,
-        Deep = 1,
-        Append = 2,
-        SetUnion = 3,
-        Custom = 4,
+        Default = 0,
+        Replace = 1,
+        Deep = 2,
+        Append = 3,
+        SetUnion = 4,
+        Custom = 5,
     }
     public static class OptionalExtensions
     {

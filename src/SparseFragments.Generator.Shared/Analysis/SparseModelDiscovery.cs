@@ -108,7 +108,9 @@ internal static class SparseModelDiscovery
                 )
                     ? (INamedTypeSymbol)property.Type
                     : null;
-            var mode = child is not null ? SparseMergeModes.Deep : SparseMergeModes.Replace;
+            // Omitted attributes select the shape-aware Default; explicit
+            // Replace opts out of deep/keyed semantics.
+            var mode = SparseMergeModes.Default;
             AttributeData? merge = null;
             foreach (var attribute in property.GetAttributes())
             {

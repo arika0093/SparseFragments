@@ -41,7 +41,7 @@ internal sealed class SparseFragmentMergeEmitter
             }
 
             if (
-                (member.MergeMode == SparseMergeModes.Deep && member.ChildModel is not null)
+                SparseMergeModes.IsDeepMerge(member.MergeMode, member.ChildModel is not null)
                 || member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             )
             {
@@ -101,8 +101,11 @@ internal sealed class SparseFragmentMergeEmitter
             {
                 expression = $"{MergeStrategyField(member)}.Merge({lower}, {higher})";
             }
-            else if (member.MergeMode == SparseMergeModes.Deep && member.ChildModel is not null)
+            else if (SparseMergeModes.IsDeepMerge(member.MergeMode, member.ChildModel is not null))
             {
+                // Default resolves shape-aware: nested models deep-merge,
+                // otherwise whole-value replacement below. Missing high
+                // preserves low; present null replaces; non-null merges.
                 expression =
                     $"{higher}.IsPresent ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present(({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null) ? {lower}.Value!.Merge({higher}.Value!) : {higher}.Value) : {lower}";
             }
