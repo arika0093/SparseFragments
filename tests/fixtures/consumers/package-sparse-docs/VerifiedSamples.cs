@@ -95,10 +95,10 @@ public static class VerifiedSamples
         DocsCheck.Require(updated.RetryCount.Value == 1, "untouched member kept");
 
         var remove = new CounterSettings.Patch();
-        remove.RetryCount.Unset();
+        remove.RetryCount.Remove();
         // !remove.Apply(basis).Value!.RetryCount.IsPresent
         DocsCheck.Require(
-            !remove.Apply(basis).Value!.RetryCount.IsPresent, "Unset drops the contribution");
+            !remove.Apply(basis).Value!.RetryCount.IsPresent, "Remove drops the contribution");
         // /sample
     }
 

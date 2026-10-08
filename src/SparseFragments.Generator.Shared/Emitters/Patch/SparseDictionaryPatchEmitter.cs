@@ -152,7 +152,7 @@ internal static class SparseDictionaryPatchEmitter
                     + valueType
                     + ">? __edited;"
         );
-        code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Unchanged");
+        code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Keep");
         code.AppendLineAt(
             4,
             "&& (__set is null || __set.Count == 0) && (__removed is null || __removed.Count == 0) && (__edited is null || __edited.Count == 0);"
@@ -167,11 +167,11 @@ internal static class SparseDictionaryPatchEmitter
                 + ".Set(value); __set = null; __removed = null; __edited = null;"
         );
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "public void Unset()");
+        code.AppendLineAt(3, "public void Remove()");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "__whole = " + operation + ".Unset; __set = null; __removed = null; __edited = null;"
+            "__whole = " + operation + ".Remove; __set = null; __removed = null; __edited = null;"
         );
         code.AppendLineAt(3, "}");
         if (!SparseKeyedCollectionEmitter.IsInterfaceMember(member))
@@ -195,7 +195,7 @@ internal static class SparseDictionaryPatchEmitter
             4,
             "if (__whole.Kind != "
                 + kind
-                + ".Unchanged) throw new global::System.InvalidOperationException(\"Cannot apply '\" + operation + \"' when the whole dictionary is set.\");"
+                + ".Keep) throw new global::System.InvalidOperationException(\"Cannot apply '\" + operation + \"' when the whole dictionary is set.\");"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "public void SetEntry(" + keyType + " key, " + valueType + " value)");
@@ -350,7 +350,7 @@ internal static class SparseDictionaryPatchEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "if (__whole.Kind != " + kind + ".Unchanged) return __whole.Apply(current);"
+            "if (__whole.Kind != " + kind + ".Keep) return __whole.Apply(current);"
         );
         code.AppendLineAt(4, "if (IsEmpty) return current;");
         code.AppendLineAt(
@@ -463,7 +463,7 @@ internal static class SparseDictionaryPatchEmitter
                 + operation
                 + ".Set(after.Value) : "
                 + operation
-                + ".Unset;"
+                + ".Remove;"
         );
         code.AppendLineAt(5, "return patch;");
         code.AppendLineAt(4, "}");

@@ -46,22 +46,22 @@ namespace SparseFragments
     {
         public static void CopyFrom<T>(ref this SparseFragments.FragmentOperation<T> target, SparseFragments.FragmentOperation<T> source) { }
         public static void CopyFrom<TSource, TDestination>(ref this SparseFragments.FragmentOperation<TDestination> target, SparseFragments.FragmentOperation<TSource> source, System.Func<TSource?, TDestination?> map) { }
+        public static void Keep<T>(ref this SparseFragments.FragmentOperation<T> target) { }
+        public static void Remove<T>(ref this SparseFragments.FragmentOperation<T> target) { }
         public static void Set<T>(ref this SparseFragments.FragmentOperation<T> target, T? value) { }
-        public static void SetUnchanged<T>(ref this SparseFragments.FragmentOperation<T> target) { }
-        public static void Unset<T>(ref this SparseFragments.FragmentOperation<T> target) { }
     }
     public enum FragmentOperationKind
     {
-        Unchanged = 0,
+        Keep = 0,
         Set = 1,
-        Unset = 2,
+        Remove = 2,
     }
     public readonly struct FragmentOperation<T>
     {
         public SparseFragments.FragmentOperationKind Kind { get; }
         public T Value { get; }
-        public static SparseFragments.FragmentOperation<T> Unchanged { get; }
-        public static SparseFragments.FragmentOperation<T> Unset { get; }
+        public static SparseFragments.FragmentOperation<T> Keep { get; }
+        public static SparseFragments.FragmentOperation<T> Remove { get; }
         public SparseFragments.Optional<T> Apply(SparseFragments.Optional<T> current) { }
         public static SparseFragments.FragmentOperation<T> Set(T? value) { }
         public static SparseFragments.FragmentOperation<T> op_Implicit(T? value) { }
@@ -82,8 +82,8 @@ namespace SparseFragments
     {
         public static void CopyFrom<T>(ref this SparseFragments.Optional<T> target, SparseFragments.Optional<T> source) { }
         public static void CopyFrom<TSource, TDestination>(ref this SparseFragments.Optional<TDestination> target, SparseFragments.Optional<TSource> source, System.Func<TSource?, TDestination?> map) { }
+        public static void Remove<T>(ref this SparseFragments.Optional<T> target) { }
         public static void Set<T>(ref this SparseFragments.Optional<T> target, T? value) { }
-        public static void Unset<T>(ref this SparseFragments.Optional<T> target) { }
     }
     public readonly struct Optional<T> : System.IEquatable<SparseFragments.Optional<T>>
     {

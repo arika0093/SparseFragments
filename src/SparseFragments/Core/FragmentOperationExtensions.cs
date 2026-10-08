@@ -14,15 +14,15 @@ public static class FragmentOperationExtensions
     public static void Set<T>(this ref FragmentOperation<T> target, T? value) =>
         target = FragmentOperation<T>.Set(value);
 
-    /// <summary>Sets the referenced operation to <see cref="FragmentOperationKind.Unset"/>.</summary>
+    /// <summary>Sets the referenced operation to <see cref="FragmentOperationKind.Remove"/>.</summary>
     /// <param name="target">The operation storage to mutate.</param>
-    public static void Unset<T>(this ref FragmentOperation<T> target) =>
-        target = FragmentOperation<T>.Unset;
+    public static void Remove<T>(this ref FragmentOperation<T> target) =>
+        target = FragmentOperation<T>.Remove;
 
-    /// <summary>Resets the referenced operation to <see cref="FragmentOperationKind.Unchanged"/>.</summary>
+    /// <summary>Keeps the referenced member unchanged.</summary>
     /// <param name="target">The operation storage to mutate.</param>
-    public static void SetUnchanged<T>(this ref FragmentOperation<T> target) =>
-        target = FragmentOperation<T>.Unchanged;
+    public static void Keep<T>(this ref FragmentOperation<T> target) =>
+        target = FragmentOperation<T>.Keep;
 
     /// <summary>Copies another operation, preserving its kind and value.</summary>
     /// <param name="target">The operation storage to mutate.</param>
@@ -48,13 +48,13 @@ public static class FragmentOperationExtensions
         {
             target = FragmentOperation<TDestination>.Set(map(source.Value));
         }
-        else if (source.Kind == FragmentOperationKind.Unset)
+        else if (source.Kind == FragmentOperationKind.Remove)
         {
-            target = FragmentOperation<TDestination>.Unset;
+            target = FragmentOperation<TDestination>.Remove;
         }
         else
         {
-            target = FragmentOperation<TDestination>.Unchanged;
+            target = FragmentOperation<TDestination>.Keep;
         }
     }
 }

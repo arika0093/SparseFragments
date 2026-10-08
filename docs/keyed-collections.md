@@ -48,7 +48,7 @@ if (!changes.TryApplyTo(before, out var applied))
 
 | Collection kind | Examples | Patch semantics |
 | --- | --- | --- |
-| Scalar/atomic sequence | `List<string>`, `int[]` | Whole value: a patch sets or unsets the entire collection |
+| Scalar/atomic sequence | `List<string>`, `int[]` | Whole value: a patch sets or removes the entire collection |
 | Dictionary/map | `Dictionary<string, int>` | Keyed by `TKey` inherently; entries patch by key |
 | Structural sequence **with** a key | `List<Server>` where `Server` declares `[SparseKey]` | Keyed: add/remove/edit by element, reorder by key order |
 | Structural sequence **without** a key | `List<Server>` with no key declared | Generator error (`SPF011`): declare a key, or opt into `Append`, `SetUnion`, or a custom strategy on the member |

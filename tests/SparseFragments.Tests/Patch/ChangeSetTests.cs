@@ -35,7 +35,7 @@ public sealed class ChangeSetTests
     }
 
     [Test]
-    public void ScalarSetUnsetAndNullTransitions()
+    public void ScalarSetRemoveAndNullTransitions()
     {
         var before = Present(MakeSettings("Alice", 1));
         var after = Present(MakeSettings("Bob", 1));

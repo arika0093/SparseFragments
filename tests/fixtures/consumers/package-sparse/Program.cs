@@ -16,8 +16,8 @@ Require(result.Child.Value.Host.Value == "keep", "unchanged child member");
 Require(original.Child.Value!.Count.Value == 7, "original fragment isolation");
 
 patch = new Settings.Patch();
-patch.Child.Unset();
-Require(!original.Apply(patch).Child.IsPresent, "nested Unset");
+patch.Child.Remove();
+Require(!original.Apply(patch).Child.IsPresent, "nested Remove");
 patch = new Settings.Patch();
 patch.Child.SetNull();
 result = original.Apply(patch);

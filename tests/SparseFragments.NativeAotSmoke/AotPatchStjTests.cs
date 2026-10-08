@@ -80,7 +80,7 @@ public sealed class AotPatchStjTests
     }
 
     [Test]
-    public async Task PatchNullAndUnsetRoundTripWithSourceGen()
+    public async Task PatchNullAndRemoveRoundTripWithSourceGen()
     {
         var options = AotOptions();
         var nullPatch = new AotWidget.Patch { Name = (string?)null };
@@ -89,7 +89,7 @@ public sealed class AotPatchStjTests
         await Assert.That(nullBack.Name.Value is null).IsTrue();
 
         var unsetPatch = new AotWidget.Patch();
-        unsetPatch.Nested.Unset();
+        unsetPatch.Nested.Remove();
         var unsetBack = ReadPatch(WritePatch(unsetPatch, options), options);
         var basis = Optional<AotWidget.Fragment?>.Present(
             AotWidget.Fragment.From(new AotWidget { Nested = new AotNested { Host = "x" } })
@@ -140,7 +140,7 @@ public sealed class AotPatchStjTests
         var failed = false;
         try
         {
-            _ = ReadPatch("""{"Nope":{"kind":"unset"}}""", options);
+            _ = ReadPatch("""{"Nope":{"kind":"remove"}}""", options);
         }
         catch (JsonException)
         {

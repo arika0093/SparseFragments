@@ -46,7 +46,7 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(
             3,
-            "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or unset operation through Patch.Apply to preserve its optional state.\");"
+            "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or remove operation through Patch.Apply to preserve its optional state.\");"
         );
         code.AppendLineAt(3, "return result.Value;");
         code.AppendLineAt(2, "}");
@@ -130,7 +130,7 @@ internal static class SparseFragmentPatchEmitter
                 + ".__SparseIsEmpty())";
         }
 
-        return dialect.MemberField(member) + ".Kind == " + Kind(dialect) + ".Unchanged";
+        return dialect.MemberField(member) + ".Kind == " + Kind(dialect) + ".Keep";
     }
 
     public static void AppendPatch(

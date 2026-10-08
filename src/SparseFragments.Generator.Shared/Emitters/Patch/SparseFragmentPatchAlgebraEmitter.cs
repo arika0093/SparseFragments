@@ -81,7 +81,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
         );
         code.AppendLineAt(3, "var result = new Patch();");
-        code.AppendLineAt(3, "if (next.__sparse_whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(3, "if (next.__sparse_whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "result.__sparse_whole = next.__sparse_whole;");
         foreach (var member in members)
@@ -112,7 +112,7 @@ internal static class SparseFragmentPatchAlgebraEmitter
                         + field
                         + ".Kind == "
                         + kind
-                        + ".Unchanged ? this."
+                        + ".Keep ? this."
                         + field
                         + " : next."
                         + field

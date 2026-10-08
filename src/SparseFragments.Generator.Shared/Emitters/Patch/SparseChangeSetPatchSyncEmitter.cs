@@ -121,7 +121,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                         + AfterField(member)
                         + ".Value) : "
                         + op
-                        + ".Unset;"
+                        + ".Remove;"
                 );
                 code.AppendLineAt(3, "}");
             }

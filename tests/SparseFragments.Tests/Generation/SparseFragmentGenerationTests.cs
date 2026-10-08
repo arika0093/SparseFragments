@@ -136,7 +136,7 @@ public sealed class SparseFragmentGenerationTests
     }
 
     [Test]
-    public void DiffAndApplyChangesDistinguishSetFromUnset()
+    public void DiffAndApplyChangesDistinguishSetFromRemove()
     {
         var before = new Settings
         {

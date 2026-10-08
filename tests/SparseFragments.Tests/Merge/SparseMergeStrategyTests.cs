@@ -394,7 +394,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var baseState = NoteState(
             new PresenceNoteSettings.Fragment { Note = Optional<string?>.Present(null) }
         );
-        var local = new PresenceNoteSettings.Patch { Note = FragmentOperation<string?>.Unset };
+        var local = new PresenceNoteSettings.Patch { Note = FragmentOperation<string?>.Remove };
         var currentState = NoteState(
             new PresenceNoteSettings.Fragment { Note = Optional<string?>.Present(null) }
         );
@@ -402,7 +402,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Unset);
+        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Remove);
         var applied = result.Patch.Apply(currentState);
         applied.Value!.Note.IsPresent.ShouldBeFalse();
     }
@@ -456,7 +456,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
         result.Patch.Apply(currentState).Value!.Note.Value.ShouldBe("b");
     }
 
@@ -474,7 +474,7 @@ public sealed class PresenceAwareCustomRebaseTests
         var result = PresenceNoteSettings.Patch.Rebase(baseState, local, currentState);
 
         result.HasConflicts.ShouldBeFalse();
-        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        result.Patch.Note.Kind.ShouldBe(FragmentOperationKind.Keep);
     }
 
     [Test]

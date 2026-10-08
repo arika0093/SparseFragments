@@ -6,10 +6,10 @@ public enum PatchJsonShape
 {
     Empty,
     ScalarSet,
-    ScalarUnset,
+    ScalarRemove,
     Collection,
     RootSet,
-    RootUnset,
+    RootRemove,
     RootNull,
 }
 
@@ -22,10 +22,10 @@ public class PatchJsonBenchmarks
     [Params(
         PatchJsonShape.Empty,
         PatchJsonShape.ScalarSet,
-        PatchJsonShape.ScalarUnset,
+        PatchJsonShape.ScalarRemove,
         PatchJsonShape.Collection,
         PatchJsonShape.RootSet,
-        PatchJsonShape.RootUnset,
+        PatchJsonShape.RootRemove,
         PatchJsonShape.RootNull
     )]
     public PatchJsonShape Shape { get; set; }
@@ -52,7 +52,7 @@ public class PatchJsonBenchmarks
         _after = Shape switch
         {
             PatchJsonShape.Empty => _before,
-            PatchJsonShape.RootUnset => Optional<BenchChangeSetRebaseRecord.Fragment?>.Missing,
+            PatchJsonShape.RootRemove => Optional<BenchChangeSetRebaseRecord.Fragment?>.Missing,
             PatchJsonShape.RootNull => Optional<BenchChangeSetRebaseRecord.Fragment?>.Present(null),
             _ => State(true),
         };
@@ -65,7 +65,7 @@ public class PatchJsonBenchmarks
                 .Replace("\"kind\"", "\"ki\\u006ed\"")
                 .Replace("\"value\"", "\"va\\u006cue\"")
                 .Replace("\"set\"", "\"s\\u0065t\"")
-                .Replace("\"unset\"", "\"un\\u0073et\"")
+                .Replace("\"remove\"", "\"re\\u006dove\"")
                 .Replace("\"Counter\"", "\"Cou\\u006eter\"")
                 .Replace("\"Label\"", "\"La\\u0062el\"")
                 .Replace("\"Values\"", "\"Va\\u006cues\"")
@@ -99,25 +99,26 @@ public class PatchJsonBenchmarks
             var invalid in new[]
             {
                 "{\"Counter\":{\"kind\":\"set\"}}",
-                "{\"Counter\":{\"kind\":\"unset\",\"value\":1}}",
+                "{\"Counter\":{\"kind\":\"remove\",\"value\":1}}",
                 "{\"Counter\":{\"kind\":\"bogus\"}}",
                 "{\"Counter\":{\"kind\":null}}",
                 "{\"Counter\":{\"value\":1}}",
-                "{\"Counter\":{\"kind\":\"unset\",\"kind\":\"unset\"}}",
+                "{\"Counter\":{\"kind\":\"remove\",\"kind\":\"remove\"}}",
                 "{\"Counter\":{\"kind\":\"set\",\"value\":1,\"value\":2}}",
-                "{\"Counter\":{\"other\":\"unset\"}}",
+                "{\"Counter\":{\"other\":\"remove\"}}",
                 "{\"$whole\":{\"kind\":\"set\"}}",
-                "{\"$whole\":{\"kind\":\"unset\",\"value\":null}}",
+                "{\"$whole\":{\"kind\":\"remove\",\"value\":null}}",
                 "{\"$whole\":{\"kind\":\"bogus\"}}",
                 "{\"$whole\":{\"kind\":null}}",
                 "{\"$whole\":{\"value\":null}}",
-                "{\"$whole\":{\"kind\":\"unset\",\"kind\":\"unset\"}}",
+                "{\"$whole\":{\"kind\":\"remove\",\"kind\":\"remove\"}}",
                 "{\"$whole\":{\"kind\":\"set\",\"value\":null,\"value\":null}}",
-                "{\"$whole\":{\"other\":\"unset\"}}",
+                "{\"$whole\":{\"other\":\"remove\"}}",
                 "{\"$whole\":{\"kind\":\"set\",\"value\":1}}",
-                "{\"Counter\":{\"kind\":\"unset\"},\"Counter\":{\"kind\":\"unset\"}}",
-                "{\"Counter\":{\"kind\":\"unset\"},\"Cou\\u006eter\":{\"kind\":\"unset\"}}",
-                "{\"Unknown\":{\"kind\":\"unset\"}}",
+                "{\"Counter\":{\"kind\":\"remove\"},\"Counter\":{\"kind\":\"remove\"}}",
+                "{\"Counter\":{\"kind\":\"remove\"},\"Cou\\u006eter\":{\"kind\":\"remove\"}}",
+                "{\"Unknown\":{\"kind\":\"remove\"}}",
+                "{\"Counter\":{\"kind\":\"unset\"}}",
             }
         )
         {
@@ -137,7 +138,7 @@ public class PatchJsonBenchmarks
 
     private Optional<BenchChangeSetRebaseRecord.Fragment?> State(bool changed)
     {
-        if (changed && Shape == PatchJsonShape.ScalarUnset)
+        if (changed && Shape == PatchJsonShape.ScalarRemove)
             return Optional<BenchChangeSetRebaseRecord.Fragment?>.Present(new());
         var fragment = BenchChangeSetRebaseRecord.Fragment.From(
             new()

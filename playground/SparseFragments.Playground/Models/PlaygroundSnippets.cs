@@ -88,20 +88,20 @@ public static class PlaygroundSnippets
         {
             sb.AppendLine($"{variableName}.Enabled = {BoolLiteral(state.EnabledValue)};");
         }
-        else if (state.EnabledOp == PatchKind.Unset)
+        else if (state.EnabledOp == PatchKind.Remove)
         {
             sb.AppendLine(
-                $"{variableName}.Enabled = FragmentOperation<bool>.Unset;"
+                $"{variableName}.Enabled = FragmentOperation<bool>.Remove;"
             );
         }
         if (state.RetryOp == PatchKind.Set)
         {
             sb.AppendLine($"{variableName}.RetryCount = {state.RetryValue};");
         }
-        else if (state.RetryOp == PatchKind.Unset)
+        else if (state.RetryOp == PatchKind.Remove)
         {
             sb.AppendLine(
-                $"{variableName}.RetryCount = FragmentOperation<int>.Unset;"
+                $"{variableName}.RetryCount = FragmentOperation<int>.Remove;"
             );
         }
         if (state.LabelOp == NullPatchKind.Set)
@@ -114,19 +114,19 @@ public static class PlaygroundSnippets
                 $"{variableName}.Label = FragmentOperation<string?>.Set(null);"
             );
         }
-        else if (state.LabelOp == NullPatchKind.Unset)
+        else if (state.LabelOp == NullPatchKind.Remove)
         {
             sb.AppendLine(
-                $"{variableName}.Label = FragmentOperation<string?>.Unset;"
+                $"{variableName}.Label = FragmentOperation<string?>.Remove;"
             );
         }
         if (state.NestedOp == NestedPatchKind.SetNull)
         {
             sb.AppendLine($"{variableName}.Nested.SetNull();");
         }
-        else if (state.NestedOp == NestedPatchKind.Unset)
+        else if (state.NestedOp == NestedPatchKind.Remove)
         {
-            sb.AppendLine($"{variableName}.Nested.Unset();");
+            sb.AppendLine($"{variableName}.Nested.Remove();");
         }
         else if (state.NestedOp == NestedPatchKind.Set)
         {
@@ -134,20 +134,20 @@ public static class PlaygroundSnippets
             {
                 sb.AppendLine($"{variableName}.Nested.Host = {StringLiteral(state.HostValue)};");
             }
-            else if (state.HostOp == PatchKind.Unset)
+            else if (state.HostOp == PatchKind.Remove)
             {
                 sb.AppendLine(
-                    $"{variableName}.Nested.Host = FragmentOperation<string>.Unset;"
+                    $"{variableName}.Nested.Host = FragmentOperation<string>.Remove;"
                 );
             }
             if (state.PortOp == PatchKind.Set)
             {
                 sb.AppendLine($"{variableName}.Nested.Port = {state.PortValue};");
             }
-            else if (state.PortOp == PatchKind.Unset)
+            else if (state.PortOp == PatchKind.Remove)
             {
                 sb.AppendLine(
-                    $"{variableName}.Nested.Port = FragmentOperation<int>.Unset;"
+                    $"{variableName}.Nested.Port = FragmentOperation<int>.Remove;"
                 );
             }
         }
@@ -155,10 +155,10 @@ public static class PlaygroundSnippets
         {
             sb.AppendLine($"{variableName}.Plugins = {StringArrayLiteral(state.PluginsText)};");
         }
-        else if (state.PluginsOp == PatchKind.Unset)
+        else if (state.PluginsOp == PatchKind.Remove)
         {
             sb.AppendLine(
-                $"{variableName}.Plugins = FragmentOperation<System.Collections.Generic.IReadOnlyList<string>>.Unset;"
+                $"{variableName}.Plugins = FragmentOperation<System.Collections.Generic.IReadOnlyList<string>>.Remove;"
             );
         }
     }

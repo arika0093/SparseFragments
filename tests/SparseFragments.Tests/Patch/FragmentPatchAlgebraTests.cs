@@ -26,7 +26,7 @@ public sealed class FragmentPatchAlgebraTests
         var wholeNull = new Settings.Patch();
         wholeNull.SetNull();
         var wholeUnset = new Settings.Patch();
-        wholeUnset.Unset();
+        wholeUnset.Remove();
         var wholeWithEdits = new Settings.Patch();
         wholeWithEdits.Set(new Settings { RetryCount = 5 });
         wholeWithEdits.RetryCount = 8;
@@ -34,13 +34,13 @@ public sealed class FragmentPatchAlgebraTests
         var nestedEdit = new Settings.Patch();
         nestedEdit.Nested.Port = 42;
         var nestedUnset = new Settings.Patch();
-        nestedUnset.Nested.Unset();
+        nestedUnset.Nested.Remove();
         var nestedNull = new Settings.Patch();
         nestedNull.Nested.SetNull();
         var nestedReplacement = new Settings.Patch();
         nestedReplacement.Nested.Set(new Nested { Host = "replacement", Port = 12 });
         var memberUnset = new Settings.Patch();
-        memberUnset.Label = FragmentOperation<string?>.Unset;
+        memberUnset.Label = FragmentOperation<string?>.Remove;
         var patches = new[]
         {
             new Settings.Patch(),
@@ -134,7 +134,7 @@ public sealed class FragmentPatchAlgebraTests
         );
 
         var inverted = patch.Invert(before);
-        inverted.RetryCount.Kind.ShouldBe(FragmentOperationKind.Unset);
+        inverted.RetryCount.Kind.ShouldBe(FragmentOperationKind.Remove);
         inverted.Label.Value.ShouldBe("keep");
     }
 

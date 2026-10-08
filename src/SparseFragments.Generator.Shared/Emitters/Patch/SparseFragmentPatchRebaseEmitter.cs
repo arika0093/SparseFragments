@@ -130,7 +130,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(3, "var result = new Patch();");
         code.AppendLineAt(3, "var conflicts = new " + conflictList + "();");
         code.AppendLineAt(3, "var desiredState = local.Apply(baseState);");
-        code.AppendLineAt(3, "if (local.__sparse_whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(3, "if (local.__sparse_whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "if (Fragment.__SparseAreEqual(baseState, currentState))");
         code.AppendLineAt(4, "{");
@@ -412,7 +412,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         }
         else if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
         {
-            code.AppendLineAt(4, "if (local." + field + ".Kind != " + kind + ".Unchanged)");
+            code.AppendLineAt(4, "if (local." + field + ".Kind != " + kind + ".Keep)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(5, "var " + baseMember + " = baseFragment." + name + ";");
             code.AppendLineAt(5, "var " + currentMember + " = currentFragment." + name + ";");
@@ -500,7 +500,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         }
         else
         {
-            code.AppendLineAt(4, "if (local." + field + ".Kind != " + kind + ".Unchanged)");
+            code.AppendLineAt(4, "if (local." + field + ".Kind != " + kind + ".Keep)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(5, "var " + baseMember + " = baseFragment." + name + ";");
             code.AppendLineAt(5, "var " + currentMember + " = currentFragment." + name + ";");
@@ -691,10 +691,10 @@ internal static class SparseFragmentPatchRebaseEmitter
             + "<"
             + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
             + ">";
-        // Custom strategies observe every member edit (Set and Unset): the presence-aware
+        // Custom strategies observe every member edit (Set and Remove): the presence-aware
         // TryRebase(Optional<T>, ...) SPI can represent a missing rebased state, so unlike the
-        // previous T?-based SPI there is no need to route Unset through the scalar fallback.
-        code.AppendLineAt(indent, "if (local." + field + ".Kind != " + kind + ".Unchanged)");
+        // previous T?-based SPI there is no need to route Remove through the scalar fallback.
+        code.AppendLineAt(indent, "if (local." + field + ".Kind != " + kind + ".Keep)");
         code.AppendLineAt(indent, "{");
         code.AppendLineAt(indent + 1, "var " + baseMember + " = baseFragment." + name + ";");
         code.AppendLineAt(indent + 1, "var " + currentMember + " = currentFragment." + name + ";");
@@ -739,7 +739,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(indent + 3, "}");
         code.AppendLineAt(indent + 3, "else");
         code.AppendLineAt(indent + 3, "{");
-        code.AppendLineAt(indent + 4, "result." + field + " = " + operationType + ".Unset;");
+        code.AppendLineAt(indent + 4, "result." + field + " = " + operationType + ".Remove;");
         code.AppendLineAt(indent + 3, "}");
         code.AppendLineAt(indent + 2, "}");
         code.AppendLineAt(indent + 1, "}");

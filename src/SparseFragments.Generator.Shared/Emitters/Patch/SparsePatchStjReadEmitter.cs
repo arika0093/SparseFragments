@@ -250,7 +250,7 @@ internal static class SparsePatchStjReadEmitter
         );
         code.AppendLineAt(
             5,
-            "__kind = reader.ValueTextEquals(\"unset\") ? (byte)1 : reader.ValueTextEquals(\"set\") ? (byte)2 : (byte)3;"
+            "__kind = reader.ValueTextEquals(\"remove\") ? (byte)1 : reader.ValueTextEquals(\"set\") ? (byte)2 : (byte)3;"
         );
         code.AppendLineAt(5, "if (__kind == 3) __unknownKind = reader.GetString();");
         code.AppendLineAt(4, "}");
@@ -287,9 +287,9 @@ internal static class SparsePatchStjReadEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset whole must not have a value.\");"
+            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Remove whole must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<Fragment?>.Unset;");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<Fragment?>.Remove;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (__kind == 2)");
         code.AppendLineAt(3, "{");
@@ -364,7 +364,7 @@ internal static class SparsePatchStjReadEmitter
             );
             code.AppendLineAt(
                 5,
-                "__kind = reader.ValueTextEquals(\"unset\") ? (byte)1 : reader.ValueTextEquals(\"set\") ? (byte)2 : (byte)3;"
+                "__kind = reader.ValueTextEquals(\"remove\") ? (byte)1 : reader.ValueTextEquals(\"set\") ? (byte)2 : (byte)3;"
             );
             code.AppendLineAt(5, "if (__kind == 3) __unknownKind = reader.GetString();");
             code.AppendLineAt(4, "}");
@@ -395,9 +395,9 @@ internal static class SparsePatchStjReadEmitter
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
                 4,
-                "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset must not have a value.\");"
+                "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Remove must not have a value.\");"
             );
-            code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + vt + ">.Unset;");
+            code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + vt + ">.Remove;");
             code.AppendLineAt(3, "}");
             code.AppendLineAt(3, "if (__kind == 2)");
             code.AppendLineAt(3, "{");

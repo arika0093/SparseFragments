@@ -46,7 +46,7 @@ public sealed class PatchChangeSetStjTests
     }
 
     [Test]
-    public void ScalarSetUnsetNullRoundTrip()
+    public void ScalarSetRemoveNullRoundTrip()
     {
         var set = new Settings.Patch { Label = "Bob" };
         RoundTrip(set).Label.Value.ShouldBe("Bob");
@@ -57,8 +57,8 @@ public sealed class PatchChangeSetStjTests
         backNull.Label.Value.ShouldBeNull();
 
         var unset = new Settings.Patch();
-        unset.Label = FragmentOperation<string?>.Unset;
-        RoundTrip(unset).Label.Kind.ShouldBe(FragmentOperationKind.Unset);
+        unset.Label = FragmentOperation<string?>.Remove;
+        RoundTrip(unset).Label.Kind.ShouldBe(FragmentOperationKind.Remove);
 
         var retry = new Settings.Patch { RetryCount = 7 };
         RoundTrip(retry).RetryCount.Value.ShouldBe(7);
@@ -92,7 +92,7 @@ public sealed class PatchChangeSetStjTests
         RoundTrip(wholeNull).Apply(value).Value.ShouldBeNull();
 
         var wholeUnset = new Settings.Patch();
-        wholeUnset.Unset();
+        wholeUnset.Remove();
         RoundTrip(wholeUnset).Apply(value).IsPresent.ShouldBeFalse();
     }
 
@@ -113,7 +113,7 @@ public sealed class PatchChangeSetStjTests
         backNull.Apply(basis).Value!.Nested.Value.ShouldBeNull();
 
         var unset = new Settings.Patch();
-        unset.Nested.Unset();
+        unset.Nested.Remove();
         RoundTrip(unset).Apply(basis).Value!.Nested.IsPresent.ShouldBeFalse();
     }
 
@@ -175,7 +175,7 @@ public sealed class PatchChangeSetStjTests
         RoundTrip(whole).Apply(b0).Value!.Items.Value!.Single().Id.ShouldBe("z");
 
         var unset = new KeyedServerHolder.Patch();
-        unset.Items.Unset();
+        unset.Items.Remove();
         RoundTrip(unset).Apply(b0).Value!.Items.IsPresent.ShouldBeFalse();
     }
 
@@ -337,7 +337,7 @@ public sealed class PatchChangeSetStjTests
     public void MalformedJsonFails()
     {
         Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.Patch>("""{"Nope":{"kind":"unset"}}""")
+            JsonSerializer.Deserialize<Settings.Patch>("""{"Nope":{"kind":"remove"}}""")
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<Settings.Patch>("""{"Label":{"kind":"bogus"}}""")
@@ -346,7 +346,10 @@ public sealed class PatchChangeSetStjTests
             JsonSerializer.Deserialize<Settings.Patch>("""{"Label":{"kind":"set"}}""")
         );
         Should.Throw<JsonException>(() =>
-            JsonSerializer.Deserialize<Settings.Patch>("""{"Label":{"kind":"unset","value":1}}""")
+            JsonSerializer.Deserialize<Settings.Patch>("""{"Label":{"kind":"remove","value":1}}""")
+        );
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<Settings.Patch>("""{"Label":{"kind":"unset"}}""")
         );
         Should.Throw<JsonException>(() =>
             JsonSerializer.Deserialize<Settings.Patch>("""{"$whole":{"kind":"set"}}""")

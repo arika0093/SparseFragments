@@ -23,20 +23,20 @@ public enum NullPresence
 public enum PatchKind
 {
     /// <summary>Leave the member unchanged.</summary>
-    Unchanged,
+    Keep,
 
     /// <summary>Set the member to the edited value.</summary>
     Set,
 
     /// <summary>Remove the member contribution.</summary>
-    Unset,
+    Remove,
 }
 
 /// <summary>Mutation selector for nullable patch members.</summary>
 public enum NullPatchKind
 {
     /// <summary>Leave the member unchanged.</summary>
-    Unchanged,
+    Keep,
 
     /// <summary>Set the member to the edited value.</summary>
     Set,
@@ -45,20 +45,20 @@ public enum NullPatchKind
     SetNull,
 
     /// <summary>Remove the member contribution.</summary>
-    Unset,
+    Remove,
 }
 
 /// <summary>Mutation selector for the nested patch member.</summary>
 public enum NestedPatchKind
 {
     /// <summary>Leave the nested member unchanged.</summary>
-    Unchanged,
+    Keep,
 
     /// <summary>Set the nested member to an explicit null.</summary>
     SetNull,
 
     /// <summary>Remove the nested member contribution.</summary>
-    Unset,
+    Remove,
 
     /// <summary>Edit nested members below.</summary>
     Set,
@@ -234,15 +234,15 @@ public sealed class PatchEditState
     public static PatchEditState Defaults() =>
         new()
         {
-            EnabledOp = PatchKind.Unchanged,
-            RetryOp = PatchKind.Unset,
+            EnabledOp = PatchKind.Keep,
+            RetryOp = PatchKind.Remove,
             LabelOp = NullPatchKind.Set,
             LabelValue = "patched!",
             NestedOp = NestedPatchKind.Set,
-            HostOp = PatchKind.Unset,
+            HostOp = PatchKind.Remove,
             PortOp = PatchKind.Set,
             PortValue = 9000,
-            PluginsOp = PatchKind.Unchanged,
+            PluginsOp = PatchKind.Keep,
         };
 
     /// <summary>Builds the typed patch from the edited operations.</summary>
@@ -253,18 +253,18 @@ public sealed class PatchEditState
         {
             patch.Enabled = FragmentOperation<bool>.Set(EnabledValue);
         }
-        else if (EnabledOp == PatchKind.Unset)
+        else if (EnabledOp == PatchKind.Remove)
         {
-            patch.Enabled = FragmentOperation<bool>.Unset;
+            patch.Enabled = FragmentOperation<bool>.Remove;
         }
 
         if (RetryOp == PatchKind.Set)
         {
             patch.RetryCount = FragmentOperation<int>.Set(RetryValue);
         }
-        else if (RetryOp == PatchKind.Unset)
+        else if (RetryOp == PatchKind.Remove)
         {
-            patch.RetryCount = FragmentOperation<int>.Unset;
+            patch.RetryCount = FragmentOperation<int>.Remove;
         }
 
         if (LabelOp == NullPatchKind.Set)
@@ -275,18 +275,18 @@ public sealed class PatchEditState
         {
             patch.Label = FragmentOperation<string?>.Set(null);
         }
-        else if (LabelOp == NullPatchKind.Unset)
+        else if (LabelOp == NullPatchKind.Remove)
         {
-            patch.Label = FragmentOperation<string?>.Unset;
+            patch.Label = FragmentOperation<string?>.Remove;
         }
 
         if (NestedOp == NestedPatchKind.SetNull)
         {
             patch.Nested.SetNull();
         }
-        else if (NestedOp == NestedPatchKind.Unset)
+        else if (NestedOp == NestedPatchKind.Remove)
         {
-            patch.Nested.Unset();
+            patch.Nested.Remove();
         }
         else if (NestedOp == NestedPatchKind.Set)
         {
@@ -294,18 +294,18 @@ public sealed class PatchEditState
             {
                 patch.Nested.Host = FragmentOperation<string>.Set(HostValue);
             }
-            else if (HostOp == PatchKind.Unset)
+            else if (HostOp == PatchKind.Remove)
             {
-                patch.Nested.Host = FragmentOperation<string>.Unset;
+                patch.Nested.Host = FragmentOperation<string>.Remove;
             }
 
             if (PortOp == PatchKind.Set)
             {
                 patch.Nested.Port = FragmentOperation<int>.Set(PortValue);
             }
-            else if (PortOp == PatchKind.Unset)
+            else if (PortOp == PatchKind.Remove)
             {
-                patch.Nested.Port = FragmentOperation<int>.Unset;
+                patch.Nested.Port = FragmentOperation<int>.Remove;
             }
         }
 
@@ -315,9 +315,9 @@ public sealed class PatchEditState
                 FragmentEditState.ParsePlugins(PluginsText)
             );
         }
-        else if (PluginsOp == PatchKind.Unset)
+        else if (PluginsOp == PatchKind.Remove)
         {
-            patch.Plugins = FragmentOperation<IReadOnlyList<string>>.Unset;
+            patch.Plugins = FragmentOperation<IReadOnlyList<string>>.Remove;
         }
 
         return patch;

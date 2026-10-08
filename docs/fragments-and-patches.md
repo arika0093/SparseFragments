@@ -75,7 +75,7 @@ var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
 
 ## Apply Explicit Edits with Patch
 
-`new X.Patch { ... }` expresses edits directly: assigning a value sets it (including an explicit `null`), `Unset()` drops the contribution, and untouched members stay unchanged. Apply a patch with `Apply`. A Patch is mutable and baseline-free: it carries desired operations without saying which state they were derived from.
+`new X.Patch { ... }` expresses edits directly: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch with `Apply`. A Patch is mutable and baseline-free: it carries desired operations without saying which state they were derived from. Patch JSON encodes this operation with the `"remove"` kind.
 
 <!-- sample: core-patch -->
 ```csharp
@@ -89,7 +89,7 @@ var updated = basis.Apply(update);
 // updated.RetryCount.Value == 1
 
 var remove = new CounterSettings.Patch();
-remove.RetryCount.Unset();
+remove.RetryCount.Remove();
 // !remove.Apply(basis).Value!.RetryCount.IsPresent
 ```
 <!-- /sample -->
@@ -310,7 +310,7 @@ The top-level payload carries the `version`; nested changes omit it. Payload DTO
 | Combine lower/higher layers | `lower.Merge(higher)` | Fragment |
 | Compare two ordinary models | `T.Fragment.Diff(before, after)` | Fragment diff |
 | Replay a Fragment diff | `fragment.ApplyChanges(changes)` | Fragment |
-| Express explicit set/null/unset edits | `new T.Patch { ... }` | Patch |
+| Express explicit set/null/remove edits | `new T.Patch { ... }` | Patch |
 | Compose local operations | `patch.Compose(next)` | Patch |
 | Compare sparse states exactly | `T.ChangeSet.Between(before, after)` | ChangeSet |
 | Compare ordinary present models | `beforeModel.CreateChangeSet(afterModel)` | ChangeSet |
@@ -327,4 +327,4 @@ The top-level payload carries the `version`; nested changes omit it. Payload DTO
 | Reconcile against newer state | `changes.RebaseOnto(current)` | ChangeSet + conflicts |
 | Apply Patch operations | `fragment.Apply(patch)` | Fragment |
 
-`Merge` composes contributions; `ApplyChanges` replays a `Diff` Fragment; `Apply` executes `Patch` operations. They are not interchangeable: `ApplyChanges` never unsets a member that the diff did not carry, while a `Patch` explicitly can.
+`Merge` composes contributions; `ApplyChanges` replays a `Diff` Fragment; `Apply` executes `Patch` operations. They are not interchangeable: `ApplyChanges` never removes a member that the diff did not carry, while a `Patch` explicitly can.

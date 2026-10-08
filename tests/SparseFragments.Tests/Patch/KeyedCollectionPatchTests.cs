@@ -320,7 +320,7 @@ public sealed class KeyedCollectionPatchTests
         applied.Value!.Items.Value!.Select(s => s.Id).ShouldBe(["z"]);
 
         var unsetPatch = new KeyedServerHolder.Patch();
-        unsetPatch.Items.Unset();
+        unsetPatch.Items.Remove();
         unsetPatch.Apply(before).Value!.Items.IsPresent.ShouldBeFalse();
     }
 

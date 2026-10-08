@@ -61,7 +61,7 @@ public static class NetStandardConsumerCheck
         );
         Require(merged.Options["theme"] == "dark", "merge keeps Replace dictionary");
 
-        // Typed patch: present null, nested Set/Unset/SetNull.
+        // Typed patch: present null, nested Set/Remove/SetNull.
         var patch = new NetStandardSettings.Patch { Label = (string?)null };
         patch.Child.Count = 9;
         var result = original.Apply(patch);
@@ -70,8 +70,8 @@ public static class NetStandardConsumerCheck
         Require(result.Child.Value.Host.Value == "keep", "typed patch keeps unspecified members");
 
         var remove = new NetStandardSettings.Patch();
-        remove.Child.Unset();
-        Require(!original.Apply(remove).Child.IsPresent, "typed nested Unset");
+        remove.Child.Remove();
+        Require(!original.Apply(remove).Child.IsPresent, "typed nested Remove");
         var toNull = new NetStandardSettings.Patch();
         toNull.Child.SetNull();
         var nulled = original.Apply(toNull);

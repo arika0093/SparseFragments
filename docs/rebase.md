@@ -168,7 +168,7 @@ Clean paths may remain in the rebased ChangeSet while conflicts are reported sep
 A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own three-way reconciliation for the member:
 
 * it receives `Optional<T>` for the edit base, the desired state, and the current state, with the missing/present distinction preserved end to end;
-* a present result maps to a `Set` patch operation, a missing result maps to `Unset`, and a result equal to the current state stays `Unchanged` (a semantic no-op);
+* a present result maps to a `Set` patch operation, a missing result maps to `Remove`, and a result equal to the current state stays `Keep` (a semantic no-op);
 * the default implementation succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
 

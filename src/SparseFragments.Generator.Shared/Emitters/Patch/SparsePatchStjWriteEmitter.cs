@@ -23,17 +23,17 @@ internal static class SparsePatchStjWriteEmitter
         // Whole.
         code.AppendLineAt(
             3,
-            "if (value.__sparse_whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)"
+            "if (value.__sparse_whole.Kind != " + runtime + "FragmentOperationKind.Keep)"
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "writer.WritePropertyName(\"$whole\");");
         code.AppendLineAt(4, "writer.WriteStartObject();");
         code.AppendLineAt(
             4,
-            "if (value.__sparse_whole.Kind == " + runtime + "FragmentOperationKind.Unset)"
+            "if (value.__sparse_whole.Kind == " + runtime + "FragmentOperationKind.Remove)"
         );
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "writer.WriteString(\"kind\", \"unset\");");
+        code.AppendLineAt(5, "writer.WriteString(\"kind\", \"remove\");");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
@@ -65,17 +65,17 @@ internal static class SparsePatchStjWriteEmitter
                         + field
                         + ".Kind != "
                         + runtime
-                        + "FragmentOperationKind.Unchanged)"
+                        + "FragmentOperationKind.Keep)"
                 );
                 code.AppendLineAt(3, "{");
                 code.AppendLineAt(4, "writer.WritePropertyName(" + lit + ");");
                 code.AppendLineAt(4, "writer.WriteStartObject();");
                 code.AppendLineAt(
                     4,
-                    "if (value." + field + ".Kind == " + runtime + "FragmentOperationKind.Unset)"
+                    "if (value." + field + ".Kind == " + runtime + "FragmentOperationKind.Remove)"
                 );
                 code.AppendLineAt(4, "{");
-                code.AppendLineAt(5, "writer.WriteString(\"kind\", \"unset\");");
+                code.AppendLineAt(5, "writer.WriteString(\"kind\", \"remove\");");
                 code.AppendLineAt(4, "}");
                 code.AppendLineAt(4, "else");
                 code.AppendLineAt(4, "{");

@@ -7,19 +7,19 @@ public partial class PatchOperationNames
 {
     public int Set { get; set; }
     public int SetNull { get; set; }
-    public int Unset { get; set; }
+    public int Remove { get; set; }
 }
 
 public sealed class FragmentPatchTests
 {
     [Test]
-    public void ScalarOperationsPreserveUnchangedAndDistinguishNullFromUnset()
+    public void ScalarOperationsPreserveUnchangedAndDistinguishNullFromRemoval()
     {
         var original = Settings.Fragment.From(new Settings { Label = "before", RetryCount = 8 });
         var patch = new Settings.Patch
         {
             Label = (string?)null,
-            Enabled = FragmentOperation<bool>.Unset,
+            Enabled = FragmentOperation<bool>.Remove,
         };
         var result = original.Apply(patch);
         result.Label.IsPresent.ShouldBeTrue();
@@ -53,7 +53,7 @@ public sealed class FragmentPatchTests
         presentNull.Child.IsPresent.ShouldBeTrue();
         presentNull.Child.Value.ShouldBeNull();
         patch = new BuilderParent.Patch();
-        patch.Child.Unset();
+        patch.Child.Remove();
         original.Apply(patch).Child.IsPresent.ShouldBeFalse();
     }
 
@@ -68,7 +68,7 @@ public sealed class FragmentPatchTests
         patch = new Settings.Patch();
         patch.Nested.Set(new Nested { Host = "replacement", Port = 42 });
         result.Apply(patch).Nested.Value!.Host.Value.ShouldBe("replacement");
-        patch.Nested = FragmentOperation<Nested.Fragment?>.Unset;
+        patch.Nested = FragmentOperation<Nested.Fragment?>.Remove;
         result.Apply(patch).Nested.IsPresent.ShouldBeFalse();
     }
 
@@ -96,12 +96,12 @@ public sealed class FragmentPatchTests
         {
             Set = 7,
             SetNull = 8,
-            Unset = 9,
+            Remove = 9,
         };
         var fragment = new PatchOperationNames.Fragment().Apply(patch);
         fragment.Set.Value.ShouldBe(7);
         fragment.SetNull.Value.ShouldBe(8);
-        fragment.Unset.Value.ShouldBe(9);
+        fragment.Remove.Value.ShouldBe(9);
         var whole = new PatchOperationNames.Patch();
         whole.SparseIsEmpty.ShouldBeTrue();
         whole.SparseSet(new PatchOperationNames { Set = 11 });
@@ -110,7 +110,7 @@ public sealed class FragmentPatchTests
         var nullResult = whole.Apply(Optional<PatchOperationNames.Fragment?>.Present(fragment));
         nullResult.IsPresent.ShouldBeTrue();
         nullResult.Value.ShouldBeNull();
-        whole.SparseUnset();
+        whole.SparseRemove();
         whole.Apply(nullResult).IsPresent.ShouldBeFalse();
     }
 

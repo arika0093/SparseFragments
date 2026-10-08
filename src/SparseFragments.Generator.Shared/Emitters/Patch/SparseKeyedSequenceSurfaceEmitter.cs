@@ -55,7 +55,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             "private global::System.Collections.Generic.List<" + keyType + ">? __order;"
         );
         SparseKeyedCollectionEmitter.EmitKeyOf(code, member, elementType, 3);
-        code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Unchanged");
+        code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Keep");
         code.AppendLineAt(
             4,
             "&& (__added is null || __added.Count == 0) && (__removed is null || __removed.Count == 0)"
@@ -71,9 +71,9 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         code.AppendLineAt(4, "__whole = " + operation + ".Set(value);");
         code.AppendLineAt(4, "__added = null; __removed = null; __edited = null; __order = null;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "public void Unset()");
+        code.AppendLineAt(3, "public void Remove()");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "__whole = " + operation + ".Unset;");
+        code.AppendLineAt(4, "__whole = " + operation + ".Remove;");
         code.AppendLineAt(4, "__added = null; __removed = null; __edited = null; __order = null;");
         code.AppendLineAt(3, "}");
         if (!SparseKeyedCollectionEmitter.IsInterfaceMember(member))
@@ -97,7 +97,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "if (__whole.Kind != "
                 + kind
-                + ".Unchanged) throw new global::System.InvalidOperationException(\"Cannot apply '\" + operation + \"' when the whole collection is set. Clear the whole operation first.\");"
+                + ".Keep) throw new global::System.InvalidOperationException(\"Cannot apply '\" + operation + \"' when the whole collection is set. Clear the whole operation first.\");"
         );
         code.AppendLineAt(3, "}");
         // Add.

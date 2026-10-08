@@ -74,7 +74,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
         );
         code.AppendLineAt(
             4,
-            "if (local.__whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)"
+            "if (local.__whole.Kind != " + runtime + "FragmentOperationKind.Keep)"
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(

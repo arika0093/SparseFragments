@@ -70,7 +70,7 @@ internal static class SparseFragmentPatchCoreEmitter
         }
     }
 
-    /// <summary>Emits whole-operation field, empty helpers, Set/Unset, and implicit conversion.</summary>
+    /// <summary>Emits whole-operation field, empty helpers, Set/Remove, and implicit conversion.</summary>
     public static void AppendPatchWholeOperations(
         SharedIndentedBuilder code,
         string modelType,
@@ -105,7 +105,7 @@ internal static class SparseFragmentPatchCoreEmitter
                 + dialect.WholeFieldName
                 + ".Kind == "
                 + kind
-                + ".Unchanged && "
+                + ".Keep && "
                 + dialect.MembersEmptyName
                 + ";"
         );
@@ -135,11 +135,11 @@ internal static class SparseFragmentPatchCoreEmitter
             2,
             "public void "
                 + wholePrefix
-                + "Unset() => "
+                + "Remove() => "
                 + dialect.WholeFieldName
                 + " = "
                 + operation
-                + "<Fragment?>.Unset;"
+                + "<Fragment?>.Remove;"
         );
         code.AppendLineAt(2, "internal bool __SparseIsEmpty() => " + wholePrefix + "IsEmpty;");
         code.AppendLineAt(
@@ -147,7 +147,7 @@ internal static class SparseFragmentPatchCoreEmitter
             "internal void __SparseSet(" + modelType + " value) => " + wholePrefix + "Set(value);"
         );
         code.AppendLineAt(2, "internal void __SparseSetNull() => " + wholePrefix + "SetNull();");
-        code.AppendLineAt(2, "internal void __SparseUnset() => " + wholePrefix + "Unset();");
+        code.AppendLineAt(2, "internal void __SparseRemove() => " + wholePrefix + "Remove();");
 
         code.AppendLineAt(
             2,

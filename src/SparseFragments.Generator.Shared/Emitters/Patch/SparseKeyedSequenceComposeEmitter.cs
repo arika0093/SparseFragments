@@ -24,18 +24,18 @@ internal static class SparseKeyedSequenceComposeEmitter
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
         );
         code.AppendLineAt(4, "var result = new " + patchName + "();");
-        code.AppendLineAt(4, "if (next.__whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(4, "if (next.__whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "result.__whole = next.__whole;");
         code.AppendLineAt(5, "return result;");
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
                 + kind
-                + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");"
+                + ".Remove) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Remove.\");"
         );
         code.AppendLineAt(
             5,

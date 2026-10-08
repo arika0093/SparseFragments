@@ -176,12 +176,12 @@ public sealed class ListClassPatchTests
     }
 
     [Test]
-    public void PatchUnsetDropsContribution()
+    public void PatchRemoveDropsContribution()
     {
         var original = ClassListHolder.Fragment.From(Model(Item("a")));
         var patch = new ClassListHolder.Patch
         {
-            Items = FragmentOperation<List<ListChildItem>>.Unset,
+            Items = FragmentOperation<List<ListChildItem>>.Remove,
         };
 
         var result = original.Apply(patch);
@@ -191,7 +191,7 @@ public sealed class ListClassPatchTests
     }
 
     [Test]
-    public void NullableListDistinguishesNullFromUnsetAndEmpty()
+    public void NullableListDistinguishesNullFromRemoveAndEmpty()
     {
         var basis = NullableClassListHolder.Fragment.From(
             new NullableClassListHolder { Items = new List<ListChildItem> { Item("a") } }
@@ -207,7 +207,7 @@ public sealed class ListClassPatchTests
 
         var unset = new NullableClassListHolder.Patch
         {
-            Items = FragmentOperation<List<ListChildItem>?>.Unset,
+            Items = FragmentOperation<List<ListChildItem>?>.Remove,
         };
         unset.Apply(Optional<NullableClassListHolder.Fragment?>.Present(nulled)).Value!.Items.IsPresent.ShouldBeFalse();
         nulled.Apply(unset).Items.IsPresent.ShouldBeFalse();

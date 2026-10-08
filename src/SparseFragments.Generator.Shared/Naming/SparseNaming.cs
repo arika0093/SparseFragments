@@ -48,7 +48,7 @@ internal static class SparseNaming
         var names = new HashSet<string>(memberNames);
         var prefix = new StringBuilder();
         while (
-            new[] { "Set", "SetNull", "Unset", "IsEmpty" }.Any(name =>
+            new[] { "Set", "SetNull", "Remove", "IsEmpty" }.Any(name =>
                 names.Contains(prefix.ToString() + name)
             )
         )

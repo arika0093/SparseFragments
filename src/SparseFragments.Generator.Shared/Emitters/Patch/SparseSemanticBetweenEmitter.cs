@@ -68,7 +68,7 @@ internal static class SparseSemanticBetweenEmitter
                 + dialect.WholeOperationType
                 + ".Set(after.Value) : "
                 + dialect.WholeOperationType
-                + ".Unset;"
+                + ".Remove;"
         );
         code.AppendLineAt(4, "return patch;");
         code.AppendLineAt(3, "}");
@@ -112,7 +112,7 @@ internal static class SparseSemanticBetweenEmitter
                         + name
                         + ".IsPresent ? "
                         + operation
-                        + ".Unset : default("
+                        + ".Remove : default("
                         + operation
                         + "))"
                 );

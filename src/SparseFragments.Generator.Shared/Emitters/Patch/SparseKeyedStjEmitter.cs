@@ -31,13 +31,13 @@ internal static class SparseKeyedStjEmitter
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "writer.WriteStartObject();");
-        code.AppendLineAt(4, "if (__whole.Kind != " + runtime + "FragmentOperationKind.Unchanged)");
+        code.AppendLineAt(4, "if (__whole.Kind != " + runtime + "FragmentOperationKind.Keep)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "writer.WritePropertyName(\"$whole\");");
         code.AppendLineAt(5, "writer.WriteStartObject();");
-        code.AppendLineAt(5, "if (__whole.Kind == " + runtime + "FragmentOperationKind.Unset)");
+        code.AppendLineAt(5, "if (__whole.Kind == " + runtime + "FragmentOperationKind.Remove)");
         code.AppendLineAt(5, "{");
-        code.AppendLineAt(6, "writer.WriteString(\"kind\", \"unset\");");
+        code.AppendLineAt(6, "writer.WriteString(\"kind\", \"remove\");");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
@@ -436,7 +436,7 @@ internal static class SparseKeyedStjEmitter
             5,
             "if (__whole.Kind == "
                 + runtime
-                + "FragmentOperationKind.Unset) { result.Unset(); return result; }"
+                + "FragmentOperationKind.Remove) { result.Remove(); return result; }"
         );
         code.AppendLineAt(
             5,
@@ -594,13 +594,13 @@ internal static class SparseKeyedStjEmitter
             4,
             "if (__kind is null) throw new global::System.Text.Json.JsonException(\"Missing whole kind.\");"
         );
-        code.AppendLineAt(4, "if (__kind == \"unset\")");
+        code.AppendLineAt(4, "if (__kind == \"remove\")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Unset whole must not have a value.\");"
+            "if (__hasValue) throw new global::System.Text.Json.JsonException(\"Remove whole must not have a value.\");"
         );
-        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + listType + ">.Unset;");
+        code.AppendLineAt(4, "return " + runtime + "FragmentOperation<" + listType + ">.Remove;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__kind == \"set\")");
         code.AppendLineAt(4, "{");

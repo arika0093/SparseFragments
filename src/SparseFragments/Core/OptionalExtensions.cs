@@ -14,9 +14,9 @@ public static class OptionalExtensions
     public static void Set<T>(this ref Optional<T> target, T? value) =>
         target = Optional<T>.Present(value);
 
-    /// <summary>Makes the referenced member missing.</summary>
+    /// <summary>Removes the referenced member value, making it missing.</summary>
     /// <param name="target">The member storage to mutate.</param>
-    public static void Unset<T>(this ref Optional<T> target) => target = Optional<T>.Missing;
+    public static void Remove<T>(this ref Optional<T> target) => target = Optional<T>.Missing;
 
     /// <summary>Copies the presence and value of another member.</summary>
     /// <param name="target">The member storage to mutate.</param>

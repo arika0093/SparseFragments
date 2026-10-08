@@ -121,7 +121,7 @@ public sealed class AotFragmentCoreTests
     }
 
     [Test]
-    public async Task PatchUnsetDropsContribution()
+    public async Task PatchRemoveDropsContribution()
     {
         var original = AotWidget.Fragment.From(
             new AotWidget
@@ -131,7 +131,7 @@ public sealed class AotFragmentCoreTests
             }
         );
         var remove = new AotWidget.Patch();
-        remove.Nested.Unset();
+        remove.Nested.Remove();
 
         await Assert.That(!original.Apply(remove).Nested.IsPresent).IsTrue();
     }

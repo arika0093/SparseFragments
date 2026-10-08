@@ -20,7 +20,7 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "if (__whole.Kind != " + kind + ".Unchanged) return __whole.Apply(current);"
+            "if (__whole.Kind != " + kind + ".Keep) return __whole.Apply(current);"
         );
         code.AppendLineAt(4, "if (IsEmpty) return current;");
         code.AppendLineAt(
@@ -236,7 +236,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + operation
                 + ".Set(after.Value) : "
                 + operation
-                + ".Unset;"
+                + ".Remove;"
         );
         code.AppendLineAt(5, "return patch;");
         code.AppendLineAt(4, "}");

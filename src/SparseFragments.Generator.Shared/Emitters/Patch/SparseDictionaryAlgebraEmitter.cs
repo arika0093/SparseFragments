@@ -29,15 +29,15 @@ internal static class SparseDictionaryAlgebraEmitter
             4,
             "if (next.__whole.Kind != "
                 + kind
-                + ".Unchanged) { result.__whole = next.__whole; return result; }"
+                + ".Keep) { result.__whole = next.__whole; return result; }"
         );
-        code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(4, "if (__whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
             "if (__whole.Kind == "
                 + kind
-                + ".Unset) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Unset.\");"
+                + ".Remove) throw new global::System.InvalidOperationException(\"Cannot compose granular operations after a whole Remove.\");"
         );
         code.AppendLineAt(
             4,
@@ -263,7 +263,7 @@ internal static class SparseDictionaryAlgebraEmitter
                 + resultType
                 + "(result, conflicts); }"
         );
-        code.AppendLineAt(4, "if (local.__whole.Kind != " + kind + ".Unchanged)");
+        code.AppendLineAt(4, "if (local.__whole.Kind != " + kind + ".Keep)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,

@@ -28,15 +28,15 @@ public sealed class PresenceMutationTests
     }
 
     [Test]
-    public void OptionalUnsetMakesMissing()
+    public void OptionalRemoveMakesMissing()
     {
         var present = Optional<int>.Present(42);
-        present.Unset();
+        present.Remove();
         present.IsPresent.ShouldBeFalse();
         present.ShouldBe(Optional<int>.Missing);
 
         var presentNull = Optional<string?>.Present(null);
-        presentNull.Unset();
+        presentNull.Remove();
         presentNull.ShouldBe(Optional<string?>.Missing);
     }
 
@@ -134,7 +134,7 @@ public sealed class PresenceMutationTests
         presentNull.Label.IsPresent.ShouldBeTrue();
         presentNull.Label.Value.ShouldBeNull();
 
-        builder.Label.Unset();
+        builder.Label.Remove();
         builder.Build().Label.IsPresent.ShouldBeFalse();
 
         builder.Label.CopyFrom(Optional<string?>.Present("copied"));
@@ -145,40 +145,40 @@ public sealed class PresenceMutationTests
     }
 
     [Test]
-    public void FragmentOperationSetUnsetAndSetUnchanged()
+    public void FragmentOperationSetRemoveAndKeep()
     {
-        FragmentOperation<int> valueOp = FragmentOperation<int>.Unchanged;
+        FragmentOperation<int> valueOp = FragmentOperation<int>.Keep;
         valueOp.Set(0);
         valueOp.Kind.ShouldBe(FragmentOperationKind.Set);
         valueOp.Value.ShouldBe(0);
 
-        FragmentOperation<string?> referenceOp = FragmentOperation<string?>.Unchanged;
+        FragmentOperation<string?> referenceOp = FragmentOperation<string?>.Keep;
         referenceOp.Set(null);
         referenceOp.Kind.ShouldBe(FragmentOperationKind.Set);
         referenceOp.Value.ShouldBeNull();
 
-        valueOp.Unset();
-        valueOp.Kind.ShouldBe(FragmentOperationKind.Unset);
+        valueOp.Remove();
+        valueOp.Kind.ShouldBe(FragmentOperationKind.Remove);
 
-        valueOp.SetUnchanged();
-        valueOp.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        valueOp.Keep();
+        valueOp.Kind.ShouldBe(FragmentOperationKind.Keep);
     }
 
     [Test]
     public void FragmentOperationCopyFromSameTypePreservesKindAndValue()
     {
-        FragmentOperation<int> target = FragmentOperation<int>.Unchanged;
+        FragmentOperation<int> target = FragmentOperation<int>.Keep;
         target.CopyFrom(FragmentOperation<int>.Set(0));
         target.Kind.ShouldBe(FragmentOperationKind.Set);
         target.Value.ShouldBe(0);
 
-        target.CopyFrom(FragmentOperation<int>.Unset);
-        target.Kind.ShouldBe(FragmentOperationKind.Unset);
+        target.CopyFrom(FragmentOperation<int>.Remove);
+        target.Kind.ShouldBe(FragmentOperationKind.Remove);
 
-        target.CopyFrom(FragmentOperation<int>.Unchanged);
-        target.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        target.CopyFrom(FragmentOperation<int>.Keep);
+        target.Kind.ShouldBe(FragmentOperationKind.Keep);
 
-        FragmentOperation<string?> referenceTarget = FragmentOperation<string?>.Unchanged;
+        FragmentOperation<string?> referenceTarget = FragmentOperation<string?>.Keep;
         referenceTarget.CopyFrom(FragmentOperation<string?>.Set(null));
         referenceTarget.Kind.ShouldBe(FragmentOperationKind.Set);
         referenceTarget.Value.ShouldBeNull();
@@ -187,22 +187,22 @@ public sealed class PresenceMutationTests
     [Test]
     public void FragmentOperationCopyFromConvertingInvokesConverterOnlyForSet()
     {
-        FragmentOperation<string> target = FragmentOperation<string>.Unchanged;
+        FragmentOperation<string> target = FragmentOperation<string>.Keep;
         target.CopyFrom(FragmentOperation<int>.Set(21), static value => (value * 2).ToString());
         target.Kind.ShouldBe(FragmentOperationKind.Set);
         target.Value.ShouldBe("42");
 
-        FragmentOperation<string> fromUnset = FragmentOperation<string>.Set("seed");
-        fromUnset.CopyFrom(
-            FragmentOperation<int>.Unset,
-            static _ => throw new InvalidOperationException("Converter must not run for Unset.")
+        FragmentOperation<string> fromRemove = FragmentOperation<string>.Set("seed");
+        fromRemove.CopyFrom(
+            FragmentOperation<int>.Remove,
+            static _ => throw new InvalidOperationException("Converter must not run for Remove.")
         );
-        fromUnset.Kind.ShouldBe(FragmentOperationKind.Unset);
+        fromRemove.Kind.ShouldBe(FragmentOperationKind.Remove);
 
         FragmentOperation<string> fromUnchanged = FragmentOperation<string>.Set("seed");
         var calls = 0;
         fromUnchanged.CopyFrom(
-            FragmentOperation<int>.Unchanged,
+            FragmentOperation<int>.Keep,
             value =>
             {
                 calls++;
@@ -210,10 +210,10 @@ public sealed class PresenceMutationTests
             }
         );
         calls.ShouldBe(0);
-        fromUnchanged.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        fromUnchanged.Kind.ShouldBe(FragmentOperationKind.Keep);
 
         // A null/default conversion result stays an explicit Set.
-        FragmentOperation<string?> nullResult = FragmentOperation<string?>.Unchanged;
+        FragmentOperation<string?> nullResult = FragmentOperation<string?>.Keep;
         nullResult.CopyFrom(FragmentOperation<int>.Set(0), static _ => (string?)null);
         nullResult.Kind.ShouldBe(FragmentOperationKind.Set);
         nullResult.Value.ShouldBeNull();
@@ -222,7 +222,7 @@ public sealed class PresenceMutationTests
     [Test]
     public void FragmentOperationCopyFromConvertingRejectsNullConverter()
     {
-        FragmentOperation<int> target = FragmentOperation<int>.Unchanged;
+        FragmentOperation<int> target = FragmentOperation<int>.Keep;
         Should.Throw<ArgumentNullException>(() =>
             target.CopyFrom(
                 FragmentOperation<int>.Set(1),
@@ -230,7 +230,7 @@ public sealed class PresenceMutationTests
             )
         );
         Should.Throw<ArgumentNullException>(() =>
-            target.CopyFrom(FragmentOperation<int>.Unset, (Func<int, int>)null!)
+            target.CopyFrom(FragmentOperation<int>.Remove, (Func<int, int>)null!)
         );
     }
 
@@ -247,11 +247,11 @@ public sealed class PresenceMutationTests
         patch.Label.Kind.ShouldBe(FragmentOperationKind.Set);
         patch.Label.Value.ShouldBeNull();
 
-        patch.Label.Unset();
-        patch.Label.Kind.ShouldBe(FragmentOperationKind.Unset);
+        patch.Label.Remove();
+        patch.Label.Kind.ShouldBe(FragmentOperationKind.Remove);
 
-        patch.Label.SetUnchanged();
-        patch.Label.Kind.ShouldBe(FragmentOperationKind.Unchanged);
+        patch.Label.Keep();
+        patch.Label.Kind.ShouldBe(FragmentOperationKind.Keep);
 
         patch.RetryCount.CopyFrom(FragmentOperation<int>.Set(9));
         patch.RetryCount.Kind.ShouldBe(FragmentOperationKind.Set);

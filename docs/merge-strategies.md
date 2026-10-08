@@ -91,7 +91,7 @@ public partial class Policy
 
 The contract rules:
 
-* **Presence-aware.** `Merge` and `TryRebase` receive `Optional<T>`: `Missing` never equals a present value, including a present `null` or `default`. A `TryRebase` result that is present becomes a `Set` patch operation; a missing result becomes `Unset`; a result equal to the current state stays `Unchanged` (a semantic no-op).
+* **Presence-aware.** `Merge` and `TryRebase` receive `Optional<T>`: `Missing` never equals a present value, including a present `null` or `default`. A `TryRebase` result that is present becomes a `Set` patch operation; a missing result becomes `Remove`; a result equal to the current state stays `Keep` (a semantic no-op).
 * **Strategy validity** (enforced at generation time, `SPF004`). The strategy type must derive from `FragmentMergeStrategy<TMember>` where `TMember` exactly matches the member type; it must be a non-`abstract`, non-generic `class`; and both the type and its parameterless constructor must be `public` or `internal`. It targets a member that is not a nested model.
 * **Lifetime / thread-safety.** Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
 * **Rebase default.** The default `TryRebase` succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a `CustomStrategy` conflict otherwise.

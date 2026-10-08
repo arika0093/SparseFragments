@@ -111,7 +111,7 @@ public sealed class SemanticBetweenEmitterTests
         );
         text.ShouldContain("if (before.IsPresent != after.IsPresent)");
         text.ShouldContain(
-            "patch.__sparse_whole = after.IsPresent ? global::SparseFragments.FragmentOperation<Fragment?>.Set(after.Value) : global::SparseFragments.FragmentOperation<Fragment?>.Unset;"
+            "patch.__sparse_whole = after.IsPresent ? global::SparseFragments.FragmentOperation<Fragment?>.Set(after.Value) : global::SparseFragments.FragmentOperation<Fragment?>.Remove;"
         );
         text.ShouldContain("if (!before.IsPresent) return patch;");
         text.ShouldContain(
@@ -135,7 +135,7 @@ public sealed class SemanticBetweenEmitterTests
         var text = Emit(members, ProductDialect());
         text.ShouldContain("patch.__sparse_patch_member_0 = !afterFragment.Name.IsPresent");
         text.ShouldContain(
-            "global::SparseFragments.FragmentOperation<global::System.String?>.Unset"
+            "global::SparseFragments.FragmentOperation<global::System.String?>.Remove"
         );
         text.ShouldContain("AreEqual(beforeFragment.Name.Value, afterFragment.Name.Value)");
         text.ShouldContain(
