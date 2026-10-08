@@ -39,6 +39,7 @@ internal static class SparseDictionaryPatchEmitter
             hasPatch,
             editedValueType
         );
+        SparseDictionaryRemovalIndexEmitter.Emit(code, keyType, comparer);
         EmitDictionaryApply(
             code,
             member,
@@ -137,6 +138,7 @@ internal static class SparseDictionaryPatchEmitter
             3,
             "private global::System.Collections.Generic.List<" + keyType + ">? __removed;"
         );
+        code.AppendLineAt(3, "private int[]? __removedLookup;");
         code.AppendLineAt(
             3,
             hasPatch
@@ -163,14 +165,16 @@ internal static class SparseDictionaryPatchEmitter
             4,
             "__whole = "
                 + operation
-                + ".Set(value); __set = null; __removed = null; __edited = null;"
+                + ".Set(value); __set = null; __removed = null; __removedLookup = null; __edited = null;"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "public void Remove()");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "__whole = " + operation + ".Remove; __set = null; __removed = null; __edited = null;"
+            "__whole = "
+                + operation
+                + ".Remove; __set = null; __removed = null; __removedLookup = null; __edited = null;"
         );
         code.AppendLineAt(3, "}");
         if (!SparseKeyedCollectionEmitter.IsInterfaceMember(member))
@@ -200,10 +204,7 @@ internal static class SparseDictionaryPatchEmitter
         code.AppendLineAt(3, "public void SetEntry(" + keyType + " key, " + valueType + " value)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "EnsureGranular(\"SetEntry\");");
-        code.AppendLineAt(
-            4,
-            "if (__removed is not null) __removed.RemoveAll(k => " + comparer + ".Equals(k, key));"
-        );
+        code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
         code.AppendLineAt(4, "if (__edited is not null) __edited.Remove(key);");
         code.AppendLineAt(
             4,
@@ -226,13 +227,7 @@ internal static class SparseDictionaryPatchEmitter
             4,
             "__removed ??= new global::System.Collections.Generic.List<" + keyType + ">();"
         );
-        code.AppendLineAt(
-            4,
-            "foreach (var existing in __removed) if ("
-                + comparer
-                + ".Equals(existing, key)) return;"
-        );
-        code.AppendLineAt(4, "__removed.Add(key);");
+        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer);
         code.AppendLineAt(3, "}");
         if (hasPatch)
         {

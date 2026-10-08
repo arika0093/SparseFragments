@@ -120,6 +120,11 @@ public class DictionaryRemovalBuilderBenchmarks
             scalar.Scores.RemoveEntry(key);
             structural.Servers.RemoveEntry(key);
         }
+        foreach (var key in keys)
+        {
+            RequireRemovedRejection(() => scalar.Scores.UpdateEntry(key, 0));
+            RequireRemovedRejection(() => structural.Servers.Edit(key));
+        }
         scalar.Scores.SetEntry(keys[0], 0);
         structural.Servers.SetEntry(keys[0], servers[keys[0]]);
         scalar.Scores.RemoveEntry(keys[0]);
@@ -143,6 +148,19 @@ public class DictionaryRemovalBuilderBenchmarks
                 "A cancelled removal must be insertable again after other removals are indexed."
             );
         }
+    }
+
+    private static void RequireRemovedRejection(Action operation)
+    {
+        try
+        {
+            operation();
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+        throw new InvalidOperationException("A removed dictionary entry must reject edits.");
     }
 
     [Benchmark]

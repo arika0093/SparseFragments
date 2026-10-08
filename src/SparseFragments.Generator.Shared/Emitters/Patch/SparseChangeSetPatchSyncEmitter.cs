@@ -128,6 +128,25 @@ internal static class SparseChangeSetPatchSyncEmitter
         }
         code.AppendLineAt(3, "return patch;");
         code.AppendLineAt(2, "}");
+        foreach (var member in members)
+        {
+            if (!IsDict(member))
+            {
+                continue;
+            }
+            code.AppendLineAt(2, "private int __SparseRemovalCount" + member.Id + "()");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "int count = 0;");
+            code.AppendLineAt(3, "if (" + KeyedItems(member) + " is not null)");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "foreach (var item in " + KeyedItems(member) + ")");
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(5, "if (item.IsRemoved) count++;");
+            code.AppendLineAt(4, "}");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "return count;");
+            code.AppendLineAt(2, "}");
+        }
     }
 
     internal static void AppendInvert(
@@ -346,6 +365,10 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "var __coll" + id + " = new " + coll + "();");
+        if (!isKeyed)
+        {
+            code.AppendLineAt(5, "bool __reservedRemovals" + id + " = false;");
+        }
         code.AppendLineAt(
             5,
             "if ("
@@ -366,7 +389,19 @@ internal static class SparseChangeSetPatchSyncEmitter
         if (isKeyed)
             code.AppendLineAt(6, "{ __coll" + id + ".Remove(__it.Key); }");
         else
-            code.AppendLineAt(6, "{ __coll" + id + ".RemoveEntry(__it.Key!); }");
+        {
+            code.AppendLineAt(6, "{");
+            code.AppendLineAt(7, "if (!__reservedRemovals" + id + ")");
+            code.AppendLineAt(7, "{");
+            code.AppendLineAt(
+                8,
+                "__coll" + id + ".__SparseReserveRemovals(__SparseRemovalCount" + id + "());"
+            );
+            code.AppendLineAt(8, "__reservedRemovals" + id + " = true;");
+            code.AppendLineAt(7, "}");
+            code.AppendLineAt(7, "__coll" + id + ".RemoveEntry(__it.Key!);");
+            code.AppendLineAt(6, "}");
+        }
         code.AppendLineAt(6, "else if (__it.IsEdited)");
         code.AppendLineAt(6, "{");
         if (hasValuePatch)
