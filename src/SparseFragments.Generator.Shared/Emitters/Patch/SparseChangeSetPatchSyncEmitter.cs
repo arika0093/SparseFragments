@@ -25,12 +25,11 @@ internal static class SparseChangeSetPatchSyncEmitter
     internal static void AppendFromPatch(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
-        string runtime,
-        string optionalFragment
+        string optionalFragment,
+        string? modelType
     )
     {
         _ = members;
-        _ = runtime;
         code.AppendLineAt(
             2,
             "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
@@ -47,6 +46,25 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(3, "var after = patch.Apply(baseline);");
         code.AppendLineAt(3, "return Between(baseline, after);");
         code.AppendLineAt(2, "}");
+        if (modelType is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "return FromPatch("
+                    + optionalFragment
+                    + ".Present(Fragment.From(baseline)), patch);"
+            );
+            code.AppendLineAt(2, "}");
+        }
     }
 
     internal static void AppendToPatch(
