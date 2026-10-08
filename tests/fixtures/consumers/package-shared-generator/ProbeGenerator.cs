@@ -33,7 +33,8 @@ internal static class ProbeSurface
     {
         // Naming infrastructure (Naming/).
         var escaped = SparseNaming.EscapeIdentifier("class");
-        var isCoreName = SparseNaming.IsCoreGeneratedName(SparseWellKnownNames.FragmentTypeName);
+        var apiPrefix = SparseNaming.PatchApiPrefix(ImmutableArray<string>.Empty);
+        var mergeFieldPrefix = SparseWellKnownNames.MergeStrategyFieldPrefix;
         var jsonIgnoreNever = SparseJsonNaming.JsonIgnoreNever;
 
         // Shared IR/model types (Models/).
@@ -102,8 +103,10 @@ internal static class ProbeSurface
             0,
             "// PackageShared probe: "
                 + escaped
-                + " core="
-                + isCoreName
+                + " prefix="
+                + apiPrefix
+                + " merge="
+                + mergeFieldPrefix
                 + " json="
                 + jsonIgnoreNever
         );
