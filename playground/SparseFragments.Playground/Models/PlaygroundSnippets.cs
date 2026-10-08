@@ -206,8 +206,8 @@ public static class PlaygroundSnippets
         var sb = new StringBuilder();
         sb.AppendLine($"var {variableName} = new PlaygroundRoster");
         sb.AppendLine("{");
-        sb.AppendLine("    Quests = new List<PlaygroundQuest>");
-        sb.AppendLine("    {");
+        sb.AppendLine("    Quests =");
+        sb.AppendLine("    [");
         foreach (var quest in model.Quests)
         {
             sb.AppendLine("        new()");
@@ -218,7 +218,7 @@ public static class PlaygroundSnippets
             sb.AppendLine($"            Scores = {IntListLiteral(quest.Scores)},");
             sb.AppendLine("        },");
         }
-        sb.AppendLine("    },");
+        sb.AppendLine("    ],");
         sb.AppendLine("};");
         return sb.ToString();
     }
@@ -289,10 +289,10 @@ public static class PlaygroundSnippets
                 sb.AppendLine($"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral(quest.Scores.After.Value ?? new List<int>())}; // whole value: one element change replaces the list");
             }
         }
-        sb.AppendLine($"{variableName}.Quests.SetOrder(new[] {{ {string.Join(", ", quests.AfterOrder.Select(StringLiteral))} }}); // final key order, not moves");
+        sb.AppendLine($"{variableName}.Quests.SetOrder([{string.Join(", ", quests.AfterOrder.Select(StringLiteral))}]); // final key order, not moves");
         return sb.ToString();
     }
 
     private static string IntListLiteral(IReadOnlyList<int> values) =>
-        values.Count == 0 ? "new List<int>()" : $"new List<int> {{ {string.Join(", ", values)} }}";
+        $"[{string.Join(", ", values)}]";
 }

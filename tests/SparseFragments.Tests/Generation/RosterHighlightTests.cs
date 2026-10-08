@@ -370,6 +370,21 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
+    public void RosterCodeUsesCollectionExpressions()
+    {
+        var roster = State(Quest("a", "A", 1, 30));
+        var model = PlaygroundSnippets.RosterModelCSharp("roster", roster);
+        model.ShouldContain("Quests =\n    [");
+        model.ShouldContain("Scores = [30]");
+        model.ShouldNotContain("new List<");
+
+        var manual = PlaygroundSnippets.RosterManualPatchCSharp("patch", Diff(State(), roster));
+        manual.ShouldContain("Scores = [30]");
+        manual.ShouldContain("SetOrder([\"a\"])");
+        manual.ShouldNotContain("new[]");
+    }
+
+    [Test]
     public void InvalidStateIsConsistentEverywhere()
     {
         var invalidBefore = State(Quest("a"), Quest("a"));

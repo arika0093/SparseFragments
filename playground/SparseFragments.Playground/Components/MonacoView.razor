@@ -33,7 +33,9 @@
 
     private string EditorId { get; } = $"monaco-{Guid.NewGuid():N}";
 
-    private string CurrentTheme => ThemeState.IsDark ? "vs-dark" : "vs";
+    private string CurrentTheme => ThemeState.IsDark ? "pg-dark" : "pg-light";
+
+    private string MonacoLanguage => Language == "csharp" ? "playground-csharp" : Language;
 
     private string WrapperStyle => Fill ? "height: 100%; min-height: 220px;" : $"height: {Height};";
 
@@ -45,10 +47,11 @@
         return new StandaloneEditorConstructionOptions
         {
             AutomaticLayout = true,
-            Language = Language,
+            Language = MonacoLanguage,
             Value = Content,
             ReadOnly = true,
             Minimap = new EditorMinimapOptions { Enabled = false },
+            StickyScroll = new EditorStickyScrollOptions { Enabled = false },
             ScrollBeyondLastLine = false,
             RenderLineHighlight = "all",
             Theme = CurrentTheme,

@@ -39,7 +39,9 @@
 
     private string EditorId { get; } = $"monaco-diff-{Guid.NewGuid():N}";
 
-    private string CurrentTheme => ThemeState.IsDark ? "vs-dark" : "vs";
+    private string CurrentTheme => ThemeState.IsDark ? "pg-dark" : "pg-light";
+
+    private string MonacoLanguage => Language == "csharp" ? "playground-csharp" : Language;
 
     private string WrapperStyle => Fill ? "height: 100%; min-height: 220px;" : $"height: {Height};";
 
@@ -53,6 +55,7 @@
             ReadOnly = true,
             Theme = CurrentTheme,
             Minimap = new EditorMinimapOptions { Enabled = false },
+            StickyScroll = new EditorStickyScrollOptions { Enabled = false },
             RenderSideBySide = true,
             UseInlineViewWhenSpaceIsLimited = true,
         };
@@ -64,8 +67,8 @@
         {
             return;
         }
-        _originalModel = await Global.CreateModel(JS, Original, Language);
-        _modifiedModel = await Global.CreateModel(JS, Modified, Language);
+        _originalModel = await Global.CreateModel(JS, Original, MonacoLanguage);
+        _modifiedModel = await Global.CreateModel(JS, Modified, MonacoLanguage);
         await _editor.SetModel(
             new DiffEditorModel { Original = _originalModel, Modified = _modifiedModel });
         _lastOriginal = Original;
