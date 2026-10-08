@@ -63,9 +63,12 @@ public sealed class RosterHighlightTests
         var edited = quests.GetChange("b");
         edited.IsEdited.ShouldBeTrue();
         edited.Edit.Title.IsChanged.ShouldBeTrue();
-        edited.Edit.Points.IsChanged.ShouldBeTrue();
-        edited.Edit.Scores.IsChanged.ShouldBeTrue();
-        quests.GetChange("c").IsReordered.ShouldBeTrue();
+        edited.Edit.Points.IsChanged.ShouldBeFalse();
+        edited.Edit.Scores.IsChanged.ShouldBeFalse();
+        var scored = quests.GetChange("c");
+        scored.IsEdited.ShouldBeTrue();
+        scored.Edit.Scores.IsChanged.ShouldBeTrue();
+        scored.Edit.Title.IsChanged.ShouldBeFalse();
     }
 
     [Test]
@@ -311,7 +314,7 @@ public sealed class RosterHighlightTests
         changes.Quests.GetChange("d").IsAdded.ShouldBeTrue();
         changes.Quests.GetChange("a").IsRemoved.ShouldBeTrue();
         changes.Quests.GetChange("b").IsEdited.ShouldBeTrue();
-        changes.Quests.GetChange("c").IsReordered.ShouldBeTrue();
+        changes.Quests.GetChange("c").IsEdited.ShouldBeTrue();
 
         // Summary and snippet reflect the same diff.
         var summary = PlaygroundSnippets.RosterSummary(changes);
