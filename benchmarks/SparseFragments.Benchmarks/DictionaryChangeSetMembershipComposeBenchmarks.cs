@@ -7,6 +7,8 @@ public enum DictionaryChangeSetMembershipShape
     AddRemove,
     RemoveRestore,
     AddEdit,
+    RecreatedRestore,
+    RecreatedEdit,
 }
 
 [MemoryDiagnoser]
@@ -53,10 +55,16 @@ public class DictionaryChangeSetMembershipComposeBenchmarks
         var cancels =
             Shape
             is DictionaryChangeSetMembershipShape.AddRemove
-                or DictionaryChangeSetMembershipShape.RemoveRestore;
+                or DictionaryChangeSetMembershipShape.RemoveRestore
+                or DictionaryChangeSetMembershipShape.RecreatedRestore;
         if (
             scalar.IsEmpty != cancels
-            || structural.IsEmpty != cancels
+            // Recreated elements can currently retain empty nested edits.
+            // Their application and inverse must still preserve both endpoints.
+            || (
+                Shape != DictionaryChangeSetMembershipShape.RecreatedRestore
+                && structural.IsEmpty != cancels
+            )
             || !BenchScalarDictHolder
                 .Patch.Between(scalar.ToPatch().Apply(scalarBefore), scalarAfter)
                 .IsEmpty
@@ -87,13 +95,23 @@ public class DictionaryChangeSetMembershipComposeBenchmarks
                     DictionaryChangeSetMembershipShape.DisjointAdditions => step == 2
                         || (step == 1 && index % 2 == 0),
                     DictionaryChangeSetMembershipShape.AddRemove => step == 1,
-                    DictionaryChangeSetMembershipShape.RemoveRestore => step != 1,
+                    DictionaryChangeSetMembershipShape.RemoveRestore
+                    or DictionaryChangeSetMembershipShape.RecreatedRestore
+                    or DictionaryChangeSetMembershipShape.RecreatedEdit => step != 1,
                     _ => step != 0,
                 }
             );
 
     private int Count(int index, int step) =>
-        index + (Shape == DictionaryChangeSetMembershipShape.AddEdit && step == 2 ? 1 : 0);
+        index
+        + (
+            Shape
+                is DictionaryChangeSetMembershipShape.AddEdit
+                    or DictionaryChangeSetMembershipShape.RecreatedEdit
+            && step == 2
+                ? 1
+                : 0
+        );
 
     private Optional<BenchScalarDictHolder.Fragment?> ScalarState(int step) =>
         Optional<BenchScalarDictHolder.Fragment?>.Present(
