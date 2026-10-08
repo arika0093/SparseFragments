@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 
 namespace SparseFragments.Tests;
@@ -6,6 +8,8 @@ namespace SparseFragments.Tests;
 public partial class ObservableChild
 {
     public string Name { get; set; } = string.Empty;
+
+    public string Observable { get; set; } = string.Empty;
 
     public int Count { get; set; }
 }
@@ -16,6 +20,17 @@ public partial struct ObservableSpot
     public int X { get; set; }
 
     public int Y { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class ObservableListChild
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Observable { get; set; } = string.Empty;
 }
 
 [SparseFragmentModel]
@@ -32,6 +47,20 @@ public partial class ObservableHolder
     public ObservableSpot Spot { get; set; }
 
     public List<string> Tags { get; set; } = new();
+
+    public List<ObservableListChild> Children { get; set; } = new();
+
+    public Dictionary<string, string> Metadata { get; set; } = new();
+
+    public Dictionary<string, ObservableListChild> ChildrenByName { get; set; } = new();
+
+    [SparseCloneReferenceSafe]
+    public ObservableCollection<string> LiveTags { get; set; } = new();
+
+    [SparseCloneReferenceSafe]
+    public Collection<string> LegacyTags { get; set; } = new();
+
+    public string[] Labels { get; set; } = [];
 
     public int OwningCount { get; init; }
 }
@@ -115,7 +144,7 @@ public sealed class ObservableTests
         var names = Events(proxy);
 
         var first = proxy.Child;
-        proxy.Child = new ObservableChild.Observable(new ObservableChild { Name = "new" });
+        proxy.Child = new ObservableChild.SparseObservable(new ObservableChild { Name = "new" });
         model.Child.Name.ShouldBe("new");
         ReferenceEquals(first, proxy.Child).ShouldBeFalse();
         proxy.Child!.Name.ShouldBe("new");
@@ -131,7 +160,7 @@ public sealed class ObservableTests
 
         proxy.MaybeChild.ShouldBeNull();
 
-        proxy.MaybeChild = new ObservableChild.Observable(new ObservableChild { Name = "x" });
+        proxy.MaybeChild = new ObservableChild.SparseObservable(new ObservableChild { Name = "x" });
         model.MaybeChild!.Name.ShouldBe("x");
         proxy.MaybeChild!.Name.ShouldBe("x");
 
@@ -172,12 +201,242 @@ public sealed class ObservableTests
         var names = Events(proxy);
 
         var same = model.Tags;
-        proxy.Tags = same;
+        proxy.ReplaceTags(same);
         names.ShouldBeEmpty();
 
-        proxy.Tags = new() { "b" };
+        proxy.ReplaceTags(new() { "b" });
         model.Tags.ShouldBe(["b"]);
         names.ShouldBe(["Tags"]);
+    }
+
+    [Test]
+    public void PlainModelCollectionMutationsBypassViewNotifications()
+    {
+        var model = new ObservableHolder { Tags = ["a"] };
+        var proxy = new ObservableHolder.Observable(model);
+        var names = Events(proxy);
+        var collectionEvents = 0;
+        proxy.Tags!.CollectionChanged += (_, _) => collectionEvents++;
+
+        model.Tags.Add("external");
+
+        proxy.Tags.ShouldContain("external");
+        names.ShouldBeEmpty();
+        collectionEvents.ShouldBe(0);
+    }
+
+    [Test]
+    public void ListViewMutatesTheOriginalListAndRaisesCollectionAndParentNotifications()
+    {
+        var notified = 0;
+        var source = new List<string> { "a", "b" };
+        var model = new ObservableHolder { Tags = source };
+        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var names = Events(proxy);
+        var events = new List<NotifyCollectionChangedEventArgs>();
+        var viewPropertyNames = new List<string?>();
+        proxy.Tags!.CollectionChanged += (_, args) => events.Add(args);
+        proxy.Tags.PropertyChanged += (_, args) => viewPropertyNames.Add(args.PropertyName);
+
+        proxy.Tags.Add("c");
+        proxy.Tags.Insert(1, "x");
+        proxy.Tags[0] = "z";
+        proxy.Tags.Move(3, 1);
+        proxy.Tags.RemoveAt(0);
+        proxy.Tags.Clear();
+
+        ReferenceEquals(source, model.Tags).ShouldBeTrue();
+        model.Tags.ShouldBeEmpty();
+        events.Select(args => args.Action).ShouldBe(
+            [
+                NotifyCollectionChangedAction.Add,
+                NotifyCollectionChangedAction.Add,
+                NotifyCollectionChangedAction.Replace,
+                NotifyCollectionChangedAction.Move,
+                NotifyCollectionChangedAction.Remove,
+                NotifyCollectionChangedAction.Reset,
+            ]
+        );
+        events[0].NewStartingIndex.ShouldBe(2);
+        events[1].NewStartingIndex.ShouldBe(1);
+        events[2].OldStartingIndex.ShouldBe(0);
+        events[3].OldStartingIndex.ShouldBe(3);
+        events[3].NewStartingIndex.ShouldBe(1);
+        names.ShouldBe(["Tags", "Tags", "Tags", "Tags", "Tags", "Tags"]);
+        notified.ShouldBe(6);
+        viewPropertyNames.ShouldBe(
+            [
+                "Count",
+                "Item[]",
+                "Count",
+                "Item[]",
+                "Item[]",
+                "Item[]",
+                "Count",
+                "Item[]",
+                "Count",
+                "Item[]",
+            ]
+        );
+    }
+
+    [Test]
+    public void ChildListViewsCacheAndDetachElementProxies()
+    {
+        var notified = 0;
+        var first = new ObservableListChild { Id = "a", Name = "A" };
+        var model = new ObservableHolder { Children = [first] };
+        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var names = Events(proxy);
+        var view = proxy.Children!;
+        var firstProxy = view[0];
+
+        ReferenceEquals(firstProxy, view[0]).ShouldBeTrue();
+        firstProxy.Name = "updated";
+        names.ShouldBe(["Children"]);
+        notified.ShouldBe(1);
+
+        view.RemoveAt(0);
+        names.ShouldBe(["Children", "Children"]);
+        firstProxy.Name = "detached";
+        names.ShouldBe(["Children", "Children"]);
+        notified.ShouldBe(2);
+
+        var added = new ObservableListChild.SparseObservable(new ObservableListChild { Id = "b" });
+        view.Add(added);
+        view[0].Name = "active";
+        notified.ShouldBe(4);
+        names.ShouldBe(["Children", "Children", "Children", "Children"]);
+    }
+
+    [Test]
+    public void ReplacingListRebuildsViewAndDetachesPreviousElements()
+    {
+        var notified = 0;
+        var child = new ObservableListChild { Id = "a" };
+        var model = new ObservableHolder { Children = [child] };
+        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var oldView = proxy.Children!;
+        var oldElement = oldView[0];
+        var replacement = new List<ObservableListChild> { new() { Id = "b" } };
+
+        proxy.ReplaceChildren(replacement);
+
+        ReferenceEquals(replacement, model.Children).ShouldBeTrue();
+        ReferenceEquals(oldView, proxy.Children).ShouldBeFalse();
+        notified.ShouldBe(1);
+        oldElement.Name = "stale";
+        notified.ShouldBe(1);
+    }
+
+    [Test]
+    public void ObservableCollectionEventsAreForwardedOnce()
+    {
+        var source = new ObservableCollection<string> { "a" };
+        var notified = 0;
+        var proxy = new ObservableHolder.Observable(
+            new ObservableHolder { LiveTags = source },
+            () => notified++
+        );
+        var events = new List<NotifyCollectionChangedEventArgs>();
+        proxy.LiveTags!.CollectionChanged += (_, args) => events.Add(args);
+
+        proxy.LiveTags.Add("b");
+        proxy.LiveTags.Move(1, 0);
+
+        events.Count.ShouldBe(2);
+        events[0].Action.ShouldBe(NotifyCollectionChangedAction.Add);
+        events[1].Action.ShouldBe(NotifyCollectionChangedAction.Move);
+        notified.ShouldBe(2);
+        ReferenceEquals(source, proxy.Model.LiveTags).ShouldBeTrue();
+    }
+
+    [Test]
+    public void CollectionTypeUsesTheObservableListView()
+    {
+        var source = new Collection<string> { "a" };
+        var proxy = new ObservableHolder.Observable(new ObservableHolder { LegacyTags = source });
+        var events = new List<NotifyCollectionChangedEventArgs>();
+        proxy.LegacyTags!.CollectionChanged += (_, args) => events.Add(args);
+
+        proxy.LegacyTags.Add("b");
+
+        ReferenceEquals(source, proxy.Model.LegacyTags).ShouldBeTrue();
+        events.Count.ShouldBe(1);
+        events[0].Action.ShouldBe(NotifyCollectionChangedAction.Add);
+    }
+
+    [Test]
+    public void DictionaryViewNotifiesAndBubblesElementChanges()
+    {
+        var notified = 0;
+        var child = new ObservableListChild { Id = "a", Name = "old" };
+        var model = new ObservableHolder
+        {
+            Metadata = new Dictionary<string, string> { ["a"] = "one" },
+            ChildrenByName = new Dictionary<string, ObservableListChild> { ["a"] = child },
+        };
+        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var metadataEvents = new List<NotifyCollectionChangedEventArgs>();
+        var childEvents = new List<NotifyCollectionChangedEventArgs>();
+        var dictionaryPropertyNames = new List<string?>();
+        proxy.Metadata!.CollectionChanged += (_, args) => metadataEvents.Add(args);
+        proxy.Metadata.PropertyChanged += (_, args) =>
+            dictionaryPropertyNames.Add(args.PropertyName);
+        proxy.ChildrenByName!.CollectionChanged += (_, args) => childEvents.Add(args);
+        var names = Events(proxy);
+
+        proxy.Metadata.Add("b", "two");
+        proxy.Metadata["a"] = "updated";
+        proxy.Metadata.Remove("b").ShouldBeTrue();
+        var childProxy = proxy.ChildrenByName["a"];
+        childProxy.Name = "new";
+        proxy.ChildrenByName.Remove("a").ShouldBeTrue();
+        childProxy.Name = "detached";
+        proxy.ChildrenByName.Add(
+            "b",
+            new ObservableListChild.SparseObservable(new ObservableListChild { Id = "b" })
+        );
+        proxy.ChildrenByName.Clear();
+
+        metadataEvents.Select(args => args.Action).ShouldBe(
+            [
+                NotifyCollectionChangedAction.Add,
+                NotifyCollectionChangedAction.Replace,
+                NotifyCollectionChangedAction.Remove,
+            ]
+        );
+        dictionaryPropertyNames.ShouldBe(
+            ["Count", "Item[]", "Item[]", "Count", "Item[]"]
+        );
+        childEvents.Select(args => args.Action).ShouldBe(
+            [
+                NotifyCollectionChangedAction.Remove,
+                NotifyCollectionChangedAction.Add,
+                NotifyCollectionChangedAction.Reset,
+            ]
+        );
+        names.ShouldBe(
+            [
+                "Metadata",
+                "Metadata",
+                "Metadata",
+                "ChildrenByName",
+                "ChildrenByName",
+                "ChildrenByName",
+                "ChildrenByName",
+            ]
+        );
+        notified.ShouldBe(7);
+    }
+
+    [Test]
+    public void ArrayRemainsReplaceOnly()
+    {
+        var source = new[] { "a" };
+        var proxy = new ObservableHolder.Observable(new ObservableHolder { Labels = source });
+
+        ReferenceEquals(source, proxy.Labels).ShouldBeTrue();
     }
 
     [Test]

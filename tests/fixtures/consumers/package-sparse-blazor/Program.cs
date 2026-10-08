@@ -111,6 +111,17 @@ internal static class DocsCheck
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;
+
+    public List<UiOrderItem> Items { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class UiOrderItem
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
 }
 // /sample
 

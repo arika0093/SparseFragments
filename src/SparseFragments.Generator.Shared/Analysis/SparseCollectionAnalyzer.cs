@@ -13,6 +13,7 @@ internal enum SparseCollectionKind
     Unsupported,
     Array,
     List,
+    MutableList,
     Set,
 }
 
@@ -119,6 +120,9 @@ internal static class SparseCollectionAnalyzer
         {
             "System.Collections.Generic.List<T>" => SparseCollectionKind.List,
             "System.Collections.Generic.IList<T>" => SparseCollectionKind.List,
+            "System.Collections.ObjectModel.Collection<T>"
+            or "System.Collections.ObjectModel.ObservableCollection<T>" =>
+                SparseCollectionKind.MutableList,
             "System.Collections.Generic.IEnumerable<T>"
             or "System.Collections.Generic.IReadOnlyCollection<T>"
             or "System.Collections.Generic.IReadOnlyList<T>" => SparseCollectionKind.Array,

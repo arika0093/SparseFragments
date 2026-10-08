@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 
@@ -688,8 +689,35 @@ internal static class SparseModelDiscovery
                         .Select(static member => member.Property.Name)
                 )
                 : string.Empty,
-            UsesDefaultScalarEquality(type)
+            UsesDefaultScalarEquality(type),
+            GetObservableTypeName(type, isFragmentModel, config, cancellationToken)
         );
+    }
+
+    private static string? GetObservableTypeName(
+        ITypeSymbol type,
+        bool isFragmentModel,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!isFragmentModel || !type.IsReferenceType || type is not INamedTypeSymbol model)
+        {
+            return null;
+        }
+
+        var memberNames = new HashSet<string>(
+            GetMembers(model, config, cancellationToken)
+                .Select(static member => member.Property.Name),
+            StringComparer.Ordinal
+        );
+        var name = new StringBuilder("Observable");
+        while (memberNames.Contains(name.ToString()))
+        {
+            name.Insert(0, "Sparse");
+        }
+
+        return name.ToString();
     }
 
     private static bool UsesDefaultScalarEquality(ITypeSymbol type)

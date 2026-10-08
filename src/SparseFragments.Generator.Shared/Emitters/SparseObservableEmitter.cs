@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Emits the nested bindable <c>Observable</c> proxy for a generated model.</summary>
-/// <remarks>Wraps the live model instance; collections are replace-only for notification purposes.</remarks>
+/// <remarks>Wraps the live model instance and exposes notifying views for mutable lists and dictionaries.</remarks>
 internal static class SparseObservableEmitter
 {
     public static string ObservableTypeName(ImmutableArray<SparseMemberModel> members)
@@ -24,7 +24,8 @@ internal static class SparseObservableEmitter
     public static void AppendObservable(
         SharedIndentedBuilder code,
         string modelType,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        string runtimeNamespace
     )
     {
         var observable = ObservableTypeName(members);
@@ -59,6 +60,20 @@ internal static class SparseObservableEmitter
                         + ";"
                 );
                 code.AppendLineAt(2, "private " + childObservable + "? __proxy_" + member.Id + ";");
+            }
+
+            if (IsObservableList(member) || IsObservableDictionary(member))
+            {
+                var names = CollectionNames(member);
+                code.AppendLineAt(
+                    2,
+                    "private "
+                        + CollectionViewType(member, names, runtimeNamespace)
+                        + "? __view_"
+                        + member.Id
+                        + ";"
+                );
+                code.AppendLineAt(2, "private " + member.Property.Type.NonNullableName + "? __target_collection_" + member.Id + ";");
             }
         }
 
@@ -97,7 +112,7 @@ internal static class SparseObservableEmitter
                 continue;
             }
 
-            AppendMember(code, member, modelType);
+            AppendMember(code, member, members, runtimeNamespace);
         }
 
         code.AppendLineAt(
@@ -109,6 +124,12 @@ internal static class SparseObservableEmitter
 
     private static string ChildObservableType(SparseMemberModel member)
     {
+        var model = member.ChildModel!.Value;
+        if (model.ObservableTypeName is not null)
+        {
+            return model.NonNullableName + "." + model.ObservableTypeName;
+        }
+
         var fragment = member.ChildFragmentType!;
         return fragment.Substring(0, fragment.Length - "Fragment".Length) + "Observable";
     }
@@ -116,16 +137,36 @@ internal static class SparseObservableEmitter
     private static void AppendMember(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string modelType
+        ImmutableArray<SparseMemberModel> members,
+        string runtimeNamespace
     )
     {
-        _ = modelType;
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
         var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         if (member.ChildModel is not null && member.ChildIsReferenceType)
         {
             AppendReferenceChild(code, member, name, literal, canWrite);
+            return;
+        }
+
+        if (IsObservableList(member))
+        {
+            AppendObservableList(code, member, name, literal, canWrite, members, runtimeNamespace);
+            return;
+        }
+
+        if (IsObservableDictionary(member))
+        {
+            AppendObservableDictionary(
+                code,
+                member,
+                name,
+                literal,
+                canWrite,
+                members,
+                runtimeNamespace
+            );
             return;
         }
 
@@ -150,6 +191,309 @@ internal static class SparseObservableEmitter
 
         code.AppendLineAt(2, "}");
     }
+
+    private static bool IsObservableList(SparseMemberModel member)
+    {
+        var type = member.Property.Type.NonNullableName;
+        return member.Collection.ElementType.Name is not null
+            && (
+                member.Collection.Kind
+                    is SparseCollectionKind.List or SparseCollectionKind.MutableList
+                || type.StartsWith("global::System.Collections.ObjectModel.Collection<", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.ObjectModel.Collection<", StringComparison.Ordinal)
+                || type.StartsWith("global::System.Collections.ObjectModel.ObservableCollection<", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.ObjectModel.ObservableCollection<", StringComparison.Ordinal)
+            );
+    }
+
+    private static bool IsObservableDictionary(SparseMemberModel member)
+    {
+        var type = member.Property.Type.NonNullableName;
+        return member.Collection.ValueType is not null
+            && (
+                type.StartsWith("global::System.Collections.Generic.Dictionary<", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.Generic.Dictionary<", StringComparison.Ordinal)
+                || type.StartsWith("global::System.Collections.Generic.IDictionary<", StringComparison.Ordinal)
+                || type.StartsWith("System.Collections.Generic.IDictionary<", StringComparison.Ordinal)
+            );
+    }
+
+    private static CollectionProxyNames CollectionNames(SparseMemberModel member)
+    {
+        var element = member.Collection.ElementType;
+        var value = member.Collection.ValueType;
+        var hasElementProxy = value is null && element.IsFragmentModel && element.IsReferenceType;
+        var hasValueProxy = value is not null && value.Value.IsFragmentModel && value.Value.IsReferenceType;
+        var modelType = element.Name;
+        var viewType = element.Name;
+        if (hasElementProxy)
+        {
+            viewType = ObservableElementType(element);
+        }
+
+        if (value is not null)
+        {
+            modelType = value.Value.Name;
+            viewType = hasValueProxy
+                ? ObservableElementType(value.Value)
+                : modelType;
+        }
+
+        return new CollectionProxyNames(
+            modelType,
+            viewType,
+            hasElementProxy || hasValueProxy,
+            value is not null
+        );
+    }
+
+    private static string ObservableElementType(SparseTypeModel model) =>
+        model.NonNullableName
+            + "."
+            + (model.ObservableTypeName ?? "Observable")
+            + (model.Name.EndsWith("?", StringComparison.Ordinal) ? "?" : "");
+
+    private static void AppendObservableList(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string name,
+        string literal,
+        bool canWrite,
+        ImmutableArray<SparseMemberModel> members,
+        string runtimeNamespace
+    )
+    {
+        var types = CollectionNames(member);
+        var collectionType = CollectionViewType(member, types, runtimeNamespace);
+        var nullable = member.Property.IsNullable ? "?" : "";
+        code.AppendLineAt(2, "public " + collectionType + nullable + " " + name);
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "get");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var current = __model." + name + ";");
+        code.AppendLineAt(
+            4,
+            "if ((object?)current is null) { __view_"
+                + member.Id
+                + "?.Dispose(); __view_"
+                + member.Id
+                + " = null; __target_collection_"
+                + member.Id
+                + " = null; return null"
+                + (nullable.Length == 0 ? "!" : "")
+                + "; }"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!global::System.Object.ReferenceEquals(__target_collection_"
+                + member.Id
+                + ", current) || __view_"
+                + member.Id
+                + "?.IsDisposed == true) { __view_"
+                + member.Id
+                + "?.Dispose(); __target_collection_"
+                + member.Id
+                + " = current; __view_"
+                + member.Id
+                + " = new "
+                + collectionType
+                + "((global::System.Collections.Generic.IList<"
+                + member.Collection.ElementType.Name
+                + ">)current, "
+                + ListWrap(types)
+                + ", "
+                + ListUnwrap(types)
+                + ", () => { __Raise("
+                + literal
+                + "); if (__onChanged is not null) __onChanged(); }, "
+                + (types.HasElementProxy ? "true" : "false")
+                + "); }"
+        );
+        code.AppendLineAt(4, "return __view_" + member.Id + "!;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+        if (canWrite)
+        {
+            var methodName = ReplacementMethodName(member, "Replace", members);
+            code.AppendLineAt(
+                2,
+                "/// <summary>Replaces the live collection while rebuilding its notifying view.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public void "
+                    + methodName
+                    + "("
+                    + member.Property.Type.Name
+                    + " value)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(__model."
+                    + name
+                    + ", value)) return;"
+            );
+            code.AppendLineAt(3, "__view_" + member.Id + "?.Dispose();");
+            code.AppendLineAt(3, "__view_" + member.Id + " = null;");
+            code.AppendLineAt(3, "__target_collection_" + member.Id + " = null;");
+            code.AppendLineAt(3, "__model." + name + " = value;");
+            code.AppendLineAt(3, "__Raise(" + literal + ");");
+            code.AppendLineAt(3, "if (__onChanged is not null) __onChanged();");
+            code.AppendLineAt(2, "}");
+        }
+    }
+
+    private static string ListWrap(CollectionProxyNames types) =>
+        types.HasElementProxy
+            ? "(item, changed) => item is null ? default! : new " + types.ViewType.TrimEnd('?') + "(item, changed)"
+            : "static (item, _) => item";
+
+    private static string ListUnwrap(CollectionProxyNames types) =>
+        types.HasElementProxy
+            ? "item => item is null ? default! : item.__SparseTarget"
+            : "static item => item";
+
+    private static void AppendObservableDictionary(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string name,
+        string literal,
+        bool canWrite,
+        ImmutableArray<SparseMemberModel> members,
+        string runtimeNamespace
+    )
+    {
+        var types = CollectionNames(member);
+        var keyType = member.Collection.ElementType.Name;
+        var modelValueType = member.Collection.ValueType!.Value.Name;
+        var dictionaryType = CollectionViewType(member, types, runtimeNamespace);
+        var nullable = member.Property.IsNullable ? "?" : "";
+        code.AppendLineAt(2, "public " + dictionaryType + nullable + " " + name);
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "get");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var current = __model." + name + ";");
+        code.AppendLineAt(
+            4,
+            "if ((object?)current is null) { __view_"
+                + member.Id
+                + "?.Dispose(); __view_"
+                + member.Id
+                + " = null; __target_collection_"
+                + member.Id
+                + " = null; return null"
+                + (nullable.Length == 0 ? "!" : "")
+                + "; }"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!global::System.Object.ReferenceEquals(__target_collection_"
+                + member.Id
+                + ", current) || __view_"
+                + member.Id
+                + "?.IsDisposed == true) { __view_"
+                + member.Id
+                + "?.Dispose(); __target_collection_"
+                + member.Id
+                + " = current; __view_"
+                + member.Id
+                + " = new "
+                + dictionaryType
+                + "((global::System.Collections.Generic.IDictionary<"
+                + keyType
+                + ", "
+                + modelValueType
+                + ">)current, "
+                + DictionaryWrap(types)
+                + ", "
+                + DictionaryUnwrap(types)
+                + ", () => { __Raise("
+                + literal
+                + "); if (__onChanged is not null) __onChanged(); }, "
+                + (types.HasElementProxy ? "true" : "false")
+                + "); }"
+        );
+        code.AppendLineAt(4, "return __view_" + member.Id + "!;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+        if (canWrite)
+        {
+            var methodName = ReplacementMethodName(member, "Replace", members);
+            code.AppendLineAt(
+                2,
+                "/// <summary>Replaces the live dictionary while rebuilding its notifying view.</summary>"
+            );
+            code.AppendLineAt(2, "public void " + methodName + "(" + member.Property.Type.Name + " value)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(__model."
+                    + name
+                    + ", value)) return;"
+            );
+            code.AppendLineAt(3, "__view_" + member.Id + "?.Dispose();");
+            code.AppendLineAt(3, "__view_" + member.Id + " = null;");
+            code.AppendLineAt(3, "__target_collection_" + member.Id + " = null;");
+            code.AppendLineAt(3, "__model." + name + " = value;");
+            code.AppendLineAt(3, "__Raise(" + literal + ");");
+            code.AppendLineAt(3, "if (__onChanged is not null) __onChanged();");
+            code.AppendLineAt(2, "}");
+        }
+    }
+
+    private static string DictionaryWrap(CollectionProxyNames types) =>
+        types.HasElementProxy
+            ? "(item, changed) => item is null ? default! : new " + types.ViewType.TrimEnd('?') + "(item, changed)"
+            : "static (item, _) => item";
+
+    private static string DictionaryUnwrap(CollectionProxyNames types) =>
+        types.HasElementProxy
+            ? "item => item is null ? default! : item.__SparseTarget"
+            : "static item => item";
+
+    private static string CollectionViewType(
+        SparseMemberModel member,
+        CollectionProxyNames types,
+        string runtimeNamespace
+    ) =>
+        types.IsDictionary
+            ? runtimeNamespace
+                + "SparseObservableDictionary<"
+                + member.Collection.ElementType.Name
+                + ", "
+                + member.Collection.ValueType!.Value.Name
+                + ", "
+                + types.ViewType
+                + ">"
+            : runtimeNamespace
+                + "SparseObservableList<"
+                + member.Collection.ElementType.Name
+                + ", "
+                + types.ViewType
+                + ">";
+
+    private static string ReplacementMethodName(
+        SparseMemberModel member,
+        string prefix,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        var candidate = new StringBuilder(prefix + member.Property.Name);
+        while (members.Any(other => other.Property.Name == candidate.ToString()))
+        {
+            candidate.Insert(0, "Sparse");
+        }
+
+        return candidate.ToString();
+    }
+
+    private readonly record struct CollectionProxyNames(
+        string ModelType,
+        string ViewType,
+        bool HasElementProxy,
+        bool IsDictionary
+    );
 
     private static void AppendReferenceChild(
         SharedIndentedBuilder code,

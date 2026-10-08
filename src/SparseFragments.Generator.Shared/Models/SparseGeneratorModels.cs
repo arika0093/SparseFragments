@@ -15,7 +15,8 @@ internal readonly record struct SparseTypeModel(
     bool IsFragmentModel,
     string? PocoCloneHelperName,
     string PatchApiPrefix = "",
-    bool UsesDefaultScalarEquality = false
+    bool UsesDefaultScalarEquality = false,
+    string? ObservableTypeName = null
 );
 
 internal readonly record struct SparsePropertyModel(
@@ -295,7 +296,8 @@ internal readonly record struct SparseGeneratorDiagnostic(
             argument is null
                 ? ImmutableArray<string?>.Empty
                 : ImmutableArray.Create<string?>(argument)
-        ) { }
+        )
+    { }
 
     public string? Argument1 => Arguments.Length > 0 ? Arguments[0] : null;
 

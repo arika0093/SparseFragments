@@ -10,6 +10,17 @@ using SparseFragments;
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;
+
+    public List<UiOrderItem> Items { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class UiOrderItem
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
 }
 ```
 <!-- /sample -->
@@ -182,14 +193,40 @@ A session ChangeSet is sent through its generated `T.ChangeSetPayload`: call `To
 
 These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
 
-Nested models surface as child proxies that propagate changes to the root callback, and replacing a nested member or collection rebuilds the corresponding proxy and notification. Create a neutral edit session and bind its observable proxy; the session tracks the same underlying model:
+Nested models surface as child proxies that propagate changes to the root callback. Mutable indexable
+sequences (`List<T>`, `IList<T>`, `Collection<T>`, and `ObservableCollection<T>`) and mutable
+`Dictionary<TKey,TValue>` / `IDictionary<TKey,TValue>` members surface as notifying views over the
+original collection instances. List views implement generic and non-generic `IList` for WPF binding;
+dictionary collection events contain `KeyValuePair<TKey,TValue>` items. Edits through a view mutate the
+model collection in place, raise `INotifyCollectionChanged` and `INotifyPropertyChanged` (`Count` and
+`Item[]`), and notify the parent proxy and session callback. An underlying `ObservableCollection<T>`
+is forwarded rather than notified twice.
+
+For generated reference-model elements, list and dictionary views expose cached element `Observable`
+proxies. Add an element proxy created around a new model (or use `AddModel` / `InsertModel` on a list
+view and `AddModel` on a dictionary view). Replacing or removing elements, clearing a view, replacing
+the collection through the proxy, or disposing the view detaches stale element callbacks.
+
+`Observable.Items` is the generated view type so bindings can use it directly. Since C# properties
+cannot have a view getter and a model-collection setter of different types, replace a collection with
+the generated `ReplaceItems(modelCollection)` method; this rebuilds the view and raises the member
+notification. Mutations made directly to a plain model `List<T>`/`Dictionary<TKey,TValue>` update
+the model but bypass view notifications; changes to an underlying collection that itself implements
+`INotifyCollectionChanged` (such as `ObservableCollection<T>`) are forwarded. Arrays, `IReadOnlyList<T>`, `IEnumerable<T>`, immutable
+collections, and sets remain replace-only. Models using collection types the generator cannot deeply
+clone must continue to provide the applicable explicit clone policy. Collection notifications are
+synchronous and do not marshal to a UI thread; callers are responsible for thread affinity.
+
+Create a neutral edit session and bind its observable proxy; the session tracks the same underlying model:
 
 ```csharp
 var session = model.CreateEditSession(onChanged: () => HasUnsavedChanges = true);
 var observable = session.Observable;
 
 // bind the UI to `observable`; edits flow into the same live `model`
-observable.Title = "New title";
+observable.Number = "ORD-2";
+observable.Items.Add(
+    new UiOrderItem.Observable(new UiOrderItem { Id = "line-1", Name = "First item" }));
 observable.PropertyChanged += (_, args) => Console.WriteLine(args.PropertyName);
 
 // ...user edits `model` through the UI framework...
@@ -199,8 +236,14 @@ var uiChanges = session.CreateChangeSet();
 ### WPF example
 
 ```xml
-<TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
-<TextBlock Text="{Binding Child.Name}" />
+<TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged}" />
+<ItemsControl ItemsSource="{Binding Items}">
+  <ItemsControl.ItemTemplate>
+    <DataTemplate>
+      <TextBlock Text="{Binding Name}" />
+    </DataTemplate>
+  </ItemsControl.ItemTemplate>
+</ItemsControl>
 ```
 
 ```csharp

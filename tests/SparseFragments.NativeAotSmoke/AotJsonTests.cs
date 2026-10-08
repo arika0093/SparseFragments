@@ -150,4 +150,19 @@ public sealed class AotJsonTests
             .IsTrue();
     }
 
+    public async Task ObservableCollectionViewsRemainAotSafe()
+    {
+        var numbers = new List<int> { 1 };
+        var model = new AotIntCollections { Numbers = numbers };
+        var notified = 0;
+        var session = model.CreateEditSession(onChanged: () => notified++);
+
+        session.Observable.Numbers.Add(2);
+        session.Observable.Scores.Add("a", 3);
+
+        await Assert.That(ReferenceEquals(numbers, model.Numbers)).IsTrue();
+        await Assert.That(model.Numbers.Count).IsEqualTo(2);
+        await Assert.That(model.Scores["a"]).IsEqualTo(3);
+        await Assert.That(notified).IsEqualTo(2);
+    }
 }

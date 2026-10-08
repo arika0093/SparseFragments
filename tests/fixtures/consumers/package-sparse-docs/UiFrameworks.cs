@@ -9,7 +9,31 @@ public static class UiFrameworksSamples
     public static void Run()
     {
         ObservableBinding();
+        ObservableCollectionBinding();
         PatchFromBaselineVersusCurrent();
+    }
+
+    private static void ObservableCollectionBinding()
+    {
+        var model = new UiWidget
+        {
+            Items = [new UiWidgetItem { Id = "a", Name = "first" }],
+        };
+        var collectionChanges = 0;
+        var session = model.CreateEditSession();
+        var observable = session.Observable;
+        observable.Items.CollectionChanged += (_, _) => collectionChanges++;
+
+        observable.Items.Add(
+            new UiWidgetItem.Observable(new UiWidgetItem { Id = "b", Name = "second" })
+        );
+        observable.Items[0].Name = "updated";
+
+        DocsCheck.Require(model.Items.Count == 2, "view mutations update the model list");
+        DocsCheck.Require(collectionChanges == 1, "list edits raise collection notifications");
+        DocsCheck.Require(
+            session.CreateChangeSet().Items.IsChanged,
+            "element proxy edits are reflected in the session change set");
     }
 
     private static void ObservableBinding()
@@ -60,4 +84,15 @@ public partial class UiWidget
     public string Title { get; set; } = string.Empty;
 
     public UiWidgetChild? Child { get; set; }
+
+    public List<UiWidgetItem> Items { get; set; } = [];
+}
+
+[SparseFragmentModel]
+public partial class UiWidgetItem
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
 }

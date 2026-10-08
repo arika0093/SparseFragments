@@ -160,6 +160,56 @@ namespace SparseFragments
         public SparseFragments.MergeMode Mode { get; }
         public System.Type? StrategyType { get; }
     }
+    public sealed class SparseObservableDictionary<TKey, TModel, TView> : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IDictionary<TKey, TView>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IReadOnlyDictionary<TKey, TView>, System.Collections.IEnumerable, System.Collections.Specialized.INotifyCollectionChanged, System.ComponentModel.INotifyPropertyChanged, System.IDisposable
+        where TKey :  notnull
+    {
+        public SparseObservableDictionary(System.Collections.Generic.IDictionary<TKey, TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false) { }
+        public int Count { get; }
+        public bool IsDisposed { get; }
+        public bool IsReadOnly { get; }
+        public TView this[TKey key] { get; set; }
+        public System.Collections.Generic.ICollection<TKey> Keys { get; }
+        public System.Collections.Generic.IDictionary<TKey, TModel> Model { get; }
+        public System.Collections.Generic.ICollection<TView> Values { get; }
+        public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public void Add(System.Collections.Generic.KeyValuePair<TKey, TView> item) { }
+        public void Add(TKey key, TView value) { }
+        public void AddModel(TKey key, TModel value) { }
+        public void Clear() { }
+        public bool Contains(System.Collections.Generic.KeyValuePair<TKey, TView> item) { }
+        public bool ContainsKey(TKey key) { }
+        public void CopyTo(System.Collections.Generic.KeyValuePair<TKey, TView>[] array, int arrayIndex) { }
+        public void Dispose() { }
+        public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<TKey, TView>> GetEnumerator() { }
+        public bool Remove(System.Collections.Generic.KeyValuePair<TKey, TView> item) { }
+        public bool Remove(TKey key) { }
+        public bool TryGetValue(TKey key, out TView value) { }
+    }
+    public sealed class SparseObservableList<TModel, TView> : System.Collections.Generic.ICollection<TView>, System.Collections.Generic.IEnumerable<TView>, System.Collections.Generic.IList<TView>, System.Collections.Generic.IReadOnlyCollection<TView>, System.Collections.Generic.IReadOnlyList<TView>, System.Collections.ICollection, System.Collections.IEnumerable, System.Collections.IList, System.Collections.Specialized.INotifyCollectionChanged, System.ComponentModel.INotifyPropertyChanged, System.IDisposable
+    {
+        public SparseObservableList(System.Collections.Generic.IList<TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false) { }
+        public int Count { get; }
+        public bool IsDisposed { get; }
+        public bool IsReadOnly { get; }
+        public TView this[int index] { get; set; }
+        public System.Collections.Generic.IList<TModel> Model { get; }
+        public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public void Add(TView item) { }
+        public void AddModel(TModel item) { }
+        public void Clear() { }
+        public bool Contains(TView item) { }
+        public void CopyTo(TView[] array, int arrayIndex) { }
+        public void Dispose() { }
+        public System.Collections.Generic.IEnumerator<TView> GetEnumerator() { }
+        public int IndexOf(TView item) { }
+        public void Insert(int index, TView item) { }
+        public void InsertModel(int index, TModel item) { }
+        public void Move(int oldIndex, int newIndex) { }
+        public bool Remove(TView item) { }
+        public void RemoveAt(int index) { }
+    }
     public sealed class SparsePatchConflict
     {
         public SparsePatchConflict(System.Collections.Generic.IEnumerable<string> path, SparseFragments.SparsePatchConflictKind kind, SparseFragments.Optional<object?> baseValue, SparseFragments.Optional<object?> localValue, SparseFragments.Optional<object?> currentValue, string? reason) { }

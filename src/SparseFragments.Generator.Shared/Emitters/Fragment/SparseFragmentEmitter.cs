@@ -197,7 +197,7 @@ internal static class SparseFragmentEmitter
         );
         if (!model.IsStruct)
         {
-            SparseObservableEmitter.AppendObservable(code, modelType, members);
+            SparseObservableEmitter.AppendObservable(code, modelType, members, runtime.Namespace);
         }
 
         code.AppendLine("}");
