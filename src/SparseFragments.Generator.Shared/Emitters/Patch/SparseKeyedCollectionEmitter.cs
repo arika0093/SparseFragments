@@ -7,12 +7,17 @@ namespace SparseFragments.Generator.Shared;
 internal static class SparseKeyedCollectionEmitter
 {
     public static bool IsCollectionPatch(SparseMemberModel member) =>
-        member.Collection.IsKeyedSequence || member.Collection.IsDictionary;
+        HasGranularCollectionSemantics(member)
+        && (member.Collection.IsKeyedSequence || member.Collection.IsDictionary);
 
     public static bool IsKeyedSequence(SparseMemberModel member) =>
-        member.Collection.IsKeyedSequence;
+        HasGranularCollectionSemantics(member) && member.Collection.IsKeyedSequence;
 
-    public static bool IsDictionary(SparseMemberModel member) => member.Collection.IsDictionary;
+    public static bool IsDictionary(SparseMemberModel member) =>
+        HasGranularCollectionSemantics(member) && member.Collection.IsDictionary;
+
+    private static bool HasGranularCollectionSemantics(SparseMemberModel member) =>
+        !(member.HasExplicitMergeMode && member.MergeMode == SparseMergeModes.Replace);
 
     public static string CollectionPatchName(SparseMemberModel member) =>
         SparseNaming.EscapeIdentifier(member.Property.Name) + "Patch";

@@ -12,8 +12,10 @@ internal static class SparseModelDiscovery
 {
     internal static IEnumerable<IPropertySymbol> GetReadableProperties(
         INamedTypeSymbol model,
+        SparseGeneratorConfig? config,
         CancellationToken cancellationToken,
-        bool requirePublicSetter = false
+        bool requirePublicSetter = false,
+        bool includeSparseIgnored = false
     )
     {
         var hierarchy = new Stack<INamedTypeSymbol>();
@@ -39,6 +41,7 @@ internal static class SparseModelDiscovery
                     || property.IsIndexer
                     || property.DeclaredAccessibility != Accessibility.Public
                     || property.GetMethod?.DeclaredAccessibility != Accessibility.Public
+                    || (!includeSparseIgnored && config is not null && IsSparseIgnored(property, config))
                     || (
                         requirePublicSetter
                         && property.SetMethod?.DeclaredAccessibility != Accessibility.Public
@@ -55,6 +58,11 @@ internal static class SparseModelDiscovery
         return properties.Values.OrderBy(static property => property.Name, StringComparer.Ordinal);
     }
 
+    internal static bool IsSparseIgnored(IPropertySymbol property, SparseGeneratorConfig config) =>
+        property.GetAttributes().Any(attribute =>
+            attribute.AttributeClass?.ToDisplayString() == config.IgnoreAttributeMetadataName
+        );
+
     internal static IEnumerable<SparseSymbolMemberModel> GetMembers(
         INamedTypeSymbol model,
         SparseGeneratorConfig config,
@@ -62,11 +70,11 @@ internal static class SparseModelDiscovery
     )
     {
         var constructor = IsFragmentModel(model, config, cancellationToken)
-            ? ModelConstructorBinding.AnalyzeRoot(model, cancellationToken)
-            : ModelConstructorBinding.AnalyzeStructural(model, cancellationToken);
+            ? ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken)
+            : ModelConstructorBinding.AnalyzeStructural(model, config, cancellationToken);
         var index = 0;
         foreach (
-            var property in GetReadableProperties(model, cancellationToken)
+            var property in GetReadableProperties(model, config, cancellationToken)
                 .Where(property =>
                     property.SetMethod?.DeclaredAccessibility == Accessibility.Public
                     || (
@@ -108,6 +116,7 @@ internal static class SparseModelDiscovery
             }
 
             INamedTypeSymbol? mergeStrategyType = null;
+            var hasExplicitMergeMode = merge is not null;
             if (
                 merge?.ConstructorArguments.FirstOrDefault() is
                 { Kind: TypedConstantKind.Type } strategyConstant
@@ -127,7 +136,8 @@ internal static class SparseModelDiscovery
                 child,
                 mode,
                 SparseCollectionAnalyzer.GetCollectionInfo(property.Type),
-                mergeStrategyType
+                mergeStrategyType,
+                hasExplicitMergeMode
             );
         }
     }
@@ -198,7 +208,7 @@ internal static class SparseModelDiscovery
                 } named
             || named.SpecialType != SpecialType.None
             || IsFrameworkType(named)
-            || ModelConstructorBinding.AnalyzeStructural(named, cancellationToken) is null
+            || ModelConstructorBinding.AnalyzeStructural(named, config, cancellationToken) is null
         )
         {
             return StructuralTypeKind.Scalar;
@@ -211,7 +221,7 @@ internal static class SparseModelDiscovery
 
         if (
             HasUnsupportedPocoMembers(named, config, cancellationToken)
-            || !GetReadableProperties(named, cancellationToken).Any()
+            || !GetReadableProperties(named, config, cancellationToken).Any()
         )
         {
             return StructuralTypeKind.Scalar;
@@ -476,7 +486,7 @@ internal static class SparseModelDiscovery
                 config,
                 cancellationToken
             ),
-            ModelConstructorBinding.AnalyzeStructural(type, cancellationToken)
+            ModelConstructorBinding.AnalyzeStructural(type, config, cancellationToken)
         );
 
     internal static ImmutableArray<SparseMemberModel> CreateMemberModels(
@@ -557,7 +567,8 @@ internal static class SparseModelDiscovery
             mergeStrategyType,
             childFragmentType,
             childIsStructural,
-            childIsReferenceType
+            childIsReferenceType,
+            HasExplicitMergeMode: member.HasExplicitMergeMode
         );
     }
 
@@ -729,10 +740,11 @@ internal static class SparseModelDiscovery
             .WithNullableAnnotation(NullableAnnotation.NotAnnotated)
             .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         return new SparsePocoCloneModel(
-            CreateModelInfo(pocoType, string.Empty, cancellationToken) with
+            CreateModelInfo(pocoType, string.Empty, config, cancellationToken) with
             {
                 Constructor = ModelConstructorBinding.AnalyzeStructural(
                     pocoType,
+                    config,
                     cancellationToken
                 ),
             },
@@ -749,6 +761,7 @@ internal static class SparseModelDiscovery
     internal static SparseModelInfo CreateModelInfo(
         INamedTypeSymbol model,
         string hintName,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     ) =>
         new(
@@ -759,8 +772,32 @@ internal static class SparseModelDiscovery
             model.TypeKind == TypeKind.Struct,
             model.IsRecord,
             hintName,
-            ModelConstructorBinding.AnalyzeRoot(model, cancellationToken)
+            ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken),
+            GetIgnoredSettablePropertyNames(model, config, cancellationToken)
         );
+
+    private static ImmutableArray<string> GetIgnoredSettablePropertyNames(
+        INamedTypeSymbol model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) =>
+        GetReadableProperties(
+                model,
+                config,
+                cancellationToken,
+                includeSparseIgnored: true
+            )
+            .Where(property =>
+                IsSparseIgnored(property, config)
+                && property.SetMethod is
+                {
+                    DeclaredAccessibility: Accessibility.Public,
+                    IsInitOnly: false
+                }
+            )
+            .Select(static property => property.Name)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToImmutableArray();
 
     internal static ImmutableArray<SparsePromotedModel> CreatePromotedModels(
         ImmutableArray<SparseSymbolMemberModel> members,
@@ -792,7 +829,7 @@ internal static class SparseModelDiscovery
                 .ToImmutableArray();
             result.Add(
                 new SparsePromotedModel(
-                    CreateModelInfo(promoted, string.Empty, cancellationToken),
+                    CreateModelInfo(promoted, string.Empty, config, cancellationToken),
                     memberModels,
                     pocoCloneModels,
                     structuralModels

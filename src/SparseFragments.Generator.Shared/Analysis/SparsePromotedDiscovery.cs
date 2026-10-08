@@ -76,8 +76,8 @@ internal static class SparsePromotedDiscovery
         }
 
         if (
-            ModelConstructorBinding.AnalyzeStructural(type, cancellationToken) is null
-            && ModelConstructorBinding.AnalyzeRoot(type, cancellationToken) is null
+            ModelConstructorBinding.AnalyzeStructural(type, config, cancellationToken) is null
+            && ModelConstructorBinding.AnalyzeRoot(type, config, cancellationToken) is null
         )
         {
             return false;
@@ -88,7 +88,7 @@ internal static class SparsePromotedDiscovery
             return false;
         }
 
-        if (!SparseModelDiscovery.GetReadableProperties(type, cancellationToken).Any())
+        if (!SparseModelDiscovery.GetReadableProperties(type, config, cancellationToken).Any())
         {
             return false;
         }

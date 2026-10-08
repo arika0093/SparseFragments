@@ -20,10 +20,13 @@ internal static class SparseModelDiagnostics
         CancellationToken cancellationToken
     )
     {
+        CollectSparseIgnoreDiagnostics(model, config, diagnostics, cancellationToken);
+
         foreach (
             var member in ModelConstructionPlan.UnsupportedRequiredMembers(
                 model,
                 members.Select(static member => member.Property),
+                config,
                 cancellationToken
             )
         )
@@ -60,6 +63,7 @@ internal static class SparseModelDiagnostics
             {
                 keyErrorProperties.Add(member.Property);
             }
+
         }
 
         var cloneReported = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
@@ -222,6 +226,99 @@ internal static class SparseModelDiagnostics
             if (nestedSeen.Add(key))
             {
                 diagnostics.Add(nestedDiagnostic);
+            }
+        }
+    }
+
+    private static void CollectSparseIgnoreDiagnostics(
+        INamedTypeSymbol root,
+        SparseGeneratorConfig config,
+        ImmutableArray<SparseGeneratorDiagnostic>.Builder diagnostics,
+        CancellationToken cancellationToken
+    )
+    {
+        var pending = new Stack<INamedTypeSymbol>();
+        var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var current = pending.Pop();
+            if (!seen.Add(current))
+            {
+                continue;
+            }
+
+            var isFragmentModel = SparseModelDiscovery.IsFragmentModel(
+                current,
+                config,
+                cancellationToken
+            );
+            var constructor = isFragmentModel
+                ? ModelConstructorBinding.AnalyzeRoot(current, config, cancellationToken)
+                : ModelConstructorBinding.AnalyzeStructural(current, config, cancellationToken);
+            var properties = SparseModelDiscovery.GetReadableProperties(
+                current,
+                config,
+                cancellationToken,
+                includeSparseIgnored: true
+            );
+            foreach (var property in properties)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!SparseModelDiscovery.IsSparseIgnored(property, config))
+                {
+                    continue;
+                }
+
+                if (
+                    RoslynSymbolCompat.IsRequired(property)
+                    || property.SetMethod?.IsInitOnly == true
+                    || constructor?.Parameters.Any(parameter =>
+                        string.Equals(
+                            parameter.PropertyName,
+                            property.Name,
+                            StringComparison.Ordinal
+                        )
+                        && !parameter.HasExplicitDefaultValue
+                    ) == true
+                )
+                {
+                    diagnostics.Add(
+                        new SparseGeneratorDiagnostic(
+                            config.EffectiveDiagnosticIds.SparseIgnoreUnsupportedProperty,
+                            property.Locations.FirstOrDefault(),
+                            property.Name
+                        )
+                    );
+                }
+            }
+
+            foreach (
+                var member in SparseModelDiscovery.GetMembers(current, config, cancellationToken)
+            )
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (member.ChildModel is not null)
+                {
+                    pending.Push(member.ChildModel);
+                }
+
+                if (
+                    member.Collection.ElementType is INamedTypeSymbol element
+                    && (
+                        SparseModelDiscovery.IsFragmentModel(element, config, cancellationToken)
+                        || SparseModelDiscovery.IsStructuralType(element, config, cancellationToken)
+                        || SparsePromotedDiscovery.IsPromotablePartial(
+                            element,
+                            config,
+                            cancellationToken
+                        )
+                    )
+                )
+                {
+                    pending.Push(element);
+                }
             }
         }
     }

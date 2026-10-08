@@ -10,7 +10,8 @@ namespace SparseFragments.Generator.Shared;
 
 internal readonly record struct ConstructorParameterBinding(
     string PropertyName,
-    string DefaultExpression
+    string DefaultExpression,
+    bool HasExplicitDefaultValue
 );
 
 /// <summary>Constructor parameters bound by property name and exact type.</summary>
@@ -40,22 +41,40 @@ internal sealed record ModelConstructorBinding(
 
     public static ModelConstructorBinding? AnalyzeRoot(
         INamedTypeSymbol model,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
-    ) => Analyze(model, allowNonPublicConstructors: true, cancellationToken);
+    ) => Analyze(model, config, allowNonPublicConstructors: true, cancellationToken);
+
+    public static ModelConstructorBinding? AnalyzeRoot(
+        INamedTypeSymbol model,
+        CancellationToken cancellationToken
+    ) => Analyze(model, null, allowNonPublicConstructors: true, cancellationToken);
+
+    public static ModelConstructorBinding? AnalyzeStructural(
+        INamedTypeSymbol model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => Analyze(model, config, allowNonPublicConstructors: false, cancellationToken);
 
     public static ModelConstructorBinding? AnalyzeStructural(
         INamedTypeSymbol model,
         CancellationToken cancellationToken
-    ) => Analyze(model, allowNonPublicConstructors: false, cancellationToken);
+    ) => Analyze(model, null, allowNonPublicConstructors: false, cancellationToken);
 
     private static ModelConstructorBinding? Analyze(
         INamedTypeSymbol model,
+        SparseGeneratorConfig? config,
         bool allowNonPublicConstructors,
         CancellationToken cancellationToken
     )
     {
         var properties = SparseModelDiscovery
-            .GetReadableProperties(model, cancellationToken)
+            .GetReadableProperties(
+                model,
+                config,
+                cancellationToken,
+                includeSparseIgnored: true
+            )
             .Where(static property =>
                 property.SetMethod is null
                 || property.SetMethod.DeclaredAccessibility == Accessibility.Public
@@ -106,7 +125,11 @@ internal sealed record ModelConstructorBinding(
                 if (parameter.RefKind != RefKind.None || matches.Length != 1)
                     break;
                 parameters.Add(
-                    new ConstructorParameterBinding(matches[0].Name, DefaultExpression(parameter))
+                    new ConstructorParameterBinding(
+                        matches[0].Name,
+                        DefaultExpression(parameter),
+                        parameter.HasExplicitDefaultValue
+                    )
                 );
             }
             if (parameters.Count == constructorParameters.Length)

@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF021)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF023)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -26,6 +26,8 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF019](#spf019-unsupported-sparsekey-shape) | Unsupported SparseKey shape | Error |
 | [SPF020](#spf020-invalid-isparsekeyed-implementation) | Invalid ISparseKeyed implementation | Error |
 | [SPF021](#spf021-duplicate-json-property-name) | Duplicate JSON property name | Error |
+| [SPF022](#spf022-sparseignore-on-key) | SparseIgnore on key | Error |
+| [SPF023](#spf023-sparseignore-on-unsupported-property) | SparseIgnore on unsupported property | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -167,11 +169,13 @@ public partial class Settings
 
 ## SPF011: Structural sequence without usable key
 
-* Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
+* Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Replace, MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
 * Cause: The generator found no stable key on the element type, so it cannot
   derive per-element patch behavior for the sequence.
-* Fix: Declare exactly one key on the element type, or select `MergeMode.Append`,
-  `MergeMode.SetUnion`, or a custom strategy for whole-collection semantics.
+* Fix: Declare exactly one key on the element type, or explicitly select
+  `MergeMode.Replace`, `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
+  strategy for whole-collection semantics. The implicit default `Replace` does
+  not exempt unkeyed structural sequences.
   See [Keyed collections](keyed-collections.md).
 
 ## SPF012: Conflicting SparseKey mechanisms
@@ -274,6 +278,23 @@ public partial class Server : ISparseKeyed<ServerKey>
   (via `[JsonPropertyName]` or the property name itself).
 * Fix: Give each member a distinct explicit `[JsonPropertyName]`, or rename the
   .NET members so their wire names no longer collide.
+
+## SPF022: SparseIgnore on key
+
+* Message: `Property '{0}' is a SparseKey or a component of a composite SparseKey and cannot be ignored`
+* Cause: The ignored property supplies stable collection identity, either through
+  `[SparseKey]`, a type-level composite declaration, or `ISparseKeyed<TKey>`.
+* Fix: Remove `[SparseIgnore]` from the key property/component. Keys must remain
+  available to generated collection operations.
+
+## SPF023: SparseIgnore on unsupported property
+
+* Message: `Property '{0}' cannot be ignored because required, constructor-bound without a default, or init-only properties cannot be carried through model construction`
+* Cause: The generated `ApplyTo`/`TryApplyTo` APIs cannot preserve the ignored
+  value while constructing a new model.
+* Fix: Make the property optional and settable, or keep it in the generated
+  surface. Required, init-only, and non-defaulted constructor-bound properties
+  cannot be excluded.
 
 ```csharp
 // Does not compile: both members serialize as "dup"

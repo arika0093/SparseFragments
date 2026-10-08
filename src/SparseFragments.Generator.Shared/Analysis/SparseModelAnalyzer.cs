@@ -28,7 +28,9 @@ internal static class SparseModelAnalyzer
             .OfType<TypeDeclarationSyntax>()
             .FirstOrDefault();
 
-        switch (SparseShapeValidation.ValidateRootShape(model, declaration, cancellationToken))
+        switch (
+            SparseShapeValidation.ValidateRootShape(model, declaration, config, cancellationToken)
+        )
         {
             case SparseRootShapeProblem.MustBePartial:
                 return Failure(config.EffectiveDiagnosticIds.MustBePartial, location, model.Name);
@@ -141,7 +143,7 @@ internal static class SparseModelAnalyzer
         );
 
         return new SparseGenerationAnalysis(
-            SparseModelDiscovery.CreateModelInfo(model, hintName, cancellationToken),
+            SparseModelDiscovery.CreateModelInfo(model, hintName, config, cancellationToken),
             memberModels,
             pocoCloneModels,
             structuralModels,

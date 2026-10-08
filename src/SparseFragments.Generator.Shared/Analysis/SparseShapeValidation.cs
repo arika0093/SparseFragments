@@ -55,6 +55,7 @@ internal static class SparseShapeValidation
     public static SparseRootShapeProblem? ValidateRootShape(
         INamedTypeSymbol model,
         TypeDeclarationSyntax? declaration,
+        SparseGeneratorConfig? config,
         CancellationToken cancellationToken
     )
     {
@@ -86,7 +87,11 @@ internal static class SparseShapeValidation
 
         if (
             model.TypeKind == TypeKind.Class
-            && ModelConstructorBinding.AnalyzeRoot(model, cancellationToken) is null
+            && (
+                config is null
+                    ? ModelConstructorBinding.AnalyzeRoot(model, cancellationToken)
+                    : ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken)
+            ) is null
         )
         {
             return SparseRootShapeProblem.MissingConstructor;
@@ -94,6 +99,12 @@ internal static class SparseShapeValidation
 
         return null;
     }
+
+    public static SparseRootShapeProblem? ValidateRootShape(
+        INamedTypeSymbol model,
+        TypeDeclarationSyntax? declaration,
+        CancellationToken cancellationToken
+    ) => ValidateRootShape(model, declaration, config: null, cancellationToken);
 
     private static bool IsFileLocal(INamedTypeSymbol model, TypeDeclarationSyntax declaration)
     {

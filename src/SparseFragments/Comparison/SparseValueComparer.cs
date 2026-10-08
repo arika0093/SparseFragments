@@ -140,6 +140,47 @@ internal static class SparseValueComparer
         return AreEqual((object?)left, (object?)right);
     }
 
+    /// <summary>Compares a sequence using a caller-provided semantic item comparer.</summary>
+    public static bool AreSequenceEqual<T>(
+        IEnumerable<T>? left,
+        IEnumerable<T>? right,
+        Func<T, T, bool> itemComparer
+    )
+    {
+        ArgumentNullException.ThrowIfNull(itemComparer);
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        using var leftEnumerator = left.GetEnumerator();
+        using var rightEnumerator = right.GetEnumerator();
+        while (true)
+        {
+            var leftMoved = leftEnumerator.MoveNext();
+            var rightMoved = rightEnumerator.MoveNext();
+            if (leftMoved != rightMoved)
+            {
+                return false;
+            }
+
+            if (!leftMoved)
+            {
+                return true;
+            }
+
+            if (!itemComparer(leftEnumerator.Current, rightEnumerator.Current))
+            {
+                return false;
+            }
+        }
+    }
+
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
     /// <remarks>Comparers are part of the value: differing comparers are unequal regardless of operand order.</remarks>
     public static bool AreSetEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right)
@@ -228,6 +269,52 @@ internal static class SparseValueComparer
         return PairSequenceEquals(left.ToArray(), right.ToArray());
     }
 
+    /// <summary>Compares dictionaries using a caller-provided semantic value comparer.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        IEnumerable<KeyValuePair<TKey, TValue>>? left,
+        IEnumerable<KeyValuePair<TKey, TValue>>? right,
+        Func<TValue, TValue, bool> valueComparer
+    )
+    {
+        ArgumentNullException.ThrowIfNull(valueComparer);
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        var leftDictionary = AsDictionary(left);
+        var rightDictionary = AsDictionary(right);
+        if (leftDictionary is not { } leftView || rightDictionary is not { } rightView)
+        {
+            return AreDictionaryEqual(left, right);
+        }
+
+        if (leftView.Count != rightView.Count)
+        {
+            return false;
+        }
+
+        var leftComparer = TryGetDictionaryComparer(left);
+        var rightComparer = TryGetDictionaryComparer(right);
+        if (leftComparer is not null && rightComparer is not null)
+        {
+            if (!leftComparer.Equals(rightComparer))
+            {
+                return false;
+            }
+
+            return leftView.ContainsAll(right, valueComparer);
+        }
+
+        return leftView.ContainsAll(right, valueComparer)
+            && rightView.ContainsAll(left, valueComparer);
+    }
+
     private static DictionaryView<TKey, TValue>? AsDictionary<TKey, TValue>(
         IEnumerable<KeyValuePair<TKey, TValue>> value
     )
@@ -257,14 +344,20 @@ internal static class SparseValueComparer
 
         public int Count => _readOnly?.Count ?? _dictionary!.Count;
 
-        public bool ContainsAll(IEnumerable<KeyValuePair<TKey, TValue>> entries)
+        public bool ContainsAll(IEnumerable<KeyValuePair<TKey, TValue>> entries) =>
+            ContainsAll(entries, AreEqual);
+
+        public bool ContainsAll(
+            IEnumerable<KeyValuePair<TKey, TValue>> entries,
+            Func<TValue, TValue, bool> valueComparer
+        )
         {
 #pragma warning disable S3267 // Concrete dictionary enumeration avoids boxing its value-type enumerator.
             if (entries is Dictionary<TKey, TValue> dictionary)
             {
                 foreach (var pair in dictionary)
                 {
-                    if (!Contains(pair))
+                    if (!Contains(pair, valueComparer))
                     {
                         return false;
                     }
@@ -275,7 +368,7 @@ internal static class SparseValueComparer
 
             foreach (var pair in entries)
             {
-                if (!Contains(pair))
+                if (!Contains(pair, valueComparer))
                 {
                     return false;
                 }
@@ -285,18 +378,10 @@ internal static class SparseValueComparer
             return true;
         }
 
-        private bool Contains(KeyValuePair<TKey, TValue> pair) =>
-            TryGetValue(pair.Key, out var value) && AreDictionaryValuesEqual(value, pair.Value);
-
-        private static bool AreDictionaryValuesEqual(TValue left, TValue right)
-        {
-            // Avoid boxing common value types for every dictionary entry. Enumerable
-            // structs still use the structural comparison path to preserve semantics.
-            return
-                typeof(TValue).IsValueType && !typeof(IEnumerable).IsAssignableFrom(typeof(TValue))
-                ? EqualityComparer<TValue>.Default.Equals(left, right)
-                : AreEqual((object?)left, (object?)right);
-        }
+        private bool Contains(
+            KeyValuePair<TKey, TValue> pair,
+            Func<TValue, TValue, bool> valueComparer
+        ) => TryGetValue(pair.Key, out var value) && valueComparer(value, pair.Value);
 
         private bool TryGetValue(TKey key, out TValue value)
         {

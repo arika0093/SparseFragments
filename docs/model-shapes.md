@@ -23,6 +23,21 @@ The root model must be:
 
 Members may be readable/writable or init-only as applicable. A `required` member must be assignable by the generated constructor path: either through a public setter or a matching constructor parameter. Otherwise generation fails ([`SPF006`](analyzer.md#spf006-required-member-cannot-be-constructed)).
 
+Mark a property with `[SparseIgnore]` to remove it from the generated surface entirely. Ignored properties are omitted from `Fragment`, `Patch`, `ChangeSet`, `Observable`, clone/diff, and generated JSON. `ToModel()` leaves them at their model default; model-level `ApplyTo` and `TryApplyTo` carry their current values forward when the property has a public setter:
+
+```csharp
+[SparseFragmentModel]
+public partial class Settings
+{
+    public string Name { get; set; } = "";
+
+    [SparseIgnore]
+    public string RuntimeSecret { get; set; } = "";
+}
+```
+
+`[SparseIgnore]` can be inherited with a property declaration and is supported on promoted nested models. It cannot be used on a key or on required, init-only, or non-defaulted constructor-bound properties ([`SPF022`](analyzer.md#spf022-sparseignore-on-key), [`SPF023`](analyzer.md#spf023-sparseignore-on-unsupported-property)). It may be combined with `[JsonIgnore]`; `[JsonIgnore]` alone continues to affect generated JSON only.
+
 Most members need no merge configuration: scalars and ordinary collections use `Replace`, while nested generated models use `Deep`. Add `[SparseMerge]` only when you want different behavior (see [Merge strategies](merge-strategies.md)):
 
 ```csharp

@@ -24,7 +24,8 @@ internal static class SparseFragmentPatchAlgebraEmitter
         var expressions = new SparseFragmentExpressions(
             "__sparse_patch_context",
             dialect.RuntimeFacade,
-            dialect.RuntimeFacade
+            dialect.RuntimeFacade,
+            runtime + "Optional"
         );
 
         SparseSemanticBetweenEmitter.AppendBetweenMethod(

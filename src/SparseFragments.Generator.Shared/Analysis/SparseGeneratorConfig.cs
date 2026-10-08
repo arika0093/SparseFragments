@@ -6,6 +6,7 @@ internal sealed record SparseGeneratorConfig
 {
     public SparseGeneratorConfig(
         string ModelAttributeMetadataName,
+        string IgnoreAttributeMetadataName,
         string MergeAttributeMetadataName,
         string MergeStrategyBaseMetadataName,
         string CloneReferenceSafeAttributeMetadataName,
@@ -24,6 +25,7 @@ internal sealed record SparseGeneratorConfig
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
+        this.IgnoreAttributeMetadataName = IgnoreAttributeMetadataName;
         this.MergeAttributeMetadataName = MergeAttributeMetadataName;
         this.MergeStrategyBaseMetadataName = MergeStrategyBaseMetadataName;
         this.CloneReferenceSafeAttributeMetadataName = CloneReferenceSafeAttributeMetadataName;
@@ -42,6 +44,8 @@ internal sealed record SparseGeneratorConfig
     }
 
     public string ModelAttributeMetadataName { get; init; }
+
+    public string IgnoreAttributeMetadataName { get; init; }
 
     public string MergeAttributeMetadataName { get; init; }
 
@@ -104,7 +108,9 @@ internal sealed record SparseDiagnosticIdMap
         string NullableKey,
         string UnsupportedKeyShape,
         string InvalidKeyedInterface,
-        string DuplicateJsonPropertyName
+        string DuplicateJsonPropertyName,
+        string SparseIgnoreOnKey,
+        string SparseIgnoreUnsupportedProperty
     )
     {
         this.MustBePartial = MustBePartial;
@@ -128,6 +134,8 @@ internal sealed record SparseDiagnosticIdMap
         this.UnsupportedKeyShape = UnsupportedKeyShape;
         this.InvalidKeyedInterface = InvalidKeyedInterface;
         this.DuplicateJsonPropertyName = DuplicateJsonPropertyName;
+        this.SparseIgnoreOnKey = SparseIgnoreOnKey;
+        this.SparseIgnoreUnsupportedProperty = SparseIgnoreUnsupportedProperty;
     }
 
     public string MustBePartial { get; init; }
@@ -171,6 +179,10 @@ internal sealed record SparseDiagnosticIdMap
     public string InvalidKeyedInterface { get; init; }
 
     public string DuplicateJsonPropertyName { get; init; }
+
+    public string SparseIgnoreOnKey { get; init; }
+
+    public string SparseIgnoreUnsupportedProperty { get; init; }
 }
 
 internal sealed record SparseRuntimeDialect

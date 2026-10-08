@@ -82,7 +82,8 @@ internal sealed class SparseSymbolMemberModel(
     INamedTypeSymbol? childModel,
     int mergeMode,
     SparseSymbolCollectionInfo collection,
-    INamedTypeSymbol? mergeStrategyType
+    INamedTypeSymbol? mergeStrategyType,
+    bool hasExplicitMergeMode
 )
 {
     public int Id { get; } = id;
@@ -91,6 +92,7 @@ internal sealed class SparseSymbolMemberModel(
     public int MergeMode { get; } = mergeMode;
     public SparseSymbolCollectionInfo Collection { get; } = collection;
     public INamedTypeSymbol? MergeStrategyType { get; } = mergeStrategyType;
+    public bool HasExplicitMergeMode { get; } = hasExplicitMergeMode;
 }
 
 internal readonly record struct SparseMemberModel(
@@ -103,7 +105,8 @@ internal readonly record struct SparseMemberModel(
     string? ChildFragmentType,
     bool ChildIsStructural,
     bool ChildIsReferenceType,
-    bool PortableSetView = false
+    bool PortableSetView = false,
+    bool HasExplicitMergeMode = false
 );
 
 internal readonly record struct SparseModelInfo(
@@ -114,8 +117,33 @@ internal readonly record struct SparseModelInfo(
     bool IsStruct,
     bool IsRecord,
     string HintName,
-    ModelConstructorBinding? Constructor
-);
+    ModelConstructorBinding? Constructor,
+    ImmutableArray<string> IgnoredSettablePropertyNames = default
+)
+{
+    public bool Equals(SparseModelInfo other) =>
+        Name == other.Name
+        && ModelTypeName == other.ModelTypeName
+        && Namespace == other.Namespace
+        && IsGlobalNamespace == other.IsGlobalNamespace
+        && IsStruct == other.IsStruct
+        && IsRecord == other.IsRecord
+        && HintName == other.HintName
+        && Equals(Constructor, other.Constructor)
+        && SparseSequence.Equal(IgnoredSettablePropertyNames, other.IgnoredSettablePropertyNames);
+
+    public override int GetHashCode() =>
+        unchecked(
+            (((((((Name.GetHashCode() * 31 + ModelTypeName.GetHashCode()) * 31
+                    + Namespace.GetHashCode()) * 31
+                + (IsGlobalNamespace ? 1 : 0)) * 31
+                + (IsStruct ? 1 : 0)) * 31
+                + (IsRecord ? 1 : 0)) * 31
+                + HintName.GetHashCode()) * 31
+                + (Constructor?.GetHashCode() ?? 0)) * 31
+                + SparseSequence.Hash(IgnoredSettablePropertyNames)
+        );
+}
 
 internal sealed record SparseStructuralModel(
     string HostName,

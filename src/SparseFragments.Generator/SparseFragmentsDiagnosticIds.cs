@@ -23,4 +23,6 @@ internal static class SparseFragmentsDiagnosticIds
     public const string UnsupportedKeyShape = "SPF019";
     public const string InvalidKeyedInterface = "SPF020";
     public const string DuplicateJsonPropertyName = "SPF021";
+    public const string SparseIgnoreOnKey = "SPF022";
+    public const string SparseIgnoreUnsupportedProperty = "SPF023";
 }

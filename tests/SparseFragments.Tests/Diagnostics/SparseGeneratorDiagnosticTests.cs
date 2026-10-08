@@ -608,6 +608,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF019"] = "#spf019-unsupported-sparsekey-shape",
             ["SPF020"] = "#spf020-invalid-isparsekeyed-implementation",
             ["SPF021"] = "#spf021-duplicate-json-property-name",
+            ["SPF022"] = "#spf022-sparseignore-on-key",
+            ["SPF023"] = "#spf023-sparseignore-on-unsupported-property",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
@@ -740,6 +742,160 @@ public sealed class SparseGeneratorDiagnosticTests
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
         sources
             .Any(s => s.HintName.Contains("UnkeyedEscapeHolder", StringComparison.Ordinal))
+            .ShouldBeTrue();
+    }
+
+    [Test]
+    public void Spf011_ExplicitReplaceEscapeHatchGeneratesUnkeyedSequence()
+    {
+        const string source = """
+            using SparseFragments;
+            using System.Collections.Generic;
+            public partial class ExplicitReplaceItem
+            {
+                public string Name { get; set; } = "";
+            }
+            [SparseFragmentModel]
+            public partial class ExplicitReplaceHolder
+            {
+                [SparseMerge(MergeMode.Replace)]
+                public List<ExplicitReplaceItem> Items { get; set; } = new();
+            }
+            """;
+        var (diagnostics, sources) = Run(source);
+        diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
+        sources
+            .Any(s => s.HintName.Contains("ExplicitReplaceHolder", StringComparison.Ordinal))
+            .ShouldBeTrue();
+    }
+
+    [Test]
+    public void Spf022_SparseIgnoreOnPropertyKeyIsRejected()
+    {
+        const string source = """
+            using SparseFragments;
+            using System.Collections.Generic;
+            public partial class IgnoredKeyItem
+            {
+                [SparseKey, SparseIgnore]
+                public string Id { get; set; } = "";
+            }
+            [SparseFragmentModel]
+            public partial class IgnoredKeyHolder
+            {
+                public List<IgnoredKeyItem> Items { get; set; } = new();
+            }
+            """;
+        var (diagnostics, sources) = Run(source);
+        AssertSingleSpf(
+            diagnostics,
+            "SPF022",
+            "Id",
+            "#spf022-sparseignore-on-key",
+            expectInSource: true
+        );
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void Spf022_SparseIgnoreOnCompositeKeyComponentIsRejected()
+    {
+        const string source = """
+            using SparseFragments;
+            using System.Collections.Generic;
+            [SparseKey(nameof(Tenant), nameof(Id))]
+            public partial class IgnoredCompositeItem
+            {
+                [SparseIgnore]
+                public string Tenant { get; set; } = "";
+                public string Id { get; set; } = "";
+            }
+            [SparseFragmentModel]
+            public partial class IgnoredCompositeHolder
+            {
+                public List<IgnoredCompositeItem> Items { get; set; } = new();
+            }
+            """;
+        var (diagnostics, sources) = Run(source);
+        AssertSingleSpf(
+            diagnostics,
+            "SPF022",
+            "Tenant",
+            "#spf022-sparseignore-on-key",
+            expectInSource: true
+        );
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
+    [Arguments("required")]
+    [Arguments("initOnly")]
+    [Arguments("constructor")]
+    public void Spf023_SparseIgnoreOnUnconstructiblePropertyIsRejected(string kind)
+    {
+        var source = kind switch
+        {
+            "required" => """
+                using SparseFragments;
+                [SparseFragmentModel]
+                public partial class IgnoredRequiredModel
+                {
+                    [SparseIgnore]
+                    public required string Hidden { get; set; }
+                }
+                """,
+            "initOnly" => """
+                using SparseFragments;
+                [SparseFragmentModel]
+                public partial class IgnoredInitModel
+                {
+                    [SparseIgnore]
+                    public string Hidden { get; init; } = "";
+                }
+                """,
+            "constructor" => """
+                using SparseFragments;
+                [SparseFragmentModel]
+                public partial class IgnoredConstructorModel
+                {
+                    [SparseIgnore]
+                    public string Hidden { get; }
+                    public IgnoredConstructorModel(string hidden) => Hidden = hidden;
+                }
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+        var (diagnostics, sources) = Run(source);
+        AssertSingleSpf(
+            diagnostics,
+            "SPF023",
+            "Hidden",
+            "#spf023-sparseignore-on-unsupported-property",
+            expectInSource: true
+        );
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void SparseIgnoreAvoidsFalseDuplicateJsonNameAndCanCombineWithJsonIgnore()
+    {
+        const string source = """
+            using SparseFragments;
+            using System.Text.Json.Serialization;
+            [SparseFragmentModel]
+            public partial class IgnoredJsonNameModel
+            {
+                [SparseIgnore, JsonPropertyName("same")]
+                public string Hidden { get; set; } = "";
+                [JsonPropertyName("same")]
+                public string Visible { get; set; } = "";
+                [SparseIgnore, JsonIgnore]
+                public string AlsoHidden { get; set; } = "";
+            }
+            """;
+        var (diagnostics, sources) = Run(source);
+        diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
+        sources.Any(s => s.HintName.Contains("IgnoredJsonNameModel", StringComparison.Ordinal))
             .ShouldBeTrue();
     }
 }

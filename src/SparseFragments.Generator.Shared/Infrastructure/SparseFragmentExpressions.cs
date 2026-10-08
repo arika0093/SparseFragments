@@ -4,16 +4,36 @@ namespace SparseFragments.Generator.Shared;
 internal sealed class SparseFragmentExpressions(
     string cloneContext,
     string valueComparer,
-    string collectionMerger
+    string collectionMerger,
+    string optionalType = "global::SparseFragments.Optional"
 )
 {
     private string ValueComparer { get; } = valueComparer;
     private string CollectionMerger { get; } = collectionMerger;
     private string CloneContext { get; } = cloneContext;
+    private string OptionalType { get; } = optionalType;
 
     public string ValueEqualityExpression(SparseMemberModel member, string left, string right)
     {
         var collection = member.Collection;
+        if (
+            collection.ElementType.IsFragmentModel
+            && collection.CloneKind is SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List
+        )
+        {
+            return
+                $"{ValueComparer}.AreSequenceEqual<{collection.ElementType.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(collection.ElementType, "__left", "__right")})";
+        }
+
+        if (
+            collection.ValueType is { IsFragmentModel: true } dictionaryValue
+            && collection.CloneKind == SparseCloneCollectionKind.Dictionary
+        )
+        {
+            return
+                $"{ValueComparer}.AreDictionaryEqual<{collection.ElementType.Name}, {dictionaryValue.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(dictionaryValue, "__left", "__right")})";
+        }
+
         return collection.CloneKind switch
         {
             SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List =>
@@ -24,6 +44,39 @@ internal sealed class SparseFragmentExpressions(
                 $"{ValueComparer}.AreDictionaryEqual<{collection.ElementType.Name}, {collection.ValueType.Value.Name}>({left}, {right})",
             _ => $"{ValueComparer}.AreEqual({left}, {right})",
         };
+    }
+
+    private string FragmentElementEquality(SparseTypeModel element, string left, string right)
+    {
+        var fragment = element.NonNullableName + ".Fragment";
+        var optionalFragment = OptionalType + "<" + fragment + "?>";
+        var equal = fragment
+            + ".__SparseAreEqual("
+            + optionalFragment
+            + ".Present("
+            + fragment
+            + ".From("
+            + left
+            + ")), "
+            + optionalFragment
+            + ".Present("
+            + fragment
+            + ".From("
+            + right
+            + ")))";
+        if (!element.IsReferenceType)
+        {
+            return equal;
+        }
+
+        return "(object?)"
+            + left
+            + " is null ? (object?)"
+            + right
+            + " is null : (object?)"
+            + right
+            + " is not null && "
+            + equal;
     }
 
     public string CloneValueExpression(SparseTypeModel type, string access)

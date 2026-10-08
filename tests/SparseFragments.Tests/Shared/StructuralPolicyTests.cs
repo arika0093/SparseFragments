@@ -23,6 +23,7 @@ public sealed class StructuralPolicyTests
     ) =>
         new(
             ModelAttributeMetadataName: ModelAttribute,
+            IgnoreAttributeMetadataName: "SparseFragments.SparseIgnoreAttribute",
             MergeAttributeMetadataName: MergeAttribute,
             MergeStrategyBaseMetadataName: MergeBase,
             CloneReferenceSafeAttributeMetadataName: CloneSafe,
@@ -51,7 +52,9 @@ public sealed class StructuralPolicyTests
                 "SPF018",
                 "SPF019",
                 "SPF020",
-                "SPF021"
+                "SPF021",
+                "SPF022",
+                "SPF023"
             ),
             HintNameSuffix: ".SparseFragments.g.cs",
             PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -331,6 +334,7 @@ public sealed class StructuralPolicyTests
             """;
         var config = new SparseGeneratorConfig(
             ModelAttributeMetadataName: "Downstream.ModelAttribute",
+            IgnoreAttributeMetadataName: "Downstream.IgnoreAttribute",
             MergeAttributeMetadataName: "Downstream.MergeAttribute",
             MergeStrategyBaseMetadataName: "Downstream.MergeStrategy<T>",
             CloneReferenceSafeAttributeMetadataName: "Downstream.CloneSafeAttribute",
@@ -359,7 +363,9 @@ public sealed class StructuralPolicyTests
                 "DWN018",
                 "DWN019",
                 "DWN020",
-                "DWN021"
+                "DWN021",
+                "DWN022",
+                "DWN023"
             ),
             HintNameSuffix: ".Downstream.g.cs",
             PromotedHintNameSuffix: ".DownstreamPromoted.g.cs",

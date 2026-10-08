@@ -16,7 +16,11 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
         CancellationToken cancellationToken
     )
     {
-        var constructor = ModelConstructorBinding.AnalyzeStructural(pocoType, cancellationToken);
+        var constructor = ModelConstructorBinding.AnalyzeStructural(
+            pocoType,
+            config,
+            cancellationToken
+        );
         if (constructor is null)
             return true;
         var hierarchy = new Stack<INamedTypeSymbol>();
@@ -38,6 +42,10 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (property.IsStatic || property.IsIndexer)
+                {
+                    continue;
+                }
+                if (SparseModelDiscovery.IsSparseIgnored(property, config))
                 {
                     continue;
                 }
@@ -157,6 +165,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
     public static IEnumerable<ISymbol> UnsupportedRequiredMembers(
         INamedTypeSymbol model,
         IEnumerable<IPropertySymbol> properties,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
@@ -166,6 +175,16 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
             foreach (var member in type.GetMembers())
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (
+                    member is IPropertySymbol ignoredProperty
+                    && SparseModelDiscovery.IsSparseIgnored(
+                        ignoredProperty,
+                        config
+                    )
+                )
+                {
+                    continue;
+                }
                 if (
                     member is IPropertySymbol or IFieldSymbol
                     && RoslynSymbolCompat.IsRequired(member)

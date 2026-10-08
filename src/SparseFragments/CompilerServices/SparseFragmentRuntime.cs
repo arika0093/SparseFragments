@@ -18,6 +18,13 @@ public static class SparseFragmentRuntime
     public static bool AreSequenceEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right) =>
         SparseValueComparer.AreSequenceEqual(left, right);
 
+    /// <summary>Compares a sequence using a generated semantic item comparer.</summary>
+    public static bool AreSequenceEqual<T>(
+        IEnumerable<T>? left,
+        IEnumerable<T>? right,
+        Func<T, T, bool> itemComparer
+    ) => SparseValueComparer.AreSequenceEqual(left, right, itemComparer);
+
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
     public static bool AreSetEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right) =>
         SparseValueComparer.AreSetEqual(left, right);
@@ -27,6 +34,13 @@ public static class SparseFragmentRuntime
         IEnumerable<KeyValuePair<TKey, TValue>>? left,
         IEnumerable<KeyValuePair<TKey, TValue>>? right
     ) => SparseValueComparer.AreDictionaryEqual(left, right);
+
+    /// <summary>Compares a dictionary using a generated semantic value comparer.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        IEnumerable<KeyValuePair<TKey, TValue>>? left,
+        IEnumerable<KeyValuePair<TKey, TValue>>? right,
+        Func<TValue, TValue, bool> valueComparer
+    ) => SparseValueComparer.AreDictionaryEqual(left, right, valueComparer);
 
     /// <summary>Appends ordered contributions, preserving duplicates.</summary>
     public static List<T> MergeAppendList<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>

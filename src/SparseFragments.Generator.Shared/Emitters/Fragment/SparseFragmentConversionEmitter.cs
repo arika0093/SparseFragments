@@ -179,9 +179,11 @@ internal sealed class SparseFragmentConversionEmitter
                 ", ",
                 constructor.Parameters.Select(parameter =>
                 {
-                    var member = members.Single(candidate =>
+                    var member = members.FirstOrDefault(candidate =>
                         candidate.Property.Name == parameter.PropertyName
                     );
+                    if (member.Property.Name is null)
+                        return parameter.DefaultExpression;
                     var access =
                         "__sparse_projection."
                         + SparseNaming.EscapeIdentifier(parameter.PropertyName);
@@ -280,9 +282,11 @@ internal sealed class SparseFragmentConversionEmitter
                     ", ",
                     constructor.Parameters.Select(parameter =>
                     {
-                        var member = members.Single(candidate =>
+                        var member = members.FirstOrDefault(candidate =>
                             candidate.Property.Name == parameter.PropertyName
                         );
+                        if (member.Property.Name is null)
+                            return parameter.DefaultExpression;
                         var name = SparseNaming.EscapeIdentifier(parameter.PropertyName);
                         var projected = name + ".Value!";
                         if (member.ChildModel is not null)

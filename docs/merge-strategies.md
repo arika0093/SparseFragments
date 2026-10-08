@@ -54,7 +54,7 @@ Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the default element-wise behavior either: they must declare identity or explicitly select `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)).
+Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)). An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet/Patch JSON wire shape from granular entries to a whole-value operation. The implicit default `Replace` remains granular for keyed collections.
 
 ### `Append`
 

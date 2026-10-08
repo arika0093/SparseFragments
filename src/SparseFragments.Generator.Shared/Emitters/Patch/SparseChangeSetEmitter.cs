@@ -18,7 +18,8 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        ImmutableArray<string> ignoredSettablePropertyNames = default
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -84,7 +85,8 @@ internal static class SparseChangeSetEmitter
             rebase,
             between,
             dialect,
-            modelType
+            modelType,
+            ignoredSettablePropertyNames
         );
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
         SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);

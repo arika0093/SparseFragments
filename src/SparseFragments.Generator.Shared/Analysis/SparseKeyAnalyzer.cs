@@ -220,8 +220,8 @@ internal static class SparseKeyAnalyzer
     /// <remarks>
     /// Mirrors the escape-hatch rule of
     /// <see cref="SparseCollectionAnalyzer.IsUnkeyedStructuralSequence"/>: explicit
-    /// <c>Append</c>/<c>SetUnion</c>/<c>Custom</c> merge modes keep legacy
-    /// whole-collection semantics without a key.
+    /// <c>Append</c>/<c>SetUnion</c>/<c>Custom</c> merge modes and explicitly
+    /// selected <c>Replace</c> keep whole-collection semantics without a key.
     /// </remarks>
     public static bool RequiresKeyedSemantics(
         SparseSymbolMemberModel member,
@@ -233,6 +233,10 @@ internal static class SparseKeyAnalyzer
         if (
             member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             || member.MergeMode == SparseMergeModes.Custom
+            || (
+                member.HasExplicitMergeMode
+                && member.MergeMode == SparseMergeModes.Replace
+            )
         )
         {
             return false;
@@ -375,7 +379,7 @@ internal static class SparseKeyAnalyzer
 
         if (mechanisms.TypeAttributes.Count > 0 && mechanisms.KindCount == 1)
         {
-            return TryBuildCompositeInfo(element, mechanisms, cancellationToken, out info);
+            return TryBuildCompositeInfo(element, mechanisms, config, cancellationToken, out info);
         }
 
         if (mechanisms.KeyedInterfaces.Count > 0 && mechanisms.KindCount == 1)
@@ -389,6 +393,7 @@ internal static class SparseKeyAnalyzer
     private static bool TryBuildCompositeInfo(
         INamedTypeSymbol element,
         KeyMechanisms mechanisms,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken,
         out SparseKeyInfo? info
     )
@@ -406,7 +411,7 @@ internal static class SparseKeyAnalyzer
             return false;
         }
 
-        var readable = GetReadablePropertiesByName(element, cancellationToken);
+        var readable = GetReadablePropertiesByName(element, config, cancellationToken);
         var resolved = new List<IPropertySymbol>(names.Length);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in names)
@@ -537,6 +542,16 @@ internal static class SparseKeyAnalyzer
             cancellationToken.ThrowIfCancellationRequested();
             var property = mechanisms.PropertyMarks[index];
             var attribute = mechanisms.PropertyMarkAttributes[index];
+            if (SparseModelDiscovery.IsSparseIgnored(property, config))
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        config.EffectiveDiagnosticIds.SparseIgnoreOnKey,
+                        property.Locations.FirstOrDefault(),
+                        property.Name
+                    )
+                );
+            }
             if (HasAttributeArguments(attribute))
             {
                 diagnostics.Add(
@@ -675,7 +690,7 @@ internal static class SparseKeyAnalyzer
             return;
         }
 
-        var readable = GetReadablePropertiesByName(element, cancellationToken);
+        var readable = GetReadablePropertiesByName(element, config, cancellationToken);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in names)
         {
@@ -708,6 +723,16 @@ internal static class SparseKeyAnalyzer
                 continue;
             }
 
+            if (SparseModelDiscovery.IsSparseIgnored(property, config))
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        config.EffectiveDiagnosticIds.SparseIgnoreOnKey,
+                        property.Locations.FirstOrDefault(),
+                        property.Name
+                    )
+                );
+            }
             AddKeyTypeDiagnostic(
                 element,
                 property,
@@ -779,6 +804,23 @@ internal static class SparseKeyAnalyzer
                     config.EffectiveDiagnosticIds.InvalidKeyedInterface,
                     element.Locations.FirstOrDefault(),
                     element.Name
+                )
+            );
+        }
+        else if (
+            element.GetMembers(config.KeyPropertyName)
+                .OfType<IPropertySymbol>()
+                .Any(property => SparseModelDiscovery.IsSparseIgnored(property, config))
+        )
+        {
+            diagnostics.Add(
+                new SparseGeneratorDiagnostic(
+                    config.EffectiveDiagnosticIds.SparseIgnoreOnKey,
+                    element.GetMembers(config.KeyPropertyName)
+                        .OfType<IPropertySymbol>()
+                        .First(property => SparseModelDiscovery.IsSparseIgnored(property, config))
+                        .Locations.FirstOrDefault(),
+                    config.KeyPropertyName
                 )
             );
         }
@@ -901,12 +943,18 @@ internal static class SparseKeyAnalyzer
 
     private static Dictionary<string, IPropertySymbol> GetReadablePropertiesByName(
         INamedTypeSymbol element,
+        SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
     {
         var readable = new Dictionary<string, IPropertySymbol>(StringComparer.Ordinal);
         foreach (
-            var property in SparseModelDiscovery.GetReadableProperties(element, cancellationToken)
+            var property in SparseModelDiscovery.GetReadableProperties(
+                element,
+                config,
+                cancellationToken,
+                includeSparseIgnored: true
+            )
         )
         {
             cancellationToken.ThrowIfCancellationRequested();

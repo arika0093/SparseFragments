@@ -254,10 +254,9 @@ internal static class SparseCollectionAnalyzer
 
     /// <summary>Determines whether a member requires the configured unkeyed-sequence diagnostic.</summary>
     /// <remarks>
-    /// Escape hatch: explicit <c>Append</c>/<c>SetUnion</c>/<c>Custom</c> merge modes
-    /// keep legacy whole-collection semantics without a key. <c>Replace</c> (whether
-    /// default or explicit) and <c>Deep</c> do not escape: an unkeyed structural
-    /// sequence must not silently fall back to granular semantics.
+    /// Explicit <c>Replace</c>, <c>Append</c>, <c>SetUnion</c>, and <c>Custom</c>
+    /// merge modes use whole-collection semantics without a key. An implicit
+    /// default <c>Replace</c> and explicit <c>Deep</c> still require keyed identity.
     /// </remarks>
     public static bool IsUnkeyedStructuralSequence(
         SparseSymbolMemberModel member,
@@ -269,6 +268,10 @@ internal static class SparseCollectionAnalyzer
         if (
             member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             || member.MergeMode == SparseMergeModes.Custom
+            || (
+                member.HasExplicitMergeMode
+                && member.MergeMode == SparseMergeModes.Replace
+            )
         )
         {
             return false;

@@ -32,7 +32,8 @@ internal static class SparseChangeSetRebaseEmitter
         string rebase,
         string between,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        ImmutableArray<string> ignoredSettablePropertyNames = default
     )
     {
         _ = between;
@@ -395,7 +396,13 @@ internal static class SparseChangeSetRebaseEmitter
         if (modelType is not null)
         {
             AppendModelRebase(code, modelType, optionalFragment, rebaseResult);
-            AppendModelTryApply(code, modelType, optionalFragment, dialect.ConflictType);
+            AppendModelTryApply(
+                code,
+                modelType,
+                optionalFragment,
+                dialect.ConflictType,
+                ignoredSettablePropertyNames
+            );
         }
     }
 
@@ -423,7 +430,8 @@ internal static class SparseChangeSetRebaseEmitter
         SharedIndentedBuilder code,
         string modelType,
         string optionalFragment,
-        string conflictType
+        string conflictType,
+        ImmutableArray<string> ignoredSettablePropertyNames
     )
     {
         code.AppendLineAt(
@@ -481,7 +489,15 @@ internal static class SparseChangeSetRebaseEmitter
             3,
             "if (!__applied.IsPresent || __applied.Value is null) throw new global::System.InvalidOperationException(\"The rebased change does not produce a non-null model root. Use the presence-aware Fragment/Optional API for root presence transitions.\");"
         );
-        code.AppendLineAt(3, "updated = __applied.Value.ToModel();");
+        code.AppendLineAt(3, "var __updatedModel = __applied.Value.ToModel();");
+        foreach (var ignoredName in ignoredSettablePropertyNames.IsDefault
+            ? ImmutableArray<string>.Empty
+            : ignoredSettablePropertyNames)
+        {
+            var name = SparseNaming.EscapeIdentifier(ignoredName);
+            code.AppendLineAt(3, "__updatedModel." + name + " = current." + name + ";");
+        }
+        code.AppendLineAt(3, "updated = __updatedModel;");
         code.AppendLineAt(3, "conflicts = null;");
         code.AppendLineAt(3, "return true;");
         code.AppendLineAt(2, "}");

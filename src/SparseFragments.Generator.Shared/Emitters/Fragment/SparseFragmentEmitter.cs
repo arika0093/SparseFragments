@@ -113,7 +113,8 @@ internal static class SparseFragmentEmitter
         var expressions = new SparseFragmentExpressions(
             "__sparse_clone_context",
             runtime.ValueComparer,
-            runtime.CollectionMerger
+            runtime.CollectionMerger,
+            runtime.OptionalType
         );
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
@@ -191,7 +192,8 @@ internal static class SparseFragmentEmitter
             expressions,
             runtime,
             patchDialect,
-            constructor: model.Constructor
+            constructor: model.Constructor,
+            ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
         );
         if (!model.IsStruct)
         {
@@ -229,7 +231,8 @@ internal static class SparseFragmentEmitter
         SparseRuntimeDialect runtime,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
         bool isRootModel = true,
-        ModelConstructorBinding? constructor = null
+        ModelConstructorBinding? constructor = null,
+        ImmutableArray<string> ignoredSettablePropertyNames = default
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(code, string.Empty, string.Empty);
@@ -248,7 +251,13 @@ internal static class SparseFragmentEmitter
         SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, runtime.OptionalType);
         code.AppendLineAt(1, "}");
         core.AppendBuilder(code, members);
-        SparseFragmentPatchEmitter.AppendPatch(code, modelType, members, patchDialect);
+        SparseFragmentPatchEmitter.AppendPatch(
+            code,
+            modelType,
+            members,
+            patchDialect,
+            ignoredSettablePropertyNames
+        );
     }
 
     private static void AppendFragmentEquality(

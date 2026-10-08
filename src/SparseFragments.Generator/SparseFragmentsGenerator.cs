@@ -47,6 +47,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
 
     private static readonly SparseGeneratorConfig Configuration = new(
         ModelAttributeMetadataName: ModelAttributeName,
+        IgnoreAttributeMetadataName: "SparseFragments.SparseIgnoreAttribute",
         MergeAttributeMetadataName: MergeAttributeName,
         MergeStrategyBaseMetadataName: MergeStrategyBaseName,
         CloneReferenceSafeAttributeMetadataName: "SparseFragments.SparseCloneReferenceSafeAttribute",
@@ -75,7 +76,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.NullableKey,
             SparseFragmentsDiagnosticIds.UnsupportedKeyShape,
             SparseFragmentsDiagnosticIds.InvalidKeyedInterface,
-            SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName
+            SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName,
+            SparseFragmentsDiagnosticIds.SparseIgnoreOnKey,
+            SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty
         ),
         HintNameSuffix: ".SparseFragments.g.cs",
         PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -224,7 +227,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
         SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence,
         "Structural sequence without usable key",
-        "Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
+        "Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Replace, MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy",
         "SparseFragments",
         DiagnosticSeverity.Error,
         true,
@@ -329,6 +332,24 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf021-duplicate-json-property-name"
+    );
+    private static readonly DiagnosticDescriptor SparseIgnoreOnKey = new(
+        SparseFragmentsDiagnosticIds.SparseIgnoreOnKey,
+        "SparseIgnore cannot exclude a key",
+        "Property '{0}' is a SparseKey or a component of a composite SparseKey and cannot be ignored",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf022-sparseignore-on-key"
+    );
+    private static readonly DiagnosticDescriptor SparseIgnoreUnsupportedProperty = new(
+        SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty,
+        "SparseIgnore property cannot be preserved",
+        "Property '{0}' cannot be ignored because required, constructor-bound without a default, or init-only properties cannot be carried through model construction",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf023-sparseignore-on-unsupported-property"
     );
 
     /// <inheritdoc />
@@ -584,6 +605,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.UnsupportedKeyShape => UnsupportedKeyShape,
             SparseFragmentsDiagnosticIds.InvalidKeyedInterface => InvalidKeyedInterface,
             SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName => DuplicateJsonPropertyName,
+            SparseFragmentsDiagnosticIds.SparseIgnoreOnKey => SparseIgnoreOnKey,
+            SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty =>
+                SparseIgnoreUnsupportedProperty,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

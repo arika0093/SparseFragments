@@ -175,8 +175,8 @@ internal static class SparseCloneAnalysis
             );
 
         var constructor = fragmentModel
-            ? ModelConstructorBinding.AnalyzeRoot(model, cancellationToken)
-            : ModelConstructorBinding.AnalyzeStructural(model, cancellationToken);
+            ? ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken)
+            : ModelConstructorBinding.AnalyzeStructural(model, config, cancellationToken);
         if (constructor is null)
             return false;
 

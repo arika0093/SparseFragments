@@ -137,7 +137,8 @@ internal static class SparseFragmentPatchEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        SparsePatchDialect dialect
+        SparsePatchDialect dialect,
+        ImmutableArray<string> ignoredSettablePropertyNames = default
     )
     {
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
@@ -167,11 +168,25 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(2, "public " + modelType + " ApplyTo(" + modelType + " current)");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "return Fragment.From(current).Apply(this).ToModel();");
+        code.AppendLineAt(3, "var updated = Fragment.From(current).Apply(this).ToModel();");
+        foreach (var ignoredName in ignoredSettablePropertyNames.IsDefault
+            ? ImmutableArray<string>.Empty
+            : ignoredSettablePropertyNames)
+        {
+            var name = SparseNaming.EscapeIdentifier(ignoredName);
+            code.AppendLineAt(3, "updated." + name + " = current." + name + ";");
+        }
+        code.AppendLineAt(3, "return updated;");
         code.AppendLineAt(2, "}");
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members, dialect);
         code.AppendLineAt(1, "}");
-        SparseChangeSetEmitter.AppendChangeSet(code, members, dialect, modelType);
+        SparseChangeSetEmitter.AppendChangeSet(
+            code,
+            members,
+            dialect,
+            modelType,
+            ignoredSettablePropertyNames
+        );
     }
 }
