@@ -377,7 +377,7 @@ public sealed class RosterHighlightTests
     {
         var roster = State(Quest("a", "A", 1, 30));
         var model = PlaygroundSnippets.RosterModelCSharp("roster", roster);
-        model.ShouldContain("Quests =\n    [");
+        model.ReplaceLineEndings("\n").ShouldContain("Quests =\n    [");
         model.ShouldContain("Scores = [30]");
         model.ShouldNotContain("new List<");
 
