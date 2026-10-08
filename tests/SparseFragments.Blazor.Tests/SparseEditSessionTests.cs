@@ -95,8 +95,9 @@ public sealed class SparseEditSessionTests
     public void ValidationBehaviorThroughEditContext()
     {
         var session = Order().CreateEditSession();
-        var store = session.CreateValidationStore();
-        session.EditContext.OnValidationRequested += (sender, _) =>
+        var editContext = session.CreateEditContext();
+        var store = session.CreateValidationStore(editContext);
+        editContext.OnValidationRequested += (sender, _) =>
         {
             store.Clear();
             if (string.IsNullOrEmpty(session.Model.Number))
@@ -105,14 +106,14 @@ public sealed class SparseEditSessionTests
             }
         };
 
-        session.EditContext.Validate().ShouldBeTrue();
+        editContext.Validate().ShouldBeTrue();
 
         session.Model.Number = "";
-        session.EditContext.NotifyFieldChanged(
+        editContext.NotifyFieldChanged(
             new FieldIdentifier(session.Model, nameof(OrderDto.Number))
         );
-        session.EditContext.Validate().ShouldBeFalse();
-        session.EditContext.GetValidationMessages().ShouldContain("Number is required.");
+        editContext.Validate().ShouldBeFalse();
+        editContext.GetValidationMessages().ShouldContain("Number is required.");
     }
 
     [Test]
@@ -209,11 +210,12 @@ public sealed class SparseEditSessionTests
     public void CollectionMutationWithoutFieldNotificationDetected()
     {
         var session = Order().CreateEditSession();
+        var editContext = session.CreateEditContext();
 
         // No EditContext.NotifyFieldChanged here: direct list mutation.
         session.Model.Lines.RemoveAt(0);
 
-        session.EditContext.IsModified().ShouldBeFalse();
+        editContext.IsModified().ShouldBeFalse();
         session.HasChanges.ShouldBeTrue();
         session.CreateChangeSet().IsEmpty.ShouldBeFalse();
     }
@@ -280,20 +282,21 @@ public sealed class SparseEditSessionTests
     public void AcceptChangesResetsBaselineAndBlazorState()
     {
         var session = Order().CreateEditSession();
+        var editContext = session.CreateEditContext();
 
         session.Model.Number = "ORD-2";
-        session.EditContext.NotifyFieldChanged(
+        editContext.NotifyFieldChanged(
             new FieldIdentifier(session.Model, nameof(OrderDto.Number))
         );
-        session.EditContext.IsModified().ShouldBeTrue();
+        editContext.IsModified().ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
 
-        session.AcceptChanges();
+        session.AcceptChanges(editContext);
 
         session.HasChanges.ShouldBeFalse();
         session.CreateChangeSet().IsEmpty.ShouldBeTrue();
         session.CreatePatch().IsEmpty.ShouldBeTrue();
-        session.EditContext.IsModified().ShouldBeFalse();
+        editContext.IsModified().ShouldBeFalse();
 
         session.Model.Number = "ORD-3";
         session.HasChanges.ShouldBeTrue();
@@ -465,19 +468,38 @@ public sealed class SparseEditSessionTests
     public void ValidationMessageStorePrimitive()
     {
         var session = Order().CreateEditSession();
-        var store = session.CreateValidationStore();
+        var editContext = session.CreateEditContext();
+        var store = session.CreateValidationStore(editContext);
 
-        SparseEditSession<
-            OrderDto,
-            OrderDto.Fragment,
-            OrderDto.Patch,
-            OrderDto.ChangeSet
-        >.AddValidationError(
+        session.AddValidationError(
             store,
             session.Field(nameof(OrderDto.Number)),
             "Server rejected the order number."
         );
 
-        session.EditContext.GetValidationMessages().ShouldContain("Server rejected the order number.");
+        editContext.GetValidationMessages().ShouldContain("Server rejected the order number.");
+    }
+
+    [Test]
+    public void BlazorHelpersRequireTheSessionsRawModel()
+    {
+        var model = Order();
+        var session = model.CreateEditSession();
+        var editContext = session.CreateEditContext();
+
+        ReferenceEquals(editContext.Model, model).ShouldBeTrue();
+
+        var otherContext = new EditContext(Order());
+        Should.Throw<ArgumentException>(() => session.CreateValidationStore(otherContext));
+
+        session.Model.Number = "ORD-2";
+        Should.Throw<ArgumentException>(() => session.AcceptChanges(otherContext));
+        session.HasChanges.ShouldBeTrue();
+
+        var store = session.CreateValidationStore(editContext);
+        var otherField = new FieldIdentifier(Order(), nameof(OrderDto.Number));
+        Should.Throw<ArgumentException>(() =>
+            session.AddValidationError(store, otherField, "Wrong model.")
+        );
     }
 }

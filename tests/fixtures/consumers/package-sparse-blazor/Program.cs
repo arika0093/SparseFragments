@@ -38,9 +38,10 @@ session.Model.Number = "ORD-2";
 Require(!session.HasChanges, "edit-then-restore has no semantic changes");
 Require(session.CreatePatch().IsEmpty, "edit-then-restore patch is empty");
 
-// Validation flows through the ordinary EditContext pipeline.
-var store = session.CreateValidationStore();
-session.EditContext.OnValidationRequested += (sender, _) =>
+// Validation flows through the ordinary EditContext pipeline, bound to the raw model.
+var editContext = session.CreateEditContext();
+var store = session.CreateValidationStore(editContext);
+editContext.OnValidationRequested += (sender, _) =>
 {
     store.Clear();
     if (string.IsNullOrEmpty(session.Model.Number))
@@ -48,22 +49,23 @@ session.EditContext.OnValidationRequested += (sender, _) =>
         store.Add(session.Field(nameof(BlazorDocsOrder.Number)), "Number is required.");
     }
 };
-Require(session.EditContext.Validate(), "valid model passes validation");
+Require(editContext.Model is BlazorDocsOrder, "EditContext uses the raw model");
+Require(editContext.Validate(), "valid model passes validation");
 session.Model.Number = string.Empty;
-session.EditContext.NotifyFieldChanged(session.Field(nameof(BlazorDocsOrder.Number)));
-Require(!session.EditContext.Validate(), "empty number fails validation");
+editContext.NotifyFieldChanged(session.Field(nameof(BlazorDocsOrder.Number)));
+Require(!editContext.Validate(), "empty number fails validation");
 Require(
-    session.EditContext.GetValidationMessages().Contains("Number is required."),
+    editContext.GetValidationMessages().Contains("Number is required."),
     "validation message surfaces through the store");
 
 // Externally obtained errors (for example structured rebase conflicts) surface
 // the same way without taking a dependency on HTTP transport.
-SparseEditSession<BlazorDocsOrder, BlazorDocsOrder.Fragment, BlazorDocsOrder.Patch, BlazorDocsOrder.ChangeSet>.AddValidationError(
+session.AddValidationError(
     store,
     session.Field(nameof(BlazorDocsOrder.Number)),
     "Server rejected the order number.");
 Require(
-    session.EditContext.GetValidationMessages().Contains("Server rejected the order number."),
+    editContext.GetValidationMessages().Contains("Server rejected the order number."),
     "external error surfaces through AddValidationError");
 
 // sample: ui-session

@@ -22,7 +22,6 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        bool emitBlazorEditSession,
         CancellationToken cancellationToken
     )
     {
@@ -33,7 +32,6 @@ internal static class SparseFragmentEmitter
             structuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            emitBlazorEditSession,
             emitModelExtensions: true,
             cancellationToken
         );
@@ -53,7 +51,6 @@ internal static class SparseFragmentEmitter
             promoted.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            emitBlazorEditSession: false,
             emitModelExtensions: false,
             cancellationToken
         );
@@ -78,7 +75,6 @@ internal static class SparseFragmentEmitter
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        bool emitBlazorEditSession,
         bool emitModelExtensions,
         CancellationToken cancellationToken
     )
@@ -152,11 +148,6 @@ internal static class SparseFragmentEmitter
             constructor: model.Constructor,
             hashSetSupportsCapacity: bclHashSetSupportsCapacity
         );
-        if (emitBlazorEditSession && !model.IsStruct)
-        {
-            AppendEditSession(code, modelType, members);
-        }
-
         if (!model.IsStruct)
         {
             SparseObservableEmitter.AppendObservable(code, modelType, members);
@@ -169,36 +160,6 @@ internal static class SparseFragmentEmitter
         }
 
         return code.ToString();
-    }
-
-    /// <summary>
-    /// Emits the Blazor edit-session factory. Only generated when the compilation
-    /// references <c>SparseFragments.Blazor</c>; other consumers see
-    /// byte-identical output.
-    /// </summary>
-    private static void AppendEditSession(
-        SharedIndentedBuilder code,
-        string modelType,
-        ImmutableArray<SparseMemberModel> members
-    )
-    {
-        _ = members;
-        var session =
-            "global::SparseFragments.Blazor.SparseEditSession<"
-            + modelType
-            + ", Fragment, Patch, ChangeSet>";
-        code.AppendLineAt(
-            1,
-            "/// <summary>Creates a Blazor edit session capturing the current model as its baseline.</summary>"
-        );
-        code.AppendLineAt(
-            1,
-            "public "
-                + session
-                + " CreateEditSession() => "
-                + session
-                + ".Create(this, Fragment.From, ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty);"
-        );
     }
 
     private static ImmutableArray<SparseMemberModel> ApplyPortableSetView(

@@ -20,14 +20,18 @@ public static class KeyedCollectionsSamples
     {
         var before = new DocsInventory
         {
-            Servers = new List<DocsServer> { new() { Id = "a", Host = "old" } },
+            Servers = new List<DocsServer>
+            {
+                new() { Id = "a", Host = "A", Port = 1 },
+                new() { Id = "b", Host = "B", Port = 2 },
+            },
         };
         var after = new DocsInventory
         {
             Servers = new List<DocsServer>
             {
-                new() { Id = "a", Host = "new" },
-                new() { Id = "b", Host = string.Empty },
+                new() { Id = "b", Host = "B2", Port = 2 },
+                new() { Id = "c", Host = "C", Port = 3 },
             },
         };
 

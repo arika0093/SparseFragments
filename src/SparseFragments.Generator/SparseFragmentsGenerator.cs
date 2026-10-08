@@ -282,25 +282,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             )
             .WithComparer(EqualityComparer<(bool ReadOnlySet, bool Capacity)>.Default)
             .WithTrackingName("SparseFragmentsGenerator.BclSetSupport");
-        var blazorEditSessions = context
-            .CompilationProvider.Select(
-                static (compilation, _) =>
-                    compilation.ReferencedAssemblyNames.Any(static name =>
-                        name.Name == "SparseFragments.Blazor"
-                    )
-            )
-            .WithComparer(EqualityComparer<bool>.Default)
-            .WithTrackingName("SparseFragmentsGenerator.BlazorEditSessions");
         var generated = analyzed
             .Combine(bclSetSupport)
-            .Combine(blazorEditSessions)
             .Select(
                 static (input, cancellationToken) =>
                     Render(
-                        input.Left.Left,
-                        input.Left.Right.ReadOnlySet,
-                        input.Left.Right.Capacity,
-                        input.Right,
+                        input.Left,
+                        input.Right.ReadOnlySet,
+                        input.Right.Capacity,
                         cancellationToken
                     )
             )
@@ -471,7 +460,6 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         SparseGenerationAnalysis analysis,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
-        bool emitBlazorEditSession,
         CancellationToken cancellationToken
     )
     {
@@ -489,7 +477,6 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             analysis.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
-            emitBlazorEditSession,
             cancellationToken
         );
         return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);

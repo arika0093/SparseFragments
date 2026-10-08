@@ -8,7 +8,7 @@ namespace SparseFragments.Tests.Generation;
 /// <summary>
 /// Deterministic incremental step-tracking regression tests (issue #61),
 /// adjacent to the BenchmarkDotNet generator benchmarks. Records cached vs
-/// recomputed outputs for the twelve tracked generator stages on unrelated
+/// recomputed outputs for the eleven tracked generator stages on unrelated
 /// vs shared edits, and pins model-shape dimensions (width, nesting
 /// depth/fan-out, keyed collections, dictionary members, promoted-model
 /// count) with generated source size observability. Wall-clock timing stays in
@@ -21,7 +21,6 @@ public sealed class GeneratorStepTrackingTests
     [
         "SparseFragmentsGenerator.Analysis",
         "SparseFragmentsGenerator.BclSetSupport",
-        "SparseFragmentsGenerator.BlazorEditSessions",
         "SparseFragmentsGenerator.Output",
         "SparseFragmentsGenerator.PromotedPerRoot",
         "SparseFragmentsGenerator.PromotedContributions",
@@ -185,7 +184,7 @@ public sealed class GeneratorStepTrackingTests
     /// <summary>
     /// Asserts no output changed value: every output is either served from
     /// cache or recomputed value-equal (<c>Unchanged</c>). Compilation-derived
-    /// singletons (BclSetSupport, BlazorEditSessions, IsExternalInit) rerun on
+    /// singletons (BclSetSupport, IsExternalInit) rerun on
     /// every compilation but stay value-equal; shared-type edits likewise
     /// leave per-root outputs value-equal because roots reference promoted
     /// fragments by name only.
@@ -288,7 +287,6 @@ public sealed class GeneratorStepTrackingTests
             {
                 "SparseFragmentsGenerator.IsExternalInit",
                 "SparseFragmentsGenerator.BclSetSupport",
-                "SparseFragmentsGenerator.BlazorEditSessions",
             }
         )
         {

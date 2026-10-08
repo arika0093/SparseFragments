@@ -60,15 +60,15 @@ Optional<UiOrder.Observable?> proxy =
 The generated extension container is an implementation detail with a
 deterministic hash-based name; call the extensions rather than naming the
 container directly. Framework-specific packages can adapt the neutral session
-without adding framework references to its generated code.
-When `SparseFragments.Blazor` is referenced, its generated instance
-`CreateEditSession()` continues to coexist and takes precedence over the
-same-named one-model extension; the explicit-baseline overload remains
-available.
+without adding framework references to its generated code. The same neutral
+`CreateEditSession()` extension is used whether or not a framework package is
+referenced.
 
 ## Blazor
 
-The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) bridges ordinary Blazor forms and SparseFragments semantic change sets through the generated `CreateEditSession()` method and the `SparseEditSession` type. The session retains a baseline, exposes the live model for binding, and derives the baseline-aware change set by comparing the baseline with the current model:
+The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers
+for the framework-neutral edit session. The session retains a baseline and
+derives semantic changes by comparing it with the current model:
 
 <!-- sample: ui-session -->
 ```csharp
@@ -86,27 +86,40 @@ uiSession.AcceptChanges();
 ```
 <!-- /sample -->
 
-Bind the session's `EditContext` to an ordinary `EditForm`:
+Create an `EditContext` with the Blazor extensions and pass it to the form:
 
-```razor
-<EditForm EditContext="@uiSession.EditContext">...</EditForm>
+```csharp
+var editContext = uiSession.CreateEditContext();
+// After persisting the current model:
+uiSession.AcceptChanges(editContext);
 ```
 
-Bind the **original editable model `T`** to the `EditContext`. Do not use the generated `T.Observable` proxy as `EditContext.Model`: Blazor field tracking and validation run on `EditContext`/`FieldIdentifier` and model metadata, so `DataAnnotations` keep applying to `T`, while the semantic patch still comes from baseline/current `T`.
+Bind the created `EditContext` to an ordinary `EditForm`:
 
-The session API:
+```razor
+<EditForm EditContext="@editContext">...</EditForm>
+```
+
+`CreateEditContext()` binds the **original editable model `T`** to the
+`EditContext`. Do not use the generated `T.Observable` proxy as
+`EditContext.Model`: Blazor field tracking and validation run on
+`EditContext`/`FieldIdentifier` and model metadata, so `DataAnnotations` keep
+applying to `T`, while the semantic patch still comes from baseline/current `T`.
+
+Blazor extension methods:
 
 | Member | Purpose |
 | --- | --- |
-| `Model` | The live editable model; the UI mutates this instance directly |
-| `EditContext` | The Blazor edit context for validation, field state, and submit behavior |
-| `HasChanges` | Whether the current model differs semantically from the baseline |
-| `CreateChangeSet()` | Derives the baseline-aware change set between the baseline and the current model (recommended for changes that leave the local process) |
-| `CreatePatch()` | Derives the baseline-free semantic patch (`CreateChangeSet().ToPatch()`) for purely local application |
-| `AcceptChanges()` | Replaces the baseline with the current state, clears Blazor modified flags, keeps the same model instance and `EditContext` |
-| `CreateValidationStore()` | Creates a `ValidationMessageStore` bound to the session's `EditContext` |
+| `session.CreateEditContext()` | Creates a Blazor `EditContext` bound to `session.Model` |
+| `session.AcceptChanges(editContext)` | Calls the framework-neutral `AcceptChanges()` and clears the supplied context's modified flags |
+| `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
-| `AddValidationError(store, field, message)` | Static helper surfacing a message through the `ValidationMessageStore` |
+| `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
+
+The neutral session members such as `Model`, `HasChanges`,
+`CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
+available independently of Blazor. Context-taking helpers require an
+`EditContext` whose `Model` is the same instance as `session.Model`.
 
 Edit-then-restore yields no semantic change even though fields were touched:
 
@@ -121,8 +134,8 @@ uiSession.Model.Number = "ORD-1";   // restored
 Validation flows through the ordinary `EditContext` pipeline. Continuing with the session above:
 
 ```csharp
-var store = uiSession.CreateValidationStore();
-uiSession.EditContext.OnValidationRequested += (sender, _) =>
+var store = uiSession.CreateValidationStore(editContext);
+editContext.OnValidationRequested += (sender, _) =>
 {
     store.Clear();
     if (string.IsNullOrEmpty(uiSession.Model.Number))
@@ -132,7 +145,10 @@ uiSession.EditContext.OnValidationRequested += (sender, _) =>
 };
 ```
 
-Errors obtained elsewhere (for example structured rebase conflicts) surface the same way via `AddValidationError`. The model type must be a reference type.
+Errors obtained elsewhere (for example structured rebase conflicts) surface
+the same way via
+`uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`.
+The model type must be a reference type.
 
 A session ChangeSet is an ordinary serializable value: send it through the application's chosen HTTP, SignalR, or message transport with `System.Text.Json`, then reconcile it on the receiving side with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction — transport configuration stays with the application.
 
