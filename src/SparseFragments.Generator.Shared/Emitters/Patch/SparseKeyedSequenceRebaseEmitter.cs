@@ -216,7 +216,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                             + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
                         : ""
                 )
-                + "if (!baseMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
+                + SparseKeyedCollectionEmitter.AddUniqueEntry("baseMap", "k", "item")
+                + " }"
         );
         code.AppendLineAt(
             4,
@@ -248,7 +249,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                             + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
                         : ""
                 )
-                + "if (!currentMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
+                + SparseKeyedCollectionEmitter.AddUniqueEntry("currentMap", "k", "item")
+                + " }"
         );
         code.AppendLineAt(
             4,
@@ -287,7 +289,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                             + ") { __desiredUnassigned.Add(item); continue; } "
                         : ""
                 )
-                + "if (!desiredMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
+                + SparseKeyedCollectionEmitter.AddUniqueEntry("desiredMap", "k", "item")
+                + " }"
         );
         // Pre-index locally touched keys once (O(K)) so the per-key loop below
         // resolves touches with O(1) comparer-correct lookups instead of O(K)

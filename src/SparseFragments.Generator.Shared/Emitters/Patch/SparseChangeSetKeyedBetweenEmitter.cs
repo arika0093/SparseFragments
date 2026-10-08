@@ -173,9 +173,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             );
         code.AppendLineAt(
             6,
-            "if (!__beforeMap"
-                + id
-                + ".TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+            SparseKeyedCollectionEmitter.AddUniqueEntry("__beforeMap" + id, "__k", "__item")
         );
         code.AppendLineAt(6, "__beforeOrder" + id + ".Add(__k);");
         code.AppendLineAt(5, "}");
@@ -223,9 +221,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             );
         code.AppendLineAt(
             6,
-            "if (!__afterMap"
-                + id
-                + ".TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+            SparseKeyedCollectionEmitter.AddUniqueEntry("__afterMap" + id, "__k", "__item")
         );
         code.AppendLineAt(6, "__afterOrder" + id + ".Add(__k);");
         code.AppendLineAt(5, "}");

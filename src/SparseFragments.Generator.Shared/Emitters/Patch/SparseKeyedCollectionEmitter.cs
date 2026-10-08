@@ -130,6 +130,24 @@ internal static class SparseKeyedCollectionEmitter
 
     internal static string KeyOfMethod(SparseMemberModel member) => "__SparseKeyOf_" + member.Id;
 
+    /// <summary>
+    /// Builds a duplicate-key guard plus add for keyed map construction.
+    /// <c>Dictionary.TryAdd</c> is unavailable on netstandard2.0, so generated
+    /// code uses <c>ContainsKey</c>/<c>Add</c> with identical throw behavior.
+    /// </summary>
+    internal static string AddUniqueEntry(string map, string key, string value) =>
+        "if ("
+        + map
+        + ".ContainsKey("
+        + key
+        + ")) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); "
+        + map
+        + ".Add("
+        + key
+        + ", "
+        + value
+        + ");";
+
     internal static string IsUnassignedMethod(SparseMemberModel member) =>
         "__SparseIsUnassigned_" + member.Id;
 

@@ -681,6 +681,7 @@ internal static class SparseChangeSetKeyedComposeEmitter
         code.AppendLineAt(5, "}");
         // Net no-op normalization is implicit (empty dict => has false below).
         // Orders: next wins when present (filtered to net keys), else first filtered (mirrors Patch order compose).
+        // Static Enumerable.Contains below: generated code cannot assume "using System.Linq".
         code.AppendLineAt(
             5,
             "var __netRemoved"
@@ -780,7 +781,7 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + id
                 + " ? __keys"
                 + id
-                + ".Remove(__kv.Key) : !__no.Contains(__kv.Key, "
+                + ".Remove(__kv.Key) : !global::System.Linq.Enumerable.Contains(__no, __kv.Key, "
                 + comparer
                 + "))) __no.Add(__kv.Key);"
         );
@@ -808,7 +809,7 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + id
                 + " ? __keys"
                 + id
-                + ".Remove(__kv.Key) : !__no.Contains(__kv.Key, "
+                + ".Remove(__kv.Key) : !global::System.Linq.Enumerable.Contains(__no, __kv.Key, "
                 + comparer
                 + "))) __no.Add(__kv.Key);"
         );

@@ -276,6 +276,7 @@ The code is generated at compile time, uses no reflection for these generated op
   * .NET (all versions)
   * MAUI
   * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version) as well.
+* Generated code requires C# 9.0 or later. Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project. The `netstandard2.0` and .NET Framework targets default to C# 7.3, so those consumers must opt in explicitly. Using a language version newer than a target framework's default is not an officially supported combination per [C# language versioning](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-versioning); a successful build does not change that policy. `record struct` models need C# 10 or later. The contract covers generated consumer code only; the generator itself may use newer C#.
 * Source generation works only in *IDE* environments using Roslyn 4.3.1 or later.
   * VisualStudio 2022: 17.3 or later
   * JetBrains Rider: 2023.1 or later
