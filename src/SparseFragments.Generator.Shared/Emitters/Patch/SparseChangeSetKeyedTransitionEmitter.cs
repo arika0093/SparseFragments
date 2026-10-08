@@ -334,7 +334,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             );
         code.AppendLineAt(
             4,
-            "if (!__beforeMap.TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+            SparseKeyedCollectionEmitter.AddUniqueEntry("__beforeMap", "__k", "__item")
         );
         code.AppendLineAt(4, "__beforeOrder.Add(__k);");
         code.AppendLineAt(3, "}");
@@ -368,7 +368,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             );
         code.AppendLineAt(
             4,
-            "if (!__afterMap.TryAdd(__k, __item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+            SparseKeyedCollectionEmitter.AddUniqueEntry("__afterMap", "__k", "__item")
         );
         code.AppendLineAt(4, "__afterOrder.Add(__k);");
         code.AppendLineAt(3, "}");

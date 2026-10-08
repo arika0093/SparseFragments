@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- C# 9.0 minimum-language gate (#116). This is explicit on purpose: it
+      must not silently inherit LangVersion=preview from
+      tests/Directory.Build.props, or the gate would prove nothing. -->
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- ImplicitUsings emits global using directives, which need C# 10, so
+      this gate uses explicit usings instead. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- net10.0 stays listed: tests/Directory.Build.props defaults the
+      singular TargetFramework to net10.0, and omitting it breaks dispatch. -->
+    <TargetFrameworks>netstandard2.0;net48;net8.0;net10.0</TargetFrameworks>
+    <OutputType Condition="'$(TargetFramework)' == 'netstandard2.0'">Library</OutputType>
+    <OutputType Condition="'$(TargetFramework)' != 'netstandard2.0'">Exe</OutputType>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <!-- Explicit: the SDK resolves a platform-specific RID for net48 Exe
+      otherwise, which breaks per-framework restore/build pairing. -->
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AssemblyName>PackageSparse.LangVersion.Consumer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Remove="TUnit;Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Compile Remove="Program.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
+    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
+  </ItemGroup>
+</Project>

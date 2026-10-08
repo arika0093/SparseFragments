@@ -274,6 +274,9 @@ jobs:
       - name: Verify packed package consumer
         run: bash ./.github/workflows/scripts/verify-package-sparse-consumer.sh artifacts
 
+      - name: Verify C# 9.0 language-version consumer
+        run: bash ./.github/workflows/scripts/verify-package-langversion-consumer.sh artifacts
+
       - name: Verify stale same-version isolation
         run: bash ./.github/workflows/scripts/verify-package-stale-isolation.sh artifacts
 
@@ -328,6 +331,9 @@ jobs:
 
       - name: Verify net48 packed package consumer
         run: bash ./.github/workflows/scripts/verify-package-netfx-consumer.sh artifacts
+
+      - name: Verify C# 9.0 language-version consumer
+        run: bash ./.github/workflows/scripts/verify-package-langversion-consumer.sh artifacts
 
   # True NativeAOT publish gate (#9, #19). Publishes the NativeAOT TUnit
   # project and executes the native test binary directly. Independent from

@@ -51,7 +51,7 @@ public partial class Settings
     public string? Label { get; set; }
 
     [SparseMerge(MergeMode.Append)]
-    public IReadOnlyList<string> Plugins { get; set; } = [];
+    public IReadOnlyList<string> Plugins { get; set; } = new List<string>();
 }
 ```
 
@@ -111,3 +111,11 @@ This section is a reference. It lists member and construction rules.
 * Members marked `[JsonIgnore]` never participate in JSON conversion; members that would collide on the same JSON wire name fail during analysis ([`SPF021`](analyzer.md#spf021-duplicate-json-property-name)) rather than at runtime.
 * Members named `JsonConverter` or `FragmentJsonConverter` collide with the generated JSON converter ([`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api)): rename the member.
 * `From` and `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them (see [Clone & ownership](cloning-and-ownership.md)).
+
+## Language Version
+
+This section is a reference. It states the C# version the generated code needs.
+
+Generated consumer code requires C# 9.0 or later. The floor comes from `init` accessors and target-typed `new()`. Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project. The default for `netstandard2.0` and .NET Framework targets is C# 7.3, so those consumers must opt in explicitly; runtime target support does not imply the default language version compiles the generated API. Using a language version newer than a target framework's default is not an officially supported combination per [C# language versioning](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-versioning).
+
+On a C# 9.0 consumer, write models with C# 9 syntax: block-scoped namespaces and explicit `using` directives. File-scoped namespaces, `global using` directives (including SDK implicit usings), and `record struct` models need C# 10 or later. The contract covers generated consumer code only; the generator itself may use newer C#.

@@ -171,9 +171,8 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                             + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the current baseline of a keyed ChangeSet.\"); "
                         : ""
                 )
-                + "if (!__cmap"
-                + id
-                + ".TryAdd(__ck, __e)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); __corder"
+                + SparseKeyedCollectionEmitter.AddUniqueEntry("__cmap" + id, "__ck", "__e")
+                + " __corder"
                 + id
                 + ".Add(__ck); }"
         );

@@ -65,10 +65,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                     + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\");"
             );
         }
-        code.AppendLineAt(
-            5,
-            "if (!map.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
-        );
+        code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("map", "k", "item"));
         code.AppendLineAt(4, "}");
         // Removals.
         code.AppendLineAt(
@@ -385,10 +382,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                     + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\");"
             );
         }
-        code.AppendLineAt(
-            5,
-            "if (!beforeMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
-        );
+        code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("beforeMap", "k", "item"));
         code.AppendLineAt(5, "beforeOrder.Add(k);");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
@@ -436,10 +430,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                     + ") { afterOrder.Add(k); unassignedAfter.Add(item); continue; }"
             );
         }
-        code.AppendLineAt(
-            5,
-            "if (!afterMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
-        );
+        code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("afterMap", "k", "item"));
         code.AppendLineAt(5, "afterOrder.Add(k);");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(

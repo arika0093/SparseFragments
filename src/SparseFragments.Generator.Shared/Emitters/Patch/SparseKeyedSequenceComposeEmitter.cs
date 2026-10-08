@@ -341,7 +341,8 @@ internal static class SparseKeyedSequenceComposeEmitter
             5,
             "if (next.__added is not null) foreach (var item in next.__added) { var __ak = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                + "(item); if (!__nextOrder.Contains(__ak, "
+                // Static Enumerable call: generated code cannot assume "using System.Linq".
+                + "(item); if (!global::System.Linq.Enumerable.Contains(__nextOrder, __ak, "
                 + comparer
                 + ")) __nextOrder.Add(__ak); }"
         );
