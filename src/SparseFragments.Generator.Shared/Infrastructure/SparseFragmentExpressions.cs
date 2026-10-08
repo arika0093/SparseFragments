@@ -18,11 +18,12 @@ internal sealed class SparseFragmentExpressions(
         var collection = member.Collection;
         if (
             collection.ElementType.IsFragmentModel
-            && collection.CloneKind is SparseCloneCollectionKind.Array or SparseCloneCollectionKind.List
+            && collection.CloneKind
+                is SparseCloneCollectionKind.Array
+                    or SparseCloneCollectionKind.List
         )
         {
-            return
-                $"{ValueComparer}.AreSequenceEqual<{collection.ElementType.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(collection.ElementType, "__left", "__right")})";
+            return $"{ValueComparer}.AreSequenceEqual<{collection.ElementType.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(collection.ElementType, "__left", "__right")})";
         }
 
         if (
@@ -30,8 +31,7 @@ internal sealed class SparseFragmentExpressions(
             && collection.CloneKind == SparseCloneCollectionKind.Dictionary
         )
         {
-            return
-                $"{ValueComparer}.AreDictionaryEqual<{collection.ElementType.Name}, {dictionaryValue.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(dictionaryValue, "__left", "__right")})";
+            return $"{ValueComparer}.AreDictionaryEqual<{collection.ElementType.Name}, {dictionaryValue.Name}>({left}, {right}, static (__left, __right) => {FragmentElementEquality(dictionaryValue, "__left", "__right")})";
         }
 
         return collection.CloneKind switch
@@ -50,7 +50,8 @@ internal sealed class SparseFragmentExpressions(
     {
         var fragment = element.NonNullableName + ".Fragment";
         var optionalFragment = OptionalType + "<" + fragment + "?>";
-        var equal = fragment
+        var equal =
+            fragment
             + ".__SparseAreEqual("
             + optionalFragment
             + ".Present("

@@ -139,12 +139,19 @@ public sealed class KeyedCollectionPatchTests
 
         var patch = KeyedServerHolder.Patch.Between(before, after);
         patch.IsEmpty.ShouldBeFalse();
-        System.Text.Json.JsonSerializer.Serialize(patch).ShouldBe(
-            """{"Items":{"order":["c","a","b"]}}"""
-        );
 
         var applied = patch.Apply(before);
         applied.Value!.Items.Value!.Select(s => s.Id).ShouldBe(["c", "a", "b"]);
+
+        var changeSet = KeyedServerHolder.ChangeSet.Between(before, after);
+        var payloadJson = System.Text.Json.JsonSerializer.Serialize(changeSet.ToPayload());
+        using var document = System.Text.Json.JsonDocument.Parse(payloadJson);
+        document
+            .RootElement.GetProperty("changes")[0]
+            .GetProperty("afterOrder")
+            .EnumerateArray()
+            .Select(key => key.GetString())
+            .ShouldBe(["c", "a", "b"]);
     }
 
     [Test]
@@ -189,6 +196,16 @@ public sealed class KeyedCollectionPatchTests
         )!.ToChangeSet();
         payloadRoundTrip.ToPatch().Apply(before).Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["first", "existing", "second"]);
+        var payloadJson = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
+        using (var document = System.Text.Json.JsonDocument.Parse(payloadJson))
+        {
+            document
+                .RootElement.GetProperty("changes")[0]
+                .GetProperty("afterOrder")
+                .EnumerateArray()
+                .Select(key => key.GetInt32())
+                .ShouldBe([0, 7, 0]);
+        }
 
         var edited = F(new AssignedServer { Id = 7, Name = "updated" });
         var first = AssignedServerHolder.ChangeSet.Between(before, edited);
@@ -215,10 +232,6 @@ public sealed class KeyedCollectionPatchTests
         patchRebased.Patch.Apply(concurrent).Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["existing", "concurrent", "first", "second"]);
 
-        var json = System.Text.Json.JsonSerializer.Serialize(patch);
-        json.ShouldContain("\"order\":[0,7,0]");
-        var roundTrip = System.Text.Json.JsonSerializer.Deserialize<AssignedServerHolder.Patch>(json)!;
-        roundTrip.Apply(before).Value!.Items.Value!.Select(item => item.Name).ShouldBe(["first", "existing", "second"]);
     }
 
     [Test]

@@ -234,10 +234,7 @@ internal static class SparseKeyAnalyzer
         if (
             member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             || member.MergeMode == SparseMergeModes.Custom
-            || (
-                member.HasExplicitMergeMode
-                && member.MergeMode == SparseMergeModes.Replace
-            )
+            || (member.HasExplicitMergeMode && member.MergeMode == SparseMergeModes.Replace)
         )
         {
             return false;
@@ -963,7 +960,8 @@ internal static class SparseKeyAnalyzer
             );
         }
         else if (
-            element.GetMembers(config.KeyPropertyName)
+            element
+                .GetMembers(config.KeyPropertyName)
                 .OfType<IPropertySymbol>()
                 .Any(property => SparseModelDiscovery.IsSparseIgnored(property, config))
         )
@@ -971,7 +969,8 @@ internal static class SparseKeyAnalyzer
             diagnostics.Add(
                 new SparseGeneratorDiagnostic(
                     config.EffectiveDiagnosticIds.SparseIgnoreOnKey,
-                    element.GetMembers(config.KeyPropertyName)
+                    element
+                        .GetMembers(config.KeyPropertyName)
                         .OfType<IPropertySymbol>()
                         .First(property => SparseModelDiscovery.IsSparseIgnored(property, config))
                         .Locations.FirstOrDefault(),

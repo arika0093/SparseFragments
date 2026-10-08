@@ -42,7 +42,11 @@ internal static class SparseModelDiscovery
                     || property.IsIndexer
                     || property.DeclaredAccessibility != Accessibility.Public
                     || property.GetMethod?.DeclaredAccessibility != Accessibility.Public
-                    || (!includeSparseIgnored && config is not null && IsSparseIgnored(property, config))
+                    || (
+                        !includeSparseIgnored
+                        && config is not null
+                        && IsSparseIgnored(property, config)
+                    )
                     || (
                         requirePublicSetter
                         && property.SetMethod?.DeclaredAccessibility != Accessibility.Public
@@ -60,9 +64,11 @@ internal static class SparseModelDiscovery
     }
 
     internal static bool IsSparseIgnored(IPropertySymbol property, SparseGeneratorConfig config) =>
-        property.GetAttributes().Any(attribute =>
-            attribute.AttributeClass?.ToDisplayString() == config.IgnoreAttributeMetadataName
-        );
+        property
+            .GetAttributes()
+            .Any(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == config.IgnoreAttributeMetadataName
+            );
 
     internal static IEnumerable<SparseSymbolMemberModel> GetMembers(
         INamedTypeSymbol model,
@@ -812,19 +818,11 @@ internal static class SparseModelDiscovery
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
     ) =>
-        GetReadableProperties(
-                model,
-                config,
-                cancellationToken,
-                includeSparseIgnored: true
-            )
+        GetReadableProperties(model, config, cancellationToken, includeSparseIgnored: true)
             .Where(property =>
                 IsSparseIgnored(property, config)
-                && property.SetMethod is
-                {
-                    DeclaredAccessibility: Accessibility.Public,
-                    IsInitOnly: false
-                }
+                && property.SetMethod
+                    is { DeclaredAccessibility: Accessibility.Public, IsInitOnly: false }
             )
             .Select(static property => property.Name)
             .OrderBy(static name => name, StringComparer.Ordinal)

@@ -276,9 +276,11 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(2, "public " + modelType + " ApplyTo(" + modelType + " current)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var updated = Fragment.From(current).Apply(this).ToModel();");
-        foreach (var ignoredName in ignoredSettablePropertyNames.IsDefault
-            ? ImmutableArray<string>.Empty
-            : ignoredSettablePropertyNames)
+        foreach (
+            var ignoredName in ignoredSettablePropertyNames.IsDefault
+                ? ImmutableArray<string>.Empty
+                : ignoredSettablePropertyNames
+        )
         {
             var name = SparseNaming.EscapeIdentifier(ignoredName);
             code.AppendLineAt(3, "updated." + name + " = current." + name + ";");

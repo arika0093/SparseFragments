@@ -137,14 +137,26 @@ internal readonly record struct SparseModelInfo(
 
     public override int GetHashCode() =>
         unchecked(
-            (((((((Name.GetHashCode() * 31 + ModelTypeName.GetHashCode()) * 31
-                    + Namespace.GetHashCode()) * 31
-                + (IsGlobalNamespace ? 1 : 0)) * 31
-                + (IsStruct ? 1 : 0)) * 31
-                + (IsRecord ? 1 : 0)) * 31
-                + HintName.GetHashCode()) * 31
-                + (Constructor?.GetHashCode() ?? 0)) * 31
-                + SparseSequence.Hash(IgnoredSettablePropertyNames)
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    (Name.GetHashCode() * 31 + ModelTypeName.GetHashCode()) * 31
+                                    + Namespace.GetHashCode()
+                                ) * 31
+                                + (IsGlobalNamespace ? 1 : 0)
+                            ) * 31
+                            + (IsStruct ? 1 : 0)
+                        ) * 31
+                        + (IsRecord ? 1 : 0)
+                    ) * 31
+                    + HintName.GetHashCode()
+                ) * 31
+                + (Constructor?.GetHashCode() ?? 0)
+            ) * 31
+            + SparseSequence.Hash(IgnoredSettablePropertyNames)
         );
 }
 

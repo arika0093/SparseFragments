@@ -63,7 +63,6 @@ internal static class SparseModelDiagnostics
             {
                 keyErrorProperties.Add(member.Property);
             }
-
         }
 
         var cloneReported = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
@@ -279,8 +278,7 @@ internal static class SparseModelDiagnostics
                             parameter.PropertyName,
                             property.Name,
                             StringComparison.Ordinal
-                        )
-                        && !parameter.HasExplicitDefaultValue
+                        ) && !parameter.HasExplicitDefaultValue
                     ) == true
                 )
                 {

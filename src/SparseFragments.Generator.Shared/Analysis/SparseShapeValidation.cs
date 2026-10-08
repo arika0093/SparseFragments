@@ -91,7 +91,8 @@ internal static class SparseShapeValidation
                 config is null
                     ? ModelConstructorBinding.AnalyzeRoot(model, cancellationToken)
                     : ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken)
-            ) is null
+            )
+                is null
         )
         {
             return SparseRootShapeProblem.MissingConstructor;

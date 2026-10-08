@@ -177,10 +177,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                 cancellationToken.ThrowIfCancellationRequested();
                 if (
                     member is IPropertySymbol ignoredProperty
-                    && SparseModelDiscovery.IsSparseIgnored(
-                        ignoredProperty,
-                        config
-                    )
+                    && SparseModelDiscovery.IsSparseIgnored(ignoredProperty, config)
                 )
                 {
                     continue;

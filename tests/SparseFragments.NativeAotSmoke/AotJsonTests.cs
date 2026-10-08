@@ -150,6 +150,7 @@ public sealed class AotJsonTests
             .IsTrue();
     }
 
+    [Test]
     public async Task ObservableCollectionViewsRemainAotSafe()
     {
         var numbers = new List<int> { 1 };

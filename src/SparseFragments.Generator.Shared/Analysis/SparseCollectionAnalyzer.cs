@@ -272,10 +272,7 @@ internal static class SparseCollectionAnalyzer
         if (
             member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion
             || member.MergeMode == SparseMergeModes.Custom
-            || (
-                member.HasExplicitMergeMode
-                && member.MergeMode == SparseMergeModes.Replace
-            )
+            || (member.HasExplicitMergeMode && member.MergeMode == SparseMergeModes.Replace)
         )
         {
             return false;

@@ -18,9 +18,16 @@ internal static class SparseChangeSetEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType
+    ) => AppendChangeSet(code, members, dialect, modelType, default, false);
+
+    public static void AppendChangeSet(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        ImmutableArray<string> ignoredSettablePropertyNames = default,
-        bool canWriteInPlace = false
+        ImmutableArray<string> ignoredSettablePropertyNames,
+        bool canWriteInPlace
     )
     {
         var runtime = dialect.RuntimeNamespace;

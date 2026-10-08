@@ -490,9 +490,11 @@ internal static class SparseChangeSetRebaseEmitter
             "if (!__applied.IsPresent || __applied.Value is null) throw new global::System.InvalidOperationException(\"The rebased change does not produce a non-null model root. Use the presence-aware Fragment/Optional API for root presence transitions.\");"
         );
         code.AppendLineAt(3, "var __updatedModel = __applied.Value.ToModel();");
-        foreach (var ignoredName in ignoredSettablePropertyNames.IsDefault
-            ? ImmutableArray<string>.Empty
-            : ignoredSettablePropertyNames)
+        foreach (
+            var ignoredName in ignoredSettablePropertyNames.IsDefault
+                ? ImmutableArray<string>.Empty
+                : ignoredSettablePropertyNames
+        )
         {
             var name = SparseNaming.EscapeIdentifier(ignoredName);
             code.AppendLineAt(3, "__updatedModel." + name + " = current." + name + ";");

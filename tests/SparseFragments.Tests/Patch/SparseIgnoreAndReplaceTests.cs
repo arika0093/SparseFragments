@@ -114,10 +114,19 @@ public sealed class SparseIgnoreAndReplaceTests
         );
         replace.ApplyTo(before).Items.Select(item => item.Name).ShouldBe(["after", "second"]);
         typeof(ReplaceSequenceHolder.Patch).GetProperty("ItemsPatch").ShouldBeNull();
-        var sequenceJson = JsonSerializer.Serialize(replace);
-        var sequenceRoundTrip =
-            JsonSerializer.Deserialize<ReplaceSequenceHolder.Patch>(sequenceJson)!;
-        sequenceRoundTrip.ApplyTo(before).Items.Select(item => item.Name).ShouldBe(["after", "second"]);
+        var sequenceChanges = ReplaceSequenceHolder.ChangeSet.Between(
+            ReplaceSequenceHolder.Fragment.From(before),
+            ReplaceSequenceHolder.Fragment.From(after)
+        );
+        var sequenceJson = JsonSerializer.Serialize(sequenceChanges.ToPayload());
+        var sequenceRoundTrip = JsonSerializer
+            .Deserialize<ReplaceSequenceHolder.ChangeSetPayload>(sequenceJson)!
+            .ToChangeSet();
+        sequenceRoundTrip
+            .ToPatch()
+            .ApplyTo(before)
+            .Items.Select(item => item.Name)
+            .ShouldBe(["after", "second"]);
 
         var keyedBefore = new ReplaceKeyedSequenceHolder
         {
@@ -137,7 +146,11 @@ public sealed class SparseIgnoreAndReplaceTests
             ReplaceKeyedSequenceHolder.Fragment.From(keyedBefore),
             ReplaceKeyedSequenceHolder.Fragment.From(keyedAfter)
         );
-        keyedChange
+        var keyedJson = JsonSerializer.Serialize(keyedChange.ToPayload());
+        var keyedRoundTrip = JsonSerializer
+            .Deserialize<ReplaceKeyedSequenceHolder.ChangeSetPayload>(keyedJson)!
+            .ToChangeSet();
+        keyedRoundTrip
             .TryApplyTo(keyedBefore, out var keyedUpdated, out var keyedConflicts)
             .ShouldBeTrue(string.Join("; ", keyedConflicts ?? []));
         keyedUpdated!.Items.Select(item => item.Id).ShouldBe(["b"]);
@@ -165,8 +178,17 @@ public sealed class SparseIgnoreAndReplaceTests
             .PropertyType.GetMethod("GetChange")
             .ShouldBeNull();
 
-        var serialized = JsonSerializer.Serialize(dictPatch);
-        var roundTripped = JsonSerializer.Deserialize<ReplaceDictionaryHolder.Patch>(serialized)!;
-        roundTripped.ApplyTo(dictionaryBefore).Items.Keys.ShouldBe(["b"]);
+        var dictChanges = ReplaceDictionaryHolder.ChangeSet.Between(
+            ReplaceDictionaryHolder.Fragment.From(dictionaryBefore),
+            ReplaceDictionaryHolder.Fragment.From(dictionaryAfter)
+        );
+        var serialized = JsonSerializer.Serialize(dictChanges.ToPayload());
+        var roundTripped = JsonSerializer
+            .Deserialize<ReplaceDictionaryHolder.ChangeSetPayload>(serialized)!
+            .ToChangeSet();
+        roundTripped
+            .ToPatch()
+            .ApplyTo(dictionaryBefore)
+            .Items.Keys.ShouldBe(["b"]);
     }
 }

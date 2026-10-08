@@ -216,12 +216,12 @@ Because it has no stable identity, an unassigned element cannot be edited or rem
 by key. Assign a real key first, then treat the persisted element as part of the
 baseline.
 
-The keyed-patch JSON shape for collections without unassigned elements is unchanged.
-When unassigned additions need explicit ordering, the ordinary `"order"` array may
-contain repeated sentinel key values. Each occurrence identifies the next
-sentinel-valued item in `"added"` order (ordinary keys continue to identify their
-elements directly). Thus `[0, 7, 0]` positions two `"added"` items with key `0`
-around key `7`; no additional JSON property or tagged key format is introduced.
+The keyed ChangeSet payload carries unassigned additions as ordinary keyed
+transitions. When they need explicit ordering, the `"afterOrder"` array may contain
+repeated sentinel key values. Each occurrence identifies the next sentinel-valued
+item in transition order (ordinary keys continue to identify their elements
+directly). Thus `[0, 7, 0]` positions two unassigned additions around key `7`;
+no tagged key format is introduced.
 
 <!-- sample: keyed-unassigned-flow -->
 ```csharp

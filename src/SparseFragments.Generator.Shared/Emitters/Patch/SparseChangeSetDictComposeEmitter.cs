@@ -360,7 +360,10 @@ internal static class SparseChangeSetDictComposeEmitter
         {
             code.AppendLineAt(7, "var __edit2 = __a1.Edit.Compose(__a2.Edit);");
             code.AppendLineAt(7, "var __addedState = __edit2.ToPatch().Apply(default);");
-            code.AppendLineAt(7, "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce a value.\");");
+            code.AppendLineAt(
+                7,
+                "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce a value.\");"
+            );
             code.AppendLineAt(7, "var __addedValue = __addedState.Value!.ToModel();");
             code.AppendLineAt(
                 7,
@@ -399,8 +402,14 @@ internal static class SparseChangeSetDictComposeEmitter
         if (hasPatch)
         {
             code.AppendLineAt(7, "var __removedEdit = __a1.Edit.Compose(__a2.Edit);");
-            code.AppendLineAt(7, "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);");
-            code.AppendLineAt(7, "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce a value.\");");
+            code.AppendLineAt(
+                7,
+                "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);"
+            );
+            code.AppendLineAt(
+                7,
+                "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce a value.\");"
+            );
             code.AppendLineAt(7, "var __removedValue = __removedState.Value!.ToModel();");
             code.AppendLineAt(
                 7,

@@ -564,7 +564,10 @@ internal static class SparseChangeSetKeyedComposeEmitter
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var __edit2 = __a1.Edit.Compose(__a2.Edit);");
         code.AppendLineAt(7, "var __addedState = __edit2.ToPatch().Apply(default);");
-        code.AppendLineAt(7, "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce an element value.\");");
+        code.AppendLineAt(
+            7,
+            "if (!__addedState.IsPresent || __addedState.Value is null) throw new global::System.InvalidOperationException(\"Composed addition did not produce an element value.\");"
+        );
         code.AppendLineAt(7, "var __addedValue = __addedState.Value!.ToModel();");
         code.AppendLineAt(
             7,
@@ -583,9 +586,18 @@ internal static class SparseChangeSetKeyedComposeEmitter
         // Edited then removed: invert the composed transition to recover only the required removed value.
         code.AppendLineAt(6, "if ((__a1!.IsEdited || __a1!.IsReordered) && __a2!.IsRemoved)");
         code.AppendLineAt(6, "{");
-        code.AppendLineAt(7, "var __removedEdit = __a1.IsEdited ? __a1.Edit.Compose(__a2.Edit) : __a2.Edit;");
-        code.AppendLineAt(7, "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);");
-        code.AppendLineAt(7, "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce an element value.\");");
+        code.AppendLineAt(
+            7,
+            "var __removedEdit = __a1.IsEdited ? __a1.Edit.Compose(__a2.Edit) : __a2.Edit;"
+        );
+        code.AppendLineAt(
+            7,
+            "var __removedState = __removedEdit.Invert().ToPatch().Apply(default);"
+        );
+        code.AppendLineAt(
+            7,
+            "if (!__removedState.IsPresent || __removedState.Value is null) throw new global::System.InvalidOperationException(\"Composed removal did not produce an element value.\");"
+        );
         code.AppendLineAt(7, "var __removedValue = __removedState.Value!.ToModel();");
         code.AppendLineAt(
             7,

@@ -24,15 +24,3 @@ csharp_style_namespace_declarations = file_scoped:error
 # Sonar S104: Files should not have too many lines of code.
 dotnet_diagnostic.S104.severity = error
 
-# The following conventions are project rules that no analyzer expresses:
-# - Prefer explicit record declarations with init-only properties. Do not use
-#   positional record syntax such as `record Item(string Name, int Count)`.
-# - Do not use the empty property pattern `x is {}`.
-# - Keep each source file below 800 lines (Sonar S104 enforces 1000 LOC as
-#   error above; the project guideline is stricter). Split large files by
-#   responsibility before they reach that limit.
-# - Favor low-allocation, efficient code while keeping the implementation
-#   straightforward and maintainable.
-# - Format C# changes with CSharpier and verify them with
-#   `dotnet csharpier check`.
-# - Update public API approval files when a public API change requires it.

@@ -69,12 +69,7 @@ internal sealed record ModelConstructorBinding(
     )
     {
         var properties = SparseModelDiscovery
-            .GetReadableProperties(
-                model,
-                config,
-                cancellationToken,
-                includeSparseIgnored: true
-            )
+            .GetReadableProperties(model, config, cancellationToken, includeSparseIgnored: true)
             .Where(static property =>
                 property.SetMethod is null
                 || property.SetMethod.DeclaredAccessibility == Accessibility.Public
