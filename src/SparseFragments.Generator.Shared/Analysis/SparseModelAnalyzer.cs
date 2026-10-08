@@ -141,13 +141,29 @@ internal static class SparseModelAnalyzer
             config,
             cancellationToken
         );
+        var capabilityDiagnostics = ImmutableArray<SparseGeneratorDiagnostic>.Empty;
+        if (
+            !model.IsValueType
+            && members.FirstOrDefault(static member =>
+                member.Property.SetMethod is null || member.Property.SetMethod.IsInitOnly
+            ) is { } immutableMember
+        )
+        {
+            capabilityDiagnostics = ImmutableArray.Create(
+                new SparseGeneratorDiagnostic(
+                    "SPF026",
+                    immutableMember.Property.Locations.FirstOrDefault(),
+                    model.Name
+                )
+            );
+        }
 
         return new SparseGenerationAnalysis(
             SparseModelDiscovery.CreateModelInfo(model, hintName, config, cancellationToken),
             memberModels,
             pocoCloneModels,
             structuralModels,
-            ImmutableArray<SparseGeneratorDiagnostic>.Empty,
+            capabilityDiagnostics,
             promotedModels
         );
     }

@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF025)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF026)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -30,6 +30,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF023](#spf023-sparseignore-on-unsupported-property) | SparseIgnore on unsupported property | Error |
 | [SPF024](#spf024-invalid-unassigned-key-sentinel) | Invalid unassigned key sentinel | Error |
 | [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
+| [SPF026](#spf026-in-place-submit-is-unavailable) | In-place submit is unavailable | Info |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -326,3 +327,9 @@ public partial class Widget
   `ISparseKeyed<TKey>` likewise does not support unassigned sentinels.
 * Fix: Use one property-level `[SparseKey(Unassigned = ...)]` key, or omit the
   sentinel and retain the existing unique-key requirement.
+
+## SPF026: In-place submit is unavailable
+
+* Message: `Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission`
+* Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo`, `Patch.ApplyInPlace`, `ChangeSet.ApplyInPlace`, and session submit) are omitted or unavailable.
+* Fix: Make all members writable when an in-place submit workflow is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.

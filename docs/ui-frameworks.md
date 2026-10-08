@@ -48,6 +48,31 @@ transition to a baseline-free patch. `AcceptChanges()` captures the current
 state as the next baseline. These APIs live in `SparseFragments` and do not
 require a UI-framework package.
 
+Writable reference-type models also generate `Fragment.WriteTo(model)`,
+`Patch.ApplyInPlace(model)`, and `ChangeSet.ApplyInPlace(model)`. They update
+the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>`
+properties retain their collection instance and have their contents replaced.
+Nested model values may be replaced. A model with init-only or constructor-only
+members keeps its normal edit-session APIs but cannot use in-place apply or
+submit; `BeginSubmit()` and `SubmitAsync()` throw `NotSupportedException`
+(see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+
+For asynchronous persistence, `BeginSubmit()` captures the change set and
+snapshot being sent. `Complete(pending, response)` advances the baseline only
+after acceptance, or rebases edits onto server state when an accepted or
+rejected response supplies one. Local changes made during the request are
+preserved when they rebase cleanly; conflicting local values are not
+overwritten and are returned in `SparseSubmitResult.Conflicts`. `SubmitAsync`
+combines the lifecycle with an async send delegate. Send exceptions and
+cancellation leave the baseline unchanged and are rethrown. A second in-flight
+submit or completion of a stale handle throws `InvalidOperationException`.
+`Accepted()` and `Rejected(serverCurrent)` are response helpers.
+
+The session implements `INotifyPropertyChanged`: `HasChanges` is raised after
+accept/complete operations and observable-proxy edits, while `IsSubmitting` is
+raised when the submit lifecycle starts or ends. Consumers re-read `HasChanges`
+instead of the session recomputing it for every model notification.
+
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()`
 maps `Optional<Model?>` to the generated, model-specific observable proxy while
 preserving missing, present-null, and present-value states:
@@ -112,6 +137,7 @@ Blazor extension methods:
 | --- | --- |
 | `session.CreateEditContext()` | Creates a Blazor `EditContext` bound to `session.Model` |
 | `session.AcceptChanges(editContext)` | Calls the framework-neutral `AcceptChanges()` and clears the supplied context's modified flags |
+| `session.SubmitAsync(editContext, field, send)` | Submits and marks the context unmodified when no changes remain, otherwise notifies the supplied field |
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |

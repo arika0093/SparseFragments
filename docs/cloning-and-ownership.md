@@ -34,6 +34,18 @@ SparseFragments does not clone every assigned value during `Merge` or `Apply`, s
 
 The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance. When a patch value must stay independent, clone it before assigning and leave the source alone afterwards.
 
+## In-place application
+
+For writable reference-type models, generated `Fragment.WriteTo(model)`,
+`Patch.ApplyInPlace(model)`, and `ChangeSet.ApplyInPlace(model)` preserve the
+root model identity. A `List<T>` or `Dictionary<TKey,TValue>` property also
+preserves its existing collection instance while replacing its contents.
+Other members are assigned from the computed result, so nested model objects
+may be replaced. These APIs mutate caller-owned state and should be used only
+when that identity-preserving behavior is desired. Init-only or get-only
+members disable in-place APIs and edit-session submit support; see
+[`SPF026`](analyzer.md#spf026-in-place-submit-is-unavailable).
+
 ## `DeepClone`
 
 `DeepClone` structurally clones supported models and fragments. Members marked `[SparseCloneReferenceSafe]` are carried over by reference; everything else becomes independent:

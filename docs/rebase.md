@@ -48,6 +48,22 @@ ChangeSet.RebaseOnto(C)
 
 For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
 
+When the destination object is already bound to a UI, mutable generated models
+also support in-place application:
+
+```csharp
+var changes = baseline.CreateChangeSet(edited);
+changes.ApplyInPlace(boundModel);
+```
+
+`Fragment.WriteTo(model)`, `Patch.ApplyInPlace(model)`, and
+`ChangeSet.ApplyInPlace(model)` mutate the existing model instead of returning
+a replacement. `List<T>` and `Dictionary<TKey,TValue>` properties keep their
+existing collection object and replace its contents; nested model properties
+may be replaced. Get-only or init-only members prevent these APIs and submit
+support from being generated, while ordinary immutable patch/rebase APIs
+remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+
 The presence-aware APIs remain necessary when the root itself may be *missing*, *present null*, or *present value*. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` remain observable transitions only through the Fragment/Optional surface.
 
 `RebaseOnto` returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.

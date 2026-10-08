@@ -502,4 +502,41 @@ public sealed class SparseEditSessionTests
             session.AddValidationError(store, otherField, "Wrong model.")
         );
     }
+
+    [Test]
+    public async System.Threading.Tasks.Task SubmitHelperSynchronizesModifiedState()
+    {
+        var session = Order().CreateEditSession();
+        var editContext = session.CreateEditContext();
+        var field = session.Field(nameof(OrderDto.Number));
+        session.Model.Number = "ORD-2";
+
+        var accepted = await session.SubmitAsync(
+            editContext,
+            field,
+            static (_, _) =>
+                System.Threading.Tasks.Task.FromResult(
+                    SparseSubmitResponse<OrderDto>.Accepted()
+                )
+        );
+
+        accepted.Status.ShouldBe(SparseSubmitStatus.Accepted);
+        editContext.IsModified().ShouldBeFalse();
+
+        session.Model.Number = "ORD-3";
+        var rebased = await session.SubmitAsync(
+            editContext,
+            field,
+            (_, _) =>
+            {
+                session.Model.Tags.Add("later");
+                return System.Threading.Tasks.Task.FromResult(
+                    SparseSubmitResponse<OrderDto>.Accepted()
+                );
+            }
+        );
+
+        rebased.Status.ShouldBe(SparseSubmitStatus.Rebased);
+        editContext.IsModified().ShouldBeTrue();
+    }
 }

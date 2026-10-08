@@ -612,6 +612,7 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF023"] = "#spf023-sparseignore-on-unsupported-property",
             ["SPF024"] = "#spf024-invalid-unassigned-key-sentinel",
             ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
+            ["SPF026"] = "#spf026-in-place-submit-is-unavailable",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
@@ -622,13 +623,38 @@ public sealed class SparseGeneratorDiagnosticTests
         foreach (var (id, anchor) in expected)
         {
             var descriptor = descriptors[id];
-            descriptor.DefaultSeverity.ShouldBe(DiagnosticSeverity.Error);
+            descriptor
+                .DefaultSeverity.ShouldBe(id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error);
             descriptor.Category.ShouldBe("SparseFragments");
             descriptor.HelpLinkUri.ShouldBe(
                 "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md" + anchor
             );
             descriptor.MessageFormat.ToString().ShouldContain("{0}");
         }
+    }
+
+    [Test]
+    public void Spf026_InitOnlyModelWarnsWithoutSuppressingGeneratedApi()
+    {
+        const string source = """
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class ReadOnlyEditModel
+            {
+                public string Name { get; init; } = "";
+            }
+            """;
+
+        var (diagnostics, sources) = Run(source);
+
+        var info = diagnostics.Single(static diagnostic => diagnostic.Id == "SPF026");
+        info.Severity.ShouldBe(DiagnosticSeverity.Info);
+        info.GetMessage().ShouldContain("ReadOnlyEditModel");
+        info.Location.IsInSource.ShouldBeTrue();
+        sources.ShouldNotBeEmpty();
+        sources
+            .Any(static generated => generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal))
+            .ShouldBeFalse();
     }
 
     private static DiagnosticDescriptor GetDescriptorById(string id) =>

@@ -19,7 +19,8 @@ internal static class SparseChangeSetEmitter
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        ImmutableArray<string> ignoredSettablePropertyNames = default
+        ImmutableArray<string> ignoredSettablePropertyNames = default,
+        bool canWriteInPlace = false
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -88,6 +89,21 @@ internal static class SparseChangeSetEmitter
             modelType,
             ignoredSettablePropertyNames
         );
+        if (modelType is not null && canWriteInPlace)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies this change set to an existing model instance.</summary>"
+            );
+            code.AppendLineAt(2, "public void ApplyInPlace(" + modelType + " current)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (current is null) throw new global::System.ArgumentNullException(nameof(current));"
+            );
+            code.AppendLineAt(3, "ToPatch().ApplyInPlace(current);");
+            code.AppendLineAt(2, "}");
+        }
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
         SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
         SparseChangeSetPayloadEmitter.AppendFromPayload(code, members, dialect, modelType);
@@ -113,6 +129,7 @@ internal static class SparseChangeSetEmitter
             "RebaseOnto",
             "ApplyTo",
             "TryApplyTo",
+            "ApplyInPlace",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         propNames = new Dictionary<int, string>();

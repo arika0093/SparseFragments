@@ -27,4 +27,5 @@ internal static class SparseFragmentsDiagnosticIds
     public const string SparseIgnoreUnsupportedProperty = "SPF023";
     public const string InvalidUnassignedKey = "SPF024";
     public const string UnsupportedUnassignedKey = "SPF025";
+    public const string InPlaceWriteUnavailable = "SPF026";
 }

@@ -246,7 +246,18 @@ internal static class SparseFragmentEmitter
         core.AppendApplyChanges(code, members);
         core.AppendDiff(code, modelType, members, modelIsReferenceType);
         core.AppendFragmentClone(code, members, usesPocoCloning);
-        SparseFragmentPatchEmitter.AppendFragmentMethods(code, modelType, runtime.Namespace);
+        var canWriteInPlace =
+            modelIsReferenceType
+            && members.All(static member =>
+                !member.Property.IsReadOnly && !member.Property.IsInitOnly
+            );
+        SparseFragmentPatchEmitter.AppendFragmentMethods(
+            code,
+            modelType,
+            runtime.Namespace,
+            members,
+            canWriteInPlace
+        );
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
         SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, runtime.OptionalType);
         code.AppendLineAt(1, "}");
@@ -256,7 +267,8 @@ internal static class SparseFragmentEmitter
             modelType,
             members,
             patchDialect,
-            ignoredSettablePropertyNames
+            ignoredSettablePropertyNames,
+            canWriteInPlace
         );
     }
 

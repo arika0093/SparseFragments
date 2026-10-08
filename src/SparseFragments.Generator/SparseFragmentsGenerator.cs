@@ -126,7 +126,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "JsonConverter",
             "FragmentJsonConverter",
             "ApplyTo",
-            "TryApplyTo"
+            "TryApplyTo",
+            "WriteTo",
+            "ApplyInPlace"
         )
     );
 
@@ -368,6 +370,15 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf025-unsupported-unassigned-key-sentinel"
+    );
+    private static readonly DiagnosticDescriptor InPlaceWriteUnavailable = new(
+        SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable,
+        "In-place submit is unavailable",
+        "Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission",
+        "SparseFragments",
+        DiagnosticSeverity.Info,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf026-in-place-submit-is-unavailable"
     );
 
     /// <inheritdoc />
@@ -628,6 +639,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 SparseIgnoreUnsupportedProperty,
             SparseFragmentsDiagnosticIds.InvalidUnassignedKey => InvalidUnassignedKey,
             SparseFragmentsDiagnosticIds.UnsupportedUnassignedKey => UnsupportedUnassignedKey,
+            SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable => InPlaceWriteUnavailable,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

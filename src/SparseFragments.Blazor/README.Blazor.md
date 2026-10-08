@@ -24,6 +24,11 @@ if (session.HasChanges)
 
 session.AcceptChanges(editContext);
 
+var result = await session.SubmitAsync(
+    editContext,
+    session.Field(nameof(Order.Number)),
+    (changes, cancellationToken) => SaveAsync(changes, cancellationToken));
+
 var store = session.CreateValidationStore(editContext);
 session.AddValidationError(
     store,
@@ -37,3 +42,6 @@ proxy. Context-taking helpers require the context's `Model` to be that same
 instance. Patches always come from baseline-versus-current model comparison,
 never from `EditContext` field tracking. Full integration guidance:
 [UI frameworks](https://github.com/arika0093/SparseFragments/blob/main/docs/ui-frameworks.md).
+The Blazor `SubmitAsync` helper synchronizes modified state after completion:
+it clears the context when no changes remain and notifies the supplied field
+when local edits remain.

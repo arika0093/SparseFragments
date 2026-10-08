@@ -48,6 +48,9 @@ internal static class SparseModelExtensionsEmitter
 
         if (!model.IsStruct)
         {
+            var canWriteInPlace = members.All(static member =>
+                !member.Property.IsReadOnly && !member.Property.IsInitOnly
+            );
             var session =
                 "global::SparseFragments.SparseEditSession<"
                 + modelType
@@ -74,15 +77,21 @@ internal static class SparseModelExtensionsEmitter
                     + modelType
                     + " model, global::System.Action? onChanged = null) => "
                     + session
-                    + ".Create(model, "
+                    + (canWriteInPlace ? ".CreateWithSubmit(model, " : ".Create(model, ")
                     + modelType
                     + ".Fragment.From, "
                     + modelType
-                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, current => new "
+                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, (current, changed) => new "
                     + modelType
                     + "."
                     + observable
-                    + "(current, onChanged));"
+                    + "(current, changed)"
+                    + (
+                        canWriteInPlace
+                            ? ", static (changes, current) => changes.RebaseOnto(current), static (changes, current) => changes.ToPatch().Apply(current), static (current, fragment) => fragment.WriteTo(current), onChanged"
+                            : ", onChanged"
+                    )
+                    + ");"
             );
             code.AppendLineAt(
                 1,
@@ -98,15 +107,25 @@ internal static class SparseModelExtensionsEmitter
                     + modelType
                     + " current, global::System.Action? onChanged = null) => "
                     + session
-                    + ".Create(baseline, current, "
+                    + (
+                        canWriteInPlace
+                            ? ".CreateWithSubmit(baseline, current, "
+                            : ".Create(baseline, current, "
+                    )
                     + modelType
                     + ".Fragment.From, "
                     + modelType
-                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, value => new "
+                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, (value, changed) => new "
                     + modelType
                     + "."
                     + observable
-                    + "(value, onChanged));"
+                    + "(value, changed)"
+                    + (
+                        canWriteInPlace
+                            ? ", static (changes, current) => changes.RebaseOnto(current), static (changes, current) => changes.ToPatch().Apply(current), static (current, fragment) => fragment.WriteTo(current), onChanged"
+                            : ", onChanged"
+                    )
+                    + ");"
             );
 
             code.AppendLineAt(
