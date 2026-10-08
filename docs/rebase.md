@@ -1,6 +1,8 @@
 # ChangeSet Rebase
 
-A ChangeSet is authored against the state it was derived from. If the underlying state changes before the ChangeSet is applied, applying it directly can overwrite a concurrent change to the same member. `RebaseOnto` compares the ChangeSet's own before-state, the local transition, and the current state, then produces a ChangeSet for the current state. The old baseline is never supplied at rebase time because the ChangeSet already contains the baseline information required by its changes.
+A ChangeSet is authored against the state it was derived from. If the underlying state changes before the ChangeSet is applied, applying it directly can overwrite a concurrent change to the same member. `RebaseOnto` compares the ChangeSet's own before-state, the local transition, and the current state, then produces a ChangeSet for the current state.
+
+The old baseline is never supplied at rebase time because the ChangeSet already contains the baseline information required by its changes.
 
 <!-- sample: rebase-first-models -->
 ```csharp
@@ -35,6 +37,8 @@ if (!changes.TryApplyTo(currentModel, out var reconciled))
 
 ## Disconnected Editing
 
+This section is a how-to. It shows the receive-side flow that needs only the current state.
+
 The canonical flow needs only the current state on the receiving side:
 
 ```text
@@ -46,10 +50,9 @@ server loads only current state C
 ChangeSet.RebaseOnto(C)
 ```
 
-For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment/Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
+For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment or Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
 
-When the destination object is already bound to a UI, mutable generated models
-also support in-place application through the baseline-free Patch API:
+In-place application is a separate local concern. When the destination object is already bound to a UI, apply through the baseline-free Patch API (details in [UI frameworks](ui-frameworks.md)):
 
 ```csharp
 var changes = baseline.CreateChangeSet(edited);
@@ -64,12 +67,12 @@ baseline-free operation that can no longer rebase or report conflicts.
 `List<T>` and `Dictionary<TKey,TValue>` properties keep their
 existing collection object and replace its contents; nested model properties
 may be replaced. Get-only or init-only members prevent these in-place APIs
-from being generated, while ordinary immutable patch/rebase APIs
+from being generated, while ordinary immutable patch and rebase APIs
 remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
 
-The presence-aware APIs remain necessary when the root itself may be *missing*, *present null*, or *present value*. `Missing` never equals a present value — not even a present `null` or `default` — so `missing → present null`, `present null → missing`, and `missing → present default` remain observable transitions only through the Fragment/Optional surface.
+The presence-aware APIs remain necessary when the root itself may be missing, present null, or present value. `Missing` never equals a present value, not even a present `null` or `default`. Therefore missing to present null, present null to missing, and missing to present default remain observable transitions only through the Fragment and Optional surface.
 
-`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a **new ChangeSet for the current state** in `Rebased` plus **structured conflicts** for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. The application owns the decision, persistence, and transport: keep persistence atomic and decline to commit when conflicts remain, or resolve per field and retry. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
+`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a new ChangeSet for the current state in `Rebased` plus structured conflicts for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. The application owns the decision, persistence, and transport: keep persistence atomic and decline to commit when conflicts remain, or resolve per field and retry. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
 
 <!-- sample: rebase-presence -->
 ```csharp
@@ -90,6 +93,8 @@ var applied = result.Rebased.ToPatch().Apply(missing);
 
 ## The Three Outcomes
 
+This section is an explanation. It defines how rebase classifies each member.
+
 ### 1. Current matches Before: replay
 
 Local and concurrent edits touch different members: the local transition is replayed onto the current state, and the concurrent edit is preserved.
@@ -103,7 +108,7 @@ Local and concurrent edits touch different members: the local transition is repl
 
 ### 2. Current matches After: already applied
 
-The local transition is already present in `current` (someone else made the same change): rebase succeeds with a semantic no-op — the rebased ChangeSet is empty.
+The local transition is already present in `current` (someone else made the same change): rebase succeeds with a semantic no-op, so the rebased ChangeSet is empty.
 
 <!-- sample: rebase-applied -->
 ```csharp
@@ -133,7 +138,8 @@ var conflictEdited = new RebaseSettings { RetryCount = 2 };
 var conflictCurrent = new RebaseSettings { RetryCount = 3 };
 
 if (
-    conflictBase.CreateChangeSet(conflictEdited)
+    conflictBase
+        .CreateChangeSet(conflictEdited)
         .TryApplyTo(conflictCurrent, out _, out var conflicts)
 )
 {
@@ -147,6 +153,8 @@ var conflict = conflicts.Single();
 <!-- /sample -->
 
 ## Structured Conflicts
+
+This section is a reference. It defines the conflict shape.
 
 Each `SparseConflict` reports where the conflict occurred and the base/local/current values involved.
 
@@ -175,23 +183,29 @@ Clean paths may remain in the rebased ChangeSet while conflicts are reported sep
 
 ## Collection and Structural Behavior
 
-* **Nested structural members** rebase member-by-member; only the colliding leaf conflicts while disjoint nested edits replay.
-* **Append-merged collections** treat an already-applied addition as a no-op (replaying `["a", "b"]` onto a current state that already contains `["a", "b"]` stays put) and report concurrent divergent growth as `CollectionAppend`.
-* **Set-union members** rebase against comparer-aware equality: same entries under the same comparer replay cleanly; entries that differ under the member's comparer conflict as `CollectionSetUnion`.
-* **Keyed structural collections** rebase element-wise where keys line up; per-key divergent edits conflict while disjoint key ranges (added/removed/edited on different keys) replay.
-* **The whole contribution** participates too: `Set`-style root transitions and root presence changes (`Missing` vs present-null vs present) rebase through the same machinery, with unresolvable root divergence reported as `WholeContribution`.
-* **An empty ChangeSet** rebases across root presence changes without conflicts — there is nothing to reconcile.
+This section is a reference. It lists per-shape rebase rules.
+
+* `Nested structural members` rebase member by member; only the colliding leaf conflicts while disjoint nested edits replay.
+* `Append-merged collections` treat an already-applied addition as a no-op (replaying `["a", "b"]` onto a current state that already contains `["a", "b"]` stays put) and report concurrent divergent growth as `CollectionAppend`.
+* `Set-union members` rebase against comparer-aware equality: same entries under the same comparer replay cleanly; entries that differ under the member's comparer conflict as `CollectionSetUnion`.
+* `Keyed structural collections` rebase element-wise where keys line up; per-key divergent edits conflict while disjoint key ranges (added, removed, or edited on different keys) replay.
+* `The whole contribution` participates too: `Set`-style root transitions and root presence changes (missing versus present-null versus present) rebase through the same machinery, with unresolvable root divergence reported as `WholeContribution`.
+* `An empty ChangeSet` rebases across root presence changes without conflicts because there is nothing to reconcile.
 
 ## Custom Strategies
 
+This section is a reference. It defines the `TryRebase` contract.
+
 A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own three-way reconciliation for the member:
 
-* it receives `Optional<T>` for the edit base, the desired state, and the current state, with the missing/present distinction preserved end to end;
+* it receives `Optional<T>` for the edit base, the desired state, and the current state, with the missing and present distinction preserved end to end;
 * a present result maps to a `Set` patch operation, a missing result maps to `Remove`, and a result equal to the current state stays `Keep` (a semantic no-op);
-* the default implementation succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
+* the default implementation succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
 
 ## No Revision History Required
+
+This section is an explanation. It separates ChangeSet state from persistence concerns.
 
 Semantic rebase does not require SparseFragments to retain a Git-like revision history. Three things stay distinct:
 
@@ -206,7 +220,7 @@ historical snapshots
     not required for ordinary ChangeSet rebase
 ```
 
-The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection — a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id — but those are application/envelope metadata, not members of the ChangeSet itself. SparseFragments prescribes neither the token type nor the persistence technology.
+The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection (a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id). Those tokens are application and envelope metadata, not members of the ChangeSet itself. SparseFragments prescribes neither the token type nor the persistence technology.
 
 An application request therefore wraps the ChangeSet in its own envelope:
 
@@ -218,9 +232,11 @@ sealed record UpdateOrderRequest(
     Order.ChangeSetPayload Changes);
 ```
 
-The handler converts the payload with `ToChangeSet()`, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and — when there are no conflicts — saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
+The handler converts the payload with `ToChangeSet()`, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and, when there are no conflicts, saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
 
 ## End-to-End Example
+
+This section is a how-to. It follows one pass through client edit, serialization, rebase, and save-or-conflict.
 
 One complete pass through client edit, serialization, current-state rebase, and save-or-conflict:
 
@@ -235,7 +251,9 @@ var outgoing = stateA.CreateChangeSet(stateB);
 
 // The typed payload travels as JSON through the application's own transport.
 var json = JsonSerializer.Serialize(outgoing.ToPayload());
-var incoming = JsonSerializer.Deserialize<RebaseSettings.ChangeSetPayload>(json)!.ToChangeSet();
+var incoming = JsonSerializer
+    .Deserialize<RebaseSettings.ChangeSetPayload>(json)!
+    .ToChangeSet();
 
 // Meanwhile the server moved A -> C. The server loads only the current state:
 // no historical snapshots are required because the ChangeSet carries its own before-state.
@@ -255,4 +273,4 @@ else
 ```
 <!-- /sample -->
 
-The transport in the middle can be HTTP, SignalR, or any message bus the application already uses — SparseFragments only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base/local/current values without saving.
+The transport in the middle can be HTTP, SignalR, or any message bus the application already uses. SparseFragments only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base, local, and current values without saving.

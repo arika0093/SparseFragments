@@ -89,7 +89,7 @@ See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, a
 
 Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
 
-`SparseEditSession` is synchronous editing against a retained baseline. It is not an async transport or conflict framework. Transport, persistence, and conflict decisions stay with the application:
+`SparseEditSession` compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
 
 ```csharp
 var session = order.CreateEditSession();
@@ -105,13 +105,9 @@ if (response.IsSuccess)
 }
 ```
 
-`AcceptChanges()` without arguments captures the current model as the next baseline. `AcceptChanges(submitted)` advances the baseline by the submitted transition and keeps later edits pending. When additions carry server-assigned keys (for example several `Id = 0` rows), do not acknowledge the unassigned change set. Receive the persisted model or refetch it, create a fresh edit session, and refresh the UI and `EditContext`. No GUID auto-correlation or key remapping is provided. Where that refresh is not implemented, disable editing while a save is in flight.
+`AcceptChanges(submitted)` advances only the baseline, so edits made after `CreateChangeSet` stay pending. When the server assigns keys or normalizes data, replace the model with the persisted state and start a fresh session instead of acknowledging the submitted transition. `ChangeSet` has no `ApplyInPlace`; a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`, which discards the before-state.
 
-Writable reference models also support `Patch.ApplyInPlace` for identity-preserving local application. A `ChangeSet` has no `ApplyInPlace`; `ToPatch()` discards the before-state, so a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, and validation.
-
-Other UI frameworks can use generated `Observable` wrappers for change notification without adding binding infrastructure to the model itself.
-
-See [UI frameworks](docs/ui-frameworks.md) for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
 
 ### Keyed Collections
 

@@ -1,8 +1,12 @@
 # Merge Strategies
 
+This page is a how-to and reference for layer combination. It defines the built-in modes first, then custom strategies.
+
 `Merge` combines a lower-priority Fragment with a higher-priority Fragment. Missing members in the higher layer fall through to the lower layer. Most members need no configuration: leave the member without `[SparseMerge]` and `MergeMode.Default` selects shape-aware behavior. Add `[SparseMerge]` only when you want different behavior.
 
 ## Built-in Modes
+
+This section is a reference. It defines each `MergeMode`.
 
 | `MergeMode` | Behavior | Applies to |
 | --- | --- | --- |
@@ -55,7 +59,9 @@ Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)). An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit `Default` remains granular for keyed collections: it resolves to `Deep` for nested models and to `Replace` for everything else.
+Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)).
+
+An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit `Default` remains granular for keyed collections: it resolves to `Deep` for nested models and to `Replace` for everything else.
 
 ### `Append`
 
@@ -66,6 +72,8 @@ Present collections concatenate from lowest to highest priority: merging `["base
 Present collections combine as an insertion-ordered set union: lower-priority entries first, then higher-priority entries not already present. Membership uses the member's equality semantics (see below).
 
 ## Custom Strategies
+
+This section is a how-to with the validity contract.
 
 A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [ChangeSet rebase](rebase.md)).
 
@@ -92,12 +100,14 @@ public partial class Policy
 
 The contract rules:
 
-* **Presence-aware.** `Merge` and `TryRebase` receive `Optional<T>`: `Missing` never equals a present value, including a present `null` or `default`. A `TryRebase` result that is present becomes a `Set` patch operation; a missing result becomes `Remove`; a result equal to the current state stays `Keep` (a semantic no-op).
-* **Strategy validity** (enforced at generation time, `SPF004`). The strategy type must derive from `FragmentMergeStrategy<TMember>` where `TMember` exactly matches the member type; it must be a non-`abstract`, non-generic `class`; and both the type and its parameterless constructor must be `public` or `internal`. It targets a member that is not a nested model.
-* **Lifetime / thread-safety.** Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
-* **Rebase default.** The default `TryRebase` succeeds when the desired state still matches the edit base (unchanged local edit — the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a `CustomStrategy` conflict otherwise.
+* `Presence-aware.` `Merge` and `TryRebase` receive `Optional<T>`: `Missing` never equals a present value, including a present `null` or `default`. A `TryRebase` result that is present becomes a `Set` patch operation; a missing result becomes `Remove`; a result equal to the current state stays `Keep` (a semantic no-op).
+* `Strategy validity` (enforced at generation time, `SPF004`). The strategy type must derive from `FragmentMergeStrategy<TMember>` where `TMember` exactly matches the member type; it must be a non-`abstract`, non-generic `class`; and both the type and its parameterless constructor must be `public` or `internal`. It targets a member that is not a nested model.
+* `Lifetime and thread-safety.` Strategy instances are shared by generated code and may be called concurrently: keep them stateless or thread-safe.
+* `Rebase default.` The default `TryRebase` succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a `CustomStrategy` conflict otherwise.
 
 ## Equality and Comparer Semantics
+
+This section is a reference. It defines how set and dictionary equality works.
 
 Set and dictionary members compare order-independently, and the element/key comparer is part of the collection value, so the result never depends on operand order:
 
@@ -106,4 +116,4 @@ Set and dictionary members compare order-independently, and the element/key comp
 * Reversing the operands never changes the result.
 * Custom `IReadOnlyDictionary<TKey, TValue>` implementations compare order-independently even when they do not implement non-generic `ICollection`. When a custom collection does not expose its comparer, equality requires lookups to succeed in both directions using each side's own semantics.
 
-This matters for `Diff` (whether a change is detected at all), for set-union rebase (whether a concurrent addition counts as already applied), and for custom strategies whose `AreEqual` delegates to these semantics.
+These semantics decide `Diff` results (whether a change is detected at all), set-union rebase (whether a concurrent addition counts as already applied), and custom strategies whose `AreEqual` delegates to these semantics.

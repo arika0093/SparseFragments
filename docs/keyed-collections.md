@@ -1,5 +1,7 @@
 # Keyed Collections
 
+This page explains element identity and the per-key operations built on it.
+
 SparseFragments can patch a structural list element by element only when each element has a stable key. Array positions are not stable identity: inserting an item at the front changes every later index even though those existing items are still the same logical objects.
 
 <!-- sample: keyed-first-models -->
@@ -26,11 +28,18 @@ public partial class Server
 ```csharp
 var before = new Fleet
 {
-    Servers = new() { new Server { Id = "a", Host = "old" } },
+    Servers = new()
+    {
+        new Server { Id = "a", Host = "old" },
+    },
 };
 var after = new Fleet
 {
-    Servers = new() { new Server { Id = "a", Host = "new" }, new Server { Id = "b" } },
+    Servers = new()
+    {
+        new Server { Id = "a", Host = "new" },
+        new Server { Id = "b" },
+    },
 };
 
 var changes = before.CreateChangeSet(after); // add/remove/edit by key
@@ -46,6 +55,8 @@ if (!changes.TryApplyTo(before, out var applied))
 
 ## Atomic vs Keyed Collections
 
+This section is a reference. It defines which patch semantics each collection kind uses.
+
 | Collection kind | Examples | Patch semantics |
 | --- | --- | --- |
 | Scalar/atomic sequence | `List<string>`, `int[]` | Whole value: a patch sets or removes the entire collection |
@@ -55,7 +66,7 @@ if (!changes.TryApplyTo(before, out var applied))
 
 An explicit `[SparseMerge(MergeMode.Replace)]` always selects whole-value semantics, even for a keyed list or a dictionary. This changes the generated Patch/ChangeSet shape and serialized wire format from per-key operations to a replacement value. The implicit `Default` still uses keyed operations when key metadata is available; key declarations continue to be validated even when explicit replacement is selected.
 
-A structural element is an element SparseFragments can patch through its generated member-level Fragment/Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
+A structural element is an element SparseFragments can patch through its generated member-level Fragment and Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
 
 When no key is available and per-element patching is not needed, select whole-collection semantics explicitly:
 
@@ -69,6 +80,8 @@ public partial class Settings
 ```
 
 ## Declaring Identity
+
+This section is a how-to. It shows the three key mechanisms.
 
 Exactly one key-definition mechanism may apply to a structural type. There is no precedence between them: combining two mechanisms is a generator error (`SPF012`). Key equality uses the normal equality semantics of the key type (`EqualityComparer<T>.Default`).
 
@@ -122,11 +135,11 @@ public partial class Server
 }
 ```
 
-The generated composite key is a strongly typed tuple of the component values in declaration order, compared component-wise. Component order is significant: `(tenant, id)` and `(id, tenant)` are different key shapes. Marking more than one property with `[SparseKey]` is *not* a composite key (`SPF013`) — use the type-level form instead.
+The generated composite key is a strongly typed tuple of the component values in declaration order, compared component-wise. Component order is significant: `(tenant, id)` and `(id, tenant)` are different key shapes. Marking more than one property with `[SparseKey]` is not a composite key (`SPF013`); use the type-level form instead.
 
 ### Computed keys with `ISparseKeyed<TKey>`
 
-When identity cannot be expressed as a key property or an ordered composite — for example a normalized or case-folded key — implement `ISparseKeyed<TKey>`:
+When identity cannot be expressed as a key property or an ordered composite (for example a normalized or case-folded key), implement `ISparseKeyed<TKey>`:
 
 ```csharp
 public partial class Server : ISparseKeyed<ServerKey>
@@ -142,16 +155,18 @@ Implement exactly one `ISparseKeyed<TKey>` with a publicly readable instance `Sp
 
 ### Key constraints
 
-Keys must be stable and comparable:
+Keys must be stable and comparable. Each rule is enforced at generation time:
 
-* non-nullable (`string?`, `int?`, … are rejected, `SPF018`);
-* not collection-shaped (arrays, `List<T>`, dictionaries, sets are rejected, `SPF019`);
-* publicly readable instance properties — static, indexer, or non-publicly-readable properties cannot serve as identity (`SPF017`);
-* value-object keys (records, record structs, enums, strings, GUIDs, ordinary scalars) are valid when they provide stable equality.
+* non-nullable (`string?`, `int?`, and similar are rejected, `SPF018`);
+* not collection-shaped (arrays, `List<T>`, dictionaries, and sets are rejected, `SPF019`);
+* publicly readable instance properties. Static, indexer, or non-publicly-readable properties cannot serve as identity (`SPF017`);
+* value-object keys (records, record structs, enums, strings, GUIDs, and ordinary scalars) are valid when they provide stable equality.
 
-## Add / Remove / Edit / Reorder
+## Add, Remove, Edit, and Reorder
 
-`before.CreateChangeSet(after)` derives per-element operations from the before/after key sets; `ToPatch().ApplyTo` replays them to a model. The final key order — not positional moves — determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `applied.CreateChangeSet(after).IsEmpty` holds).
+This section is a how-to. It shows how per-key operations derive from before and after states.
+
+`before.CreateChangeSet(after)` derives per-element operations from the before and after key sets; `ToPatch().ApplyTo` replays them to a model. The final key order, not positional moves, determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `applied.CreateChangeSet(after).IsEmpty` holds).
 
 The same `Fleet` / `Server` model shows each operation with ordinary values:
 
@@ -172,15 +187,17 @@ var applied = changes.ToPatch().ApplyTo(before);
 
 Concretely:
 
-* **Add.** An element whose key exists only in `after` is added. Its full fragment state is carried by the patch.
-* **Remove.** An element whose key exists only in `before` is removed by key.
-* **Edit.** An element present in both is patched through its generated nested patch — only the changed members travel. Editing nested members, nested keyed collections, and whole-value members all use the same generated Patch behavior as the rest of the model.
-* **Replace the whole collection.** Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
-* **Reorder.** The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate "move identity".
+* `Add.` An element whose key exists only in `after` is added. Its full fragment state is carried by the patch.
+* `Remove.` An element whose key exists only in `before` is removed by key.
+* `Edit.` An element present in both is patched through its generated nested patch, so only the changed members travel. Editing nested members, nested keyed collections, and whole-value members all uses the same generated Patch behavior as the rest of the model.
+* `Replace the whole collection.` Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
+* `Reorder.` The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate move identity.
 
 Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
 ## Database-assigned keys
+
+This section is a how-to. It shows how to handle client-created elements before the database assigns identity.
 
 For client-created elements whose database identity is assigned later, opt in to one
 property-level sentinel:
@@ -205,7 +222,9 @@ public partial class PendingServer
 
 An element with `Id == 0` is always a new addition. Any number of such elements may
 appear in the after-state, and their positions are preserved. The sentinel is never
-implicit: without `Unassigned`, keys remain unique exactly as before. Composite
+implicit: without `Unassigned`, keys remain unique exactly as before.
+
+Composite
 `[SparseKey(...)]` keys and `ISparseKeyed<TKey>` are not supported with a sentinel
 (`SPF025`); a sentinel incompatible with the marked property's key type is an error
 (`SPF024`).
@@ -258,25 +277,36 @@ After the server inserts the rows and assigns their IDs, replace the client mode
 with the authoritative returned state (or refetch it) and create a fresh edit
 session from that state. Recreate the `EditContext` from the fresh session so
 field tracking restarts from the assigned IDs. This ensures subsequent keyed
-edits use the assigned IDs rather than the sentinel. `AcceptChanges` rejects a
-transition that would retain unassigned sentinels, so the unassigned change set
+edits use the assigned IDs rather than the sentinel.
+
+`AcceptChanges` rejects a transition that would retain unassigned sentinels, so the unassigned change set
 itself is never acknowledged. No GUID auto-correlation or key remapping is
 provided. Where the authoritative refresh is not implemented, disable editing
 while a save is in flight.
 
 ## Observe Typed Collection Transitions
 
-The same `Fleet` / `Server` model observes the transition through typed projections — no reflection, property descriptors, or `object?` casts:
+This section is a reference. It defines the per-key projections.
+
+The same `Fleet` and `Server` model observes the transition through typed projections, without reflection, property descriptors, or `object?` casts:
 
 <!-- sample: keyed-typed -->
 ```csharp
 var before = new Fleet
 {
-    Servers = new() { new Server { Id = "a", Host = "A" }, new Server { Id = "b", Host = "B" } },
+    Servers = new()
+    {
+        new Server { Id = "a", Host = "A" },
+        new Server { Id = "b", Host = "B" },
+    },
 };
 var after = new Fleet
 {
-    Servers = new() { new Server { Id = "b", Host = "B2" }, new Server { Id = "c", Host = "C" } },
+    Servers = new()
+    {
+        new Server { Id = "b", Host = "B2" },
+        new Server { Id = "c", Host = "C" },
+    },
 };
 
 var changes = before.CreateChangeSet(after);
@@ -302,15 +332,17 @@ var edited = servers.GetChange("b");
 
 Concretely:
 
-* **Added / Removed** carry the full element values for keys that exist only in `after` / only in `before`.
-* **Edited** maps each surviving changed key to its typed nested element transition, so `servers.Edited["b"].Host` is the same `IsChanged` / `Before` / `After` shape as any other member transition.
-* **BeforeOrder / AfterOrder** carry the full key order on each side; **OrderChanged** reports whether the two orders differ. A pure reorder (same keys, different order) is a real non-empty transition whose replay reproduces the final key order — patches store final order, never a synthetic move operation.
-* **Enumeration** visits one item per changed key (added, removed, edited, or reordered). Each item reports `Key`, `IsAdded` / `IsRemoved` / `IsEdited` / `IsReordered`, `Before` / `After` element snapshots, absolute `BeforeIndex` / `AfterIndex`, and the nested `Edit` transition. Enumerating a transition with no changes visits nothing.
-* **GetChange(key)** looks up a single key's item: it returns the typed item for added/removed/edited/reordered keys and an empty item (`IsEmpty == true`, never `null`) for unchanged or unknown keys.
+* `Added` and `Removed` carry the full element values for keys that exist only in `after` or only in `before`.
+* `Edited` maps each surviving changed key to its typed nested element transition, so `servers.Edited["b"].Host` is the same `IsChanged`, `Before`, and `After` shape as any other member transition.
+* `BeforeOrder` and `AfterOrder` carry the full key order on each side; `OrderChanged` reports whether the two orders differ. A pure reorder (same keys, different order) is a real non-empty transition whose replay reproduces the final key order. Patches store final order, never a synthetic move operation.
+* `Enumeration` visits one item per changed key (added, removed, edited, or reordered). Each item reports `Key`, `IsAdded`, `IsRemoved`, `IsEdited`, `IsReordered`, `Before` and `After` element snapshots, absolute `BeforeIndex` and `AfterIndex`, and the nested `Edit` transition. Enumerating a transition with no changes visits nothing.
+* `GetChange(key)` looks up a single key's item: it returns the typed item for added, removed, edited, or reordered keys and an empty item (`IsEmpty == true`, never `null`) for unchanged or unknown keys.
 
-A collection transition object may be enumerable while the root ChangeSet is not: collection items share one `TKey` / `TElement` type, whereas root model members are heterogeneous. Like the scalar projections, `Added`, `Removed`, `Edited`, enumeration, and the order views are API projections over the before/after state, not duplicate wire fields (see [Fragments and patches](fragments-and-patches.md)).
+A collection transition object may be enumerable while the root ChangeSet is not: collection items share one `TKey` and `TElement` type, whereas root model members are heterogeneous. Like the scalar projections, `Added`, `Removed`, `Edited`, enumeration, and the order views are API projections over the before and after state, not duplicate wire fields (see [Fragments and patches](fragments-and-patches.md)).
 
 ## Duplicate Keys and Key Changes
 
-* **Duplicate keys are invalid.** A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
-* **Changing an element's identity is remove-old + add-new.** If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"` — never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove + add through `CreateChangeSet`/`ToPatch`/`ApplyTo`.
+This section is a reference. It defines invalid identity states.
+
+* `Duplicate keys are invalid.` A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
+* `Changing an element's identity is remove-old plus add-new.` If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"`, never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove plus add through `CreateChangeSet`, `ToPatch`, and `ApplyTo`.

@@ -1,5 +1,7 @@
 # UI Framework Integration
 
+This page is a how-to for editing with a retained baseline. It covers the neutral session first, then framework bindings.
+
 SparseFragments derives semantic changes by comparing a retained baseline with the current model. UI dirty flags and change notifications may drive binding, validation, or UI state, but they do not define the Patch itself.
 
 <!-- sample: ui-session-models -->
@@ -27,6 +29,8 @@ public partial class UiOrderItem
 
 ## Framework-neutral edit sessions
 
+This section is a how-to. It shows baseline comparison without any UI package.
+
 Every generated model has a stable, hashed top-level extension container in its
 namespace. Its `CreateChangeSet` extension compares a baseline to an explicit
 current model, and reference-type models also have a neutral edit-session
@@ -52,7 +56,9 @@ The session retains a private fragment snapshot as its baseline and exposes the
 live model as `Model`, alongside a stable typed `Observable` proxy over the same
 instance. The one-model factory captures that model as the baseline and edits
 it; the two-model overload retains the `current` instance and snapshots
-`baseline` separately. `HasChanges` and `CreateChangeSet()` always compare that
+`baseline` separately.
+
+`HasChanges` and `CreateChangeSet()` always compare that
 baseline with the model's current state, so edit-then-restore is clean even if a
 UI control reported that a field was touched. `CreatePatch()` projects the same
 transition to a baseline-free patch. `AcceptChanges()` captures the current
@@ -67,8 +73,8 @@ Nested model values may be replaced. A model with init-only or constructor-only
 members keeps its normal edit-session APIs but cannot use in-place apply
 (see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
 
-The session is synchronous. There is no async submit, transport, or conflict
-framework in `SparseEditSession`. The application sends the change set through
+The session is synchronous. It provides no async submit, transport, or conflict
+framework. The application sends the change set through
 its own transport, then acknowledges the submitted transition:
 
 ```csharp
@@ -130,6 +136,8 @@ referenced.
 
 ## Blazor
 
+This section is a how-to. It shows `EditContext` binding and validation.
+
 The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers
 for the framework-neutral edit session. The session retains a baseline and
 derives semantic changes by comparing it with the current model:
@@ -164,11 +172,11 @@ Bind the created `EditContext` to an ordinary `EditForm`:
 <EditForm EditContext="@editContext">...</EditForm>
 ```
 
-`CreateEditContext()` binds the **original editable model `T`** to the
+`CreateEditContext()` binds the original editable model `T` to the
 `EditContext`. Do not use the generated `T.Observable` proxy as
-`EditContext.Model`: Blazor field tracking and validation run on
-`EditContext`/`FieldIdentifier` and model metadata, so `DataAnnotations` keep
-applying to `T`, while the semantic patch still comes from baseline/current `T`.
+`EditContext.Model`. Blazor field tracking and validation run on
+`EditContext` and `FieldIdentifier` and model metadata, so `DataAnnotations` keep
+applying to `T`, while the semantic patch still comes from baseline and current `T`.
 
 Blazor extension methods:
 
@@ -211,19 +219,23 @@ editContext.OnValidationRequested += (sender, _) =>
 ```
 
 Errors obtained elsewhere (for example structured rebase conflicts) surface
-the same way via
+the same way with
 `uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`.
 The model type must be a reference type.
 
-A session ChangeSet is sent through its generated `T.ChangeSetPayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction — transport configuration stays with the application.
+A session ChangeSet is sent through its generated `T.ChangeSetPayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.
 
-## WPF / WinForms / .NET MAUI / WinUI / Avalonia
+## WPF, WinForms, .NET MAUI, WinUI, and Avalonia
+
+This section is a how-to. It shows binding through the generated `Observable` wrapper.
 
 These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
 
-Nested models surface as child proxies that propagate changes to the root callback. Mutable indexable
+Nested models surface as child proxies that propagate changes to the root callback.
+
+Mutable indexable
 sequences (`List<T>`, `IList<T>`, `Collection<T>`, and `ObservableCollection<T>`) and mutable
-`Dictionary<TKey,TValue>` / `IDictionary<TKey,TValue>` members surface as notifying views over the
+`Dictionary<TKey,TValue>` and `IDictionary<TKey,TValue>` members surface as notifying views over the
 original collection instances. List views implement generic and non-generic `IList` for WPF binding;
 dictionary collection events contain `KeyValuePair<TKey,TValue>` items. Edits through a view mutate the
 model collection in place, raise `INotifyCollectionChanged` and `INotifyPropertyChanged` (`Count` and
@@ -238,7 +250,9 @@ the collection through the proxy, or disposing the view detaches stale element c
 `Observable.Items` is the generated view type so bindings can use it directly. Since C# properties
 cannot have a view getter and a model-collection setter of different types, replace a collection with
 the generated `ReplaceItems(modelCollection)` method; this rebuilds the view and raises the member
-notification. Mutations made directly to a plain model `List<T>`/`Dictionary<TKey,TValue>` update
+notification.
+
+Mutations made directly to a plain model `List<T>` or `Dictionary<TKey,TValue>` update
 the model but bypass view notifications; changes to an underlying collection that itself implements
 `INotifyCollectionChanged` (such as `ObservableCollection<T>`) are forwarded. Arrays, `IReadOnlyList<T>`, `IEnumerable<T>`, immutable
 collections, and sets remain replace-only. Models using collection types the generator cannot deeply
