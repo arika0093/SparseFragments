@@ -12,6 +12,7 @@ public partial class NamingWidget
     [System.Text.Json.Serialization.JsonPropertyName("a/b")]
     public int Slash { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public int Plain { get; set; }
 }
 

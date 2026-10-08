@@ -246,21 +246,21 @@ internal static class SparseChangeSetBasicsEmitter
     {
         var parts = new List<string> { "false", "default", "default" };
         foreach (var member in members)
-        {
-            if (IsNested(member))
-                parts.Add("null");
-            else if (IsKeyed(member) || IsDict(member))
-            {
-                parts.Add("false");
-                parts.Add("false");
-                parts.AddRange(new[] { "default", "default", "null" });
-                if (IsKeyed(member))
-                    parts.AddRange(new[] { "null", "null" });
-            }
-            else
-                parts.AddRange(new[] { "default", "default", "false" });
-        }
+            parts.AddRange(EmptyMemberArgs(member));
         return string.Join(", ", parts);
+    }
+
+    internal static string[] EmptyMemberArgs(SparseMemberModel member)
+    {
+        if (IsNested(member))
+            return ["null"];
+        if (IsKeyed(member) || IsDict(member))
+        {
+            return IsKeyed(member)
+                ? ["false", "false", "default", "default", "null", "null", "null"]
+                : ["false", "false", "default", "default", "null"];
+        }
+        return ["default", "default", "false"];
     }
 
     internal static void AppendIsEmpty(

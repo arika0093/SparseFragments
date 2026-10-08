@@ -3,6 +3,23 @@ using SparseFragments.Playground.Models;
 
 namespace SparseFragments.Tests.Patch;
 
+[SparseFragmentModel]
+public partial struct PayloadValueItem
+{
+    [SparseKey]
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+}
+
+[SparseFragmentModel]
+public partial class PayloadValueHolder
+{
+    public List<PayloadValueItem> Items { get; set; } = [];
+
+    public Dictionary<string, PayloadValueItem> Values { get; set; } = new();
+}
+
 public sealed class ChangeSetPayloadTests
 {
     private static KeyedServer Server(string id, string name, int count = 0) =>
@@ -240,6 +257,49 @@ public sealed class ChangeSetPayloadTests
         var orderRestored = RoundTrip(orderPayload).ToChangeSet();
         KeyedServerHolder.Patch
             .Between(orderRestored.ToPatch().Apply(orderBefore), orderAfter)
+            .IsEmpty
+            .ShouldBeTrue();
+    }
+
+    [Test]
+    public void Payload_RoundTripsValueTypeKeyedAndDictionaryItems()
+    {
+        Optional<PayloadValueHolder.Fragment?> State(
+            List<PayloadValueItem> items,
+            Dictionary<string, PayloadValueItem> values
+        ) =>
+            Optional<PayloadValueHolder.Fragment?>.Present(
+                PayloadValueHolder.Fragment.From(
+                    new PayloadValueHolder { Items = items, Values = values }
+                )
+            );
+
+        var before = State(
+            [new PayloadValueItem { Id = 1, Name = "before" }],
+            new Dictionary<string, PayloadValueItem>
+            {
+                ["a"] = new() { Id = 2, Name = "before" },
+            }
+        );
+        var after = State(
+            [
+                new PayloadValueItem { Id = 1, Name = "after" },
+                new PayloadValueItem { Id = 3, Name = "added" },
+            ],
+            new Dictionary<string, PayloadValueItem>
+            {
+                ["a"] = new() { Id = 2, Name = "after" },
+            }
+        );
+
+        var restored = RoundTrip(PayloadValueHolder.ChangeSet.Between(before, after).ToPayload())
+            .ToChangeSet();
+
+        restored.Items.GetChange(1).IsEdited.ShouldBeTrue();
+        restored.Items.GetChange(3).IsAdded.ShouldBeTrue();
+        restored.Values.GetChange("a").IsEdited.ShouldBeTrue();
+        PayloadValueHolder.Patch
+            .Between(restored.ToPatch().Apply(before), after)
             .IsEmpty
             .ShouldBeTrue();
     }

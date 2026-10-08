@@ -267,17 +267,21 @@ public class ChangeSetJsonBenchmarks
             throw new InvalidOperationException(
                 "ChangeSet JSON must preserve root presence and emptiness."
             );
-        if (
-            actual.GetValueOrDefault() is { } fragment
-            && (
+        if (actual.GetValueOrDefault() is { } fragment)
+        {
+            var actualValues = fragment.Values.Value;
+            var expectedValues = expected.Value!.Values.Value;
+            if (
                 fragment.Counter.Value != 1
                 || fragment.Label.Value != "base"
-                || !fragment.Values.Value.SequenceEqual(expected.Value!.Values.Value)
+                || actualValues is null
+                || expectedValues is null
+                || !actualValues.SequenceEqual(expectedValues)
             )
-        )
-            throw new InvalidOperationException(
-                "ChangeSet JSON must preserve scalar and collection values."
-            );
+                throw new InvalidOperationException(
+                    "ChangeSet JSON must preserve scalar and collection values."
+                );
+        }
     }
 
     [Benchmark]

@@ -75,6 +75,7 @@ check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir
     'SparseKey =>' \
     'CreateChangeSet' \
     '.TryApplyTo(before' \
+    'ToPatch().ApplyTo' \
     'IsEmpty' \
     'IsChanged' \
     'Added' \
