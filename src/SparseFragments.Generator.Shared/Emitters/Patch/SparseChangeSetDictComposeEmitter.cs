@@ -325,6 +325,7 @@ internal static class SparseChangeSetDictComposeEmitter
                     + ".From(__a2.After.Value!));"
             );
             code.AppendLineAt(7, "var __edit = " + valueCs + ".Between(__eb, __ea);");
+            code.AppendLineAt(7, "if (__edit.IsEmpty) continue;");
             code.AppendLineAt(
                 7,
                 "__net"

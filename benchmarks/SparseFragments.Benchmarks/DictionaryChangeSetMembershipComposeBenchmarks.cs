@@ -59,12 +59,7 @@ public class DictionaryChangeSetMembershipComposeBenchmarks
                 or DictionaryChangeSetMembershipShape.RecreatedRestore;
         if (
             scalar.IsEmpty != cancels
-            // Recreated elements can currently retain empty nested edits.
-            // Their application and inverse must still preserve both endpoints.
-            || (
-                Shape != DictionaryChangeSetMembershipShape.RecreatedRestore
-                && structural.IsEmpty != cancels
-            )
+            || structural.IsEmpty != cancels
             || !BenchScalarDictHolder
                 .Patch.Between(scalar.ToPatch().Apply(scalarBefore), scalarAfter)
                 .IsEmpty
