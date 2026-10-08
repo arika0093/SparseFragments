@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Emits the typed, serializer-facing payload DTOs for one model.</summary>
-internal static class SparseChangeSetPayloadEmitter
+internal static partial class SparseChangeSetPayloadEmitter
 {
     internal static void AppendPayload(
         SharedIndentedBuilder code,

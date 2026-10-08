@@ -164,9 +164,13 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + ".Value!) { var __ck = __SparseKeyOf_ChangeSet_"
                 + id
                 + "(__e); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ck") + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the current baseline of a keyed ChangeSet.\"); "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ck")
+                            + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the current baseline of a keyed ChangeSet.\"); "
+                        : ""
+                )
                 + "if (!__cmap"
                 + id
                 + ".TryAdd(__ck, __e)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); __corder"
@@ -567,9 +571,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         code.AppendLineAt(
             5,
             "if ("
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "__unassignedOnlyAdds" + id + " || ("
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "__unassignedOnlyAdds" + id + " || ("
+                        : ""
+                )
                 + KeyedBeforeOrder(member)
                 + " is not null && "
                 + KeyedAfterOrder(member)
@@ -584,9 +590,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + "))"
                 + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? ")" : "")
                 + " { "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (!__unassignedOnlyAdds" + id + ") { "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if (!__unassignedOnlyAdds" + id + ") { "
+                        : ""
+                )
                 + "__nbO"
                 + id
                 + " = new global::System.Collections.Generic.List<"
@@ -606,9 +614,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         code.AppendLineAt(
             5,
             "else if ("
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "!__unassignedOnlyAdds" + id + " && "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "!__unassignedOnlyAdds" + id + " && "
+                        : ""
+                )
                 + KeyedBeforeOrder(member)
                 + " is not null && "
                 + KeyedAfterOrder(member)

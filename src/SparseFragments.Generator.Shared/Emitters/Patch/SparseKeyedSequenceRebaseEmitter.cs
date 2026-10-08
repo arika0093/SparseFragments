@@ -209,9 +209,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
             "if (baseState.IsPresent && (object?)baseState.Value is not null) foreach (var item in baseState.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k") + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                            + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
+                        : ""
+                )
                 + "if (!baseMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
         );
         code.AppendLineAt(
@@ -237,9 +241,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
             "if (currentState.IsPresent && (object?)currentState.Value is not null) foreach (var item in currentState.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k") + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                            + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
+                        : ""
+                )
                 + "if (!currentMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
         );
         code.AppendLineAt(
@@ -272,9 +280,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
             "if (desired.IsPresent && (object?)desired.Value is not null) foreach (var item in desired.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k") + ") { __desiredUnassigned.Add(item); continue; } "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                            + ") { __desiredUnassigned.Add(item); continue; } "
+                        : ""
+                )
                 + "if (!desiredMap.TryAdd(k, item)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); }"
         );
         // Pre-index locally touched keys once (O(K)) so the per-key loop below
@@ -306,9 +318,16 @@ internal static class SparseKeyedSequenceRebaseEmitter
             "if (local.__added is not null) foreach (var __touchedItem in local.__added) { var __touchedKey = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(__touchedItem); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__touchedKey") + ") continue; "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                                member,
+                                "__touchedKey"
+                            )
+                            + ") continue; "
+                        : ""
+                )
                 + "__touchedAdded.Add(__touchedKey); __addedByKey[__touchedKey] = __touchedItem; }"
         );
         code.AppendLineAt(
@@ -492,9 +511,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
             code.AppendLineAt(
                 5,
                 "if ("
-                    + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "__unassignedOnlyAdds) { } else if ("
-                        : "")
+                    + (
+                        SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                            ? "__unassignedOnlyAdds) { } else if ("
+                            : ""
+                    )
                     + facade
                     + ".KeyOrderEquals<"
                     + keyType
@@ -628,9 +649,11 @@ internal static class SparseKeyedSequenceRebaseEmitter
             code.AppendLineAt(
                 5,
                 "if ("
-                    + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "__unassignedOnlyAdds) { } else if ("
-                        : "")
+                    + (
+                        SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                            ? "__unassignedOnlyAdds) { } else if ("
+                            : ""
+                    )
                     + facade
                     + ".KeyOrderEquals<"
                     + keyType

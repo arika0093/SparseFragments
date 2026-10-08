@@ -569,7 +569,11 @@ internal static class SparseKeyAnalyzer
         if (
             sourceType.SpecialType != keyType.SpecialType
             && !SymbolEqualityComparer.Default.Equals(sourceType, keyType)
-            && !CanConvertNumericConstant(constant.Value, sourceType.SpecialType, keyType.SpecialType)
+            && !CanConvertNumericConstant(
+                constant.Value,
+                sourceType.SpecialType,
+                keyType.SpecialType
+            )
         )
         {
             error = "Unassigned is not convertible to the key property type.";
@@ -579,9 +583,15 @@ internal static class SparseKeyAnalyzer
         var literal = constant.Value switch
         {
             string text => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(text, true),
-            char character => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(character, true),
+            char character => Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+                character,
+                true
+            ),
             bool boolean => boolean ? "true" : "false",
-            _ => Convert.ToString(constant.Value, System.Globalization.CultureInfo.InvariantCulture)!,
+            _ => Convert.ToString(
+                constant.Value,
+                System.Globalization.CultureInfo.InvariantCulture
+            )!,
         };
         if (constant.Value is long)
             literal += "L";
@@ -623,7 +633,11 @@ internal static class SparseKeyAnalyzer
 
         try
         {
-            _ = Convert.ChangeType(value, runtimeType, System.Globalization.CultureInfo.InvariantCulture);
+            _ = Convert.ChangeType(
+                value,
+                runtimeType,
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             return true;
         }
         catch (Exception)
@@ -633,17 +647,18 @@ internal static class SparseKeyAnalyzer
     }
 
     private static bool IsNumeric(SpecialType type) =>
-        type is SpecialType.System_SByte
-            or SpecialType.System_Byte
-            or SpecialType.System_Int16
-            or SpecialType.System_UInt16
-            or SpecialType.System_Int32
-            or SpecialType.System_UInt32
-            or SpecialType.System_Int64
-            or SpecialType.System_UInt64
-            or SpecialType.System_Single
-            or SpecialType.System_Double
-            or SpecialType.System_Decimal;
+        type
+            is SpecialType.System_SByte
+                or SpecialType.System_Byte
+                or SpecialType.System_Int16
+                or SpecialType.System_UInt16
+                or SpecialType.System_Int32
+                or SpecialType.System_UInt32
+                or SpecialType.System_Int64
+                or SpecialType.System_UInt64
+                or SpecialType.System_Single
+                or SpecialType.System_Double
+                or SpecialType.System_Decimal;
 
     private static void CollectMechanismDiagnostics(
         INamedTypeSymbol element,

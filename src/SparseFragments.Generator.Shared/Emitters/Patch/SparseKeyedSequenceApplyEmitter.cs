@@ -133,7 +133,12 @@ internal static class SparseKeyedSequenceApplyEmitter
 
         // Adds.
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
-            code.AppendLineAt(4, "var __unassignedAdded = new global::System.Collections.Generic.List<" + elementType + ">();");
+            code.AppendLineAt(
+                4,
+                "var __unassignedAdded = new global::System.Collections.Generic.List<"
+                    + elementType
+                    + ">();"
+            );
         code.AppendLineAt(4, "if (__added is not null) foreach (var item in __added)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -164,9 +169,11 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(
             5,
             "if (__order.Count != map.Count"
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? " + __unassignedAdded.Count"
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? " + __unassignedAdded.Count"
+                        : ""
+                )
                 + ") throw new global::System.InvalidOperationException(\"Order must list exactly the final keys.\");"
         );
         code.AppendLineAt(
@@ -236,9 +243,13 @@ internal static class SparseKeyedSequenceApplyEmitter
             "foreach (var item in __added) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                    ? "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k") + ") continue; "
-                    : "")
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "if ("
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                            + ") continue; "
+                        : ""
+                )
                 + "if (__emitted.Add(k)) result.Add(map[k]); }"
         );
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
@@ -282,7 +293,7 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var patch = new " + patchName + "();");
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
-               {
+        {
             code.AppendLineAt(
                 4,
                 "if (before.IsPresent && (object?)before.Value is not null) foreach (var __baselineItem in before.Value!) if ("

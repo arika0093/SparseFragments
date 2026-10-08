@@ -492,7 +492,10 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             code.AppendLineAt(
                 3,
                 "for (var __i = 0; __i < __afterOrder.Count; __i++) if (!"
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__afterOrder[__i]")
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                        member,
+                        "__afterOrder[__i]"
+                    )
                     + ") __afterIndex[__afterOrder[__i]] = __i;"
             );
         else

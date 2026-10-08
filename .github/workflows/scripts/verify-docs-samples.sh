@@ -73,8 +73,8 @@ check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir
     '[SparseKey(' \
     'ISparseKeyed' \
     'SparseKey =>' \
-    'ChangeSet.Between' \
-    '.Apply(before)' \
+    'CreateChangeSet' \
+    '.TryApplyTo(before' \
     'IsEmpty' \
     'IsChanged' \
     'Added' \

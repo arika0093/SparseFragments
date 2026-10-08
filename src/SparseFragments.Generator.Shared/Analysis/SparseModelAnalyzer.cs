@@ -146,7 +146,8 @@ internal static class SparseModelAnalyzer
             !model.IsValueType
             && members.FirstOrDefault(static member =>
                 member.Property.SetMethod is null || member.Property.SetMethod.IsInitOnly
-            ) is { } immutableMember
+            )
+                is { } immutableMember
         )
         {
             capabilityDiagnostics = ImmutableArray.Create(

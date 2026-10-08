@@ -802,9 +802,18 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         code.AppendLineAt(6, "__naO" + id + " = __no;");
         code.AppendLineAt(5, "}");
-        code.AppendLineAt(5, "if (__net" + id + ".Count == 0" +
-            (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? " && __unassignedNetItems" + id + ".Count == 0" : "") +
-            ") { }");
+        code.AppendLineAt(
+            5,
+            "if (__net"
+                + id
+                + ".Count == 0"
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? " && __unassignedNetItems" + id + ".Count == 0"
+                        : ""
+                )
+                + ") { }"
+        );
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__cb" + id + "_has = true;");

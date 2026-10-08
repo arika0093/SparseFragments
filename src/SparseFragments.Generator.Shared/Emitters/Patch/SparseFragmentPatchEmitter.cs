@@ -92,16 +92,16 @@ internal static class SparseFragmentPatchEmitter
                     code.AppendLineAt(4, "__sparse_list" + member.Id + ".Clear();");
                     code.AppendLineAt(
                         4,
-                        "__sparse_list" + member.Id + ".AddRange(__sparse_updated." + property + ");"
+                        "__sparse_list"
+                            + member.Id
+                            + ".AddRange(__sparse_updated."
+                            + property
+                            + ");"
                     );
                     code.AppendLineAt(3, "}");
                     code.AppendLineAt(
                         3,
-                        "else model."
-                            + property
-                            + " = __sparse_updated."
-                            + property
-                            + "!;"
+                        "else model." + property + " = __sparse_updated." + property + "!;"
                     );
                 }
                 else if (member.Collection.IsDictionary)
@@ -143,16 +143,15 @@ internal static class SparseFragmentPatchEmitter
                     code.AppendLineAt(3, "}");
                     code.AppendLineAt(
                         3,
-                        "else model."
-                            + property
-                            + " = __sparse_updated."
-                            + property
-                            + "!;"
+                        "else model." + property + " = __sparse_updated." + property + "!;"
                     );
                 }
                 else
                 {
-                    code.AppendLineAt(3, "model." + property + " = __sparse_updated." + property + "!;");
+                    code.AppendLineAt(
+                        3,
+                        "model." + property + " = __sparse_updated." + property + "!;"
+                    );
                 }
             }
             code.AppendLineAt(2, "}");
@@ -298,10 +297,7 @@ internal static class SparseFragmentPatchEmitter
                 3,
                 "if (current is null) throw new global::System.ArgumentNullException(nameof(current));"
             );
-            code.AppendLineAt(
-                3,
-                "Fragment.From(current).Apply(this).WriteTo(current);"
-            );
+            code.AppendLineAt(3, "Fragment.From(current).Apply(this).WriteTo(current);");
             code.AppendLineAt(2, "}");
         }
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);

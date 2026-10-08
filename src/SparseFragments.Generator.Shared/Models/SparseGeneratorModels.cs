@@ -296,8 +296,7 @@ internal readonly record struct SparseGeneratorDiagnostic(
             argument is null
                 ? ImmutableArray<string?>.Empty
                 : ImmutableArray.Create<string?>(argument)
-        )
-    { }
+        ) { }
 
     public string? Argument1 => Arguments.Length > 0 ? Arguments[0] : null;
 

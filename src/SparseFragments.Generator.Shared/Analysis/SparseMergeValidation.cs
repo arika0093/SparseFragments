@@ -20,12 +20,14 @@ internal static class SparseMergeValidation
             SparseMergeModes.Append when collection == SparseCollectionKind.Set =>
                 "Append on set types (use an ordered collection or SetUnion)",
             SparseMergeModes.Append
-                when collection is SparseCollectionKind.Unsupported or SparseCollectionKind.MutableList =>
-                "Append",
+                when collection
+                    is SparseCollectionKind.Unsupported
+                        or SparseCollectionKind.MutableList => "Append",
             SparseMergeModes.Append => null,
             SparseMergeModes.SetUnion
-                when collection is SparseCollectionKind.Unsupported or SparseCollectionKind.MutableList =>
-                "SetUnion",
+                when collection
+                    is SparseCollectionKind.Unsupported
+                        or SparseCollectionKind.MutableList => "SetUnion",
             SparseMergeModes.SetUnion => null,
             SparseMergeModes.Custom => null,
             _ => mode.ToString(),

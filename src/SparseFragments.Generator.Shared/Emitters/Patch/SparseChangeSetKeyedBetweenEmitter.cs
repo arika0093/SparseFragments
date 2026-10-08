@@ -425,7 +425,10 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 "for (var __i = 0; __i < __afterOrder"
                     + id
                     + ".Count; __i++) if (!"
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__afterOrder" + id + "[__i]")
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                        member,
+                        "__afterOrder" + id + "[__i]"
+                    )
                     + ") __afterIndex"
                     + id
                     + "[__afterOrder"

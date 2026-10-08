@@ -73,7 +73,14 @@ internal static class SparseObservableEmitter
                         + member.Id
                         + ";"
                 );
-                code.AppendLineAt(2, "private " + member.Property.Type.NonNullableName + "? __target_collection_" + member.Id + ";");
+                code.AppendLineAt(
+                    2,
+                    "private "
+                        + member.Property.Type.NonNullableName
+                        + "? __target_collection_"
+                        + member.Id
+                        + ";"
+                );
             }
         }
 
@@ -198,11 +205,24 @@ internal static class SparseObservableEmitter
         return member.Collection.ElementType.Name is not null
             && (
                 member.Collection.Kind
-                    is SparseCollectionKind.List or SparseCollectionKind.MutableList
-                || type.StartsWith("global::System.Collections.ObjectModel.Collection<", StringComparison.Ordinal)
-                || type.StartsWith("System.Collections.ObjectModel.Collection<", StringComparison.Ordinal)
-                || type.StartsWith("global::System.Collections.ObjectModel.ObservableCollection<", StringComparison.Ordinal)
-                || type.StartsWith("System.Collections.ObjectModel.ObservableCollection<", StringComparison.Ordinal)
+                    is SparseCollectionKind.List
+                        or SparseCollectionKind.MutableList
+                || type.StartsWith(
+                    "global::System.Collections.ObjectModel.Collection<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "System.Collections.ObjectModel.Collection<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "global::System.Collections.ObjectModel.ObservableCollection<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "System.Collections.ObjectModel.ObservableCollection<",
+                    StringComparison.Ordinal
+                )
             );
     }
 
@@ -211,10 +231,22 @@ internal static class SparseObservableEmitter
         var type = member.Property.Type.NonNullableName;
         return member.Collection.ValueType is not null
             && (
-                type.StartsWith("global::System.Collections.Generic.Dictionary<", StringComparison.Ordinal)
-                || type.StartsWith("System.Collections.Generic.Dictionary<", StringComparison.Ordinal)
-                || type.StartsWith("global::System.Collections.Generic.IDictionary<", StringComparison.Ordinal)
-                || type.StartsWith("System.Collections.Generic.IDictionary<", StringComparison.Ordinal)
+                type.StartsWith(
+                    "global::System.Collections.Generic.Dictionary<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "System.Collections.Generic.Dictionary<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "global::System.Collections.Generic.IDictionary<",
+                    StringComparison.Ordinal
+                )
+                || type.StartsWith(
+                    "System.Collections.Generic.IDictionary<",
+                    StringComparison.Ordinal
+                )
             );
     }
 
@@ -223,7 +255,8 @@ internal static class SparseObservableEmitter
         var element = member.Collection.ElementType;
         var value = member.Collection.ValueType;
         var hasElementProxy = value is null && element.IsFragmentModel && element.IsReferenceType;
-        var hasValueProxy = value is not null && value.Value.IsFragmentModel && value.Value.IsReferenceType;
+        var hasValueProxy =
+            value is not null && value.Value.IsFragmentModel && value.Value.IsReferenceType;
         var modelType = element.Name;
         var viewType = element.Name;
         if (hasElementProxy)
@@ -234,9 +267,7 @@ internal static class SparseObservableEmitter
         if (value is not null)
         {
             modelType = value.Value.Name;
-            viewType = hasValueProxy
-                ? ObservableElementType(value.Value)
-                : modelType;
+            viewType = hasValueProxy ? ObservableElementType(value.Value) : modelType;
         }
 
         return new CollectionProxyNames(
@@ -249,9 +280,9 @@ internal static class SparseObservableEmitter
 
     private static string ObservableElementType(SparseTypeModel model) =>
         model.NonNullableName
-            + "."
-            + (model.ObservableTypeName ?? "Observable")
-            + (model.Name.EndsWith("?", StringComparison.Ordinal) ? "?" : "");
+        + "."
+        + (model.ObservableTypeName ?? "Observable")
+        + (model.Name.EndsWith("?", StringComparison.Ordinal) ? "?" : "");
 
     private static void AppendObservableList(
         SharedIndentedBuilder code,
@@ -321,18 +352,12 @@ internal static class SparseObservableEmitter
             );
             code.AppendLineAt(
                 2,
-                "public void "
-                    + methodName
-                    + "("
-                    + member.Property.Type.Name
-                    + " value)"
+                "public void " + methodName + "(" + member.Property.Type.Name + " value)"
             );
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
                 3,
-                "if (global::System.Object.ReferenceEquals(__model."
-                    + name
-                    + ", value)) return;"
+                "if (global::System.Object.ReferenceEquals(__model." + name + ", value)) return;"
             );
             code.AppendLineAt(3, "__view_" + member.Id + "?.Dispose();");
             code.AppendLineAt(3, "__view_" + member.Id + " = null;");
@@ -346,7 +371,9 @@ internal static class SparseObservableEmitter
 
     private static string ListWrap(CollectionProxyNames types) =>
         types.HasElementProxy
-            ? "(item, changed) => item is null ? default! : new " + types.ViewType.TrimEnd('?') + "(item, changed)"
+            ? "(item, changed) => item is null ? default! : new "
+                + types.ViewType.TrimEnd('?')
+                + "(item, changed)"
             : "static (item, _) => item";
 
     private static string ListUnwrap(CollectionProxyNames types) =>
@@ -424,13 +451,14 @@ internal static class SparseObservableEmitter
                 2,
                 "/// <summary>Replaces the live dictionary while rebuilding its notifying view.</summary>"
             );
-            code.AppendLineAt(2, "public void " + methodName + "(" + member.Property.Type.Name + " value)");
+            code.AppendLineAt(
+                2,
+                "public void " + methodName + "(" + member.Property.Type.Name + " value)"
+            );
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
                 3,
-                "if (global::System.Object.ReferenceEquals(__model."
-                    + name
-                    + ", value)) return;"
+                "if (global::System.Object.ReferenceEquals(__model." + name + ", value)) return;"
             );
             code.AppendLineAt(3, "__view_" + member.Id + "?.Dispose();");
             code.AppendLineAt(3, "__view_" + member.Id + " = null;");
@@ -444,7 +472,9 @@ internal static class SparseObservableEmitter
 
     private static string DictionaryWrap(CollectionProxyNames types) =>
         types.HasElementProxy
-            ? "(item, changed) => item is null ? default! : new " + types.ViewType.TrimEnd('?') + "(item, changed)"
+            ? "(item, changed) => item is null ? default! : new "
+                + types.ViewType.TrimEnd('?')
+                + "(item, changed)"
             : "static (item, _) => item";
 
     private static string DictionaryUnwrap(CollectionProxyNames types) =>
