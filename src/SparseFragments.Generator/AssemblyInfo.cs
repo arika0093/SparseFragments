@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
 
-// Expose internals to tests; excluded from public API (see PublicApiCheck).
+// Allow direct validation and measurement without reflection overhead.
 [assembly: InternalsVisibleTo("SparseFragments.Tests")]
+[assembly: InternalsVisibleTo("SparseFragments.Benchmarks")]
