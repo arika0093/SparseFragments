@@ -30,7 +30,8 @@ internal sealed record SparseGeneratorConfig
         string? ComparisonAttributeMetadataName = null,
         string? EditSessionInterfaceMetadataName = null,
         SparseEditSessionDialect? EditSessionDialect = null,
-        SparseDescriptorDialect? DescriptorDialect = null
+        SparseDescriptorDialect? DescriptorDialect = null,
+        string? GeneratedImplementationNamespace = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -59,6 +60,7 @@ internal sealed record SparseGeneratorConfig
         this.EditSessionInterfaceMetadataName = EditSessionInterfaceMetadataName;
         this.EditSessionDialect = EditSessionDialect;
         this.DescriptorDialect = DescriptorDialect;
+        this.GeneratedImplementationNamespace = GeneratedImplementationNamespace;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -120,6 +122,14 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }
+
+    /// <summary>Explicit per-model implementation namespace, or null for single-file emission.</summary>
+    /// <remarks>
+    /// Stages that relocate generated machinery outside the attributed model
+    /// require an explicit namespace from the owning generator. Shared code
+    /// provides no implicit fallback.
+    /// </remarks>
+    public string? GeneratedImplementationNamespace { get; init; }
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 

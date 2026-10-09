@@ -139,6 +139,19 @@ compilation contains session models, and calls
 callback. The product generator chooses its helper namespace; for example,
 `SparseFragments.Generator` configures `SparseFragments.Generated`.
 
+## Generated implementation placement
+
+`SparseGeneratorConfig.GeneratedImplementationNamespace` declares where
+per-model generated implementations live once facade/implementation separation
+lands. All placement decisions flow through `SparseGeneratedPlacement`: the
+per-model container derives from the stable fully qualified model identity
+(never filesystem paths or emission ordering), UI type names dodge source
+member collisions, and surface/implementation hint names stay stable and
+unique. The namespace is explicit with no Shared fallback; null keeps the
+current single-file emission. `SparseGenerationResult.AdditionalSources`
+carries the implementation files with the surface file so per-model
+incremental isolation covers both.
+
 ## Member transport and rebase policies
 
 `SparseMemberPolicy` assigns a transport to one member by name:

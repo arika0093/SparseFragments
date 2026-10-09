@@ -784,18 +784,12 @@ internal static class SparseModelDiscovery
             return null;
         }
 
-        var memberNames = new HashSet<string>(
+        // UI type names resolve through the central placement resolver.
+        return SparseGeneratedPlacement.ResolveUiTypeName(
+            "ReadOnlyView",
             GetMembers(model, config, cancellationToken)
-                .Select(static member => member.Property.Name),
-            StringComparer.Ordinal
+                .Select(static member => member.Property.Name)
         );
-        var name = new StringBuilder("ReadOnlyView");
-        while (memberNames.Contains(name.ToString()))
-        {
-            name.Insert(0, "Sparse");
-        }
-
-        return name.ToString();
     }
 
     private static string? GetObservableTypeName(
@@ -810,18 +804,12 @@ internal static class SparseModelDiscovery
             return null;
         }
 
-        var memberNames = new HashSet<string>(
+        // UI type names resolve through the central placement resolver.
+        return SparseGeneratedPlacement.ResolveUiTypeName(
+            "Observable",
             GetMembers(model, config, cancellationToken)
-                .Select(static member => member.Property.Name),
-            StringComparer.Ordinal
+                .Select(static member => member.Property.Name)
         );
-        var name = new StringBuilder("Observable");
-        while (memberNames.Contains(name.ToString()))
-        {
-            name.Insert(0, "Sparse");
-        }
-
-        return name.ToString();
     }
 
     internal static bool UsesDefaultScalarEquality(ITypeSymbol type)
