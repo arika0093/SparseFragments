@@ -141,11 +141,19 @@ check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSam
 check_block "merge-compare" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
     merge-compare-models merge-compare
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
+    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e rebase-server-save
 check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     mixed-apply rebase-in-place
+check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
+    payload-models payload-scalar-set payload-explicit-null payload-remove \
+    payload-nested payload-keyed payload-command payload-conversions payload-mixed \
+    payload-invert payload-version
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
-    ui-session-models ui-session
+    ui-session-models ui-session ui-blazor-form ui-wpf-session
+check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+    ui-accept-flow ui-reload ui-reload-conflict ui-revert
+check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+    ui-descriptor-models ui-descriptor-first ui-descriptor-changes
 
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
@@ -167,7 +175,9 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/cloning-and-ownership.md \
     docs/model-shapes.md \
     docs/ui-frameworks.md \
+    docs/descriptors.md \
     docs/fragments-and-patches.md \
+    docs/change-payload.md \
     docs/analyzer.md \
     docs/architecture/README.md \
     docs/architecture/three-layer-ownership.md \

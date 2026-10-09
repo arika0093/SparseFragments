@@ -380,11 +380,7 @@ Typed projections such as `IsChanged`, keyed `Added`, `Removed`, and `Edited`, a
 
 Serialize and deserialize the generated `T.ChangePayload`, not `T.ChangeSet` or `T.Patch`. A `ChangeSet` enters the envelope with `ToPayload()`; a `Patch` enters it with `ChangePayload.FromPatch(patch)`, which redacts every before-state by construction. The `changes` array mixes both kinds member by member: one member can carry a regular before/after transition while another carries a baseline-free command. The typed member variants are suitable for OpenAPI endpoint schemas.
 
-Each endpoint carries a `state`: `missing` (known absent), `null` (explicit null), `value` (with a `value`), or `redacted` (deliberately undisclosed). Redacted is never read as missing. A redacted before-state must arrive with an explicit desired after-state; envelopes that omit it, or that redact an after-state, are rejected.
-
-`ToChangeSet()` rebuilds a complete `ChangeSet` and rejects redacted or otherwise incomplete histories instead of fabricating the missing baseline. `ToPatch()` is the explicit baseline-discarding projection and accepts them. Mark members whose previous values must not travel with `[SparseRedactBefore]`; `ToPayload()` then emits a redacted before-state while the after-state still travels, including nested models, keyed items, dictionaries, and whole-root before snapshots. An after-state can itself be sensitive: logging, diagnostics, UI, and history must not echo it.
-
-The top-level payload carries the required string `"version": "0.1"`; nested changes omit it. Payload DTO property names use camel case, `kind` values are lowercase, and property order is explicit; embedded model values follow the application's JSON metadata. Keyed and dictionary model edits carry only their nested `edit` payload; additions and removals carry only the endpoint needed to apply that operation. Unused nullable fields are omitted from JSON.
+The full wire contract, exact JSON, endpoint states, version validation, and conversion rules live in the [ChangePayload wire reference](change-payload.md). Redacted is never read as missing, and redacting the before-value does not hide a sensitive after-state from logs or history displays.
 
 <!-- sample: core-change-payload-models -->
 ```csharp
