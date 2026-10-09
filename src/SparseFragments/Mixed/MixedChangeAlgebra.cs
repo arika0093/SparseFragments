@@ -149,7 +149,11 @@ public static class MixedChangeAlgebra
     /// only cross-sequence overlap composes, so a root and its same-sequence
     /// members are retained together until the other sequence arrives.
     /// Whole-root transitions still require value-level continuity and fail
-    /// with a typed reason when unjustified. Output order is deterministic:
+    /// with a typed reason when unjustified. Successful overlaps that still
+    /// need before/after value verification surface in
+    /// <see cref="MixedSequenceComposition.PendingContinuityChecks"/>
+    /// (issue #173); <c>Succeeded</c> alone is not proof of semantic
+    /// composability. Output order is deterministic:
     /// first-sequence order, then paths seen only in the second sequence,
     /// minus entries superseded by a whole root.
     /// </remarks>
@@ -161,8 +165,9 @@ public static class MixedChangeAlgebra
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
 
-        var firstByPath = IndexByPath(first);
-        var secondByPath = IndexByPath(second);
+        var foldPending = new List<MixedComposeResult>();
+        var firstByPath = IndexByPath(first, foldPending);
+        var secondByPath = IndexByPath(second, foldPending);
         var firstRoot = TakeRoot(firstByPath, out var firstMembers);
         var secondRoot = TakeRoot(secondByPath, out var secondMembers);
 
@@ -172,6 +177,7 @@ public static class MixedChangeAlgebra
         {
             MixedMemberOperation root = secondRoot.Value;
             var failures = new List<MixedComposeResult>();
+            var pending = new List<MixedComposeResult>(foldPending);
             if (firstRoot.HasValue)
             {
                 var outcome = Compose(firstRoot.Value, secondRoot.Value);
@@ -181,8 +187,14 @@ public static class MixedChangeAlgebra
                     return new MixedSequenceComposition(
                         false,
                         [.. firstMembers.Values, .. secondMembers.Values],
-                        failures
+                        failures,
+                        pending
                     );
+                }
+
+                if (outcome.RequiresContinuityCheck)
+                {
+                    pending.Add(outcome);
                 }
 
                 root = new MixedMemberOperation(
@@ -193,7 +205,7 @@ public static class MixedChangeAlgebra
                 );
             }
 
-            return new MixedSequenceComposition(true, [root], failures);
+            return new MixedSequenceComposition(true, [root], failures, pending);
         }
 
         // Leading blind whole-root absorbs following memberwise operations.
@@ -207,7 +219,8 @@ public static class MixedChangeAlgebra
                     return new MixedSequenceComposition(
                         false,
                         [.. firstMembers.Values, .. secondMembers.Values],
-                        [outcome]
+                        [outcome],
+                        foldPending
                     );
                 }
 
@@ -219,7 +232,18 @@ public static class MixedChangeAlgebra
                     outcome.ResultAfter,
                     outcome.ResultIsWholeRoot
                 );
-                return new MixedSequenceComposition(true, [root, .. firstMembers.Values], []);
+                var absorbedPending = new List<MixedComposeResult>(foldPending);
+                if (outcome.RequiresContinuityCheck)
+                {
+                    absorbedPending.Add(outcome);
+                }
+
+                return new MixedSequenceComposition(
+                    true,
+                    [root, .. firstMembers.Values],
+                    [],
+                    absorbedPending
+                );
             }
 
             // Second-sequence members are absorbed; first-sequence entries stay.
@@ -229,16 +253,22 @@ public static class MixedChangeAlgebra
                 retained.Add(entry.Value);
             }
 
-            return new MixedSequenceComposition(true, retained, []);
+            return new MixedSequenceComposition(true, retained, [], foldPending);
         }
 
         // Any remaining whole-root transition overlaps every member path.
         if (firstRoot.HasValue || secondRoot.HasValue)
         {
-            return ComposeWithWholeTransition(firstRoot, firstMembers, secondRoot, secondMembers);
+            return ComposeWithWholeTransition(
+                firstRoot,
+                firstMembers,
+                secondRoot,
+                secondMembers,
+                foldPending
+            );
         }
 
-        return ComposeMemberSequences(firstMembers, secondMembers);
+        return ComposeMemberSequences(firstMembers, secondMembers, foldPending);
     }
 
     private static MixedMemberOperation? TakeRoot(
@@ -267,10 +297,12 @@ public static class MixedChangeAlgebra
         MixedMemberOperation? firstRoot,
         Dictionary<string, MixedMemberOperation> firstMembers,
         MixedMemberOperation? secondRoot,
-        Dictionary<string, MixedMemberOperation> secondMembers
+        Dictionary<string, MixedMemberOperation> secondMembers,
+        List<MixedComposeResult> seedPending
     )
     {
         var failures = new List<MixedComposeResult>();
+        var pending = new List<MixedComposeResult>(seedPending);
         if (firstRoot.HasValue && secondRoot.HasValue)
         {
             var outcome = Compose(firstRoot.Value, secondRoot.Value);
@@ -280,8 +312,14 @@ public static class MixedChangeAlgebra
                 return new MixedSequenceComposition(
                     false,
                     [.. firstMembers.Values, .. secondMembers.Values],
-                    failures
+                    failures,
+                    pending
                 );
+            }
+
+            if (outcome.RequiresContinuityCheck)
+            {
+                pending.Add(outcome);
             }
 
             // Members collapse into the whole-root transition; value continuity
@@ -292,7 +330,7 @@ public static class MixedChangeAlgebra
                 outcome.ResultAfter,
                 outcome.ResultIsWholeRoot
             );
-            return new MixedSequenceComposition(true, [root], failures);
+            return new MixedSequenceComposition(true, [root], failures, pending);
         }
 
         // Exactly one whole-root transition: it consumes the other side's
@@ -304,7 +342,8 @@ public static class MixedChangeAlgebra
                 return new MixedSequenceComposition(
                     true,
                     [secondRoot.Value, .. secondMembers.Values],
-                    failures
+                    failures,
+                    pending
                 );
             }
 
@@ -315,8 +354,14 @@ public static class MixedChangeAlgebra
                 return new MixedSequenceComposition(
                     false,
                     [.. firstMembers.Values, .. secondMembers.Values],
-                    failures
+                    failures,
+                    pending
                 );
+            }
+
+            if (probe.RequiresContinuityCheck)
+            {
+                pending.Add(probe);
             }
 
             var root = new MixedMemberOperation(
@@ -325,7 +370,7 @@ public static class MixedChangeAlgebra
                 probe.ResultAfter,
                 probe.ResultIsWholeRoot
             );
-            return new MixedSequenceComposition(true, [root], failures);
+            return new MixedSequenceComposition(true, [root], failures, pending);
         }
 
         if (firstMembers.Count == 0)
@@ -333,7 +378,8 @@ public static class MixedChangeAlgebra
             return new MixedSequenceComposition(
                 true,
                 [firstRoot!.Value, .. secondMembers.Values],
-                failures
+                failures,
+                pending
             );
         }
 
@@ -344,24 +390,33 @@ public static class MixedChangeAlgebra
             return new MixedSequenceComposition(
                 false,
                 [.. firstMembers.Values, .. secondMembers.Values],
-                failures
+                failures,
+                pending
             );
+        }
+
+        if (firstProbe.RequiresContinuityCheck)
+        {
+            pending.Add(firstProbe);
         }
 
         return new MixedSequenceComposition(
             true,
             [firstRoot.Value, .. firstMembers.Values],
-            failures
+            failures,
+            pending
         );
     }
 
     private static MixedSequenceComposition ComposeMemberSequences(
         Dictionary<string, MixedMemberOperation> firstMembers,
-        Dictionary<string, MixedMemberOperation> secondMembers
+        Dictionary<string, MixedMemberOperation> secondMembers,
+        List<MixedComposeResult> seedPending
     )
     {
         var composed = new List<MixedMemberOperation>(firstMembers.Count + secondMembers.Count);
         var failures = new List<MixedComposeResult>();
+        var pending = new List<MixedComposeResult>(seedPending);
         var consumedSecond = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var entry in firstMembers)
@@ -371,6 +426,11 @@ public static class MixedChangeAlgebra
                 var outcome = Compose(entry.Value, following);
                 if (outcome.Succeeded)
                 {
+                    if (outcome.RequiresContinuityCheck)
+                    {
+                        pending.Add(outcome);
+                    }
+
                     composed.Add(
                         new MixedMemberOperation(
                             outcome.Path,
@@ -454,7 +514,7 @@ public static class MixedChangeAlgebra
             composed.Add(entry.Value);
         }
 
-        return new MixedSequenceComposition(failures.Count == 0, composed, failures);
+        return new MixedSequenceComposition(failures.Count == 0, composed, failures, pending);
     }
 
     private static (string SecondKey, MixedMemberOperation SecondOp)? FindOverlap(
@@ -757,12 +817,15 @@ public static class MixedChangeAlgebra
     }
 
     private static Dictionary<string, MixedMemberOperation> IndexByPath(
-        IEnumerable<MixedMemberOperation> operations
+        IEnumerable<MixedMemberOperation> operations,
+        List<MixedComposeResult>? pending = null
     )
     {
         // Fold repeat paths in order through Compose so earlier history is not
         // silently discarded (issue #141). Uncomposable repeats are rejected
         // with an explicit reason instead of keeping only the last entry.
+        // Successful folds that still need value verification join the
+        // continuity obligations (issue #173).
         var indexed = new Dictionary<string, MixedMemberOperation>(StringComparer.Ordinal);
         foreach (var operation in operations)
         {
@@ -783,6 +846,11 @@ public static class MixedChangeAlgebra
                         + outcome.FailureReason,
                     nameof(operations)
                 );
+            }
+
+            if (outcome.RequiresContinuityCheck)
+            {
+                pending?.Add(outcome);
             }
 
             indexed[key] = new MixedMemberOperation(

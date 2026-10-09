@@ -434,6 +434,46 @@ public sealed class MixedChangeAlgebraTests
     }
 
     [Test]
+    public void ContinuityObligationsSurfaceSeparatelyFromFailures()
+    {
+        // Transition then transition composes by shape but needs value checks.
+        var needsCheck = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Transition("Label")]
+        );
+        needsCheck.Succeeded.ShouldBeTrue();
+        needsCheck.Failures.ShouldBeEmpty();
+        needsCheck.PendingContinuityChecks.ShouldHaveSingleItem();
+        needsCheck.PendingContinuityChecks[0].Path.ShouldBe("Label");
+        needsCheck.IsFullyComposable.ShouldBeFalse();
+
+        // Blind then transition stays blind with a check.
+        var blindThenTransition = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Secret")],
+            [Transition("Secret", MixedAfterKind.Null)]
+        );
+        blindThenTransition.Succeeded.ShouldBeTrue();
+        blindThenTransition.PendingContinuityChecks.ShouldHaveSingleItem();
+
+        // Transition then blind keeps the baseline: no further checks.
+        var keepsBaseline = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Blind("Label")]
+        );
+        keepsBaseline.Succeeded.ShouldBeTrue();
+        keepsBaseline.PendingContinuityChecks.ShouldBeEmpty();
+        keepsBaseline.IsFullyComposable.ShouldBeTrue();
+
+        // Disjoint paths carry no obligations.
+        var disjoint = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Transition("Other")]
+        );
+        disjoint.Succeeded.ShouldBeTrue();
+        disjoint.PendingContinuityChecks.ShouldBeEmpty();
+    }
+
+    [Test]
     public void PolicySeamDefaultsToPassthroughAndFailsClosed()
     {
         MixedChangeAlgebra.EnsurePassthrough(RedactedBeforePolicy.Passthrough);
