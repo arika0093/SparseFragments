@@ -220,6 +220,7 @@ namespace SparseFragments
         CollectionSetUnion = 4,
         CustomStrategy = 5,
         RedactedBefore = 6,
+        InPlaceWriteUnavailable = 7,
     }
     public sealed class SparseEditSessionConfiguration<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent>
         where TModel :  class

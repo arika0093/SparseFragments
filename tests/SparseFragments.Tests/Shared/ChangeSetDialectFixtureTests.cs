@@ -14,12 +14,17 @@ public sealed class ChangeSetDialectFixtureTests
     private static SparseTypeModel ScalarType(string name) =>
         new(name, name, name, IsReferenceType: true, IsFragmentModel: false, null);
 
-    private static SparseMemberModel ScalarMember(int id, string name, string typeName)
+    private static SparseMemberModel ScalarMember(
+        int id,
+        string name,
+        string typeName,
+        bool initOnly = false
+    )
     {
         var property = new SparsePropertyModel(
             name,
             ScalarType(typeName),
-            IsInitOnly: false,
+            IsInitOnly: initOnly,
             IsRequired: false,
             IsReadOnly: false,
             JsonPropertyName: name,
@@ -412,5 +417,32 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.DeltaMode");
         text.ShouldContain("Fragment.__delta_policy_7.TryRebase(");
         text.ShouldContain("global::Downstream.DownstreamConflictKind.RedactedBefore");
+    }
+
+    [Test]
+    public void ImmutableInPlaceConflictKindComesFromTheDialect()
+    {
+        var members = ImmutableArray.Create(
+            ScalarMember(9, "Immutable", "global::System.String?", initOnly: true)
+        );
+        var dialect = DownstreamDialect() with
+        {
+            InPlaceWriteUnavailableKindMemberName = "ImmutableUpdateNotAllowed",
+        };
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+
+        SparseChangeSetEmitter.AppendChangeSet(
+            code,
+            members,
+            dialect,
+            "global::Ns.Model",
+            default,
+            canApplyInPlace: true
+        );
+
+        code.ToString()
+            .ShouldContain("global::Downstream.DownstreamConflictKind.ImmutableUpdateNotAllowed");
+        code.ToString().ShouldContain("TryApplyInPlace(");
+        code.ToString().ShouldNotContain("global::SparseFragments.SparseConflictKind");
     }
 }

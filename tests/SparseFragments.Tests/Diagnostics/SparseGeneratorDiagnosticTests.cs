@@ -791,11 +791,22 @@ public sealed class SparseGeneratorDiagnosticTests
         var info = diagnostics.Single(static diagnostic => diagnostic.Id == "SPF026");
         info.Severity.ShouldBe(DiagnosticSeverity.Info);
         info.GetMessage().ShouldContain("ReadOnlyEditModel");
+        info.GetMessage().ShouldContain("patch and try-apply APIs");
+        info.GetMessage().ShouldContain("structured failures");
         info.Location.IsInSource.ShouldBeTrue();
         sources.ShouldNotBeEmpty();
         sources
             .Any(static generated =>
-                generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal)
+                generated
+                    .SourceText.ToString()
+                    .Contains("public bool TryApplyInPlace", StringComparison.Ordinal)
+            )
+            .ShouldBeTrue();
+        sources
+            .Any(static generated =>
+                generated
+                    .SourceText.ToString()
+                    .Contains("InPlaceWriteUnavailable", StringComparison.Ordinal)
             )
             .ShouldBeTrue();
     }

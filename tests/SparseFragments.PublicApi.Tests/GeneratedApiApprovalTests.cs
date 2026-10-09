@@ -67,6 +67,8 @@ public sealed class GeneratedApiApprovalTests
                     "Compose",
                     "RebaseOnto",
                     "TryApplyTo",
+                    "TryApplyInPlace",
+                    "ApplyInPlace",
                     "ApplyToBaseline",
                     "EnumerateChangedPaths",
                     "ToPayload",
@@ -91,10 +93,6 @@ public sealed class GeneratedApiApprovalTests
         AssertNested(dictionaryChanges, "ScoresTransition");
         AssertNested(dictionaryChanges, "DetailsTransition");
         AssertNested(AssertNested(typeof(CatalogKeyedItem), "ChangeSet"), "IdTransition");
-        AssertMethods(
-            AssertNested(typeof(CatalogScalar), "ChangeSet"),
-            ["TryApplyInPlace", "ApplyInPlace"]
-        );
     }
 
     [Test]

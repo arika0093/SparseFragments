@@ -121,7 +121,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             RebaseOptionsType: "global::SparseFragments.ChangePayloadRebaseOptions",
             RebaseModeType: "global::SparseFragments.SparseRebaseMode",
             RebasePolicyType: "global::SparseFragments.FragmentRebasePolicy",
-            RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id
+            RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
+            InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable"
         ),
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
@@ -409,8 +410,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
     private static readonly DiagnosticDescriptor InPlaceWriteUnavailable = new(
         SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable,
-        "In-place patching is limited",
-        "Model '{0}' has init-only or constructor-only members; in-place patches that include them return a structured failure",
+        "In-place updates are limited",
+        "Model '{0}' has init-only or constructor-only members; patch and try-apply APIs report structured failures when changes include them",
         "SparseFragments",
         DiagnosticSeverity.Info,
         true,

@@ -207,6 +207,10 @@ internal static class SparseFragmentPatchEmitter
     /// write contract here; standalone defaults keep full disclosure with no
     /// write model. Anything product-specific stays in this configuration.
     /// </remarks>
+    /// <param name="InPlaceWriteUnavailableKindMemberName">
+    /// Conflict-kind member used for immutable in-place writes, or null to omit
+    /// ChangeSet in-place APIs for models with immutable members.
+    /// </param>
     internal readonly record struct SparsePatchDialect(
         string RuntimeNamespace,
         string WholeFieldName,
@@ -232,7 +236,8 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string>? RebasePolicyField = null,
         ImmutableArray<SparseMemberPolicy> MemberPolicies = default,
         SparseRebasePolicy? RebasePolicy = null,
-        SparseWriteContract? WriteContract = null
+        SparseWriteContract? WriteContract = null,
+        string? InPlaceWriteUnavailableKindMemberName = null
     )
     {
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
@@ -494,10 +499,13 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(1, "}");
         if (plan.EmitChangeSet)
         {
-            var canWriteInPlace =
+            var canApplyChangeSetInPlace =
                 canApplyInPlace
-                && members.All(static member =>
-                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                && (
+                    dialect.InPlaceWriteUnavailableKindMemberName is not null
+                    || members.All(static member =>
+                        !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                    )
                 );
             SparseChangeSetEmitter.AppendChangeSet(
                 code,
@@ -506,7 +514,7 @@ internal static class SparseFragmentPatchEmitter
                 modelType,
                 ignoredSettablePropertyNames,
                 plan,
-                canWriteInPlace,
+                canApplyChangeSetInPlace,
                 accessibility
             );
         }

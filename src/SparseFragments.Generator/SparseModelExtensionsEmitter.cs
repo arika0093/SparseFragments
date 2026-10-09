@@ -92,12 +92,16 @@ internal static class SparseModelExtensionsEmitter
             );
             var tryApply = canWriteInPlace
                 ? "static (changes, current) => changes.TryApplyTo(current, out var updated, out var conflicts) ? (updated, null) : (null, conflicts)"
-                : "null";
+                : "static (changes, current) => { var candidate = "
+                    + modelType
+                    + ".Fragment.From(current).ToModel(); if (changes.TryApplyInPlace(candidate, out var conflicts)) return (candidate, null); return (null, conflicts); }";
             var writeModel = canWriteInPlace
                 ? "static (current, updated) => "
                     + modelType
                     + ".Fragment.From(updated).WriteTo(current)"
-                : "null";
+                : "static (current, updated) => "
+                    + modelType
+                    + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
             code.AppendLineAt(
                 1,
                 "/// <summary>Creates a framework-neutral edit session using this model as both the baseline source and live current value.</summary>"

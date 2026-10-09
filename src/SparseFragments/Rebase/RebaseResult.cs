@@ -30,6 +30,9 @@ public enum SparseConflictKind
     /// reason never embeds member values.
     /// </remarks>
     RedactedBefore,
+
+    /// <summary>A changed member is immutable and cannot be written to an existing model.</summary>
+    InPlaceWriteUnavailable,
 }
 
 /// <summary>Structured, domain-neutral information about one rebase conflict.</summary>

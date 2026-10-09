@@ -361,6 +361,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.NameTransition Name { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.TagsTransition Tags { get; }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
@@ -369,6 +370,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangePayload ToPayload() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public bool TryApplyTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public bool TryApplyTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet Between(SparseFragments.GeneratedApiFixtures.CatalogImmutable before, SparseFragments.GeneratedApiFixtures.CatalogImmutable after) { }

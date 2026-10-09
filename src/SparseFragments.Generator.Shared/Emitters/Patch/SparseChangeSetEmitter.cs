@@ -28,7 +28,7 @@ internal static class SparseChangeSetEmitter
         string? modelType,
         ImmutableArray<string> ignoredSettablePropertyNames,
         SparseEmissionFeatures? features = null,
-        bool canWriteInPlace = false,
+        bool canApplyInPlace = false,
         string accessibility = "public"
     )
     {
@@ -99,7 +99,7 @@ internal static class SparseChangeSetEmitter
             dialect,
             modelType,
             ignoredSettablePropertyNames,
-            canWriteInPlace
+            canApplyInPlace
         );
         // The emitted model-targeted ApplyInPlace checks the before-state first.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
