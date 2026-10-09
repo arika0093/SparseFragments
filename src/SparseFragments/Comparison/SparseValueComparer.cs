@@ -60,80 +60,26 @@ internal static class SparseValueComparer
 
         // Keep native sequence access concrete so the JIT can optimize indexing.
         // Exact List types preserve custom/derived non-generic comparison views.
+        // Concrete shapes delegate to the statically specialized implementation so
+        // typed and dynamic paths share one algorithm (issue #187).
         if (left is T[] leftArray && right is T[] rightArray)
         {
-            if (leftArray.Length != rightArray.Length)
-            {
-                return false;
-            }
-
-            for (var index = 0; index < leftArray.Length; index++)
-            {
-                if (!AreEqual(leftArray[index], rightArray[index]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return SparseConcreteComparisons.AreSequenceEqual(leftArray, rightArray);
         }
 
         if (left.GetType() == typeof(List<T>) && right.GetType() == typeof(List<T>))
         {
-            var leftNativeList = (List<T>)left;
-            var rightNativeList = (List<T>)right;
-            if (leftNativeList.Count != rightNativeList.Count)
-            {
-                return false;
-            }
-
-            for (var index = 0; index < leftNativeList.Count; index++)
-            {
-                if (!AreEqual(leftNativeList[index], rightNativeList[index]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return SparseConcreteComparisons.AreSequenceEqual((List<T>)left, (List<T>)right);
         }
 
         if (left is T[] mixedLeftArray && right.GetType() == typeof(List<T>))
         {
-            var mixedRightList = (List<T>)right;
-            if (mixedLeftArray.Length != mixedRightList.Count)
-            {
-                return false;
-            }
-
-            for (var index = 0; index < mixedLeftArray.Length; index++)
-            {
-                if (!AreEqual(mixedLeftArray[index], mixedRightList[index]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return SparseConcreteComparisons.AreSequenceEqual(mixedLeftArray, (List<T>)right);
         }
 
         if (left.GetType() == typeof(List<T>) && right is T[] mixedRightArray)
         {
-            var mixedLeftList = (List<T>)left;
-            if (mixedLeftList.Count != mixedRightArray.Length)
-            {
-                return false;
-            }
-
-            for (var index = 0; index < mixedLeftList.Count; index++)
-            {
-                if (!AreEqual(mixedLeftList[index], mixedRightArray[index]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return SparseConcreteComparisons.AreSequenceEqual((List<T>)left, mixedRightArray);
         }
 
         // Derived/custom collections keep their existing non-generic comparison views.
@@ -156,6 +102,22 @@ internal static class SparseValueComparer
         if (left is null || right is null)
         {
             return false;
+        }
+
+        // Concrete shapes use the statically specialized loop and avoid boxing
+        // struct enumerators; derived lists keep the streamed fallback.
+        if (left is T[] leftArray && right is T[] rightArray)
+        {
+            return SparseConcreteComparisons.AreSequenceEqual(leftArray, rightArray, itemComparer);
+        }
+
+        if (left.GetType() == typeof(List<T>) && right.GetType() == typeof(List<T>))
+        {
+            return SparseConcreteComparisons.AreSequenceEqual(
+                (List<T>)left,
+                (List<T>)right,
+                itemComparer
+            );
         }
 
         using var leftEnumerator = left.GetEnumerator();
@@ -193,6 +155,18 @@ internal static class SparseValueComparer
         if (left is null || right is null)
         {
             return false;
+        }
+
+        // Concrete shapes read their comparer statically and skip reflection-based
+        // discovery; mixed or custom shapes keep the existing fallback below.
+        if (left is HashSet<T> leftHash && right is HashSet<T> rightHash)
+        {
+            return SparseConcreteComparisons.AreSetEqual(leftHash, rightHash);
+        }
+
+        if (left is SortedSet<T> leftSorted && right is SortedSet<T> rightSorted)
+        {
+            return SparseConcreteComparisons.AreSetEqual(leftSorted, rightSorted);
         }
 
         if (left is ISet<T> leftSet && right is ISet<T> rightSet)
@@ -242,9 +216,38 @@ internal static class SparseValueComparer
             return false;
         }
 
-        var leftDictionary = AsDictionary(left);
-        var rightDictionary = AsDictionary(right);
-        if (leftDictionary is { } leftView && rightDictionary is { } rightView)
+        // Concrete shapes read their key comparer statically and skip
+        // reflection-based discovery; other shapes keep the fallback below.
+        if (
+            left is Dictionary<TKey, TValue> leftDictionary
+            && right is Dictionary<TKey, TValue> rightDictionary
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(leftDictionary, rightDictionary);
+        }
+
+        if (
+            left is SortedDictionary<TKey, TValue> leftSortedDictionary
+            && right is SortedDictionary<TKey, TValue> rightSortedDictionary
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(
+                leftSortedDictionary,
+                rightSortedDictionary
+            );
+        }
+
+        if (
+            left is SortedList<TKey, TValue> leftSortedList
+            && right is SortedList<TKey, TValue> rightSortedList
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(leftSortedList, rightSortedList);
+        }
+
+        var leftFallback = AsDictionary(left);
+        var rightFallback = AsDictionary(right);
+        if (leftFallback is { } leftView && rightFallback is { } rightView)
         {
             if (leftView.Count != rightView.Count)
             {
@@ -285,6 +288,44 @@ internal static class SparseValueComparer
         if (left is null || right is null)
         {
             return false;
+        }
+
+        // Concrete shapes use static comparer access and direct lookups; other
+        // shapes keep the view-based fallback below.
+        if (
+            left is Dictionary<TKey, TValue> leftConcrete
+            && right is Dictionary<TKey, TValue> rightConcrete
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(
+                leftConcrete,
+                rightConcrete,
+                valueComparer
+            );
+        }
+
+        if (
+            left is SortedDictionary<TKey, TValue> leftSortedConcrete
+            && right is SortedDictionary<TKey, TValue> rightSortedConcrete
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(
+                leftSortedConcrete,
+                rightSortedConcrete,
+                valueComparer
+            );
+        }
+
+        if (
+            left is SortedList<TKey, TValue> leftListConcrete
+            && right is SortedList<TKey, TValue> rightListConcrete
+        )
+        {
+            return SparseConcreteComparisons.AreDictionaryEqual(
+                leftListConcrete,
+                rightListConcrete,
+                valueComparer
+            );
         }
 
         var leftDictionary = AsDictionary(left);

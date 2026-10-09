@@ -25,9 +25,53 @@ public static class SparseFragmentRuntime
         Func<T, T, bool> itemComparer
     ) => SparseValueComparer.AreSequenceEqual(left, right, itemComparer);
 
+    /// <summary>Compares arrays in order without runtime shape probing.</summary>
+    /// <remarks>
+    /// Static specialization for declared <c>T[]</c> members (issue #187): binds at compile
+    /// time and skips shape classification plus comparer/count reflection. Falls back to the
+    /// <c>IEnumerable{T}</c> overload for interface-declared or unknown shapes.
+    /// </remarks>
+    public static bool AreSequenceEqual<T>(T[]? left, T[]? right) =>
+        SparseConcreteComparisons.AreSequenceEqual(left, right);
+
+    /// <summary>Compares lists in order without runtime shape probing.</summary>
+    /// <remarks>
+    /// Derived lists keep their non-generic <c>IList</c> comparison view via the object
+    /// fallback; exact <c>List{T}</c> instances compare by indexer.
+    /// </remarks>
+    public static bool AreSequenceEqual<T>(List<T>? left, List<T>? right) =>
+        SparseConcreteComparisons.AreSequenceEqual(left, right);
+
+    /// <summary>Compares arrays with a generated semantic item comparer.</summary>
+    public static bool AreSequenceEqual<T>(T[]? left, T[]? right, Func<T, T, bool> itemComparer) =>
+        SparseConcreteComparisons.AreSequenceEqual(left, right, itemComparer);
+
+    /// <summary>Compares lists with a generated semantic item comparer.</summary>
+    public static bool AreSequenceEqual<T>(
+        List<T>? left,
+        List<T>? right,
+        Func<T, T, bool> itemComparer
+    ) => SparseConcreteComparisons.AreSequenceEqual(left, right, itemComparer);
+
     /// <summary>Compares set-shaped values without depending on enumeration order.</summary>
     public static bool AreSetEqual<T>(IEnumerable<T>? left, IEnumerable<T>? right) =>
         SparseValueComparer.AreSetEqual(left, right);
+
+    /// <summary>Compares hash sets without depending on enumeration order.</summary>
+    /// <remarks>
+    /// The set comparer is read statically; differing comparers veto equality in both
+    /// directions. Interface-declared or custom sets keep the <c>IEnumerable{T}</c> fallback.
+    /// </remarks>
+    public static bool AreSetEqual<T>(HashSet<T>? left, HashSet<T>? right) =>
+        SparseConcreteComparisons.AreSetEqual(left, right);
+
+    /// <summary>Compares sorted sets without depending on enumeration order.</summary>
+    /// <remarks>
+    /// The set comparer is read statically; differing comparers veto equality in both
+    /// directions. Interface-declared or custom sets keep the <c>IEnumerable{T}</c> fallback.
+    /// </remarks>
+    public static bool AreSetEqual<T>(SortedSet<T>? left, SortedSet<T>? right) =>
+        SparseConcreteComparisons.AreSetEqual(left, right);
 
     /// <summary>Compares dictionary-shaped values by key/value semantics.</summary>
     public static bool AreDictionaryEqual<TKey, TValue>(
@@ -41,6 +85,50 @@ public static class SparseFragmentRuntime
         IEnumerable<KeyValuePair<TKey, TValue>>? right,
         Func<TValue, TValue, bool> valueComparer
     ) => SparseValueComparer.AreDictionaryEqual(left, right, valueComparer);
+
+    /// <summary>Compares dictionaries by key/value semantics with static comparer access.</summary>
+    /// <remarks>
+    /// The key comparer is read statically; differing comparers veto equality in both
+    /// directions. Interface-declared or custom dictionaries keep the
+    /// <c>IEnumerable{KeyValuePair{TKey,TValue}}</c> fallback.
+    /// </remarks>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        Dictionary<TKey, TValue>? left,
+        Dictionary<TKey, TValue>? right
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right);
+
+    /// <summary>Compares sorted dictionaries by key/value semantics with static comparer access.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        SortedDictionary<TKey, TValue>? left,
+        SortedDictionary<TKey, TValue>? right
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right);
+
+    /// <summary>Compares sorted lists by key/value semantics with static comparer access.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        SortedList<TKey, TValue>? left,
+        SortedList<TKey, TValue>? right
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right);
+
+    /// <summary>Compares a dictionary using a generated semantic value comparer.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        Dictionary<TKey, TValue>? left,
+        Dictionary<TKey, TValue>? right,
+        Func<TValue, TValue, bool> valueComparer
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right, valueComparer);
+
+    /// <summary>Compares a sorted dictionary using a generated semantic value comparer.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        SortedDictionary<TKey, TValue>? left,
+        SortedDictionary<TKey, TValue>? right,
+        Func<TValue, TValue, bool> valueComparer
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right, valueComparer);
+
+    /// <summary>Compares a sorted list using a generated semantic value comparer.</summary>
+    public static bool AreDictionaryEqual<TKey, TValue>(
+        SortedList<TKey, TValue>? left,
+        SortedList<TKey, TValue>? right,
+        Func<TValue, TValue, bool> valueComparer
+    ) => SparseConcreteComparisons.AreDictionaryEqual(left, right, valueComparer);
 
     /// <summary>Appends ordered contributions, preserving duplicates.</summary>
     public static List<T> MergeAppendList<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>

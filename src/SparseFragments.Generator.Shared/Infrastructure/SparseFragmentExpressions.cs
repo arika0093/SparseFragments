@@ -1,6 +1,17 @@
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Shared expressions for model/fragment clones, semantic equality and built-in collection merging.</summary>
+/// <remarks>
+/// Collection equality is chosen statically per declared member shape (issue #187): sequences
+/// emit <c>AreSequenceEqual{T}</c>, sets emit <c>AreSetEqual{T}</c>, and dictionaries emit
+/// <c>AreDictionaryEqual{TKey,TValue}</c> through the injected value-comparer reference, so a
+/// downstream runtime can bind concrete shapes (<c>T[]</c>, <c>List{T}</c>, <c>HashSet{T}</c>,
+/// <c>Dictionary{TKey,TValue}</c>, ...) to specialized overloads without runtime shape
+/// probing. Members with a custom comparison comparer keep their generated comparer field;
+/// nested fragment elements and dictionary values pass a generated semantic comparer lambda.
+/// Members declared as <c>object</c> or with unsupported shapes keep the dynamic
+/// <c>AreEqual</c> fallback, which preserves unknown/custom collection semantics.
+/// </remarks>
 internal sealed class SparseFragmentExpressions(
     string cloneContext,
     string valueComparer,
@@ -13,6 +24,16 @@ internal sealed class SparseFragmentExpressions(
     private string CloneContext { get; } = cloneContext;
     private string OptionalType { get; } = optionalType;
 
+    /// <summary>Builds the equality expression for one member's present values.</summary>
+    /// <remarks>
+    /// Custom comparer members use their generated comparer field. Array/list shapes use the
+    /// typed sequence overload (with a fragment-equality lambda for fragment elements);
+    /// dictionary shapes use the typed dictionary overload (with a fragment-equality lambda
+    /// for fragment values); set shapes use the typed set overload; everything else uses
+    /// the dynamic fallback. Overload resolution against the member's declared type picks
+    /// any statically specialized runtime overload; interface-declared or unknown shapes
+    /// transparently keep the enumerable fallback with identical semantics.
+    /// </remarks>
     public string ValueEqualityExpression(SparseMemberModel member, string left, string right)
     {
         if (member.ComparisonComparerType is not null)
