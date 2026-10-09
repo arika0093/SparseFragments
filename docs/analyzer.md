@@ -161,8 +161,17 @@ public partial class Settings
 ## SPF009: Member conflicts with generated API
 
 * Message: `Member '{0}' conflicts with a name reserved by the generated API`
-* Cause: A model member is named `JsonConverter` or `FragmentJsonConverter`,
-  which collides with the generated fragment JSON converter.
+* Cause: A model member or directly nested type uses a name injected into the
+  annotated model: `Fragment`, `FragmentBuilder`, `Patch`, `ChangeSet`,
+  `ChangePayload`, `JsonConverter`, `FragmentJsonConverter`, or one of the
+  generated member/method names (`Empty`, `IsEmpty`, `Merge`, `ApplyChanges`,
+  `Diff`, `DeepClone`, `From`, `ToModel`, `ToBuilder`, `Build`, `ApplyTo`,
+  `TryApplyTo`, `WriteTo`, `ApplyInPlace`, `ApplyInPlaceResult`).
+  Names that now exist only in the per-model `SparseFragments.Generated`
+  container (`Observable`, `ReadOnlyView`, `EditSession`,
+  `DescriptorFactory`, operation helpers, payload DTOs, converter bodies)
+  are not reserved: model members may reuse them, and collisions there are
+  resolved through the central placement resolver instead.
 * Fix: Rename the member.
 
 ## SPF010: Incompatible promoted fragment model

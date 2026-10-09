@@ -29,7 +29,7 @@ public partial class UiOrderItem
 
 Reference-type models provide an edit session via `CreateEditSession()` without depending on any UI package. The session retains a baseline snapshot, tracks changes against the live model, and derives `ChangeSet` transitions on demand:
 
-For callers that need an explicit type name, the generated return type is the concise model-specific nested `UiOrder.EditSession`. It composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
+For callers that need an explicit type name, the session type is the per-model `EditSession` in the `SparseFragments.Generated` namespace: `global::SparseFragments.Generated.<Container>.EditSession`, where `<Container>` is the stable per-model container. Prefer `var` and the `CreateEditSession()` extension; name the container only when a declaration requires it (see [Relocated generated types](#relocated-generated-types)). The session composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
 
 ```csharp
 var baseline = new UiOrder { Number = "ORD-1" };
@@ -206,11 +206,13 @@ instead of the session recomputing it for every model notification.
 
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()`
 maps `Optional<Model?>` to the generated, model-specific observable proxy while
-preserving missing, present-null, and present-value states:
+preserving missing, present-null, and present-value states. The proxy type lives
+in the per-model `SparseFragments.Generated` container (see
+[Relocated generated types](#relocated-generated-types)), so keep the call
+inferred with `var`:
 
 ```csharp
-Optional<UiOrder.Observable?> proxy =
-    Optional<UiOrder?>.Present(session.Model).ToObservable();
+var proxy = Optional<UiOrder?>.Present(session.Model).ToObservable();
 ```
 
 The generated extension container is an implementation detail with a
@@ -219,6 +221,40 @@ container directly. Framework-specific packages can adapt the neutral session
 without adding framework references to its generated code. The same neutral
 `CreateEditSession()` extension is used whether or not a framework package is
 referenced.
+
+## Relocated generated types
+
+`Model.Fragment`, `Model.FragmentBuilder`, `Model.Patch`, `Model.ChangeSet`,
+and `Model.ChangePayload` stay nested in the annotated model, and the
+`CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` entry points
+are unchanged. Everything else generated per model moved out of the annotated
+type into a stable per-model container in `SparseFragments.Generated`:
+
+| Before (nested in the model) | After (per-model container) |
+| --- | --- |
+| `Model.EditSession` | `global::SparseFragments.Generated.<Container>.EditSession` |
+| `Model.Observable` (`Model.SparseObservable` on collision) | `<Container>.Observable` (`<Container>.SparseObservable`) |
+| `Model.ReadOnlyView` | `<Container>.ReadOnlyView` |
+| `Model.DescriptorFactory` | `<Container>.DescriptorFactory` (internal) |
+| Payload DTOs under `Model.ChangePayload` | `global::SparseFragments.Generated.__Internal_<hash>` |
+| Fragment JSON converter body | `<Container>FragmentJsonConverter` (`Model.Fragment.FragmentJsonConverter` stays as a private shell) |
+| Fragment/Patch/ChangeSet operation bodies | `<Container>FragmentOperations`, `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) |
+
+`<Container>` is the sanitized fully qualified model identity plus a stable
+hash, so same-short-name models in different namespaces get distinct
+containers. The playground names one directly:
+
+```csharp
+using TaskObservable = global::SparseFragments.Generated.SparseFragments_Playground_Models_PlaygroundTask_E6C8F7DB.Observable;
+```
+
+There are no backwards-compatibility aliases: update explicit type references
+to the container paths, or drop them in favor of `var` and the extension
+entry points. A model member or nested type named `EditSession`,
+`Observable`, `ReadOnlyView`, or `DescriptorFactory` no longer collides with
+generated code; members named `ChangeSet` or `ChangePayload` are now reported
+as SPF009 instead of failing with a raw compiler error (see
+[SPF009](analyzer.md#spf009-member-conflicts-with-generated-api)).
 
 ## Blazor
 
@@ -257,7 +293,8 @@ Bind the created `EditContext` to an ordinary `EditForm`:
 ```
 
 `CreateEditContext()` binds the original editable model `T` to the
-`EditContext`. Do not use the generated `T.Observable` proxy as
+`EditContext`. Do not use the generated observable proxy (the per-model
+`Observable` type in `SparseFragments.Generated`) as
 `EditContext.Model`. Blazor field tracking and validation run on
 `EditContext` and `FieldIdentifier` and model metadata, so `DataAnnotations` keep
 applying to `T`, while the semantic patch still comes from baseline and current `T`.
@@ -349,7 +386,7 @@ A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPay
 
 ## WPF, WinForms, .NET MAUI, WinUI, and Avalonia
 
-These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
+These frameworks bind the generated observable wrapper (the per-model `Observable` type in `SparseFragments.Generated`). The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
 
 Nested models surface as child proxies that propagate changes to the root callback.
 
@@ -387,8 +424,7 @@ var observable = session.Observable;
 
 // bind the UI to `observable`; edits flow into the same live `model`
 observable.Number = "ORD-2";
-observable.Items.Add(
-    new UiOrderItem.Observable(new UiOrderItem { Id = "line-1", Name = "First item" }));
+observable.Items.AddModel(new UiOrderItem { Id = "line-1", Name = "First item" });
 observable.PropertyChanged += (_, args) => Console.WriteLine(args.PropertyName);
 
 // ...user edits `model` through the UI framework...

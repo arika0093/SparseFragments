@@ -150,6 +150,15 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "global::SparseFragments.Generated.SparseDescriptorValue"
         ),
         ReservedGeneratedNames: ImmutableArray.Create(
+            // Issue #195: only names injected into the annotated model are
+            // reserved here. Nested state/operation families (Fragment,
+            // FragmentBuilder, Patch, ChangeSet, ChangePayload) plus the
+            // member/method names they declare on the model surface. Names
+            // that now exist only in the per-model implementation container
+            // (Observable, ReadOnlyView, EditSession, DescriptorFactory and
+            // the operation/DTO/converter types) are resolved through the
+            // central SparseGeneratedPlacement resolver instead, so model
+            // members may freely reuse them.
             "Fragment",
             "FragmentBuilder",
             "Empty",
@@ -163,14 +172,15 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "ToBuilder",
             "Build",
             "Patch",
+            "ChangeSet",
+            "ChangePayload",
             "JsonConverter",
             "FragmentJsonConverter",
             "ApplyTo",
             "TryApplyTo",
             "WriteTo",
             "ApplyInPlace",
-            "ApplyInPlaceResult",
-            "EditSession"
+            "ApplyInPlaceResult"
         )
     );
 

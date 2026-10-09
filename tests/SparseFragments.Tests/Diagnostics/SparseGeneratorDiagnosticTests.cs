@@ -642,6 +642,8 @@ public sealed class SparseGeneratorDiagnosticTests
     [Test]
     [Arguments("JsonConverter")]
     [Arguments("FragmentJsonConverter")]
+    [Arguments("ChangeSet")]
+    [Arguments("ChangePayload")]
     public void Spf009_NameCollisionReportsErrorWithNoSource(string memberName)
     {
         var source = """
@@ -664,7 +666,8 @@ public sealed class SparseGeneratorDiagnosticTests
     }
 
     [Test]
-    [Arguments("EditSession")]
+    [Arguments("Fragment")]
+    [Arguments("ChangeSet")]
     public void Spf009_NestedTypeCollisionReportsErrorWithNoSource(string nestedTypeName)
     {
         var source = """

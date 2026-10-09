@@ -61,7 +61,13 @@ helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch
 runtime/facade, conflict/result types, nested member names, member
 field/value types, and the provisional ChangePayload version token
 (`ChangePayloadVersion`, default `"0.1"`). `ReservedGeneratedNames` is caller-owned and defaults to an
-empty set; include all names reserved by the generated API. Pass the same config
+empty set; list only names the generator injects into the annotated model
+itself (nested state/operation families and their member/method names).
+Names that exist only in an external implementation container
+(`Observable`, `ReadOnlyView`, `EditSession`, descriptor factories,
+operation helpers, payload DTOs, converter bodies) must not be reserved on
+the model: member reuse is legal there, and collisions resolve through the
+central `SparseGeneratedPlacement` resolver. Pass the same config
 through analysis and source emission; this lets a consuming generator emit
 against runtime types it owns instead of adding a SparseFragments runtime
 dependency. Full source emission requires both dialects, and the Patch/STJ
