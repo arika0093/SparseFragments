@@ -2,6 +2,7 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 @using SparseFragments.Playground.Models
 @inject PlaygroundThemeState ThemeState
+@inject IThemeService FluentThemeService
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -17,6 +18,7 @@
 
     private IJSObjectReference? _themeModule;
     private DotNetObjectReference<MainLayout>? _selfReference;
+    private bool _initializingTheme;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -28,23 +30,59 @@
         _themeModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playgroundTheme.js");
         _selfReference = DotNetObjectReference.Create(this);
         var storedMode = await _themeModule.InvokeAsync<string>("initialize", _selfReference);
+        _initializingTheme = true;
         if (Enum.TryParse<PlaygroundThemeMode>(storedMode, out var mode))
         {
             ThemeState.SetMode(mode);
         }
 
-        ThemeState.SetSystemTheme(await _themeModule.InvokeAsync<bool>("apply", ThemeState.Mode.ToString()));
+        await ApplyThemeAsync();
+        _initializingTheme = false;
     }
 
-    private void OnThemeStateChanged() => _ = InvokeAsync(async () =>
+    private void OnThemeStateChanged()
     {
-        StateHasChanged();
-        if (_themeModule is not null)
+        if (_initializingTheme)
         {
-            ThemeState.SetSystemTheme(
-                await _themeModule.InvokeAsync<bool>("apply", ThemeState.Mode.ToString()));
+            return;
         }
-    });
+
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await ApplyThemeAsync();
+        });
+    }
+
+    private async Task ApplyThemeAsync()
+    {
+        if (_themeModule is null)
+        {
+            throw new InvalidOperationException("The theme module is not initialized.");
+        }
+
+        var isDark = await _themeModule.InvokeAsync<bool>("apply", ThemeState.Mode.ToString());
+        var mode = ThemeState.Mode switch
+        {
+            PlaygroundThemeMode.Light => ThemeMode.Light,
+            PlaygroundThemeMode.Dark => ThemeMode.Dark,
+            _ => ThemeMode.System,
+        };
+        await FluentThemeService.SetThemeAsync(mode);
+        var theme = await FluentThemeService.CreateCustomThemeAsync(new ThemeSettings
+        {
+            Color = await FluentThemeService.GetBrandColorAsync(),
+            Mode = mode,
+        });
+        theme.Spacings.Vertical.S = "6px";
+        theme.Spacings.Vertical.M = "9px";
+        theme.Spacings.Vertical.L = "12px";
+        theme.Spacings.Vertical.XL = "16px";
+        theme.Spacings.Vertical.XXL = "20px";
+        theme.Spacings.Vertical.XXXL = "24px";
+        await FluentThemeService.SetThemeAsync(theme);
+        ThemeState.SetSystemTheme(isDark);
+    }
 
     [JSInvokable]
     public void OnSystemThemeChanged(bool isDark) => ThemeState.SetSystemTheme(isDark);

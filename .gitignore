@@ -9,3 +9,6 @@ TestResults/
 *.trx
 
 BenchmarkDotNet.Artifacts/
+/playground/SparseFragments.Playground/wwwroot/favicon.png
+/playground/SparseFragments.Playground/wwwroot/apple-touch-icon.png
+/playground/SparseFragments.Playground/wwwroot/icon-192.png

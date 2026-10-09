@@ -385,7 +385,7 @@ public static class PlaygroundJson
             ChangeSetOptions()
         );
         return payload?.ToChangeSet()
-            ?? throw new JsonException("The ChangeSet JSON deserialized to null.");
+            ?? throw new JsonException("The ChangePayload JSON deserialized to null.");
     }
 
     /// <summary>Serializes a fragment to its canonical (present-members-only) JSON.</summary>

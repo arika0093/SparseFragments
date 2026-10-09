@@ -1,7 +1,8 @@
 @using System.Text.Json
 @using SparseFragments
 @using SparseFragments.Playground.Models
-<div class="pg-grid pg-edit-session">
+@implements IDisposable
+<div class="pg-grid pg-two-pane">
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>Edit</h3>
@@ -72,7 +73,7 @@
             <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_session.HasChanges)"
                 @onclick="Reset">Reset</FluentButton>
             <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                Disabled="@(!_session.HasChanges)" @onclick="Submit">Submit</FluentButton>
+                Disabled="@(!_session.HasChanges)" @onclick="RequestSubmit">Submit</FluentButton>
         </div>
     </FluentCard>
 
@@ -85,14 +86,14 @@
                 </span>
             </div>
             <FluentTabs ActiveTabId="@_activeTab" ActiveTabIdChanged="@(id => _activeTab = id ?? "current")">
-                <FluentTab Label="Current" Id="current">
+                <FluentTab Header="Diff" Id="diff">
+                    <MonacoDiffView Original="@_baselineJson" Modified="@CurrentJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Header="Current" Id="current">
                     <MonacoView Content="@CurrentJson" Language="json" Height="320px" />
                 </FluentTab>
-                <FluentTab Label="Baseline" Id="baseline">
+                <FluentTab Header="Baseline" Id="baseline">
                     <MonacoView Content="@_baselineJson" Language="json" Height="320px" />
-                </FluentTab>
-                <FluentTab Label="Diff" Id="diff">
-                    <MonacoDiffView Original="@_baselineJson" Modified="@CurrentJson" Language="json" Height="320px" />
                 </FluentTab>
             </FluentTabs>
         </FluentCard>
@@ -111,6 +112,45 @@
         </FluentCard>
     </div>
 </div>
+
+<FluentDialog @ref="_submitDialog" Hidden="@_submitDialogHidden" Modal="true" TrapFocus="true"
+    Class="pg-submit-preview-dialog" AriaLabel="Confirm submit changes">
+    <div class="pg-dialog-heading">
+        <h3>Confirm submit</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p>The following changes will be submitted. Continue?</p>
+        @if (_submitChanges.Count == 0)
+        {
+            <p class="pg-hint">No changes to submit.</p>
+        }
+        else
+        {
+            <div class="pg-change-table-wrap pg-submit-change-table-wrap">
+                <table class="pg-change-table pg-submit-change-table" aria-label="Changes to submit">
+                    <thead>
+                        <tr><th>Operation</th><th>Property</th><th>Before</th><th>After</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var change in _submitChanges)
+                        {
+                            <tr>
+                                <td><span class="@ChangeOperationClass(change.Operation)">@change.Operation</span></td>
+                                <td>@change.Target</td>
+                                <td><span class="pg-change-value">@change.Before</span></td>
+                                <td><span class="pg-change-value">@change.After</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="CancelSubmit">Cancel</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ConfirmSubmit">Submit</FluentButton>
+    </div>
+</FluentDialog>
 
 <FluentDialog @ref="_completionDialog" Hidden="@_completionHidden" Modal="true" TrapFocus="true"
     AriaLabel="Edit session action completed">
@@ -157,9 +197,13 @@
     private string? _editError;
     private int _retryDraft;
     private int _portDraft;
+    private bool _submitDialogHidden = true;
     private bool _completionHidden = true;
+    private bool _applyingHistory;
     private string _completionTitle = string.Empty;
     private string _completionMessage = string.Empty;
+    private readonly List<(string Target, string Operation, string Before, string After)> _submitChanges = [];
+    private FluentDialog? _submitDialog;
     private FluentDialog? _completionDialog;
 
     private string CurrentJson => PlaygroundJson.WriteModel(_session.Model);
@@ -199,6 +243,7 @@
     protected override void OnInitialized()
     {
         _session = _model.CreateEditSession();
+        _session.TransitionObserved += OnTransitionObserved;
         _retryDraft = _model.RetryCount;
         _portDraft = _model.Nested!.Port;
         CaptureBaseline();
@@ -206,19 +251,39 @@
 
     private void Edit(Action edit)
     {
-        var before = CloneModel();
         _editError = null;
-        edit();
+        _session.BatchEdit(edit);
+    }
+
+    private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition)
+    {
         var after = CloneModel();
-        var changes = Between(before, after);
+        if (!transition.Invert().TryApplyTo(after, out var before) || before is null)
+        {
+            throw new InvalidOperationException("The observed transition could not be reversed.");
+        }
+
+        RecordTransition(transition, before, after);
+    }
+
+    private void RecordTransition(
+        PlaygroundSettings.ChangeSet changes,
+        PlaygroundSettings before,
+        PlaygroundSettings after
+    )
+    {
         if (changes.IsEmpty)
         {
             return;
         }
 
-        _undo.Push(changes);
-        _redo.Clear();
-        AppendChanges(before, after);
+        if (!_applyingHistory)
+        {
+            _undo.Push(changes);
+            _redo.Clear();
+        }
+
+        AppendChanges(changes, before, after);
     }
 
     private void UpdateRetryCount(int value)
@@ -431,11 +496,6 @@
         JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)
         ?? throw new JsonException("The current model JSON deserialized to null.");
 
-    private static PlaygroundSettings.ChangeSet Between(PlaygroundSettings before, PlaygroundSettings after) =>
-        PlaygroundSettings.ChangeSet.Between(
-            Optional<PlaygroundSettings.Fragment?>.Present(PlaygroundSettings.Fragment.From(before)),
-            Optional<PlaygroundSettings.Fragment?>.Present(PlaygroundSettings.Fragment.From(after)));
-
     private void CaptureBaseline()
     {
         _baselineModel = CloneModel();
@@ -453,8 +513,131 @@
         _baselineJson = PlaygroundJson.WriteModel(_baselineModel);
     }
 
-    private async Task Submit()
+    private async Task RequestSubmit()
     {
+        if (!_session.HasChanges)
+        {
+            return;
+        }
+
+        _submitChanges.Clear();
+        _submitChanges.AddRange(BuildSubmitChanges());
+        if (_submitDialog is null)
+        {
+            throw new InvalidOperationException("The submit confirmation dialog is not initialized.");
+        }
+
+        _submitDialogHidden = false;
+        await _submitDialog.ShowAsync();
+    }
+
+    private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
+    {
+        var changes = new List<(string Target, string Operation, string Before, string After)>();
+        var current = _session.Model;
+        AddSubmitChange(changes, nameof(PlaygroundSettings.Enabled), "Edit", _baselineModel.Enabled, current.Enabled);
+        AddSubmitChange(changes, nameof(PlaygroundSettings.RetryCount), "Edit", _baselineModel.RetryCount, current.RetryCount);
+        AddSubmitChange(changes, nameof(PlaygroundSettings.Label), "Edit", _baselineModel.Label, current.Label);
+        AddSubmitChange(
+            changes,
+            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Host)}",
+            "Edit",
+            _baselineModel.Nested?.Host,
+            current.Nested?.Host
+        );
+        AddSubmitChange(
+            changes,
+            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Port)}",
+            "Edit",
+            _baselineModel.Nested?.Port,
+            current.Nested?.Port
+        );
+
+        var presentBaselines = new HashSet<PlaygroundTask>();
+        foreach (var task in _session.Observable.Tasks)
+        {
+            var currentTask = task.Model;
+            var baselineTask = GetTaskBaseline(task);
+            if (baselineTask is null)
+            {
+                changes.Add(($"Tasks[{currentTask.Id}]", "Add", "—", FormatTask(currentTask)));
+                continue;
+            }
+
+            presentBaselines.Add(baselineTask);
+            var target = $"Tasks[{baselineTask.Id}]";
+            AddSubmitChange(changes, $"{target}.Id", "Edit", baselineTask.Id, currentTask.Id);
+            AddSubmitChange(changes, $"{target}.Title", "Edit", baselineTask.Title, currentTask.Title);
+            AddSubmitChange(changes, $"{target}.Points", "Edit", baselineTask.Points, currentTask.Points);
+        }
+
+        foreach (var task in _baselineTasks)
+        {
+            if (!presentBaselines.Contains(task))
+            {
+                changes.Add(($"Tasks[{task.Id}]", "Remove", FormatTask(task), "—"));
+            }
+        }
+
+        var beforeOrder = _baselineTasks.Select(static task => task.Id).ToArray();
+        var currentTasks = _session.Observable.Tasks;
+        var afterOrderIdentity = currentTasks
+            .Select(task => GetTaskBaseline(task)?.Id ?? task.Id)
+            .ToArray();
+        if (!beforeOrder.SequenceEqual(afterOrderIdentity, StringComparer.Ordinal))
+        {
+            var afterOrder = currentTasks.Select(static task => task.Id);
+            changes.Add(("Tasks", "Order", FormatOrder(beforeOrder), FormatOrder(afterOrder)));
+        }
+
+        return changes.OrderBy(change => SubmitOperationOrder(change.Operation)).ToList();
+    }
+
+    private static int SubmitOperationOrder(string operation) => operation switch
+    {
+        "Add" => 0,
+        "Remove" => 1,
+        "Edit" => 2,
+        "Order" => 3,
+        _ => 4,
+    };
+
+    private static void AddSubmitChange<T>(
+        List<(string Target, string Operation, string Before, string After)> changes,
+        string target,
+        string operation,
+        T before,
+        T after
+    )
+    {
+        if (!EqualityComparer<T>.Default.Equals(before, after))
+        {
+            changes.Add((target, operation, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+        }
+    }
+
+    private static string FormatTask(PlaygroundTask task) =>
+        $"{{ Title = {JsonSerializer.Serialize(task.Title)}, Points = {task.Points} }}";
+
+    private static string FormatOrder(IEnumerable<string> ids) => $"[{string.Join(", ", ids)}]";
+
+    private static string ChangeOperationClass(string operation) =>
+        $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
+
+    private async Task CancelSubmit()
+    {
+        if (_submitDialog is null)
+        {
+            throw new InvalidOperationException("The submit confirmation dialog is not initialized.");
+        }
+
+        _submitDialogHidden = true;
+        await _submitDialog.HideAsync();
+    }
+
+    private async Task ConfirmSubmit()
+    {
+        await CancelSubmit();
         try
         {
             _session.AcceptChanges();
@@ -525,30 +708,36 @@
 
     private void Undo()
     {
-        if (!_undo.TryPop(out var changes))
+        if (_undo.Count == 0)
         {
             return;
         }
 
-        var before = CloneModel();
-        _session.ApplyInPlace(changes.Invert());
+        var changes = _undo.Peek();
+        _applyingHistory = true;
+        try { _session.ApplyInPlace(changes.Invert()); }
+        finally { _applyingHistory = false; }
+
+        _undo.Pop();
         _redo.Push(changes);
         SyncNumericDrafts();
-        AppendChanges(before, CloneModel());
     }
 
     private void Redo()
     {
-        if (!_redo.TryPop(out var changes))
+        if (_redo.Count == 0)
         {
             return;
         }
 
-        var before = CloneModel();
-        _session.ApplyInPlace(changes);
+        var changes = _redo.Peek();
+        _applyingHistory = true;
+        try { _session.ApplyInPlace(changes); }
+        finally { _applyingHistory = false; }
+
+        _redo.Pop();
         _undo.Push(changes);
         SyncNumericDrafts();
-        AppendChanges(before, CloneModel());
     }
 
     private void SyncNumericDrafts()
@@ -559,15 +748,26 @@
         _idDrafts.Clear();
     }
 
-    private void AppendChanges(PlaygroundSettings before, PlaygroundSettings after)
+    private void AppendChanges(
+        PlaygroundSettings.ChangeSet changes,
+        PlaygroundSettings before,
+        PlaygroundSettings after
+    )
     {
-        var changes = Between(before, after);
         var paths = changes.EnumerateChangedPaths();
         if (paths.Count == 0) return;
 
         var change = string.Join("; ", paths.Select(path => FormatChange(before, after, path)));
         _log.Insert(0, new LogEntry(DateTimeOffset.Now.ToString("HH:mm:ss"), change));
         if (_log.Count > MaximumLogEntries) _log.RemoveRange(MaximumLogEntries, _log.Count - MaximumLogEntries);
+    }
+
+    public void Dispose()
+    {
+        if (_session is not null)
+        {
+            _session.TransitionObserved -= OnTransitionObserved;
+        }
     }
 
     private static string FormatChange(PlaygroundSettings before, PlaygroundSettings after, string path)

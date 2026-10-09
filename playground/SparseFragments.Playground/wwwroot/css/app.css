@@ -241,12 +241,7 @@ code {
     grid-template-columns: 12rem 12rem auto;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.2rem;
     min-width: 0;
-}
-
-.pg-editor-stack > .pg-row {
-    margin-bottom: 0;
 }
 
 .pg-nested .pg-row {
@@ -277,7 +272,7 @@ code {
 
 .pg-name small {
     font-weight: 400;
-    color: var(--neutral-foreground-hint, #6c757d);
+    color: var(--colorNeutralForeground3, #6c757d);
 }
 
 .pg-name-check {
@@ -292,7 +287,7 @@ code {
 
 .pg-name-check small {
     font-weight: 400;
-    color: var(--neutral-foreground-hint, #6c757d);
+    color: var(--colorNeutralForeground3, #6c757d);
 }
 
 .pg-op {
@@ -378,7 +373,7 @@ code {
 .pg-nested {
     margin-left: 1rem;
     padding-left: 0.75rem;
-    border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
+    border-left: 3px solid var(--colorNeutralStroke1, #e9ecef);
 }
 
 .pg-legend {
@@ -388,7 +383,7 @@ code {
     align-items: center;
     margin: -0.25rem 0 0.75rem;
     font-size: 0.85rem;
-    color: var(--neutral-foreground-hint, #495057);
+    color: var(--colorNeutralForeground3, #495057);
 }
 
 .pg-lg {
@@ -441,7 +436,7 @@ code {
 
 .pg-roster-row {
     padding: 0.4rem 0.5rem 0.5rem 0.6rem;
-    border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
+    border-left: 3px solid var(--colorNeutralStroke1, #e9ecef);
     margin-left: 0.25rem;
     border-radius: 0.25rem;
     min-width: 0;
@@ -515,9 +510,15 @@ code {
 .pg-drag {
     cursor: grab;
     padding: 0.2rem 0.35rem;
-    border: 1px solid var(--neutral-stroke-rest, #dee2e6);
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
     border-radius: 0.375rem;
     user-select: none;
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-grab {
+    position: static;
+    left: auto;
+    right: auto;
 }
 
 .pg-roster-actions .pg-drag {
@@ -537,12 +538,12 @@ code {
 }
 
 .pg-order {
-    border: 1px solid var(--neutral-stroke-rest, #dee2e6);
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
     border-radius: 0.375rem;
     text-align: center;
     padding: 0.3rem 0;
-    color: var(--neutral-foreground-hint, #6c757d);
-    background: var(--neutral-fill-rest, #f8f9fa);
+    color: var(--colorNeutralForeground3, #6c757d);
+    background: transparent;
 }
 
 .pg-order.pg-moved-num {
@@ -567,16 +568,16 @@ code {
 
 .pg-mini small {
     font-weight: 400;
-    color: var(--neutral-foreground-hint, #6c757d);
+    color: var(--colorNeutralForeground3, #6c757d);
 }
 
 /* Roster stacking lives in the max-width: 48rem block above. */
 
 .pg-hint {
-    color: var(--neutral-foreground-hint, #495057);
+    color: var(--colorNeutralForeground2, #495057);
 }
 
-.pg-edit-session {
+.pg-two-pane {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
 }
@@ -587,10 +588,10 @@ code {
 
 .pg-edit-history .pg-history-button {
     min-width: 8.5rem;
-    --neutral-fill-rest: #e8f0fe;
-    --neutral-fill-hover: #d2e3fc;
-    --neutral-fill-active: #c6dafc;
-    --neutral-foreground-rest: #174ea6;
+    --colorNeutralBackground1: var(--colorBrandBackground2);
+    --colorNeutralBackground1Hover: var(--colorBrandBackground2Hover);
+    --colorNeutralBackground1Pressed: var(--colorBrandBackground2Pressed);
+    --colorNeutralForeground1: var(--colorBrandForeground1);
 }
 
 .pg-edit-fields {
@@ -676,7 +677,7 @@ code {
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.6rem;
-    border: 1px solid var(--neutral-stroke-rest, #dee2e6);
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
     border-radius: 999px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -726,7 +727,7 @@ code {
     grid-template-columns: 4.5rem minmax(0, 1fr);
     gap: 0.5rem;
     padding: 0.2rem 0;
-    border-bottom: 1px solid var(--neutral-stroke-rest, #e9ecef);
+    border-bottom: 1px solid var(--colorNeutralStroke1, #e9ecef);
 }
 
 .pg-edit-log li.pg-edit-log-empty {
@@ -735,7 +736,7 @@ code {
 }
 
 .pg-edit-log time {
-    color: var(--neutral-foreground-hint, #6c757d);
+    color: var(--colorNeutralForeground3, #6c757d);
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
 }
@@ -745,7 +746,7 @@ code {
 }
 
 @media (max-width: 1200px) {
-    .pg-edit-session {
+    .pg-two-pane {
         grid-template-columns: minmax(0, 1fr);
     }
 }
@@ -766,7 +767,7 @@ code {
     max-width: 100%;
     min-width: 0;
     min-height: 160px;
-    border: 1px solid var(--neutral-stroke-rest, #dee2e6);
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
     border-radius: 0.375rem;
     overflow: hidden;
 }
@@ -789,6 +790,10 @@ code {
 .pg-fluent-card [role="tablist"] {
     max-width: 100%;
     overflow-x: auto;
+}
+
+.pg-fluent-card fluent-tab {
+    flex-shrink: 0;
 }
 
 .pg-fluent-card div[role="tabpanel"] {
@@ -826,6 +831,91 @@ fluent-dialog::part(dialog) {
     justify-content: flex-end;
     gap: 0.5rem;
     margin-top: 0.75rem;
+}
+
+.pg-submit-preview-dialog::part(dialog) {
+    width: min(88rem, calc(100vw - 2rem));
+}
+
+.pg-change-table-wrap {
+    max-width: 100%;
+    width: fit-content;
+    max-height: min(55vh, 32rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.5rem;
+}
+
+.pg-roster-change-table-wrap {
+    height: 270px;
+    max-height: 270px;
+}
+
+.pg-change-table {
+    display: inline-table;
+    width: auto;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.pg-change-table th,
+.pg-change-table td {
+    padding: 0.3rem 0.45rem;
+    border-bottom: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.pg-change-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--colorNeutralBackground1, #fff);
+    color: var(--colorNeutralForeground2, #495057);
+    font-size: 0.8rem;
+}
+
+.pg-change-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.pg-change-value {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.pg-change-operation {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.35rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pg-change-add {
+    color: #2da44e;
+    background: rgba(45, 164, 78, 0.12);
+}
+
+.pg-change-remove {
+    color: #cf222e;
+    background: rgba(207, 34, 46, 0.12);
+}
+
+.pg-change-edit {
+    color: #8250df;
+    background: rgba(130, 80, 223, 0.12);
+}
+
+.pg-change-order {
+    color: #0969da;
+    background: rgba(9, 105, 218, 0.12);
 }
 
 .pg-grid > .pg-fluent-card {

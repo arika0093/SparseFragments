@@ -30,10 +30,12 @@
     />
   </ItemGroup>
 
-  <!-- Web assets are single-sourced in /assets and linked into wwwroot. -->
-  <ItemGroup>
-    <Content Include="..\..\assets\favicon.png" Link="wwwroot\favicon.png" />
-    <Content Include="..\..\assets\apple-touch-icon.png" Link="wwwroot\apple-touch-icon.png" />
-    <Content Include="..\..\assets\icon-192.png" Link="wwwroot\icon-192.png" />
-  </ItemGroup>
+  <!-- Web assets are single-sourced in /assets and copied into wwwroot before asset discovery. -->
+  <Target Name="CopyPlaygroundIconsToWwwroot" BeforeTargets="ResolveStaticWebAssetsInputs">
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../../assets/favicon.png;$(MSBuildProjectDirectory)/../../assets/apple-touch-icon.png;$(MSBuildProjectDirectory)/../../assets/icon-192.png"
+      DestinationFiles="$(MSBuildProjectDirectory)/wwwroot/favicon.png;$(MSBuildProjectDirectory)/wwwroot/apple-touch-icon.png;$(MSBuildProjectDirectory)/wwwroot/icon-192.png"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
 </Project>
