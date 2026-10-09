@@ -566,13 +566,15 @@ internal static class SparseObservableDescriptorEmitter
             : string.Empty;
         return "() => { var current = this."
             + property
-            + "; if ((object?)current is null) return null; "
+            + "; if ((object?)current is null) return null; var __sparse_captured = current; "
             + "var source = (global::System.Collections.Generic.IReadOnlyDictionary<"
             + keyType
             + ", "
             + valueType.Name
             + ">)current; "
-            + "return new "
+            + "return "
+            + dialect.DictionaryDescriptorType
+            + ".Guarded(new "
             + dialect.DictionaryDescriptorType
             + "(typeof("
             + keyTypeDecl
@@ -590,9 +592,14 @@ internal static class SparseObservableDescriptorEmitter
             + WrapValue("foundValue")
             + ")); }, "
             + childAccessor
+            + "GetValueModel = key => { if (key is null || !"
+            + keyCast
+            + "(key, out var typedKey) || !source.TryGetValue(typedKey, out var foundModel)) return null; return (object?)foundModel; }"
             + "}, typeof("
             + viewType
-            + ")); }";
+            + ")), () => global::System.Object.ReferenceEquals(this."
+            + property
+            + ", __sparse_captured)); }";
     }
 
     private static string DictionaryAccessor(
@@ -631,9 +638,29 @@ internal static class SparseObservableDescriptorEmitter
                 + path
                 + " + \"[\" + global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
             : string.Empty;
+        var viewTypeName = names.HasElementProxy
+            ? names.ViewType.TrimEnd('?')
+            : member.Collection.ValueType.Value.NonNullableName;
+        // Identity resolver for retained value descriptors: the unwrapped model
+        // for a key, or null when the key is absent or unconvertible.
+        var valueResolver = names.HasElementProxy
+            ? "GetValueModel = key => { if (key is null || !"
+                + keyCast
+                + "(key, out var typedKey) || !this."
+                + property
+                + "!.TryGetValue(typedKey, out var view)) return null; return view is null ? null : (object?)(view is "
+                + viewTypeName
+                + " proxy ? proxy.__SparseTarget : view); }"
+            : "GetValueModel = key => { if (key is null || !"
+                + keyCast
+                + "(key, out var typedKey) || !this."
+                + property
+                + "!.TryGetValue(typedKey, out var found)) return null; return (object?)found; }";
         return "() => this."
             + property
-            + " is null ? null : new "
+            + " is null ? null : "
+            + dialect.DictionaryDescriptorType
+            + ".Guarded(new "
             + dialect.DictionaryDescriptorType
             + "(typeof("
             + keyType
@@ -693,13 +720,11 @@ internal static class SparseObservableDescriptorEmitter
             + keyCast
             + "(key, out var typedKey)) return false; return this."
             + property
-            + "!.Remove(typedKey); } }, typeof("
-            + (
-                names.HasElementProxy
-                    ? names.ViewType.TrimEnd('?')
-                    : member.Collection.ValueType.Value.NonNullableName
-            )
-            + "))";
+            + "!.Remove(typedKey); }, "
+            + valueResolver
+            + " }, typeof("
+            + viewTypeName
+            + ")), static () => true)";
     }
 
     /// <summary>Emits a set descriptor for HashSet/ISet/IReadOnlySet shapes.</summary>
