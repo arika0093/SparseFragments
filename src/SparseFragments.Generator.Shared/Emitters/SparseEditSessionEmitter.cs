@@ -171,7 +171,7 @@ internal static class SparseEditSessionEmitter
                 + tryApply
                 + ", WriteModel = "
                 + writeModel
-                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh() };"
+                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
         );
         code.AppendLineAt(2, "private readonly " + core + " _session;");
         code.AppendLineAt(

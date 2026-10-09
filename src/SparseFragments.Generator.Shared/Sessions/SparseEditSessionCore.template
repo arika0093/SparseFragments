@@ -24,6 +24,10 @@ namespace __SESSION_NAMESPACE__
         where TObservable : class
     {
         private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
+        private const string UnassignedBaselineErrorMessage =
+            "An unassigned key cannot appear in the baseline of a keyed collection transition.";
+        private const string UnassignedChangeSetBaselineErrorMessage =
+            "An unassigned key cannot appear in the current baseline of a keyed ChangeSet.";
         private readonly Func<TModel, TFragment> _fromModel;
         private readonly Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> _between;
         private readonly Func<TChangeSet, TPatch> _toPatch;
@@ -43,6 +47,7 @@ namespace __SESSION_NAMESPACE__
         private readonly Func<TChangeSet, TChangeSet>? _invert;
         private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
         private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
+        private readonly Func<TFragment, TModel>? _baselineToModel;
         private readonly Action<TObservable>? _refreshObservable;
         private readonly Action? _onChanged;
         private bool _cacheObservableChanges;
@@ -99,7 +104,8 @@ namespace __SESSION_NAMESPACE__
             Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? rebase = null,
             Func<TChangeSet, IReadOnlyList<string>>? enumerateChangedPaths = null,
             Action<TObservable>? refreshObservable = null,
-            bool cacheObservableChanges = false
+            bool cacheObservableChanges = false,
+            Func<TFragment, TModel>? baselineToModel = null
         )
         {
             Model = model;
@@ -116,6 +122,7 @@ namespace __SESSION_NAMESPACE__
             _refreshObservable = refreshObservable;
             _onChanged = onChanged;
             _cacheObservableChanges = cacheObservableChanges;
+            _baselineToModel = baselineToModel;
             _baseline = __OPTIONAL_TYPE__<TFragment?>.Present(baseline);
             _lastObserved = __OPTIONAL_TYPE__<TFragment?>.Present(fromModel(model));
             _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
@@ -455,6 +462,12 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Reverts the current model to its retained baseline in place.</summary>
+        /// <remarks>
+        /// When the live model is temporarily invalid (duplicate keyed keys or
+        /// unassigned keyed sentinels) it cannot be diffed, so the revert restores
+        /// the retained valid baseline directly instead of deriving a keyed diff
+        /// from the invalid state. The live model instance is preserved.
+        /// </remarks>
         public void RevertChanges()
         {
             if (_invert is null)
@@ -462,13 +475,44 @@ namespace __SESSION_NAMESPACE__
                 throw new NotSupportedException("This edit session cannot invert its change sets.");
             }
 
-            var changes = CreateChangeSet();
+            TChangeSet changes;
+            try
+            {
+                changes = CreateChangeSet();
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+                return;
+            }
+
             if (_isEmpty(changes))
             {
                 return;
             }
 
-            ApplyInPlace(_invert(changes));
+            TChangeSet inverted;
+            try
+            {
+                inverted = _invert(changes);
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+                return;
+            }
+
+            // Only keyed-validity failures heal here: genuine before-state or
+            // immutable-member conflicts throw different messages and propagate,
+            // and the baseline restore below heals even a partially applied write.
+            try
+            {
+                ApplyInPlace(inverted);
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+            }
         }
 
         /// <summary>
@@ -756,6 +800,39 @@ namespace __SESSION_NAMESPACE__
 
         private static bool IsDuplicateKeyError(InvalidOperationException exception) =>
             string.Equals(exception.Message, DuplicateKeyErrorMessage, StringComparison.Ordinal);
+
+        private static bool IsInvalidKeyedStateError(InvalidOperationException exception) =>
+            IsDuplicateKeyError(exception)
+            || string.Equals(
+                exception.Message,
+                UnassignedBaselineErrorMessage,
+                StringComparison.Ordinal
+            )
+            || string.Equals(
+                exception.Message,
+                UnassignedChangeSetBaselineErrorMessage,
+                StringComparison.Ordinal
+            );
+
+        private void RevertFromInvalidKeyedState(InvalidOperationException exception)
+        {
+            if (
+                _writeModel is null
+                || _baselineToModel is null
+                || !_baseline.IsPresent
+                || _baseline.Value is null
+            )
+            {
+                throw new InvalidOperationException(
+                    "The live model cannot be diffed because its keyed state is invalid, "
+                        + "and this session cannot materialize its baseline for recovery.",
+                    exception
+                );
+            }
+
+            _writeModel(_model, _baselineToModel(_baseline.Value));
+            RefreshAfterModelMutation();
+        }
 
         private void OnPropertyChanged(string propertyName)
         {
