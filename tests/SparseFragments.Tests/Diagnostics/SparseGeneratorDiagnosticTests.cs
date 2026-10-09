@@ -752,6 +752,7 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF027"] = "#spf027-invalid-custom-rebase-policy",
             ["SPF028"] = "#spf028-invalid-downstream-emission-plan",
             ["SPF029"] = "#spf029-unknown-product-member",
+            ["SPF030"] = "#spf030-invalid-comparison-strategy",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)

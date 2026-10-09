@@ -1486,6 +1486,7 @@ namespace SparseFragments.GeneratedApiFixtures
         {
             public ReadOnlyView(SparseFragments.GeneratedApiFixtures.CatalogScalar model) { }
             public int Count { get; }
+            public System.Collections.Generic.IReadOnlyCollection<string> Labels { get; }
             public string Name { get; }
             public string? Note { get; }
             public int? Retry { get; }

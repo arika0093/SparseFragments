@@ -201,7 +201,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         "Comparison rule for member '{0}' must use a concrete accessible type implementing IEqualityComparer<TMember> with an accessible parameterless constructor",
         "SparseFragments",
         DiagnosticSeverity.Error,
-        true
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf030-invalid-comparison-strategy"
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
         SparseFragmentsDiagnosticIds.UnsupportedMerge,
