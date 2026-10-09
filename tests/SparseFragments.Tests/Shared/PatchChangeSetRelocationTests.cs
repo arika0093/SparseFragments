@@ -243,6 +243,29 @@ namespace SparseFragments.Tests.Shared
         }
 
         [Test]
+        public void ComposeNullFirstThrowsArgumentNullException()
+        {
+            // Pin #194 "Maintain null/missing semantics": the relocated static
+            // Compose(first, second) must reject a null first argument instead
+            // of silently succeeding through the whole-replacement fast path.
+            var before = Optional<Parent.Fragment?>.Present(
+                new Parent.Fragment { Title = Optional<string?>.Present("a") }
+            );
+            var after = Optional<Parent.Fragment?>.Present(
+                new Parent.Fragment { Title = Optional<string?>.Present("b") }
+            );
+            var activePatch = Parent.Patch.Between(before, after);
+            var wholePatch = new Parent.Patch();
+            wholePatch.SetNull();
+
+            Should.Throw<ArgumentNullException>(() => Parent.Patch.Compose(null!, activePatch));
+            Should.Throw<ArgumentNullException>(() => Parent.Patch.Compose(null!, wholePatch));
+
+            var forward = Parent.ChangeSet.Between(before, after);
+            Should.Throw<ArgumentNullException>(() => Parent.ChangeSet.Compose(null!, forward));
+        }
+
+        [Test]
         public void PatchRebaseLawsHoldAcrossTheBoundary()
         {
             var basis = Optional<Parent.Fragment?>.Present(

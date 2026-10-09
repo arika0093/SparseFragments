@@ -72,6 +72,10 @@ internal static class SparseChangeSetComposeEmitter
         code.AppendLineAt(2, "{");
         if (target is not null)
         {
+            code.AppendLineAt(
+                3,
+                "if (self is null) throw new global::System.ArgumentNullException(nameof(self));"
+            );
             AppendSelfAliases(code, members);
         }
         var __hasSparse = members.Any(static m => IsKeyed(m) || IsDict(m));

@@ -174,6 +174,14 @@ internal static class SparseFragmentPatchAlgebraEmitter
         );
         code.AppendLineAt(2, declaration);
         code.AppendLineAt(2, "{");
+        if (receiver.Length != 0)
+        {
+            code.AppendLineAt(
+                3,
+                "if (self is null) throw new global::System.ArgumentNullException(nameof(self));"
+            );
+        }
+
         code.AppendLineAt(
             3,
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
