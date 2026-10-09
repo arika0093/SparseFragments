@@ -580,6 +580,24 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
+    public void RetainedRawModelReferenceCannotLeaveHasChangesCacheStale()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var rawModel = session.Model;
+
+        session.Observable.Name = "observable edit";
+        session.HasChanges.ShouldBeTrue();
+        session.Observable.Name = "before";
+        session.HasChanges.ShouldBeFalse();
+
+        rawModel.Version = 2;
+
+        session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().Version.After.Value.ShouldBe(2);
+    }
+
+    [Test]
     public void RevertChangesRestoresBaselineInPlace()
     {
         var model = new NeutralSessionModel

@@ -38,7 +38,7 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
     private readonly Func<TChangeSet, TModel, RebaseResult<TChangeSet>>? _rebase;
     private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
     private readonly Action<TObservable>? _refreshObservable;
-    private readonly bool _cacheObservableChanges;
+    private bool _cacheObservableChanges;
     private bool _hasChangesCacheValid;
     private bool _cachedHasChanges;
     private Optional<TFragment?> _lastObserved;
@@ -579,7 +579,11 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
         OnPropertyChanged(nameof(HasChanges));
     }
 
-    private void DisableHasChangesCache() => _hasChangesCacheValid = false;
+    private void DisableHasChangesCache()
+    {
+        _cacheObservableChanges = false;
+        _hasChangesCacheValid = false;
+    }
 
     private static bool IsDuplicateKeyError(InvalidOperationException exception) =>
         string.Equals(exception.Message, DuplicateKeyErrorMessage, StringComparison.Ordinal);
