@@ -115,6 +115,20 @@ public class ComparisonRuleBenchmarks
                 "A local rule must not hide inherited rules for other types."
             );
         }
+        var expectedRootHits = Shape switch
+        {
+            ComparisonRuleShape.None or ComparisonRuleShape.Unrelated => 0,
+            ComparisonRuleShape.Missing => RootCount - 1,
+            _ => RootCount,
+        };
+        var firstRootHits = AnalyzeAllModels();
+        var repeatedRootHits = AnalyzeAllModels();
+        if (firstRootHits != expectedRootHits || repeatedRootHits != expectedRootHits)
+        {
+            throw new InvalidOperationException(
+                "Comparison analysis must preserve every root's rules on repeated calls."
+            );
+        }
         ComparisonRuleMetadataProbe.Validate(_config, references);
     }
 
@@ -207,11 +221,8 @@ public class ComparisonRuleBenchmarks
             .CreateRuleSet(_model, _config, CancellationToken.None)
             .TryGetComparerType(_valueType, out _);
 
-    // Amortized cost across every fragment root in the compilation. The first
-    // model builds the per-compilation reference index; the rest reuse it, so
-    // this stays near-linear while per-model assembly scans grow
-    // quadratically. Incremental invalidation is pinned separately by
-    // GeneratorStepTrackingTests (unrelated edits keep Analysis cached).
+    // Repeated analysis across every root reuses compilation-scoped results.
+    // GeneratorInvalidationBenchmarks measures fresh compilation costs separately.
     [Benchmark]
     public int AnalyzeAllModels()
     {

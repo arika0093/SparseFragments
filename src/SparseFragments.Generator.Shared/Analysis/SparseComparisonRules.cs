@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -15,14 +16,66 @@ internal static class SparseComparisonRules
     )
     {
         var attributeName = config.ComparisonAttributeMetadataName;
+        if (attributeName is null)
+        {
+            return new SparseComparisonRuleSet(
+                new Dictionary<ITypeSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default)
+            );
+        }
+        var index = SparseComparisonIndex.ForAssembly(
+            model.ContainingAssembly,
+            config,
+            cancellationToken
+        );
+        if (!index.HasComparisonRules)
+        {
+            return BuildDirectRuleSet(model, attributeName, cancellationToken);
+        }
+        if (index.GetCachedRuleSet(model) is SparseComparisonRuleSet cached)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return cached;
+        }
+        var rules = BuildRuleSet(model, index, attributeName, cancellationToken);
+        return index.CacheRuleSet(model, rules);
+    }
+
+    private static SparseComparisonRuleSet BuildDirectRuleSet(
+        INamedTypeSymbol model,
+        string attributeName,
+        CancellationToken cancellationToken
+    )
+    {
         var comparerTypes = new Dictionary<ITypeSymbol, INamedTypeSymbol?>(
             SymbolEqualityComparer.Default
         );
-        if (attributeName is null)
-        {
-            return new SparseComparisonRuleSet(comparerTypes);
-        }
+        AddRules(
+            comparerTypes,
+            model.GetAttributes(),
+            attributeName,
+            cancellationToken,
+            overwrite: false
+        );
+        AddRules(
+            comparerTypes,
+            model.ContainingAssembly.GetAttributes(),
+            attributeName,
+            cancellationToken,
+            overwrite: false
+        );
+        return new SparseComparisonRuleSet(comparerTypes);
+    }
 
+    private static SparseComparisonRuleSet BuildRuleSet(
+        INamedTypeSymbol model,
+        SparseComparisonIndex index,
+        string attributeName,
+        CancellationToken cancellationToken
+    )
+    {
+        var comparerTypes = new Dictionary<ITypeSymbol, INamedTypeSymbol?>(
+            SymbolEqualityComparer.Default
+        );
         AddRules(
             comparerTypes,
             model.GetAttributes(),
@@ -36,11 +89,6 @@ internal static class SparseComparisonRules
         // and the reference-graph scan is skipped entirely. Even when rules
         // exist, inheritance is skipped unless some root declares a rule the
         // model has not already mapped, preserving the pre-index fast path.
-        var index = SparseComparisonIndex.ForAssembly(
-            model.ContainingAssembly,
-            config,
-            cancellationToken
-        );
         if (
             index.HasComparisonRules
             && index.Roots.Any(root =>
@@ -163,7 +211,7 @@ internal static class SparseComparisonRules
 
     private static void AddRules(
         Dictionary<ITypeSymbol, INamedTypeSymbol?> comparerTypes,
-        IEnumerable<AttributeData> attributes,
+        ImmutableArray<AttributeData> attributes,
         string attributeName,
         CancellationToken cancellationToken,
         bool overwrite
