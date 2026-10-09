@@ -53,7 +53,7 @@ internal static class SparseDescriptorFactoryEmitter
             config,
             cancellationToken
         );
-        var body = RewriteReceiver(relocated);
+        var body = RewriteReceiver(relocated, cancellationToken);
         // Legacy emits "internal IDescriptorSet __SparseGetDescriptors_<hash>(string pathPrefix) { ... }".
         // The factory exposes a stable per-model Create entry instead.
         body = Regex.Replace(
@@ -127,18 +127,48 @@ internal static class SparseDescriptorFactoryEmitter
         );
     }
 
-    private static string RewriteReceiver(string source)
+    /// <summary>Rebinds instance access from <c>this</c> to the factory parameter.</summary>
+    /// <param name="source">Descriptor body emitted against the observable.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>The body bound to the <c>observable</c> parameter.</returns>
+    internal static string RewriteReceiver(string source, CancellationToken cancellationToken)
     {
         // Instance state moves from "this" to the factory parameter. Order
         // matters: longer names first so "__onRawModelAccess" does not get a
         // partial "__model" rewrite. Child proxy accessors stay as
         // "current.__SparseGet_X(path)": each relocated Observable keeps a
-        // thin bridge delegating to its own factory.
-        source = source.Replace("this.", "observable.");
-        source = source.Replace("__onRawModelAccess", "observable.__onRawModelAccess");
-        source = source.Replace("__onChanged", "observable.__onChanged");
-        source = source.Replace("__Raise(", "observable.__Raise(");
-        source = source.Replace("__model.", "observable.__model.");
+        // thin bridge delegating to its own factory. Replacement skips string
+        // literals and comments so member-name literals stay intact.
+        source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+            source,
+            "this.",
+            "observable.",
+            cancellationToken
+        );
+        source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+            source,
+            "__onRawModelAccess",
+            "observable.__onRawModelAccess",
+            cancellationToken
+        );
+        source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+            source,
+            "__onChanged",
+            "observable.__onChanged",
+            cancellationToken
+        );
+        source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+            source,
+            "__Raise(",
+            "observable.__Raise(",
+            cancellationToken
+        );
+        source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+            source,
+            "__model.",
+            "observable.__model.",
+            cancellationToken
+        );
         return source;
     }
 }

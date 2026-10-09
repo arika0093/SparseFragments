@@ -89,8 +89,14 @@ public sealed class GeneratedPlacementTests
         // "A-B" and "A.B" sanitize identically; the stable hash separates them.
         var hyphen = Model("App", "A-B");
         var dotted = Model("App", "A.B");
-        var first = SparseGeneratedPlacement.GetImplementationContainer(hyphen, CancellationToken.None);
-        var second = SparseGeneratedPlacement.GetImplementationContainer(dotted, CancellationToken.None);
+        var first = SparseGeneratedPlacement.GetImplementationContainer(
+            hyphen,
+            CancellationToken.None
+        );
+        var second = SparseGeneratedPlacement.GetImplementationContainer(
+            dotted,
+            CancellationToken.None
+        );
         first.ShouldNotBe(second);
     }
 
@@ -100,13 +106,71 @@ public sealed class GeneratedPlacementTests
         var global = Model(string.Empty, "Order", isGlobalNamespace: true);
         var nested = Model("App", "Order");
         var internalModel = Model("App", "Order", isPublic: false);
-        var globalContainer = SparseGeneratedPlacement.GetImplementationContainer(global, CancellationToken.None);
-        var nestedContainer = SparseGeneratedPlacement.GetImplementationContainer(nested, CancellationToken.None);
+        var globalContainer = SparseGeneratedPlacement.GetImplementationContainer(
+            global,
+            CancellationToken.None
+        );
+        var nestedContainer = SparseGeneratedPlacement.GetImplementationContainer(
+            nested,
+            CancellationToken.None
+        );
         globalContainer.ShouldNotBe(nestedContainer);
         // Accessibility never feeds naming.
         SparseGeneratedPlacement
             .GetImplementationContainer(internalModel, CancellationToken.None)
             .ShouldBe(nestedContainer);
+    }
+
+    [Test]
+    public void ParentChildReferencesShareTheChildContainer()
+    {
+        // Blocking review finding on reloc-1 (#190/#191): parent-side child
+        // refs hash NonNullableName while the child hashes its own identity.
+        // The old qualifier handling doubled top-level names and diverged for
+        // nested models; both sides must normalize identically instead.
+        ParentRefShouldMatchChildContainer(
+            "Inner",
+            "global::Ns.Outer.Inner",
+            "Ns",
+            isGlobalNamespace: false
+        );
+        ParentRefShouldMatchChildContainer(
+            "Item",
+            "global::Ns.Item",
+            "Ns",
+            isGlobalNamespace: false
+        );
+        ParentRefShouldMatchChildContainer(
+            "Model",
+            "global::Model",
+            string.Empty,
+            isGlobalNamespace: true
+        );
+    }
+
+    private static void ParentRefShouldMatchChildContainer(
+        string name,
+        string modelTypeName,
+        string @namespace,
+        bool isGlobalNamespace
+    )
+    {
+        var child = new SparseModelInfo(
+            name,
+            modelTypeName,
+            @namespace,
+            isGlobalNamespace,
+            IsStruct: false,
+            IsRecord: false,
+            HintName: "hint.SparseFragments.g.cs",
+            Constructor: null,
+            IsPublic: true
+        );
+        SparseGeneratedPlacement
+            .GetContainerForQualifiedName(modelTypeName, CancellationToken.None)
+            .ShouldBe(
+                SparseGeneratedPlacement.GetImplementationContainer(child, CancellationToken.None)
+            );
     }
 
     [Test]
@@ -129,18 +193,17 @@ public sealed class GeneratedPlacementTests
     public void MissingNamespaceDisablesPlacement()
     {
         var model = Model("App", "Order");
-        SparseGeneratedPlacement.GetImplementationTypeName(
-            model,
-            Config(null),
-            "EditSession",
-            CancellationToken.None
-        ).ShouldBeNull();
-        SparseGeneratedPlacement.GetImplementationTypeName(
-            model,
-            Config(string.Empty),
-            "EditSession",
-            CancellationToken.None
-        ).ShouldBeNull();
+        SparseGeneratedPlacement
+            .GetImplementationTypeName(model, Config(null), "EditSession", CancellationToken.None)
+            .ShouldBeNull();
+        SparseGeneratedPlacement
+            .GetImplementationTypeName(
+                model,
+                Config(string.Empty),
+                "EditSession",
+                CancellationToken.None
+            )
+            .ShouldBeNull();
     }
 
     [Test]
@@ -181,7 +244,8 @@ public sealed class GeneratedPlacementTests
         var configuration = (SparseGeneratorConfig)(
             typeof(SparseFragmentsGenerator)
                 .GetField("Configuration", BindingFlags.NonPublic | BindingFlags.Static)
-                ?.GetValue(null) ?? throw new InvalidOperationException("Missing generator configuration.")
+                ?.GetValue(null)
+            ?? throw new InvalidOperationException("Missing generator configuration.")
         );
         configuration.GeneratedImplementationNamespace.ShouldBe("SparseFragments.Generated");
     }
@@ -190,13 +254,13 @@ public sealed class GeneratedPlacementTests
     public void ResultsWithAdditionalSourcesCompareByValue()
     {
         var diagnostics = ImmutableArray<SparseGeneratorDiagnostic>.Empty;
-        var extra = ImmutableArray.Create(new SparseGeneratedSource("b.Implementation.g.cs", "source"));
+        var extra = ImmutableArray.Create(
+            new SparseGeneratedSource("b.Implementation.g.cs", "source")
+        );
         var left = new SparseGenerationResult("a.g.cs", "surface", diagnostics, extra);
         var right = new SparseGenerationResult("a.g.cs", "surface", diagnostics, extra);
         left.Equals(right).ShouldBeTrue();
         left.GetHashCode().ShouldBe(right.GetHashCode());
-        new SparseGenerationResult("a.g.cs", "surface", diagnostics)
-            .Equals(left)
-            .ShouldBeFalse();
+        new SparseGenerationResult("a.g.cs", "surface", diagnostics).Equals(left).ShouldBeFalse();
     }
 }

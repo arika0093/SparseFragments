@@ -362,12 +362,12 @@ internal static class SparseFragmentEmitter
             );
         }
 
-        if (
-            implementationNamespace is not null
-            && features.EmitFragment
-            && features.EmitObservable
-            && config.DescriptorDialect is not null
-        )
+        // Relocated descriptors call back into these bridges instead of
+        // naming private attribute arrays directly. Emit them whenever
+        // relocation is active (the same gate as the rewrite side in
+        // SparseModelImplementationEmitter), not only when a descriptor
+        // dialect is present, so the reference always resolves.
+        if (implementationNamespace is not null && features.EmitFragment && features.EmitObservable)
         {
             foreach (var member in members)
             {

@@ -8,9 +8,9 @@ namespace SparseFragments.Generator.Shared;
 /// <remarks>
 /// Stage 2 of the placement track reuses the existing nested emitters for the
 /// class bodies, then rewrites nested <c>Model.Observable</c> style references
-/// to the configured generated-implementation namespace. String replacement
-/// stays safe because only fully qualified <c>NonNullableName.Simple</c> pairs
-/// are rewritten; bare model names and accessor hashes are untouched.
+/// to the configured generated-implementation namespace. Replacement targets
+/// fully qualified <c>NonNullableName.Simple</c> pairs outside string literals
+/// and comments; bare model names and accessor hashes are untouched.
 /// </remarks>
 internal static class SparseModelImplementationEmitter
 {
@@ -210,6 +210,8 @@ internal static class SparseModelImplementationEmitter
 
         // Private nested attributes stay inside the model bridge; relocated
         // descriptors call back instead of naming private types directly.
+        // Replacement skips string literals and comments so user content
+        // (for example attribute string arguments) is never rewritten.
         foreach (var member in members)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -220,7 +222,12 @@ internal static class SparseModelImplementationEmitter
                     + member.Property.AttributeExpressions
                     + " }";
                 var bridge = modelType + ".__SparseAttributes_" + member.Id + "()";
-                source = source.Replace(legacy, bridge);
+                source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+                    source,
+                    legacy,
+                    bridge,
+                    cancellationToken
+                );
             }
         }
 
@@ -289,8 +296,18 @@ internal static class SparseModelImplementationEmitter
             );
             var observableQualified = "global::" + root + "." + container + "." + observableSimple;
             var readOnlyQualified = "global::" + root + "." + container + "." + readOnlySimple;
-            source = source.Replace(qualified + "." + observableSimple, observableQualified);
-            source = source.Replace(qualified + "." + readOnlySimple, readOnlyQualified);
+            source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+                source,
+                qualified + "." + observableSimple,
+                observableQualified,
+                cancellationToken
+            );
+            source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
+                source,
+                qualified + "." + readOnlySimple,
+                readOnlyQualified,
+                cancellationToken
+            );
         }
 
         return source;

@@ -191,6 +191,57 @@ public sealed class RelocatedUiPlacementTests
     }
 
     [Test]
+    public void CollisionNamesAndTrickyLiteralsStayIntact()
+    {
+        // Hardening for the string-based relocation rewrites (#190/#191): a
+        // member colliding with rewritten identifiers (observable, pathPrefix)
+        // plus a string literal carrying this./__model./child-ref text must
+        // compile, with code rewritten and literals verbatim.
+        const string source = """
+            using SparseFragments;
+            using System.ComponentModel;
+            namespace Reloc.Probe;
+            [SparseFragmentModel]
+            public partial class TrickyModel
+            {
+                [Description("call this.foo; child ref global::Reloc.Probe.TrickyChild.Observable; use __model.bar")]
+                public string Note { get; set; } = string.Empty;
+                public string observable { get; set; } = string.Empty;
+                public string pathPrefix { get; set; } = string.Empty;
+                public TrickyChild Child { get; set; } = new();
+            }
+            [SparseFragmentModel]
+            public partial class TrickyChild
+            {
+                public string Name { get; set; } = string.Empty;
+            }
+            """;
+        var (compilation, _, all) = Generate(source);
+        compilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+        var factory = all.Values.First(text =>
+            text.Contains("internal static class DescriptorFactory", StringComparison.Ordinal)
+        );
+        // Member access in code follows the factory parameter.
+        factory.ShouldContain("observable.observable");
+        factory.ShouldContain("observable.pathPrefix");
+        // The attribute literal survives verbatim on the surface bridge.
+        var surface = all.Values.First(text =>
+            text.Contains("__SparseAttributes_", StringComparison.Ordinal)
+        );
+        surface.ShouldContain(
+            "\"call this.foo; child ref global::Reloc.Probe.TrickyChild.Observable; use __model.bar\""
+        );
+        foreach (var text in all.Values)
+        {
+            text.ShouldNotContain("\"call observable.foo");
+            text.ShouldNotContain("observable.bar\"");
+        }
+    }
+
+    [Test]
     public void DescriptorFactoryLivesOutsideModel()
     {
         const string source = """

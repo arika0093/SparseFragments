@@ -116,10 +116,22 @@ internal static class SparseGeneratedPlacement
             + implementationSuffix;
     }
 
-    private static string FullyQualifiedIdentity(SparseModelInfo model) =>
-        model.IsGlobalNamespace
+    private static string FullyQualifiedIdentity(SparseModelInfo model)
+    {
+        // Display names arrive global::-qualified in production
+        // ("global::Ns.Model"). Strip the alias before hashing so the
+        // identity can never double to "Ns.global::Ns.Model". Test doubles
+        // may carry a simple name instead; those keep the legacy namespace
+        // qualification so distinct namespaces stay distinct.
+        if (model.ModelTypeName.StartsWith("global::", System.StringComparison.Ordinal))
+        {
+            return model.ModelTypeName.Substring("global::".Length);
+        }
+
+        return model.IsGlobalNamespace
             ? "global::" + model.ModelTypeName
             : model.Namespace + "." + model.ModelTypeName;
+    }
 
     /// <summary>Gets the container name for a qualified child type name.</summary>
     /// <remarks>
@@ -306,19 +318,15 @@ internal static class SparseGeneratedPlacement
 
     private static string QualifiedIdentity(string qualifiedTypeName)
     {
-        if (!qualifiedTypeName.StartsWith("global::", System.StringComparison.Ordinal))
+        // Child NonNullableName display names normalize exactly like the
+        // child's own identity above: strip one global:: alias and never
+        // re-prefix the namespace, so nested "global::Ns.Outer.Inner" hashes
+        // whole on both sides instead of diverging per side.
+        if (qualifiedTypeName.StartsWith("global::", System.StringComparison.Ordinal))
         {
-            return qualifiedTypeName;
+            return qualifiedTypeName.Substring("global::".Length);
         }
 
-        var rest = qualifiedTypeName.Substring("global::".Length);
-        var lastDot = rest.LastIndexOf('.');
-        if (lastDot < 0)
-        {
-            return "global::" + qualifiedTypeName;
-        }
-
-        var ns = rest.Substring(0, lastDot);
-        return ns + "." + qualifiedTypeName;
+        return qualifiedTypeName;
     }
 }

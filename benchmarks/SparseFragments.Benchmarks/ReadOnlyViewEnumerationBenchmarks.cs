@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
-using BenchStreamingView = global::SparseFragments.Generated.global__global__BenchStreamingModel_DE8AC0C4.ReadOnlyView;
+using BenchStreamingView = global::SparseFragments.Generated.BenchStreamingModel_633DB3BC.ReadOnlyView;
 
 [SparseFragmentModel]
 public partial class BenchStreamingModel
