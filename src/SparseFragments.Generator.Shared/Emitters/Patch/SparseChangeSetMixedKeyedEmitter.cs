@@ -34,6 +34,12 @@ internal static class SparseChangeSetMixedKeyedEmitter
                 + id
                 + " is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
         );
+        // Value-free endpoints must not smuggle values past the redacted
+        // branch below (issue #164).
+        code.AppendLineAt(
+            7,
+            "__raw" + id + ".Before?.Validate(); __raw" + id + ".After?.Validate();"
+        );
         if (!member.RedactBefore)
         {
             code.AppendLineAt(
@@ -78,6 +84,7 @@ internal static class SparseChangeSetMixedKeyedEmitter
             7,
             "if (item.Before is null || item.After is null || item.Items.Count != 0) throw new global::System.ArgumentException(\"A whole collection payload must contain both endpoints and no item changes.\", nameof(payload));"
         );
+        code.AppendLineAt(7, "item.Before.Validate(); item.After.Validate();");
         code.AppendLineAt(7, "if (item.Before.IsRedacted)");
         code.AppendLineAt(7, "{");
         code.AppendLineAt(7, "var __wholeAfter" + id + " = item.After.ToOptional();");
@@ -129,6 +136,7 @@ internal static class SparseChangeSetMixedKeyedEmitter
             8,
             "if (changeItem is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
         );
+        code.AppendLineAt(8, "changeItem.Before?.Validate(); changeItem.After?.Validate();");
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(

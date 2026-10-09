@@ -144,6 +144,54 @@ public sealed class ChangePayloadRedactionTests
     }
 
     [Test]
+    public void RedactedEndpoint_WithValueIsRejectedEverywhere()
+    {
+        // Unit-level: a redacted endpoint carrying a value is malformed, and
+        // the rejection never embeds the plaintext.
+        var smuggled = new ChangePayloadEndpoint<string>
+        {
+            State = ChangePayloadState.Redacted,
+            Value = "SECRET",
+        };
+        var redactedError = Should.Throw<InvalidOperationException>(() => smuggled.Validate());
+        redactedError.Message.ShouldNotContain("SECRET");
+        Should.Throw<InvalidOperationException>(() => smuggled.ToOptional());
+
+        var missingWithValue = new ChangePayloadEndpoint<string>
+        {
+            State = ChangePayloadState.Missing,
+            Value = "SECRET",
+        };
+        Should.Throw<InvalidOperationException>(() => missingWithValue.Validate());
+
+        // Value-free redactions (including explicit JSON null) stay valid.
+        new ChangePayloadEndpoint<string> { State = ChangePayloadState.Redacted }.Validate();
+        new ChangePayloadEndpoint<string?> { State = ChangePayloadState.Redacted }.Validate();
+
+        // Payload-level: every interpretation path rejects a smuggled value
+        // without applying anything or leaking the secret.
+        var smuggledJson =
+            """{"version":"0.1","changes":[{"member":"Password","before":{"state":"redacted","value":"SECRET"},"after":{"state":"value","value":"after-password"}}]}""";
+        var smuggledPayload = JsonSerializer.Deserialize<RedactedAccount.ChangePayload>(
+            smuggledJson
+        )!;
+        var beforeError = Should.Throw<InvalidOperationException>(() =>
+            smuggledPayload.ToChangeSet()
+        );
+        beforeError.Message.ShouldNotContain("SECRET");
+        Should.Throw<InvalidOperationException>(() => smuggledPayload.ToPatch());
+        IReadOnlyList<string> skipped;
+        Should.Throw<InvalidOperationException>(() =>
+            smuggledPayload.InvertReversibleChanges(out skipped)
+        );
+        var model = new RedactedAccount { DisplayName = "kept", Password = "before-password" };
+        Should.Throw<InvalidOperationException>(() =>
+            smuggledPayload.TryApplyMixedTo(model, out _, out _)
+        );
+        model.Password.ShouldBe("before-password");
+    }
+
+    [Test]
     public void FromPatch_BuildsBaselineFreeCommand()
     {
         var patch = new RedactedAccount.Patch { Password = "after-password" };
@@ -233,10 +281,9 @@ public sealed class ChangePayloadRedactionTests
     {
         Optional<RedactedDeviceHolder.Fragment?> State(params RedactedDevice[] devices) =>
             Optional<RedactedDeviceHolder.Fragment?>.Present(
-                RedactedDeviceHolder.Fragment.From(new RedactedDeviceHolder
-                {
-                    Devices = devices.ToList(),
-                })
+                RedactedDeviceHolder.Fragment.From(
+                    new RedactedDeviceHolder { Devices = devices.ToList() }
+                )
             );
 
         var before = State(new RedactedDevice { Id = "a", Name = "before-device" });
@@ -270,10 +317,9 @@ public sealed class ChangePayloadRedactionTests
     {
         Optional<RedactedSecretMap.Fragment?> State(string value) =>
             Optional<RedactedSecretMap.Fragment?>.Present(
-                RedactedSecretMap.Fragment.From(new RedactedSecretMap
-                {
-                    Secrets = new() { ["key"] = value },
-                })
+                RedactedSecretMap.Fragment.From(
+                    new RedactedSecretMap { Secrets = new() { ["key"] = value } }
+                )
             );
 
         var before = State("before-value");
@@ -299,7 +345,9 @@ public sealed class ChangePayloadRedactionTests
     {
         var present = AccountState("name", "before-password");
         var removed = PayloadRoundTrip(
-            RedactedAccount.ChangeSet.Between(present, Optional<RedactedAccount.Fragment?>.Missing).ToPayload()
+            RedactedAccount
+                .ChangeSet.Between(present, Optional<RedactedAccount.Fragment?>.Missing)
+                .ToPayload()
         );
         var removedJson = JsonSerializer.Serialize(removed);
         removedJson.ShouldContain("\"member\":\"$root\"");
@@ -315,10 +363,9 @@ public sealed class ChangePayloadRedactionTests
 
         // A missing before-state is known absence, so the add stays complete.
         var added = PayloadRoundTrip(
-            RedactedAccount.ChangeSet.Between(
-                Optional<RedactedAccount.Fragment?>.Missing,
-                present
-            ).ToPayload()
+            RedactedAccount
+                .ChangeSet.Between(Optional<RedactedAccount.Fragment?>.Missing, present)
+                .ToPayload()
         );
         added.ToChangeSet().IsEmpty.ShouldBeFalse();
     }

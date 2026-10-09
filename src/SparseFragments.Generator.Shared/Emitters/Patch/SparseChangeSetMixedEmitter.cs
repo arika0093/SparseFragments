@@ -323,6 +323,9 @@ internal static class SparseChangeSetMixedEmitter
             6,
             "if (item.Before is null || item.After is null) throw new global::System.ArgumentException(\"Both transition endpoints are required.\", nameof(payload));"
         );
+        // A redacted endpoint is value-free by contract; validate before the
+        // redacted branch bypasses ToOptional (issue #164).
+        code.AppendLineAt(6, "item.Before.Validate(); item.After.Validate();");
         code.AppendLineAt(
             6,
             "if (item.After.IsRedacted) throw new global::System.ArgumentException(\"The payload contains a redacted after-state for '\" + "
@@ -374,6 +377,7 @@ internal static class SparseChangeSetMixedEmitter
             4,
             "if (whole.Before is null || whole.After is null) throw new global::System.ArgumentException(\"A whole-root payload must contain both endpoints.\", nameof(payload));"
         );
+        code.AppendLineAt(4, "whole.Before.Validate(); whole.After.Validate();");
         if (SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
         {
             // A whole-root snapshot cannot prove redacted paths complete.
