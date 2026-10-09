@@ -61,6 +61,11 @@ internal static class SparseObservableDescriptorEmitter
             "(pathPrefix.Length == 0 ? " + literal + " : pathPrefix + \".\" + " + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         var viewType = ViewTypeName(member, runtimeNamespace);
+        // Raw mutable values escape without a notifying view; route the read
+        // through the session's raw-access callback so cached HasChanges is dropped.
+        var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
+            ? "() => { __onRawModelAccess?.Invoke(); return this." + property + "; }"
+            : "() => this." + property;
         code.AppendLineAt(
             4,
             "new "
@@ -77,8 +82,8 @@ internal static class SparseObservableDescriptorEmitter
                 + (canWrite ? "true" : "false")
                 + ", "
                 + Attributes(member)
-                + ", () => this."
-                + property
+                + ", "
+                + getValue
                 + ", "
                 + Setter(member, members, runtimeNamespace, dialect)
                 + ", "
