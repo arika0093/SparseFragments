@@ -107,6 +107,10 @@ internal static class SparseChangeSetPayloadEmitter
 
         code.AppendLineAt(
             1,
+            "/// <summary>Serializable envelope carrying the validated transition for transport.</summary>"
+        );
+        code.AppendLineAt(
+            1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
         code.AppendLineAt(
@@ -118,11 +122,11 @@ internal static class SparseChangeSetPayloadEmitter
             "public sealed class ChangePayload : " + PayloadTypeName(dialect, modelType, "Core")
         );
         code.AppendLineAt(1, "{");
-        AppendJsonProperty(code, 2, "Version", 0);
         code.AppendLineAt(
             2,
             "/// <summary>Gets or sets the provisional wire version token.</summary>"
         );
+        AppendJsonProperty(code, 2, "Version", 0);
         code.AppendLineAt(2, "public string? Version { get; set; }");
         if (modelType is not null)
         {
@@ -437,6 +441,10 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadChange = PayloadTypeName(dialect, modelType, "Change");
         var rootChange = PayloadTypeName(dialect, modelType, "RootChange");
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangePayloadVersion, true);
+        code.AppendLineAt(
+            2,
+            "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
+        );
         code.AppendLineAt(2, "public ChangePayload ToPayload()");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(

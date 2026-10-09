@@ -224,7 +224,15 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
         code.AppendLineAt(
             2,
+            "/// <summary>Occurs when the session state or current view changes.</summary>"
+        );
+        code.AppendLineAt(
+            2,
             "public event global::System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add => _session.PropertyChanged += value; remove => _session.PropertyChanged -= value; }"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Occurs when the session observes a committed transition.</summary>"
         );
         code.AppendLineAt(
             2,

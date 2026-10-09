@@ -41,6 +41,10 @@ internal static class SparseChangeSetEmitter
         );
         var between = "Patch." + prefix + "Between";
         var rebase = "Patch." + prefix + "Rebase";
+        code.AppendLineAt(
+            1,
+            "/// <summary>Baseline-aware transition between two states. Validates before-states and supports compose and rebase.</summary>"
+        );
         code.AppendLineAt(1, accessibility + " sealed class ChangeSet");
         code.AppendLineAt(1, "{");
         SparseChangeSetBasicsEmitter.AppendFields(

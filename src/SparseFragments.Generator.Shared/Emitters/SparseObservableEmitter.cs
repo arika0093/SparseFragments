@@ -88,6 +88,22 @@ internal static class SparseObservableEmitter
 
         code.AppendLineAt(
             2,
+            "/// <summary>Initializes a bindable proxy over the live model instance.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"value\">The live model instance to wrap. No state is copied.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"onChanged\">Callback invoked after a proxied property changes.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"onRawModelAccess\">Callback invoked when the raw model is accessed.</param>"
+        );
+        code.AppendLineAt(
+            2,
             "public "
                 + observable
                 + "("
@@ -105,6 +121,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(2, "}");
         if (!members.Any(static member => member.Property.Name == "Model"))
         {
+            code.AppendLineAt(2, "/// <summary>Gets the underlying live model instance.</summary>");
             code.AppendLineAt(
                 2,
                 "public "
@@ -114,6 +131,10 @@ internal static class SparseObservableEmitter
         }
 
         code.AppendLineAt(2, "internal " + modelType + " __SparseTarget => __model;");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Occurs when a proxied property value changes.</summary>"
+        );
         code.AppendLineAt(
             2,
             "public event global::System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;"

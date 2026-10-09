@@ -353,6 +353,10 @@ internal static class SparseFragmentPatchEmitter
         if (!plan.EmitPatch)
             return;
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
+        code.AppendLineAt(
+            1,
+            "/// <summary>Desired-operation patch without baseline history. Applies directly to fragments and models.</summary>"
+        );
         code.AppendLineAt(1, accessibility + " sealed class Patch");
         code.AppendLineAt(1, "{");
         SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect, modelType);

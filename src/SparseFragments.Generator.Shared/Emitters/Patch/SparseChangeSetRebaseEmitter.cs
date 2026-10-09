@@ -69,6 +69,7 @@ internal static class SparseChangeSetRebaseEmitter
                 + runtime
                 + "Optional<object?>.Missing;"
         );
+        SparseRebaseOptionEmitter.AppendHelpers(code, dialect);
         code.AppendLineAt(
             2,
             "/// <summary>Rebases this change onto a newer state without requiring the original baseline.</summary>"
@@ -77,7 +78,6 @@ internal static class SparseChangeSetRebaseEmitter
             2,
             "/// <remarks>Redacted-before members pass through as explicit operations unless the options reject them.</remarks>"
         );
-        SparseRebaseOptionEmitter.AppendHelpers(code, dialect);
         code.AppendLineAt(
             2,
             "public "

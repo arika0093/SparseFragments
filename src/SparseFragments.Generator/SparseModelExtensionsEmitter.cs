@@ -44,6 +44,10 @@ internal static class SparseModelExtensionsEmitter
             );
         }
 
+        code.AppendLineAt(
+            0,
+            "/// <summary>Model extensions generated for this fragment model.</summary>"
+        );
         code.AppendLineAt(0, accessibility + " static partial class " + extensionClass);
         code.AppendLineAt(0, "{");
         code.AppendLineAt(
