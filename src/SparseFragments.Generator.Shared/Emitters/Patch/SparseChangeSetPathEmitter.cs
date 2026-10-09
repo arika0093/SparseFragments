@@ -16,6 +16,10 @@ internal static class SparseChangeSetPathEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\")"
         );
         code.AppendLineAt(2, "{");
@@ -24,6 +28,14 @@ internal static class SparseChangeSetPathEmitter
             "if (prefix is null) throw new global::System.ArgumentNullException(nameof(prefix));"
         );
         code.AppendLineAt(3, "var paths = new global::System.Collections.Generic.List<string>();");
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "paths.Add(prefix.Length == 0 ? \"$root\" : prefix + \".\" + \"$root\");"
+        );
+        code.AppendLineAt(4, "return paths.AsReadOnly();");
+        code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
             var escapedProperty = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
@@ -56,6 +68,10 @@ internal static class SparseChangeSetPathEmitter
             else if (SparseChangeSetBasicsEmitter.IsDict(member))
             {
                 AppendDictionaryPaths(code, member, escapedProperty, local);
+            }
+            else if (SparseChangeSetBasicsEmitter.IsSet(member))
+            {
+                AppendSetPaths(code, member, escapedProperty, local);
             }
             else
             {
@@ -137,27 +153,25 @@ internal static class SparseChangeSetPathEmitter
     )
     {
         var item = "__sparse_item_" + member.Id;
-        var key = "__sparse_key_" + member.Id;
         var itemPath = "__sparse_item_path_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
         code.AppendLineAt(3, "foreach (var " + item + " in " + property + ")");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
             "var "
-                + key
-                + " = global::System.Convert.ToString("
-                + item
-                + ".Key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
-        );
-        code.AppendLineAt(
-            4,
-            "var "
                 + itemPath
-                + " = "
+                + " = __SparseKeyPath("
+                + seen
+                + ", "
                 + memberPath
-                + " + \"[\\\"\" + "
-                + key
-                + ".Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\";"
+                + ", "
+                + item
+                + ".Key);"
         );
         code.AppendLineAt(
             4,
@@ -191,6 +205,71 @@ internal static class SparseChangeSetPathEmitter
             );
         }
 
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendSetPaths(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string property,
+        string memberPath
+    )
+    {
+        // Mirrors EnumerateChanges set flattening (issue #174): per-element
+        // paths when both sides are present, one aggregate path otherwise.
+        var transition = "__sparse_set_transition_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
+        var added = "__sparse_set_added_" + member.Id;
+        var removed = "__sparse_set_removed_" + member.Id;
+        code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
+        code.AppendLineAt(3, "if (" + transition + ".IsChanged)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!"
+                + transition
+                + ".Before.IsPresent || !"
+                + transition
+                + ".After.IsPresent || (object?)"
+                + transition
+                + ".Before.Value is null || (object?)"
+                + transition
+                + ".After.Value is null) paths.Add("
+                + memberPath
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "else { foreach (var "
+                + added
+                + " in "
+                + transition
+                + ".Added) paths.Add(__SparseKeyPath("
+                + seen
+                + ", "
+                + memberPath
+                + ", "
+                + added
+                + "));"
+        );
+        code.AppendLineAt(
+            4,
+            "foreach (var "
+                + removed
+                + " in "
+                + transition
+                + ".Removed) paths.Add(__SparseKeyPath("
+                + seen
+                + ", "
+                + memberPath
+                + ", "
+                + removed
+                + ")); }"
+        );
         code.AppendLineAt(3, "}");
     }
 

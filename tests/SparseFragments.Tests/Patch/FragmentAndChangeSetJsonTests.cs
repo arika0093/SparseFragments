@@ -79,4 +79,54 @@ public sealed class FragmentAndChangeSetJsonTests
             .ToChangeSet();
         NamingWidget.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }
+
+    [Test]
+    public void IgnoredOnlyChangeFailsTransportInsteadOfGoingSilent()
+    {
+        Optional<NamingWidget.Fragment?> State(NamingWidget model) =>
+            Optional<NamingWidget.Fragment?>.Present(NamingWidget.Fragment.From(model));
+        var before = State(
+            new NamingWidget
+            {
+                Value = "a",
+                Slash = 1,
+                Plain = 2,
+            }
+        );
+        var after = State(
+            new NamingWidget
+            {
+                Value = "a",
+                Slash = 1,
+                Plain = 3,
+            }
+        );
+
+        // The only modified property is JSON-ignored: the ChangeSet is
+        // nonempty, but its payload would travel empty.
+        var ignoredOnly = NamingWidget.ChangeSet.Between(before, after);
+        ignoredOnly.IsEmpty.ShouldBeFalse();
+        var omitted = Should.Throw<InvalidOperationException>(() => ignoredOnly.ToPayload());
+        omitted.Message.ShouldContain("Plain");
+
+        // A mixed ignored/non-ignored edit fails too rather than partially exporting.
+        var mixed = NamingWidget.ChangeSet.Between(
+            before,
+            State(
+                new NamingWidget
+                {
+                    Value = "b",
+                    Slash = 1,
+                    Plain = 3,
+                }
+            )
+        );
+        Should.Throw<InvalidOperationException>(() => mixed.ToPayload());
+
+        // Patch-side export follows the same lossless rule.
+        Should.Throw<InvalidOperationException>(() =>
+            NamingWidget.ChangePayload.FromPatch(new NamingWidget.Patch { Plain = 3 })
+        );
+        NamingWidget.ChangePayload.FromPatch(new NamingWidget.Patch { Value = "b" });
+    }
 }

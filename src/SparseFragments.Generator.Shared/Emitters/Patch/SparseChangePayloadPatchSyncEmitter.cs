@@ -49,10 +49,11 @@ internal static class SparseChangePayloadPatchSyncEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>.</remarks>"
+            "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>. JSON-ignored members throw instead of exporting lossy cores.</remarks>"
         );
         code.AppendLineAt(2, "internal " + core + " ToChangePayloadCore()");
         code.AppendLineAt(2, "{");
+        AppendIgnoredPatchGuard(code, members, dialect);
         code.AppendLineAt(
             3,
             "var changes = new global::System.Collections.Generic.List<" + change + ">();"
@@ -61,6 +62,143 @@ internal static class SparseChangePayloadPatchSyncEmitter
             AppendCoreFromPatchMember(code, member, dialect, modelType);
         code.AppendLineAt(3, "return new " + core + " { Changes = changes };");
         code.AppendLineAt(2, "}");
+    }
+
+    /// <summary>Emits the fail-closed guard for JSON-ignored members in transport cores.</summary>
+    /// <remarks>
+    /// Transport excludes STJ <c>JsonIgnore</c> members, so exporting a change
+    /// that touches one would silently lose it (issue #165). The guard names
+    /// the omitted paths instead, keeping <c>ToPayload</c> lossless while
+    /// ordinary <c>Fragment</c> JSON keeps honoring <c>JsonIgnore</c>.
+    /// </remarks>
+    internal static void AppendIgnoredTransportGuard(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        var ignored = members.Where(static member => member.Property.IsJsonIgnored).ToArray();
+        if (ignored.Length == 0)
+        {
+            return;
+        }
+
+        code.AppendLineAt(
+            3,
+            "var __ignoredOmitted = new global::System.Collections.Generic.List<string>();"
+        );
+        code.AppendLineAt(3, "if (__sparse_hasWhole) __ignoredOmitted.Add(\"$root\");");
+        foreach (var member in ignored)
+        {
+            var literal = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+                member.Property.Name,
+                true
+            );
+            if (SparseChangeSetBasicsEmitter.IsNested(member))
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + SparseChangeSetBasicsEmitter.NestedField(member)
+                        + " is not null) __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + SparseChangeSetBasicsEmitter.HasField(member)
+                        + ") __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+        }
+        code.AppendLineAt(
+            3,
+            "if (__ignoredOmitted.Count != 0) throw new global::System.InvalidOperationException(\"ChangeSet transport omits JSON-ignored members (\" + string.Join(\", \", __ignoredOmitted) + \").\");"
+        );
+    }
+
+    /// <summary>Emits the fail-closed guard for JSON-ignored patch fields.</summary>
+    /// <remarks>
+    /// Patch transport excludes STJ <c>JsonIgnore</c> members, so a patch that
+    /// sets one cannot export losslessly (issue #165). Runs inside
+    /// <c>Patch</c>, where collection and operation internals are visible.
+    /// </remarks>
+    private static void AppendIgnoredPatchGuard(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        var ignored = members.Where(static member => member.Property.IsJsonIgnored).ToArray();
+        if (ignored.Length == 0)
+        {
+            return;
+        }
+
+        var kind = dialect.RuntimeNamespace + "FragmentOperationKind";
+        code.AppendLineAt(
+            3,
+            "var __ignoredOmitted = new global::System.Collections.Generic.List<string>();"
+        );
+        foreach (var member in ignored)
+        {
+            var literal = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+                member.Property.Name,
+                true
+            );
+            var field = dialect.MemberField(member);
+            if (SparseChangeSetBasicsEmitter.IsNested(member))
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + field
+                        + " is not null && !"
+                        + field
+                        + ".__SparseIsEmpty()) __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+            else if (
+                SparseChangeSetBasicsEmitter.IsKeyed(member)
+                || SparseChangeSetBasicsEmitter.IsDict(member)
+            )
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + field
+                        + " is not null && !"
+                        + field
+                        + ".__SparseIsEmpty()) __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + field
+                        + ".Kind != "
+                        + kind
+                        + ".Keep) __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+        }
+        code.AppendLineAt(
+            3,
+            "if (__ignoredOmitted.Count != 0) throw new global::System.InvalidOperationException(\"ChangeSet transport omits JSON-ignored members (\" + string.Join(\", \", __ignoredOmitted) + \").\");"
+        );
     }
 
     private static void AppendCoreFromPatchMember(

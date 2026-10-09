@@ -24,6 +24,91 @@ public partial class NeutralSessionChild
 }
 
 [SparseFragmentModel]
+public partial class StreamingSessionModel
+{
+    public System.Collections.Generic.IEnumerable<string> Items { get; set; } = [];
+}
+
+/// <summary>Counting enumerable that pins view enumeration costs (issue #172).</summary>
+public sealed class CountingEnumerable : System.Collections.Generic.IEnumerable<string>
+{
+    private readonly string[] _values;
+
+    public CountingEnumerable(params string[] values) => _values = values;
+
+    public int Enumerations { get; private set; }
+
+    public System.Collections.Generic.IEnumerator<string> GetEnumerator()
+    {
+        Enumerations++;
+        return ((System.Collections.Generic.IEnumerable<string>)_values).GetEnumerator();
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+/// <summary>Single-pass enumerable: the first enumeration drains it.</summary>
+public sealed class SinglePassEnumerable : System.Collections.Generic.IEnumerable<string>
+{
+    private readonly System.Collections.Generic.Queue<string> _queue;
+
+    public SinglePassEnumerable(params string[] values) =>
+        _queue = new System.Collections.Generic.Queue<string>(values);
+
+    public System.Collections.Generic.IEnumerator<string> GetEnumerator()
+    {
+        while (_queue.Count != 0)
+        {
+            yield return _queue.Dequeue();
+        }
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+[SparseFragmentModel]
+public partial class PureReadOnlyDictionarySessionModel
+{
+    public System.Collections.Generic.IReadOnlyDictionary<string, int> Values { get; set; } =
+        new System.Collections.Generic.Dictionary<string, int>();
+}
+
+/// <summary>Pure <see cref="IReadOnlyDictionary{TKey, TValue}"/> backing (issue #123).</summary>
+/// <remarks>Implements only <c>IReadOnlyDictionary</c>, never <c>IDictionary</c>.</remarks>
+public sealed class PureReadOnlyDictionary
+    : System.Collections.Generic.IReadOnlyDictionary<string, int>
+{
+    private readonly System.Collections.Generic.Dictionary<string, int> _inner;
+
+    public PureReadOnlyDictionary(System.Collections.Generic.IDictionary<string, int> values)
+    {
+        _inner = new System.Collections.Generic.Dictionary<string, int>(values);
+    }
+
+    public int this[string key] => _inner[key];
+
+    public System.Collections.Generic.IEnumerable<string> Keys => _inner.Keys;
+
+    public System.Collections.Generic.IEnumerable<int> Values => _inner.Values;
+
+    public int Count => _inner.Count;
+
+    public bool ContainsKey(string key) => _inner.ContainsKey(key);
+
+    public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<
+        string,
+        int
+    >> GetEnumerator() => _inner.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+
+    public bool TryGetValue(string key, out int value) => _inner.TryGetValue(key, out value);
+}
+
+[SparseFragmentModel]
 public partial class NeutralSessionAtomicPocoModel
 {
     [SparseMerge(MergeMode.Replace)]
@@ -648,6 +733,82 @@ public sealed class NeutralEditSessionTests
         session.EnumerateChangedPaths().ShouldBe(["Child.Value", "Name"]);
         session.Current.Name.ShouldBe("updated");
         session.Current.Child.Value.ShouldBe("nested");
+    }
+
+    [Test]
+    public void CurrentSupportsPureReadOnlyDictionaryImplementations()
+    {
+        var pure = new PureReadOnlyDictionarySessionModel
+        {
+            Values = new PureReadOnlyDictionary(
+                new System.Collections.Generic.Dictionary<string, int> { ["a"] = 1 }
+            ),
+        };
+        var pureView = pure.CreateEditSession().Current.Values;
+        pureView.Keys.ShouldBe(["a"]);
+        pureView["a"].ShouldBe(1);
+
+        var mutable = new PureReadOnlyDictionarySessionModel
+        {
+            Values = new System.Collections.Generic.Dictionary<string, int> { ["b"] = 2 },
+        };
+        var mutableView = mutable.CreateEditSession().Current.Values;
+        mutableView["b"].ShouldBe(2);
+    }
+
+    [Test]
+    public void StreamingViewEnumeratesPerAccessWithoutSnapshot()
+    {
+        var counting = new CountingEnumerable("a", "b", "c");
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = counting }
+        ).Items;
+
+        // Non-collection sources pay a full enumeration per Count/indexed read.
+        view.Count.ShouldBe(3);
+        counting.Enumerations.ShouldBe(1);
+        view[0].ShouldBe("a");
+        view[2].ShouldBe("c");
+        counting.Enumerations.ShouldBe(3);
+
+        // foreach streams once.
+        var seen = new List<string>();
+        foreach (var item in view)
+        {
+            seen.Add(item);
+        }
+        seen.ShouldBe(["a", "b", "c"]);
+        counting.Enumerations.ShouldBe(4);
+    }
+
+    [Test]
+    public void StreamingViewReflectsLiveSourceWithoutCaching()
+    {
+        var version = 0;
+        System.Collections.Generic.IEnumerable<string> Dynamic()
+        {
+            yield return "v" + version;
+        }
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = Dynamic() }
+        ).Items;
+        view[0].ShouldBe("v0");
+
+        // No snapshot: the next read observes the latest enumeration.
+        version = 1;
+        view[0].ShouldBe("v1");
+    }
+
+    [Test]
+    public void SinglePassSourcesDrainAcrossReads()
+    {
+        // Single-pass sequences are unsupported: every read enumerates anew,
+        // so a drained source reads back empty rather than replaying.
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = new SinglePassEnumerable("a") }
+        ).Items;
+        view.Count.ShouldBe(1);
+        view.Count.ShouldBe(0);
     }
 
     [Test]

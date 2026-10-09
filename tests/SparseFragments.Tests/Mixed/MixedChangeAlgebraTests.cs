@@ -303,6 +303,179 @@ public sealed class MixedChangeAlgebraTests
     }
 
     [Test]
+    public void DuplicatePathsWithinOneSequenceFoldInOrder()
+    {
+        // Transition then blind keeps the real baseline without further checks.
+        var folded = MixedChangeAlgebra.ComposeSequences([Transition("Label"), Blind("Label")], []);
+        folded.Succeeded.ShouldBeTrue();
+        folded.Composed.ShouldHaveSingleItem();
+        folded.Composed[0].History.ShouldBe(MixedHistoryKind.Transition);
+    }
+
+    [Test]
+    public void DuplicateRootEntriesFoldInsteadOfKeepingLast()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var folded = MixedChangeAlgebra.ComposeSequences([wholeBlind, wholeBlind], []);
+        folded.Succeeded.ShouldBeTrue();
+        folded.Composed.ShouldHaveSingleItem();
+        folded.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
+    public void TrailingBlindRootSupersedesPriorMembers()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label"), Transition("Nested.Host")],
+            [wholeBlind]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
+    public void LeadingBlindRootAbsorbsLaterMembers()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [wholeBlind],
+            [Blind("Label"), Blind("Other")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
+    public void WholeRootTransitionNeedsContinuity()
+    {
+        var wholeTransition = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.Transition,
+            MixedAfterKind.Value,
+            true
+        );
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var unjustified = MixedChangeAlgebra.ComposeSequences([wholeBlind], [wholeTransition]);
+        unjustified.Succeeded.ShouldBeFalse();
+        unjustified.Failures.ShouldHaveSingleItem();
+    }
+
+    [Test]
+    public void AncestorBlindOverwriteSupersedesDescendant()
+    {
+        // Trailing whole-member blind write supersedes a prior child edit.
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Items[\"k\"].Name")],
+            [Blind("Items[\"k\"]")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].Path.ShouldBe("Items[\"k\"]");
+    }
+
+    [Test]
+    public void LeadingBlindAncestorAbsorbsTrailingChild()
+    {
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Nested")],
+            [Blind("Nested.Host")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].Path.ShouldBe("Nested");
+    }
+
+    [Test]
+    public void AncestorTransitionOverlapFailsWithoutInventingValues()
+    {
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Nested")],
+            [Transition("Nested.Host")]
+        );
+        composed.Succeeded.ShouldBeFalse();
+        composed.Failures.ShouldHaveSingleItem();
+        var ancestorReason = composed.Failures[0].FailureReason;
+        ancestorReason.ShouldNotBeNullOrEmpty();
+        ancestorReason.ShouldContain("Nested");
+    }
+
+    [Test]
+    public void SiblingPathsStayDisjoint()
+    {
+        MixedChangeAlgebra.IsAncestorOrDescendant("A", "AB").ShouldBeFalse();
+        MixedChangeAlgebra.IsAncestorOrDescendant("Nested.Host", "Nested.Port").ShouldBeFalse();
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Nested.Host")],
+            [Blind("Nested.Port")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.Count.ShouldBe(2);
+    }
+
+    [Test]
+    public void ContinuityObligationsSurfaceSeparatelyFromFailures()
+    {
+        // Transition then transition composes by shape but needs value checks.
+        var needsCheck = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Transition("Label")]
+        );
+        needsCheck.Succeeded.ShouldBeTrue();
+        needsCheck.Failures.ShouldBeEmpty();
+        needsCheck.PendingContinuityChecks.ShouldHaveSingleItem();
+        needsCheck.PendingContinuityChecks[0].Path.ShouldBe("Label");
+        needsCheck.IsFullyComposable.ShouldBeFalse();
+
+        // Blind then transition stays blind with a check.
+        var blindThenTransition = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Secret")],
+            [Transition("Secret", MixedAfterKind.Null)]
+        );
+        blindThenTransition.Succeeded.ShouldBeTrue();
+        blindThenTransition.PendingContinuityChecks.ShouldHaveSingleItem();
+
+        // Transition then blind keeps the baseline: no further checks.
+        var keepsBaseline = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Blind("Label")]
+        );
+        keepsBaseline.Succeeded.ShouldBeTrue();
+        keepsBaseline.PendingContinuityChecks.ShouldBeEmpty();
+        keepsBaseline.IsFullyComposable.ShouldBeTrue();
+
+        // Disjoint paths carry no obligations.
+        var disjoint = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label")],
+            [Transition("Other")]
+        );
+        disjoint.Succeeded.ShouldBeTrue();
+        disjoint.PendingContinuityChecks.ShouldBeEmpty();
+    }
+
+    [Test]
     public void PolicySeamDefaultsToPassthroughAndFailsClosed()
     {
         MixedChangeAlgebra.EnsurePassthrough(RedactedBeforePolicy.Passthrough);

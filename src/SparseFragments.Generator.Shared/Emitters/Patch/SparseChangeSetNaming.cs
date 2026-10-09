@@ -33,6 +33,8 @@ internal static class SparseChangeSetNaming
             "__SparseBox",
             "__SparseCreateChangeInfo",
             "__SparseKeyPath",
+            "__SparseKeyText",
+            "__SparseEscapeKey",
         };
 
     /// <summary>Computes stable public property and transition type names.</summary>

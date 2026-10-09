@@ -98,9 +98,16 @@ internal static class SparseChangeSetDictBetweenEmitter
         );
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__h" + id + " = true; __whole" + id + " = true;");
+        var dictBefore = "__before" + id;
+        var dictAfter = "__after" + id;
+        if (NeedsSnapshot(member))
+        {
+            dictBefore = "__SparseSnapshot_" + id + "(" + dictBefore + ")";
+            dictAfter = "__SparseSnapshot_" + id + "(" + dictAfter + ")";
+        }
         code.AppendLineAt(
             6,
-            "__wb" + id + " = __before" + id + "; __wa" + id + " = __after" + id + ";"
+            "__wb" + id + " = " + dictBefore + "; __wa" + id + " = " + dictAfter + ";"
         );
         code.AppendLineAt(5, "}");
         code.AppendLineAt(4, "}");

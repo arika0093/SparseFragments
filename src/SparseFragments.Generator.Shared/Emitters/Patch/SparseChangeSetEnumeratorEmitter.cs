@@ -109,16 +109,96 @@ internal static class SparseChangeSetEnumeratorEmitter
             "return new ChangeInfo(path, __SparseBox(before), __SparseBox(after), kind);"
         );
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(2, "private static string __SparseKeyPath<T>(string path, T key)");
+        // Stable, collision-resistant key text for supported key shapes
+        // (issue #138). String representation alone is not injective: two
+        // unequal composite keys may share a ToString(). Strings pass
+        // through; formattable primitives keep invariant-culture text;
+        // anything else is qualified by its runtime type name so distinct
+        // types never share a path. Same-type display collisions are
+        // disambiguated per enumeration by the deduplicating path helper.
+        // The fallback uses only ToString/GetType: no JSON serialization,
+        // so NativeAOT trimming stays clean.
+        code.AppendLineAt(2, "private static string __SparseKeyText<T>(T key)");
         code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (key is null) return string.Empty;");
+        code.AppendLineAt(3, "if (key is string text) return text;");
         code.AppendLineAt(
             3,
-            "var value = global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
+            "if (key is global::System.IFormattable formattable) return formattable.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
         );
         code.AppendLineAt(
             3,
-            "return path + \"[\\\"\" + value.Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\";"
+            "return key.GetType().ToString() + \":\" + (global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);"
         );
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "private static string __SparseKeyPath<T>(global::System.Collections.Generic.HashSet<string> seen, string path, T key)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var text = __SparseEscapeKey(__SparseKeyText(key));");
+        code.AppendLineAt(3, "var full = path + \"[\\\"\" + text + \"\\\"]\";");
+        code.AppendLineAt(3, "if (seen.Add(full)) return full;");
+        code.AppendLineAt(3, "var suffix = 2;");
+        code.AppendLineAt(3, "while (true)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "var candidate = path + \"[\\\"\" + text + \"#\" + suffix.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"\\\"]\";"
+        );
+        code.AppendLineAt(4, "if (seen.Add(candidate)) return candidate;");
+        code.AppendLineAt(4, "suffix++;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+        // One canonical JSON-compatible escaping helper for keyed and
+        // dictionary paths (issue #137). Only backslash and quote were
+        // escaped before, emitting raw control characters that the Blazor
+        // field parser (which reads quoted keys as JSON) cannot deserialize.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Escapes a key for use inside a quoted change path segment.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>JSON string escaping: backslash, quote, \\b \\f \\n \\r \\t, and remaining C0 controls as \\u00XX. Plain keys pass through unchanged.</remarks>"
+        );
+        code.AppendLineAt(2, "private static string __SparseEscapeKey(string value)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var needsEscape = false;");
+        code.AppendLineAt(3, "foreach (var c in value)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (c < 0x20 || c == '\"' || c == '\\\\')");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "needsEscape = true;");
+        code.AppendLineAt(5, "break;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (!needsEscape) return value;");
+        code.AppendLineAt(
+            3,
+            "var builder = new global::System.Text.StringBuilder(value.Length + 8);"
+        );
+        code.AppendLineAt(3, "foreach (var c in value)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "switch (c)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(4, "case '\"': builder.Append(\"\\\\\\\"\"); break;");
+        code.AppendLineAt(4, "case '\\\\': builder.Append(\"\\\\\\\\\"); break;");
+        code.AppendLineAt(4, "case '\\b': builder.Append(\"\\\\b\"); break;");
+        code.AppendLineAt(4, "case '\\f': builder.Append(\"\\\\f\"); break;");
+        code.AppendLineAt(4, "case '\\n': builder.Append(\"\\\\n\"); break;");
+        code.AppendLineAt(4, "case '\\r': builder.Append(\"\\\\r\"); break;");
+        code.AppendLineAt(4, "case '\\t': builder.Append(\"\\\\t\"); break;");
+        code.AppendLineAt(4, "default:");
+        code.AppendLineAt(
+            5,
+            "if (c < 0x20) builder.Append(\"\\\\u\").Append(((int)c).ToString(\"x4\", global::System.Globalization.CultureInfo.InvariantCulture));"
+        );
+        code.AppendLineAt(5, "else builder.Append(c);");
+        code.AppendLineAt(5, "break;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "return builder.ToString();");
         code.AppendLineAt(2, "}");
     }
 
@@ -135,6 +215,10 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while other keys are qualified by their runtime type name; residual same-type display collisions are disambiguated per enumeration with a deterministic <c>#2</c>-style suffix. Set members emit per-element <c>Added</c>/<c>Removed</c> entries at <c>Name[\"element\"]</c> when both sides are present (comparer-aware deltas); whole set presence transitions emit one aggregate entry.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges()"
         );
         code.AppendLineAt(2, "{");
@@ -146,6 +230,16 @@ internal static class SparseChangeSetEnumeratorEmitter
             3,
             "var changes = new global::System.Collections.Generic.List<ChangeInfo>();"
         );
+        // Root presence transitions carry no member values but are nonempty
+        // history; report them instead of silently dropping them (issue #127).
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "changes.Add(__SparseCreateChangeInfo(\"$root\", __sparse_wholeBefore, __sparse_wholeAfter));"
+        );
+        code.AppendLineAt(4, "return changes;");
+        code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
             var property = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
@@ -164,6 +258,10 @@ internal static class SparseChangeSetEnumeratorEmitter
             else if (IsDict(member))
             {
                 AppendDictionaryChanges(code, member, property, path);
+            }
+            else if (IsSet(member))
+            {
+                AppendSetChanges(code, member, property, path, optionalObject);
             }
             else
             {
@@ -195,6 +293,92 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + local
                 + ".After));"
         );
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendSetChanges(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string property,
+        string path,
+        string optionalObject
+    )
+    {
+        // Set-element membership deltas at audit granularity (issue #174):
+        // per-element entries reuse the collision-resistant key text and the
+        // comparer-aware typed deltas, so distinct values never share a path.
+        var transition = "__sparse_set_transition_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
+        var added = "__sparse_set_added_" + member.Id;
+        var removed = "__sparse_set_removed_" + member.Id;
+        code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
+        code.AppendLineAt(3, "if (" + transition + ".IsChanged)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!"
+                + transition
+                + ".Before.IsPresent || !"
+                + transition
+                + ".After.IsPresent || (object?)"
+                + transition
+                + ".Before.Value is null || (object?)"
+                + transition
+                + ".After.Value is null)"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "changes.Add(__SparseCreateChangeInfo("
+                + path
+                + ", "
+                + transition
+                + ".Before, "
+                + transition
+                + ".After));"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "else");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "foreach (var " + added + " in " + transition + ".Added)");
+        code.AppendLineAt(
+            6,
+            "changes.Add(new ChangeInfo(__SparseKeyPath("
+                + seen
+                + ", "
+                + path
+                + ", "
+                + added
+                + "), "
+                + optionalObject
+                + ".Missing, "
+                + optionalObject
+                + ".Present((object?)"
+                + added
+                + "), ChangeKind.Added));"
+        );
+        code.AppendLineAt(5, "foreach (var " + removed + " in " + transition + ".Removed)");
+        code.AppendLineAt(
+            6,
+            "changes.Add(new ChangeInfo(__SparseKeyPath("
+                + seen
+                + ", "
+                + path
+                + ", "
+                + removed
+                + "), "
+                + optionalObject
+                + ".Present((object?)"
+                + removed
+                + "), "
+                + optionalObject
+                + ".Missing, ChangeKind.Removed));"
+        );
+        code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
     }
 
@@ -238,10 +422,15 @@ internal static class SparseChangeSetEnumeratorEmitter
     )
     {
         var transition = "__sparse_keyed_transition_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
         var item = "__sparse_keyed_item_" + member.Id;
         var itemPath = "__sparse_keyed_path_" + member.Id;
         var order = "__sparse_keyed_order_" + member.Id;
         code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
         code.AppendLineAt(
             3,
             "if (" + transition + ".Before.IsPresent || " + transition + ".After.IsPresent)"
@@ -264,7 +453,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
-            "var " + itemPath + " = __SparseKeyPath(" + path + ", " + item + ".Key);"
+            "var " + itemPath + " = __SparseKeyPath(" + seen + ", " + path + ", " + item + ".Key);"
         );
         code.AppendLineAt(
             5,
@@ -373,11 +562,16 @@ internal static class SparseChangeSetEnumeratorEmitter
     {
         var item = "__sparse_dictionary_item_" + member.Id;
         var itemPath = "__sparse_dictionary_path_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
+        code.AppendLineAt(
+            indent,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
         code.AppendLineAt(indent, "foreach (var " + item + " in " + items + ")");
         code.AppendLineAt(indent, "{");
         code.AppendLineAt(
             indent + 1,
-            "var " + itemPath + " = __SparseKeyPath(" + path + ", " + item + ".Key);"
+            "var " + itemPath + " = __SparseKeyPath(" + seen + ", " + path + ", " + item + ".Key);"
         );
         code.AppendLineAt(
             indent + 1,

@@ -163,11 +163,16 @@ internal static class SparseChangeSetPayloadEmitter
                     2,
                     "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
                 );
-                code.AppendLineAt(
-                    2,
-                    "public new " + modelType + ".Patch ToPatch() => base.ToPatch();"
-                );
+                code.AppendLineAt(2, "public new " + modelType + ".Patch ToPatch()");
+                code.AppendLineAt(2, "{");
+                SparseChangeSetMixedEmitter.AppendVersionGuard(code, dialect);
+                code.AppendLineAt(3, "return base.ToPatch();");
+                code.AppendLineAt(2, "}");
             }
+            // The wire version lives on this envelope: every public
+            // interpretation path validates it before reaching the
+            // versionless core seam (issue #163).
+            SparseChangeSetMixedEmitter.AppendEnvelopeVersionOverrides(code, dialect, modelType);
             code.AppendLineAt(
                 2,
                 "/// <summary>Builds a baseline-free command envelope from a patch.</summary>"
@@ -454,8 +459,17 @@ internal static class SparseChangeSetPayloadEmitter
                 + ", Changes = ToPayloadCore(false).Changes };"
         );
         code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Builds the transport core for this change set.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
+        );
         code.AppendLineAt(2, "internal " + payloadCore + " ToPayloadCore(bool redactBefores)");
         code.AppendLineAt(2, "{");
+        SparseChangePayloadPatchSyncEmitter.AppendIgnoredTransportGuard(code, members);
         code.AppendLineAt(
             3,
             "var changes = new global::System.Collections.Generic.List<" + payloadChange + ">();"

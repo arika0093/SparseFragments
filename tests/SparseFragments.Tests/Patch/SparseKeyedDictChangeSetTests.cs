@@ -3,6 +3,29 @@ using SparseFragments;
 
 namespace SparseFragments.Tests;
 
+/// <summary>Composite dictionary key with a colliding display string (issue #138).</summary>
+/// <remarks>Distinct keys share one <c>ToString()</c>; paths must still differ.</remarks>
+public readonly struct CollidingCompositeKey : IEquatable<CollidingCompositeKey>
+{
+    public int Zone { get; init; }
+
+    public int Rack { get; init; }
+
+    public override string ToString() => "same";
+
+    public bool Equals(CollidingCompositeKey other) => Zone == other.Zone && Rack == other.Rack;
+
+    public override bool Equals(object? obj) => obj is CollidingCompositeKey other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Zone, Rack);
+}
+
+[SparseFragmentModel]
+public partial class CollidingKeyDictHolder
+{
+    public Dictionary<CollidingCompositeKey, int> Scores { get; set; } = new();
+}
+
 /// <summary>Truly sparse keyed/dictionary ChangeSet storage and algebra (issue #103).</summary>
 /// <remarks>
 /// Canonical keyed/dict transitions retain only added(-&gt;after), removed(-&gt;before),
@@ -143,6 +166,74 @@ public sealed class SparseKeyedDictChangeSetTests
         entries["Scores[\"edit\"]"].After.Value.ShouldBe(3);
         entries["Scores[\"add\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Added);
         entries["Scores[\"remove\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Removed);
+    }
+
+    [Test]
+    public void EnumeratePathsEscapeControlCharacters()
+    {
+        var tricky = "a\nb\tc\"d\\e\r\nf\x01g";
+        var changes = ScalarDictHolder.ChangeSet.Between(
+            DState(new Dictionary<string, int>()),
+            DState(new Dictionary<string, int> { [tricky] = 1 })
+        );
+        changes.IsEmpty.ShouldBeFalse();
+
+        var enumerated = changes.EnumerateChanges().ToList();
+        enumerated.ShouldHaveSingleItem();
+        // Canonical JSON escaping: control characters never appear raw.
+        enumerated[0].Path.ShouldBe("Scores[\"a\\nb\\tc\\\"d\\\\e\\r\\nf\\u0001g\"]");
+        foreach (var c in enumerated[0].Path)
+        {
+            (c < 0x20).ShouldBeFalse();
+        }
+
+        // Both enumeration surfaces agree, and simple keys are unchanged.
+        changes.EnumerateChangedPaths().ShouldBe([enumerated[0].Path]);
+        var segment = enumerated[0].Path.Substring("Scores[".Length);
+        segment = segment.Substring(0, segment.Length - 1);
+        JsonSerializer.Deserialize<string>(segment)!.ShouldBe(tricky);
+    }
+
+    [Test]
+    public void CompositeKeysWithEqualDisplayStringsKeepDistinctPaths()
+    {
+        var first = new CollidingCompositeKey { Zone = 1, Rack = 2 };
+        var second = new CollidingCompositeKey { Zone = 3, Rack = 4 };
+        first.ToString().ShouldBe(second.ToString());
+        first.Equals(second).ShouldBeFalse();
+
+        var before = Optional<CollidingKeyDictHolder.Fragment?>.Present(
+            CollidingKeyDictHolder.Fragment.From(new CollidingKeyDictHolder { Scores = new() })
+        );
+        var after = Optional<CollidingKeyDictHolder.Fragment?>.Present(
+            CollidingKeyDictHolder.Fragment.From(
+                new CollidingKeyDictHolder
+                {
+                    Scores = new() { [first] = 1, [second] = 2 },
+                }
+            )
+        );
+        var changes = CollidingKeyDictHolder.ChangeSet.Between(before, after);
+        changes.IsEmpty.ShouldBeFalse();
+
+        // Both display strings collide, so the second entry takes a
+        // deterministic disambiguation suffix instead of sharing a path.
+        var paths = changes.EnumerateChanges().Select(static change => change.Path).ToList();
+        paths.Count.ShouldBe(2);
+        paths.Distinct().Count().ShouldBe(2);
+        paths.ShouldContain("Scores[\"SparseFragments.Tests.CollidingCompositeKey:same\"]");
+        paths.ShouldContain("Scores[\"SparseFragments.Tests.CollidingCompositeKey:same#2\"]");
+        changes
+            .EnumerateChangedPaths()
+            .OrderBy(static path => path)
+            .ShouldBe(paths.OrderBy(static path => path));
+
+        // Simple string keys keep their backwards-compatible form.
+        var simple = ScalarDictHolder.ChangeSet.Between(
+            DState(new Dictionary<string, int>()),
+            DState(new Dictionary<string, int> { ["plain"] = 1 })
+        );
+        simple.EnumerateChanges().Single().Path.ShouldBe("Scores[\"plain\"]");
     }
 
     [Test]

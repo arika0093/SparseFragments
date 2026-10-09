@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using SparseFragments;
 
 [assembly: SparseCompare(
@@ -105,6 +106,48 @@ public partial class MemberMergeComparisonModel
 public partial class SetTransitionModel
 {
     public ISet<string> Values { get; set; } = new HashSet<string>();
+}
+
+[SparseFragmentModel]
+public partial class ReadOnlySetTransitionModel
+{
+    public IReadOnlySet<string> Values { get; set; } = new HashSet<string>();
+}
+
+/// <summary>Pure <see cref="IReadOnlySet{T}"/> with comparer-aware membership (issue #166).</summary>
+/// <remarks>Implements only <c>IReadOnlySet&lt;string&gt;</c>, never <c>ISet&lt;string&gt;</c>.</remarks>
+public sealed class CaseInsensitiveReadOnlySet : IReadOnlySet<string>
+{
+    private readonly HashSet<string> _inner = new(StringComparer.OrdinalIgnoreCase);
+
+    public CaseInsensitiveReadOnlySet(IEnumerable<string> values)
+    {
+        foreach (var value in values)
+        {
+            _inner.Add(value);
+        }
+    }
+
+    public int Count => _inner.Count;
+
+    public bool Contains(string item) => _inner.Contains(item);
+
+    public bool IsProperSubsetOf(IEnumerable<string> other) => _inner.IsProperSubsetOf(other);
+
+    public bool IsProperSupersetOf(IEnumerable<string> other) => _inner.IsProperSupersetOf(other);
+
+    public bool IsSubsetOf(IEnumerable<string> other) => _inner.IsSubsetOf(other);
+
+    public bool IsSupersetOf(IEnumerable<string> other) => _inner.IsSupersetOf(other);
+
+    public bool Overlaps(IEnumerable<string> other) => _inner.Overlaps(other);
+
+    public bool SetEquals(IEnumerable<string> other) => _inner.SetEquals(other);
+
+    public IEnumerator<string> GetEnumerator() => _inner.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
 }
 
 public sealed class ChangeSemanticsTests
@@ -243,5 +286,118 @@ public sealed class ChangeSemanticsTests
         transition.After.IsPresent.ShouldBeTrue();
         transition.Added.ShouldBe(["add"]);
         transition.Removed.ShouldBe(["remove"]);
+    }
+
+    [Test]
+    public void PureReadOnlySetHonorsCustomMembership()
+    {
+        // Manually built fragments retain the original comparer-aware sets.
+        // (Fragment.From normalizes exotic sets to ordinal HashSets, so the
+        // model-level Between cannot preserve a custom comparer.)
+        static Optional<ReadOnlySetTransitionModel.Fragment?> State(IReadOnlySet<string> values) =>
+            Optional<ReadOnlySetTransitionModel.Fragment?>.Present(
+                new ReadOnlySetTransitionModel.Fragment
+                {
+                    Values = Optional<IReadOnlySet<string>>.Present(values),
+                }
+            );
+
+        // Mixed representations of the same logical set: empty changeset and
+        // no deltas. Without the IReadOnlySet membership check this reports a
+        // false removal against its own IsChanged.
+        var mixed = ReadOnlySetTransitionModel.ChangeSet.Between(
+            State(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ABC" }),
+            State(new CaseInsensitiveReadOnlySet(["abc"]))
+        );
+        mixed.IsEmpty.ShouldBeTrue();
+        mixed.Values.Added.ShouldBeEmpty();
+        mixed.Values.Removed.ShouldBeEmpty();
+        mixed.EnumerateChanges().ShouldBeEmpty();
+
+        // Pure custom comparer: deltas follow the collection's own membership.
+        var custom = ReadOnlySetTransitionModel.ChangeSet.Between(
+            State(new CaseInsensitiveReadOnlySet(["ABC"])),
+            State(new CaseInsensitiveReadOnlySet(["abc"]))
+        );
+        custom.Values.Added.ShouldBeEmpty();
+        custom.Values.Removed.ShouldBeEmpty();
+
+        // A genuine addition is still reported.
+        var added = ReadOnlySetTransitionModel
+            .ChangeSet.Between(
+                State(new CaseInsensitiveReadOnlySet(["ABC"])),
+                State(new CaseInsensitiveReadOnlySet(["ABC", "new"]))
+            )
+            .Values;
+        added.Added.ShouldBe(["new"]);
+        added.Removed.ShouldBeEmpty();
+
+        // Null and empty sets stay consistent.
+        var empty = ReadOnlySetTransitionModel.ChangeSet.Between(
+            new ReadOnlySetTransitionModel { Values = new HashSet<string>() },
+            new ReadOnlySetTransitionModel { Values = new HashSet<string>() }
+        );
+        empty.IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void EnumerateChangesExposesSetMembershipDeltas()
+    {
+        var changes = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.Ordinal) { "keep", "remove" },
+            },
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.Ordinal) { "keep", "add" },
+            }
+        );
+        changes.IsEmpty.ShouldBeFalse();
+
+        var entries = changes.EnumerateChanges().ToDictionary(static change => change.Path);
+        entries.Count.ShouldBe(2);
+        entries["Values[\"add\"]"].Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
+        entries["Values[\"add\"]"].Before.IsPresent.ShouldBeFalse();
+        entries["Values[\"add\"]"].After.Value.ShouldBe("add");
+        entries["Values[\"remove\"]"]
+            .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Removed);
+        entries["Values[\"remove\"]"].Before.Value.ShouldBe("remove");
+        entries["Values[\"remove\"]"].After.IsPresent.ShouldBeFalse();
+        changes
+            .EnumerateChangedPaths()
+            .OrderBy(static path => path)
+            .ShouldBe(["Values[\"add\"]", "Values[\"remove\"]"]);
+
+        // Cancelled add/remove pairs enumerate nothing.
+        var cancelled = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel { Values = new HashSet<string> { "same" } },
+            new SetTransitionModel { Values = new HashSet<string> { "same" } }
+        );
+        cancelled.IsEmpty.ShouldBeTrue();
+        cancelled.EnumerateChanges().ShouldBeEmpty();
+
+        // Comparer-equal sets report no deltas despite different spellings.
+        var folded = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ABC" },
+            },
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "abc" },
+            }
+        );
+        folded.EnumerateChanges().ShouldBeEmpty();
+
+        // Whole set presence transitions stay aggregate entries.
+        var added = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel { Values = null! },
+            new SetTransitionModel { Values = new HashSet<string> { "a" } }
+        );
+        added.IsEmpty.ShouldBeFalse();
+        var aggregate = added.EnumerateChanges().ToList();
+        aggregate.ShouldHaveSingleItem();
+        aggregate[0].Path.ShouldBe("Values");
     }
 }

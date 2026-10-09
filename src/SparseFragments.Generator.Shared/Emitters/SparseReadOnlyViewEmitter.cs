@@ -241,6 +241,10 @@ internal static class SparseReadOnlyViewEmitter
                 : "global::System.Collections.Generic.IReadOnlyList<" + viewElement + ">";
         var nullable = member.Property.IsNullable ? "?" : "";
         AppendPropertySummary(code, member, indent);
+        code.AppendLineAt(
+            indent,
+            "/// <remarks>Streaming view: <c>Count</c> and the indexer are O(1) for collection- or list-backed sources and enumerate otherwise; prefer <c>foreach</c> over indexed loops for streaming sources.</remarks>"
+        );
         code.AppendLineAt(indent, "public " + viewCollection + nullable + " " + property);
         code.AppendLineAt(indent, "{");
         code.AppendLineAt(indent + 1, "get");
@@ -307,7 +311,7 @@ internal static class SparseReadOnlyViewEmitter
             "if ((object?)current is null) return null" + (member.Property.IsNullable ? ";" : "!;")
         );
         var sourceType =
-            "(global::System.Collections.Generic.IDictionary<"
+            "(global::System.Collections.Generic.IReadOnlyDictionary<"
             + keyType
             + ", "
             + modelValue

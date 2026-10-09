@@ -6,6 +6,14 @@ internal static class SparseReadOnlyAdapterEmitter
     {
         code.AppendLineAt(
             2,
+            "/// <summary>Streaming read-only list view over a live enumerable source.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Sources must be finite, repeatable enumerables that stay stable during a view read (issue #172). <c>Count</c> is O(1) for <c>ICollection</c>/<c>IReadOnlyCollection</c> sources and a full enumeration otherwise; the indexer is O(1) for <c>IList</c>/<c>IReadOnlyList</c> sources and re-enumerates from the start otherwise, so a full indexed loop over a streaming source is quadratic and should be a <c>foreach</c> instead. Each access enumerates anew with no snapshot: single-pass sources drain and per-enumeration-varying sources reflect the latest enumeration.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "private sealed class "
                 + typeName
                 + "<TSource, TView> : global::System.Collections.Generic.IReadOnlyList<TView>"
@@ -76,14 +84,14 @@ internal static class SparseReadOnlyAdapterEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "private readonly global::System.Collections.Generic.IDictionary<TKey, TSource> _source;"
+            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
         );
         code.AppendLineAt(3, "private readonly global::System.Func<TSource, TView> _map;");
         code.AppendLineAt(
             3,
             "public "
                 + typeName
-                + "(global::System.Collections.Generic.IDictionary<TKey, TSource> source, global::System.Func<TSource, TView> map)"
+                + "(global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> source, global::System.Func<TSource, TView> map)"
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "_source = source;");
@@ -139,7 +147,7 @@ internal static class SparseReadOnlyAdapterEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "private readonly global::System.Collections.Generic.IDictionary<TKey, TSource> _source;"
+            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
         );
         code.AppendLineAt(3, "private readonly global::System.Func<TKey, TKeyView> _mapKey;");
         code.AppendLineAt(
@@ -150,7 +158,7 @@ internal static class SparseReadOnlyAdapterEmitter
             3,
             "public "
                 + typeName
-                + "(global::System.Collections.Generic.IDictionary<TKey, TSource> source, global::System.Func<TKey, TKeyView> mapKey, global::System.Func<TSource, TValueView> mapValue)"
+                + "(global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> source, global::System.Func<TKey, TKeyView> mapKey, global::System.Func<TSource, TValueView> mapValue)"
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "_source = source;");

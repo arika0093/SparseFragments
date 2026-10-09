@@ -480,6 +480,45 @@ public sealed class ChangePayloadTests
     }
 
     [Test]
+    [Arguments("0.1", true)]
+    [Arguments(null, false)]
+    [Arguments("0.2", false)]
+    [Arguments("1.0", false)]
+    [Arguments("999", false)]
+    public void PayloadVersionGateCoversEveryPublicEntryPoint(string? version, bool valid)
+    {
+        var envelope = Settings.ChangeSet.Between(
+            Optional<Settings.Fragment?>.Present(
+                new Settings.Fragment { Label = Optional<string?>.Present("before") }
+            ),
+            Optional<Settings.Fragment?>.Present(
+                new Settings.Fragment { Label = Optional<string?>.Present("after") }
+            )
+        );
+        var payload = envelope.ToPayload();
+        payload.Version = version;
+
+        if (valid)
+        {
+            payload.ToChangeSet().IsEmpty.ShouldBeFalse();
+            payload.ToPatch().IsEmpty.ShouldBeFalse();
+            payload.InvertReversibleChanges(out var skipped).IsEmpty.ShouldBeFalse();
+            skipped.ShouldBeEmpty();
+            return;
+        }
+
+        // Every interpretation path rejects the same version value before
+        // touching any model state.
+        Should.Throw<ArgumentException>(() => payload.ToChangeSet());
+        Should.Throw<ArgumentException>(() => payload.ToPatch());
+        Should.Throw<ArgumentException>(() => payload.InvertReversibleChanges(out _));
+        var current = new Settings { Label = "kept", RetryCount = 1 };
+        Should.Throw<ArgumentException>(() => payload.TryApplyMixedTo(current, out _, out _));
+        current.Label.ShouldBe("kept");
+        current.RetryCount.ShouldBe(1);
+    }
+
+    [Test]
     public void Payload_WritesStableMinimalEnvelope()
     {
         var empty = Settings
