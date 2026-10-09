@@ -26,6 +26,7 @@ internal static class SparseModelExtensionsEmitter
         var extensionClass = ContainerName(model, cancellationToken);
         var observable = SparseObservableEmitter.ObservableTypeName(members);
         var accessibility = model.IsPublic ? "public" : "internal";
+        var readOnlyView = SparseReadOnlyViewEmitter.ReadOnlyViewTypeName(members);
 
         code.AppendLine();
         code.AppendLineAt(0, accessibility + " static partial class " + extensionClass);
@@ -63,7 +64,40 @@ internal static class SparseModelExtensionsEmitter
                 + modelType
                 + "."
                 + observable
+                + ", "
+                + modelType
+                + "."
+                + readOnlyView
                 + ">";
+            var configuration =
+                "global::SparseFragments.SparseEditSessionConfiguration<"
+                + modelType
+                + ", "
+                + modelType
+                + ".Fragment, "
+                + modelType
+                + ".Patch, "
+                + modelType
+                + ".ChangeSet, "
+                + modelType
+                + "."
+                + observable
+                + ", "
+                + modelType
+                + "."
+                + readOnlyView
+                + ">";
+            var canWriteInPlace = members.All(static member =>
+                !member.Property.IsReadOnly && !member.Property.IsInitOnly
+            );
+            var tryApply = canWriteInPlace
+                ? "static (changes, current) => changes.TryApplyTo(current, out var updated, out var conflicts) ? (updated, null) : (null, conflicts)"
+                : "null";
+            var writeModel = canWriteInPlace
+                ? "static (current, updated) => "
+                    + modelType
+                    + ".Fragment.From(updated).WriteTo(current)"
+                : "null";
             code.AppendLineAt(
                 1,
                 "/// <summary>Creates a framework-neutral edit session using this model as both the baseline source and live current value.</summary>"
@@ -77,16 +111,25 @@ internal static class SparseModelExtensionsEmitter
                     + modelType
                     + " model, global::System.Action? onChanged = null) => "
                     + session
-                    + ".Create(model, "
+                    + ".Create(model, new "
+                    + configuration
+                    + " { FromModel = "
                     + modelType
-                    + ".Fragment.From, "
+                    + ".Fragment.From, Between = "
                     + modelType
-                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, static (changes, baseline) => changes.ApplyToBaseline(baseline), (current, changed) => new "
+                    + ".ChangeSet.Between, ToPatch = static changes => changes.ToPatch(), IsEmpty = static changes => changes.IsEmpty, AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline), ToObservable = (current, changed, rawModelAccess) => new "
                     + modelType
                     + "."
                     + observable
-                    + "(current, changed)"
-                    + ", onChanged);"
+                    + "(current, changed, rawModelAccess), ToCurrent = static current => new "
+                    + modelType
+                    + "."
+                    + readOnlyView
+                    + "(current), TryApplyTo = "
+                    + tryApply
+                    + ", WriteModel = "
+                    + writeModel
+                    + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh() }, onChanged);"
             );
             code.AppendLineAt(
                 1,
@@ -103,16 +146,25 @@ internal static class SparseModelExtensionsEmitter
                     + modelType
                     + " current, global::System.Action? onChanged = null) => "
                     + session
-                    + ".Create(baseline, current, "
+                    + ".Create(baseline, current, new "
+                    + configuration
+                    + " { FromModel = "
                     + modelType
-                    + ".Fragment.From, "
+                    + ".Fragment.From, Between = "
                     + modelType
-                    + ".ChangeSet.Between, static changes => changes.ToPatch(), static changes => changes.IsEmpty, static (changes, currentBaseline) => changes.ApplyToBaseline(currentBaseline), (value, changed) => new "
+                    + ".ChangeSet.Between, ToPatch = static changes => changes.ToPatch(), IsEmpty = static changes => changes.IsEmpty, AdvanceBaseline = static (changes, currentBaseline) => changes.ApplyToBaseline(currentBaseline), ToObservable = (value, changed, rawModelAccess) => new "
                     + modelType
                     + "."
                     + observable
-                    + "(value, changed)"
-                    + ", onChanged);"
+                    + "(value, changed, rawModelAccess), ToCurrent = static value => new "
+                    + modelType
+                    + "."
+                    + readOnlyView
+                    + "(value), TryApplyTo = "
+                    + tryApply
+                    + ", WriteModel = "
+                    + writeModel
+                    + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh() }, onChanged);"
             );
 
             code.AppendLineAt(

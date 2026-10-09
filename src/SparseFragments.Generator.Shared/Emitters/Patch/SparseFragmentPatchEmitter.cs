@@ -494,6 +494,11 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(1, "}");
         if (plan.EmitChangeSet)
         {
+            var canWriteInPlace =
+                canApplyInPlace
+                && members.All(static member =>
+                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                );
             SparseChangeSetEmitter.AppendChangeSet(
                 code,
                 members,
@@ -501,6 +506,7 @@ internal static class SparseFragmentPatchEmitter
                 modelType,
                 ignoredSettablePropertyNames,
                 plan,
+                canWriteInPlace,
                 accessibility
             );
         }

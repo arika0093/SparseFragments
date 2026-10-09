@@ -230,9 +230,18 @@ internal static class SparseFragmentEmitter
                 ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
             );
         }
-        if (!model.IsStruct && features.EmitFragment && features.EmitObservable)
+        if (features.EmitFragment && features.EmitObservable)
         {
-            SparseObservableEmitter.AppendObservable(code, modelType, members, runtime.Namespace);
+            if (!model.IsStruct)
+            {
+                SparseObservableEmitter.AppendObservable(
+                    code,
+                    modelType,
+                    members,
+                    runtime.Namespace
+                );
+            }
+            SparseReadOnlyViewEmitter.AppendReadOnlyView(code, modelType, members);
         }
 
         code.AppendLine("}");

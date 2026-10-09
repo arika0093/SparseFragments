@@ -221,7 +221,33 @@ namespace SparseFragments
         CustomStrategy = 5,
         RedactedBefore = 6,
     }
-    public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
+    public sealed class SparseEditSessionConfiguration<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent>
+        where TModel :  class
+        where TFragment :  class
+        where TPatch :  class
+        where TChangeSet :  class
+        where TObservable :  class
+        where TCurrent :  class
+    {
+        public SparseEditSessionConfiguration() { }
+        public System.Func<TChangeSet, SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>> AdvanceBaseline { get; init; }
+        public System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> Between { get; init; }
+        public System.Func<TChangeSet, System.Collections.Generic.IReadOnlyList<string>>? EnumerateChangedPaths { get; init; }
+        public System.Func<TModel, TFragment> FromModel { get; init; }
+        public System.Func<TChangeSet, TChangeSet>? Invert { get; init; }
+        public System.Func<TChangeSet, bool> IsEmpty { get; init; }
+        public System.Func<TChangeSet, TModel, SparseFragments.RebaseResult<TChangeSet>>? Rebase { get; init; }
+        public System.Action<TObservable>? RefreshObservable { get; init; }
+        public System.Func<TModel, TCurrent> ToCurrent { get; init; }
+        public System.Func<TModel, System.Action?, System.Action?, TObservable> ToObservable { get; init; }
+        public System.Func<TChangeSet, TPatch> ToPatch { get; init; }
+        [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Updated",
+                "Conflicts"})]
+        public System.Func<TChangeSet, TModel, System.ValueTuple<TModel?, System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>?>>? TryApplyTo { get; init; }
+        public System.Action<TModel, TModel>? WriteModel { get; init; }
+    }
+    public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
         where TModel :  class
         where TFragment :  class
         where TPatch :  class
@@ -231,15 +257,33 @@ namespace SparseFragments
         public bool HasChanges { get; }
         public TModel Model { get; }
         public TObservable Observable { get; }
+        public event System.Action<TChangeSet>? ChangeSetChanged;
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         public void AcceptChanges() { }
         public void AcceptChanges(TChangeSet changes) { }
+        public void ApplyInPlace(TChangeSet changes) { }
         public TChangeSet CreateChangeSet() { }
         public TPatch CreatePatch() { }
+        public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+        public SparseFragments.RebaseResult<TChangeSet> Reload(TModel serverState) { }
+        public void RevertChanges() { }
+        public bool TryApplyInPlace(TChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel model, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TChangeSet, SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>> advanceBaseline, System.Func<TModel, TObservable> toObservable) { }
         public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel baseline, TModel current, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TChangeSet, SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>> advanceBaseline, System.Func<TModel, TObservable> toObservable) { }
         public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel model, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TChangeSet, SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>> advanceBaseline, System.Func<TModel, System.Action?, TObservable> toObservable, System.Action? onChanged = null) { }
         public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(TModel baseline, TModel current, System.Func<TModel, TFragment> fromModel, System.Func<SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>, TChangeSet> between, System.Func<TChangeSet, TPatch> toPatch, System.Func<TChangeSet, bool> isEmpty, System.Func<TChangeSet, SparseFragments.Optional<TFragment?>, SparseFragments.Optional<TFragment?>> advanceBaseline, System.Func<TModel, System.Action?, TObservable> toObservable, System.Action? onChanged = null) { }
+    }
+    public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent> : SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
+        where TModel :  class
+        where TFragment :  class
+        where TPatch :  class
+        where TChangeSet :  class
+        where TObservable :  class
+        where TCurrent :  class
+    {
+        public TCurrent Current { get; }
+        public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent> Create(TModel model, SparseFragments.SparseEditSessionConfiguration<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent> configuration, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent> Create(TModel baseline, TModel current, SparseFragments.SparseEditSessionConfiguration<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent> configuration, System.Action? onChanged = null) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute

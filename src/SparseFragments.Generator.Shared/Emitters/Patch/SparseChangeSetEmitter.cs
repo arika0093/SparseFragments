@@ -28,6 +28,7 @@ internal static class SparseChangeSetEmitter
         string? modelType,
         ImmutableArray<string> ignoredSettablePropertyNames,
         SparseEmissionFeatures? features = null,
+        bool canWriteInPlace = false,
         string accessibility = "public"
     )
     {
@@ -97,11 +98,12 @@ internal static class SparseChangeSetEmitter
             between,
             dialect,
             modelType,
-            ignoredSettablePropertyNames
+            ignoredSettablePropertyNames,
+            canWriteInPlace
         );
-        // ChangeSet stays baseline-aware: blind in-place overwrite must be
-        // spelled explicitly via ToPatch().ApplyInPlace, never implicitly here.
+        // The emitted model-targeted ApplyInPlace checks the before-state first.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
+        SparseChangeSetPathEmitter.Append(code, members);
         if (plan.EmitChangePayload)
         {
             SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);

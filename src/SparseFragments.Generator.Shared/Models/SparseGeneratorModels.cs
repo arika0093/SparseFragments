@@ -16,7 +16,8 @@ internal readonly record struct SparseTypeModel(
     string? PocoCloneHelperName,
     string PatchApiPrefix = "",
     bool UsesDefaultScalarEquality = false,
-    string? ObservableTypeName = null
+    string? ObservableTypeName = null,
+    string? ReadOnlyViewTypeName = null
 );
 
 internal readonly record struct SparsePropertyModel(

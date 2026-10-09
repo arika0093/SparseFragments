@@ -25,6 +25,7 @@ public sealed class SparseEditSessionTests
                 },
             },
             Tags = new() { "fragile" },
+            Contacts = new() { ["billing"] = new OrderCustomer { Name = "Ada" } },
         };
 
     private static Optional<OrderDto.Fragment?> Present(OrderDto.Fragment fragment) =>
@@ -125,6 +126,64 @@ public sealed class SparseEditSessionTests
     }
 
     [Test]
+    public void FieldResolvesNestedAndIndexedModelPaths()
+    {
+        var session = Order().CreateEditSession();
+
+        var nestedField = session.Field("Customer.Name");
+        ReferenceEquals(nestedField.Model, session.Model.Customer).ShouldBeTrue();
+        nestedField.FieldName.ShouldBe(nameof(OrderCustomer.Name));
+
+        var itemField = session.Field("Lines[1].Quantity");
+        ReferenceEquals(itemField.Model, session.Model.Lines[1]).ShouldBeTrue();
+        itemField.FieldName.ShouldBe(nameof(OrderLine.Quantity));
+
+        var lineSession = Order().CreateEditSession();
+        lineSession.Model.Lines[1].Quantity = 3;
+        var linePath = lineSession.EnumerateChangedPaths().Single();
+        linePath.ShouldBe("Lines[1].Quantity");
+        ReferenceEquals(lineSession.Field(linePath).Model, lineSession.Model.Lines[1])
+            .ShouldBeTrue();
+
+        var dictionarySession = Order().CreateEditSession();
+        dictionarySession.Model.Contacts["billing"].Name = "Grace";
+        var dictionaryPath = dictionarySession.EnumerateChangedPaths().Single();
+        dictionaryPath.ShouldBe("Contacts[\"billing\"].Name");
+        ReferenceEquals(
+                dictionarySession.Field(dictionaryPath).Model,
+                dictionarySession.Model.Contacts["billing"]
+            )
+            .ShouldBeTrue();
+
+        Should.Throw<ArgumentException>(() => session.Field("Customer.Unknown"));
+        Should.Throw<ArgumentException>(() => session.Field("Lines[10].Quantity"));
+    }
+
+    [Test]
+    public void CurrentViewWrapsNestedModelsAndCollectionsAsReadOnly()
+    {
+        var model = new OrgDto
+        {
+            Teams =
+            [
+                new Team
+                {
+                    Name = "team",
+                    Members = [new TeamMember { Id = "member", Skills = ["csharp"] }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var teams = session.Current.Teams;
+
+        teams[0].Name.ShouldBe("team");
+        teams[0].Members[0].Skills[0].ShouldBe("csharp");
+        (teams is IList<Team.ReadOnlyView>).ShouldBeFalse();
+        (teams[0].Members is IList<TeamMember.ReadOnlyView>).ShouldBeFalse();
+        (teams[0].Members[0].Skills is IList<string>).ShouldBeFalse();
+    }
+
+    [Test]
     public void KeyedCollectionAddRemoveEditSemantics()
     {
         var baseline = Order();
@@ -167,6 +226,7 @@ public sealed class SparseEditSessionTests
                         },
                     },
                     Tags = new() { "fragile" },
+                    Contacts = new() { ["billing"] = new OrderCustomer { Name = "Ada" } },
                 }
             )
             .Apply(patch);
@@ -394,6 +454,7 @@ public sealed class SparseEditSessionTests
                         },
                     },
                     Tags = new() { "fragile" },
+                    Contacts = new() { ["billing"] = new OrderCustomer { Name = "Ada" } },
                 }
             )
         );

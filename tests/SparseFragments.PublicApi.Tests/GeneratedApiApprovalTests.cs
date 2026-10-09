@@ -50,6 +50,7 @@ public sealed class GeneratedApiApprovalTests
                     "ChangeSet",
                     "ChangePayload",
                     "Observable",
+                    "ReadOnlyView",
                     "FragmentBuilder",
                 }
             )
@@ -67,6 +68,7 @@ public sealed class GeneratedApiApprovalTests
                     "RebaseOnto",
                     "TryApplyTo",
                     "ApplyToBaseline",
+                    "EnumerateChangedPaths",
                     "ToPayload",
                     "FromPayload",
                 ]
@@ -89,20 +91,21 @@ public sealed class GeneratedApiApprovalTests
         AssertNested(dictionaryChanges, "ScoresTransition");
         AssertNested(dictionaryChanges, "DetailsTransition");
         AssertNested(AssertNested(typeof(CatalogKeyedItem), "ChangeSet"), "IdTransition");
+        AssertMethods(
+            AssertNested(typeof(CatalogScalar), "ChangeSet"),
+            ["TryApplyInPlace", "ApplyInPlace"]
+        );
     }
 
     [Test]
-    public void RemovedApisStayAbsent()
+    public void SubmitApisStayAbsent()
     {
         var fixture = typeof(CatalogScalar).Assembly;
         var offenders = fixture
             .GetExportedTypes()
             .SelectMany(static type => type.GetMethods().Select(method => new { type, method }))
             .Where(static entry => entry.method.DeclaringType == entry.type)
-            .Where(static entry =>
-                entry.method.Name == "Submit"
-                || (entry.method.Name == "ApplyInPlace" && entry.type.Name == "ChangeSet")
-            )
+            .Where(static entry => entry.method.Name == "Submit")
             .Select(static entry => $"{entry.type.FullName}.{entry.method.Name}")
             .OrderBy(static name => name, StringComparer.Ordinal)
             .ToArray();

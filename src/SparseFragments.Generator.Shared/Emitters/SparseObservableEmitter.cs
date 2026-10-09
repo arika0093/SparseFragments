@@ -42,6 +42,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "private readonly " + modelType + " __model;");
         code.AppendLineAt(2, "private readonly global::System.Action? __onChanged;");
+        code.AppendLineAt(2, "private readonly global::System.Action? __onRawModelAccess;");
         foreach (var member in members)
         {
             if (
@@ -90,7 +91,7 @@ internal static class SparseObservableEmitter
                 + observable
                 + "("
                 + modelType
-                + " value, global::System.Action? onChanged = null)"
+                + " value, global::System.Action? onChanged = null, global::System.Action? onRawModelAccess = null)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -99,10 +100,16 @@ internal static class SparseObservableEmitter
         );
         code.AppendLineAt(3, "__model = value;");
         code.AppendLineAt(3, "__onChanged = onChanged;");
+        code.AppendLineAt(3, "__onRawModelAccess = onRawModelAccess;");
         code.AppendLineAt(2, "}");
         if (!members.Any(static member => member.Property.Name == "Model"))
         {
-            code.AppendLineAt(2, "public " + modelType + " Model => __model;");
+            code.AppendLineAt(
+                2,
+                "public "
+                    + modelType
+                    + " Model { get { __onRawModelAccess?.Invoke(); return __model; } }"
+            );
         }
 
         code.AppendLineAt(2, "internal " + modelType + " __SparseTarget => __model;");
@@ -122,6 +129,20 @@ internal static class SparseObservableEmitter
             AppendMember(code, member, members, runtimeNamespace);
         }
 
+        code.AppendLineAt(2, "internal void __SparseRefresh()");
+        code.AppendLineAt(2, "{");
+        foreach (
+            var property in members
+                .Select(static member => member.Property)
+                .Where(static property => property.Name != "PropertyChanged")
+        )
+        {
+            code.AppendLineAt(
+                3,
+                "__Raise(" + SymbolDisplay.FormatLiteral(property.Name, true) + ");"
+            );
+        }
+        code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
             "private void __Raise(string propertyName) => PropertyChanged?.Invoke(this, new global::System.ComponentModel.PropertyChangedEventArgs(propertyName));"
@@ -331,7 +352,7 @@ internal static class SparseObservableEmitter
                 + "((global::System.Collections.Generic.IList<"
                 + member.Collection.ElementType.Name
                 + ">)current, "
-                + ListWrap(types)
+                + ListWrap(types, "__onRawModelAccess")
                 + ", "
                 + ListUnwrap(types)
                 + ", () => { __Raise("
@@ -369,11 +390,13 @@ internal static class SparseObservableEmitter
         }
     }
 
-    private static string ListWrap(CollectionProxyNames types) =>
+    private static string ListWrap(CollectionProxyNames types, string rawModelAccess) =>
         types.HasElementProxy
             ? "(item, changed) => item is null ? default! : new "
                 + types.ViewType.TrimEnd('?')
-                + "(item, changed)"
+                + "(item, changed, "
+                + rawModelAccess
+                + ")"
             : "static (item, _) => item";
 
     private static string ListUnwrap(CollectionProxyNames types) =>
@@ -432,7 +455,7 @@ internal static class SparseObservableEmitter
                 + ", "
                 + modelValueType
                 + ">)current, "
-                + DictionaryWrap(types)
+                + DictionaryWrap(types, "__onRawModelAccess")
                 + ", "
                 + DictionaryUnwrap(types)
                 + ", () => { __Raise("
@@ -470,11 +493,13 @@ internal static class SparseObservableEmitter
         }
     }
 
-    private static string DictionaryWrap(CollectionProxyNames types) =>
+    private static string DictionaryWrap(CollectionProxyNames types, string rawModelAccess) =>
         types.HasElementProxy
             ? "(item, changed) => item is null ? default! : new "
                 + types.ViewType.TrimEnd('?')
-                + "(item, changed)"
+                + "(item, changed, "
+                + rawModelAccess
+                + ")"
             : "static (item, _) => item";
 
     private static string DictionaryUnwrap(CollectionProxyNames types) =>
@@ -562,7 +587,7 @@ internal static class SparseObservableEmitter
                 + childObservable
                 + "(current, () => { __Raise("
                 + literal
-                + "); if (__onChanged is not null) __onChanged(); }); }"
+                + "); if (__onChanged is not null) __onChanged(); }, __onRawModelAccess); }"
         );
         code.AppendLineAt(4, "return __proxy_" + member.Id + ";");
         code.AppendLineAt(3, "}");

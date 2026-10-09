@@ -155,8 +155,23 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
-    public void ChangeSetRequiresExplicitPatchForInPlaceWhileTryApplyToStaysConflictAware()
+    public void ChangeSetInPlaceApplicationChecksBeforeStateAndPreservesModelIdentity()
     {
+        var baseline = new NeutralSessionModel
+        {
+            Name = "before",
+            Tags = ["one"],
+            Counts = new() { ["first"] = 1 },
+            Child = new NeutralSessionChild { Value = "old" },
+        };
+        var edited = new NeutralSessionModel
+        {
+            Name = "after",
+            Tags = ["one", "two"],
+            Counts = new() { ["first"] = 1, ["second"] = 2 },
+            Child = new NeutralSessionChild { Value = "new" },
+        };
+        var changes = baseline.CreateChangeSet(edited);
         var model = new NeutralSessionModel
         {
             Name = "before",
@@ -167,14 +182,9 @@ public sealed class NeutralEditSessionTests
         var tags = model.Tags;
         var counts = model.Counts;
         var child = model.Child;
-        var session = model.CreateEditSession();
-        model.Name = "after";
-        model.Tags.Add("two");
-        model.Counts["second"] = 2;
-        model.Child.Value = "new";
 
-        // Blind overwrite stays explicit via ToPatch(); ChangeSet has no ApplyInPlace.
-        session.CreateChangeSet().ToPatch().ApplyInPlace(model);
+        changes.TryApplyInPlace(model, out var applyConflicts).ShouldBeTrue();
+        applyConflicts.ShouldBeNull();
 
         model.Name.ShouldBe("after");
         model.Tags.ShouldBe(["one", "two"]);
@@ -184,11 +194,23 @@ public sealed class NeutralEditSessionTests
         ReferenceEquals(counts, model.Counts).ShouldBeTrue();
         ReferenceEquals(child, model.Child).ShouldBeFalse();
 
-        var baseline = new NeutralSessionModel { Name = "before" };
-        var edited = new NeutralSessionModel { Name = "edited" };
-        var concurrent = new NeutralSessionModel { Name = "concurrent" };
-        var conflicting = baseline.CreateChangeSet(edited);
-        conflicting.TryApplyTo(concurrent, out _, out var conflicts).ShouldBeFalse();
+        var conflicting = baseline.CreateChangeSet(
+            new NeutralSessionModel
+            {
+                Name = "edited",
+                Tags = ["one"],
+                Counts = new() { ["first"] = 1 },
+                Child = new NeutralSessionChild { Value = "old" },
+            }
+        );
+        var concurrent = new NeutralSessionModel
+        {
+            Name = "concurrent",
+            Tags = ["one"],
+            Counts = new() { ["first"] = 1 },
+            Child = new NeutralSessionChild { Value = "old" },
+        };
+        conflicting.TryApplyInPlace(concurrent, out var conflicts).ShouldBeFalse();
         conflicts.ShouldNotBeNull();
         conflicts.Count.ShouldBeGreaterThan(0);
         concurrent.Name.ShouldBe("concurrent");
@@ -392,6 +414,150 @@ public sealed class NeutralEditSessionTests
         var submitted = session.CreateChangeSet();
         session.AcceptChanges(submitted);
         changed.Count(name => name == nameof(session.HasChanges)).ShouldBeGreaterThan(1);
+    }
+
+    [Test]
+    public void CurrentIsRecursiveReadOnlyAndChangesExposeNestedPaths()
+    {
+        var session = new NeutralSessionModel().CreateEditSession();
+        IReadOnlyList<string> tags = session.Current.Tags;
+        tags.ShouldBeEmpty();
+        (tags is IList<string>).ShouldBeFalse();
+        IReadOnlyDictionary<string, int> counts = session.Current.Counts;
+        (counts is IDictionary<string, int>).ShouldBeFalse();
+        (counts.Keys is ICollection<string>).ShouldBeFalse();
+        session.Current.Name.ShouldBe(string.Empty);
+        session.Current.Child.Value.ShouldBe(string.Empty);
+
+        var notifications = new List<NeutralSessionModel.ChangeSet>();
+        session.ChangeSetChanged += notifications.Add;
+        session.Observable.Name = "updated";
+        session.Observable.Child!.Value = "nested";
+
+        notifications.Count.ShouldBe(2);
+        notifications[0].Name.IsChanged.ShouldBeTrue();
+        notifications[0].Child.IsEmpty.ShouldBeTrue();
+        notifications[1].Name.IsChanged.ShouldBeFalse();
+        notifications[1].Child.Value.IsChanged.ShouldBeTrue();
+        session.EnumerateChangedPaths().ShouldBe(["Child.Value", "Name"]);
+        session.Current.Name.ShouldBe("updated");
+        session.Current.Child.Value.ShouldBe("nested");
+    }
+
+    [Test]
+    public void HasChangesCachesObservableEditsUntilTheRawModelIsExposed()
+    {
+        var model = new NeutralSessionModel();
+        var snapshots = 0;
+        var configuration = new SparseEditSessionConfiguration<
+            NeutralSessionModel,
+            NeutralSessionModel.Fragment,
+            NeutralSessionModel.Patch,
+            NeutralSessionModel.ChangeSet,
+            NeutralSessionModel.Observable,
+            NeutralSessionModel.ReadOnlyView
+        >
+        {
+            FromModel = current =>
+            {
+                snapshots++;
+                return NeutralSessionModel.Fragment.From(current);
+            },
+            Between = NeutralSessionModel.ChangeSet.Between,
+            ToPatch = static changes => changes.ToPatch(),
+            IsEmpty = static changes => changes.IsEmpty,
+            AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline),
+            ToObservable = static (current, changed, access) =>
+                new NeutralSessionModel.Observable(current, changed, access),
+            ToCurrent = static current => new NeutralSessionModel.ReadOnlyView(current),
+            EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+            RefreshObservable = static observable => observable.__SparseRefresh(),
+        };
+        var session = SparseEditSession<
+            NeutralSessionModel,
+            NeutralSessionModel.Fragment,
+            NeutralSessionModel.Patch,
+            NeutralSessionModel.ChangeSet,
+            NeutralSessionModel.Observable,
+            NeutralSessionModel.ReadOnlyView
+        >.Create(model, configuration);
+        session.Observable.Name = "observable edit";
+        var afterNotification = snapshots;
+
+        session.HasChanges.ShouldBeTrue();
+        session.HasChanges.ShouldBeTrue();
+        snapshots.ShouldBe(afterNotification);
+
+        _ = session.Model;
+        session.HasChanges.ShouldBeTrue();
+        snapshots.ShouldBe(afterNotification + 1);
+    }
+
+    [Test]
+    public void RevertChangesRestoresBaselineInPlace()
+    {
+        var model = new NeutralSessionModel
+        {
+            Name = "before",
+            Tags = ["one"],
+            Child = new NeutralSessionChild { Value = "old" },
+        };
+        var tags = model.Tags;
+        var session = model.CreateEditSession();
+        session.Observable.Name = "after";
+        session.Observable.Tags.Add("two");
+        session.Observable.Child!.Value = "new";
+
+        session.RevertChanges();
+
+        session.HasChanges.ShouldBeFalse();
+        model.Name.ShouldBe("before");
+        model.Tags.ShouldBe(["one"]);
+        model.Child.Value.ShouldBe("old");
+        ReferenceEquals(tags, model.Tags).ShouldBeTrue();
+    }
+
+    [Test]
+    public void ReloadRebasesPendingChangesAtomically()
+    {
+        var original = new NeutralSessionModel { Name = "base", Version = 1 };
+        var session = original.CreateEditSession();
+        session.Observable.Name = "local";
+        var server = new NeutralSessionModel { Name = "base", Version = 2 };
+
+        var result = session.Reload(server);
+
+        result.HasConflicts.ShouldBeFalse();
+        ReferenceEquals(session.Model, original).ShouldBeTrue();
+        session.Model.Name.ShouldBe("local");
+        session.Model.Version.ShouldBe(2);
+        session.HasChanges.ShouldBeTrue();
+        var pending = session.CreateChangeSet();
+        pending.Name.Before.Value.ShouldBe("base");
+        pending.Name.After.Value.ShouldBe("local");
+        pending.Version.IsChanged.ShouldBeFalse();
+    }
+
+    [Test]
+    public void ReloadConflictLeavesModelAndBaselineUntouched()
+    {
+        var original = new NeutralSessionModel { Name = "base", Version = 1 };
+        var session = original.CreateEditSession();
+        session.Observable.Name = "local";
+        var server = new NeutralSessionModel { Name = "server", Version = 2 };
+
+        var result = session.Reload(server);
+
+        result.HasConflicts.ShouldBeTrue();
+        result.Conflicts.ShouldContain(conflict =>
+            conflict.PathText == nameof(NeutralSessionModel.Name)
+        );
+        ReferenceEquals(session.Model, original).ShouldBeTrue();
+        session.Model.Name.ShouldBe("local");
+        session.Model.Version.ShouldBe(1);
+        var stillPending = session.CreateChangeSet();
+        stillPending.Name.Before.Value.ShouldBe("base");
+        stillPending.Name.After.Value.ShouldBe("local");
     }
 
     [Test]

@@ -758,8 +758,35 @@ internal static class SparseModelDiscovery
                 )
                 : string.Empty,
             UsesDefaultScalarEquality(type),
-            GetObservableTypeName(type, isFragmentModel, config, cancellationToken)
+            GetObservableTypeName(type, isFragmentModel, config, cancellationToken),
+            GetReadOnlyViewTypeName(type, isFragmentModel, config, cancellationToken)
         );
+    }
+
+    private static string? GetReadOnlyViewTypeName(
+        ITypeSymbol type,
+        bool isFragmentModel,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!isFragmentModel || type is not INamedTypeSymbol model)
+        {
+            return null;
+        }
+
+        var memberNames = new HashSet<string>(
+            GetMembers(model, config, cancellationToken)
+                .Select(static member => member.Property.Name),
+            StringComparer.Ordinal
+        );
+        var name = new StringBuilder("ReadOnlyView");
+        while (memberNames.Contains(name.ToString()))
+        {
+            name.Insert(0, "Sparse");
+        }
+
+        return name.ToString();
     }
 
     private static string? GetObservableTypeName(

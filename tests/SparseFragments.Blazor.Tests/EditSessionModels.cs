@@ -33,6 +33,8 @@ public partial class OrderDto
     public List<OrderLine> Lines { get; set; } = new();
 
     public List<string> Tags { get; set; } = new();
+
+    public Dictionary<string, OrderCustomer> Contacts { get; set; } = new();
 }
 
 [SparseFragmentModel]

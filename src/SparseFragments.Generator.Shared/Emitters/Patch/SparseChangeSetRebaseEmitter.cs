@@ -33,7 +33,8 @@ internal static class SparseChangeSetRebaseEmitter
         string between,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        ImmutableArray<string> ignoredSettablePropertyNames = default
+        ImmutableArray<string> ignoredSettablePropertyNames = default,
+        bool canWriteInPlace = false
     )
     {
         _ = between;
@@ -458,7 +459,8 @@ internal static class SparseChangeSetRebaseEmitter
                 optionalFragment,
                 dialect.ConflictType,
                 optionsType,
-                ignoredSettablePropertyNames
+                ignoredSettablePropertyNames,
+                canWriteInPlace
             );
         }
     }
@@ -492,7 +494,8 @@ internal static class SparseChangeSetRebaseEmitter
         string optionalFragment,
         string conflictType,
         string optionsType,
-        ImmutableArray<string> ignoredSettablePropertyNames
+        ImmutableArray<string> ignoredSettablePropertyNames,
+        bool canWriteInPlace
     )
     {
         code.AppendLineAt(
@@ -567,6 +570,64 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(3, "updated = __updatedModel;");
         code.AppendLineAt(3, "conflicts = null;");
         code.AppendLineAt(3, "return true;");
+        code.AppendLineAt(2, "}");
+        if (canWriteInPlace)
+        {
+            AppendModelTryApplyInPlace(code, modelType, conflictType, optionsType);
+        }
+    }
+
+    private static void AppendModelTryApplyInPlace(
+        SharedIndentedBuilder code,
+        string modelType,
+        string conflictType,
+        string optionsType
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this change to an existing model after checking its before-state.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryApplyInPlace("
+                + modelType
+                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts, "
+                + optionsType
+                + "? options = null)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (current is null) throw new global::System.ArgumentNullException(nameof(current));"
+        );
+        code.AppendLineAt(
+            3,
+            "if (!TryApplyTo(current, out var updated, out conflicts, options)) return false;"
+        );
+        code.AppendLineAt(3, "Fragment.From(updated).WriteTo(current);");
+        code.AppendLineAt(3, "conflicts = null;");
+        code.AppendLineAt(3, "return true;");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this change to an existing model or throws when its before-state conflicts.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public void ApplyInPlace("
+                + modelType
+                + " current, "
+                + optionsType
+                + "? options = null)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (!TryApplyInPlace(current, out var conflicts, options)) throw new global::System.InvalidOperationException(\"The change set cannot be applied because its before-state conflicts.\");"
+        );
         code.AppendLineAt(2, "}");
     }
 }

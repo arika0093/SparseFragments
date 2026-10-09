@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace SparseFragments;
@@ -13,7 +14,7 @@ namespace SparseFragments;
 /// <typeparam name="TChangeSet">The generated baseline-aware change set type for <typeparamref name="TModel"/>.</typeparam>
 /// <typeparam name="TObservable">The generated observable proxy type for <typeparamref name="TModel"/>.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
+public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
     where TModel : class
     where TFragment : class
     where TPatch : class
@@ -26,9 +27,23 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     private readonly Func<TChangeSet, bool> _isEmpty;
     private readonly Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> _advanceBaseline;
     private readonly TObservable _observable;
+    private readonly Func<
+        TChangeSet,
+        TModel,
+        (TModel? Updated, IReadOnlyList<SparseConflict>? Conflicts)
+    >? _tryApplyTo;
+    private readonly Action<TModel, TModel>? _writeModel;
+    private readonly Func<TChangeSet, TChangeSet>? _invert;
+    private readonly Func<TChangeSet, TModel, RebaseResult<TChangeSet>>? _rebase;
+    private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
+    private readonly Action<TObservable>? _refreshObservable;
+    private readonly bool _cacheObservableChanges;
+    private bool _hasChangesCacheValid;
+    private bool _cachedHasChanges;
+    private Optional<TFragment?> _lastObserved;
     private Optional<TFragment?> _baseline;
 
-    private SparseEditSession(
+    internal SparseEditSession(
         TModel model,
         TFragment baseline,
         Func<TModel, TFragment> fromModel,
@@ -39,6 +54,40 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         Func<TModel, Action?, TObservable> toObservable,
         Action? onChanged = null
     )
+        : this(
+            model,
+            baseline,
+            fromModel,
+            between,
+            toPatch,
+            isEmpty,
+            advanceBaseline,
+            (value, changed, _) => toObservable(value, changed),
+            onChanged
+        ) { }
+
+    internal SparseEditSession(
+        TModel model,
+        TFragment baseline,
+        Func<TModel, TFragment> fromModel,
+        Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> between,
+        Func<TChangeSet, TPatch> toPatch,
+        Func<TChangeSet, bool> isEmpty,
+        Func<TChangeSet, Optional<TFragment?>, Optional<TFragment?>> advanceBaseline,
+        Func<TModel, Action?, Action?, TObservable> toObservable,
+        Action? onChanged,
+        Func<
+            TChangeSet,
+            TModel,
+            (TModel? Updated, IReadOnlyList<SparseConflict>? Conflicts)
+        >? tryApplyTo = null,
+        Action<TModel, TModel>? writeModel = null,
+        Func<TChangeSet, TChangeSet>? invert = null,
+        Func<TChangeSet, TModel, RebaseResult<TChangeSet>>? rebase = null,
+        Func<TChangeSet, IReadOnlyList<string>>? enumerateChangedPaths = null,
+        Action<TObservable>? refreshObservable = null,
+        bool cacheObservableChanges = false
+    )
     {
         Model = model;
         _fromModel = fromModel;
@@ -46,14 +95,23 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         _toPatch = toPatch;
         _isEmpty = isEmpty;
         _advanceBaseline = advanceBaseline;
+        _tryApplyTo = tryApplyTo;
+        _writeModel = writeModel;
+        _invert = invert;
+        _rebase = rebase;
+        _enumerateChangedPaths = enumerateChangedPaths;
+        _refreshObservable = refreshObservable;
+        _cacheObservableChanges = cacheObservableChanges;
         _baseline = Optional<TFragment?>.Present(baseline);
+        _lastObserved = Optional<TFragment?>.Present(fromModel(model));
         _observable = toObservable(
             model,
             () =>
             {
+                OnObservableChanged();
                 onChanged?.Invoke();
-                OnPropertyChanged(nameof(HasChanges));
-            }
+            },
+            DisableHasChangesCache
         );
     }
 
@@ -234,37 +292,157 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     }
 
     /// <summary>The live editable model. The UI or application mutates this instance directly.</summary>
-    public TModel Model { get; }
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
+    public TModel Model
+    {
+        get
+        {
+            DisableHasChangesCache();
+            return _model;
+        }
+        private set => _model = value;
+    }
 
     /// <summary>A stable typed observable proxy over <see cref="Model"/>.</summary>
     public TObservable Observable => _observable;
 
     /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
-    public bool HasChanges
-    {
-        get
-        {
-            try
-            {
-                return !_isEmpty(CreateChangeSet());
-            }
-            catch (InvalidOperationException ex)
-                when (ex.Message == "Duplicate key in keyed collection.")
-            {
-                return true;
-            }
-        }
-    }
+    public bool HasChanges =>
+        _hasChangesCacheValid ? _cachedHasChanges : !_isEmpty(CreateChangeSet());
 
     /// <summary>Raised when session state or its observable model may have changed.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    /// <summary>Raised with the leaf transitions produced by each observable edit.</summary>
+    public event Action<TChangeSet>? ChangeSetChanged;
+
     /// <summary>Derives the baseline-aware change set between the retained baseline and current model.</summary>
-    public TChangeSet CreateChangeSet() =>
-        _between(_baseline, Optional<TFragment?>.Present(_fromModel(Model)));
+    public TChangeSet CreateChangeSet()
+    {
+        var current = Optional<TFragment?>.Present(_fromModel(_model));
+        var changes = _between(_baseline, current);
+        if (_cacheObservableChanges && _hasChangesCacheValid)
+        {
+            _cachedHasChanges = !_isEmpty(changes);
+        }
+
+        return changes;
+    }
 
     /// <summary>Derives the baseline-free patch from the current baseline-aware change set.</summary>
     public TPatch CreatePatch() => _toPatch(CreateChangeSet());
+
+    /// <summary>Enumerates changed generated member paths from the current model.</summary>
+    public IReadOnlyList<string> EnumerateChangedPaths()
+    {
+        if (_enumerateChangedPaths is null)
+        {
+            throw new NotSupportedException(
+                "This edit session does not provide generated change paths."
+            );
+        }
+
+        return _enumerateChangedPaths(CreateChangeSet());
+    }
+
+    /// <summary>Applies a change set in place after checking its before-state.</summary>
+    /// <param name="changes">The transition to apply.</param>
+    /// <param name="conflicts">Structured conflicts when the before-state cannot be applied.</param>
+    /// <returns><see langword="true"/> when the model was updated; otherwise <see langword="false"/>.</returns>
+    public bool TryApplyInPlace(TChangeSet changes, out IReadOnlyList<SparseConflict>? conflicts)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        if (_tryApplyTo is null || _writeModel is null)
+        {
+            throw new NotSupportedException("This model cannot be updated in place.");
+        }
+
+        var result = _tryApplyTo(changes, _model);
+        if (result.Conflicts is not null)
+        {
+            conflicts = result.Conflicts;
+            return false;
+        }
+
+        if (result.Updated is null)
+        {
+            throw new InvalidOperationException("Applying the change set did not produce a model.");
+        }
+
+        _writeModel(_model, result.Updated);
+        conflicts = null;
+        RefreshAfterModelMutation();
+        return true;
+    }
+
+    /// <summary>Applies a change set in place or throws when its before-state conflicts.</summary>
+    public void ApplyInPlace(TChangeSet changes)
+    {
+        if (!TryApplyInPlace(changes, out _))
+        {
+            throw new InvalidOperationException(
+                "The change set cannot be applied to the current model because its before-state conflicts."
+            );
+        }
+    }
+
+    /// <summary>Reverts the current model to its retained baseline in place.</summary>
+    public void RevertChanges()
+    {
+        if (_invert is null)
+        {
+            throw new NotSupportedException("This edit session cannot invert its change sets.");
+        }
+
+        var changes = CreateChangeSet();
+        if (_isEmpty(changes))
+        {
+            return;
+        }
+
+        ApplyInPlace(_invert(changes));
+    }
+
+    /// <summary>
+    /// Reloads authoritative server state and rebases pending local edits onto it.
+    /// </summary>
+    /// <remarks>
+    /// Conflicts leave both the live model and retained baseline untouched. A conflict-free
+    /// reload writes the merged result into the existing model instance and retains the server
+    /// state as the new baseline.
+    /// </remarks>
+    public RebaseResult<TChangeSet> Reload(TModel serverState)
+    {
+        ArgumentNullException.ThrowIfNull(serverState);
+        if (_rebase is null || _tryApplyTo is null || _writeModel is null)
+        {
+            throw new NotSupportedException("This model cannot be reloaded in place.");
+        }
+
+        var serverBaseline = Optional<TFragment?>.Present(_fromModel(serverState));
+        _between(serverBaseline, _baseline);
+        var rebased = _rebase(CreateChangeSet(), serverState);
+        if (rebased.HasConflicts)
+        {
+            return rebased;
+        }
+
+        var applied = _tryApplyTo(rebased.Rebased, serverState);
+        if (applied.Conflicts is not null)
+        {
+            return new RebaseResult<TChangeSet>(rebased.Rebased, applied.Conflicts);
+        }
+
+        if (applied.Updated is null)
+        {
+            throw new InvalidOperationException("Reloading did not produce a model.");
+        }
+
+        _writeModel(_model, applied.Updated);
+        _baseline = serverBaseline;
+        RefreshAfterModelMutation();
+        return rebased;
+    }
 
     /// <summary>Accepts the current model state as the new baseline.</summary>
     /// <remarks>
@@ -280,6 +458,8 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
         // self-diff short-circuits on reference equality without validating keys.
         _between(candidate, _baseline);
         _baseline = candidate;
+        _lastObserved = candidate;
+        _hasChangesCacheValid = false;
         OnPropertyChanged(nameof(HasChanges));
     }
 
@@ -327,8 +507,47 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             );
         }
         _baseline = advanced;
+        _hasChangesCacheValid = false;
         OnPropertyChanged(nameof(HasChanges));
     }
+
+    private TModel _model = null!;
+
+    private void OnObservableChanged()
+    {
+        var current = Optional<TFragment?>.Present(_fromModel(_model));
+        var transition = _between(_lastObserved, current);
+        _lastObserved = current;
+        if (_cacheObservableChanges)
+        {
+            _cachedHasChanges = !_isEmpty(_between(_baseline, current));
+            _hasChangesCacheValid = true;
+        }
+
+        if (!_isEmpty(transition))
+        {
+            ChangeSetChanged?.Invoke(transition);
+        }
+
+        OnPropertyChanged(nameof(HasChanges));
+    }
+
+    private void RefreshAfterModelMutation()
+    {
+        var current = Optional<TFragment?>.Present(_fromModel(_model));
+        var transition = _between(_lastObserved, current);
+        _lastObserved = current;
+        _hasChangesCacheValid = false;
+        _refreshObservable?.Invoke(_observable);
+        if (!_isEmpty(transition))
+        {
+            ChangeSetChanged?.Invoke(transition);
+        }
+
+        OnPropertyChanged(nameof(HasChanges));
+    }
+
+    private void DisableHasChangesCache() => _hasChangesCacheValid = false;
 
     private void OnPropertyChanged(string propertyName) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
