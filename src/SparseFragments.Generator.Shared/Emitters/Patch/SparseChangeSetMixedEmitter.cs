@@ -428,12 +428,13 @@ internal static class SparseChangeSetMixedEmitter
 
     /// <summary>Emits the envelope version guard for public payload entry points.</summary>
     /// <remarks>
-    /// Every public payload interpretation path validates the same wire
-    /// version at the root envelope boundary (issue #163); recursive nested
-    /// cores stay versionless. The guard runs before any partition or model
-    /// work, so rejection never mutates a supplied model.
+    /// The wire version lives on the root envelope only (issue #163):
+    /// envelope overrides validate it before delegating to the versionless
+    /// core seam, and recursive nested cores stay versionless. The guard runs
+    /// before any partition or model work, so rejection never mutates a
+    /// supplied model.
     /// </remarks>
-    private static void AppendVersionGuard(
+    internal static void AppendVersionGuard(
         SharedIndentedBuilder code,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
@@ -448,6 +449,58 @@ internal static class SparseChangeSetMixedEmitter
                 + versionLiteral
                 + ", global::System.StringComparison.Ordinal)) throw new global::System.ArgumentException(\"Unsupported ChangePayload version.\", nameof(Version));"
         );
+    }
+
+    /// <summary>Emits version-validated envelope overrides for mixed entry points.</summary>
+    /// <remarks>
+    /// The envelope re-declares the core seam so <c>ToPatch</c>,
+    /// <c>InvertReversibleChanges</c> and <c>TryApplyMixedTo</c> validate the
+    /// wire version before interpreting anything (issue #163).
+    /// </remarks>
+    internal static void AppendEnvelopeVersionOverrides(
+        SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string modelType
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Inverts the reversible transitions and reports write-only paths.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Validates the envelope wire version before interpreting the payload.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "public new "
+                + modelType
+                + ".ChangeSet InvertReversibleChanges(out global::System.Collections.Generic.IReadOnlyList<string> skippedPaths)"
+        );
+        code.AppendLineAt(2, "{");
+        AppendVersionGuard(code, dialect);
+        code.AppendLineAt(3, "return base.InvertReversibleChanges(out skippedPaths);");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies a mixed request to an ordinary model without committing a subset on conflict.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Validates the envelope wire version before interpreting the payload.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "public new bool TryApplyMixedTo("
+                + modelType
+                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                + modelType
+                + "? updated, out MixedApplyResult result)"
+        );
+        code.AppendLineAt(2, "{");
+        AppendVersionGuard(code, dialect);
+        code.AppendLineAt(3, "return base.TryApplyMixedTo(current, out updated, out result);");
+        code.AppendLineAt(2, "}");
     }
 
     internal static void AppendMixedPayloadSurface(
@@ -467,11 +520,10 @@ internal static class SparseChangeSetMixedEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
+            "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts. Public callers enter through the version-validated envelope override.</remarks>"
         );
         code.AppendLineAt(2, "public Patch ToPatch()");
         code.AppendLineAt(2, "{");
-        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out var __blind, out _);"
@@ -491,7 +543,6 @@ internal static class SparseChangeSetMixedEmitter
             "public ChangeSet InvertReversibleChanges(out global::System.Collections.Generic.IReadOnlyList<string> skippedPaths)"
         );
         code.AppendLineAt(2, "{");
-        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out _, out var __blindPaths);"
@@ -603,7 +654,6 @@ internal static class SparseChangeSetMixedEmitter
                 + "? updated, out MixedApplyResult result)"
         );
         code.AppendLineAt(2, "{");
-        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out var __blind, out var __blindPaths);"

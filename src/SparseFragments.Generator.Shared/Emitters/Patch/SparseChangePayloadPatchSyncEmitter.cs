@@ -64,6 +64,64 @@ internal static class SparseChangePayloadPatchSyncEmitter
         code.AppendLineAt(2, "}");
     }
 
+    /// <summary>Emits the fail-closed guard for JSON-ignored members in transport cores.</summary>
+    /// <remarks>
+    /// Transport excludes STJ <c>JsonIgnore</c> members, so exporting a change
+    /// that touches one would silently lose it (issue #165). The guard names
+    /// the omitted paths instead, keeping <c>ToPayload</c> lossless while
+    /// ordinary <c>Fragment</c> JSON keeps honoring <c>JsonIgnore</c>.
+    /// </remarks>
+    internal static void AppendIgnoredTransportGuard(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        var ignored = members.Where(static member => member.Property.IsJsonIgnored).ToArray();
+        if (ignored.Length == 0)
+        {
+            return;
+        }
+
+        code.AppendLineAt(
+            3,
+            "var __ignoredOmitted = new global::System.Collections.Generic.List<string>();"
+        );
+        code.AppendLineAt(3, "if (__sparse_hasWhole) __ignoredOmitted.Add(\"$root\");");
+        foreach (var member in ignored)
+        {
+            var literal = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+                member.Property.Name,
+                true
+            );
+            if (SparseChangeSetBasicsEmitter.IsNested(member))
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + SparseChangeSetBasicsEmitter.NestedField(member)
+                        + " is not null) __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    3,
+                    "if ("
+                        + SparseChangeSetBasicsEmitter.HasField(member)
+                        + ") __ignoredOmitted.Add("
+                        + literal
+                        + ");"
+                );
+            }
+        }
+        code.AppendLineAt(
+            3,
+            "if (__ignoredOmitted.Count != 0) throw new global::System.InvalidOperationException(\"ChangeSet transport omits JSON-ignored members (\" + string.Join(\", \", __ignoredOmitted) + \").\");"
+        );
+    }
+
     /// <summary>Emits the fail-closed guard for JSON-ignored patch fields.</summary>
     /// <remarks>
     /// Patch transport excludes STJ <c>JsonIgnore</c> members, so a patch that

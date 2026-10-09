@@ -159,11 +159,16 @@ internal static class SparseChangeSetPayloadEmitter
                     2,
                     "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
                 );
-                code.AppendLineAt(
-                    2,
-                    "public new " + modelType + ".Patch ToPatch() => base.ToPatch();"
-                );
+                code.AppendLineAt(2, "public new " + modelType + ".Patch ToPatch()");
+                code.AppendLineAt(2, "{");
+                SparseChangeSetMixedEmitter.AppendVersionGuard(code, dialect);
+                code.AppendLineAt(3, "return base.ToPatch();");
+                code.AppendLineAt(2, "}");
             }
+            // The wire version lives on this envelope: every public
+            // interpretation path validates it before reaching the
+            // versionless core seam (issue #163).
+            SparseChangeSetMixedEmitter.AppendEnvelopeVersionOverrides(code, dialect, modelType);
             code.AppendLineAt(
                 2,
                 "/// <summary>Builds a baseline-free command envelope from a patch.</summary>"
@@ -423,64 +428,6 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(1, "}");
     }
 
-    /// <summary>Emits the fail-closed guard for JSON-ignored members in transport cores.</summary>
-    /// <remarks>
-    /// Transport excludes STJ <c>JsonIgnore</c> members, so exporting a change
-    /// that touches one would silently lose it (issue #165). The guard names
-    /// the omitted paths instead, keeping <c>ToPayload</c> lossless while
-    /// ordinary <c>Fragment</c> JSON keeps honoring <c>JsonIgnore</c>.
-    /// </remarks>
-    private static void AppendIgnoredTransportGuard(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    )
-    {
-        var ignored = members.Where(static member => member.Property.IsJsonIgnored).ToArray();
-        if (ignored.Length == 0)
-        {
-            return;
-        }
-
-        code.AppendLineAt(
-            3,
-            "var __ignoredOmitted = new global::System.Collections.Generic.List<string>();"
-        );
-        code.AppendLineAt(3, "if (__sparse_hasWhole) __ignoredOmitted.Add(\"$root\");");
-        foreach (var member in ignored)
-        {
-            var literal = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
-                member.Property.Name,
-                true
-            );
-            if (SparseChangeSetBasicsEmitter.IsNested(member))
-            {
-                code.AppendLineAt(
-                    3,
-                    "if ("
-                        + SparseChangeSetBasicsEmitter.NestedField(member)
-                        + " is not null) __ignoredOmitted.Add("
-                        + literal
-                        + ");"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    3,
-                    "if ("
-                        + SparseChangeSetBasicsEmitter.HasField(member)
-                        + ") __ignoredOmitted.Add("
-                        + literal
-                        + ");"
-                );
-            }
-        }
-        code.AppendLineAt(
-            3,
-            "if (__ignoredOmitted.Count != 0) throw new global::System.InvalidOperationException(\"ChangeSet transport omits JSON-ignored members (\" + string.Join(\", \", __ignoredOmitted) + \").\");"
-        );
-    }
-
     internal static void AppendToPayload(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -514,7 +461,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(2, "internal " + payloadCore + " ToPayloadCore(bool redactBefores)");
         code.AppendLineAt(2, "{");
-        AppendIgnoredTransportGuard(code, members);
+        SparseChangePayloadPatchSyncEmitter.AppendIgnoredTransportGuard(code, members);
         code.AppendLineAt(
             3,
             "var changes = new global::System.Collections.Generic.List<" + payloadChange + ">();"
