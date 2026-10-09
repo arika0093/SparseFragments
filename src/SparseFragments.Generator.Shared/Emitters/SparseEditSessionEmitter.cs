@@ -311,9 +311,10 @@ internal static class SparseEditSessionEmitter
         SparseRuntimeDialect runtimeDialect,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect
     ) =>
-        template
+        new StringBuilder(template)
             .Replace("__SESSION_NAMESPACE__", sessionDialect.Namespace)
             .Replace("__OPTIONAL_TYPE__", runtimeDialect.OptionalType)
             .Replace("__CONFLICT_TYPE__", patchDialect.ConflictType)
-            .Replace("__REBASE_RESULT_TYPE__", patchDialect.RebaseResult("TChangeSet"));
+            .Replace("__REBASE_RESULT_TYPE__", patchDialect.RebaseResult("TChangeSet"))
+            .ToString();
 }
