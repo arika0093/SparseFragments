@@ -95,3 +95,16 @@ public partial class CatalogImmutable
 
     public int[]? Tags { get; init; }
 }
+
+// Members colliding with ChangeSet enumeration helpers share one resolver.
+[SparseFragmentModel]
+public partial class CatalogReservedEnumeration
+{
+    public string EnumerateChanges { get; set; } = string.Empty;
+
+    public string EnumerateChangedPaths { get; set; } = string.Empty;
+
+    public string ChangeInfo { get; set; } = string.Empty;
+
+    public string ChangeKind { get; set; } = string.Empty;
+}

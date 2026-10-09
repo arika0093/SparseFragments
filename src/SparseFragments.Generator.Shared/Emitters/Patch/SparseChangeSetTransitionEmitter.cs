@@ -31,43 +31,7 @@ internal static class SparseChangeSetTransitionEmitter
         if (members.IsDefaultOrEmpty)
             return;
         var runtime = dialect.RuntimeNamespace;
-        var reserved = new HashSet<string>(System.StringComparer.Ordinal)
-        {
-            "IsEmpty",
-            "Between",
-            "FromPatch",
-            "ToPatch",
-            "Invert",
-            "Compose",
-            "RebaseOnto",
-            "ApplyTo",
-            "TryApplyTo",
-            "ApplyToBaseline",
-        };
-        var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
-        var propNames = new Dictionary<int, string>();
-        foreach (var member in members)
-        {
-            var prefix = new System.Text.StringBuilder();
-            while (usedProps.Contains(prefix.ToString() + member.Property.Name))
-                prefix.Append("Sparse");
-            var candidate = prefix.ToString() + member.Property.Name;
-            usedProps.Add(candidate);
-            propNames[member.Id] = candidate;
-        }
-        var usedTypes = new HashSet<string>(usedProps, System.StringComparer.Ordinal);
-        var transNames = new Dictionary<int, string>();
-        foreach (var member in members)
-        {
-            if (IsNested(member))
-                continue;
-            var prefix = new System.Text.StringBuilder();
-            while (usedTypes.Contains(prefix.ToString() + propNames[member.Id] + "Transition"))
-                prefix.Append("Sparse");
-            var t = prefix.ToString() + propNames[member.Id] + "Transition";
-            usedTypes.Add(t);
-            transNames[member.Id] = t;
-        }
+        SparseChangeSetNaming.ComputePublicNames(members, out var propNames, out var transNames);
         // Sparse before/after helpers read canonical sparse storage.
         // Whole-root transitions project member states from the retained root
         // fragments; memberwise transitions expose only retained changed paths.

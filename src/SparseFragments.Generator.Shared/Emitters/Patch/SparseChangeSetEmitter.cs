@@ -135,51 +135,5 @@ internal static class SparseChangeSetEmitter
         ImmutableArray<SparseMemberModel> members,
         out Dictionary<int, string> propNames,
         out Dictionary<int, string> transNames
-    )
-    {
-        var reserved = new HashSet<string>(System.StringComparer.Ordinal)
-        {
-            "IsEmpty",
-            "Between",
-            "FromPatch",
-            "ToPatch",
-            "Invert",
-            "Compose",
-            "RebaseOnto",
-            "ApplyTo",
-            "TryApplyTo",
-            "ApplyToBaseline",
-            "ChangeInfo",
-            "ChangeKind",
-            "EnumerateChanges",
-            "EnumerateChangedPaths",
-            "__SparseBox",
-            "__SparseCreateChangeInfo",
-            "__SparseKeyPath",
-        };
-        var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
-        propNames = new Dictionary<int, string>();
-        foreach (var member in members)
-        {
-            var prefix = new System.Text.StringBuilder();
-            while (usedProps.Contains(prefix.ToString() + member.Property.Name))
-                prefix.Append("Sparse");
-            var candidate = prefix.ToString() + member.Property.Name;
-            usedProps.Add(candidate);
-            propNames[member.Id] = candidate;
-        }
-        var usedTypes = new HashSet<string>(usedProps, System.StringComparer.Ordinal);
-        transNames = new Dictionary<int, string>();
-        foreach (var member in members)
-        {
-            if (SparseChangeSetBasicsEmitter.IsNested(member))
-                continue;
-            var prefix = new System.Text.StringBuilder();
-            while (usedTypes.Contains(prefix.ToString() + propNames[member.Id] + "Transition"))
-                prefix.Append("Sparse");
-            var t = prefix.ToString() + propNames[member.Id] + "Transition";
-            usedTypes.Add(t);
-            transNames[member.Id] = t;
-        }
-    }
+    ) => SparseChangeSetNaming.ComputePublicNames(members, out propNames, out transNames);
 }
