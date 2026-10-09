@@ -124,8 +124,8 @@ a, .btn-link {
         content: var(--blazor-load-percentage-text, "Loading");
     }
 
-code {
-    color: #c02d76;
+.fluent-tabs {
+    align-items: flex-start;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
