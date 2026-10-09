@@ -1,7 +1,7 @@
 :root {
-    --spacingVerticalS: 6px;
-    --spacingVerticalM: 8px;
-    --spacingVerticalL: 12px;
+    --spacingVerticalS: 6px !important;
+    --spacingVerticalM: 8px !important;
+    --spacingVerticalL: 12px !important;
 }
 
 html, body {
