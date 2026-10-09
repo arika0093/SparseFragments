@@ -161,6 +161,25 @@ rebase, notifications). Until the capability aggregation pipeline lands, call
 
 ## Generated implementation placement
 
+`SparseGeneratedCapabilityPlanner` derives one compilation-scoped plan from
+the product feature selection, the analyzed model shapes (explicit and
+promoted), the applicable collection families, and the target-framework
+facts. `SparseGeneratedOnceEmitter` renders only the requested helper
+families — collection clone kernels, read-only adapters, and removal-index
+helpers — once per compilation as normally `internal` types. These helpers
+are BCL-only and take no dialect parameters (unlike the edit-session core,
+which consumes the runtime, patch, and session dialects). Hint names and
+type identities derive from the owning generator namespaces, so coexisting
+products stay distinct. Missing feature prerequisites report the configured
+`InvalidEmissionPlan` diagnostic. Per-model output stays on the separate
+`SparsePerModelEmitter` path: with an explicit implementation namespace it
+calls the shared helpers through their qualified names, while the
+null-namespace single-file path keeps legacy per-model private copies, so
+shared copies on that path are emitted-but-uncalled.
+TODO(generator maintainers, #178): finish the call-site rewiring — unify
+the renderer implementations behind `SparseGeneratedOnceNames` and remove
+the legacy per-model copies — then re-tighten this section.
+
 `SparseGeneratorConfig.GeneratedImplementationNamespace` declares where
 per-model generated implementations live once facade/implementation separation
 lands. All placement decisions flow through `SparseGeneratedPlacement`: the
@@ -174,14 +193,14 @@ incremental isolation covers both.
 
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
-`SparseGeneratedOnceNames` pins those identities; per-model output
-instantiates them instead of redefining the generic code. The product
-generator aggregates requirements across explicit and promoted models and
-emits each family once. Until the capability-driven plane from #178 lands,
-that aggregation is manual; #178 should replace the wiring, not the names.
-The clone family keeps the track-3 identity (`SparseCloneKernels`,
+`SparseGeneratedOnceNames` pins those identities; per-model output with an
+explicit namespace instantiates them instead of redefining the generic
+code. The product generator aggregates capabilities across explicit and
+promoted models through the capability-driven plane and emits each family
+once (single wiring; the interim manual aggregation was removed at merge
+time). The clone family keeps the track-3 identity (`SparseCloneKernels`,
 `<ns>.CloneKernels.g.cs`); track-2's `SparseCloneHelpers`/`CloneHelpers.g.cs`
-is renamed to match at track-2 merge time.
+was renamed to match.
 
 ## Descriptor configuration
 
