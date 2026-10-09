@@ -6,6 +6,10 @@ public enum ChangeSetEnumerationShape
     NoOp,
     AllEdits,
     Mixed,
+    WholeMemberAdd,
+    WholeMemberRemove,
+    WholeRootAdd,
+    WholeRootRemove,
 }
 
 [MemoryDiagnoser]
@@ -77,7 +81,15 @@ public class ChangeSetEnumerationBenchmarks
     {
         var entries = forward.ToArray();
         var inverse = reverse.ToDictionary(entry => entry.Path, StringComparer.Ordinal);
-        var expected = Shape == ChangeSetEnumerationShape.NoOp ? 0 : Size;
+        var expected = Shape switch
+        {
+            ChangeSetEnumerationShape.NoOp => 0,
+            ChangeSetEnumerationShape.WholeMemberAdd
+            or ChangeSetEnumerationShape.WholeMemberRemove
+            or ChangeSetEnumerationShape.WholeRootAdd
+            or ChangeSetEnumerationShape.WholeRootRemove => 1,
+            _ => Size,
+        };
         if (
             entries.Length != expected
             || inverse.Count != expected
@@ -86,7 +98,7 @@ public class ChangeSetEnumerationBenchmarks
         )
         {
             throw new InvalidOperationException(
-                "Flattened dictionary changes must have one distinct path per changed key."
+                "Flattened dictionary changes must retain distinct paths for granular and whole transitions."
             );
         }
         foreach (var entry in entries)
@@ -127,8 +139,27 @@ public class ChangeSetEnumerationBenchmarks
                 Shape != ChangeSetEnumerationShape.Mixed || index % 3 != (step == 0 ? 0 : 1)
             );
 
-    private Optional<BenchScalarDictHolder.Fragment?> ScalarState(int step) =>
-        Optional<BenchScalarDictHolder.Fragment?>.Present(
+    private bool IsRootMissing(int step) =>
+        (Shape == ChangeSetEnumerationShape.WholeRootAdd && step == 0)
+        || (Shape == ChangeSetEnumerationShape.WholeRootRemove && step == 1);
+
+    private bool IsMemberMissing(int step) =>
+        (Shape == ChangeSetEnumerationShape.WholeMemberAdd && step == 0)
+        || (Shape == ChangeSetEnumerationShape.WholeMemberRemove && step == 1);
+
+    private Optional<BenchScalarDictHolder.Fragment?> ScalarState(int step)
+    {
+        if (IsRootMissing(step))
+        {
+            return Optional<BenchScalarDictHolder.Fragment?>.Missing;
+        }
+        if (IsMemberMissing(step))
+        {
+            return Optional<BenchScalarDictHolder.Fragment?>.Present(
+                new BenchScalarDictHolder.Fragment()
+            );
+        }
+        return Optional<BenchScalarDictHolder.Fragment?>.Present(
             BenchScalarDictHolder.Fragment.From(
                 new()
                 {
@@ -137,9 +168,21 @@ public class ChangeSetEnumerationBenchmarks
                 }
             )
         );
+    }
 
-    private Optional<BenchStructuralDictHolder.Fragment?> StructuralState(int step) =>
-        Optional<BenchStructuralDictHolder.Fragment?>.Present(
+    private Optional<BenchStructuralDictHolder.Fragment?> StructuralState(int step)
+    {
+        if (IsRootMissing(step))
+        {
+            return Optional<BenchStructuralDictHolder.Fragment?>.Missing;
+        }
+        if (IsMemberMissing(step))
+        {
+            return Optional<BenchStructuralDictHolder.Fragment?>.Present(
+                new BenchStructuralDictHolder.Fragment()
+            );
+        }
+        return Optional<BenchStructuralDictHolder.Fragment?>.Present(
             BenchStructuralDictHolder.Fragment.From(
                 new()
                 {
@@ -156,6 +199,7 @@ public class ChangeSetEnumerationBenchmarks
                 }
             )
         );
+    }
 
     [Benchmark]
     public int ScalarEnumerate()
