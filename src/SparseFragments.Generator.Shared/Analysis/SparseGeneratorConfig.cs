@@ -32,7 +32,8 @@ internal sealed record SparseGeneratorConfig
         SparseEditSessionDialect? EditSessionDialect = null,
         string? EditSessionModelAccessorInterfaceMetadataName = null,
         SparseDescriptorDialect? DescriptorDialect = null,
-        string? GeneratedImplementationNamespace = null
+        string? GeneratedImplementationNamespace = null,
+        SparseFamilyNames? FamilyNames = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -64,6 +65,7 @@ internal sealed record SparseGeneratorConfig
             EditSessionModelAccessorInterfaceMetadataName;
         this.DescriptorDialect = DescriptorDialect;
         this.GeneratedImplementationNamespace = GeneratedImplementationNamespace;
+        this.FamilyNames = FamilyNames;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -139,6 +141,15 @@ internal sealed record SparseGeneratorConfig
     /// </remarks>
     public string? GeneratedImplementationNamespace { get; init; }
 
+    /// <summary>Product-owned generated family names, or null for the standalone vocabulary.</summary>
+    /// <remarks>
+    /// Shared semantic roles (state, operation, transition, payload, views)
+    /// bind to these names through <see cref="SparseSemanticReference"/>.
+    /// Null keeps the existing <c>Fragment</c>/<c>Patch</c>/<c>ChangeSet</c>
+    /// vocabulary; downstream products supply their own bindings.
+    /// </remarks>
+    public SparseFamilyNames? FamilyNames { get; init; }
+
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
     public SparseDiagnosticIdMap EffectiveDiagnosticIds => DiagnosticIds;
@@ -149,6 +160,9 @@ internal sealed record SparseGeneratorConfig
     /// <summary>Effective feature selection, defaulting to the standalone set.</summary>
     public SparseEmissionFeatures EffectiveEmissionFeatures =>
         EmissionFeatures ?? SparseEmissionFeatures.Standalone;
+
+    /// <summary>Effective family-name bindings, defaulting to the standalone vocabulary.</summary>
+    public SparseFamilyNames EffectiveFamilyNames => FamilyNames ?? SparseFamilyNames.Standalone;
 
     /// <summary>Effective product-declared type names, or empty when none are appended.</summary>
     public ImmutableArray<string> EffectiveProductExtensionNames =>

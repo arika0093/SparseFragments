@@ -5,19 +5,18 @@ namespace SparseFragments.Generator.Shared;
 
 internal static class SparseReadOnlyViewEmitter
 {
-    internal static string ReadOnlyViewTypeName(ImmutableArray<SparseMemberModel> members)
-    {
-        var taken = new System.Collections.Generic.HashSet<string>(
-            members.Select(static member => member.Property.Name),
-            System.StringComparer.Ordinal
-        );
-        var builder = new System.Text.StringBuilder("ReadOnlyView");
-        while (taken.Contains(builder.ToString()))
-        {
-            builder.Insert(0, "Sparse");
-        }
+    internal static string ReadOnlyViewTypeName(ImmutableArray<SparseMemberModel> members) =>
+        ReadOnlyViewTypeName(members, SparseFamilyNames.Standalone);
 
-        return builder.ToString();
+    internal static string ReadOnlyViewTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseFamilyNames family
+    )
+    {
+        return SparseSemanticReference.ReadOnlyViewRootName(
+            members.Select(static member => member.Property.Name),
+            family
+        );
     }
 
     internal static void AppendReadOnlyView(

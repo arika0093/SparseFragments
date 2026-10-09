@@ -9,16 +9,18 @@ namespace SparseFragments.Generator.Shared;
 /// <remarks>Wraps the live model instance and exposes notifying views for mutable lists and dictionaries.</remarks>
 internal static class SparseObservableEmitter
 {
-    public static string ObservableTypeName(ImmutableArray<SparseMemberModel> members)
-    {
-        var taken = new HashSet<string>(members.Select(static member => member.Property.Name));
-        var builder = new StringBuilder("Observable");
-        while (taken.Contains(builder.ToString()))
-        {
-            builder.Insert(0, "Sparse");
-        }
+    public static string ObservableTypeName(ImmutableArray<SparseMemberModel> members) =>
+        ObservableTypeName(members, SparseFamilyNames.Standalone);
 
-        return builder.ToString();
+    public static string ObservableTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseFamilyNames family
+    )
+    {
+        return SparseSemanticReference.ObservableRootName(
+            members.Select(static member => member.Property.Name),
+            family
+        );
     }
 
     public static void AppendObservable(
@@ -227,16 +229,18 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(1, "}");
     }
 
-    internal static string ChildObservableType(SparseMemberModel member)
+    internal static string ChildObservableType(SparseMemberModel member) =>
+        ChildObservableType(member, SparseFamilyNames.Standalone);
+
+    internal static string ChildObservableType(SparseMemberModel member, SparseFamilyNames family)
     {
         var model = member.ChildModel!.Value;
-        if (model.ObservableTypeName is not null)
-        {
-            return model.NonNullableName + "." + model.ObservableTypeName;
-        }
-
-        var fragment = member.ChildFragmentType!;
-        return fragment.Substring(0, fragment.Length - "Fragment".Length) + "Observable";
+        return SparseSemanticReference.ChildObservableType(
+            model.NonNullableName,
+            member.ChildFragmentType!,
+            model.ObservableTypeName,
+            family
+        );
     }
 
     private static void AppendMember(

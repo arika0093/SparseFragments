@@ -132,7 +132,8 @@ internal static class SparseFragmentEmitter
             "__sparse_clone_context",
             runtime.ValueComparer,
             runtime.CollectionMerger,
-            runtime.OptionalType
+            runtime.OptionalType,
+            config.EffectiveFamilyNames
         );
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
