@@ -19,6 +19,7 @@ internal static class ComparisonRuleMetadataProbe
                 public class RuleAttribute : Attribute
                 {
                     public RuleAttribute(Type value, Type comparer) { }
+                    public RuleAttribute(Type value) { }
                 }
                 public sealed class GenericRuleAttribute<T> : RuleAttribute
                 {
@@ -36,6 +37,7 @@ internal static class ComparisonRuleMetadataProbe
                 public class Target { }
                 [Model]
                 [Rule(typeof(string), typeof(RuleComparer))]
+                [Rule(typeof(int))]
                 [GenericRule<int>(typeof(string), typeof(RuleComparer))]
                 [比較属性(typeof(string), typeof(RuleComparer))]
                 public class Root
@@ -64,6 +66,8 @@ internal static class ComparisonRuleMetadataProbe
         }
         var target = compilation.GetTypeByMetadataName("RuleMetadataProbe.Target")!;
         var valueType = compilation.GetSpecialType(SpecialType.System_String);
+        var incompleteRuleType = compilation.GetSpecialType(SpecialType.System_Int32);
+        var root = compilation.GetTypeByMetadataName("RuleMetadataProbe.Root")!;
         foreach (
             var name in new[]
             {
@@ -92,6 +96,52 @@ internal static class ComparisonRuleMetadataProbe
                     "Configured attribute names must preserve exact matching."
                 );
             }
+            var rootRules = SparseComparisonRules.CreateRuleSet(
+                root,
+                probeConfig,
+                CancellationToken.None
+            );
+            if (
+                rules.TryGetComparerType(incompleteRuleType, out _)
+                || rootRules.TryGetComparerType(incompleteRuleType, out _)
+            )
+            {
+                throw new InvalidOperationException(
+                    "Incomplete comparison rules must not resolve a comparer."
+                );
+            }
+        }
+        var editedCompilation = compilation
+            .RemoveAllSyntaxTrees()
+            .AddSyntaxTrees(
+                CSharpSyntaxTree.ParseText(
+                    source.Replace(
+                        "[Rule(typeof(string), typeof(RuleComparer))]",
+                        "[Rule(typeof(string))]",
+                        StringComparison.Ordinal
+                    ),
+                    new CSharpParseOptions(LanguageVersion.Preview)
+                )
+            );
+        var editedRules = SparseComparisonRules.CreateRuleSet(
+            editedCompilation.GetTypeByMetadataName("RuleMetadataProbe.Target")!,
+            config with
+            {
+                ModelAttributeMetadataName = "RuleMetadataProbe.ModelAttribute",
+                ComparisonAttributeMetadataName = "RuleMetadataProbe.RuleAttribute",
+            },
+            CancellationToken.None
+        );
+        if (
+            editedRules.TryGetComparerType(
+                editedCompilation.GetSpecialType(SpecialType.System_String),
+                out _
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Edited compilations must not retain comparison rules."
+            );
         }
     }
 }
