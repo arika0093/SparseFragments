@@ -61,9 +61,14 @@ public sealed class ChangePayloadTests
         restored.Version.ShouldBe("0.1");
         restored.Changes!.ShouldHaveSingleItem();
         restored.Changes![0].GetType().Name.ShouldStartWith("Change");
-        var payloadContainer = typeof(Settings)
+        // Stage 3 (#192): typed DTOs live in the per-model implementation
+        // namespace; the envelope facade stays nested in the model.
+        typeof(Settings)
             .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
-            .Single(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal));
+            .Where(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var payloadContainer = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
+        payloadContainer.Name.ShouldStartWith("__Internal_");
         restored.Changes![0].GetType().DeclaringType.ShouldBe(payloadContainer);
         var endpointProperty = restored.Changes![0].GetType().GetProperty("After")!;
         var endpoint = endpointProperty.GetValue(restored.Changes![0])!;

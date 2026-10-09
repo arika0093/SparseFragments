@@ -8,7 +8,8 @@ internal static class SparseChangePayloadCollectionExportEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string modelType
+        string modelType,
+        string? implementationNamespace = null
     )
     {
         var id = member.Id;
@@ -26,7 +27,7 @@ internal static class SparseChangePayloadCollectionExportEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var collection" + id + " = this;");
         code.AppendLineAt(4, "var entry" + id + " = entry;");
-        AppendExportEntryBody(code, member, dialect, modelType, id);
+        AppendExportEntryBody(code, member, dialect, modelType, id, implementationNamespace);
         code.AppendLineAt(3, "}");
     }
 
@@ -35,7 +36,8 @@ internal static class SparseChangePayloadCollectionExportEmitter
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string modelType,
-        int id
+        int id,
+        string? implementationNamespace = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -82,9 +84,9 @@ internal static class SparseChangePayloadCollectionExportEmitter
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
         if (isKeyed)
-            AppendExportKeyedItems(code, member, dialect, modelType, id);
+            AppendExportKeyedItems(code, member, dialect, modelType, id, implementationNamespace);
         else
-            AppendExportDictItems(code, member, dialect, modelType, id);
+            AppendExportDictItems(code, member, dialect, modelType, id, implementationNamespace);
         code.AppendLineAt(4, "}");
     }
 
@@ -93,7 +95,8 @@ internal static class SparseChangePayloadCollectionExportEmitter
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string modelType,
-        int id
+        int id,
+        string? implementationNamespace = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -108,13 +111,12 @@ internal static class SparseChangePayloadCollectionExportEmitter
         var itemValueType = SparseChangeSetBasicsEmitter.ElementTypeOf(member);
         var isModelValue = member.Collection.ElementType.IsFragmentModel;
         var childCore = isModelValue
-            ? member.Collection.ElementType.NonNullableName
-                + "."
-                + SparseChangeSetPayloadEmitter.PayloadTypeName(
-                    dialect,
-                    member.Collection.ElementType.NonNullableName,
-                    "Core"
-                )
+            ? SparseChangeSetPayloadEmitter.QualifiedChildPayloadType(
+                dialect,
+                member.Collection.ElementType.NonNullableName,
+                "Core",
+                implementationNamespace
+            )
             : string.Empty;
         var keyOf = SparseKeyedCollectionEmitter.KeyOfMethod(member);
         code.AppendLineAt(
@@ -232,7 +234,8 @@ internal static class SparseChangePayloadCollectionExportEmitter
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string modelType,
-        int id
+        int id,
+        string? implementationNamespace = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -248,13 +251,12 @@ internal static class SparseChangePayloadCollectionExportEmitter
         var isModelValue = member.Collection.ValueType?.IsFragmentModel == true;
         var childCore =
             isModelValue && member.Collection.ValueType.HasValue
-                ? member.Collection.ValueType.Value.NonNullableName
-                    + "."
-                    + SparseChangeSetPayloadEmitter.PayloadTypeName(
-                        dialect,
-                        member.Collection.ValueType.Value.NonNullableName,
-                        "Core"
-                    )
+                ? SparseChangeSetPayloadEmitter.QualifiedChildPayloadType(
+                    dialect,
+                    member.Collection.ValueType.Value.NonNullableName,
+                    "Core",
+                    implementationNamespace
+                )
                 : string.Empty;
         code.AppendLineAt(
             5,

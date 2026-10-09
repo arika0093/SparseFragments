@@ -116,6 +116,59 @@ internal static class SparseGeneratedPlacement
             + implementationSuffix;
     }
 
+    /// <summary>Gets the simple per-model fragment operations type name.</summary>
+    /// <remarks>Derived from the implementation container so payload, JSON, and
+    /// fragment operations for one model share one stable identity root.</remarks>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A valid C# type name unique per model identity.</returns>
+    public static string GetFragmentOperationsSimpleName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => GetImplementationContainer(model, cancellationToken) + "FragmentOperations";
+
+    /// <summary>Gets the qualified per-model fragment operations type name, or null when disabled.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>The qualified name, or null for single-file emission.</returns>
+    public static string? GetFragmentOperationsTypeName(
+        SparseModelInfo model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? null
+            : "global::" + root + "." + GetFragmentOperationsSimpleName(model, cancellationToken);
+    }
+
+    /// <summary>Gets the simple per-model fragment JSON converter type name.</summary>
+    /// <remarks>Shares the implementation-container identity root so the converter,
+    /// payload DTOs, and fragment operations for one model stay correlated.</remarks>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A valid C# type name unique per model identity.</returns>
+    public static string GetFragmentJsonConverterSimpleName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => GetImplementationContainer(model, cancellationToken) + "FragmentJsonConverter";
+
+    /// <summary>Gets the qualified payload container name for split emission.</summary>    /// <remarks>Single-file emission keeps the legacy nested simple name; split
+    /// emission qualifies the same simple container under the implementation
+    /// namespace so wire discriminators stay unchanged.</remarks>
+    /// <param name="simpleContainerName">Legacy nested container simple name.</param>
+    /// <param name="implementationNamespace">Explicit namespace, or null for single-file.</param>
+    /// <returns>The reference to use from generated code.</returns>
+    public static string QualifyPayloadContainer(
+        string simpleContainerName,
+        string? implementationNamespace
+    ) =>
+        string.IsNullOrEmpty(implementationNamespace)
+            ? simpleContainerName
+            : "global::" + implementationNamespace + "." + simpleContainerName;
+
     private static string FullyQualifiedIdentity(SparseModelInfo model) =>
         model.IsGlobalNamespace
             ? "global::" + model.ModelTypeName

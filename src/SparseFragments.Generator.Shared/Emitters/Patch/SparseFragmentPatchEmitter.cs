@@ -352,7 +352,8 @@ internal static class SparseFragmentPatchEmitter
         bool canApplyInPlace = false,
         SparseEmissionFeatures? features = null,
         string accessibility = "public",
-        string? implementationNamespace = null
+        string? implementationNamespace = null,
+        SharedIndentedBuilder? implementationBuilder = null
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
@@ -513,7 +514,8 @@ internal static class SparseFragmentPatchEmitter
                 code,
                 members,
                 dialect,
-                modelType
+                modelType,
+                implementationNamespace
             );
         }
         code.AppendLineAt(1, "}");
@@ -535,7 +537,9 @@ internal static class SparseFragmentPatchEmitter
                 ignoredSettablePropertyNames,
                 plan,
                 canApplyChangeSetInPlace,
-                accessibility
+                accessibility,
+                implementationNamespace,
+                implementationBuilder
             );
         }
     }

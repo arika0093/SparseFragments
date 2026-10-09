@@ -148,20 +148,24 @@ public sealed class GeneratedApiApprovalTests
     [Test]
     public void PayloadImplementationDtosAreGroupedAndHiddenFromIntelliSense()
     {
-        // PublicApiGenerator filters EditorBrowsableAttribute from its API snapshots.
+        // Stage 3 (#192): typed DTOs live in the per-model implementation
+        // namespace, not nested in the annotated model. PublicApiGenerator
+        // filters EditorBrowsableAttribute from its API snapshots.
+        foreach (var model in FixtureModels)
+            model
+                .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal))
+                .ShouldBeEmpty();
+
         var containers = FixtureModels
-            .Select(static model =>
-                model
-                    .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
-                    .SingleOrDefault(static type =>
-                        type.Name.StartsWith("__Internal_", StringComparison.Ordinal)
-                    )
-            )
+            .Select(static model => model.GetNestedType("ChangePayload")?.BaseType?.DeclaringType)
             .Where(static type => type is not null)
             .Cast<Type>()
             .ToArray();
 
         containers.Length.ShouldBe(FixtureModels.Length);
+        foreach (var container in containers)
+            container.Namespace.ShouldBe("SparseFragments.Generated");
         var implementationTypes = containers
             .SelectMany(static container =>
                 container.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
@@ -178,12 +182,26 @@ public sealed class GeneratedApiApprovalTests
                 ?.State.ShouldBe(EditorBrowsableState.Never);
 
         var scalarContainer = typeof(CatalogScalar)
-            .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
-            .Single(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal));
+            .GetNestedType("ChangePayload")!
+            .BaseType!.DeclaringType!;
+        scalarContainer.Name.ShouldStartWith("__Internal_");
         var scalarMemberChange = scalarContainer
             .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
             .Single(static type => type.Name.StartsWith("Change0_", StringComparison.Ordinal));
         scalarMemberChange.DeclaringType.ShouldBe(scalarContainer);
+    }
+
+    [Test]
+    public void FragmentJsonConverterShellForwardsToImplementation()
+    {
+        // Stage 3 (#192): the model keeps a thin private shell; bodies live in
+        // the per-model implementation converter it derives from.
+        var shell = typeof(CatalogScalar.Fragment)
+            .GetNestedType("FragmentJsonConverter", BindingFlags.Public | BindingFlags.NonPublic)
+            .ShouldNotBeNull();
+        shell.IsNestedPrivate.ShouldBeTrue();
+        shell.BaseType.ShouldNotBeNull().Namespace.ShouldBe("SparseFragments.Generated");
+        shell.BaseType!.Name.ShouldContain("FragmentJsonConverter");
     }
 
     [Test]

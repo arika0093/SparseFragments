@@ -13,12 +13,13 @@ internal static class SparseChangePayloadPatchSyncEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        string? implementationNamespace = null
     )
     {
         if (modelType is null)
             return;
-        AppendCoreFromPatch(code, members, dialect, modelType);
+        AppendCoreFromPatch(code, members, dialect, modelType, implementationNamespace);
     }
 
     /// <summary>Emits the core-to-patch projection inside <c>ChangeSet</c>.</summary>
@@ -38,7 +39,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string modelType
+        string modelType,
+        string? implementationNamespace = null
     )
     {
         var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
@@ -59,7 +61,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
             "var changes = new global::System.Collections.Generic.List<" + change + ">();"
         );
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
-            AppendCoreFromPatchMember(code, member, dialect, modelType);
+            AppendCoreFromPatchMember(code, member, dialect, modelType, implementationNamespace);
         code.AppendLineAt(3, "return new " + core + " { Changes = changes };");
         code.AppendLineAt(2, "}");
     }
@@ -205,7 +207,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string modelType
+        string modelType,
+        string? implementationNamespace = null
     )
     {
         var id = member.Id;
@@ -222,14 +225,12 @@ internal static class SparseChangePayloadPatchSyncEmitter
         var field = dialect.MemberField(member);
         if (SparseChangeSetBasicsEmitter.IsNested(member))
         {
-            var childCore =
-                member.ChildModel!.Value.NonNullableName
-                + "."
-                + SparseChangeSetPayloadEmitter.PayloadTypeName(
-                    dialect,
-                    member.ChildModel.Value.NonNullableName,
-                    "Core"
-                );
+            var childCore = SparseChangeSetPayloadEmitter.QualifiedChildPayloadType(
+                dialect,
+                member.ChildModel!.Value.NonNullableName,
+                "Core",
+                implementationNamespace
+            );
             code.AppendLineAt(3, "{");
             code.AppendLineAt(3, "var nestedPatch" + id + " = " + field + ";");
             code.AppendLineAt(

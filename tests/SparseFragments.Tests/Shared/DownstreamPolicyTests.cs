@@ -547,7 +547,7 @@ public sealed class DownstreamPolicyTests
             .ShouldBe("Items");
         var code = new SharedIndentedBuilder(CancellationToken.None);
         Should.Throw<ArgumentException>(() =>
-            SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, null)
+            SparseChangeSetPayloadTransferEmitter.AppendToPayload(code, members, dialect, null)
         );
     }
 

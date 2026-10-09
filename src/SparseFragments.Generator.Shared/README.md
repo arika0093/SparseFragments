@@ -181,15 +181,25 @@ the renderer implementations behind `SparseGeneratedOnceNames` and remove
 the legacy per-model copies — then re-tighten this section.
 
 `SparseGeneratorConfig.GeneratedImplementationNamespace` declares where
-per-model generated implementations live once facade/implementation separation
-lands. All placement decisions flow through `SparseGeneratedPlacement`: the
-per-model container derives from the stable fully qualified model identity
-(never filesystem paths or emission ordering), UI type names dodge source
-member collisions, and surface/implementation hint names stay stable and
-unique. The namespace is explicit with no Shared fallback; null keeps the
-current single-file emission. `SparseGenerationResult.AdditionalSources`
-carries the implementation files with the surface file so per-model
-incremental isolation covers both.
+per-model generated implementations live. All placement decisions flow through
+`SparseGeneratedPlacement`: the per-model container derives from the stable
+fully qualified model identity (never filesystem paths or emission ordering),
+UI type names dodge source member collisions, and surface/implementation hint
+names stay stable and unique. The namespace is explicit with no Shared
+fallback; null keeps the current single-file emission.
+`SparseGenerationResult.AdditionalSources` carries the implementation files
+with the surface file so per-model incremental isolation covers both.
+
+With an explicit namespace, each model emits a second source,
+`<sanitized>_<hash>.Implementation.g.cs`, in that namespace. It carries the
+typed `ChangePayload` DTO container (`__Internal_<hash>` with its
+`Core`/`Root`/`Change`/item variants) and the `FragmentJsonConverter` bodies.
+The surface keeps the public `ChangePayload` facade and a thin private
+converter shell that derives from the implementation converter, plus a file
+alias resolving the container name. Cross-model payload references use the
+qualified `global::<ns>.__Internal_<hash>` form. The `"0.1"` wire format,
+redacted/missing/null/value distinctions, validation, and `JsonIgnore` rules
+are unchanged.
 
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
