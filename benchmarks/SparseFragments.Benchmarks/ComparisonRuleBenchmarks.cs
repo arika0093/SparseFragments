@@ -102,6 +102,7 @@ public class ComparisonRuleBenchmarks
                 "A local rule must not hide inherited rules for other types."
             );
         }
+        ComparisonRuleMetadataProbe.Validate(_config, references);
     }
 
     private string CreateSource()
