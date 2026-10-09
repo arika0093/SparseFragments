@@ -29,7 +29,9 @@ internal static class SparseChangeSetEmitter
         ImmutableArray<string> ignoredSettablePropertyNames,
         SparseEmissionFeatures? features = null,
         bool canApplyInPlace = false,
-        string accessibility = "public"
+        string accessibility = "public",
+        string? implementationNamespace = null,
+        SharedIndentedBuilder? implementationBuilder = null
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
@@ -111,7 +113,12 @@ internal static class SparseChangeSetEmitter
         SparseChangeSetPathEmitter.Append(code, members);
         if (plan.EmitChangePayload)
         {
-            SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
+            SparseChangeSetPayloadTransferEmitter.AppendToPayload(
+                code,
+                members,
+                dialect,
+                modelType
+            );
             SparseChangePayloadReaderEmitter.AppendFromPayload(code, members, dialect, modelType);
             SparseChangePayloadPatchSyncEmitter.AppendPatchFromCore(
                 code,
@@ -125,13 +132,42 @@ internal static class SparseChangeSetEmitter
         code.AppendLine();
         if (plan.EmitChangePayload)
         {
-            SparseChangeSetPayloadEmitter.AppendPayload(
-                code,
-                members,
-                dialect,
-                modelType,
-                ignoredSettablePropertyNames
-            );
+            if (implementationBuilder is not null && implementationNamespace is not null)
+            {
+                // Stage 3 (#192): typed DTOs live in the per-model implementation
+                // source; the surface keeps the ChangePayload facade plus a
+                // namespace alias so all simple container references resolve.
+                SparseChangeSetPayloadEmitter.AppendPayload(
+                    code,
+                    members,
+                    dialect,
+                    modelType,
+                    ignoredSettablePropertyNames,
+                    emitContainers: false,
+                    emitFacade: true
+                );
+                SparseChangeSetPayloadEmitter.AppendPayload(
+                    implementationBuilder,
+                    members,
+                    dialect,
+                    modelType,
+                    ignoredSettablePropertyNames,
+                    emitContainers: true,
+                    emitFacade: false,
+                    implementationNamespace: implementationNamespace,
+                    containerAccessibility: accessibility
+                );
+            }
+            else
+            {
+                SparseChangeSetPayloadEmitter.AppendPayload(
+                    code,
+                    members,
+                    dialect,
+                    modelType,
+                    ignoredSettablePropertyNames
+                );
+            }
         }
     }
 

@@ -104,11 +104,11 @@ public sealed class RelocatedAttributeBridgeTests
         return configuration with { DescriptorDialect = null };
     }
 
-    private static string BuildSurface(
+    private static (string Surface, string? Implementation) BuildSplit(
         SparseGeneratorConfig config,
         ImmutableArray<SparseMemberModel> members
     ) =>
-        SparseFragmentEmitter.BuildSource(
+        SparseFragmentEmitter.BuildSplitSource(
             BridgeModel(),
             members,
             ImmutableArray<SparsePocoCloneModel>.Empty,
@@ -119,6 +119,11 @@ public sealed class RelocatedAttributeBridgeTests
             CancellationToken.None,
             config
         );
+
+    private static string BuildSurface(
+        SparseGeneratorConfig config,
+        ImmutableArray<SparseMemberModel> members
+    ) => BuildSplit(config, members).Surface;
 
     [Test]
     public void RewriteReferencesTheSameBridgeTheSurfaceEmits()
@@ -146,7 +151,8 @@ public sealed class RelocatedAttributeBridgeTests
     {
         var config = ProductConfigWithoutDescriptors();
         var members = AttributedMembers();
-        var surface = BuildSurface(config, members);
+        var (surface, splitImplementation) = BuildSplit(config, members);
+        splitImplementation.ShouldNotBeNull();
         var implementations = SparseFragmentEmitter.BuildImplementationSources(
             BridgeModel(),
             members,
@@ -202,6 +208,7 @@ public sealed class RelocatedAttributeBridgeTests
         var trees = implementations
             .Select(static source => CSharpSyntaxTree.ParseText(source.Source))
             .Prepend(CSharpSyntaxTree.ParseText(surface, path: "Surface.cs"))
+            .Prepend(CSharpSyntaxTree.ParseText(splitImplementation!, path: "Implementation.cs"))
             .Append(CSharpSyntaxTree.ParseText(cores.Core, path: "EditSessionCore.cs"))
             .Append(
                 CSharpSyntaxTree.ParseText(cores.CurrentCore, path: "EditSessionWithCurrentCore.cs")

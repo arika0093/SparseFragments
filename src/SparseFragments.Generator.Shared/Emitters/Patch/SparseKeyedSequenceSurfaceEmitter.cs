@@ -441,7 +441,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 code,
                 member,
                 dialect,
-                modelType
+                modelType,
+                implementationNamespace
             );
         code.AppendLineAt(2, "}");
     }

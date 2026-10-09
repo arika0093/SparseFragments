@@ -33,12 +33,44 @@ internal static class SparseFragmentJsonEmitter
         code.AppendLine();
     }
 
+    /// <summary>Emits the thin model-facing converter shell delegating to the implementation converter.</summary>
+    /// <remarks>The heavyweight read/write bodies live in the per-model implementation
+    /// source; the shell preserves the private nested-converter surface and the
+    /// public accessor while adding no serialization logic.</remarks>
+    /// <param name="code">Surface target builder.</param>
+    /// <param name="jsonConverterQualifiedName">Qualified implementation converter type.</param>
+    public static void AppendStandaloneFragmentJsonFacade(
+        SharedIndentedBuilder code,
+        string jsonConverterQualifiedName
+    )
+    {
+        code.CancellationToken.ThrowIfCancellationRequested();
+        code.AppendLineAt(
+            2,
+            "public static global::System.Text.Json.Serialization.JsonConverter<Fragment> JsonConverter { get; } = new FragmentJsonConverter();"
+        );
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "/// <summary>Reads and writes sparse fragment properties without materializing absent values.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "private sealed class FragmentJsonConverter : " + jsonConverterQualifiedName
+        );
+        code.AppendLineAt(2, "{ }");
+        code.AppendLine();
+    }
+
     /// <summary>Emits the fragment JSON converter used for standard System.Text.Json serialization.</summary>
     public static void AppendConverter(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string optional,
-        bool isStandalone
+        bool isStandalone,
+        string converterClassName = "FragmentJsonConverter",
+        string converterAccessibility = "private",
+        bool sealedConverter = true
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
@@ -48,7 +80,10 @@ internal static class SparseFragmentJsonEmitter
         );
         code.AppendLineAt(
             2,
-            "private sealed class FragmentJsonConverter : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
+            converterAccessibility
+                + (sealedConverter ? " sealed class " : " class ")
+                + converterClassName
+                + " : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
         );
         code.AppendLineAt(2, "{");
         // Keep linear UTF-8 dispatch limited to small models; wider converters retain string dispatch.

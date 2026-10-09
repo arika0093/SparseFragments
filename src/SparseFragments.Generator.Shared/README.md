@@ -198,6 +198,25 @@ compatibility alias. Child references resolve to the child container. Private
 member attributes are read through an internal model bridge so the relocated
 code never names a private type.
 
+With an explicit namespace, each model also emits a payload/operations
+implementation source, `<sanitized>_<hash>.Implementation.g.cs`, in that
+namespace. It carries the typed `ChangePayload` DTO container
+(`__Internal_<hash>` with its `Core`/`Root`/`Change`/item variants) and the
+`FragmentJsonConverter` bodies. The surface keeps the public `ChangePayload`
+facade and a thin private converter shell that derives from the implementation
+converter, plus a file alias resolving the container name. Cross-model payload
+references use the qualified `global::<ns>.__Internal_<hash>` form. The
+`"0.1"` wire format, redacted/missing/null/value distinctions, validation, and
+`JsonIgnore` rules are unchanged.
+
+The same implementation file carries the per-model `Fragment` operations
+class (`<container>FragmentOperations`, `internal static`). It owns the
+model-specific conversion (`From`, `ToModel`, projection), merge, diff, and
+deep-clone bodies plus POCO clone helpers; the model keeps one-line facades
+on `Fragment`/`FragmentBuilder` and the root projection bridge. Reference
+cycles, comparers, merge modes, and presence semantics are unchanged, and
+collection kernels stay compilation-scoped under issue #182.
+
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
 `SparseGeneratedOnceNames` pins those identities; per-model output with an

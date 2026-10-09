@@ -660,7 +660,10 @@ public sealed class GeneratorStepTrackingTests
         var changed = beforeSources
             .Keys.Where(key => sharedSources[key] != beforeSources[key])
             .ToArray();
-        changed.Length.ShouldBe(4);
+        // Union: the edited shared type changes its promoted surface, its
+        // reloc-2 payload/operations implementation file, and its reloc-1
+        // UI/session implementations — nothing else.
+        changed.Length.ShouldBe(5);
         foreach (var hint in changed)
         {
             hint.ShouldContain("ShapeShared1");

@@ -142,6 +142,26 @@ public sealed class PromotedIncrementalTests
         return match;
     }
 
+    private static string SurfaceHintFor(Dictionary<string, string> sources, string typeName)
+    {
+        var match = sources.Keys.SingleOrDefault(key =>
+            key.Contains(typeName, StringComparison.Ordinal)
+            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
+        );
+        match.ShouldNotBeNull($"expected a surface source for '{typeName}'");
+        return match;
+    }
+
+    private static string ImplementationHintFor(Dictionary<string, string> sources, string typeName)
+    {
+        var match = sources.Keys.SingleOrDefault(key =>
+            key.Contains(typeName, StringComparison.Ordinal)
+            && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+        );
+        match.ShouldNotBeNull($"expected an implementation source for '{typeName}'");
+        return match;
+    }
+
     [Test]
     public void UnrelatedRootEdit_PreservesPromotedOutput()
     {
@@ -172,22 +192,24 @@ public sealed class PromotedIncrementalTests
         // The shared promoted output is byte-identical.
         afterSources[promotedHint].ShouldBe(beforeSources[promotedHint]);
         // Untouched roots are byte-identical; the edited root reflects the edit.
+        // Union: each root owns a surface plus the reloc-1 UI/session
+        // implementations plus the reloc-2 payload/operations file; all stay
+        // isolated per model.
         foreach (var root in new[] { "InvRoot2", "InvRoot3" })
         {
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(5);
+            hints.Length.ShouldBe(6);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
             }
         }
-        var editedHint = afterSources.Keys.Single(key =>
-            key.Contains("InvRoot1", StringComparison.Ordinal)
-            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
-        );
+        var editedHint = SurfaceHintFor(afterSources, "InvRoot1");
         afterSources[editedHint].ShouldContain("EditMarker");
+        var editedImplementationHint = ImplementationHintFor(afterSources, "InvRoot1");
+        afterSources[editedImplementationHint].ShouldContain("EditMarker");
     }
 
     [Test]
@@ -269,7 +291,7 @@ public sealed class PromotedIncrementalTests
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(5);
+            hints.Length.ShouldBe(6);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
@@ -306,11 +328,12 @@ public sealed class PromotedIncrementalTests
         probe.SpfDiagnostics().ShouldBeEmpty();
         var sources = probe.Sources();
 
-        // The shared type gets its surface plus implementations, never a
-        // promoted duplicate.
+        // The shared type gets its surface plus implementations (the reloc-1
+        // UI/session family plus the reloc-2 payload/operations file), never
+        // a promoted duplicate.
         sources
             .Keys.Count(key => key.Contains("InvExplicitShared", StringComparison.Ordinal))
-            .ShouldBe(5);
+            .ShouldBe(6);
         sources
             .Keys.Any(key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal))
             .ShouldBeFalse();

@@ -838,8 +838,11 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        // Per-model plane: never a compilation-scoped helper (issue #178).
-        var source = SparsePerModelEmitter.BuildSurface(
+        // Union of both relocations: the surface plus the reloc-2 split
+        // implementation file share one result, and the reloc-1 UI/session
+        // family joins AdditionalSources under distinct hints so per-model
+        // incremental isolation covers all of them.
+        var (surface, implementation) = SparsePerModelEmitter.BuildSplitSurface(
             model,
             analysis.Members,
             analysis.PocoCloneModels,
@@ -859,7 +862,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             cancellationToken,
             Configuration
         );
-        return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics, additional);
+        if (implementation.HasValue)
+            additional = additional.Add(implementation.Value);
+        return new SparseGenerationResult(
+            model.HintName,
+            surface,
+            analysis.Diagnostics,
+            additional
+        );
     }
 
     private static DiagnosticDescriptor GetDescriptor(string id) =>
@@ -933,7 +943,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             Configuration.PromotedHintNameSuffix,
             cancellationToken
         );
-        var source = SparsePerModelEmitter.BuildPromotedSurface(
+        var (surface, implementation) = SparsePerModelEmitter.BuildPromotedSplitSurface(
             promoted,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
@@ -945,9 +955,11 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             cancellationToken,
             Configuration
         );
+        if (implementation.HasValue)
+            additional = additional.Add(implementation.Value);
         return new SparseGenerationResult(
             hint,
-            source,
+            surface,
             ImmutableArray<SparseGeneratorDiagnostic>.Empty,
             additional
         );

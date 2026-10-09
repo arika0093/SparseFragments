@@ -109,7 +109,8 @@ internal static class SparseDictionaryPatchEmitter
                 code,
                 member,
                 dialect,
-                modelType
+                modelType,
+                implementationNamespace
             );
         code.AppendLineAt(2, "}");
     }

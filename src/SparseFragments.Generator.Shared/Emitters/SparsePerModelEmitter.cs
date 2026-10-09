@@ -119,4 +119,73 @@ internal static class SparsePerModelEmitter
             cancellationToken,
             config
         );
+
+    /// <summary>Builds split surface and implementation sources for one explicit root.</summary>
+    /// <remarks>Stage 3 (#192): the implementation source carries the typed payload
+    /// DTOs and Fragment JSON converter bodies under the shared resolver hint;
+    /// null means legacy single-file emission.</remarks>
+    public static (string Surface, SparseGeneratedSource? Implementation) BuildSplitSurface(
+        SparseModelInfo model,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        ImmutableArray<SparseStructuralModel> structuralModels,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config,
+        Action<
+            SharedIndentedBuilder,
+            SparseModelInfo,
+            ImmutableArray<SparseMemberModel>
+        >? appendProductExtensions = null
+    )
+    {
+        var (surface, implementation) = SparseFragmentEmitter.BuildSplitSource(
+            model,
+            members,
+            pocoCloneModels,
+            readOnlyViewModels,
+            structuralModels,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config,
+            appendProductExtensions
+        );
+        if (implementation is null)
+            return (surface, null);
+        var hint = SparseGeneratedPlacement.ImplementationHintName(
+            model,
+            ".Implementation.g.cs",
+            cancellationToken
+        );
+        return (surface, new SparseGeneratedSource(hint, implementation));
+    }
+
+    /// <summary>Builds split sources for one promoted model.</summary>
+    public static (string Surface, SparseGeneratedSource? Implementation) BuildPromotedSplitSurface(
+        SparsePromotedModel promoted,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    )
+    {
+        var (surface, implementation) = SparseFragmentEmitter.BuildPromotedSplitSource(
+            promoted,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config
+        );
+        if (implementation is null)
+            return (surface, null);
+        var hint = SparseGeneratedPlacement.ImplementationHintName(
+            promoted.Model,
+            ".Implementation.g.cs",
+            cancellationToken
+        );
+        return (surface, new SparseGeneratedSource(hint, implementation));
+    }
 }

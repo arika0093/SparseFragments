@@ -15,20 +15,47 @@ internal sealed class SparseFragmentMergeEmitter
         string optional,
         string mergeStrategyFieldPrefix,
         string referenceComparer,
-        SparseFragmentExpressions expressions
+        SparseFragmentExpressions expressions,
+        string fieldQualifier = ""
     )
     {
         Optional = optional;
         MergeStrategyFieldPrefix = mergeStrategyFieldPrefix;
         ReferenceComparer = referenceComparer;
         Expressions = expressions;
+        FieldQualifier = fieldQualifier;
     }
 
-    private string MergeStrategyField(SparseMemberModel member) =>
-        SparseFragmentEmitHelpers.MergeStrategyField(MergeStrategyFieldPrefix, member);
+    private string FieldQualifier { get; }
 
-    public void AppendMerge(SharedIndentedBuilder code, ImmutableArray<SparseMemberModel> members)
+    private string MergeStrategyField(SparseMemberModel member) =>
+        FieldQualifier
+        + SparseFragmentEmitHelpers.MergeStrategyField(MergeStrategyFieldPrefix, member);
+
+    public void AppendMerge(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string? operationsType = null,
+        string receiver = "this."
+    )
     {
+        // Stage 4 (#193): with an operations target the surface keeps a
+        // one-line facade; the algorithm body moves to the operations class
+        // with an explicit receiver.
+        if (operationsType is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Merges a higher-priority fragment over this fragment.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public Fragment Merge(Fragment higherPriority) => "
+                    + operationsType
+                    + ".Merge(this, higherPriority);"
+            );
+            return;
+        }
         var hasCustomMergeStrategy = false;
         var replaceOnly = members.Length > 0;
         foreach (var member in members)
@@ -53,16 +80,25 @@ internal sealed class SparseFragmentMergeEmitter
             2,
             "/// <summary>Merges a higher-priority fragment over this fragment.</summary>"
         );
-        code.AppendLineAt(2, "public Fragment Merge(Fragment higherPriority)");
+        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
+        if (isOperationsBody)
+            code.AppendLineAt(
+                2,
+                "public static Fragment Merge(Fragment self, Fragment higherPriority)"
+            );
+        else
+            code.AppendLineAt(2, "public Fragment Merge(Fragment higherPriority)");
         code.AppendLineAt(2, "{");
+        if (isOperationsBody)
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
         SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "higherPriority");
         if (!hasCustomMergeStrategy)
         {
             code.AppendLineAt(3, "if (higherPriority.IsEmpty)");
             code.AppendLineAt(3, "{");
-            code.AppendLineAt(4, "return this;");
+            code.AppendLineAt(4, "return " + receiver.TrimEnd('.') + ";");
             code.AppendLineAt(3, "}");
-            code.AppendLineAt(3, "if (IsEmpty)");
+            code.AppendLineAt(3, "if (" + receiver + "IsEmpty)");
             code.AppendLineAt(3, "{");
             code.AppendLineAt(4, "return higherPriority;");
             code.AppendLineAt(3, "}");
@@ -94,7 +130,7 @@ internal sealed class SparseFragmentMergeEmitter
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var lower = "this." + name;
+            var lower = receiver + name;
             var higher = "higherPriority." + name;
             string expression;
             if (member.MergeStrategyType is not null)
@@ -134,15 +170,40 @@ internal sealed class SparseFragmentMergeEmitter
 
     public void AppendApplyChanges(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        string? operationsType = null,
+        string receiver = "this."
     )
     {
+        if (operationsType is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies a sparse semantic diff to this contribution.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public Fragment ApplyChanges(Fragment changes) => "
+                    + operationsType
+                    + ".ApplyChanges(this, changes);"
+            );
+            return;
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Applies a sparse semantic diff to this contribution.</summary>"
         );
-        code.AppendLineAt(2, "public Fragment ApplyChanges(Fragment changes)");
+        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
+        if (isOperationsBody)
+            code.AppendLineAt(
+                2,
+                "public static Fragment ApplyChanges(Fragment self, Fragment changes)"
+            );
+        else
+            code.AppendLineAt(2, "public Fragment ApplyChanges(Fragment changes)");
         code.AppendLineAt(2, "{");
+        if (isOperationsBody)
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
         SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "changes");
         code.AppendLineAt(3, "return new Fragment");
         code.AppendLineAt(3, "{");
@@ -150,9 +211,10 @@ internal sealed class SparseFragmentMergeEmitter
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var type = SparseFragmentEmitHelpers.FragmentValueType(member);
+            var self = receiver + name;
             var expression = member.ChildModel is null
-                ? $"changes.{name}.IsPresent ? changes.{name} : this.{name}"
-                : $"changes.{name}.IsPresent ? {Optional}<{type}>.Present((this.{name}.IsPresent && (object?)this.{name}.Value is not null && (object?)changes.{name}.Value is not null) ? this.{name}.Value!.ApplyChanges(changes.{name}.Value!) : changes.{name}.Value) : this.{name}";
+                ? $"changes.{name}.IsPresent ? changes.{name} : {self}"
+                : $"changes.{name}.IsPresent ? {Optional}<{type}>.Present(({self}.IsPresent && (object?){self}.Value is not null && (object?)changes.{name}.Value is not null) ? {self}.Value!.ApplyChanges(changes.{name}.Value!) : changes.{name}.Value) : {self}";
             code.AppendIndent(4).Append(name).Append(" = ").Append(expression).AppendLine(",");
         }
 
@@ -165,9 +227,38 @@ internal sealed class SparseFragmentMergeEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        bool modelIsReferenceType
+        bool modelIsReferenceType,
+        string? operationsType = null
     )
     {
+        // Stage 4 (#193): facades delegate both Diff overloads; the core and
+        // per-member helpers move with no surface counterpart.
+        if (operationsType is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Creates a sparse semantic diff between two ordinary model values.</summary>"
+            );
+            code.AppendIndent(2)
+                .Append("public static Fragment Diff(")
+                .Append(modelType)
+                .Append(" before, ")
+                .Append(modelType)
+                .Append(" after) => ")
+                .Append(operationsType)
+                .AppendLine(".Diff(before, after);");
+            code.AppendIndent(2)
+                .Append("internal static Fragment Diff(")
+                .Append(modelType)
+                .Append(" before, ")
+                .Append(modelType)
+                .Append(
+                    " after, global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>> __sparse_diff_context, string __sparse_diff_path) => "
+                )
+                .Append(operationsType)
+                .AppendLine(".Diff(before, after, __sparse_diff_context, __sparse_diff_path);");
+            return;
+        }
         const string diffContextType =
             "global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>>";
         foreach (var member in members.Where(static member => member.ChildModel is not null))
