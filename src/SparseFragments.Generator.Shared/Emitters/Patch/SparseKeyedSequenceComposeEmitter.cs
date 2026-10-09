@@ -1,6 +1,11 @@
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Emits keyed-sequence Compose algebra.</summary>
+/// <remarks>
+/// Merge-time seam (#188): pure key-set composition delegates to the
+/// Generated-Once kernel helpers (see <see cref="SparsePatchKernelCapabilities"/>);
+/// typed nested patches, canonical storage and ownership stay here.
+/// </remarks>
 internal static class SparseKeyedSequenceComposeEmitter
 {
     internal static void EmitKeyedCompose(

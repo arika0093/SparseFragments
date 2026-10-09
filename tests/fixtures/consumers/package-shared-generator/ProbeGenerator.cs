@@ -212,6 +212,11 @@ internal static class ProbeSurface
             ),
             descriptorCapability
         );
+        var kernelKinds = SparsePatchKernelCapabilities.ForCompilation(true, true, true);
+        var kernelSource = SparsePatchKernelEmitter.RenderHelperSource(
+            "PackageShared.Generated",
+            kernelKinds
+        );
 
         // Emitter/helpers (Emitters/, Infrastructure/).
         var code = new SharedIndentedBuilder(cancellationToken);
@@ -278,6 +283,12 @@ internal static class ProbeSurface
                 + descriptorCapability
                 + " descriptor-errors="
                 + descriptorErrors.Length
+                + " kernels="
+                + kernelKinds
+                + " kernel-bytes="
+                + kernelSource.Length
+                + " extracted="
+                + SparsePatchKernelInventory.Extracted.Length
         );
         code.AppendLineAt(
             0,

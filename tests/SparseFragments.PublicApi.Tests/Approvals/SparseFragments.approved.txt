@@ -328,6 +328,19 @@ namespace SparseFragments
         public void RemoveAt(int index) { }
         public void SetModel(int index, TModel item) { }
     }
+    public static class SparseOperationKernels
+    {
+        public static void ComposeKeyedSets<TKey>(System.Collections.Generic.IReadOnlyList<TKey> firstAdded, System.Collections.Generic.IReadOnlyList<TKey> firstRemoved, System.Collections.Generic.IReadOnlyList<TKey> secondAdded, System.Collections.Generic.IReadOnlyList<TKey> secondRemoved, out System.Collections.Generic.List<TKey> added, out System.Collections.Generic.List<TKey> removed, out bool orderChanged, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static string EscapeKeySegment(string keyText) { }
+        public static string FormatKeyedPath(string member, string keyText) { }
+        public static int IndexOfKey<TKey>(System.Collections.Generic.IReadOnlyList<TKey> keys, TKey key, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static void InvertKeyedSets<TKey>(System.Collections.Generic.IReadOnlyList<TKey> added, System.Collections.Generic.IReadOnlyList<TKey> removed, out System.Collections.Generic.List<TKey> invertedAdded, out System.Collections.Generic.List<TKey> invertedRemoved) { }
+        public static bool IsAncestorOrDescendant(string first, string second) { }
+        public static bool IsEmptyKeyedSet<TKey>(System.Collections.Generic.IReadOnlyList<TKey> added, System.Collections.Generic.IReadOnlyList<TKey> removed, bool orderChanged) { }
+        public static bool IsEmptyTransition(bool beforePresent, bool afterPresent, bool orderChanged) { }
+        public static bool IsUnassignedKey<TKey>(TKey key, TKey unassigned, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static bool TryComposePresence(bool firstBeforePresent, bool firstAfterPresent, bool secondAfterPresent, out bool resultBeforePresent, out bool resultAfterPresent) { }
+    }
     public enum SparseRebaseMode
     {
         Default = 0,

@@ -239,6 +239,19 @@ path remains canonical inside this repository; this package exists for
 external/downstream generators (for example Configlue, which migrates from a
 submodule-based Shared source transport to this package).
 
+## Patch operation kernels
+
+`SparsePatchKernelCapabilities` aggregates model-independent Patch/ChangeSet
+kernels (presence composition, empty identities, keyed membership, order
+transitions, canonical paths) as explicit Generated-Once families with one
+stable hint name per compilation. `SparsePatchKernelInventory` records the
+extracted subset versus model-specific specializations (typed nested
+operations, sparse canonical storage, unassigned-key rules, ownership and
+custom policies). `SparsePatchKernelEmitter.RenderHelperSource` emits BCL-only
+generic helpers so downstream products reuse the semantics without a
+SparseFragments runtime dependency; model emitters invoke them while keeping
+typed transitions.
+
 ## Mixed redacted operations
 
 Payload endpoints use the `ChangePayloadState.Redacted` token
