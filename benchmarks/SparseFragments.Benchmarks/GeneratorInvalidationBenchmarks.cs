@@ -3,6 +3,7 @@ using System.Text;
 using BenchmarkDotNet.Attributes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SparseFragments;
 using SparseFragments.Generator;
 using SparseFragments.Generator.Shared;
@@ -92,6 +93,8 @@ public class GeneratorInvalidationBenchmarks
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(freshCompilation);
         ValidateDriver(freshDriver);
+        ValidateEdits(ScaleCompilations.WithUnrelatedEdit);
+        ValidateEdits(ScaleCompilations.WithSharedEdit);
         Console.WriteLine(
             "Prepared source fingerprint ("
                 + RootCount
@@ -110,6 +113,50 @@ public class GeneratorInvalidationBenchmarks
         _sharedTrackedEdits = 0;
         _preparedFor = RootCount;
     }
+
+    private void ValidateEdits(Func<CSharpCompilation, int, CSharpCompilation> edit)
+    {
+        var compilation = _baseCompilation;
+        var propertyCount = CountProperties(compilation);
+        var driver = _unrelatedDriver;
+        var fingerprint = GetSourceFingerprint(driver);
+        for (var revision = 1; revision <= RootCount + 1; revision++)
+        {
+            compilation = edit(compilation, revision);
+            if (CountProperties(compilation) != propertyCount)
+            {
+                throw new InvalidOperationException(
+                    "Incremental edits must preserve property count."
+                );
+            }
+        }
+        foreach (var revision in new[] { RootCount + 2, RootCount + 3 })
+        {
+            compilation = edit(compilation, revision);
+            driver = driver.RunGenerators(compilation);
+            ValidateDriver(driver);
+            var updatedFingerprint = GetSourceFingerprint(driver);
+            if (updatedFingerprint == fingerprint)
+            {
+                throw new InvalidOperationException(
+                    "Incremental edit must change generated output."
+                );
+            }
+            fingerprint = updatedFingerprint;
+        }
+        var errors = compilation
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error);
+        if (errors.Any())
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
+        }
+    }
+
+    private static int CountProperties(CSharpCompilation compilation) =>
+        compilation.SyntaxTrees.Sum(tree =>
+            tree.GetRoot().DescendantNodes().OfType<PropertyDeclarationSyntax>().Count()
+        );
 
     private void ValidateDriver(GeneratorDriver driver)
     {
@@ -292,33 +339,30 @@ public class GeneratorInvalidationBenchmarks
         {
             var rootCount = compilation.SyntaxTrees.Count(tree => tree.FilePath != SharedPath);
             var index = edit % rootCount;
-            return WithAppendedMember(
-                compilation,
-                $"ScaleRoot{index}.cs",
-                $"public int UnrelatedEdit{edit} {{ get; set; }}"
-            );
+            return WithRenamedProperty(compilation, $"ScaleRoot{index}.cs", edit);
         }
 
         internal static CSharpCompilation WithSharedEdit(CSharpCompilation compilation, int edit)
         {
-            return WithAppendedMember(
-                compilation,
-                SharedPath,
-                $"public string SharedEdit{edit} {{ get; set; }} = \"\";"
-            );
+            return WithRenamedProperty(compilation, SharedPath, edit);
         }
 
-        private static CSharpCompilation WithAppendedMember(
+        private static CSharpCompilation WithRenamedProperty(
             CSharpCompilation compilation,
             string path,
-            string member
+            int edit
         )
         {
             var oldTree = compilation.SyntaxTrees.Single(tree => tree.FilePath == path);
-            var oldText = oldTree.GetText().ToString();
-            var insertAt = oldText.LastIndexOf('}');
-            var newText = oldText.Insert(insertAt, "    " + member + "\n");
-            var newTree = CSharpSyntaxTree.ParseText(newText, path: path);
+            var root = oldTree.GetRoot();
+            var property = root.DescendantNodes().OfType<PropertyDeclarationSyntax>().First();
+            var renamed = property.WithIdentifier(
+                SyntaxFactory.Identifier("Edited" + edit).WithTriviaFrom(property.Identifier)
+            );
+            var newTree = oldTree.WithRootAndOptions(
+                root.ReplaceNode(property, renamed),
+                oldTree.Options
+            );
             return (CSharpCompilation)compilation.ReplaceSyntaxTree(oldTree, newTree);
         }
 
