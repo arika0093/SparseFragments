@@ -1625,8 +1625,10 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("version")]
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
+            public new SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet ToChangeSet() { }
             public new SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch ToPatch() { }
+            public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration? updated, out SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.@__Internal_DF686812.Core_DF686812.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -1698,7 +1700,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -1714,9 +1716,11 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration GetModelForFrameworkAccess() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {

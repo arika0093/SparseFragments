@@ -33,11 +33,6 @@ internal static class SparseObservableDescriptorEmitter
         code.AppendLineAt(3, "{");
         foreach (var member in members)
         {
-            if (member.Property.Name == "PropertyChanged")
-            {
-                continue;
-            }
-
             AppendMember(code, member, members, runtimeNamespace, dialect);
         }
 
@@ -60,6 +55,18 @@ internal static class SparseObservableDescriptorEmitter
         var path =
             "(pathPrefix.Length == 0 ? " + literal + " : pathPrefix + \".\" + " + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
+        var viewType = ViewTypeName(member, runtimeNamespace);
+        // The INotifyPropertyChanged event occupies the PropertyChanged name, so its
+        // descriptor targets the underlying model directly with the same
+        // notification behavior a proxy would produce. Non-scalar shapes with
+        // this name stay omitted (documented limitation).
+        var eventCollision = member.Property.Name == "PropertyChanged";
+        // Raw mutable values escape without a notifying view; route the read
+        // through the session's raw-access callback so cached HasChanges is dropped.
+        var receiver = eventCollision ? "__model." + property : "this." + property;
+        var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
+            ? "() => { __onRawModelAccess?.Invoke(); return " + receiver + "; }"
+            : "() => " + receiver;
         code.AppendLineAt(
             4,
             "new "
@@ -76,18 +83,121 @@ internal static class SparseObservableDescriptorEmitter
                 + (canWrite ? "true" : "false")
                 + ", "
                 + Attributes(member)
-                + ", () => this."
-                + property
                 + ", "
-                + Setter(member, members, runtimeNamespace, dialect)
+                + getValue
                 + ", "
-                + ChildAccessor(member, path)
+                + Setter(member, members, runtimeNamespace, dialect, eventCollision)
                 + ", "
-                + ArrayAccessor(member, path, dialect)
+                + ChildAccessor(member, path, dialect)
                 + ", "
-                + DictionaryAccessor(member, path, dialect)
+                + SparseObservableSequenceDescriptorEmitter.ArrayAccessor(member, path, dialect)
+                + ", "
+                + SparseObservableDictionaryDescriptorEmitter.DictionaryAccessor(
+                    member,
+                    path,
+                    dialect
+                )
+                + ", typeof("
+                + viewType
+                + "), "
+                + SparseObservableSetDescriptorEmitter.SetAccessor(member, dialect)
+                + ", "
+                + ShapeExpression(member, dialect)
+                + ", "
+                + (member.Property.IsRequired ? "true" : "false")
+                + ", "
+                + (member.Property.IsNullableOblivious ? "true" : "false")
                 + "),"
         );
+    }
+
+    /// <summary>Emits static shape metadata independent of live instances.</summary>
+    private static string ShapeExpression(SparseMemberModel member, SparseDescriptorDialect dialect)
+    {
+        var eventCollision = member.Property.Name == "PropertyChanged";
+        var hasChild =
+            member.ChildModel is not null && member.ChildIsReferenceType && !eventCollision;
+        var elementKnown = member.Collection.ElementType.Name is not null;
+        var scalarSequence =
+            elementKnown
+            && member.Collection.ValueType is null
+            && (
+                member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
+                || member.Collection.Kind == SparseCollectionKind.Array
+            );
+        var hasArray =
+            !eventCollision && (SparseObservableEmitter.IsObservableList(member) || scalarSequence);
+        var hasDictionary =
+            !eventCollision
+            && (
+                SparseObservableEmitter.IsObservableDictionary(member)
+                || (
+                    member.Collection.ValueType is not null
+                    && member.Collection.CloneKind == SparseCloneCollectionKind.Dictionary
+                )
+            );
+        var hasSet =
+            !eventCollision
+            && elementKnown
+            && member.Collection.ValueType is null
+            && member.Collection.Kind == SparseCollectionKind.Set;
+        string TypeOrNull(bool present, string name) => present ? "typeof(" + name + ")" : "null";
+        return "new "
+            + dialect.DescriptorShapeType
+            + " { HasChild = "
+            + (hasChild ? "true" : "false")
+            + ", ChildType = "
+            + TypeOrNull(hasChild, member.ChildModel?.NonNullableName ?? "object")
+            + ", HasArray = "
+            + (hasArray ? "true" : "false")
+            + ", ArrayItemType = "
+            + TypeOrNull(hasArray, member.Collection.ElementType.NonNullableName)
+            + ", ArrayItemNullable = "
+            + (hasArray && IsNullable(member.Collection.ElementType.Name) ? "true" : "false")
+            + ", HasDictionary = "
+            + (hasDictionary ? "true" : "false")
+            + ", DictionaryKeyType = "
+            + TypeOrNull(hasDictionary, member.Collection.ElementType.NonNullableName)
+            + ", DictionaryValueType = "
+            + TypeOrNull(hasDictionary, member.Collection.ValueType?.NonNullableName ?? "object")
+            + ", DictionaryValueNullable = "
+            + (
+                hasDictionary && IsNullable(member.Collection.ValueType?.Name ?? string.Empty)
+                    ? "true"
+                    : "false"
+            )
+            + ", HasSet = "
+            + (hasSet ? "true" : "false")
+            + ", SetItemType = "
+            + TypeOrNull(hasSet, member.Collection.ElementType.NonNullableName)
+            + ", SetItemNullable = "
+            + (hasSet && IsNullable(member.Collection.ElementType.Name) ? "true" : "false")
+            + " }";
+    }
+
+    private static string ViewTypeName(SparseMemberModel member, string runtimeNamespace)
+    {
+        // The colliding member has no proxy or view; reads observe model values.
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return member.Property.Type.NonNullableName;
+        }
+
+        if (member.ChildModel is not null && member.ChildIsReferenceType)
+        {
+            return SparseObservableEmitter.ChildObservableType(member);
+        }
+
+        if (
+            SparseObservableEmitter.IsObservableList(member)
+            || SparseObservableEmitter.IsObservableDictionary(member)
+        )
+        {
+            var names = SparseObservableEmitter.CollectionNames(member);
+            return SparseObservableEmitter.CollectionViewType(member, names, runtimeNamespace);
+        }
+
+        return member.Property.Type.NonNullableName;
     }
 
     private static string Attributes(SparseMemberModel member) =>
@@ -99,7 +209,8 @@ internal static class SparseObservableDescriptorEmitter
         SparseMemberModel member,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        bool eventCollision
     )
     {
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -109,13 +220,44 @@ internal static class SparseObservableDescriptorEmitter
             return "null";
         }
 
+        if (eventCollision)
+        {
+            // No observable proxy exists for this name; scalar members assign the
+            // model directly with identical equality and notification behavior.
+            if (
+                member.ChildModel is not null
+                || SparseObservableEmitter.IsObservableList(member)
+                || SparseObservableEmitter.IsObservableDictionary(member)
+                || member.Collection.Kind == SparseCollectionKind.Set
+            )
+            {
+                return "null";
+            }
+
+            var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
+            return "value => { if (!"
+                + dialect.DescriptorValueType
+                + ".TryGet<"
+                + propertyType
+                + ">(value, out var typed)) return false; if (global::System.Collections.Generic.EqualityComparer<"
+                + propertyType
+                + ">.Default.Equals(__model."
+                + property
+                + ", typed)) return true; __model."
+                + property
+                + " = typed; __Raise("
+                + literal
+                + "); if (__onChanged is not null) __onChanged(); return true; }";
+        }
+
         if (member.ChildModel is not null && member.ChildIsReferenceType)
         {
             var childObservable = SparseObservableEmitter.ChildObservableType(member);
             var childModelType = member.ChildModel.Value.NonNullableName;
-            var nullHandling = member.Property.IsNullable
-                ? "if (value is null) { this." + property + " = null; return true; } "
-                : "if (value is null) return false; ";
+            var nullHandling =
+                member.Property.IsNullable || member.Property.IsNullableOblivious
+                    ? "if (value is null) { this." + property + " = null; return true; } "
+                    : "if (value is null) return false; ";
             return "value => { "
                 + nullHandling
                 + "if (value is "
@@ -171,7 +313,11 @@ internal static class SparseObservableDescriptorEmitter
         return "value => { " + converted + "this." + property + " = typed; return true; }";
     }
 
-    private static string ChildAccessor(SparseMemberModel member, string path)
+    private static string ChildAccessor(
+        SparseMemberModel member,
+        string path,
+        SparseDescriptorDialect dialect
+    )
     {
         if (
             member.ChildModel is null
@@ -182,273 +328,24 @@ internal static class SparseObservableDescriptorEmitter
             return "null";
         }
 
+        // Instance-bound descriptors: capture the current child model and fail
+        // writes safely once the parent resolves to a different instance.
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
         var accessor = AccessorName(member.ChildModel.Value.NonNullableName);
-        return "() => this."
+        return "() => { var current = this."
             + property
-            + " is null ? null : this."
-            + property
-            + "."
+            + "; if ((object?)current is null) return null; var captured = current.__SparseTarget; var inner = current."
             + accessor
             + "("
             + path
-            + ")";
+            + "); return "
+            + dialect.DescriptorSetType
+            + ".Guarded(inner, () => { var live = this."
+            + property
+            + "; if ((object?)live is null) return false; return global::System.Object.ReferenceEquals(live.__SparseTarget, captured); }); }";
     }
 
-    private static string ArrayAccessor(
-        SparseMemberModel member,
-        string path,
-        SparseDescriptorDialect dialect
-    )
-    {
-        if (SparseObservableEmitter.IsObservableList(member))
-        {
-            return ListAccessor(member, path, dialect);
-        }
-
-        if (
-            member.Collection.ElementType.Name is null
-            || !member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
-        )
-        {
-            return "null";
-        }
-
-        var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var itemType = member.Collection.ElementType.NonNullableName;
-        return "() => this."
-            + property
-            + " is null ? null : new "
-            + dialect.ArrayDescriptorType
-            + "(typeof("
-            + itemType
-            + "), "
-            + IsNullableExpression(member.Collection.ElementType.Name)
-            + ", new "
-            + dialect.ArrayDescriptorAccessType
-            + " { Count = () => this."
-            + property
-            + "!.Length, GetItem = index => this."
-            + property
-            + "![index] })";
-    }
-
-    private static string ListAccessor(
-        SparseMemberModel member,
-        string path,
-        SparseDescriptorDialect dialect
-    )
-    {
-        var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var names = SparseObservableEmitter.CollectionNames(member);
-        var modelItemType = member.Collection.ElementType.Name;
-        var itemAccessorName = AccessorName(member.Collection.ElementType.NonNullableName);
-        var descriptorChildAccessor = names.HasElementProxy
-            ? "GetItemDescriptors = index => { var item = this."
-                + property
-                + "![index]; return item is null ? null : item."
-                + itemAccessorName
-                + "("
-                + path
-                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
-            : string.Empty;
-        var conversion = ValueConversion(
-            "value",
-            modelItemType,
-            "item",
-            names.HasElementProxy ? names.ViewType.TrimEnd('?') : null,
-            IsNullable(modelItemType),
-            dialect
-        );
-        var mutable = "!this." + property + "!.IsReadOnly";
-        var setItem =
-            "TrySetItem = (index, value) => { "
-            + modelItemType
-            + " item; if (!"
-            + mutable
-            + " || (uint)index >= (uint)this."
-            + property
-            + "!.Count) return false; "
-            + conversion
-            + "this."
-            + property
-            + "!.SetModel(index, item); return true; }, ";
-        var add =
-            "TryAdd = value => { "
-            + modelItemType
-            + " item; if (!"
-            + mutable
-            + ") return false; "
-            + conversion
-            + "this."
-            + property
-            + "!.AddModel(item); return true; }, ";
-        var insert =
-            "TryInsert = (index, value) => { "
-            + modelItemType
-            + " item; if (!"
-            + mutable
-            + " || index < 0 || index > this."
-            + property
-            + "!.Count) return false; "
-            + conversion
-            + "this."
-            + property
-            + "!.InsertModel(index, item); return true; }, ";
-        var remove =
-            "TryRemoveAt = index => { if (!"
-            + mutable
-            + " || (uint)index >= (uint)this."
-            + property
-            + "!.Count) return false; this."
-            + property
-            + "!.RemoveAt(index); return true; }, ";
-        var move =
-            "TryMove = (oldIndex, newIndex) => { if (!"
-            + mutable
-            + " || (uint)oldIndex >= (uint)this."
-            + property
-            + "!.Count || (uint)newIndex >= (uint)this."
-            + property
-            + "!.Count) return false; this."
-            + property
-            + "!.Move(oldIndex, newIndex); return true; }";
-        return "() => this."
-            + property
-            + " is null ? null : new "
-            + dialect.ArrayDescriptorType
-            + "(typeof("
-            + member.Collection.ElementType.NonNullableName
-            + "), "
-            + IsNullableExpression(member.Collection.ElementType.Name)
-            + ", new "
-            + dialect.ArrayDescriptorAccessType
-            + " { Count = () => this."
-            + property
-            + "!.Count, GetItem = index => this."
-            + property
-            + "![index], CanSetItem = () => "
-            + mutable
-            + ", CanAdd = () => "
-            + mutable
-            + ", CanInsert = () => "
-            + mutable
-            + ", CanRemove = () => "
-            + mutable
-            + ", CanMove = () => "
-            + mutable
-            + ", "
-            + descriptorChildAccessor
-            + setItem
-            + add
-            + insert
-            + remove
-            + move
-            + " })";
-    }
-
-    private static string DictionaryAccessor(
-        SparseMemberModel member,
-        string path,
-        SparseDescriptorDialect dialect
-    )
-    {
-        if (!SparseObservableEmitter.IsObservableDictionary(member))
-        {
-            return "null";
-        }
-
-        var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var keyType = member.Collection.ElementType.Name;
-        var modelValueType = member.Collection.ValueType!.Value.Name;
-        var names = SparseObservableEmitter.CollectionNames(member);
-        var mutable = "!this." + property + "!.IsReadOnly";
-        var keyCast = dialect.DescriptorValueType + ".TryGet<" + keyType + ">";
-        var valueConversion = ValueConversion(
-            "value",
-            modelValueType,
-            "typedValue",
-            names.HasElementProxy ? names.ViewType.TrimEnd('?') : null,
-            IsNullable(modelValueType),
-            dialect
-        );
-        var childAccessor = names.HasElementProxy
-            ? "GetValueDescriptors = key => { if (key is null || !"
-                + keyCast
-                + "(key, out var typedKey) || !this."
-                + property
-                + "!.TryGetValue(typedKey, out var item) || item is null) return null; return item."
-                + AccessorName(member.Collection.ValueType.Value.NonNullableName)
-                + "("
-                + path
-                + " + \"[\" + global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
-            : string.Empty;
-        return "() => this."
-            + property
-            + " is null ? null : new "
-            + dialect.DictionaryDescriptorType
-            + "(typeof("
-            + keyType
-            + "), typeof("
-            + member.Collection.ValueType.Value.NonNullableName
-            + "), "
-            + IsNullableExpression(modelValueType)
-            + ", new "
-            + dialect.DictionaryDescriptorAccessType
-            + " { Count = () => this."
-            + property
-            + "!.Count, CanAdd = () => "
-            + mutable
-            + ", CanRemove = () => "
-            + mutable
-            + ", CanSet = () => "
-            + mutable
-            + ", Keys = () => global::System.Linq.Enumerable.Cast<object?>(this."
-            + property
-            + "!.Keys), "
-            + "TryGetValue = key => { if (key is null || !"
-            + keyCast
-            + "(key, out var typedKey) || !this."
-            + property
-            + "!.TryGetValue(typedKey, out var result)) return (false, (object?)null); return (true, (object?)result); }, "
-            + childAccessor
-            + "TryAdd = (key, value) => { if (key is null || !"
-            + mutable
-            + " || !"
-            + keyCast
-            + "(key, out var typedKey) || this."
-            + property
-            + "!.ContainsKey(typedKey)) return false; "
-            + modelValueType
-            + " typedValue; "
-            + valueConversion
-            + "this."
-            + property
-            + "!.AddModel(typedKey, typedValue); return true; }, "
-            + "TrySetValue = (key, value) => { if (key is null || !"
-            + mutable
-            + " || !"
-            + keyCast
-            + "(key, out var typedKey) || !"
-            + "this."
-            + property
-            + "!.ContainsKey(typedKey)) return false; "
-            + modelValueType
-            + " typedValue; "
-            + valueConversion
-            + "this."
-            + property
-            + "!.SetModel(typedKey, typedValue); return true; }, "
-            + "TryRemove = key => { if (key is null || !"
-            + mutable
-            + " || !"
-            + keyCast
-            + "(key, out var typedKey)) return false; return this."
-            + property
-            + "!.Remove(typedKey); } })";
-    }
-
-    private static string ValueConversion(
+    internal static string ValueConversion(
         string value,
         string modelType,
         string variable,
@@ -487,9 +384,9 @@ internal static class SparseObservableDescriptorEmitter
             + ")) return false; ";
     }
 
-    private static bool IsNullable(string typeName) =>
-        typeName.EndsWith("?", System.StringComparison.Ordinal);
+    internal static bool IsNullable(string? typeName) =>
+        typeName is not null && typeName.EndsWith("?", System.StringComparison.Ordinal);
 
-    private static string IsNullableExpression(string typeName) =>
+    internal static string IsNullableExpression(string typeName) =>
         IsNullable(typeName) ? "true" : "false";
 }

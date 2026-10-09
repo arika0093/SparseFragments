@@ -305,6 +305,7 @@ namespace SparseFragments
         public SparseObservableList(System.Collections.Generic.IList<TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false, System.Action? onRawModelAccess = null) { }
         public int Count { get; }
         public bool IsDisposed { get; }
+        public bool IsFixedSize { get; }
         public bool IsReadOnly { get; }
         public TView this[int index] { get; set; }
         public System.Collections.Generic.IList<TModel> Model { get; }
@@ -388,9 +389,16 @@ namespace SparseFragments.Generated
         bool CanSetItem { get; }
         int Count { get; }
         bool IsItemNullable { get; }
+        bool IsKeyed { get; }
         System.Type ItemType { get; }
+        System.Type ItemViewType { get; }
+        System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        System.Type? KeyType { get; }
         object? GetItem(int index);
         SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index);
+        object? GetItemKey(int index);
+        int IndexOfKey(object? key);
+        bool IsUnassignedKey(object? key);
         bool TryAdd(object? value);
         bool TryInsert(int index, object? value);
         bool TryMove(int oldIndex, int newIndex);
@@ -405,10 +413,15 @@ namespace SparseFragments.Generated
         SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         bool IsEditable { get; }
         bool IsNullable { get; }
+        bool IsNullableOblivious { get; }
         bool IsReadOnly { get; }
+        bool IsRequired { get; }
         string Name { get; }
         string Path { get; }
+        SparseFragments.Generated.ISetDescriptor? Set { get; }
+        SparseFragments.Generated.SparseDescriptorShape Shape { get; }
         System.Type Type { get; }
+        System.Type ViewType { get; }
         object? GetValue();
         bool TrySetValue(object? value);
     }
@@ -427,15 +440,28 @@ namespace SparseFragments.Generated
         System.Type KeyType { get; }
         System.Collections.Generic.IEnumerable<object?> Keys { get; }
         System.Type ValueType { get; }
+        System.Type ValueViewType { get; }
         SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key);
         bool TryAdd(object? key, object? value);
         bool TryGetValue(object? key, out object? value);
         bool TryRemove(object? key);
         bool TrySetValue(object? key, object? value);
     }
+    public interface ISetDescriptor
+    {
+        bool CanAdd { get; }
+        bool CanRemove { get; }
+        int Count { get; }
+        bool IsItemNullable { get; }
+        System.Type ItemType { get; }
+        System.Collections.Generic.IEnumerable<object?> Items { get; }
+        bool Contains(object? item);
+        bool TryAdd(object? value);
+        bool TryRemove(object? value);
+    }
     public sealed class SparseArrayDescriptor : SparseFragments.Generated.IArrayDescriptor
     {
-        public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access) { }
+        public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access, System.Type? itemViewType = null, System.Type? keyType = null, string[]? keyPropertyNames = null) { }
         public bool CanAdd { get; }
         public bool CanInsert { get; }
         public bool CanMove { get; }
@@ -443,14 +469,22 @@ namespace SparseFragments.Generated
         public bool CanSetItem { get; }
         public int Count { get; }
         public bool IsItemNullable { get; }
+        public bool IsKeyed { get; }
         public System.Type ItemType { get; }
+        public System.Type ItemViewType { get; }
+        public System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        public System.Type? KeyType { get; }
         public object? GetItem(int index) { }
         public SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index) { }
+        public object? GetItemKey(int index) { }
+        public int IndexOfKey(object? key) { }
+        public bool IsUnassignedKey(object? key) { }
         public bool TryAdd(object? value) { }
         public bool TryInsert(int index, object? value) { }
         public bool TryMove(int oldIndex, int newIndex) { }
         public bool TryRemoveAt(int index) { }
         public bool TrySetItem(int index, object? value) { }
+        public static SparseFragments.Generated.IArrayDescriptor Guarded(SparseFragments.Generated.IArrayDescriptor inner, System.Func<bool> isLive) { }
     }
     public sealed class SparseArrayDescriptorAccess
     {
@@ -463,6 +497,10 @@ namespace SparseFragments.Generated
         public System.Func<int>? Count { get; set; }
         public System.Func<int, object?>? GetItem { get; set; }
         public System.Func<int, SparseFragments.Generated.IDescriptorSet?>? GetItemDescriptors { get; set; }
+        public System.Func<int, object?>? GetItemKey { get; set; }
+        public System.Func<int, object?>? GetItemModel { get; set; }
+        public System.Func<object?, int>? IndexOfKey { get; set; }
+        public System.Func<object?, bool>? IsUnassignedKey { get; set; }
         public System.Func<object?, bool>? TryAdd { get; set; }
         public System.Func<int, object?, bool>? TryInsert { get; set; }
         public System.Func<int, int, bool>? TryMove { get; set; }
@@ -471,25 +509,64 @@ namespace SparseFragments.Generated
     }
     public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor
     {
-        public SparseDescriptor(string name, string path, System.Type type, bool isNullable, bool isEditable, System.Attribute[] attributes, System.Func<object?> getValue, System.Func<object?, bool>? setValue = null, System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null, System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null, System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null) { }
+        public SparseDescriptor(
+                    string name,
+                    string path,
+                    System.Type type,
+                    bool isNullable,
+                    bool isEditable,
+                    System.Attribute[] attributes,
+                    System.Func<object?> getValue,
+                    System.Func<object?, bool>? setValue = null,
+                    System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null,
+                    System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null,
+                    System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null,
+                    System.Type? viewType = null,
+                    System.Func<SparseFragments.Generated.ISetDescriptor?>? getSet = null,
+                    SparseFragments.Generated.SparseDescriptorShape? shape = null,
+                    bool isRequired = false,
+                    bool isNullableOblivious = false) { }
         public SparseFragments.Generated.IArrayDescriptor? Array { get; }
         public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
         public SparseFragments.Generated.IDescriptorSet? Child { get; }
         public SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         public bool IsEditable { get; }
         public bool IsNullable { get; }
+        public bool IsNullableOblivious { get; }
         public bool IsReadOnly { get; }
+        public bool IsRequired { get; }
         public string Name { get; }
         public string Path { get; }
+        public SparseFragments.Generated.ISetDescriptor? Set { get; }
+        public SparseFragments.Generated.SparseDescriptorShape Shape { get; }
         public System.Type Type { get; }
+        public System.Type ViewType { get; }
         public object? GetValue() { }
         public bool TrySetValue(object? value) { }
+        public static SparseFragments.Generated.IDescriptor Guarded(SparseFragments.Generated.IDescriptor inner, System.Func<bool> isLive) { }
     }
     public sealed class SparseDescriptorSet : SparseFragments.Generated.IDescriptorSet
     {
         public SparseDescriptorSet(System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> members) { }
         public System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> Members { get; }
         public bool TryGet(string name, out SparseFragments.Generated.IDescriptor descriptor) { }
+        public static SparseFragments.Generated.IDescriptorSet Guarded(SparseFragments.Generated.IDescriptorSet inner, System.Func<bool> isLive) { }
+    }
+    public sealed class SparseDescriptorShape
+    {
+        public SparseDescriptorShape() { }
+        public bool ArrayItemNullable { get; init; }
+        public System.Type? ArrayItemType { get; init; }
+        public System.Type? ChildType { get; init; }
+        public System.Type? DictionaryKeyType { get; init; }
+        public bool DictionaryValueNullable { get; init; }
+        public System.Type? DictionaryValueType { get; init; }
+        public bool HasArray { get; init; }
+        public bool HasChild { get; init; }
+        public bool HasDictionary { get; init; }
+        public bool HasSet { get; init; }
+        public bool SetItemNullable { get; init; }
+        public System.Type? SetItemType { get; init; }
     }
     public static class SparseDescriptorValue
     {
@@ -497,7 +574,7 @@ namespace SparseFragments.Generated
     }
     public sealed class SparseDictionaryDescriptor : SparseFragments.Generated.IDictDescriptor
     {
-        public SparseDictionaryDescriptor(System.Type keyType, System.Type valueType, bool isValueNullable, SparseFragments.Generated.SparseDictionaryDescriptorAccess access) { }
+        public SparseDictionaryDescriptor(System.Type keyType, System.Type valueType, bool isValueNullable, SparseFragments.Generated.SparseDictionaryDescriptorAccess access, System.Type? valueViewType = null) { }
         public bool CanAdd { get; }
         public bool CanRemove { get; }
         public bool CanSet { get; }
@@ -506,11 +583,13 @@ namespace SparseFragments.Generated
         public System.Type KeyType { get; }
         public System.Collections.Generic.IEnumerable<object?> Keys { get; }
         public System.Type ValueType { get; }
+        public System.Type ValueViewType { get; }
         public SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key) { }
         public bool TryAdd(object? key, object? value) { }
         public bool TryGetValue(object? key, out object? value) { }
         public bool TryRemove(object? key) { }
         public bool TrySetValue(object? key, object? value) { }
+        public static SparseFragments.Generated.IDictDescriptor Guarded(SparseFragments.Generated.IDictDescriptor inner, System.Func<bool> isLive) { }
     }
     public sealed class SparseDictionaryDescriptorAccess
     {
@@ -520,6 +599,7 @@ namespace SparseFragments.Generated
         public System.Func<bool>? CanSet { get; set; }
         public System.Func<int>? Count { get; set; }
         public System.Func<object?, SparseFragments.Generated.IDescriptorSet?>? GetValueDescriptors { get; set; }
+        public System.Func<object?, object?>? GetValueModel { get; set; }
         public System.Func<System.Collections.Generic.IEnumerable<object?>>? Keys { get; set; }
         public System.Func<object?, object?, bool>? TryAdd { get; set; }
         [System.Runtime.CompilerServices.TupleElementNames(new string?[]?[] {
@@ -528,5 +608,29 @@ namespace SparseFragments.Generated
         public System.Func<object?, System.ValueTuple<bool, object?>>? TryGetValue { get; set; }
         public System.Func<object?, bool>? TryRemove { get; set; }
         public System.Func<object?, object?, bool>? TrySetValue { get; set; }
+    }
+    public sealed class SparseSetDescriptor : SparseFragments.Generated.ISetDescriptor
+    {
+        public SparseSetDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseSetDescriptorAccess access) { }
+        public bool CanAdd { get; }
+        public bool CanRemove { get; }
+        public int Count { get; }
+        public bool IsItemNullable { get; }
+        public System.Type ItemType { get; }
+        public System.Collections.Generic.IEnumerable<object?> Items { get; }
+        public bool Contains(object? item) { }
+        public bool TryAdd(object? value) { }
+        public bool TryRemove(object? value) { }
+    }
+    public sealed class SparseSetDescriptorAccess
+    {
+        public SparseSetDescriptorAccess() { }
+        public System.Func<bool>? CanAdd { get; set; }
+        public System.Func<bool>? CanRemove { get; set; }
+        public System.Func<object?, bool>? Contains { get; set; }
+        public System.Func<int>? Count { get; set; }
+        public System.Func<System.Collections.Generic.IEnumerable<object?>>? Items { get; set; }
+        public System.Func<object?, bool>? TryAdd { get; set; }
+        public System.Func<object?, bool>? TryRemove { get; set; }
     }
 }

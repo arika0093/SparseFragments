@@ -64,7 +64,10 @@ internal static class SparseObservableEmitter
                 code.AppendLineAt(2, "private " + childObservable + "? __proxy_" + member.Id + ";");
             }
 
-            if (IsObservableList(member) || IsObservableDictionary(member))
+            if (
+                (IsObservableList(member) || IsObservableDictionary(member))
+                && member.Property.Name != "PropertyChanged"
+            )
             {
                 var names = CollectionNames(member);
                 code.AppendLineAt(
@@ -276,7 +279,19 @@ internal static class SparseObservableEmitter
         var comparer = "global::System.Collections.Generic.EqualityComparer<" + type + ">.Default";
         code.AppendLineAt(2, "public " + type + " " + name);
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "get => __model." + name + ";");
+        if (ExposesRawMutableReference(member))
+        {
+            // Raw mutable references escape without a notifying view; invalidate the
+            // session's cached HasChanges so a later in-place mutation is observed.
+            code.AppendLineAt(
+                3,
+                "get { __onRawModelAccess?.Invoke(); return __model." + name + "; }"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(3, "get => __model." + name + ";");
+        }
         if (canWrite)
         {
             code.AppendLineAt(3, "set");
@@ -319,6 +334,35 @@ internal static class SparseObservableEmitter
                     StringComparison.Ordinal
                 )
             );
+    }
+
+    /// <summary>Determines whether reads expose a raw mutable model reference.</summary>
+    /// <remarks>
+    /// True for arrays and unproxied reference shapes (mutable POCOs, opaque
+    /// objects). Strings are immutable and stay cheap; child references and
+    /// observable collections already surface notifying views, except for the
+    /// PropertyChanged name, which has no proxy or view at all.
+    /// </remarks>
+    internal static bool ExposesRawMutableReference(SparseMemberModel member)
+    {
+        if (!member.Property.Type.IsReferenceType)
+        {
+            return false;
+        }
+
+        if (member.Property.Type.NonNullableName is ("string" or "global::System.String"))
+        {
+            return false;
+        }
+
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return true;
+        }
+
+        return (member.ChildModel is null || !member.ChildIsReferenceType)
+            && !IsObservableList(member)
+            && !IsObservableDictionary(member);
     }
 
     internal static bool IsObservableDictionary(SparseMemberModel member)

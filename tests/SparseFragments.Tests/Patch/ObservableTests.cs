@@ -121,6 +121,14 @@ public partial class ObservableCollision
     public string PropertyChanged { get; set; } = string.Empty;
 }
 
+[SparseFragmentModel]
+public partial class CollisionListHolder
+{
+    public List<string> PropertyChanged { get; set; } = [];
+
+    public string Title { get; set; } = string.Empty;
+}
+
 public sealed class ObservableTests
 {
     private static List<string> Events(INotifyPropertyChanged source)
@@ -231,6 +239,7 @@ public sealed class ObservableTests
         descriptor.Path.ShouldBe(nameof(ObservableHolder.Secret));
         descriptor.Type.ShouldBe(typeof(string));
         descriptor.IsNullable.ShouldBeFalse();
+        descriptor.IsNullableOblivious.ShouldBeFalse();
         descriptor.IsEditable.ShouldBeTrue();
         descriptor.IsReadOnly.ShouldBeFalse();
         descriptor.GetValue().ShouldBe("before");
@@ -255,6 +264,7 @@ public sealed class ObservableTests
             .Descriptors.TryGet(nameof(ObservableHolder.Note), out var nullableDescriptor)
             .ShouldBeTrue();
         nullableDescriptor.IsNullable.ShouldBeTrue();
+        nullableDescriptor.IsNullableOblivious.ShouldBeFalse();
         nullableDescriptor.TrySetValue(null).ShouldBeTrue();
         model.Note.ShouldBeNull();
     }
@@ -450,7 +460,7 @@ public sealed class ObservableTests
             .GetValueDescriptors("entry")!
             .TryGet(nameof(ObservableListChild.Name), out var dictionaryChildName)
             .ShouldBeTrue();
-        dictionaryChildName.Path.ShouldBe("ChildrenByName[entry].Name");
+        dictionaryChildName.Path.ShouldBe("ChildrenByName[\"entry\"].Name");
         dictionaryChildName.TrySetValue("dictionary-updated").ShouldBeTrue();
         model.Children[0].Name.ShouldBe("list-updated");
         model.ChildrenByName["entry"].Name.ShouldBe("dictionary-updated");
@@ -757,6 +767,75 @@ public sealed class ObservableTests
         proxy.Observable = "o2";
         model.Observable.ShouldBe("o2");
         names.ShouldBe(["Observable"]);
+    }
+
+    [Test]
+    public void PropertyChangedDomainPropertyHasDescriptorParity()
+    {
+        var model = new ObservableCollision
+        {
+            Observable = "o",
+            Model = "m",
+            PropertyChanged = "p",
+        };
+        var session = model.CreateEditSession();
+        var notifications = Events(session.Observable);
+
+        // Every modeled property, including the event-name collision, is described.
+        var modeled = typeof(ObservableCollision)
+            .GetProperties()
+            .Select(property => property.Name)
+            .OrderBy(name => name)
+            .ToArray();
+        session
+            .Descriptors.Members.Select(descriptor => descriptor.Name)
+            .OrderBy(name => name)
+            .ShouldBe(modeled);
+
+        session.Descriptors.TryGet("PropertyChanged", out var descriptor).ShouldBeTrue();
+        descriptor.Path.ShouldBe("PropertyChanged");
+        descriptor.Type.ShouldBe(typeof(string));
+        descriptor.ViewType.ShouldBe(typeof(string));
+        descriptor.IsNullable.ShouldBeFalse();
+        descriptor.IsEditable.ShouldBeTrue();
+        descriptor.Child.ShouldBeNull();
+        descriptor.Array.ShouldBeNull();
+        descriptor.Dictionary.ShouldBeNull();
+        descriptor.Set.ShouldBeNull();
+        descriptor.Shape.HasChild.ShouldBeFalse();
+        descriptor.GetValue().ShouldBe("p");
+
+        descriptor.TrySetValue("p2").ShouldBeTrue();
+        model.PropertyChanged.ShouldBe("p2");
+        notifications.ShouldContain("PropertyChanged");
+        session.HasChanges.ShouldBeTrue();
+
+        notifications.Clear();
+        descriptor.TrySetValue("p2").ShouldBeTrue();
+        notifications.ShouldBeEmpty();
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public void NonScalarPropertyChangedShapeStaysOmittedButReadable()
+    {
+        var model = new CollisionListHolder { PropertyChanged = ["a"] };
+        var session = model.CreateEditSession();
+
+        session.Descriptors.TryGet("PropertyChanged", out var descriptor).ShouldBeTrue();
+        descriptor.Type.ShouldBe(typeof(List<string>));
+        descriptor.ViewType.ShouldBe(typeof(List<string>));
+        ((List<string>)descriptor.GetValue()!).ShouldBe(["a"]);
+
+        // No proxy or view exists for this name: structural access is omitted
+        // rather than bound to a wrong instance, and replacement is unsupported.
+        descriptor.IsEditable.ShouldBeFalse();
+        descriptor.TrySetValue(new List<string>()).ShouldBeFalse();
+        descriptor.Array.ShouldBeNull();
+        descriptor.Dictionary.ShouldBeNull();
+        descriptor.Set.ShouldBeNull();
+        descriptor.Child.ShouldBeNull();
+        descriptor.Shape.HasArray.ShouldBeFalse();
     }
 
     [Test]

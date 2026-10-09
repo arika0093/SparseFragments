@@ -131,20 +131,33 @@ internal static class SparseChangeSetEnumeratorEmitter
             "return key.GetType().ToString() + \":\" + (global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);"
         );
         code.AppendLineAt(2, "}");
+        // Canonical bracket grammar (issue #155) composed with collision-resistant
+        // key text (issue #138) and JSON escaping (issue #137): the bracket
+        // wrapping flows through SparseCanonicalKeyPath.AppendEscaped so the
+        // shared Name["key"] grammar cannot drift, while the text itself flows
+        // through __SparseEscapeKey(__SparseKeyText(key)) plus per-enumeration
+        // #2-style dedup. Raw Convert.ToString keys must not bypass this path.
         code.AppendLineAt(
             2,
             "private static string __SparseKeyPath<T>(global::System.Collections.Generic.HashSet<string> seen, string path, T key)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var text = __SparseEscapeKey(__SparseKeyText(key));");
-        code.AppendLineAt(3, "var full = path + \"[\\\"\" + text + \"\\\"]\";");
+        code.AppendLineAt(
+            3,
+            "var full = path" + SparseCanonicalKeyPath.AppendEscaped("text") + ";"
+        );
         code.AppendLineAt(3, "if (seen.Add(full)) return full;");
         code.AppendLineAt(3, "var suffix = 2;");
         code.AppendLineAt(3, "while (true)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "var candidate = path + \"[\\\"\" + text + \"#\" + suffix.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"\\\"]\";"
+            "var candidate = path"
+                + SparseCanonicalKeyPath.AppendEscaped(
+                    "text + \"#\" + suffix.ToString(global::System.Globalization.CultureInfo.InvariantCulture)"
+                )
+                + ";"
         );
         code.AppendLineAt(4, "if (seen.Add(candidate)) return candidate;");
         code.AppendLineAt(4, "suffix++;");

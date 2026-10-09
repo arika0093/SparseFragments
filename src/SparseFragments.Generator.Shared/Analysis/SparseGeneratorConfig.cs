@@ -350,12 +350,16 @@ internal sealed record SparseDescriptorDialect
         string DescriptorSetInterface,
         string ArrayDescriptorInterface,
         string DictionaryDescriptorInterface,
+        string SetDescriptorInterface,
         string DescriptorType,
         string DescriptorSetType,
         string ArrayDescriptorType,
         string ArrayDescriptorAccessType,
         string DictionaryDescriptorType,
         string DictionaryDescriptorAccessType,
+        string SetDescriptorType,
+        string SetDescriptorAccessType,
+        string DescriptorShapeType,
         string DescriptorValueType
     )
     {
@@ -363,12 +367,16 @@ internal sealed record SparseDescriptorDialect
         this.DescriptorSetInterface = DescriptorSetInterface;
         this.ArrayDescriptorInterface = ArrayDescriptorInterface;
         this.DictionaryDescriptorInterface = DictionaryDescriptorInterface;
+        this.SetDescriptorInterface = SetDescriptorInterface;
         this.DescriptorType = DescriptorType;
         this.DescriptorSetType = DescriptorSetType;
         this.ArrayDescriptorType = ArrayDescriptorType;
         this.ArrayDescriptorAccessType = ArrayDescriptorAccessType;
         this.DictionaryDescriptorType = DictionaryDescriptorType;
         this.DictionaryDescriptorAccessType = DictionaryDescriptorAccessType;
+        this.SetDescriptorType = SetDescriptorType;
+        this.SetDescriptorAccessType = SetDescriptorAccessType;
+        this.DescriptorShapeType = DescriptorShapeType;
         this.DescriptorValueType = DescriptorValueType;
     }
 
@@ -379,6 +387,8 @@ internal sealed record SparseDescriptorDialect
     public string ArrayDescriptorInterface { get; init; }
 
     public string DictionaryDescriptorInterface { get; init; }
+
+    public string SetDescriptorInterface { get; init; }
 
     public string DescriptorType { get; init; }
 
@@ -391,6 +401,12 @@ internal sealed record SparseDescriptorDialect
     public string DictionaryDescriptorType { get; init; }
 
     public string DictionaryDescriptorAccessType { get; init; }
+
+    public string SetDescriptorType { get; init; }
+
+    public string SetDescriptorAccessType { get; init; }
+
+    public string DescriptorShapeType { get; init; }
 
     public string DescriptorValueType { get; init; }
 }
