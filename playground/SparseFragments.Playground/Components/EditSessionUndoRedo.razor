@@ -431,13 +431,32 @@
 
     private PlaygroundTask? GetTaskBaseline(PlaygroundTask.Observable task)
     {
-        var baseline = _taskBaselines.GetValueOrDefault(task);
-        if (baseline is not null)
+        // Keyed diff is by Id (see docs/keyed-collections.md "Changing an element's
+        // identity is remove-old plus add-new"). A cached entry whose Id no longer
+        // matches the live task is a renamed identity, so re-resolve by current Id:
+        // unknown Id => new item (null), known Id => edit against that key's baseline
+        // (covers swap/reuse of a freed Id).
+        if (_taskBaselines.TryGetValue(task, out var cached))
         {
-            return baseline;
+            if (string.Equals(cached.Id, task.Id, StringComparison.Ordinal))
+            {
+                return cached;
+            }
+
+            var rebound = _baselineTasks.FirstOrDefault(item => item.Id == task.Id);
+            if (rebound is not null)
+            {
+                _taskBaselines[task] = rebound;
+            }
+            else
+            {
+                _taskBaselines.Remove(task);
+            }
+
+            return rebound;
         }
 
-        baseline = _baselineTasks.FirstOrDefault(item => item.Id == task.Id);
+        var baseline = _baselineTasks.FirstOrDefault(item => item.Id == task.Id);
         if (baseline is not null)
         {
             _taskBaselines[task] = baseline;
