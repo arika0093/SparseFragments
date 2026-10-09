@@ -417,7 +417,9 @@ public sealed class MixedChangeAlgebraTests
         );
         composed.Succeeded.ShouldBeFalse();
         composed.Failures.ShouldHaveSingleItem();
-        composed.Failures[0].FailureReason.ShouldContain("Nested");
+        var ancestorReason = composed.Failures[0].FailureReason;
+        ancestorReason.ShouldNotBeNullOrEmpty();
+        ancestorReason.ShouldContain("Nested");
     }
 
     [Test]
