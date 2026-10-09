@@ -77,3 +77,34 @@ public partial class BlazorUnassignedOrder
 
     public List<BlazorUnassignedItem> Items { get; set; } = new();
 }
+
+[SparseFragmentModel]
+public partial class GuidContact
+{
+    [SparseKey]
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class GuidDirectory
+{
+    public Dictionary<Guid, GuidContact> ById { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class ReadOnlyContactBook
+{
+    public IReadOnlyDictionary<string, OrderCustomer> ByName { get; set; } =
+        new Dictionary<string, OrderCustomer>();
+
+    public IReadOnlyDictionary<int, OrderCustomer> ByNumber { get; set; } =
+        new Dictionary<int, OrderCustomer>();
+}
+
+[SparseFragmentModel]
+public partial class ReadOnlyLineSheet
+{
+    public IReadOnlyList<OrderLine> Lines { get; set; } = new List<OrderLine>();
+}

@@ -308,6 +308,16 @@ namespace __SESSION_NAMESPACE__
             private set => _model = value;
         }
 
+        /// <summary>
+        /// Returns the live model for trusted framework use without affecting the change cache.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="Model"/>, this access keeps observable-change caching intact.
+        /// Callers must only read identity or resolve paths, never mutate or publish the
+        /// returned instance: silent raw edits leave cached change state stale.
+        /// </remarks>
+        public TModel GetModelForFrameworkAccess() => _model;
+
         /// <summary>A stable typed observable proxy over <see cref="Model"/>.</summary>
         public TObservable Observable => _observable;
 

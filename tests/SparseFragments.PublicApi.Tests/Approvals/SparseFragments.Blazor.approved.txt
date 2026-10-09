@@ -10,6 +10,8 @@ namespace SparseFragments.Blazor
             where TChangeSet :  class { }
         public static void AddValidationError<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.FieldIdentifier field, string message)
             where TModel :  class { }
+        public static void AddValidationError<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, string fieldPath, string message)
+            where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.EditContext CreateEditContext<TModel>(this SparseFragments.ISparseEditSession<TModel> session)
             where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.ValidationMessageStore CreateValidationStore<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)

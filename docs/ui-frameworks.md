@@ -234,11 +234,44 @@ Blazor extension methods:
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
+| `session.AddValidationError(store, fieldPath, message)` | Resolves `fieldPath` with `session.Field` and surfaces a message |
+
+Dictionary members resolve through bracketed keys such as
+`Contacts["billing"].Name`. The canonical spelling quotes the key; an unquoted
+key is accepted when it needs no escaping. Non-string keys (numeric, enum,
+`Guid`) parse from the same spelling with invariant culture, and keys that do
+not parse fail as invalid paths. Resolution works for mutable dictionaries
+and for read-only `IReadOnlyDictionary<TKey, TValue>` models alike, including
+implementations that do not expose the legacy non-generic `IDictionary`.
+
+List members resolve through numeric indexes such as `Lines[1].Quantity`,
+for mutable lists and read-only `IReadOnlyList<T>` models alike, including
+implementations without the legacy non-generic `IList`. Indexes resolve
+positionally through the indexer; out-of-range and non-numeric indexes fail
+as invalid paths.
+
+Keyed collections (members whose element type declares a stable key) also
+resolve quoted stable keys such as `Lines["b"].Quantity`. These are the paths
+`EnumerateChanges()` emits, so a changed item's path can be passed to
+`session.Field` directly and keeps resolving after reorders. Quoted keys never
+act as positions, even when numeric: `Items["7"]` looks up key `7` while
+`Items[7]` is the eighth position. Index spellings from
+`EnumerateChangedPaths()` (such as `Lines[1].Quantity`) resolve positionally.
+Removed keys no longer resolve and fail as invalid paths.
 
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
 available independently of Blazor. Context-taking helpers require an
 `EditContext` whose `Model` is the same instance as `session.Model`.
+
+Framework helpers read the session model through trusted framework access,
+which keeps the session's observable-change cache intact. Creating an
+`EditContext`, validating it, and resolving field paths do not by themselves
+disable cached `HasChanges` computation for observable-only edits. Reading
+`session.Model` directly still disables the cache permanently, because a
+retained raw reference can change without observable notifications. Keep edits
+on the `Observable` proxy while the cache matters; edits made straight to
+`EditContext.Model` bypass observable notifications.
 
 Edit-then-restore yields no semantic change even though fields were touched:
 
@@ -267,6 +300,11 @@ editContext.OnValidationRequested += (sender, _) =>
 Errors obtained elsewhere (for example structured rebase conflicts) surface
 the same way with
 `uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`.
+Fields resolved from the session keep working when they point at nested
+members, list elements, or dictionary values: the error is accepted as long as
+the field model is still reachable from the session model. Fields built from
+another model graph stay rejected. The `fieldPath` overload covers the same
+paths without passing a `FieldIdentifier` between graphs.
 The model type must be a reference type.
 
 A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.
