@@ -27,6 +27,9 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal sealed class SparseComparisonIndex
 {
+    private static readonly ConditionalWeakTable<SparseGeneratorConfig, string> ConfigurationKeys =
+        new();
+
     private static readonly ConditionalWeakTable<
         IAssemblySymbol,
         Dictionary<string, SparseComparisonIndex>
@@ -64,7 +67,13 @@ internal sealed class SparseComparisonIndex
         CancellationToken cancellationToken
     )
     {
-        var key = config.ModelAttributeMetadataName + "\0" + config.ComparisonAttributeMetadataName;
+        var key = ConfigurationKeys.GetValue(
+            config,
+            static configuration =>
+                configuration.ModelAttributeMetadataName
+                + "\0"
+                + configuration.ComparisonAttributeMetadataName
+        );
         lock (Gate)
         {
             if (
