@@ -86,7 +86,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty,
             SparseFragmentsDiagnosticIds.InvalidRebasePolicy,
             SparseFragmentsDiagnosticIds.InvalidEmissionPlan,
-            SparseFragmentsDiagnosticIds.UnknownProductMember
+            SparseFragmentsDiagnosticIds.UnknownProductMember,
+            SparseFragmentsDiagnosticIds.InvalidComparisonStrategy
         ),
         HintNameSuffix: ".SparseFragments.g.cs",
         PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -124,6 +125,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         ),
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
+        ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",
         ReservedGeneratedNames: ImmutableArray.Create(
             "Fragment",
             "FragmentBuilder",
@@ -192,6 +194,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf027-invalid-custom-rebase-policy"
+    );
+    private static readonly DiagnosticDescriptor InvalidComparisonStrategy = new(
+        SparseFragmentsDiagnosticIds.InvalidComparisonStrategy,
+        "Invalid equality comparer",
+        "Comparison rule for member '{0}' must use a concrete accessible type implementing IEqualityComparer<TMember> with an accessible parameterless constructor",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
         SparseFragmentsDiagnosticIds.UnsupportedMerge,
@@ -661,6 +671,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.MissingConstructor => MissingConstructor,
             SparseFragmentsDiagnosticIds.InvalidMergeStrategy => InvalidMergeStrategy,
             SparseFragmentsDiagnosticIds.InvalidRebasePolicy => InvalidRebasePolicy,
+            SparseFragmentsDiagnosticIds.InvalidComparisonStrategy => InvalidComparisonStrategy,
             SparseFragmentsDiagnosticIds.UnsupportedMerge => UnsupportedMerge,
             SparseFragmentsDiagnosticIds.UnsupportedRequired => UnsupportedRequired,
             SparseFragmentsDiagnosticIds.UnsupportedStructural => UnsupportedStructural,

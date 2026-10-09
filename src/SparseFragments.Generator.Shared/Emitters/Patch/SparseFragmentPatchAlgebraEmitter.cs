@@ -43,15 +43,31 @@ internal static class SparseFragmentPatchAlgebraEmitter
                     && !SparseFragmentPatchEmitter.IsCollectionPatch(member),
                 member => SparseFragmentPatchEmitter.GetMemberValueType(dialect, member),
                 (member, beforeValue, afterValue) =>
-                    member.MergeStrategyType is null
-                        ? expressions.ValueEqualityExpression(member, beforeValue, afterValue)
-                        : "Fragment."
+                {
+                    if (member.MergeStrategyType is not null)
+                    {
+                        return "Fragment."
                             + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member)
                             + ".AreEqual("
                             + beforeValue
                             + ", "
                             + afterValue
-                            + ")",
+                            + ")";
+                    }
+
+                    if (member.ComparisonComparerType is not null)
+                    {
+                        return "Fragment."
+                            + SparseFragmentEmitHelpers.ComparisonComparerField(member)
+                            + ".Equals("
+                            + beforeValue
+                            + ", "
+                            + afterValue
+                            + ")";
+                    }
+
+                    return expressions.ValueEqualityExpression(member, beforeValue, afterValue);
+                },
                 (member, before, after) =>
                     SparseFragmentPatchEmitter.IsCollectionPatch(member)
                         ? SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member)

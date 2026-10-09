@@ -34,6 +34,9 @@ internal static class SparseChangeSetBasicsEmitter
     internal static bool IsDict(SparseMemberModel m) =>
         SparseKeyedCollectionEmitter.IsDictionary(m);
 
+    internal static bool IsSet(SparseMemberModel m) =>
+        m.Collection.Kind == SparseCollectionKind.Set && !IsKeyed(m) && !IsDict(m);
+
     internal static string FragmentValueType(SparseMemberModel m) =>
         SparseFragmentEmitHelpers.FragmentValueType(m);
 

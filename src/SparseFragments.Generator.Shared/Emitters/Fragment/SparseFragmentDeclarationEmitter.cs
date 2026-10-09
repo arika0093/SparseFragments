@@ -75,6 +75,19 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .Append(member.MergeStrategyType!.Value.Name)
                 .AppendLine("();");
         }
+        foreach (
+            var member in members.Where(static member => member.ComparisonComparerType is not null)
+        )
+        {
+            code.AppendIndent(2)
+                .Append("internal static readonly ")
+                .Append(member.ComparisonComparerType!.Value.Name)
+                .Append(" ")
+                .Append(SparseFragmentEmitHelpers.ComparisonComparerField(member))
+                .Append(" = new ")
+                .Append(member.ComparisonComparerType.Value.Name)
+                .AppendLine("();");
+        }
         foreach (var member in members.Where(static member => member.RebasePolicyType is not null))
         {
             if (rebasePolicyBase is null)

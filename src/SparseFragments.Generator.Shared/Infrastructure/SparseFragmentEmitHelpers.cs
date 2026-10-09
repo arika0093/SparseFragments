@@ -9,6 +9,9 @@ internal static class SparseFragmentEmitHelpers
     internal static string MergeStrategyField(string prefix, SparseMemberModel member) =>
         prefix + member.Id;
 
+    internal static string ComparisonComparerField(SparseMemberModel member) =>
+        "__sparse_comparison_" + member.Id;
+
     internal static void AppendCloneContext(
         SharedIndentedBuilder code,
         int indent,

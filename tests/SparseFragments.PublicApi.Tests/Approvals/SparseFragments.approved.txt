@@ -192,6 +192,13 @@ namespace SparseFragments
     {
         public SparseCloneReferenceSafeAttribute() { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Struct, AllowMultiple=true, Inherited=false)]
+    public sealed class SparseCompareAttribute : System.Attribute
+    {
+        public SparseCompareAttribute(System.Type valueType, System.Type comparerType) { }
+        public System.Type ComparerType { get; }
+        public System.Type ValueType { get; }
+    }
     public sealed class SparseConflict
     {
         public SparseConflict(System.Collections.Generic.IEnumerable<string> path, SparseFragments.SparseConflictKind kind, SparseFragments.Optional<object?> baseValue, SparseFragments.Optional<object?> localValue, SparseFragments.Optional<object?> currentValue, string? reason) { }

@@ -87,7 +87,8 @@ internal sealed class SparseSymbolMemberModel(
     SparseSymbolCollectionInfo collection,
     INamedTypeSymbol? mergeStrategyType,
     bool hasExplicitMergeMode,
-    INamedTypeSymbol? rebasePolicyType = null
+    INamedTypeSymbol? rebasePolicyType = null,
+    INamedTypeSymbol? comparisonComparerType = null
 )
 {
     public int Id { get; } = id;
@@ -98,6 +99,7 @@ internal sealed class SparseSymbolMemberModel(
     public INamedTypeSymbol? MergeStrategyType { get; } = mergeStrategyType;
     public bool HasExplicitMergeMode { get; } = hasExplicitMergeMode;
     public INamedTypeSymbol? RebasePolicyType { get; } = rebasePolicyType;
+    public INamedTypeSymbol? ComparisonComparerType { get; } = comparisonComparerType;
 }
 
 internal readonly record struct SparseMemberModel(
@@ -113,7 +115,8 @@ internal readonly record struct SparseMemberModel(
     bool PortableSetView = false,
     bool HasExplicitMergeMode = false,
     bool RedactBefore = false,
-    SparseTypeModel? RebasePolicyType = null
+    SparseTypeModel? RebasePolicyType = null,
+    SparseTypeModel? ComparisonComparerType = null
 );
 
 internal readonly record struct SparseModelInfo(

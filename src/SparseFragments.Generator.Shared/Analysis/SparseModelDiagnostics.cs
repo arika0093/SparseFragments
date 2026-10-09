@@ -143,6 +143,24 @@ internal static class SparseModelDiagnostics
             }
 
             if (
+                member.ComparisonComparerType is not null
+                && !SparseComparisonValidation.IsValidComparer(
+                    member.ComparisonComparerType,
+                    member.Property.Type,
+                    cancellationToken
+                )
+            )
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        config.EffectiveDiagnosticIds.InvalidComparisonStrategy,
+                        member.Property.Locations.FirstOrDefault(),
+                        member.Property.Name
+                    )
+                );
+            }
+
+            if (
                 SparseMergeValidation.GetUnsupportedReason(
                     member.MergeMode,
                     member.ChildModel is not null,

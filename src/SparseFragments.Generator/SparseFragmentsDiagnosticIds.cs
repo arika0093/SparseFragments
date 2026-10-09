@@ -31,4 +31,5 @@ internal static class SparseFragmentsDiagnosticIds
     public const string InvalidRebasePolicy = "SPF027";
     public const string InvalidEmissionPlan = "SPF028";
     public const string UnknownProductMember = "SPF029";
+    public const string InvalidComparisonStrategy = "SPF030";
 }

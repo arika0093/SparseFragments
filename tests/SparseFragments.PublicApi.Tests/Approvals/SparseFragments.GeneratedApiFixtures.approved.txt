@@ -1278,6 +1278,7 @@ namespace SparseFragments.GeneratedApiFixtures
     {
         public CatalogScalar() { }
         public int Count { get; set; }
+        public System.Collections.Generic.ISet<string> Labels { get; set; }
         public string Name { get; set; }
         public string? Note { get; set; }
         public int? Retry { get; set; }
@@ -1298,6 +1299,8 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.CountTransition Count { get; }
             public bool IsEmpty { get; }
+            [System.Text.Json.Serialization.JsonIgnore]
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.LabelsTransition Labels { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.NameTransition Name { get; }
             [System.Text.Json.Serialization.JsonIgnore]
@@ -1325,6 +1328,15 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<int> Before { get; }
                 public bool IsChanged { get; }
             }
+            public sealed class LabelsTransition
+            {
+                public System.Collections.Generic.IReadOnlyList<string> Added { get; }
+                public SparseFragments.Optional<System.Collections.Generic.ISet<string>> After { get; }
+                public SparseFragments.Optional<System.Collections.Generic.ISet<string>> Before { get; }
+                public bool IsChanged { get; }
+                public bool IsEmpty { get; }
+                public System.Collections.Generic.IReadOnlyList<string> Removed { get; }
+            }
             public readonly struct NameTransition
             {
                 public SparseFragments.Optional<string> After { get; }
@@ -1349,6 +1361,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public Fragment() { }
             public SparseFragments.Optional<int> Count { get; init; }
             public bool IsEmpty { get; }
+            public SparseFragments.Optional<System.Collections.Generic.ISet<string>> Labels { get; init; }
             public SparseFragments.Optional<string> Name { get; init; }
             public SparseFragments.Optional<string?> Note { get; init; }
             public SparseFragments.Optional<int?> Retry { get; init; }
@@ -1376,6 +1389,7 @@ namespace SparseFragments.GeneratedApiFixtures
         {
             public FragmentBuilder() { }
             public SparseFragments.Optional<>& Count { get; }
+            public SparseFragments.Optional<>& Labels { get; }
             public SparseFragments.Optional<>& Name { get; }
             public SparseFragments.Optional<>& Note { get; }
             public SparseFragments.Optional<>& Retry { get; }
@@ -1385,6 +1399,7 @@ namespace SparseFragments.GeneratedApiFixtures
         {
             public Observable(SparseFragments.GeneratedApiFixtures.CatalogScalar value, System.Action? onChanged = null) { }
             public int Count { get; set; }
+            public System.Collections.Generic.ISet<string> Labels { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar Model { get; }
             public string Name { get; set; }
             public string? Note { get; set; }
@@ -1397,6 +1412,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public Patch(SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment fragment) { }
             public SparseFragments.FragmentOperation<>& Count { get; }
             public bool IsEmpty { get; }
+            public SparseFragments.FragmentOperation<>& Labels { get; }
             public SparseFragments.FragmentOperation<>& Name { get; }
             public SparseFragments.FragmentOperation<>& Note { get; }
             public SparseFragments.FragmentOperation<>& Retry { get; }
@@ -1419,9 +1435,10 @@ namespace SparseFragments.GeneratedApiFixtures
             }
         }
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange0), "Count")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange1), "Name")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2), "Note")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3), "Retry")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange1), "Labels")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2), "Name")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3), "Note")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4), "Retry")]
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRootChange), "$root")]
         [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
         public abstract class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
@@ -1450,6 +1467,22 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
             [System.Text.Json.Serialization.JsonPropertyName("after")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? After { get; set; }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("before")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Before { get; set; }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("value")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Value { get; set; }
+        }
+        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
+        {
+            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2() { }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("after")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
             [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
             [System.Text.Json.Serialization.JsonPropertyName("before")]
@@ -1460,9 +1493,9 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
         }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
+        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
         {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2() { }
+            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3() { }
             [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
             [System.Text.Json.Serialization.JsonPropertyName("after")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
@@ -1476,9 +1509,9 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public SparseFragments.ChangePayloadEndpoint<string?>? Value { get; set; }
         }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
+        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
         {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3() { }
+            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4() { }
             [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
             [System.Text.Json.Serialization.JsonPropertyName("after")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]

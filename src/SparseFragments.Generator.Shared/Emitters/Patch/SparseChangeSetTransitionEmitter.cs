@@ -150,7 +150,9 @@ internal static class SparseChangeSetTransitionEmitter
         foreach (var member in members)
         {
             var prop = SparseNaming.EscapeIdentifier(propNames[member.Id]);
-            if (IsScalar(member))
+            if (IsSet(member))
+                AppendSetTransition(code, member, prop, transNames[member.Id], runtime);
+            else if (IsScalar(member))
                 AppendScalarTransition(code, member, prop, transNames[member.Id], runtime);
             else if (IsNested(member))
                 AppendNestedProperty(code, member, prop, dialect);
@@ -213,6 +215,100 @@ internal static class SparseChangeSetTransitionEmitter
                 + member.Id
                 + "(__b, __a));"
         );
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+    }
+
+    internal static void AppendSetTransition(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string prop,
+        string trans,
+        string runtime
+    )
+    {
+        var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+        var elementType = ElementTypeOf(member);
+        var readOnlyList = "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">";
+        code.AppendLineAt(
+            2,
+            "/// <summary>Typed set transition for member '" + member.Property.Name + "'.</summary>"
+        );
+        code.AppendLineAt(2, "public sealed class " + trans);
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "internal "
+                + trans
+                + "("
+                + opt
+                + " before, "
+                + opt
+                + " after, bool isEmpty, global::System.Collections.Generic.List<"
+                + elementType
+                + "> added, global::System.Collections.Generic.List<"
+                + elementType
+                + "> removed)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "Before = before;");
+        code.AppendLineAt(4, "After = after;");
+        code.AppendLineAt(4, "IsEmpty = isEmpty;");
+        code.AppendLineAt(4, "Added = added.AsReadOnly();");
+        code.AppendLineAt(4, "Removed = removed.AsReadOnly();");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "public bool IsEmpty { get; }");
+        code.AppendLineAt(3, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(3, "public " + opt + " Before { get; }");
+        code.AppendLineAt(3, "public " + opt + " After { get; }");
+        code.AppendLineAt(3, "public " + readOnlyList + " Added { get; }");
+        code.AppendLineAt(3, "public " + readOnlyList + " Removed { get; }");
+        code.AppendLineAt(
+            3,
+            "internal static bool __Contains("
+                + opt
+                + " values, "
+                + elementType
+                + " value) => values.IsPresent && (object?)values.Value is not null && ((object?)values.Value is global::System.Collections.Generic.ISet<"
+                + elementType
+                + "> set ? set.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value));"
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets the typed set transition for member '"
+                + member.Property.Name
+                + "'.</summary>"
+        );
+        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        code.AppendLineAt(2, "public " + trans + " " + prop);
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "get");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __b = __SparseBefore_" + member.Id + "();");
+        code.AppendLineAt(4, "var __a = __SparseAfter_" + member.Id + "();");
+        code.AppendLineAt(4, "var __isEmpty = Fragment.__SparseEqual_" + member.Id + "(__b, __a);");
+        code.AppendLineAt(
+            4,
+            "var __added = new global::System.Collections.Generic.List<" + elementType + ">();"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!__isEmpty && __a.IsPresent && (object?)__a.Value is not null) foreach (var __item in __a.Value!) if (!"
+                + trans
+                + ".__Contains(__b, __item)) __added.Add(__item);"
+        );
+        code.AppendLineAt(
+            4,
+            "var __removed = new global::System.Collections.Generic.List<" + elementType + ">();"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!__isEmpty && __b.IsPresent && (object?)__b.Value is not null) foreach (var __item in __b.Value!) if (!"
+                + trans
+                + ".__Contains(__a, __item)) __removed.Add(__item);"
+        );
+        code.AppendLineAt(4, "return new " + trans + "(__b, __a, __isEmpty, __added, __removed);");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }

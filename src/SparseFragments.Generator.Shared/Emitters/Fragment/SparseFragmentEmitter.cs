@@ -515,6 +515,12 @@ internal static class SparseFragmentEmitter
             {
                 equality = core.MergeStrategyField(member) + ".AreEqual(left.Value, right.Value)";
             }
+            else if (member.ComparisonComparerType is not null)
+            {
+                equality =
+                    SparseFragmentEmitHelpers.ComparisonComparerField(member)
+                    + ".Equals(left.Value, right.Value)";
+            }
             else
             {
                 equality = expressions.ValueEqualityExpression(member, "left.Value", "right.Value");

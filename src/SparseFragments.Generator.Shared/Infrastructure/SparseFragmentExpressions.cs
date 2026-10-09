@@ -15,6 +15,16 @@ internal sealed class SparseFragmentExpressions(
 
     public string ValueEqualityExpression(SparseMemberModel member, string left, string right)
     {
+        if (member.ComparisonComparerType is not null)
+        {
+            return SparseFragmentEmitHelpers.ComparisonComparerField(member)
+                + ".Equals("
+                + left
+                + ", "
+                + right
+                + ")";
+        }
+
         var collection = member.Collection;
         if (
             collection.ElementType.IsFragmentModel

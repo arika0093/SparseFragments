@@ -17,6 +17,8 @@ public partial class CatalogScalar
     public string? Note { get; set; }
 
     public int? Retry { get; set; }
+
+    public ISet<string> Labels { get; set; } = new HashSet<string>();
 }
 
 // Nested structural projection (child, sequence, and nullable reference).

@@ -87,6 +87,7 @@ internal static class SparseModelDiscovery
         var constructor = IsFragmentModel(model, config, cancellationToken)
             ? ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken)
             : ModelConstructorBinding.AnalyzeStructural(model, config, cancellationToken);
+        var comparisonRules = SparseComparisonRules.CreateRuleSet(model, config, cancellationToken);
         var index = 0;
         foreach (
             var property in GetReadableProperties(model, config, cancellationToken)
@@ -166,6 +167,14 @@ internal static class SparseModelDiscovery
                 }
             }
 
+            var comparisonComparerType =
+                mergeStrategyType is null
+                && child is null
+                && property.Type is not ITypeParameterSymbol
+                && comparisonRules.TryGetComparerType(property.Type, out var configuredComparer)
+                    ? configuredComparer
+                    : null;
+
             yield return new SparseSymbolMemberModel(
                 index++,
                 property,
@@ -174,7 +183,8 @@ internal static class SparseModelDiscovery
                 SparseCollectionAnalyzer.GetCollectionInfo(property.Type),
                 mergeStrategyType,
                 hasExplicitMergeMode,
-                rebasePolicyType
+                rebasePolicyType,
+                comparisonComparerType
             );
         }
     }
@@ -604,6 +614,16 @@ internal static class SparseModelDiscovery
             rebasePolicyType = CreateTypeModel(member.RebasePolicyType, config, cancellationToken);
         }
 
+        SparseTypeModel? comparisonComparerType = null;
+        if (member.ComparisonComparerType is not null)
+        {
+            comparisonComparerType = CreateTypeModel(
+                member.ComparisonComparerType,
+                config,
+                cancellationToken
+            );
+        }
+
         return new SparseMemberModel(
             member.Id,
             property,
@@ -616,7 +636,8 @@ internal static class SparseModelDiscovery
             childIsReferenceType,
             HasExplicitMergeMode: member.HasExplicitMergeMode,
             RedactBefore: IsRedactBefore(member.Property, config),
-            RebasePolicyType: rebasePolicyType
+            RebasePolicyType: rebasePolicyType,
+            ComparisonComparerType: comparisonComparerType
         );
     }
 

@@ -23,6 +23,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.SparseRedactBeforeAttribute",
         "SparseFragments.SparseKeyAttribute",
         "SparseFragments.SparseMergeAttribute",
+        "SparseFragments.SparseCompareAttribute",
         "SparseFragments.SparseRebasePolicyAttribute",
         "SparseFragments.SparseCloneReferenceSafeAttribute",
     ];
@@ -43,7 +44,9 @@ public sealed class SparseFragmentsApiAudienceTests
         exported.ShouldNotBeEmpty();
 
         var offenders = exported
-            .Where(static name => !FirstClass.Contains(name) && !IsAdvanced(name) && !Plumbing.Contains(name))
+            .Where(static name =>
+                !FirstClass.Contains(name) && !IsAdvanced(name) && !Plumbing.Contains(name)
+            )
             .ToArray();
         offenders.ShouldBeEmpty();
     }
@@ -64,7 +67,9 @@ public sealed class SparseFragmentsApiAudienceTests
     {
         var offenders = typeof(SparseFragments.SparseFragmentModelAttribute)
             .Assembly.GetExportedTypes()
-            .Where(static type => !FirstClass.Contains(type.FullName) && !Plumbing.Contains(type.FullName))
+            .Where(static type =>
+                !FirstClass.Contains(type.FullName) && !Plumbing.Contains(type.FullName)
+            )
             .Where(static type => !HasAdvancedHiding(type))
             .Select(static type => type.FullName ?? type.Name)
             .OrderBy(static name => name)
@@ -90,11 +95,14 @@ public sealed class SparseFragmentsApiAudienceTests
         ?? throw new InvalidOperationException($"Unknown SparseFragments type '{fullName}'.");
 
     private static bool HasBrowsableHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: not EditorBrowsableState.Always };
+        member.GetCustomAttribute<EditorBrowsableAttribute>()
+            is { State: not EditorBrowsableState.Always };
 
     private static bool HasAdvancedHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: EditorBrowsableState.Advanced };
+        member.GetCustomAttribute<EditorBrowsableAttribute>()
+            is { State: EditorBrowsableState.Advanced };
 
     private static bool HasNeverHiding(MemberInfo member) =>
-        member.GetCustomAttribute<EditorBrowsableAttribute>() is { State: EditorBrowsableState.Never };
+        member.GetCustomAttribute<EditorBrowsableAttribute>()
+            is { State: EditorBrowsableState.Never };
 }
