@@ -307,7 +307,7 @@ internal static class SparseReadOnlyViewEmitter
             "if ((object?)current is null) return null" + (member.Property.IsNullable ? ";" : "!;")
         );
         var sourceType =
-            "(global::System.Collections.Generic.IDictionary<"
+            "(global::System.Collections.Generic.IReadOnlyDictionary<"
             + keyType
             + ", "
             + modelValue

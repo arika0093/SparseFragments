@@ -24,6 +24,46 @@ public partial class NeutralSessionChild
 }
 
 [SparseFragmentModel]
+public partial class PureReadOnlyDictionarySessionModel
+{
+    public System.Collections.Generic.IReadOnlyDictionary<string, int> Values { get; set; } =
+        new System.Collections.Generic.Dictionary<string, int>();
+}
+
+/// <summary>Pure <see cref="IReadOnlyDictionary{TKey, TValue}"/> backing (issue #123).</summary>
+/// <remarks>Implements only <c>IReadOnlyDictionary</c>, never <c>IDictionary</c>.</remarks>
+public sealed class PureReadOnlyDictionary
+    : System.Collections.Generic.IReadOnlyDictionary<string, int>
+{
+    private readonly System.Collections.Generic.Dictionary<string, int> _inner;
+
+    public PureReadOnlyDictionary(System.Collections.Generic.IDictionary<string, int> values)
+    {
+        _inner = new System.Collections.Generic.Dictionary<string, int>(values);
+    }
+
+    public int this[string key] => _inner[key];
+
+    public System.Collections.Generic.IEnumerable<string> Keys => _inner.Keys;
+
+    public System.Collections.Generic.IEnumerable<int> Values => _inner.Values;
+
+    public int Count => _inner.Count;
+
+    public bool ContainsKey(string key) => _inner.ContainsKey(key);
+
+    public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<
+        string,
+        int
+    >> GetEnumerator() => _inner.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+
+    public bool TryGetValue(string key, out int value) => _inner.TryGetValue(key, out value);
+}
+
+[SparseFragmentModel]
 public partial class NeutralSessionAtomicPocoModel
 {
     [SparseMerge(MergeMode.Replace)]
@@ -648,6 +688,27 @@ public sealed class NeutralEditSessionTests
         session.EnumerateChangedPaths().ShouldBe(["Child.Value", "Name"]);
         session.Current.Name.ShouldBe("updated");
         session.Current.Child.Value.ShouldBe("nested");
+    }
+
+    [Test]
+    public void CurrentSupportsPureReadOnlyDictionaryImplementations()
+    {
+        var pure = new PureReadOnlyDictionarySessionModel
+        {
+            Values = new PureReadOnlyDictionary(
+                new System.Collections.Generic.Dictionary<string, int> { ["a"] = 1 }
+            ),
+        };
+        var pureView = pure.CreateEditSession().Current.Values;
+        pureView.Keys.ShouldBe(["a"]);
+        pureView["a"].ShouldBe(1);
+
+        var mutable = new PureReadOnlyDictionarySessionModel
+        {
+            Values = new System.Collections.Generic.Dictionary<string, int> { ["b"] = 2 },
+        };
+        var mutableView = mutable.CreateEditSession().Current.Values;
+        mutableView["b"].ShouldBe(2);
     }
 
     [Test]
