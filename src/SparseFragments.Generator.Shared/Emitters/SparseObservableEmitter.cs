@@ -64,7 +64,10 @@ internal static class SparseObservableEmitter
                 code.AppendLineAt(2, "private " + childObservable + "? __proxy_" + member.Id + ";");
             }
 
-            if (IsObservableList(member) || IsObservableDictionary(member))
+            if (
+                (IsObservableList(member) || IsObservableDictionary(member))
+                && member.Property.Name != "PropertyChanged"
+            )
             {
                 var names = CollectionNames(member);
                 code.AppendLineAt(
@@ -275,21 +278,29 @@ internal static class SparseObservableEmitter
     /// <remarks>
     /// True for arrays and unproxied reference shapes (mutable POCOs, opaque
     /// objects). Strings are immutable and stay cheap; child references and
-    /// observable collections already surface notifying views.
+    /// observable collections already surface notifying views, except for the
+    /// PropertyChanged name, which has no proxy or view at all.
     /// </remarks>
     internal static bool ExposesRawMutableReference(SparseMemberModel member)
     {
-        if (
-            (member.ChildModel is not null && member.ChildIsReferenceType)
-            || IsObservableList(member)
-            || IsObservableDictionary(member)
-            || !member.Property.Type.IsReferenceType
-        )
+        if (!member.Property.Type.IsReferenceType)
         {
             return false;
         }
 
-        return member.Property.Type.NonNullableName is not ("string" or "global::System.String");
+        if (member.Property.Type.NonNullableName is ("string" or "global::System.String"))
+        {
+            return false;
+        }
+
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return true;
+        }
+
+        return (member.ChildModel is null || !member.ChildIsReferenceType)
+            && !IsObservableList(member)
+            && !IsObservableDictionary(member);
     }
 
     internal static bool IsObservableDictionary(SparseMemberModel member)

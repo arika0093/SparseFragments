@@ -15,6 +15,11 @@ internal static class SparseObservableSetDescriptorEmitter
     /// </remarks>
     internal static string SetAccessor(SparseMemberModel member, SparseDescriptorDialect dialect)
     {
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return "null";
+        }
+
         if (
             member.Collection.Kind != SparseCollectionKind.Set
             || member.Collection.ElementType.Name is null

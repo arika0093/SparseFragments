@@ -33,11 +33,6 @@ internal static class SparseObservableDescriptorEmitter
         code.AppendLineAt(3, "{");
         foreach (var member in members)
         {
-            if (member.Property.Name == "PropertyChanged")
-            {
-                continue;
-            }
-
             AppendMember(code, member, members, runtimeNamespace, dialect);
         }
 
@@ -61,11 +56,17 @@ internal static class SparseObservableDescriptorEmitter
             "(pathPrefix.Length == 0 ? " + literal + " : pathPrefix + \".\" + " + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         var viewType = ViewTypeName(member, runtimeNamespace);
+        // The INotifyPropertyChanged event occupies the PropertyChanged name, so its
+        // descriptor targets the underlying model directly with the same
+        // notification behavior a proxy would produce. Non-scalar shapes with
+        // this name stay omitted (documented limitation).
+        var eventCollision = member.Property.Name == "PropertyChanged";
         // Raw mutable values escape without a notifying view; route the read
         // through the session's raw-access callback so cached HasChanges is dropped.
+        var receiver = eventCollision ? "__model." + property : "this." + property;
         var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
-            ? "() => { __onRawModelAccess?.Invoke(); return this." + property + "; }"
-            : "() => this." + property;
+            ? "() => { __onRawModelAccess?.Invoke(); return " + receiver + "; }"
+            : "() => " + receiver;
         code.AppendLineAt(
             4,
             "new "
@@ -85,7 +86,7 @@ internal static class SparseObservableDescriptorEmitter
                 + ", "
                 + getValue
                 + ", "
-                + Setter(member, members, runtimeNamespace, dialect)
+                + Setter(member, members, runtimeNamespace, dialect, eventCollision)
                 + ", "
                 + ChildAccessor(member, path, dialect)
                 + ", "
@@ -113,10 +114,9 @@ internal static class SparseObservableDescriptorEmitter
     /// <summary>Emits static shape metadata independent of live instances.</summary>
     private static string ShapeExpression(SparseMemberModel member, SparseDescriptorDialect dialect)
     {
+        var eventCollision = member.Property.Name == "PropertyChanged";
         var hasChild =
-            member.ChildModel is not null
-            && member.ChildIsReferenceType
-            && member.Property.Name != "PropertyChanged";
+            member.ChildModel is not null && member.ChildIsReferenceType && !eventCollision;
         var elementKnown = member.Collection.ElementType.Name is not null;
         var scalarSequence =
             elementKnown
@@ -125,15 +125,20 @@ internal static class SparseObservableDescriptorEmitter
                 member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
                 || member.Collection.Kind == SparseCollectionKind.Array
             );
-        var hasArray = SparseObservableEmitter.IsObservableList(member) || scalarSequence;
+        var hasArray =
+            !eventCollision && (SparseObservableEmitter.IsObservableList(member) || scalarSequence);
         var hasDictionary =
-            SparseObservableEmitter.IsObservableDictionary(member)
-            || (
-                member.Collection.ValueType is not null
-                && member.Collection.CloneKind == SparseCloneCollectionKind.Dictionary
+            !eventCollision
+            && (
+                SparseObservableEmitter.IsObservableDictionary(member)
+                || (
+                    member.Collection.ValueType is not null
+                    && member.Collection.CloneKind == SparseCloneCollectionKind.Dictionary
+                )
             );
         var hasSet =
-            elementKnown
+            !eventCollision
+            && elementKnown
             && member.Collection.ValueType is null
             && member.Collection.Kind == SparseCollectionKind.Set;
         string TypeOrNull(bool present, string name) => present ? "typeof(" + name + ")" : "null";
@@ -172,6 +177,12 @@ internal static class SparseObservableDescriptorEmitter
 
     private static string ViewTypeName(SparseMemberModel member, string runtimeNamespace)
     {
+        // The colliding member has no proxy or view; reads observe model values.
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return member.Property.Type.NonNullableName;
+        }
+
         if (member.ChildModel is not null && member.ChildIsReferenceType)
         {
             return SparseObservableEmitter.ChildObservableType(member);
@@ -198,7 +209,8 @@ internal static class SparseObservableDescriptorEmitter
         SparseMemberModel member,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        bool eventCollision
     )
     {
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -206,6 +218,36 @@ internal static class SparseObservableDescriptorEmitter
         if (member.Property.IsReadOnly || member.Property.IsInitOnly)
         {
             return "null";
+        }
+
+        if (eventCollision)
+        {
+            // No observable proxy exists for this name; scalar members assign the
+            // model directly with identical equality and notification behavior.
+            if (
+                member.ChildModel is not null
+                || SparseObservableEmitter.IsObservableList(member)
+                || SparseObservableEmitter.IsObservableDictionary(member)
+                || member.Collection.Kind == SparseCollectionKind.Set
+            )
+            {
+                return "null";
+            }
+
+            var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
+            return "value => { if (!"
+                + dialect.DescriptorValueType
+                + ".TryGet<"
+                + propertyType
+                + ">(value, out var typed)) return false; if (global::System.Collections.Generic.EqualityComparer<"
+                + propertyType
+                + ">.Default.Equals(__model."
+                + property
+                + ", typed)) return true; __model."
+                + property
+                + " = typed; __Raise("
+                + literal
+                + "); if (__onChanged is not null) __onChanged(); return true; }";
         }
 
         if (member.ChildModel is not null && member.ChildIsReferenceType)

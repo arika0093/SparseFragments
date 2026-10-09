@@ -12,6 +12,11 @@ internal static class SparseObservableSequenceDescriptorEmitter
         SparseDescriptorDialect dialect
     )
     {
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return "null";
+        }
+
         if (SparseObservableEmitter.IsObservableList(member))
         {
             return ListAccessor(member, path, dialect);

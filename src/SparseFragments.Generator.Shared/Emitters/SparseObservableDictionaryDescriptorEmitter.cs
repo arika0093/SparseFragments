@@ -108,6 +108,11 @@ internal static class SparseObservableDictionaryDescriptorEmitter
         SparseDescriptorDialect dialect
     )
     {
+        if (member.Property.Name == "PropertyChanged")
+        {
+            return "null";
+        }
+
         if (!SparseObservableEmitter.IsObservableDictionary(member))
         {
             return ReadOnlyDictionaryAccessor(member, path, dialect);
