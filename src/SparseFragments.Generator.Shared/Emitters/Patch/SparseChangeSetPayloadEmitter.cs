@@ -11,7 +11,8 @@ internal static class SparseChangeSetPayloadEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        ImmutableArray<string> ignoredSettablePropertyNames = default
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -65,6 +66,13 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".Patch patch) => patch.ToChangePayloadCore();"
             );
+        SparseChangeSetMixedEmitter.AppendMixedPayloadSurface(
+            code,
+            members,
+            dialect,
+            modelType,
+            ignoredSettablePropertyNames
+        );
         code.AppendLineAt(1, "}");
         code.AppendLine();
         code.AppendLineAt(
@@ -101,11 +109,19 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayload(this);"
             );
+            // Baseline-discarding projection is owned by the payload core (mixed
+            // partition) so ordinary transitions and redacted-before blind sets
+            // route identically; the envelope re-declares it to keep the
+            // conversion discoverable on the validated envelope type.
             code.AppendLineAt(
                 2,
                 "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
             );
-            code.AppendLineAt(2, "public " + modelType + ".Patch ToPatch() => ToPatchCore();");
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
+            );
+            code.AppendLineAt(2, "public new " + modelType + ".Patch ToPatch() => base.ToPatch();");
             code.AppendLineAt(
                 2,
                 "/// <summary>Builds a baseline-free command envelope from a patch.</summary>"
@@ -608,6 +624,25 @@ internal static class SparseChangeSetPayloadEmitter
                 + "Optional<"
                 + payloadRoot
                 + ">.Present(null));"
+        );
+        // A whole-root before snapshot that hides member values cannot travel
+        // as an observable root: endpoint-redact it so the mixed partition
+        // routes the whole change blind instead of failing fragment conversion.
+        // Known absence (missing) and explicit null stay observable.
+        var wholeBeforeRedacted = members.Any(static member =>
+            !member.Property.IsJsonIgnored && member.RedactBefore
+        )
+            ? "true"
+            : "false";
+        code.AppendLineAt(
+            3,
+            "if (redactBefores || "
+                + wholeBeforeRedacted
+                + ") return "
+                + endpoint
+                + "<"
+                + payloadRoot
+                + ">.Redacted();"
         );
         code.AppendLineAt(
             3,

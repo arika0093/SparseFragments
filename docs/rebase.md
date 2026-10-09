@@ -222,6 +222,59 @@ historical snapshots
 
 The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection (a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id). Those tokens are application and envelope metadata, not members of the ChangeSet itself. SparseFragments prescribes neither the token type nor the persistence technology.
 
+## Mixed Requests With Redacted Members
+
+This section is a how-to. It shows the receive-side flow when a request mixes ordinary transitions with write-only operations.
+
+A member whose before-state arrives redacted is an explicit write-only operation: the sender could not disclose the previous value, often because the value is secret. The request still carries the requested after-state. Ordinary members in the same request keep ordinary baseline-aware validation and rebase.
+
+<!-- sample: mixed-apply -->
+```csharp
+var currentModel = new RebaseDocsSettings { RetryCount = 1, Label = "current" };
+var payload = JsonSerializer.Deserialize<RebaseDocsSettings.ChangePayload>(
+    """{"version":"0.1","changes":[{"member":"Label","before":{"state":"redacted"},"after":{"state":"value","value":"rotated"}},{"member":"RetryCount","before":{"state":"value","value":1},"after":{"state":"value","value":2}}]}"""
+)!;
+if (!payload.TryApplyMixedTo(currentModel, out var updated, out var outcome))
+{
+    throw new InvalidOperationException("The change conflicts with the current model.");
+}
+
+// updated.Label == "rotated"
+// updated.RetryCount == 2
+```
+<!-- /sample -->
+
+`TryApplyMixedTo` rebases the ordinary members onto the current model and passes the write-only members through without historical comparison. When any ordinary member conflicts, the call returns `false` and applies nothing: the write-only subset is never committed on its own, and the current model is left untouched. The outcome names the write-only paths in `WriteOnlyPaths` and carries the structured conflicts in `Conflicts`.
+
+Use `ChangePayload.ToPatch()` when the destination only needs the desired operations without validation, and `InvertReversibleChanges(out var skipped)` when rolling back: write-only paths are excluded from the rollback and reported in `skipped`. `ChangeSet.FromPayload` accepts only fully baseline-aware envelopes and throws a typed error naming the redacted paths.
+
+## Mixed-Operation Rules
+
+This section is a reference. It defines how mixed operations compose, roll back, and project.
+
+| First operation | Second operation | Merged operation | Value-level check still required |
+| --- | --- | --- | --- |
+| Transition | Transition | Transition from the first before-state to the second after-state | Yes, first after-state must equal second before-state |
+| Transition | Blind set | Transition from the first before-state to the second after-state | No |
+| Blind set | Transition | Blind set to the second after-state | Yes, first after-state must equal second before-state |
+| Blind set | Blind set | Blind set to the second after-state | No |
+
+Disjoint paths merge without checks. A merged operation regains complete history only when one side supplied a real baseline; history is never inferred from a redacted endpoint.
+
+Rollback inverts transitions and skips write-only operations, which have no prior value to restore. A non-empty skipped list means the result is not a complete inverse. `ChangeSet.Invert()` on a complete change set stays a true inversion.
+
+`ToPatch()` always succeeds and discards baseline information. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing.
+
+Diagnostics carry member paths and reasons only, never secret before, current, or after values. Per-item redacted endpoints in keyed and dictionary members are rejected with a typed error; send a whole-member blind set for those members. Blind whole-collection removal has no patch projection. Whole-root redacted operations are reported under the `$root` path.
+
+Strict rejection of redacted members is separate opt-in work and does not change the pass-through default.
+
+## Why Write-Only Operations Pass Through
+
+This section is an explanation. It gives the reason for the pass-through default.
+
+Three-way rebase compares the recorded before-state with the current state. A redacted before-state supplies nothing to compare, so the default applies the requested after-state directly, the same way an explicit patch set does. Passing a value through is not the same as reconciling concurrent edits to that member: revision checks, ETags, and authorization stay with the application, as described in No Revision History Required above. Atomicity holds at the request boundary, so a conflict in any ordinary member fails the whole request instead of persisting the write-only subset.
+
 An application request therefore wraps the ChangeSet in its own envelope:
 
 ```csharp

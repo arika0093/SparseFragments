@@ -102,9 +102,16 @@ internal static class SparseChangeSetEmitter
         SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
         SparseChangePayloadReaderEmitter.AppendFromPayload(code, members, dialect, modelType);
         SparseChangePayloadPatchSyncEmitter.AppendPatchFromCore(code, members, dialect, modelType);
+        SparseChangeSetMixedEmitter.AppendMixedPartition(code, members, dialect, modelType);
         code.AppendLineAt(1, "}");
         code.AppendLine();
-        SparseChangeSetPayloadEmitter.AppendPayload(code, members, dialect, modelType);
+        SparseChangeSetPayloadEmitter.AppendPayload(
+            code,
+            members,
+            dialect,
+            modelType,
+            ignoredSettablePropertyNames
+        );
     }
 
     internal static void ComputePublicNames(

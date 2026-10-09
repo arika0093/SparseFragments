@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SparseFragments;
 
 // Canonical compile-checked mirror of docs/rebase.md.
@@ -12,6 +13,7 @@ public static class RebaseSamples
         AlreadyAppliedEditsBecomeNoOps();
         ConflictingEditsProduceStructuredConflicts();
         PresenceAwareRootStateRebases();
+        MixedRequestsApplyBlindSetsAtomically();
     }
 
     private static void DisjointEditsReplayCleanly()
@@ -85,6 +87,31 @@ public static class RebaseSamples
         DocsCheck.Require(
             applied.IsPresent && applied.Value is null,
             "root rebase preserves present-null state"
+        );
+    }
+
+    private static void MixedRequestsApplyBlindSetsAtomically()
+    {
+        // sample: mixed-apply
+        var currentModel = new RebaseDocsSettings { RetryCount = 1, Label = "current" };
+        var payload = JsonSerializer.Deserialize<RebaseDocsSettings.ChangePayload>(
+            """{"version":"0.1","changes":[{"member":"Label","before":{"state":"redacted"},"after":{"state":"value","value":"rotated"}},{"member":"RetryCount","before":{"state":"value","value":1},"after":{"state":"value","value":2}}]}"""
+        )!;
+        if (!payload.TryApplyMixedTo(currentModel, out var updated, out var outcome))
+        {
+            throw new InvalidOperationException("The change conflicts with the current model.");
+        }
+
+        // updated.Label == "rotated"
+        // updated.RetryCount == 2
+        // /sample
+        DocsCheck.Require(
+            updated.Label == "rotated" && updated.RetryCount == 2,
+            "mixed request applies the blind set and the rebased transition"
+        );
+        DocsCheck.Require(
+            outcome.WriteOnlyPaths.Count == 1 && outcome.WriteOnlyPaths[0] == "Label",
+            "mixed outcome names the write-only path"
         );
     }
 }

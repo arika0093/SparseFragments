@@ -15,7 +15,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -240,6 +240,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem0
         {
@@ -326,7 +335,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -499,6 +508,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, out SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot
         {
@@ -546,7 +564,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -721,6 +739,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot
         {
@@ -765,7 +792,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -937,6 +964,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadItem0
         {
@@ -1016,7 +1052,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogNested.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -1172,6 +1208,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogNested? updated, out SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot
         {
@@ -1219,7 +1264,7 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyOrder(0)]
             public string? Version { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet ToChangeSet() { }
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
+            public new SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
         }
         public sealed class ChangeSet
@@ -1423,6 +1468,15 @@ namespace SparseFragments.GeneratedApiFixtures
             [System.Text.Json.Serialization.JsonPropertyName("changes")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]
             public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange>? Changes { get; set; }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
+            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogScalar? updated, out SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore.MixedApplyResult result) { }
+            public sealed class MixedApplyResult
+            {
+                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                public bool HasConflicts { get; }
+                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+            }
         }
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot
         {
