@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Text;
 using BenchmarkDotNet.Attributes;
@@ -25,10 +26,17 @@ public class ComparisonRuleBenchmarks
     [Params(16, 256)]
     public int RootCount { get; set; }
 
+    [Params(0, 128)]
+    public int UnrelatedTypeCount { get; set; }
+
+    [Params(0, 2)]
+    public int NestedDepth { get; set; }
+
     [ParamsAllValues]
     public ComparisonRuleShape Shape { get; set; }
 
     private INamedTypeSymbol _model = null!;
+    private ImmutableArray<INamedTypeSymbol> _roots = ImmutableArray<INamedTypeSymbol>.Empty;
     private ITypeSymbol _valueType = null!;
     private SparseGeneratorConfig _config = null!;
 
@@ -66,6 +74,11 @@ public class ComparisonRuleBenchmarks
             throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
         }
         _model = compilation.GetTypeByMetadataName("RuleTarget")!;
+        _roots = compilation
+            .Assembly.GlobalNamespace.GetMembers()
+            .OfType<INamedTypeSymbol>()
+            .Where(static type => type.Name.StartsWith("RuleRoot", StringComparison.Ordinal))
+            .ToImmutableArray();
         _valueType = compilation.GetSpecialType(SpecialType.System_String);
         var expected = Shape switch
         {
@@ -120,6 +133,16 @@ public class ComparisonRuleBenchmarks
         source.AppendLine(
             "public class RuleTarget { public string Value { get; set; } = string.Empty; }"
         );
+        for (var depth = NestedDepth; depth >= 0; depth--)
+        {
+            var child = depth == NestedDepth ? "RuleTarget" : "RuleChain" + (depth + 1);
+            source
+                .Append("public class RuleChain")
+                .Append(depth)
+                .Append(" { public ")
+                .Append(child)
+                .AppendLine(" Child { get; set; } = new(); }");
+        }
         source.AppendLine(
             "public class RuleComparerA : IEqualityComparer<string> { public bool Equals(string? a, string? b) => a == b; public int GetHashCode(string value) => value.GetHashCode(); }"
         );
@@ -155,7 +178,18 @@ public class ComparisonRuleBenchmarks
             source
                 .Append("[SparseFragmentModel] public partial class RuleRoot")
                 .Append(index)
-                .AppendLine(" { public RuleTarget Child { get; set; } = new(); }");
+                .AppendLine(" { public RuleChain0 Child { get; set; } = new(); }");
+        }
+        for (var index = 0; index < UnrelatedTypeCount; index++)
+        {
+            // Unrelated consumer types: no model or comparison attributes and
+            // no reference to the target, but they still enter assembly scans.
+            source
+                .Append("public class UnrelatedHolder")
+                .Append(index)
+                .AppendLine(
+                    " { public string Name { get; set; } = string.Empty; public List<int> Scores { get; set; } = new(); }"
+                );
         }
         if (Shape == ComparisonRuleShape.Unrelated)
         {
@@ -171,4 +205,28 @@ public class ComparisonRuleBenchmarks
         SparseComparisonRules
             .CreateRuleSet(_model, _config, CancellationToken.None)
             .TryGetComparerType(_valueType, out _);
+
+    // Amortized cost across every fragment root in the compilation. The first
+    // model builds the per-compilation reference index; the rest reuse it, so
+    // this stays near-linear while per-model assembly scans grow
+    // quadratically. Incremental invalidation is pinned separately by
+    // GeneratorStepTrackingTests (unrelated edits keep Analysis cached).
+    [Benchmark]
+    public int AnalyzeAllModels()
+    {
+        var hits = 0;
+        foreach (var root in _roots)
+        {
+            if (
+                SparseComparisonRules
+                    .CreateRuleSet(root, _config, CancellationToken.None)
+                    .TryGetComparerType(_valueType, out _)
+            )
+            {
+                hits++;
+            }
+        }
+
+        return hits;
+    }
 }
