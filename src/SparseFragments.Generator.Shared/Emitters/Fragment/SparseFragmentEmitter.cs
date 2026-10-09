@@ -295,7 +295,7 @@ internal static class SparseFragmentEmitter
             .Where(static member => !member.Property.IsReadOnly && !member.Property.IsInitOnly)
             .ToImmutableArray();
         var canWriteInPlace = modelIsReferenceType && writableMembers.Length == members.Length;
-        var canApplyInPlace = modelIsReferenceType && (members.IsEmpty || !writableMembers.IsEmpty);
+        var canApplyInPlace = modelIsReferenceType;
         SparseFragmentPatchEmitter.AppendFragmentMethods(
             code,
             modelType,
@@ -305,7 +305,7 @@ internal static class SparseFragmentEmitter
             patchDialect.WriteContract,
             features
         );
-        if (canApplyInPlace)
+        if (canWriteInPlace || (features.EmitPatch && canApplyInPlace))
         {
             AppendWritableMemberWriter(code, modelType, writableMembers);
         }

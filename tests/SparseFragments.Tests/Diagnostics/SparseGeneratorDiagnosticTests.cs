@@ -774,7 +774,7 @@ public sealed class SparseGeneratorDiagnosticTests
     }
 
     [Test]
-    public void Spf026_InitOnlyModelWarnsWithoutSuppressingGeneratedApi()
+    public void Spf026_InitOnlyModelWarnsAndGeneratesApplyInPlace()
     {
         const string source = """
             using SparseFragments;
@@ -796,7 +796,7 @@ public sealed class SparseGeneratorDiagnosticTests
             .Any(static generated =>
                 generated.SourceText.ToString().Contains("ApplyInPlace", StringComparison.Ordinal)
             )
-            .ShouldBeFalse();
+            .ShouldBeTrue();
     }
 
     private static DiagnosticDescriptor GetDescriptorById(string id) =>

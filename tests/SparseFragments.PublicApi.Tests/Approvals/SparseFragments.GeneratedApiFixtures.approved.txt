@@ -438,6 +438,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.FragmentOperation<>& Name { get; }
             public SparseFragments.FragmentOperation<>& Tags { get; }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> Apply(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> current) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch.ApplyInPlaceResult ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable current) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable ApplyTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch Compose(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch next) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch Invert(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseline) { }
@@ -448,6 +449,11 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch Compose(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch first, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch second) { }
             public static SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch> Rebase(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseState, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch local, SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> currentState, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch op_Implicit(SparseFragments.FragmentOperation<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> operation) { }
+            public sealed class ApplyInPlaceResult
+            {
+                public bool Succeeded { get; }
+                public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
+            }
         }
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange0), "Count")]
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange1), "Name")]
