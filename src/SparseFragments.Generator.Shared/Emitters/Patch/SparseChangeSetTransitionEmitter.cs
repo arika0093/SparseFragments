@@ -82,21 +82,35 @@ internal static class SparseChangeSetTransitionEmitter
             var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
             if (IsKeyed(member) || IsDict(member))
             {
+                var keyedBefore =
+                    "__sparse_hasWhole ? (__sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
+                    + esc
+                    + " : default) : ("
+                    + HasField(member)
+                    + " && "
+                    + KeyedWholeFlag(member)
+                    + " ? "
+                    + KeyedWholeBefore(member)
+                    + " : default)";
+                var keyedAfter =
+                    "__sparse_hasWhole ? (__sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
+                    + esc
+                    + " : default) : ("
+                    + HasField(member)
+                    + " && "
+                    + KeyedWholeFlag(member)
+                    + " ? "
+                    + KeyedWholeAfter(member)
+                    + " : default)";
                 code.AppendLineAt(
                     2,
                     "private "
                         + opt
                         + " __SparseBefore_"
                         + member.Id
-                        + "() => __sparse_hasWhole ? (__sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
-                        + esc
-                        + " : default) : ("
-                        + HasField(member)
-                        + " && "
-                        + KeyedWholeFlag(member)
-                        + " ? "
-                        + KeyedWholeBefore(member)
-                        + " : default);"
+                        + "() => "
+                        + SnapshotWrap(member, keyedBefore)
+                        + ";"
                 );
                 code.AppendLineAt(
                     2,
@@ -104,32 +118,38 @@ internal static class SparseChangeSetTransitionEmitter
                         + opt
                         + " __SparseAfter_"
                         + member.Id
-                        + "() => __sparse_hasWhole ? (__sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
-                        + esc
-                        + " : default) : ("
-                        + HasField(member)
-                        + " && "
-                        + KeyedWholeFlag(member)
-                        + " ? "
-                        + KeyedWholeAfter(member)
-                        + " : default);"
+                        + "() => "
+                        + SnapshotWrap(member, keyedAfter)
+                        + ";"
                 );
             }
             else
             {
+                var scalarBefore =
+                    "__sparse_hasWhole ? (__sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
+                    + esc
+                    + " : default) : ("
+                    + HasField(member)
+                    + " ? "
+                    + BeforeField(member)
+                    + " : default)";
+                var scalarAfter =
+                    "__sparse_hasWhole ? (__sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
+                    + esc
+                    + " : default) : ("
+                    + HasField(member)
+                    + " ? "
+                    + AfterField(member)
+                    + " : default)";
                 code.AppendLineAt(
                     2,
                     "private "
                         + opt
                         + " __SparseBefore_"
                         + member.Id
-                        + "() => __sparse_hasWhole ? (__sparse_wholeBefore.IsPresent && __sparse_wholeBefore.Value is not null ? __sparse_wholeBefore.Value."
-                        + esc
-                        + " : default) : ("
-                        + HasField(member)
-                        + " ? "
-                        + BeforeField(member)
-                        + " : default);"
+                        + "() => "
+                        + SnapshotWrap(member, scalarBefore)
+                        + ";"
                 );
                 code.AppendLineAt(
                     2,
@@ -137,15 +157,12 @@ internal static class SparseChangeSetTransitionEmitter
                         + opt
                         + " __SparseAfter_"
                         + member.Id
-                        + "() => __sparse_hasWhole ? (__sparse_wholeAfter.IsPresent && __sparse_wholeAfter.Value is not null ? __sparse_wholeAfter.Value."
-                        + esc
-                        + " : default) : ("
-                        + HasField(member)
-                        + " ? "
-                        + AfterField(member)
-                        + " : default);"
+                        + "() => "
+                        + SnapshotWrap(member, scalarAfter)
+                        + ";"
                 );
             }
+            AppendSnapshotHelper(code, member, opt);
         }
         foreach (var member in members)
         {
@@ -161,6 +178,272 @@ internal static class SparseChangeSetTransitionEmitter
             else if (IsDict(member))
                 AppendDictTransition(code, member, prop, transNames[member.Id], runtime, dialect);
         }
+    }
+
+    /// <summary>Whether member values need a defensive container snapshot.</summary>
+    /// <remarks>
+    /// Collection containers are caller-mutable aliases; plain scalars and
+    /// nested change sets need no snapshot (issue #170).
+    /// </remarks>
+    internal static bool NeedsSnapshot(SparseMemberModel member) =>
+        !IsNested(member) && member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported;
+
+    private static string SnapshotWrap(SparseMemberModel member, string expression) =>
+        NeedsSnapshot(member)
+            ? "__SparseSnapshot_" + member.Id + "(" + expression + ")"
+            : expression;
+
+    /// <summary>Emits the defensive container snapshot for one member.</summary>
+    /// <remarks>
+    /// Shallow and comparer-preserving: the container is copied so later
+    /// caller-side mutation cannot alter retained history, while element
+    /// values stay shared. Shapes without a known copy fall back to the
+    /// borrowed reference.
+    /// </remarks>
+    internal static void AppendSnapshotHelper(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string opt
+    )
+    {
+        if (!NeedsSnapshot(member))
+        {
+            return;
+        }
+
+        var valueType = FragmentValueType(member);
+        // A branch is emitted only when its copy is provably assignable to the
+        // declared member type: either the exact shape or a known interface it
+        // implements. The (VTYPE)(object) cast then always compiles and never
+        // fails at runtime; exotic shapes keep the borrowed reference.
+        var bareValueType = valueType.TrimEnd('?');
+        code.AppendLineAt(
+            2,
+            "/// <summary>Defensive container snapshot for member '"
+                + member.Property.Name
+                + "'.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "private static " + opt + " __SparseSnapshot_" + member.Id + "(" + opt + " value)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (!value.IsPresent || (object?)value.Value is null) return value;");
+        code.AppendLineAt(3, "var __source" + member.Id + " = (object)value.Value!;");
+        if (member.Collection.CloneKind == SparseCloneCollectionKind.Dictionary)
+        {
+            var keyType = KeyTypeOf(member);
+            var elementValueType = ValueTypeOf(member);
+            var dictInterfaces = new[]
+            {
+                "global::System.Collections.Generic.IDictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">",
+                "global::System.Collections.Generic.IReadOnlyDictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">",
+            };
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.Generic.Dictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">",
+                "__dict" + member.Id,
+                "new global::System.Collections.Generic.Dictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">(__dict"
+                    + member.Id
+                    + ", __dict"
+                    + member.Id
+                    + ".Comparer)",
+                dictInterfaces
+            );
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.Generic.SortedDictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">",
+                "__sorted" + member.Id,
+                "new global::System.Collections.Generic.SortedDictionary<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">(__sorted"
+                    + member.Id
+                    + ", __sorted"
+                    + member.Id
+                    + ".Comparer)",
+                dictInterfaces
+            );
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.Generic.SortedList<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">",
+                "__sortedList" + member.Id,
+                "new global::System.Collections.Generic.SortedList<"
+                    + keyType
+                    + ", "
+                    + elementValueType
+                    + ">(__sortedList"
+                    + member.Id
+                    + ", __sortedList"
+                    + member.Id
+                    + ".Comparer)",
+                dictInterfaces
+            );
+        }
+        else if (member.Collection.CloneKind == SparseCloneCollectionKind.Set)
+        {
+            var elementType = ElementTypeOf(member);
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.Generic.HashSet<" + elementType + ">",
+                "__set" + member.Id,
+                "new global::System.Collections.Generic.HashSet<"
+                    + elementType
+                    + ">(__set"
+                    + member.Id
+                    + ", __set"
+                    + member.Id
+                    + ".Comparer)",
+                [
+                    "global::System.Collections.Generic.ISet<" + elementType + ">",
+                    "global::System.Collections.Generic.IReadOnlySet<" + elementType + ">",
+                ]
+            );
+        }
+        else
+        {
+            var elementType = ElementTypeOf(member);
+            var listInterfaces = new[]
+            {
+                "global::System.Collections.Generic.IList<" + elementType + ">",
+                "global::System.Collections.Generic.ICollection<" + elementType + ">",
+                "global::System.Collections.Generic.IEnumerable<" + elementType + ">",
+                "global::System.Collections.Generic.IReadOnlyList<" + elementType + ">",
+                "global::System.Collections.Generic.IReadOnlyCollection<" + elementType + ">",
+            };
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.Generic.List<" + elementType + ">",
+                "__list" + member.Id,
+                "new global::System.Collections.Generic.List<"
+                    + elementType
+                    + ">(__list"
+                    + member.Id
+                    + ")",
+                listInterfaces
+            );
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                elementType + "[]",
+                "__array" + member.Id,
+                "(" + elementType + "[])__array" + member.Id + ".Clone()",
+                listInterfaces
+            );
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.ObjectModel.Collection<" + elementType + ">",
+                "__collection" + member.Id,
+                "new global::System.Collections.ObjectModel.Collection<"
+                    + elementType
+                    + ">(new global::System.Collections.Generic.List<"
+                    + elementType
+                    + ">(__collection"
+                    + member.Id
+                    + "))",
+                listInterfaces
+            );
+            AppendSnapshotBranch(
+                code,
+                member,
+                opt,
+                valueType,
+                bareValueType,
+                "global::System.Collections.ObjectModel.ObservableCollection<" + elementType + ">",
+                "__observable" + member.Id,
+                "new global::System.Collections.ObjectModel.ObservableCollection<"
+                    + elementType
+                    + ">(__observable"
+                    + member.Id
+                    + ")",
+                listInterfaces
+            );
+        }
+        code.AppendLineAt(3, "return value;");
+        code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendSnapshotBranch(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string opt,
+        string valueType,
+        string bareValueType,
+        string sourceType,
+        string local,
+        string copyExpression,
+        IReadOnlyList<string> implementedInterfaces
+    )
+    {
+        if (
+            !string.Equals(bareValueType, sourceType, System.StringComparison.Ordinal)
+            && !implementedInterfaces.Any(candidate =>
+                string.Equals(bareValueType, candidate, System.StringComparison.Ordinal)
+            )
+        )
+        {
+            return;
+        }
+
+        code.AppendLineAt(3, "if (__source" + member.Id + " is " + sourceType + " " + local + ")");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "return " + opt + ".Present((" + valueType + ")(object)" + copyExpression + ");"
+        );
+        code.AppendLineAt(3, "}");
     }
 
     internal static void AppendScalarTransition(

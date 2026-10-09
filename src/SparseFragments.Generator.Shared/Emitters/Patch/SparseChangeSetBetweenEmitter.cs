@@ -30,9 +30,24 @@ internal static class SparseChangeSetBetweenEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        code.AppendLineAt(2, "/// <summary>Deep-clones a retained whole-root fragment.</summary>");
+        code.AppendLineAt(
+            2,
+            "private static "
+                + optionalFragment
+                + " __SparseCloneRoot("
+                + optionalFragment
+                + " value) => !value.IsPresent || value.Value is null ? value : "
+                + optionalFragment
+                + ".Present(value.Value!.DeepClone());"
+        );
         code.AppendLineAt(
             2,
             "/// <summary>Derives the canonical baseline-aware diff between two states.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>The change set snapshots its inputs: whole-root fragments are deep-cloned and member collection containers are copied at capture, so later caller-side mutation cannot alter retained history. Element values are shared by reference. Typed <c>Before</c>/<c>After</c> endpoints return fresh container snapshots for collection members.</remarks>"
         );
         code.AppendLineAt(
             2,
@@ -48,7 +63,9 @@ internal static class SparseChangeSetBetweenEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "return new ChangeSet(true, before, after, " + MemberEmptyTail(members) + ");"
+            "return new ChangeSet(true, __SparseCloneRoot(before), __SparseCloneRoot(after), "
+                + MemberEmptyTail(members)
+                + ");"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "if (!before.IsPresent) return new ChangeSet(" + empty + ");");
@@ -66,7 +83,9 @@ internal static class SparseChangeSetBetweenEmitter
         );
         code.AppendLineAt(
             4,
-            "return new ChangeSet(true, before, after, " + MemberEmptyTail(members) + ");"
+            "return new ChangeSet(true, __SparseCloneRoot(before), __SparseCloneRoot(after), "
+                + MemberEmptyTail(members)
+                + ");"
         );
         code.AppendLineAt(3, "}");
         if (members.IsDefaultOrEmpty || members.Length == 0)
@@ -118,6 +137,13 @@ internal static class SparseChangeSetBetweenEmitter
             else
             {
                 var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
+                var beforeAccess = "bf." + name;
+                var afterAccess = "af." + name;
+                if (SparseChangeSetTransitionEmitter.NeedsSnapshot(member))
+                {
+                    beforeAccess = "__SparseSnapshot_" + member.Id + "(" + beforeAccess + ")";
+                    afterAccess = "__SparseSnapshot_" + member.Id + "(" + afterAccess + ")";
+                }
                 code.AppendLineAt(
                     3,
                     "bool __h"
@@ -137,8 +163,8 @@ internal static class SparseChangeSetBetweenEmitter
                         + member.Id
                         + " = __h"
                         + member.Id
-                        + " ? bf."
-                        + name
+                        + " ? "
+                        + beforeAccess
                         + " : default;"
                 );
                 code.AppendLineAt(
@@ -148,8 +174,8 @@ internal static class SparseChangeSetBetweenEmitter
                         + member.Id
                         + " = __h"
                         + member.Id
-                        + " ? af."
-                        + name
+                        + " ? "
+                        + afterAccess
                         + " : default;"
                 );
             }

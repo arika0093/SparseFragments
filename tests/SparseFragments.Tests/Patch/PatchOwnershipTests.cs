@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SparseFragments;
 
 namespace SparseFragments.Tests;
@@ -33,10 +34,7 @@ public sealed class PatchOwnershipTests
     {
         var tags = new List<string> { "a" };
         var patch = new ScalarSequenceHolder.Patch { Tags = tags };
-        var basis = new ScalarSequenceHolder.Fragment
-        {
-            Tags = new List<string> { "x" },
-        };
+        var basis = new ScalarSequenceHolder.Fragment { Tags = new List<string> { "x" } };
 
         var result = basis.Apply(patch);
 
@@ -157,5 +155,106 @@ public sealed class PatchOwnershipTests
         var applied = patch.Apply(Optional<ScalarSequenceHolder.Fragment?>.Missing);
         applied.Value!.Tags.Value!.ShouldBe(["a"]);
         ReferenceEquals(applied.Value.Tags.Value, model.Tags).ShouldBeFalse();
+    }
+
+    private static string ChangeSetJson(ScalarSequenceHolder.ChangeSet changes) =>
+        JsonSerializer.Serialize(changes.ToPayload());
+
+    /// <summary>
+    /// ChangeSet ownership (issue #170): unlike <c>Patch</c> above, a
+    /// <c>ChangeSet</c> snapshots its inputs. Whole-root fragments are
+    /// deep-cloned and member collection containers are copied at capture
+    /// (comparers preserved), so caller-side mutation after <c>Between</c> or
+    /// through typed <c>Before</c>/<c>After</c> endpoints cannot alter history.
+    /// Element values stay shared by reference; exotic container shapes fall
+    /// back to the borrowed reference.
+    /// </summary>
+    [Test]
+    public void ChangeSetSnapshotsWholeRootFragments()
+    {
+        var tags = new List<string> { "a" };
+        var frag = new ScalarSequenceHolder.Fragment
+        {
+            Tags = Optional<List<string>>.Present(tags),
+        };
+        var changes = ScalarSequenceHolder.ChangeSet.Between(
+            Optional<ScalarSequenceHolder.Fragment?>.Missing,
+            Optional<ScalarSequenceHolder.Fragment?>.Present(frag)
+        );
+        changes.IsEmpty.ShouldBeFalse();
+        var payload = ChangeSetJson(changes);
+
+        tags.Add("mutated");
+        frag.Tags.Value!.Add("mutated");
+
+        changes.IsEmpty.ShouldBeFalse();
+        ChangeSetJson(changes).ShouldBe(payload);
+        var applied = changes.ToPatch().Apply(Optional<ScalarSequenceHolder.Fragment?>.Missing);
+        applied.Value!.Tags.Value!.ShouldBe(["a"]);
+    }
+
+    [Test]
+    public void ChangeSetSnapshotsMemberwiseCollections()
+    {
+        var beforeTags = new List<string> { "a" };
+        var afterTags = new List<string> { "b" };
+        var before = Optional<ScalarSequenceHolder.Fragment?>.Present(
+            new ScalarSequenceHolder.Fragment { Tags = Optional<List<string>>.Present(beforeTags) }
+        );
+        var after = Optional<ScalarSequenceHolder.Fragment?>.Present(
+            new ScalarSequenceHolder.Fragment { Tags = Optional<List<string>>.Present(afterTags) }
+        );
+        var changes = ScalarSequenceHolder.ChangeSet.Between(before, after);
+        var payload = ChangeSetJson(changes);
+
+        beforeTags.Add("mutated");
+        afterTags.Add("mutated");
+
+        changes.IsEmpty.ShouldBeFalse();
+        ChangeSetJson(changes).ShouldBe(payload);
+        changes.Tags.After.Value!.ShouldBe(["b"]);
+    }
+
+    [Test]
+    public void ChangeSetTypedTransitionsReturnDefensiveSnapshots()
+    {
+        var before = Optional<ScalarSequenceHolder.Fragment?>.Present(
+            new ScalarSequenceHolder.Fragment { Tags = Optional<List<string>>.Present(["a"]) }
+        );
+        var after = Optional<ScalarSequenceHolder.Fragment?>.Present(
+            new ScalarSequenceHolder.Fragment { Tags = Optional<List<string>>.Present(["b"]) }
+        );
+        var changes = ScalarSequenceHolder.ChangeSet.Between(before, after);
+        var payload = ChangeSetJson(changes);
+
+        changes.Tags.Before.Value!.Add("mutated");
+        changes.Tags.After.Value!.Add("mutated");
+
+        ChangeSetJson(changes).ShouldBe(payload);
+        changes.Tags.Before.Value!.ShouldBe(["a"]);
+        changes.Tags.After.Value!.ShouldBe(["b"]);
+    }
+
+    [Test]
+    public void ChangeSetSnapshotsDictionaryMembers()
+    {
+        var scores = new Dictionary<string, int> { ["a"] = 1 };
+        var before = Optional<ScalarDictHolder.Fragment?>.Present(
+            new ScalarDictHolder.Fragment { Scores = Optional<Dictionary<string, int>>.Missing }
+        );
+        var after = Optional<ScalarDictHolder.Fragment?>.Present(
+            new ScalarDictHolder.Fragment
+            {
+                Scores = Optional<Dictionary<string, int>>.Present(scores),
+            }
+        );
+        var changes = ScalarDictHolder.ChangeSet.Between(before, after);
+        var payload = JsonSerializer.Serialize(changes.ToPayload());
+
+        scores["mutated"] = 2;
+
+        changes.IsEmpty.ShouldBeFalse();
+        JsonSerializer.Serialize(changes.ToPayload()).ShouldBe(payload);
+        changes.Scores.After.Value!.ContainsKey("mutated").ShouldBeFalse();
     }
 }

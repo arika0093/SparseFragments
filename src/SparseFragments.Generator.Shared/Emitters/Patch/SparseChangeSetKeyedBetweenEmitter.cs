@@ -132,9 +132,16 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         );
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__h" + id + " = true; __whole" + id + " = true;");
+        var keyedBefore = "__before" + id;
+        var keyedAfter = "__after" + id;
+        if (NeedsSnapshot(member))
+        {
+            keyedBefore = "__SparseSnapshot_" + id + "(" + keyedBefore + ")";
+            keyedAfter = "__SparseSnapshot_" + id + "(" + keyedAfter + ")";
+        }
         code.AppendLineAt(
             6,
-            "__wb" + id + " = __before" + id + "; __wa" + id + " = __after" + id + ";"
+            "__wb" + id + " = " + keyedBefore + "; __wa" + id + " = " + keyedAfter + ";"
         );
         code.AppendLineAt(5, "}");
         code.AppendLineAt(4, "}");
