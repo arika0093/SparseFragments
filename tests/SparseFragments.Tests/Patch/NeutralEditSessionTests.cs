@@ -1,4 +1,5 @@
 using SparseFragments;
+using SparseFragments.__GeneratedSessionCore;
 
 namespace SparseFragments.Tests;
 
@@ -190,7 +191,7 @@ public sealed class NeutralEditSessionTests
     [Test]
     public void HasChangesPropagatesUnrelatedInvalidOperationExceptions()
     {
-        var session = SparseEditSession<
+        var session = EditSessionCore<
             NeutralSessionModel,
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
@@ -502,7 +503,7 @@ public sealed class NeutralEditSessionTests
             .Throw<InvalidOperationException>(() => session.CreateChangeSet())
             .Message.ShouldBe("Duplicate key in keyed collection.");
 
-        var unrelated = SparseEditSession<
+        var unrelated = EditSessionCore<
             NeutralSessionModel,
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
@@ -522,7 +523,7 @@ public sealed class NeutralEditSessionTests
             .Throw<InvalidOperationException>(() => _ = unrelated.HasChanges)
             .Message.ShouldBe("Unrelated failure.");
 
-        var isEmptyFailure = SparseEditSession<
+        var isEmptyFailure = EditSessionCore<
             NeutralSessionModel,
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
@@ -659,7 +660,7 @@ public sealed class NeutralEditSessionTests
     {
         var model = new NeutralSessionModel();
         var snapshots = 0;
-        var configuration = new SparseEditSessionConfiguration<
+        var configuration = new EditSessionCoreConfiguration<
             NeutralSessionModel,
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
@@ -683,7 +684,7 @@ public sealed class NeutralEditSessionTests
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             RefreshObservable = static observable => observable.__SparseRefresh(),
         };
-        var session = SparseEditSession<
+        var session = EditSessionCore<
             NeutralSessionModel,
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,

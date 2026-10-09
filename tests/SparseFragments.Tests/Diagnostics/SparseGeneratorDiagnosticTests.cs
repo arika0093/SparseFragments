@@ -664,6 +664,63 @@ public sealed class SparseGeneratorDiagnosticTests
     }
 
     [Test]
+    [Arguments("EditSession")]
+    public void Spf009_NestedTypeCollisionReportsErrorWithNoSource(string nestedTypeName)
+    {
+        var source = """
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class CollisionModel
+            {
+                public sealed class NAME { }
+
+                public string? Name { get; set; }
+            }
+            """.Replace("NAME", nestedTypeName);
+        var (diagnostics, sources) = Run(source);
+        AssertSingleSpf(
+            diagnostics,
+            "SPF009",
+            nestedTypeName,
+            "#spf009-member-conflicts-with-generated-api",
+            expectInSource: false
+        );
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void Spf009_HashedInternalContainerCollisionReportsErrorWithNoSource()
+    {
+        const string modelTypeName = "global::CollisionModel";
+        const uint offsetBasis = 2166136261;
+        const uint prime = 16777619;
+        var hash = offsetBasis;
+        foreach (var character in modelTypeName)
+            hash = unchecked((hash ^ character) * prime);
+        var nestedTypeName = "__Internal_" + hash.ToString("X8");
+        var source = """
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class CollisionModel
+            {
+                public sealed class NAME { }
+
+                public string? Name { get; set; }
+            }
+            """.Replace("NAME", nestedTypeName);
+
+        var (diagnostics, sources) = Run(source);
+        AssertSingleSpf(
+            diagnostics,
+            "SPF009",
+            nestedTypeName,
+            "#spf009-member-conflicts-with-generated-api",
+            expectInSource: false
+        );
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
     public void Spf010_DifferentReferenceMergeStillSharesPromotedModel()
     {
         // The promoted model's semantics are derived from the shared type

@@ -8,7 +8,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public System.Collections.Generic.Dictionary<string, int> Scores { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogDictionaries DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Core_7D2204AF
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -93,6 +93,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogDictionaries serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -112,12 +130,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogDictionaries before, SparseFragments.GeneratedApiFixtures.CatalogDictionaries after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogDictionaries value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -201,136 +213,139 @@ namespace SparseFragments.GeneratedApiFixtures
             public System.Collections.Generic.IReadOnlyDictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView> Details { get; }
             public System.Collections.Generic.IReadOnlyDictionary<string, int> Scores { get; }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange0), "Details")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange1), "Scores")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange
+        public static class @__Internal_7D2204AF
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(3)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(2)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("items")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem0> Items { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange1 : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(3)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(2)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("items")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem1> Items { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_7D2204AF : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change_7D2204AF
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(3)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(2)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("items")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Item0_7D2204AF> Items { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem0
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(5)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("edit")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(7)]
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore? Edit { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("key")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public string Key { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("kind")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadItemKind Kind { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem1
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadItem1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(5)]
-            public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("key")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public string Key { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("kind")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadItemKind Kind { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparseFragments_GeneratedApiFixtures_CatalogDictionariesChangePayloadRoot>? Before { get; set; }
+            public sealed class Change1_7D2204AF : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change_7D2204AF
+            {
+                public Change1_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(3)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(2)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("items")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Item1_7D2204AF> Items { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<string, int>>? Value { get; set; }
+            }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change0_7D2204AF), "Details")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change1_7D2204AF), "Scores")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.RootChange_7D2204AF), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_7D2204AF
+            {
+                protected Change_7D2204AF() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_7D2204AF
+            {
+                public Core_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change_7D2204AF>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Core_7D2204AF.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class Item0_7D2204AF
+            {
+                public Item0_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(5)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("edit")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(7)]
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Core_1D9B1A23? Edit { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("key")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public string Key { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("kind")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadItemKind Kind { get; set; }
+            }
+            public sealed class Item1_7D2204AF
+            {
+                public Item1_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(5)]
+                public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("key")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public string Key { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("kind")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadItemKind Kind { get; set; }
+            }
+            public sealed class RootChange_7D2204AF : SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change_7D2204AF
+            {
+                public RootChange_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Root_7D2204AF>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Root_7D2204AF>? Before { get; set; }
+            }
+            public sealed class Root_7D2204AF
+            {
+                public Root_7D2204AF() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Change_7D2204AF> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.@__Internal_7D2204AF.Root_7D2204AF FromFragment(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment value) { }
+            }
         }
     }
     public static class CatalogDictionariesExtensions_7D2204AF
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -342,7 +357,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public int[]? Tags { get; init; }
         public SparseFragments.GeneratedApiFixtures.CatalogImmutable DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Core_701C94C1
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -398,6 +413,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogImmutable serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -417,12 +450,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogImmutable before, SparseFragments.GeneratedApiFixtures.CatalogImmutable after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogImmutable value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -474,107 +501,110 @@ namespace SparseFragments.GeneratedApiFixtures
             public string Name { get; }
             public System.Collections.Generic.IReadOnlyList<int>? Tags { get; }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange0), "Count")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange1), "Name")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange2), "Tags")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange
+        public static class @__Internal_701C94C1
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange1 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange2() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<int[]?>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int[]?>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int[]?>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, out SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_701C94C1 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_701C94C1() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogImmutable.SparseFragments_GeneratedApiFixtures_CatalogImmutableChangePayloadRoot>? Before { get; set; }
+            public sealed class Change1_701C94C1 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1
+            {
+                public Change1_701C94C1() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
+            }
+            public sealed class Change2_701C94C1 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1
+            {
+                public Change2_701C94C1() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<int[]?>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int[]?>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int[]?>? Value { get; set; }
+            }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change0_701C94C1), "Count")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change1_701C94C1), "Name")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change2_701C94C1), "Tags")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.RootChange_701C94C1), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_701C94C1
+            {
+                protected Change_701C94C1() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_701C94C1
+            {
+                public Core_701C94C1() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, out SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Core_701C94C1.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class RootChange_701C94C1 : SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1
+            {
+                public RootChange_701C94C1() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Root_701C94C1>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Root_701C94C1>? Before { get; set; }
+            }
+            public sealed class Root_701C94C1
+            {
+                public Root_701C94C1() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Change_701C94C1> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.@__Internal_701C94C1.Root_701C94C1 FromFragment(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment value) { }
+            }
         }
     }
     public static class CatalogImmutableExtensions_701C94C1
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -587,7 +617,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public string Title { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Core_7A0F1DB0
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -643,6 +673,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -663,12 +711,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem before, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -720,107 +762,110 @@ namespace SparseFragments.GeneratedApiFixtures
             public string Id { get; }
             public string Title { get; }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange0), "Count")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange1), "Id")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange2), "Title")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange
+        public static class @__Internal_7A0F1DB0
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange1 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange2() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_7A0F1DB0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadRoot>? Before { get; set; }
+            public sealed class Change1_7A0F1DB0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0
+            {
+                public Change1_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
+            }
+            public sealed class Change2_7A0F1DB0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0
+            {
+                public Change2_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
+            }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change0_7A0F1DB0), "Count")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change1_7A0F1DB0), "Id")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change2_7A0F1DB0), "Title")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.RootChange_7A0F1DB0), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_7A0F1DB0
+            {
+                protected Change_7A0F1DB0() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_7A0F1DB0
+            {
+                public Core_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Core_7A0F1DB0.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class RootChange_7A0F1DB0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0
+            {
+                public RootChange_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Root_7A0F1DB0>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Root_7A0F1DB0>? Before { get; set; }
+            }
+            public sealed class Root_7A0F1DB0
+            {
+                public Root_7A0F1DB0() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Change_7A0F1DB0> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Root_7A0F1DB0 FromFragment(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment value) { }
+            }
         }
     }
     public static class CatalogKeyedItemExtensions_7A0F1DB0
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -830,7 +875,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> Items { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Core_78C7120C
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -895,6 +940,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -913,12 +976,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster before, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -981,116 +1038,119 @@ namespace SparseFragments.GeneratedApiFixtures
             public ReadOnlyView(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model) { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView> Items { get; }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange0), "Items")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange
+        public static class @__Internal_78C7120C
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(3)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("afterOrder")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(6)]
-            public System.Collections.Generic.List<string>? AfterOrder { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(2)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("beforeOrder")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(5)]
-            public System.Collections.Generic.List<string>? BeforeOrder { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("items")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public new System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadItem0> Items { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_78C7120C : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Change_78C7120C
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_78C7120C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(3)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("afterOrder")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(6)]
+                public System.Collections.Generic.List<string>? AfterOrder { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(2)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("beforeOrder")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(5)]
+                public System.Collections.Generic.List<string>? BeforeOrder { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("items")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public new System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Item0_78C7120C> Items { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadItem0
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadItem0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(5)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>? After { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("afterIndex")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(3)]
-            public int AfterIndex { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(4)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("beforeIndex")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(2)]
-            public int BeforeIndex { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("edit")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(7)]
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparseFragments_GeneratedApiFixtures_CatalogKeyedItemChangePayloadCore? Edit { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-            [System.Text.Json.Serialization.JsonPropertyName("isReordered")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(6)]
-            public bool IsReordered { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("key")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public string Key { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("kind")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadItemKind Kind { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparseFragments_GeneratedApiFixtures_CatalogKeyedRosterChangePayloadRoot>? Before { get; set; }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Change0_78C7120C), "Items")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.RootChange_78C7120C), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_78C7120C
+            {
+                protected Change_78C7120C() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_78C7120C
+            {
+                public Core_78C7120C() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Change_78C7120C>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Core_78C7120C.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class Item0_78C7120C
+            {
+                public Item0_78C7120C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(5)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>? After { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("afterIndex")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(3)]
+                public int AfterIndex { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(4)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("beforeIndex")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(2)]
+                public int BeforeIndex { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("edit")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(7)]
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.@__Internal_7A0F1DB0.Core_7A0F1DB0? Edit { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+                [System.Text.Json.Serialization.JsonPropertyName("isReordered")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(6)]
+                public bool IsReordered { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("key")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public string Key { get; set; }
+                [System.Text.Json.Serialization.JsonPropertyName("kind")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadItemKind Kind { get; set; }
+            }
+            public sealed class RootChange_78C7120C : SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Change_78C7120C
+            {
+                public RootChange_78C7120C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Root_78C7120C>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Root_78C7120C>? Before { get; set; }
+            }
+            public sealed class Root_78C7120C
+            {
+                public Root_78C7120C() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Change_78C7120C> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.@__Internal_78C7120C.Root_78C7120C FromFragment(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment value) { }
+            }
         }
     }
     public static class CatalogKeyedRosterExtensions_78C7120C
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -1109,7 +1169,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?> MetadataItems { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogNested DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Core_2C61959C
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -1177,6 +1237,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogNested serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -1200,12 +1278,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogNested model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogNested before, SparseFragments.GeneratedApiFixtures.CatalogNested after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogNested value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -1277,150 +1349,153 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView.@__SparseReadOnlyPoco_CatalogPoco_FB11B090? Nested { get; }
             }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange0), "Child")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange1), "Children")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange2), "Maybe")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange3), "Metadata")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4), "MetadataByKey")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5), "MetadataItems")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
+        public static class @__Internal_2C61959C
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("nested")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore? Nested { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot?>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange1 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange2() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("nested")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore? Nested { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot?>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange3 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange3() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogNested? updated, out SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("nested")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Core_1D9B1A23? Nested { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Root_1D9B1A23?>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRoot>? Before { get; set; }
+            public sealed class Change1_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public Change1_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>? Value { get; set; }
+            }
+            public sealed class Change2_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public Change2_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("nested")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Core_1D9B1A23? Nested { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Root_1D9B1A23?>? Value { get; set; }
+            }
+            public sealed class Change3_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public Change3_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogPoco?>? Value { get; set; }
+            }
+            public sealed class Change4_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public Change4_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Value { get; set; }
+            }
+            public sealed class Change5_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public Change5_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>? Value { get; set; }
+            }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change0_2C61959C), "Child")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change1_2C61959C), "Children")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change2_2C61959C), "Maybe")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change3_2C61959C), "Metadata")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change4_2C61959C), "MetadataByKey")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change5_2C61959C), "MetadataItems")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.RootChange_2C61959C), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_2C61959C
+            {
+                protected Change_2C61959C() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_2C61959C
+            {
+                public Core_2C61959C() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogNested? updated, out SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Core_2C61959C.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class RootChange_2C61959C : SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C
+            {
+                public RootChange_2C61959C() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Root_2C61959C>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Root_2C61959C>? Before { get; set; }
+            }
+            public sealed class Root_2C61959C
+            {
+                public Root_2C61959C() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Change_2C61959C> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogNested.@__Internal_2C61959C.Root_2C61959C FromFragment(SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment value) { }
+            }
         }
     }
     public static class CatalogNestedExtensions_2C61959C
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment, SparseFragments.GeneratedApiFixtures.CatalogNested.Patch, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogNested.Observable, SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment, SparseFragments.GeneratedApiFixtures.CatalogNested.Patch, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogNested.Observable, SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested?> model, System.Action? onChanged = null) { }
     }
     public sealed class CatalogPoco
@@ -1440,7 +1515,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public int? Retry { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogScalar DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore
+        public sealed class ChangePayload : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Core_1D9B1A23
         {
             public ChangePayload() { }
             [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -1515,6 +1590,24 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
+        public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>
+        {
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView Current { get; }
+            public bool HasChanges { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar Model { get; }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable Observable { get; }
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>? ChangeSetChanged;
+            public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public void AcceptChanges() { }
+            public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
+            public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
+            public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
+            public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogScalar serverState) { }
+            public void RevertChanges() { }
+            public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        }
         public sealed class Fragment
         {
             public Fragment() { }
@@ -1537,12 +1630,6 @@ namespace SparseFragments.GeneratedApiFixtures
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogScalar model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogScalar before, SparseFragments.GeneratedApiFixtures.CatalogScalar after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogScalar value) { }
-            public sealed class FragmentJsonConverter : System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment>
-            {
-                public FragmentJsonConverter() { }
-                public override SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
-                public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
-            }
         }
         public sealed class FragmentBuilder
         {
@@ -1602,141 +1689,144 @@ namespace SparseFragments.GeneratedApiFixtures
             public string? Note { get; }
             public int? Retry { get; }
         }
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange0), "Count")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange1), "Labels")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2), "Name")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3), "Note")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4), "Retry")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRootChange), "$root")]
-        [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
-        public abstract class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
+        public static class @__Internal_1D9B1A23
         {
-            protected SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange() { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange0 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange0() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange1 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange1() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange2() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange3() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<string?>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string?>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<string?>? Value { get; set; }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4 : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange4() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<int?>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int?>? Before { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("value")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<int?>? Value { get; set; }
-        }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-        public class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore() { }
-            [System.Text.Json.Serialization.JsonPropertyName("changes")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange>? Changes { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
-            public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogScalar? updated, out SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadCore.MixedApplyResult result) { }
-            public sealed class MixedApplyResult
+            public sealed class Change0_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
             {
-                public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
-                public bool HasConflicts { get; }
-                public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                public Change0_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<int>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int>? Value { get; set; }
             }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot() { }
-            [System.Text.Json.Serialization.JsonPropertyName("members")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange> Members { get; set; }
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment ToFragment() { }
-            public static SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot FromFragment(SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment value) { }
-        }
-        public sealed class SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRootChange : SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadChange
-        {
-            public SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRootChange() { }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("after")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot>? After { get; set; }
-            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-            [System.Text.Json.Serialization.JsonPropertyName("before")]
-            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
-            public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.SparseFragments_GeneratedApiFixtures_CatalogScalarChangePayloadRoot>? Before { get; set; }
+            public sealed class Change1_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
+            {
+                public Change1_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.ISet<string>>? Value { get; set; }
+            }
+            public sealed class Change2_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
+            {
+                public Change2_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<string>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string>? Value { get; set; }
+            }
+            public sealed class Change3_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
+            {
+                public Change3_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<string?>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string?>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<string?>? Value { get; set; }
+            }
+            public sealed class Change4_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
+            {
+                public Change4_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<int?>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int?>? Before { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("value")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<int?>? Value { get; set; }
+            }
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change0_1D9B1A23), "Count")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change1_1D9B1A23), "Labels")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change2_1D9B1A23), "Name")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change3_1D9B1A23), "Note")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change4_1D9B1A23), "Retry")]
+            [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.RootChange_1D9B1A23), "$root")]
+            [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
+            public abstract class Change_1D9B1A23
+            {
+                protected Change_1D9B1A23() { }
+            }
+            [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+            public class Core_1D9B1A23
+            {
+                public Core_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonPropertyName("changes")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23>? Changes { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
+                public bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogScalar? updated, out SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Core_1D9B1A23.MixedApplyResult result) { }
+                public sealed class MixedApplyResult
+                {
+                    public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+                    public bool HasConflicts { get; }
+                    public System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }
+                }
+            }
+            public sealed class RootChange_1D9B1A23 : SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23
+            {
+                public RootChange_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("after")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Root_1D9B1A23>? After { get; set; }
+                [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+                [System.Text.Json.Serialization.JsonPropertyName("before")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public SparseFragments.ChangePayloadEndpoint<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Root_1D9B1A23>? Before { get; set; }
+            }
+            public sealed class Root_1D9B1A23
+            {
+                public Root_1D9B1A23() { }
+                [System.Text.Json.Serialization.JsonPropertyName("members")]
+                [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+                public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Change_1D9B1A23> Members { get; set; }
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment ToFragment() { }
+                public static SparseFragments.GeneratedApiFixtures.CatalogScalar.@__Internal_1D9B1A23.Root_1D9B1A23 FromFragment(SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment value) { }
+            }
         }
     }
     public static class CatalogScalarExtensions_1D9B1A23
     {
         public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar current) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment, SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable, SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar model, System.Action? onChanged = null) { }
-        public static SparseFragments.SparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment, SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet, SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable, SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView> CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar current, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar model, System.Action? onChanged = null) { }
+        public static SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar current, System.Action? onChanged = null) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar?> model, System.Action? onChanged = null) { }
     }
 }

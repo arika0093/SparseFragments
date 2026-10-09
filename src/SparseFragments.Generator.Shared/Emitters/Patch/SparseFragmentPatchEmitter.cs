@@ -211,6 +211,9 @@ internal static class SparseFragmentPatchEmitter
     /// Conflict-kind member used for immutable in-place writes, or null to omit
     /// ChangeSet in-place APIs for models with immutable members.
     /// </param>
+    /// <param name="PayloadImplementationContainerPrefix">
+    /// Product-owned prefix for the nested payload implementation container.
+    /// </param>
     internal readonly record struct SparsePatchDialect(
         string RuntimeNamespace,
         string WholeFieldName,
@@ -225,6 +228,7 @@ internal static class SparseFragmentPatchEmitter
         Func<string, string> RebaseResult,
         Func<SparseMemberModel, string> ChildPatchName,
         Func<SparseMemberModel, string> ChildChangeSetName,
+        string PayloadImplementationContainerPrefix,
         bool HashSetSupportsCapacity = false,
         Func<SparseMemberModel, string>? MemberValueType = null,
         Func<SparseMemberModel, string>? CollectionPatchName = null,

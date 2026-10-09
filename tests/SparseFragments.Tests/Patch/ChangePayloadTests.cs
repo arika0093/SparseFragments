@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using SparseFragments.Playground.Models;
 
@@ -59,7 +60,11 @@ public sealed class ChangePayloadTests
         json.ShouldContain("\"version\":\"0.1\"");
         restored.Version.ShouldBe("0.1");
         restored.Changes!.ShouldHaveSingleItem();
-        restored.Changes![0].GetType().Name.ShouldContain("ChangePayloadChange");
+        restored.Changes![0].GetType().Name.ShouldStartWith("Change");
+        var payloadContainer = typeof(Settings)
+            .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+            .Single(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal));
+        restored.Changes![0].GetType().DeclaringType.ShouldBe(payloadContainer);
         var endpointProperty = restored.Changes![0].GetType().GetProperty("After")!;
         var endpoint = endpointProperty.GetValue(restored.Changes![0])!;
         var endpointType = endpoint.GetType();
@@ -477,8 +482,8 @@ public sealed class ChangePayloadTests
     [Test]
     public void Payload_WritesStableMinimalEnvelope()
     {
-        var empty = Settings.ChangeSet
-            .Between(
+        var empty = Settings
+            .ChangeSet.Between(
                 Optional<Settings.Fragment?>.Missing,
                 Optional<Settings.Fragment?>.Missing
             )

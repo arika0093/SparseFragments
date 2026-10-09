@@ -348,10 +348,10 @@ public static class PlaygroundJson
         {
             TypeInfoResolver = PlaygroundJsonContext.Default,
         };
-        options.Converters.Add(new PlaygroundSettings.Fragment.FragmentJsonConverter());
-        options.Converters.Add(new PlaygroundNested.Fragment.FragmentJsonConverter());
-        options.Converters.Add(new PlaygroundRoster.Fragment.FragmentJsonConverter());
-        options.Converters.Add(new PlaygroundQuest.Fragment.FragmentJsonConverter());
+        options.Converters.Add(PlaygroundSettings.Fragment.JsonConverter);
+        options.Converters.Add(PlaygroundNested.Fragment.JsonConverter);
+        options.Converters.Add(PlaygroundRoster.Fragment.JsonConverter);
+        options.Converters.Add(PlaygroundQuest.Fragment.JsonConverter);
         return options;
     }
 
@@ -395,11 +395,7 @@ public static class PlaygroundJson
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
-            new PlaygroundSettings.Fragment.FragmentJsonConverter().Write(
-                writer,
-                fragment,
-                options
-            );
+            PlaygroundSettings.Fragment.JsonConverter.Write(writer, fragment, options);
         }
 
         return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "settings");
@@ -412,7 +408,7 @@ public static class PlaygroundJson
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
-            new PlaygroundRoster.Fragment.FragmentJsonConverter().Write(writer, fragment, options);
+            PlaygroundRoster.Fragment.JsonConverter.Write(writer, fragment, options);
         }
 
         return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "roster");

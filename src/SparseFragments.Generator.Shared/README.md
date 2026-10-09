@@ -69,6 +69,14 @@ transitions and baseline-free commands side by side, with `missing`, `null`,
 histories; `ToPatch()` projects any envelope without a baseline, and
 `FromPatch()` builds a command envelope without one.
 
+Payload implementation DTOs are grouped under a nested container whose prefix
+comes from `SparsePatchDialect.PayloadImplementationContainerPrefix`. Shared
+appends a stable model hash to that prefix. The container and DTOs are marked
+`EditorBrowsable(Never)`. Their names include a stable model hash because
+`System.Text.Json` source generation can collide on nested types with identical
+simple names across models. The DTOs remain public so a source-generated context
+in another assembly can access the registered polymorphic types.
+
 `SparseFragmentEmitter` retains the standalone `Fragment`/`Patch` API vocabulary.
 It does not add product-specific model extension APIs unless the caller supplies
 the optional `appendProductExtensions` callback. Downstream generators with a

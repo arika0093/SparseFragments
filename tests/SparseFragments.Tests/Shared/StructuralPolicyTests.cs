@@ -482,7 +482,8 @@ public sealed class StructuralPolicyTests
             static payload => "global::Downstream.Rebase<" + payload + ">",
             static _ => "Patch",
             static _ => "ChangeSet",
-            CollectionPatchName: static member => "Downstream" + member.Property.Name + "Patch"
+            CollectionPatchName: static member => "Downstream" + member.Property.Name + "Patch",
+            PayloadImplementationContainerPrefix: "DownstreamInternal"
         );
         var generated = SparseFragmentEmitter.BuildSource(
             model,

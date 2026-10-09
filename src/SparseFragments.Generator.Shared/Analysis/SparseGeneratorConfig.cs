@@ -27,7 +27,8 @@ internal sealed record SparseGeneratorConfig
         string? RebasePolicyBaseMetadataName = null,
         SparseEmissionFeatures? EmissionFeatures = null,
         ImmutableArray<string> ProductExtensionNames = default,
-        string? ComparisonAttributeMetadataName = null
+        string? ComparisonAttributeMetadataName = null,
+        string? EditSessionInterfaceMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -53,6 +54,7 @@ internal sealed record SparseGeneratorConfig
         this.EmissionFeatures = EmissionFeatures;
         this.ProductExtensionNames = ProductExtensionNames;
         this.ComparisonAttributeMetadataName = ComparisonAttributeMetadataName;
+        this.EditSessionInterfaceMetadataName = EditSessionInterfaceMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -105,6 +107,9 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Attribute defining a type-level equality comparer, or null when comparison rules are disabled.</summary>
     public string? ComparisonAttributeMetadataName { get; init; }
+
+    /// <summary>Generic edit-session interface implemented by generated model sessions, or null when disabled.</summary>
+    public string? EditSessionInterfaceMetadataName { get; init; }
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 

@@ -10,6 +10,7 @@ internal static class SparseChangeSetPayloadItemEmitter
         SparseMemberModel member,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
+        string payloadContainerName,
         string? modelType
     )
     {
@@ -41,8 +42,12 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + ".Item __SparsePayloadItem"
                 + id
                 + "("
-                + SparseChangeSetPayloadEmitter.PayloadName(modelType, "Item")
-                + id
+                + SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+                    payloadContainerName,
+                    modelType,
+                    "Item",
+                    id
+                )
                 + " item)"
         );
         code.AppendLineAt(2, "{");
@@ -336,14 +341,21 @@ internal static class SparseChangeSetPayloadItemEmitter
         var payloadChange = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change");
         code.AppendLineAt(
             1,
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
-        code.AppendLineAt(1, "public sealed class " + payloadChange + id + " : " + payloadChange);
+        code.AppendLineAt(
+            1,
+            "public sealed class "
+                + SparseChangeSetPayloadEmitter.PayloadMemberName(modelType, "Change", id)
+                + " : "
+                + payloadChange
+        );
         code.AppendLineAt(1, "{");
         var memberValueType = SparseChangeSetBasicsEmitter.IsNested(member)
             ? member.ChildModel!.Value.NonNullableName
                 + "."
-                + SparseChangeSetPayloadEmitter.PayloadName(
+                + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                    dialect,
                     member.ChildModel.Value.NonNullableName,
                     "Root"
                 )
@@ -361,7 +373,7 @@ internal static class SparseChangeSetPayloadItemEmitter
             var childPayload =
                 childModelType
                 + "."
-                + SparseChangeSetPayloadEmitter.PayloadName(childModelType, "Core");
+                + SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, childModelType, "Core");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Nested", 1);
             code.AppendLineAt(2, "public " + childPayload + "? Nested { get; set; }");
@@ -385,8 +397,7 @@ internal static class SparseChangeSetPayloadItemEmitter
             code.AppendLineAt(
                 2,
                 "public global::System.Collections.Generic.List<"
-                    + SparseChangeSetPayloadEmitter.PayloadName(modelType, "Item")
-                    + id
+                    + SparseChangeSetPayloadEmitter.PayloadMemberName(modelType, "Item", id)
                     + "> Items { get; set; } = new();"
             );
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
@@ -440,25 +451,26 @@ internal static class SparseChangeSetPayloadItemEmitter
             var childName = SparseChangeSetBasicsEmitter.IsKeyed(member)
                 ? member.Collection.ElementType.NonNullableName
                     + "."
-                    + SparseChangeSetPayloadEmitter.PayloadName(
+                    + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                        dialect,
                         member.Collection.ElementType.NonNullableName,
                         "Core"
                     )
                 : member.Collection.ValueType?.NonNullableName
                     + "."
-                    + SparseChangeSetPayloadEmitter.PayloadName(
+                    + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                        dialect,
                         member.Collection.ValueType!.Value.NonNullableName,
                         "Core"
                     );
             code.AppendLineAt(
                 1,
-                "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
+                "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
             );
             code.AppendLineAt(
                 1,
                 "public sealed class "
-                    + SparseChangeSetPayloadEmitter.PayloadName(modelType, "Item")
-                    + id
+                    + SparseChangeSetPayloadEmitter.PayloadMemberName(modelType, "Item", id)
             );
             code.AppendLineAt(1, "{");
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Key", 0);

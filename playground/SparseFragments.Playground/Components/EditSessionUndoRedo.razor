@@ -150,14 +150,7 @@
         ],
     };
 
-    private SparseEditSession<
-        PlaygroundSettings,
-        PlaygroundSettings.Fragment,
-        PlaygroundSettings.Patch,
-        PlaygroundSettings.ChangeSet,
-        PlaygroundSettings.Observable,
-        PlaygroundSettings.ReadOnlyView
-    > _session = null!;
+    private PlaygroundSettings.EditSession _session = null!;
     private List<PlaygroundTask> _baselineTasks = [];
     private string _baselineJson = string.Empty;
     private string _activeTab = "diff";

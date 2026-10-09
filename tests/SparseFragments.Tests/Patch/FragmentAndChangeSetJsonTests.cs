@@ -21,8 +21,11 @@ public sealed class FragmentAndChangeSetJsonTests
     [Test]
     public void FragmentWireNamesRoundTrip()
     {
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        options.Converters.Add(new NamingWidget.Fragment.FragmentJsonConverter());
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+        options.Converters.Add(NamingWidget.Fragment.JsonConverter);
 
         var fragment = new NamingWidget.Fragment
         {
@@ -42,19 +45,37 @@ public sealed class FragmentAndChangeSetJsonTests
     [Test]
     public void ChangeSetRoundTripsWithExplicitWireNames()
     {
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        options.Converters.Add(new NamingWidget.Fragment.FragmentJsonConverter());
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+        options.Converters.Add(NamingWidget.Fragment.JsonConverter);
 
         Optional<NamingWidget.Fragment?> State(NamingWidget model) =>
             Optional<NamingWidget.Fragment?>.Present(NamingWidget.Fragment.From(model));
-        var before = State(new NamingWidget { Value = "a", Slash = 1, Plain = 2 });
-        var after = State(new NamingWidget { Value = "b", Slash = 3, Plain = 2 });
+        var before = State(
+            new NamingWidget
+            {
+                Value = "a",
+                Slash = 1,
+                Plain = 2,
+            }
+        );
+        var after = State(
+            new NamingWidget
+            {
+                Value = "b",
+                Slash = 3,
+                Plain = 2,
+            }
+        );
 
         var payload = NamingWidget.ChangeSet.Between(before, after).ToPayload();
         var json = JsonSerializer.Serialize(payload, options);
         json.ShouldContain("\"member\":\"Value\"");
 
-        var restored = JsonSerializer.Deserialize<NamingWidget.ChangePayload>(json, options)!
+        var restored = JsonSerializer
+            .Deserialize<NamingWidget.ChangePayload>(json, options)!
             .ToChangeSet();
         NamingWidget.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty.ShouldBeTrue();
     }

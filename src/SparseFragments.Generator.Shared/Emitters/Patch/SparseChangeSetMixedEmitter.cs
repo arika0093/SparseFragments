@@ -23,8 +23,12 @@ internal static class SparseChangeSetMixedEmitter
         string? modelType
     )
     {
-        var payloadCore = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Core");
-        var rootChange = SparseChangeSetPayloadEmitter.PayloadName(modelType, "RootChange");
+        var payloadCore = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+        var rootChange = SparseChangeSetPayloadEmitter.PayloadTypeName(
+            dialect,
+            modelType,
+            "RootChange"
+        );
         code.AppendLineAt(
             2,
             "/// <summary>Converts a validated root envelope to a change set.</summary>"
@@ -228,7 +232,12 @@ internal static class SparseChangeSetMixedEmitter
         var prop = member.Property.Name;
         var propLit = SymbolDisplay.FormatLiteral(prop, true);
         var path = "pathPrefix + " + propLit;
-        var variant = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var variant = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         var esc = SparseNaming.EscapeIdentifier(prop);
         if (
             SparseDownstreamPolicy.IsScalarMember(member)

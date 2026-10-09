@@ -48,7 +48,7 @@ internal static class SparseFragmentJsonEmitter
         );
         code.AppendLineAt(
             2,
-            "public sealed class FragmentJsonConverter : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
+            "private sealed class FragmentJsonConverter : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
         );
         code.AppendLineAt(2, "{");
         // Keep linear UTF-8 dispatch limited to small models; wider converters retain string dispatch.

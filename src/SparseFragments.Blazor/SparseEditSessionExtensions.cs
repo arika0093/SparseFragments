@@ -13,29 +13,19 @@ namespace SparseFragments.Blazor;
 public static class SparseEditSessionExtensions
 {
     /// <summary>Creates an <see cref="EditContext"/> bound to the session's original model.</summary>
-    public static EditContext CreateEditContext<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session
-    )
+    public static EditContext CreateEditContext<TModel>(this ISparseEditSession<TModel> session)
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ArgumentNullException.ThrowIfNull(session);
         return new EditContext(session.Model);
     }
 
     /// <summary>Accepts the current model state and clears the associated Blazor modified state.</summary>
-    public static void AcceptChanges<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    public static void AcceptChanges<TModel>(
+        this ISparseEditSession<TModel> session,
         EditContext editContext
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ValidateEditContext(session, editContext);
         session.AcceptChanges();
@@ -47,16 +37,13 @@ public static class SparseEditSessionExtensions
     /// The session model instance is preserved; only the baseline advances. Later live
     /// edits remain pending, so the context is cleared only when the session is clean.
     /// </remarks>
-    public static void AcceptChanges<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    public static void AcceptChanges<TModel, TChangeSet>(
+        this ISparseEditSession<TModel, TChangeSet> session,
         EditContext editContext,
         TChangeSet changes
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
         where TChangeSet : class
-        where TObservable : class
     {
         ValidateEditContext(session, editContext);
         session.AcceptChanges(changes);
@@ -65,36 +52,22 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Creates a validation store bound to the supplied session edit context.</summary>
-    public static ValidationMessageStore CreateValidationStore<
-        TModel,
-        TFragment,
-        TPatch,
-        TChangeSet,
-        TObservable
-    >(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    public static ValidationMessageStore CreateValidationStore<TModel>(
+        this ISparseEditSession<TModel> session,
         EditContext editContext
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ValidateEditContext(session, editContext);
         return new ValidationMessageStore(editContext);
     }
 
     /// <summary>Resolves a Blazor field identifier for a member of the session model.</summary>
-    public static FieldIdentifier Field<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    public static FieldIdentifier Field<TModel>(
+        this ISparseEditSession<TModel> session,
         string fieldName
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
@@ -187,17 +160,13 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Surfaces a validation message for a field belonging to this session's model.</summary>
-    public static void AddValidationError<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        this SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    public static void AddValidationError<TModel>(
+        this ISparseEditSession<TModel> session,
         ValidationMessageStore store,
         FieldIdentifier field,
         string message
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
@@ -213,15 +182,11 @@ public static class SparseEditSessionExtensions
         store.Add(field, message);
     }
 
-    private static void ValidateEditContext<TModel, TFragment, TPatch, TChangeSet, TObservable>(
-        SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable> session,
+    private static void ValidateEditContext<TModel>(
+        ISparseEditSession<TModel> session,
         EditContext editContext
     )
         where TModel : class
-        where TFragment : class
-        where TPatch : class
-        where TChangeSet : class
-        where TObservable : class
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(editContext);

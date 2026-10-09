@@ -138,7 +138,7 @@ if [[ "${negative_status}" -eq 0 ]]; then
     echo "Negative probe unexpectedly succeeded with LangVersion=8.0; C# 8.0 must not compile generated code." >&2
     exit 1
 fi
-if ! echo "${negative_output}" | grep -F -q "9.0"; then
+if ! grep -F -q "9.0" <<<"${negative_output}"; then
     echo "Negative probe failed without naming language version 9.0; the failure mode is not understandable." >&2
     echo "${negative_output}" | tail -n 20 >&2
     exit 1

@@ -122,11 +122,13 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             RebaseModeType: "global::SparseFragments.SparseRebaseMode",
             RebasePolicyType: "global::SparseFragments.FragmentRebasePolicy",
             RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
-            InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable"
+            InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
+            PayloadImplementationContainerPrefix: "__Internal"
         ),
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
         ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",
+        EditSessionInterfaceMetadataName: "SparseFragments.ISparseEditSession",
         ReservedGeneratedNames: ImmutableArray.Create(
             "Fragment",
             "FragmentBuilder",
@@ -147,7 +149,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "TryApplyTo",
             "WriteTo",
             "ApplyInPlace",
-            "ApplyInPlaceResult"
+            "ApplyInPlaceResult",
+            "EditSession"
         )
     );
 
@@ -554,6 +557,21 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             .Collect()
             .Select(static (presence, _) => presence.Any(static value => value))
             .WithComparer(EqualityComparer<bool>.Default);
+        var hasEditSessionModels = analyzed
+            .Select(
+                static (analysis, _) => analysis.Model.HasValue && !analysis.Model.Value.IsStruct
+            )
+            .Collect()
+            .Select(static (presence, _) => presence.Any(static value => value))
+            .WithComparer(EqualityComparer<bool>.Default);
+        context.RegisterSourceOutput(
+            hasEditSessionModels,
+            static (productionContext, emit) =>
+            {
+                if (emit)
+                    SparseEditSessionCoreEmitter.Emit(productionContext);
+            }
+        );
         var shouldEmitIsExternalInit = context
             .CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider)
             .Combine(hasModels)
@@ -651,6 +669,11 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
+        var sessionInterfaceMetadataName =
+            Configuration.EditSessionInterfaceMetadataName
+            ?? throw new InvalidOperationException(
+                "The edit-session interface metadata name is not configured."
+            );
         var source = SparseFragmentEmitter.BuildSource(
             model,
             analysis.Members,
@@ -661,7 +684,13 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             bclHashSetSupportsCapacity,
             cancellationToken,
             Configuration,
-            SparseModelExtensionsEmitter.Append
+            (code, generatedModel, members) =>
+                SparseModelExtensionsEmitter.Append(
+                    code,
+                    generatedModel,
+                    members,
+                    sessionInterfaceMetadataName
+                )
         );
         return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);
     }

@@ -1,4 +1,7 @@
+using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using SparseFragments.Blazor;
 using SparseFragments.GeneratedApiFixtures;
 
@@ -52,6 +55,7 @@ public sealed class GeneratedApiApprovalTests
                     "Observable",
                     "ReadOnlyView",
                     "FragmentBuilder",
+                    "EditSession",
                 }
             )
                 AssertNested(model, nested);
@@ -120,6 +124,99 @@ public sealed class GeneratedApiApprovalTests
     }
 
     [Test]
+    public void CreateEditSessionReturnsTheModelSpecificSubclass()
+    {
+        var session = new CatalogScalar().CreateEditSession();
+
+        session.GetType().ShouldBe(typeof(CatalogScalar.EditSession));
+        typeof(CatalogScalar.EditSession)
+            .GetInterfaces()
+            .ShouldContain(
+                typeof(SparseFragments.ISparseEditSession<CatalogScalar, CatalogScalar.ChangeSet>)
+            );
+        session.Current.Name.ShouldBe(string.Empty);
+        session.Model.Name.ShouldBe(string.Empty);
+
+        var baseline = new CatalogScalar { Name = "baseline" };
+        var current = new CatalogScalar { Name = "current" };
+        var separateBaselineSession = baseline.CreateEditSession(current);
+        separateBaselineSession.GetType().ShouldBe(typeof(CatalogScalar.EditSession));
+        ReferenceEquals(separateBaselineSession.Model, current).ShouldBeTrue();
+        separateBaselineSession.Current.Name.ShouldBe("current");
+    }
+
+    [Test]
+    public void PayloadImplementationDtosAreGroupedAndHiddenFromIntelliSense()
+    {
+        // PublicApiGenerator filters EditorBrowsableAttribute from its API snapshots.
+        var containers = FixtureModels
+            .Select(static model =>
+                model
+                    .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+                    .SingleOrDefault(static type =>
+                        type.Name.StartsWith("__Internal_", StringComparison.Ordinal)
+                    )
+            )
+            .Where(static type => type is not null)
+            .Cast<Type>()
+            .ToArray();
+
+        containers.Length.ShouldBe(FixtureModels.Length);
+        var implementationTypes = containers
+            .SelectMany(static container =>
+                container.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+            )
+            .ToArray();
+        implementationTypes.ShouldNotBeEmpty();
+        foreach (var container in containers)
+            container
+                .GetCustomAttribute<EditorBrowsableAttribute>()
+                ?.State.ShouldBe(EditorBrowsableState.Never);
+        foreach (var implementationType in implementationTypes)
+            implementationType
+                .GetCustomAttribute<EditorBrowsableAttribute>()
+                ?.State.ShouldBe(EditorBrowsableState.Never);
+
+        var scalarContainer = typeof(CatalogScalar)
+            .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+            .Single(static type => type.Name.StartsWith("__Internal_", StringComparison.Ordinal));
+        var scalarMemberChange = scalarContainer
+            .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
+            .Single(static type => type.Name.StartsWith("Change0_", StringComparison.Ordinal));
+        scalarMemberChange.DeclaringType.ShouldBe(scalarContainer);
+    }
+
+    [Test]
+    public void FragmentJsonConverterIsPrivateImplementationDetail()
+    {
+        typeof(CatalogScalar.Fragment)
+            .GetNestedType("FragmentJsonConverter", BindingFlags.Public | BindingFlags.NonPublic)
+            .ShouldNotBeNull()
+            .IsNestedPrivate.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ChangePayloadSupportsExternalSourceGeneration()
+    {
+        var before = new CatalogScalar { Name = "before", Count = 1 };
+        var after = new CatalogScalar { Name = "after", Count = 1 };
+        var payload = before.CreateChangeSet(after).ToPayload();
+        var json = JsonSerializer.Serialize(
+            payload,
+            CatalogSerializerContext.Default.CatalogScalarChangePayload
+        );
+
+        var restored = JsonSerializer.Deserialize(
+            json,
+            CatalogSerializerContext.Default.CatalogScalarChangePayload
+        );
+
+        restored.ShouldNotBeNull();
+        restored!.Changes.ShouldHaveSingleItem();
+        restored.ToChangeSet().IsEmpty.ShouldBeFalse();
+    }
+
+    [Test]
     public void SubmitApisStayAbsent()
     {
         var fixture = typeof(CatalogScalar).Assembly;
@@ -180,3 +277,9 @@ public sealed class GeneratedApiApprovalTests
             methods.Contains(name).ShouldBeTrue($"Expected {type.Name}.{name} to stay public.");
     }
 }
+
+[JsonSerializable(
+    typeof(CatalogScalar.ChangePayload),
+    TypeInfoPropertyName = "CatalogScalarChangePayload"
+)]
+internal partial class CatalogSerializerContext : JsonSerializerContext { }

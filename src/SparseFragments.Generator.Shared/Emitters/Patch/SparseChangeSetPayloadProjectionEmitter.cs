@@ -168,7 +168,7 @@ internal static class SparseChangeSetPayloadProjectionEmitter
     {
         var id = member.Id;
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var variant = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var variant = SparseChangeSetPayloadEmitter.PayloadMemberName(modelType, "Change", id);
         code.AppendLineAt(5, "case " + variant + " item:");
         if (IsNested(member))
         {

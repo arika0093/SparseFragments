@@ -17,7 +17,12 @@ internal static class SparseChangeSetPayloadRestoreEmitter
     )
     {
         var id = member.Id;
-        var variant = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var variant = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         code.AppendLineAt(5, "case " + variant + " item:");
         code.AppendLineAt(
             6,

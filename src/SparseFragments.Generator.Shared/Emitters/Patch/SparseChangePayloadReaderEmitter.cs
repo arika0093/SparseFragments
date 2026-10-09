@@ -17,7 +17,7 @@ internal static class SparseChangePayloadReaderEmitter
     {
         var runtime = dialect.RuntimeNamespace;
         var endpoint = runtime + "ChangePayloadEndpoint";
-        var payloadRoot = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Root");
+        var payloadRoot = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Root");
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangePayloadVersion, true);
         code.AppendLineAt(
             2,
@@ -60,6 +60,7 @@ internal static class SparseChangePayloadReaderEmitter
                 member,
                 members,
                 runtime,
+                SparseChangeSetPayloadEmitter.RequirePayloadContainerName(dialect, modelType),
                 modelType
             );
         }

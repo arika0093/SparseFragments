@@ -117,7 +117,8 @@ public sealed class DownstreamPolicyTests
             static member => "global::Downstream.Delta_" + member.Id,
             MemberPolicies: policies,
             RebasePolicy: rebase,
-            WriteContract: write
+            WriteContract: write,
+            PayloadImplementationContainerPrefix: "DownstreamInternal"
         );
 
     private static SparseGeneratorConfig DownstreamConfig(
@@ -369,7 +370,10 @@ public sealed class DownstreamPolicyTests
         // The read projection omits the command-only member.
         text.ShouldNotContain("Secret = rootMember2,");
         // The transport variant still carries its after-state.
-        text.ShouldContain("Ns_ReadModelChangePayloadChange2");
+        text.ShouldContain(
+            SparseChangeSetPayloadEmitter.PayloadMemberName("global::Ns.ReadModel", "Change", 2)
+        );
+        text.ShouldNotContain("Ns_ReadModelChangePayloadChange2");
         text.ShouldContain("internal Patch ToPatchCore()");
     }
 
@@ -472,7 +476,8 @@ public sealed class DownstreamPolicyTests
                 WriteContract: new SparseWriteContract(
                     "global::Ns.WriteCmd",
                     ImmutableArray.Create(new SparseWriteMember("Secret", "NewSecret"))
-                )
+                ),
+                PayloadImplementationContainerPrefix: "SparseFragmentsInternal"
             )
         );
         var generated = BuildSource(config, SecretMembers());

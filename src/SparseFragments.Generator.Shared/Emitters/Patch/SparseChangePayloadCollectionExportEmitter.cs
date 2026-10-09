@@ -12,7 +12,12 @@ internal static class SparseChangePayloadCollectionExportEmitter
     )
     {
         var id = member.Id;
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var change = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         code.AppendLineAt(
             3,
             "/// <summary>Exports whole and granular operations as a payload change entry.</summary>"
@@ -94,13 +99,19 @@ internal static class SparseChangePayloadCollectionExportEmitter
         var runtime = dialect.RuntimeNamespace;
         var endpoint = runtime + "ChangePayloadEndpoint";
         var itemKind = runtime + "ChangePayloadItemKind";
-        var item = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Item") + id;
+        var item = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Item",
+            id
+        );
         var itemValueType = SparseChangeSetBasicsEmitter.ElementTypeOf(member);
         var isModelValue = member.Collection.ElementType.IsFragmentModel;
         var childCore = isModelValue
             ? member.Collection.ElementType.NonNullableName
                 + "."
-                + SparseChangeSetPayloadEmitter.PayloadName(
+                + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                    dialect,
                     member.Collection.ElementType.NonNullableName,
                     "Core"
                 )
@@ -227,14 +238,20 @@ internal static class SparseChangePayloadCollectionExportEmitter
         var runtime = dialect.RuntimeNamespace;
         var endpoint = runtime + "ChangePayloadEndpoint";
         var itemKind = runtime + "ChangePayloadItemKind";
-        var item = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Item") + id;
+        var item = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Item",
+            id
+        );
         var itemValueType = SparseChangeSetBasicsEmitter.ValueTypeOf(member);
         var isModelValue = member.Collection.ValueType?.IsFragmentModel == true;
         var childCore =
             isModelValue && member.Collection.ValueType.HasValue
                 ? member.Collection.ValueType.Value.NonNullableName
                     + "."
-                    + SparseChangeSetPayloadEmitter.PayloadName(
+                    + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                        dialect,
                         member.Collection.ValueType.Value.NonNullableName,
                         "Core"
                     )

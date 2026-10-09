@@ -9,7 +9,7 @@ public sealed class AotJsonTests
     private static JsonSerializerOptions AotOptions()
     {
         var options = new JsonSerializerOptions { TypeInfoResolver = AotSerializerContext.Default };
-        options.Converters.Add(new AotWidget.Fragment.FragmentJsonConverter());
+        options.Converters.Add(AotWidget.Fragment.JsonConverter);
         return options;
     }
 
@@ -24,7 +24,7 @@ public sealed class AotJsonTests
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
-            new AotWidget.Fragment.FragmentJsonConverter().Write(writer, fragment, options);
+            AotWidget.Fragment.JsonConverter.Write(writer, fragment, options);
         }
 
         return Encoding.UTF8.GetString(stream.ToArray());
@@ -171,10 +171,7 @@ public sealed class AotJsonTests
             )
             .IsEqualTo("add");
         var serverRestored = JsonSerializer
-            .Deserialize(
-                serverJson,
-                AotSerializerContext.Default.PayloadCollectionChangePayload
-            )!
+            .Deserialize(serverJson, AotSerializerContext.Default.PayloadCollectionChangePayload)!
             .ToChangeSet();
         await Assert
             .That(

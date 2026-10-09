@@ -17,6 +17,8 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.FragmentOperation`1",
         "SparseFragments.FragmentOperationKind",
         "SparseFragments.ISparseKeyed`1",
+        "SparseFragments.ISparseEditSession`1",
+        "SparseFragments.ISparseEditSession`2",
         "SparseFragments.MergeMode",
         "SparseFragments.SparseFragmentModelAttribute",
         "SparseFragments.SparseIgnoreAttribute",
@@ -86,6 +88,15 @@ public sealed class SparseFragmentsApiAudienceTests
             .Select(static type => type.FullName ?? type.Name)
             .ToArray();
         offenders.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void GenericSessionImplementationIsNotExportedByTheRuntime()
+    {
+        var assembly = typeof(SparseFragments.SparseFragmentModelAttribute).Assembly;
+        assembly.GetType("SparseFragments.SparseEditSession`5").ShouldBeNull();
+        assembly.GetType("SparseFragments.SparseEditSession`6").ShouldBeNull();
+        assembly.GetType("SparseFragments.SparseEditSessionConfiguration`6").ShouldBeNull();
     }
 
     private static bool IsAdvanced(string fullName) => HasAdvancedHiding(Resolve(fullName));

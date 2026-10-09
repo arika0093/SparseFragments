@@ -29,6 +29,8 @@ public partial class UiOrderItem
 
 Reference-type models provide an edit session via `CreateEditSession()` without depending on any UI package. The session retains a baseline snapshot, tracks changes against the live model, and derives `ChangeSet` transitions on demand:
 
+For callers that need an explicit type name, the generated return type is the concise model-specific nested `UiOrder.EditSession`. It composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
+
 ```csharp
 var baseline = new UiOrder { Number = "ORD-1" };
 var current = new UiOrder { Number = "ORD-2" };

@@ -98,10 +98,30 @@ internal static class SparseModelAnalyzer
         // Formerly a late render-time check: reserved generated-name collisions
         // now fail during analysis on the shared collision primitive, keeping
         // the historical single generated-name diagnostic with no source location.
+        var reservedNames = config.EffectiveReservedGeneratedNames;
+        if (config.EffectiveEmissionFeatures.EmitChangePayload && config.PatchDialect.HasValue)
+        {
+            var containerPrefix = config.PatchDialect.Value.PayloadImplementationContainerPrefix;
+            if (!string.IsNullOrWhiteSpace(containerPrefix))
+                reservedNames = reservedNames.Add(
+                    containerPrefix
+                        + "_"
+                        + SparseNaming.GetStableTypeHash(
+                            SparseNaming.NonNullableTypeName(model),
+                            cancellationToken
+                        )
+                );
+        }
         var reservedCollision = SparseShapeValidation.FindFirstReservedNameCollision(
             memberModels,
-            config.EffectiveReservedGeneratedNames
+            reservedNames
         );
+        reservedCollision ??= model
+            .GetTypeMembers()
+            .FirstOrDefault(type =>
+                reservedNames.Contains(type.Name, global::System.StringComparer.Ordinal)
+            )
+            ?.Name;
         if (reservedCollision is not null)
         {
             diagnostics.Add(

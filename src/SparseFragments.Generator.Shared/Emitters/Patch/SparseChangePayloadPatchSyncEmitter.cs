@@ -41,8 +41,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
         string modelType
     )
     {
-        var core = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Core");
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change");
+        var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+        var change = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Change");
         code.AppendLineAt(
             2,
             "/// <summary>Builds a baseline-free command core from this patch.</summary>"
@@ -75,14 +75,20 @@ internal static class SparseChangePayloadPatchSyncEmitter
         var endpoint = runtime + "ChangePayloadEndpoint";
         var state = runtime + "ChangePayloadState";
         var kind = runtime + "FragmentOperationKind";
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var change = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         var field = dialect.MemberField(member);
         if (SparseChangeSetBasicsEmitter.IsNested(member))
         {
             var childCore =
                 member.ChildModel!.Value.NonNullableName
                 + "."
-                + SparseChangeSetPayloadEmitter.PayloadName(
+                + SparseChangeSetPayloadEmitter.PayloadTypeName(
+                    dialect,
                     member.ChildModel.Value.NonNullableName,
                     "Core"
                 );
@@ -109,7 +115,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
             || SparseChangeSetBasicsEmitter.IsDict(member)
         )
         {
-            AppendCoreFromPatchCollection(code, modelType, id, field);
+            AppendCoreFromPatchCollection(code, dialect, modelType, id, field);
         }
         else
         {
@@ -157,12 +163,18 @@ internal static class SparseChangePayloadPatchSyncEmitter
 
     private static void AppendCoreFromPatchCollection(
         SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string modelType,
         int id,
         string field
     )
     {
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var change = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(3, "var collection" + id + " = " + field + ";");
         code.AppendLineAt(
@@ -186,8 +198,12 @@ internal static class SparseChangePayloadPatchSyncEmitter
         string modelType
     )
     {
-        var core = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Core");
-        var rootChange = SparseChangeSetPayloadEmitter.PayloadName(modelType, "RootChange");
+        var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+        var rootChange = SparseChangeSetPayloadEmitter.PayloadTypeName(
+            dialect,
+            modelType,
+            "RootChange"
+        );
         var runtime = dialect.RuntimeNamespace;
         var state = runtime + "ChangePayloadState";
         code.AppendLineAt(
@@ -260,7 +276,12 @@ internal static class SparseChangePayloadPatchSyncEmitter
     )
     {
         var id = member.Id;
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var change = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         var esc = SparseNaming.EscapeIdentifier(member.Property.Name);
         if (SparseChangeSetBasicsEmitter.IsNested(member))
         {
@@ -341,7 +362,12 @@ internal static class SparseChangePayloadPatchSyncEmitter
         string esc
     )
     {
-        var change = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
+        var change = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            dialect,
+            modelType,
+            "Change",
+            id
+        );
         var collectionPatch =
             "Patch." + SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
         var isKeyed = SparseChangeSetBasicsEmitter.IsKeyed(member);

@@ -24,6 +24,15 @@
     />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="SparseEditSessionCore.cs;SparseEditSessionWithCurrentCore.cs" />
+    <EmbeddedResource
+      Include="SparseEditSessionCore.cs"
+      LogicalName="SparseFragments.Generator.SparseEditSessionCore.cs"
+    />
+    <EmbeddedResource
+      Include="SparseEditSessionWithCurrentCore.cs"
+      LogicalName="SparseFragments.Generator.SparseEditSessionWithCurrentCore.cs"
+    />
     <!-- Shared generator sources are always compiled in-repo (#21).
       There is no NuGet fallback: the sibling Shared project is the single
       source of truth, so local and shipped generator behavior cannot diverge. -->

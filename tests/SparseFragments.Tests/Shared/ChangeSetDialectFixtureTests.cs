@@ -210,7 +210,8 @@ public sealed class ChangeSetDialectFixtureTests
                         ".Patch",
                         StringComparison.Ordinal
                     ),
-            static member => "global::Downstream.Delta_" + member.Id
+            static member => "global::Downstream.Delta_" + member.Id,
+            PayloadImplementationContainerPrefix: "DownstreamInternal"
         );
 
     private static string EmitChangeSet(
