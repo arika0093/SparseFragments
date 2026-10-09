@@ -265,24 +265,47 @@ internal static class SparseObservableDescriptorEmitter
         }
 
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var itemType = member.Collection.ElementType.NonNullableName;
-        return "() => this."
+        var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
+        var element = member.Collection.ElementType;
+        var itemType = element.NonNullableName;
+        // Arrays hold models directly. Fragment elements still expose nested
+        // descriptors through transient proxies that notify the parent property;
+        // structural array mutations stay unsupported (fixed size).
+        var hasProxy = element.IsFragmentModel && element.IsReferenceType;
+        var viewType = hasProxy
+            ? itemType + "." + (element.ObservableTypeName ?? "Observable")
+            : itemType;
+        var descriptors = hasProxy
+            ? ", GetItemDescriptors = index => { var item = __sparse_captured[index]; if ((object?)item is null) return null; var view = new "
+                + viewType
+                + "(item, () => { __Raise("
+                + literal
+                + "); if (__onChanged is not null) __onChanged(); }, __onRawModelAccess); return view."
+                + AccessorName(itemType)
+                + "("
+                + path
+                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + "GetItemModel = index => (uint)index >= (uint)__sparse_captured.Length ? null : (object?)__sparse_captured[index]"
+            : string.Empty;
+        return "() => { var current = this."
             + property
-            + " is null ? null : new "
+            + "; if ((object?)current is null) return null; var __sparse_captured = current; return "
+            + dialect.ArrayDescriptorType
+            + ".Guarded(new "
             + dialect.ArrayDescriptorType
             + "(typeof("
             + itemType
             + "), "
-            + IsNullableExpression(member.Collection.ElementType.Name)
+            + IsNullableExpression(element.Name)
             + ", new "
             + dialect.ArrayDescriptorAccessType
-            + " { Count = () => this."
-            + property
-            + "!.Length, GetItem = index => this."
-            + property
-            + "![index] }, typeof("
+            + " { Count = () => __sparse_captured.Length, GetItem = index => __sparse_captured[index]"
+            + descriptors
+            + " }, typeof("
             + itemType
-            + "))";
+            + ")), () => global::System.Object.ReferenceEquals(this."
+            + property
+            + ", __sparse_captured)); }";
     }
 
     /// <summary>Emits a read-only sequence descriptor for list-like shapes.</summary>
