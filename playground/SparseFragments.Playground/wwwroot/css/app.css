@@ -1,3 +1,9 @@
+:root {
+    --spacingVerticalS: 6px;
+    --spacingVerticalM: 8px;
+    --spacingVerticalL: 12px;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     max-width: 100%;
@@ -199,6 +205,64 @@ code {
 
 .pg-section-card {
     margin-bottom: 1rem;
+}
+
+.pg-section {
+    margin: 1.5rem 0 2rem;
+}
+
+.pg-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-left: 0.35rem solid var(--accent-fill-rest);
+    background: rgba(127, 127, 127, 0.08);
+}
+
+.pg-section-number {
+    flex: 0 0 auto;
+    color: var(--accent-fill-rest);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.pg-section-heading h2 {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+}
+
+.pg-section-content,
+.pg-code-samples {
+    padding-top: 0.5rem;
+}
+
+.pg-section-tabs-inline {
+    display: flex;
+    flex-direction: column !important;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.pg-section-tabs-inline > fluent-tablist {
+    flex: 0 0 auto;
+}
+
+.pg-section-tabs-inline > .fluent-tab-panel {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.pg-code-samples > .pg-hint {
+    margin-bottom: 0.75rem;
+}
+
+.pg-code-sample-subheading {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .pg-card-head {

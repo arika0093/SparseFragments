@@ -26,171 +26,231 @@
     <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetAll">Reset everything</FluentButton>
 </div>
 
-<h2>1. Layers: merge Lower + Higher</h2>
-<p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins uses append-merge.</p>
-<div class="pg-grid">
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Lower (baseline)</h3>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetLower">Reset</FluentButton>
-        </div>
-        <FragmentEditor State="Lower" OnChanged="Refresh" />
-        <FluentTabs ActiveTabId="@LowerTabId" ActiveTabIdChanged="@OnLayerTabChanged">
-            <FluentTab Header="C#" Id="lower-csharp">
-                <MonacoView Content="@LowerCSharp" Language="csharp" Height="270px" />
-            </FluentTab>
-            <FluentTab Header="JSON" Id="lower-json">
-                <MonacoView Content="@LowerFragmentJson" Language="json" Height="270px" />
-            </FluentTab>
-        </FluentTabs>
-    </FluentCard>
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Higher (overlay)</h3>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetHigher">Reset</FluentButton>
-        </div>
-        <FragmentEditor State="Higher" OnChanged="Refresh" />
-        <FluentTabs ActiveTabId="@HigherTabId" ActiveTabIdChanged="@OnLayerTabChanged">
-            <FluentTab Header="C#" Id="higher-csharp">
-                <MonacoView Content="@HigherCSharp" Language="csharp" Height="270px" />
-            </FluentTab>
-            <FluentTab Header="JSON" Id="higher-json">
-                <MonacoView Content="@HigherFragmentJson" Language="json" Height="270px" />
-            </FluentTab>
-        </FluentTabs>
-    </FluentCard>
-</div>
-<FluentCard Class="pg-fluent-card pg-section-card">
-    <div class="pg-card-head">
-        <h3>Merged result</h3>
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">01</span>
+        <h2>Layers: merge Lower + Higher</h2>
     </div>
-    <FluentTabs>
-        <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
-            <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
-        </FluentTab>
-        <FluentTab Header="Model (C#)" Id="merged-model-csharp">
-            <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
-        </FluentTab>
-        <FluentTab Header="Model (JSON)" Id="merged-model-json">
-            <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
-        </FluentTab>
-        <FluentTab Header="Diff Lower→Merged (JSON)" Id="merged-diff-json">
-            <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
-        </FluentTab>
-    </FluentTabs>
-</FluentCard>
-
-<h2>2. Typed patch applied to the merged fragment</h2>
-<p class="pg-hint">A patch carries <em>Set / Remove / Keep</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
-<div class="pg-grid pg-two-pane">
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Patch edits</h3>
-            <div class="pg-actions">
-                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OpenImport">Import ChangePayload…</FluentButton>
-                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetPatch">Reset</FluentButton>
-            </div>
-        </div>
-        <PatchEditor State="PatchState" OnChanged="Refresh" />
-    </FluentCard>
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Result</h3>
-        </div>
-        <FluentTabs>
-            <FluentTab Header="Diff (JSON)" Id="patched-fragment-json">
-                <MonacoDiffView Original="@MergedFragmentJson" Modified="@PatchedFragmentJson" Language="json" Height="300px" />
-            </FluentTab>
-            <FluentTab Header="Patch (C#)" Id="patch-csharp">
-                <MonacoView Content="@PatchCSharp" Language="csharp" Height="270px" />
-            </FluentTab>
-            <FluentTab Header="ChangePayload" Id="patch-changeset-json">
-                <MonacoView Content="@ChangeSetExportText" Language="json" Height="270px" />
-            </FluentTab>
-            <FluentTab Header="Model (C#)" Id="patched-model-csharp">
-                <MonacoDiffView Original="@MergedModelCSharp" Modified="@PatchedModelCSharp" Language="csharp" Height="300px" />
-            </FluentTab>
-            <FluentTab Header="Model (JSON)" Id="patched-model-json">
-                <MonacoDiffView Original="@MergedModelJson" Modified="@PatchedModelJson" Language="json" Height="300px" />
-            </FluentTab>
-        </FluentTabs>
-    </FluentCard>
-</div>
-
-<h2>3. Keyed list: List&lt;Quest&gt;</h2>
-<p class="pg-hint">Outer <em>List&lt;Quest&gt;</em> patches by <em>Id</em> key; inner <em>Scores</em> replaces the whole list.</p>
-<div class="pg-legend" aria-label="Edit highlight legend">
-    <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
-    <span class="pg-lg"><span class="pg-sw pg-sw-del"></span>removed</span>
-    <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
-    <span class="pg-lg"><span class="pg-dot"></span>edited</span>
-</div>
-<div class="pg-grid">
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>Before</h3>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterBefore">Reset</FluentButton>
-        </div>
-        <RosterEditor Model="RosterBefore" AllowReorder="false" Changes="RosterEditorChanges" RemovedOnly="true" OnChanged="Refresh" />
-    </FluentCard>
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>After</h3>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterAfter">Reset</FluentButton>
-        </div>
-        <RosterEditor Model="RosterAfter" Changes="RosterEditorChanges" OnChanged="Refresh" />
-    </FluentCard>
-</div>
-<FluentCard Class="pg-fluent-card pg-section-card">
-    <div class="pg-card-head">
-        <h3>Before → After keyed diff</h3>
-    </div>
-    <FluentTabs>
-        <FluentTab Header="Patch (C#)" Id="roster-patch-manual">
-            <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
-        </FluentTab>
-        <FluentTab Header="ChangeSet" Id="roster-changeset">
-            @{
-                var changeRows = BuildRosterChangeRows();
-            }
-            @if (_rosterChanges is null)
-            {
-                <p class="pg-hint">Cannot calculate changes because the list has duplicate keys or an invalid state.</p>
-            }
-            else if (changeRows.Count == 0)
-            {
-                <p class="pg-hint">No changes.</p>
-            }
-            else
-            {
-                <div class="pg-change-table-wrap pg-roster-change-table-wrap">
-                    <table class="pg-change-table" aria-label="Roster ChangeSet">
-                        <thead>
-                            <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in changeRows)
-                            {
-                                <tr>
-                                    <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                    <td><span class="pg-change-value">@row.Path</span></td>
-                                    <td><span class="pg-change-value">@row.Before</span></td>
-                                    <td><span class="pg-change-value">@row.After</span></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+    <FluentTabs Orientation="Orientation.Horizontal">
+        <FluentTab Header="Playground" Id="section-1-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins uses append-merge.</p>
+                <div class="pg-grid">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Lower (baseline)</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetLower">Reset</FluentButton>
+                        </div>
+                        <FragmentEditor State="Lower" OnChanged="Refresh" />
+                        <FluentTabs ActiveTabId="@LowerTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+                            <FluentTab Header="C#" Id="lower-csharp">
+                                <MonacoView Content="@LowerCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="JSON" Id="lower-json">
+                                <MonacoView Content="@LowerFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Higher (overlay)</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetHigher">Reset</FluentButton>
+                        </div>
+                        <FragmentEditor State="Higher" OnChanged="Refresh" />
+                        <FluentTabs ActiveTabId="@HigherTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+                            <FluentTab Header="C#" Id="higher-csharp">
+                                <MonacoView Content="@HigherCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="JSON" Id="higher-json">
+                                <MonacoView Content="@HigherFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
                 </div>
-            }
+                <FluentCard Class="pg-fluent-card pg-section-card">
+                    <div class="pg-card-head">
+                        <h3>Merged result</h3>
+                    </div>
+                    <FluentTabs>
+                        <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
+                            <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
+                        </FluentTab>
+                        <FluentTab Header="Model (C#)" Id="merged-model-csharp">
+                            <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
+                        </FluentTab>
+                        <FluentTab Header="Model (JSON)" Id="merged-model-json">
+                            <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
+                        </FluentTab>
+                        <FluentTab Header="Diff Lower→Merged (JSON)" Id="merged-diff-json">
+                            <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
+                        </FluentTab>
+                    </FluentTabs>
+                </FluentCard>
+            </div>
         </FluentTab>
-        <FluentTab Header="ChangePayload" Id="roster-changeset-json">
-            <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
-        </FluentTab>
-        <FluentTab Header="Applied (JSON)" Id="roster-applied-json">
-            <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
+        <FluentTab Header="Codes" Id="section-1-codes">
+            <PlaygroundCodeSamples Section="1" />
         </FluentTab>
     </FluentTabs>
-</FluentCard>
+</section>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">02</span>
+        <h2>Typed patch applied to the merged fragment</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal">
+        <FluentTab Header="Playground" Id="section-2-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">A patch carries <em>Set / Remove / Keep</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
+                <div class="pg-grid pg-two-pane">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Patch edits</h3>
+                            <div class="pg-actions">
+                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OpenImport">Import ChangePayload…</FluentButton>
+                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetPatch">Reset</FluentButton>
+                            </div>
+                        </div>
+                        <PatchEditor State="PatchState" OnChanged="Refresh" />
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Result</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Diff (JSON)" Id="patched-fragment-json">
+                                <MonacoDiffView Original="@MergedFragmentJson" Modified="@PatchedFragmentJson" Language="json" Height="300px" />
+                            </FluentTab>
+                            <FluentTab Header="Patch (C#)" Id="patch-csharp">
+                                <MonacoView Content="@PatchCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="ChangePayload" Id="patch-changeset-json">
+                                <MonacoView Content="@ChangeSetExportText" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (C#)" Id="patched-model-csharp">
+                                <MonacoDiffView Original="@MergedModelCSharp" Modified="@PatchedModelCSharp" Language="csharp" Height="300px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (JSON)" Id="patched-model-json">
+                                <MonacoDiffView Original="@MergedModelJson" Modified="@PatchedModelJson" Language="json" Height="300px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                </div>
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-2-codes">
+            <PlaygroundCodeSamples Section="2" />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">03</span>
+        <h2>Keyed list: List&lt;Quest&gt;</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
+        <FluentTab Header="Playground" Id="section-3-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Outer <em>List&lt;Quest&gt;</em> patches by <em>Id</em> key; inner <em>Scores</em> replaces the whole list.</p>
+                <div class="pg-legend" aria-label="Edit highlight legend">
+                    <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+                    <span class="pg-lg"><span class="pg-sw pg-sw-del"></span>removed</span>
+                    <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+                    <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+                </div>
+                <div class="pg-grid">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Before</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterBefore">Reset</FluentButton>
+                        </div>
+                        <RosterEditor Model="RosterBefore" AllowReorder="false" Changes="RosterEditorChanges" RemovedOnly="true" OnChanged="Refresh" />
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>After</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterAfter">Reset</FluentButton>
+                        </div>
+                        <RosterEditor Model="RosterAfter" Changes="RosterEditorChanges" OnChanged="Refresh" />
+                    </FluentCard>
+                </div>
+                <FluentCard Class="pg-fluent-card pg-section-card">
+                    <div class="pg-card-head">
+                        <h3>Before → After keyed diff</h3>
+                    </div>
+                    <FluentTabs>
+                        <FluentTab Header="Patch (C#)" Id="roster-patch-manual">
+                            <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
+                        </FluentTab>
+                        <FluentTab Header="ChangeSet" Id="roster-changeset">
+                            @{
+                                var changeRows = BuildRosterChangeRows();
+                            }
+                            @if (_rosterChanges is null)
+                            {
+                                <p class="pg-hint">Cannot calculate changes because the list has duplicate keys or an invalid state.</p>
+                            }
+                            else if (changeRows.Count == 0)
+                            {
+                                <p class="pg-hint">No changes.</p>
+                            }
+                            else
+                            {
+                                <div class="pg-change-table-wrap pg-roster-change-table-wrap">
+                                    <table class="pg-change-table" aria-label="Roster ChangeSet">
+                                        <thead>
+                                            <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var row in changeRows)
+                                            {
+                                                <tr>
+                                                    <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                                    <td><span class="pg-change-value">@row.Path</span></td>
+                                                    <td><span class="pg-change-value">@row.Before</span></td>
+                                                    <td><span class="pg-change-value">@row.After</span></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </FluentTab>
+                        <FluentTab Header="ChangePayload" Id="roster-changeset-json">
+                            <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
+                        </FluentTab>
+                        <FluentTab Header="Applied (JSON)" Id="roster-applied-json">
+                            <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
+                        </FluentTab>
+                    </FluentTabs>
+                </FluentCard>
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-3-codes">
+            <PlaygroundCodeSamples Section="3" />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">04</span>
+        <h2>EditSession with Undo/Redo</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
+        <FluentTab Header="Playground" Id="section-4-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Edit the observable model, inspect its changes, then submit, reset, or undo and redo.</p>
+                <EditSessionUndoRedo />
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-4-codes">
+            <PlaygroundCodeSamples Section="4" />
+        </FluentTab>
+    </FluentTabs>
+</section>
 
 <FluentDialog @ref="_importDialog" Hidden="@_importHidden" Modal="true" TrapFocus="true"
     AriaLabel="Import ChangePayload">
@@ -220,9 +280,6 @@
         <FluentButton Appearance="ButtonAppearance.Default" @onclick="CloseImport">Close</FluentButton>
     </div>
 </FluentDialog>
-
-<h2>4. EditSession with Undo/Redo</h2>
-<EditSessionUndoRedo />
 
 @code {
     private static readonly List<string> ThemeNames = Enum.GetNames<PlaygroundThemeMode>().ToList();

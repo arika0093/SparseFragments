@@ -1,0 +1,208 @@
+@using SparseFragments.Playground.Components
+
+@if (Section == 1)
+{
+    <div class="pg-code-samples">
+        <p class="pg-hint">The higher fragment overrides present values, preserves omitted members from Lower, and appends Plugins.</p>
+        <MonacoView Content="@MergeCode" Language="csharp" Height="360px" />
+    </div>
+}
+else if (Section == 2)
+{
+    <div class="pg-code-samples">
+        <p class="pg-hint">Start with the merged fragment from Section 1. Unassigned operations stay unchanged; Set(null) stores null, while Remove clears this fragment's contribution.</p>
+        <MonacoView Content="@PatchCode" Language="csharp" Height="230px" />
+    </div>
+}
+else if (Section == 3)
+{
+    <div class="pg-code-samples">
+        <p class="pg-hint">Create a ChangeSet from Before and After, inspect changes by quest Id, summarize its collections, then apply it to the model.</p>
+        <FluentTabs Orientation="Orientation.Vertical">
+            <FluentTab Header="Create ChangeSet" Id="code-3-create">
+                <MonacoView Content="@RosterChangeSetCode" Language="csharp" Height="230px" />
+            </FluentTab>
+            <FluentTab Header="GetChange per row" Id="code-3-row">
+                <MonacoView Content="@RosterRowCode" Language="csharp" Height="340px" />
+            </FluentTab>
+            <FluentTab Header="Build a summary" Id="code-3-summary">
+                <MonacoView Content="@RosterSummaryCode" Language="csharp" Height="280px" />
+            </FluentTab>
+            <FluentTab Header="Apply to the model" Id="code-3-apply">
+                <MonacoView Content="@RosterApplyCode" Language="csharp" Height="240px" />
+            </FluentTab>
+        </FluentTabs>
+    </div>
+}
+else if (Section == 4)
+{
+    <div class="pg-code-samples">
+        <p class="pg-hint">Create an EditSession to track model changes, then observe transitions and use them to implement logging, undo, and redo.</p>
+        <FluentTabs Orientation="Orientation.Vertical">
+            <FluentTab Header="Session / BatchEdit" Id="code-4-session">
+                <MonacoView Content="@SessionCode" Language="csharp" Height="360px" />
+            </FluentTab>
+            <FluentTab Header="Monitor / Undo / Redo" Id="code-4-history">
+                <h3 class="pg-code-sample-subheading">Monitor changes</h3>
+                <MonacoView Content="@MonitorCode" Language="csharp" Height="280px" />
+                <h3 class="pg-code-sample-subheading">Undo and redo</h3>
+                <MonacoView Content="@HistoryCode" Language="csharp" Height="370px" />
+            </FluentTab>
+        </FluentTabs>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public int Section { get; set; }
+
+    private const string MergeCode = """
+        var lower = new PlaygroundSettings.Fragment
+        {
+            Enabled = true,
+            RetryCount = 3,
+            Label = "base",
+            Nested = new PlaygroundNested.Fragment { Host = "localhost", Port = 5432 },
+            Plugins = ["base-plugin"]
+        };
+
+        var higher = new PlaygroundSettings.Fragment
+        {
+            RetryCount = 5,
+            Label = (string?)null,
+            Nested = new PlaygroundNested.Fragment { Port = 8080 },
+            Plugins = ["extra-plugin"]
+        };
+
+        var merged = lower.Merge(higher).ToModel();
+        // Result: Enabled=true, RetryCount=5, Label=null.
+        // Nested.Host=localhost, Nested.Port=8080, Plugins=[base-plugin, extra-plugin].
+        """;
+
+    private const string PatchCode = """
+        var patch = new PlaygroundSettings.Patch();
+        patch.RetryCount = FragmentOperation<int>.Set(5);
+        patch.Label = FragmentOperation<string?>.Set(null);
+        patch.Enabled = FragmentOperation<bool>.Remove;
+
+        var updated = merged.Apply(patch);
+        // RetryCount=5, Label=null; Enabled is removed from this fragment.
+        """;
+
+    private const string RosterChangeSetCode = """
+        var before = new PlaygroundRoster { Quests = [ /* before quests */ ] };
+        var after = new PlaygroundRoster { Quests = [ /* after quests */ ] };
+
+        var changes = before.CreateChangeSet(after);
+        var quests = changes.Quests;
+        // Contains keyed adds, removes, field edits, and the final order.
+        """;
+
+    private const string RosterRowCode = """
+        foreach (var quest in after.Quests)
+        {
+            var change = changes.Quests.GetChange(quest.Id);
+
+            if (change.IsAdded) Console.WriteLine($"{quest.Id}: added");
+            if (change.IsEdited && change.Edit.Title.IsChanged)
+                Console.WriteLine($"{quest.Id}: title changed");
+            if (change.IsReordered) Console.WriteLine($"{quest.Id}: reordered");
+        }
+
+        foreach (var quest in before.Quests)
+        {
+            var change = changes.Quests.GetChange(quest.Id);
+            if (change.IsRemoved) Console.WriteLine($"{quest.Id}: removed");
+        }
+        """;
+
+    private const string RosterSummaryCode = """
+        var quests = changes.Quests;
+        if (quests.IsEmpty)
+        {
+            Console.WriteLine("no changes");
+        }
+        else
+        {
+            var added = quests.Added.Select(static quest => quest.Id).ToList();
+            var removed = quests.Removed.Select(static quest => quest.Id).ToList();
+            var edited = quests.Edited.Select(static edit => edit.Key).ToList();
+            var order = quests.AfterOrder.ToList();
+
+            Console.WriteLine($"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]");
+        }
+        // Default Playground data: add: [d] | remove: [a] | edit: [b, c] | order: [b→c→d]
+        """;
+
+    private const string RosterApplyCode = """
+        if (!changes.TryApplyTo(before, out var updated))
+        {
+            throw new InvalidOperationException("The changes could not be applied.");
+        }
+
+        var appliedJson = PlaygroundJson.WriteRosterModel(updated);
+        // Render appliedJson in the Applied (JSON) result tab.
+        """;
+
+    private const string SessionCode = """
+        var session = model.CreateEditSession(); // Capture the model as the baseline.
+        var observable = session.Observable; // Bind input controls to this observable.
+        var current = session.Model; // Render the live model; edits update this instance.
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.RetryCount = 5;
+            session.Observable.Label = "updated";
+        }); // Group these changes into one transition.
+
+        if (session.HasChanges)
+        {
+            session.AcceptChanges(); // Submit: keep the current state as the new baseline.
+        }
+        void Reset() => session.RevertChanges(); // Discard pending edits and restore the baseline.
+        """;
+
+    private const string MonitorCode = """
+        // Each stack stores one ChangeSet per BatchEdit.
+        var undo = new Stack<PlaygroundSettings.ChangeSet>();
+        var redo = new Stack<PlaygroundSettings.ChangeSet>();
+        var applyingHistory = false; // Prevent replayed transitions from being recorded again.
+
+        session.TransitionObserved += transition =>
+        {
+            if (!applyingHistory)
+            {
+                undo.Push(transition);
+                redo.Clear();
+            }
+
+            logger.LogInformation(
+                "Observed edit: {ChangedPaths}",
+                string.Join(", ", transition.EnumerateChangedPaths()));
+        };
+        """;
+
+    private const string HistoryCode = """
+        void Undo()
+        {
+            if (undo.Count == 0) return;
+            var transition = undo.Peek();
+            applyingHistory = true;
+            try { session.ApplyInPlace(transition.Invert()); }
+            finally { applyingHistory = false; }
+            undo.Pop();
+            redo.Push(transition);
+        }
+
+        void Redo()
+        {
+            if (redo.Count == 0) return;
+            var transition = redo.Peek();
+            applyingHistory = true;
+            try { session.ApplyInPlace(transition); }
+            finally { applyingHistory = false; }
+            redo.Pop();
+            undo.Push(transition);
+        }
+        """;
+}
