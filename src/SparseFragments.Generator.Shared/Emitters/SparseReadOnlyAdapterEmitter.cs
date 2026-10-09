@@ -6,6 +6,14 @@ internal static class SparseReadOnlyAdapterEmitter
     {
         code.AppendLineAt(
             2,
+            "/// <summary>Streaming read-only list view over a live enumerable source.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Sources must be finite, repeatable enumerables that stay stable during a view read (issue #172). <c>Count</c> is O(1) for <c>ICollection</c>/<c>IReadOnlyCollection</c> sources and a full enumeration otherwise; the indexer is O(1) for <c>IList</c>/<c>IReadOnlyList</c> sources and re-enumerates from the start otherwise, so a full indexed loop over a streaming source is quadratic and should be a <c>foreach</c> instead. Each access enumerates anew with no snapshot: single-pass sources drain and per-enumeration-varying sources reflect the latest enumeration.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "private sealed class "
                 + typeName
                 + "<TSource, TView> : global::System.Collections.Generic.IReadOnlyList<TView>"

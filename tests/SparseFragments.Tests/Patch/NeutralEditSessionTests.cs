@@ -24,6 +24,51 @@ public partial class NeutralSessionChild
 }
 
 [SparseFragmentModel]
+public partial class StreamingSessionModel
+{
+    public System.Collections.Generic.IEnumerable<string> Items { get; set; } = [];
+}
+
+/// <summary>Counting enumerable that pins view enumeration costs (issue #172).</summary>
+public sealed class CountingEnumerable : System.Collections.Generic.IEnumerable<string>
+{
+    private readonly string[] _values;
+
+    public CountingEnumerable(params string[] values) => _values = values;
+
+    public int Enumerations { get; private set; }
+
+    public System.Collections.Generic.IEnumerator<string> GetEnumerator()
+    {
+        Enumerations++;
+        return ((System.Collections.Generic.IEnumerable<string>)_values).GetEnumerator();
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+/// <summary>Single-pass enumerable: the first enumeration drains it.</summary>
+public sealed class SinglePassEnumerable : System.Collections.Generic.IEnumerable<string>
+{
+    private readonly System.Collections.Generic.Queue<string> _queue;
+
+    public SinglePassEnumerable(params string[] values) =>
+        _queue = new System.Collections.Generic.Queue<string>(values);
+
+    public System.Collections.Generic.IEnumerator<string> GetEnumerator()
+    {
+        while (_queue.Count != 0)
+        {
+            yield return _queue.Dequeue();
+        }
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+[SparseFragmentModel]
 public partial class PureReadOnlyDictionarySessionModel
 {
     public System.Collections.Generic.IReadOnlyDictionary<string, int> Values { get; set; } =
@@ -709,6 +754,61 @@ public sealed class NeutralEditSessionTests
         };
         var mutableView = mutable.CreateEditSession().Current.Values;
         mutableView["b"].ShouldBe(2);
+    }
+
+    [Test]
+    public void StreamingViewEnumeratesPerAccessWithoutSnapshot()
+    {
+        var counting = new CountingEnumerable("a", "b", "c");
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = counting }
+        ).Items;
+
+        // Non-collection sources pay a full enumeration per Count/indexed read.
+        view.Count.ShouldBe(3);
+        counting.Enumerations.ShouldBe(1);
+        view[0].ShouldBe("a");
+        view[2].ShouldBe("c");
+        counting.Enumerations.ShouldBe(3);
+
+        // foreach streams once.
+        var seen = new List<string>();
+        foreach (var item in view)
+        {
+            seen.Add(item);
+        }
+        seen.ShouldBe(["a", "b", "c"]);
+        counting.Enumerations.ShouldBe(4);
+    }
+
+    [Test]
+    public void StreamingViewReflectsLiveSourceWithoutCaching()
+    {
+        var version = 0;
+        System.Collections.Generic.IEnumerable<string> Dynamic()
+        {
+            yield return "v" + version;
+        }
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = Dynamic() }
+        ).Items;
+        view[0].ShouldBe("v0");
+
+        // No snapshot: the next read observes the latest enumeration.
+        version = 1;
+        view[0].ShouldBe("v1");
+    }
+
+    [Test]
+    public void SinglePassSourcesDrainAcrossReads()
+    {
+        // Single-pass sequences are unsupported: every read enumerates anew,
+        // so a drained source reads back empty rather than replaying.
+        var view = new StreamingSessionModel.ReadOnlyView(
+            new StreamingSessionModel { Items = new SinglePassEnumerable("a") }
+        ).Items;
+        view.Count.ShouldBe(1);
+        view.Count.ShouldBe(0);
     }
 
     [Test]
