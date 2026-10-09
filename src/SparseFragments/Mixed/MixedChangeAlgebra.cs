@@ -330,10 +330,37 @@ public static class MixedChangeAlgebra
         IEnumerable<MixedMemberOperation> operations
     )
     {
+        // Fold repeat paths in order through Compose so earlier history is not
+        // silently discarded (issue #141). Uncomposable repeats are rejected
+        // with an explicit reason instead of keeping only the last entry.
         var indexed = new Dictionary<string, MixedMemberOperation>(StringComparer.Ordinal);
         foreach (var operation in operations)
         {
-            indexed[KeyOf(operation)] = operation;
+            var key = KeyOf(operation);
+            if (!indexed.TryGetValue(key, out var existing))
+            {
+                indexed[key] = operation;
+                continue;
+            }
+
+            var outcome = Compose(existing, operation);
+            if (!outcome.Succeeded)
+            {
+                throw new ArgumentException(
+                    "Duplicate operations on path '"
+                        + key
+                        + "' cannot be composed: "
+                        + outcome.FailureReason,
+                    nameof(operations)
+                );
+            }
+
+            indexed[key] = new MixedMemberOperation(
+                outcome.Path,
+                outcome.ResultHistory,
+                outcome.ResultAfter,
+                outcome.ResultIsWholeRoot
+            );
         }
 
         return indexed;

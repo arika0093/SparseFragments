@@ -303,6 +303,31 @@ public sealed class MixedChangeAlgebraTests
     }
 
     [Test]
+    public void DuplicatePathsWithinOneSequenceFoldInOrder()
+    {
+        // Transition then blind keeps the real baseline without further checks.
+        var folded = MixedChangeAlgebra.ComposeSequences([Transition("Label"), Blind("Label")], []);
+        folded.Succeeded.ShouldBeTrue();
+        folded.Composed.ShouldHaveSingleItem();
+        folded.Composed[0].History.ShouldBe(MixedHistoryKind.Transition);
+    }
+
+    [Test]
+    public void DuplicateRootEntriesFoldInsteadOfKeepingLast()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var folded = MixedChangeAlgebra.ComposeSequences([wholeBlind, wholeBlind], []);
+        folded.Succeeded.ShouldBeTrue();
+        folded.Composed.ShouldHaveSingleItem();
+        folded.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
     public void PolicySeamDefaultsToPassthroughAndFailsClosed()
     {
         MixedChangeAlgebra.EnsurePassthrough(RedactedBeforePolicy.Passthrough);
