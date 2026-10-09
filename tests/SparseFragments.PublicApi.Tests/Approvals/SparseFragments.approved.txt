@@ -328,6 +328,19 @@ namespace SparseFragments
         public void RemoveAt(int index) { }
         public void SetModel(int index, TModel item) { }
     }
+    public static class SparseOperationKernels
+    {
+        public static void ComposeKeyedSets<TKey>(System.Collections.Generic.IReadOnlyList<TKey> firstAdded, System.Collections.Generic.IReadOnlyList<TKey> firstRemoved, System.Collections.Generic.IReadOnlyList<TKey> secondAdded, System.Collections.Generic.IReadOnlyList<TKey> secondRemoved, out System.Collections.Generic.List<TKey> added, out System.Collections.Generic.List<TKey> removed, out bool orderChanged, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static string EscapeKeySegment(string keyText) { }
+        public static string FormatKeyedPath(string member, string keyText) { }
+        public static int IndexOfKey<TKey>(System.Collections.Generic.IReadOnlyList<TKey> keys, TKey key, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static void InvertKeyedSets<TKey>(System.Collections.Generic.IReadOnlyList<TKey> added, System.Collections.Generic.IReadOnlyList<TKey> removed, out System.Collections.Generic.List<TKey> invertedAdded, out System.Collections.Generic.List<TKey> invertedRemoved) { }
+        public static bool IsAncestorOrDescendant(string first, string second) { }
+        public static bool IsEmptyKeyedSet<TKey>(System.Collections.Generic.IReadOnlyList<TKey> added, System.Collections.Generic.IReadOnlyList<TKey> removed, bool orderChanged) { }
+        public static bool IsEmptyTransition(bool beforePresent, bool afterPresent, bool orderChanged) { }
+        public static bool IsUnassignedKey<TKey>(TKey key, TKey unassigned, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
+        public static bool TryComposePresence(bool firstBeforePresent, bool firstAfterPresent, bool secondAfterPresent, out bool resultBeforePresent, out bool resultAfterPresent) { }
+    }
     public enum SparseRebaseMode
     {
         Default = 0,
@@ -471,6 +484,38 @@ namespace SparseFragments.Generated
         bool TryAdd(object? value);
         bool TryRemove(object? value);
     }
+    public interface ISparseChangeInspector
+    {
+        System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.SparseChangeRecord> EnumerateChangeRecords();
+    }
+    public interface ISparseInstanceAccess
+    {
+        SparseFragments.Generated.IArrayDescriptor? Array { get; }
+        SparseFragments.Generated.IDescriptorSet? Child { get; }
+        SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
+        SparseFragments.Generated.ISetDescriptor? Set { get; }
+        object? GetValue();
+        bool TrySetValue(object? value);
+    }
+    public interface ISparseModelMetadata
+    {
+        System.Type ModelType { get; }
+        System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.ISparsePropertyMetadata> Properties { get; }
+        bool TryGet(string name, out SparseFragments.Generated.ISparsePropertyMetadata metadata);
+    }
+    public interface ISparsePropertyMetadata
+    {
+        System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        System.Type DeclaredType { get; }
+        bool IsEditable { get; }
+        bool IsNullable { get; }
+        bool IsNullableOblivious { get; }
+        bool IsReadOnly { get; }
+        bool IsRequired { get; }
+        string Name { get; }
+        SparseFragments.Generated.SparseDescriptorShape Shape { get; }
+        System.Type ViewType { get; }
+    }
     public sealed class SparseArrayDescriptor : SparseFragments.Generated.IArrayDescriptor
     {
         public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access, System.Type? itemViewType = null, System.Type? keyType = null, string[]? keyPropertyNames = null) { }
@@ -519,7 +564,22 @@ namespace SparseFragments.Generated
         public System.Func<int, bool>? TryRemoveAt { get; set; }
         public System.Func<int, object?, bool>? TrySetItem { get; set; }
     }
-    public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor
+    public enum SparseChangeKind
+    {
+        Changed = 0,
+        Added = 1,
+        Removed = 2,
+        Order = 3,
+    }
+    public sealed class SparseChangeRecord
+    {
+        public SparseChangeRecord(string path, SparseFragments.Optional<object?> before, SparseFragments.Optional<object?> after, SparseFragments.Generated.SparseChangeKind kind) { }
+        public SparseFragments.Optional<object?> After { get; }
+        public SparseFragments.Optional<object?> Before { get; }
+        public SparseFragments.Generated.SparseChangeKind Kind { get; }
+        public string Path { get; }
+    }
+    public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor, SparseFragments.Generated.ISparseInstanceAccess, SparseFragments.Generated.ISparsePropertyMetadata
     {
         public SparseDescriptor(
                     string name,
@@ -541,6 +601,7 @@ namespace SparseFragments.Generated
         public SparseFragments.Generated.IArrayDescriptor? Array { get; }
         public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
         public SparseFragments.Generated.IDescriptorSet? Child { get; }
+        public System.Type DeclaredType { get; }
         public SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         public bool IsEditable { get; }
         public bool IsNullable { get; }
@@ -644,5 +705,26 @@ namespace SparseFragments.Generated
         public System.Func<System.Collections.Generic.IEnumerable<object?>>? Items { get; set; }
         public System.Func<object?, bool>? TryAdd { get; set; }
         public System.Func<object?, bool>? TryRemove { get; set; }
+    }
+    public sealed class SparseStaticModelMetadata : SparseFragments.Generated.ISparseModelMetadata
+    {
+        public SparseStaticModelMetadata(System.Type modelType, System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.ISparsePropertyMetadata> properties) { }
+        public System.Type ModelType { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.ISparsePropertyMetadata> Properties { get; }
+        public bool TryGet(string name, out SparseFragments.Generated.ISparsePropertyMetadata metadata) { }
+    }
+    public sealed class SparseStaticPropertyMetadata : SparseFragments.Generated.ISparsePropertyMetadata
+    {
+        public SparseStaticPropertyMetadata(string name, System.Type declaredType, System.Type? viewType, bool isNullable, bool isEditable, System.Attribute[] attributes, SparseFragments.Generated.SparseDescriptorShape? shape = null, bool isRequired = false, bool isNullableOblivious = false) { }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        public System.Type DeclaredType { get; }
+        public bool IsEditable { get; }
+        public bool IsNullable { get; }
+        public bool IsNullableOblivious { get; }
+        public bool IsReadOnly { get; }
+        public bool IsRequired { get; }
+        public string Name { get; }
+        public SparseFragments.Generated.SparseDescriptorShape Shape { get; }
+        public System.Type ViewType { get; }
     }
 }

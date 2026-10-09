@@ -149,6 +149,15 @@ implements a trusted model-accessor interface on each generated session, so
 framework integrations can read the live model without invalidating the
 session's observable-change cache. Consumers without that interface keep the
 previous behavior: framework helpers fall back to the raw model.
+`SparseEditSessionCapabilities` represents the reusable cores as explicit
+Generated-Once capabilities with validated prerequisites
+(`EditSessionDialect`, runtime/patch dialects, Fragment/Patch/ChangeSet/
+Observable families). `SparseEditSessionRoles` names the generic role binding
+(state, snapshot, command, transition, observable/current views) and
+`SparseEditSessionAdapterContract` documents the per-model delegate binding
+(FromModel, Between, ToPatch, advance baseline, projections, apply, invert,
+rebase, notifications). Until the capability aggregation pipeline lands, call
+`EmitCore`/`EmitCapability` once per compilation with the de-duplicated flags.
 
 ## Generated implementation placement
 
@@ -175,6 +184,14 @@ and the `SparseDescriptorValue` conversion helper. Set members (`HashSet<T>`,
 positional semantics; the `IReadOnlySet<T>` reference is only named for members
 declared with that type, so compilations without the type keep compiling. All
 dialect entries are required: Shared provides no implicit runtime fallback.
+`SparseDescriptorCapabilities` represents descriptor helpers as explicit
+Generated-Once capabilities (static metadata, instance bridges, change
+projection, collection/value helpers) with validated prerequisites
+(descriptor dialect plus the Observable family). Static per-model metadata is
+cached once per model and shared across accesses; generic implementations
+stay shared once per compilation where contract identity permits (today via
+the shared runtime). Per-model bridges keep using the DescriptorFactory
+placement seam until facade separation lands.
 
 ## Member transport and rebase policies
 
@@ -227,6 +244,19 @@ directly in-repo via a `Compile` glob in
 path remains canonical inside this repository; this package exists for
 external/downstream generators (for example Configlue, which migrates from a
 submodule-based Shared source transport to this package).
+
+## Patch operation kernels
+
+`SparsePatchKernelCapabilities` aggregates model-independent Patch/ChangeSet
+kernels (presence composition, empty identities, keyed membership, order
+transitions, canonical paths) as explicit Generated-Once families with one
+stable hint name per compilation. `SparsePatchKernelInventory` records the
+extracted subset versus model-specific specializations (typed nested
+operations, sparse canonical storage, unassigned-key rules, ownership and
+custom policies). `SparsePatchKernelEmitter.RenderHelperSource` emits BCL-only
+generic helpers so downstream products reuse the semantics without a
+SparseFragments runtime dependency; model emitters invoke them while keeping
+typed transitions.
 
 ## Mixed redacted operations
 

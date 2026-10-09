@@ -60,8 +60,16 @@ public sealed class SparseDescriptorSet : IDescriptorSet
 }
 
 /// <summary>Implements one model property descriptor using generated observable accessors.</summary>
+/// <remarks>
+/// Also exposes the separated contracts: static metadata through
+/// <see cref="ISparsePropertyMetadata"/> (<c>DeclaredType</c> aliases
+/// <c>Type</c>; all other static members are shared) and live access through
+/// <see cref="ISparseInstanceAccess"/>. Static entries cached in
+/// <see cref="SparseStaticPropertyMetadata"/> stay reference-shared across
+/// accesses; bridges keep reading live observable state.
+/// </remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class SparseDescriptor : IDescriptor
+public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISparseInstanceAccess
 {
     private readonly Func<object?> _getValue;
     private readonly Func<object?, bool>? _setValue;
@@ -121,6 +129,10 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public Type Type { get; }
+
+    /// <summary>Gets the declared type (aliases <see cref="Type"/>).</summary>
+    /// <remarks>Satisfies <see cref="ISparsePropertyMetadata"/> without duplicating storage.</remarks>
+    public Type DeclaredType => Type;
 
     /// <inheritdoc />
     public Type ViewType { get; }

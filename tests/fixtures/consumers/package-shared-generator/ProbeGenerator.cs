@@ -116,6 +116,17 @@ internal static class ProbeSurface
         var memberPolicy = new SparseMemberPolicy("Secret", transport);
         var rebase = new SparseRebasePolicy(SparseRedactedBeforeBehavior.Passthrough);
         var sessionDialect = new SparseEditSessionDialect("PackageShared.Generated");
+        var capability = SparseEditSessionCapabilities.ForCompilation(true, true);
+        var roles = new[]
+        {
+            SparseEditSessionRoles.Model,
+            SparseEditSessionRoles.Fragment,
+            SparseEditSessionRoles.Patch,
+            SparseEditSessionRoles.ChangeSet,
+            SparseEditSessionRoles.Observable,
+            SparseEditSessionRoles.Current,
+        };
+        var adapterMembers = SparseEditSessionAdapterContract.RequiredMembers;
         var sessionRuntime = new SparseRuntimeDialect(
             "global::PackageShared.",
             "global::PackageShared.Optional",
@@ -153,6 +164,59 @@ internal static class ProbeSurface
         );
         var dependencyErrors = features.ValidateDependencies();
         var emittedNames = features.GetEmittedTypeNames();
+        var descriptorCapability = SparseDescriptorCapabilities.ForCompilation(
+            hasDescriptors: true,
+            hasCollections: true,
+            hasChangeProjection: true
+        );
+        var descriptorErrors = SparseDescriptorCapabilities.ValidatePrerequisites(
+            new SparseGeneratorConfig(
+                ModelAttributeMetadataName: "ModelAttribute",
+                IgnoreAttributeMetadataName: "IgnoreAttribute",
+                RedactBeforeAttributeMetadataName: "RedactBeforeAttribute",
+                MergeAttributeMetadataName: "MergeAttribute",
+                MergeStrategyBaseMetadataName: "MergeStrategyBase",
+                CloneReferenceSafeAttributeMetadataName: "CloneSafeAttribute",
+                KeyAttributeMetadataName: "KeyAttribute",
+                KeyedInterfaceMetadataName: "IKeyed<TKey>",
+                KeyPropertyName: "Key",
+                MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
+                DiagnosticIds: new SparseDiagnosticIdMap(
+                    "T001",
+                    "T002",
+                    "T003",
+                    "T004",
+                    "T005",
+                    "T006",
+                    "T007",
+                    "T008",
+                    "T009",
+                    "T010",
+                    "T011",
+                    "T012",
+                    "T013",
+                    "T014",
+                    "T015",
+                    "T016",
+                    "T017",
+                    "T018",
+                    "T019",
+                    "T020",
+                    "T021",
+                    "T022",
+                    "T023"
+                ),
+                HintNameSuffix: ".Probe.g.cs",
+                PromotedHintNameSuffix: ".ProbePromoted.g.cs",
+                StructuralHostPrefix: "__ProbeHost_"
+            ),
+            descriptorCapability
+        );
+        var kernelKinds = SparsePatchKernelCapabilities.ForCompilation(true, true, true);
+        var kernelSource = SparsePatchKernelEmitter.RenderHelperSource(
+            "PackageShared.Generated",
+            kernelKinds
+        );
 
         // Emitter/helpers (Emitters/, Infrastructure/).
         var code = new SharedIndentedBuilder(cancellationToken);
@@ -207,6 +271,25 @@ internal static class ProbeSurface
                 + incrementalTypes.Length
         );
         code.AppendLineAt(0, "// observable=" + observable + " collection=" + collection.Kind);
+        code.AppendLineAt(
+            0,
+            "// session-capability="
+                + capability
+                + " roles="
+                + roles.Length
+                + " adapter="
+                + adapterMembers.Length
+                + " descriptors="
+                + descriptorCapability
+                + " descriptor-errors="
+                + descriptorErrors.Length
+                + " kernels="
+                + kernelKinds
+                + " kernel-bytes="
+                + kernelSource.Length
+                + " extracted="
+                + SparsePatchKernelInventory.Extracted.Length
+        );
         code.AppendLineAt(
             0,
             "// policy="

@@ -18,8 +18,53 @@ internal static class SparseEditSessionEmitter
         ReadTemplate(CurrentCoreResourceName)
     );
 
+    /// <summary>Emits the compilation-scoped reusable session cores once.</summary>
+    /// <remarks>
+    /// Generated-Once seam (#184): capabilities are de-duplicated per
+    /// compilation and prerequisites are validated before emission. The
+    /// capability aggregation plane (#178) and ownership boundary (#177) will
+    /// call <see cref="SparseEditSessionCapabilities"/> at merge time; this
+    /// entry point keeps the same deterministic dialect hint names so output
+    /// stays byte-identical.
+    /// </remarks>
+    /// <param name="context">Generator output context.</param>
+    /// <param name="config">Owning generator configuration.</param>
     public static void EmitCore(SourceProductionContext context, SparseGeneratorConfig config)
     {
+        // Merge-time seam (#177/#178): capability aggregation moves to the
+        // shared Generated-Once pipeline; per-model callers keep requesting
+        // the full core pair until then.
+        var capability = SparseEditSessionCapabilities.ForCompilation(
+            hasSessionModels: true,
+            needsCurrentView: true
+        );
+        var violations = SparseEditSessionCapabilities.ValidatePrerequisites(config, capability);
+        if (violations.Length != 0)
+        {
+            throw new ArgumentException(
+                "Invalid edit-session capability plan: " + string.Join(" ", violations),
+                nameof(config)
+            );
+        }
+
+        EmitCapability(context, config, capability);
+    }
+
+    /// <summary>Emits exactly the requested session-core subset.</summary>
+    /// <param name="context">Generator output context.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="capability">De-duplicated capability set.</param>
+    public static void EmitCapability(
+        SourceProductionContext context,
+        SparseGeneratorConfig config,
+        SparseEditSessionCapability capability
+    )
+    {
+        if (capability == SparseEditSessionCapability.None)
+        {
+            return;
+        }
+
         var sessionDialect =
             config.EditSessionDialect
             ?? throw new ArgumentException("An edit-session dialect is required.", nameof(config));
@@ -31,14 +76,21 @@ internal static class SparseEditSessionEmitter
             ?? throw new ArgumentException("A patch dialect is required.", nameof(config));
         var sources = RenderCoreSources(sessionDialect, runtimeDialect, patchDialect);
 
-        context.AddSource(
-            sessionDialect.CoreHintName,
-            SourceText.From(sources.Core, Encoding.UTF8)
-        );
-        context.AddSource(
-            sessionDialect.CurrentCoreHintName,
-            SourceText.From(sources.CurrentCore, Encoding.UTF8)
-        );
+        if (SparseEditSessionCapabilities.NeedsCore(capability))
+        {
+            context.AddSource(
+                sessionDialect.CoreHintName,
+                SourceText.From(sources.Core, Encoding.UTF8)
+            );
+        }
+
+        if (SparseEditSessionCapabilities.NeedsWithCurrent(capability))
+        {
+            context.AddSource(
+                sessionDialect.CurrentCoreHintName,
+                SourceText.From(sources.CurrentCore, Encoding.UTF8)
+            );
+        }
     }
 
     internal static (string Core, string CurrentCore) RenderCoreSources(
@@ -62,6 +114,22 @@ internal static class SparseEditSessionEmitter
         SparseGeneratorConfig config
     )
     {
+        // Diagnose adapter binding at generation time: the connection contract
+        // needs Fragment/Patch/ChangeSet/Observable families up front.
+        var adapterViolations = SparseEditSessionAdapterContract.ValidateAdapterFeatures(
+            config.EffectiveEmissionFeatures
+        );
+        if (adapterViolations.Length != 0)
+        {
+            throw new ArgumentException(
+                "Invalid edit-session adapter plan for '"
+                    + modelType
+                    + "': "
+                    + string.Join(" ", adapterViolations),
+                nameof(config)
+            );
+        }
+
         var sessionInterfaceMetadataName =
             config.EditSessionInterfaceMetadataName
             ?? throw new ArgumentException(

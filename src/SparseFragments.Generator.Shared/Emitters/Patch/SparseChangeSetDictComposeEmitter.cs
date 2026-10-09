@@ -20,6 +20,11 @@ using static SparseFragments.Generator.Shared.SparseChangeSetTransitionEmitter;
 namespace SparseFragments.Generator.Shared;
 
 /// <summary>Per-key sparse compose for dictionaries.</summary>
+/// <remarks>
+/// Merge-time seam (#188): pure entry-set composition delegates to the
+/// Generated-Once kernel helpers; sparse canonical transitions and ownership
+/// stay model-specific here.
+/// </remarks>
 internal static class SparseChangeSetDictComposeEmitter
 {
     /// <summary>Emits per-key sparse compose for a dictionary member.</summary>
