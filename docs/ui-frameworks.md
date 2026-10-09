@@ -240,7 +240,9 @@ Dictionary members resolve through bracketed keys such as
 `Contacts["billing"].Name`. The canonical spelling quotes the key; an unquoted
 key is accepted when it needs no escaping. Non-string keys (numeric, enum,
 `Guid`) parse from the same spelling with invariant culture, and keys that do
-not parse fail as invalid paths.
+not parse fail as invalid paths. Resolution works for mutable dictionaries
+and for read-only `IReadOnlyDictionary<TKey, TValue>` models alike, including
+implementations that do not expose the legacy non-generic `IDictionary`.
 
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain

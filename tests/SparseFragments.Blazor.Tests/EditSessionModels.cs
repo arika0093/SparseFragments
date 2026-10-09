@@ -92,3 +92,13 @@ public partial class GuidDirectory
 {
     public Dictionary<Guid, GuidContact> ById { get; set; } = new();
 }
+
+[SparseFragmentModel]
+public partial class ReadOnlyContactBook
+{
+    public IReadOnlyDictionary<string, OrderCustomer> ByName { get; set; } =
+        new Dictionary<string, OrderCustomer>();
+
+    public IReadOnlyDictionary<int, OrderCustomer> ByNumber { get; set; } =
+        new Dictionary<int, OrderCustomer>();
+}

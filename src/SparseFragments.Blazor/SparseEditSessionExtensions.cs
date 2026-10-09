@@ -274,6 +274,24 @@ public static class SparseEditSessionExtensions
             return dictionary[dictionaryKey];
         }
 
+        if (TryGetReadOnlyDictionaryInterface(collection, out var dictionaryInterface))
+        {
+            var keyType = dictionaryInterface.GetGenericArguments()[0];
+            var dictionaryKey = ConvertKeyTextOrInvalidPath(keyType, key, path);
+            var containsKey = dictionaryInterface.GetMethod("ContainsKey");
+            var indexer = dictionaryInterface.GetProperty("Item");
+            if (
+                containsKey is null
+                || indexer is null
+                || containsKey.Invoke(collection, [dictionaryKey]) is not true
+            )
+            {
+                throw InvalidFieldPath(path);
+            }
+
+            return indexer.GetValue(collection, [dictionaryKey]);
+        }
+
         throw InvalidFieldPath(path);
     }
 
@@ -301,6 +319,11 @@ public static class SparseEditSessionExtensions
             return key;
         }
 
+        return ConvertKeyTextOrInvalidPath(keyType, key, path);
+    }
+
+    private static object ConvertKeyTextOrInvalidPath(Type keyType, string key, string path)
+    {
         try
         {
             return ConvertKeyText(keyType, key, path);
@@ -334,6 +357,36 @@ public static class SparseEditSessionExtensions
 
     private static ArgumentException InvalidFieldPath(string path) =>
         new($"The field path '{path}' does not resolve to a public model member.", nameof(path));
+
+    private static bool TryGetReadOnlyDictionaryInterface(object collection, out Type interfaceType)
+    {
+        foreach (var candidate in collection.GetType().GetInterfaces())
+        {
+            if (
+                candidate.IsGenericType
+                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
+            )
+            {
+                interfaceType = candidate;
+                return true;
+            }
+        }
+
+        interfaceType = null!;
+        return false;
+    }
+
+    private static bool TryGetReadOnlyDictionaryValues(object collection, out IEnumerable? values)
+    {
+        if (TryGetReadOnlyDictionaryInterface(collection, out var interfaceType))
+        {
+            values = interfaceType.GetProperty("Values")?.GetValue(collection) as IEnumerable;
+            return values is not null;
+        }
+
+        values = null;
+        return false;
+    }
 
     private static bool IsSessionOwnedField(object sessionModel, object fieldModel)
     {
@@ -391,6 +444,22 @@ public static class SparseEditSessionExtensions
         if (parent is IDictionary dictionary)
         {
             foreach (var value in dictionary.Values)
+            {
+                var valueChild = ToChildReference(value);
+                if (valueChild is not null)
+                {
+                    yield return valueChild;
+                }
+            }
+        }
+        else if (
+            TryGetReadOnlyDictionaryValues(parent, out var readOnlyValues)
+            && readOnlyValues is not null
+        )
+        {
+            // KeyValuePair enumerables expose structs only, so read-only
+            // dictionary values are visited through the Values view instead.
+            foreach (var value in readOnlyValues)
             {
                 var valueChild = ToChildReference(value);
                 if (valueChild is not null)
