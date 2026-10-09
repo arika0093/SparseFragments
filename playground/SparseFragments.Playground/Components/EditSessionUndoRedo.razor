@@ -257,20 +257,10 @@
 
     private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition)
     {
-        var after = CloneModel();
-        if (!transition.Invert().TryApplyTo(after, out var before) || before is null)
-        {
-            throw new InvalidOperationException("The observed transition could not be reversed.");
-        }
-
-        RecordTransition(transition, before, after);
+        RecordTransition(transition);
     }
 
-    private void RecordTransition(
-        PlaygroundSettings.ChangeSet changes,
-        PlaygroundSettings before,
-        PlaygroundSettings after
-    )
+    private void RecordTransition(PlaygroundSettings.ChangeSet changes)
     {
         if (changes.IsEmpty)
         {
@@ -283,7 +273,7 @@
             _redo.Clear();
         }
 
-        AppendChanges(changes, before, after);
+        AppendChanges(changes);
     }
 
     private void UpdateRetryCount(int value)
@@ -748,16 +738,22 @@
         _idDrafts.Clear();
     }
 
-    private void AppendChanges(
-        PlaygroundSettings.ChangeSet changes,
-        PlaygroundSettings before,
-        PlaygroundSettings after
-    )
+    private void AppendChanges(PlaygroundSettings.ChangeSet changes)
     {
-        var paths = changes.EnumerateChangedPaths();
-        if (paths.Count == 0) return;
+        var entries = changes.EnumerateChanges()
+            .Select(static entry => (
+                entry.Path,
+                Before: OneLine(FormatValue(entry.Before)),
+                After: OneLine(FormatValue(entry.After))
+            ))
+            .OrderBy(static entry => entry.Path, StringComparer.Ordinal)
+            .ToArray();
+        if (entries.Length == 0) return;
 
-        var change = string.Join("; ", paths.Select(path => FormatChange(before, after, path)));
+        var change = string.Join(
+            "; ",
+            entries.Select(static entry => $"{entry.Path}: {entry.Before} → {entry.After}")
+        );
         _log.Insert(0, new LogEntry(DateTimeOffset.Now.ToString("HH:mm:ss"), change));
         if (_log.Count > MaximumLogEntries) _log.RemoveRange(MaximumLogEntries, _log.Count - MaximumLogEntries);
     }
@@ -770,57 +766,19 @@
         }
     }
 
-    private static string FormatChange(PlaygroundSettings before, PlaygroundSettings after, string path)
-    {
-        var beforeValue = GetChangeValue(before, path);
-        var afterValue = GetChangeValue(after, path);
-        return $"{path}: {OneLine(beforeValue)} → {OneLine(afterValue)}";
-    }
-
     private static string OneLine(string value) =>
         value.Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal)
             .Replace("\t", "\\t", StringComparison.Ordinal);
 
-    private static string GetChangeValue(PlaygroundSettings model, string path)
+    private static string FormatValue(Optional<object?> value)
     {
-        var json = PlaygroundJson.WriteModel(model);
-        using var document = JsonDocument.Parse(json);
-        var current = document.RootElement;
-        foreach (var segment in path.Split('.'))
+        if (!value.IsPresent)
         {
-            var arrayStart = segment.IndexOf('[');
-            var propertyName = arrayStart < 0 ? segment : segment[..arrayStart];
-            if (!string.IsNullOrEmpty(propertyName))
-            {
-                if (!current.TryGetProperty(propertyName, out current))
-                {
-                    return "(missing)";
-                }
-            }
-
-            while (arrayStart >= 0)
-            {
-                var arrayEnd = segment.IndexOf(']', arrayStart);
-                if (arrayEnd < 0 || !int.TryParse(segment.AsSpan(arrayStart + 1, arrayEnd - arrayStart - 1), out var index)
-                    || current.ValueKind != JsonValueKind.Array || index >= current.GetArrayLength())
-                {
-                    return "(missing)";
-                }
-
-                current = current[index];
-                arrayStart = segment.IndexOf('[', arrayEnd + 1);
-            }
+            return "(missing)";
         }
 
-        if (current.ValueKind == JsonValueKind.Object
-            && path.StartsWith("Tasks[", StringComparison.Ordinal)
-            && current.TryGetProperty(nameof(PlaygroundTask.Id), out var id))
-        {
-            return $"id={JsonSerializer.Serialize(id)}";
-        }
-
-        return JsonSerializer.Serialize(current);
+        return PlaygroundJson.FormatChangeValue(value.Value);
     }
 
     private sealed record LogEntry(string Time, string Change);

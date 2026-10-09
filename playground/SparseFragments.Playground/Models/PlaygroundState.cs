@@ -377,6 +377,34 @@ public static class PlaygroundJson
     public static string WriteRosterChangeSet(PlaygroundRoster.ChangeSet changes) =>
         JsonSerializer.Serialize(changes.ToPayload(), ChangeSetOptions());
 
+    /// <summary>Formats a value using the playground's source-generated JSON metadata.</summary>
+    public static string FormatChangeValue(object? value)
+    {
+        if (value is null)
+        {
+            return "null";
+        }
+
+        if (value is IEnumerable<string> strings)
+        {
+            return "["
+                + string.Join(
+                    ", ",
+                    strings.Select(static item =>
+                        JsonSerializer.Serialize(item, PlaygroundJsonContext.Default.String)
+                    )
+                )
+                + "]";
+        }
+
+        var typeInfo =
+            PlaygroundJsonContext.Default.GetTypeInfo(value.GetType())
+            ?? throw new InvalidOperationException(
+                $"No JSON metadata is registered for {value.GetType()}."
+            );
+        return JsonSerializer.Serialize(value, typeInfo);
+    }
+
     /// <summary>Deserializes a settings ChangeSet from its typed payload DTO.</summary>
     public static PlaygroundSettings.ChangeSet ReadSettingsChangeSet(string json)
     {

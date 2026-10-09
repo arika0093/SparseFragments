@@ -103,6 +103,7 @@ internal static class SparseChangeSetEmitter
         );
         // The emitted model-targeted ApplyInPlace checks the before-state first.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
+        SparseChangeSetEnumeratorEmitter.Append(code, members, dialect);
         SparseChangeSetPathEmitter.Append(code, members);
         if (plan.EmitChangePayload)
         {
@@ -148,6 +149,13 @@ internal static class SparseChangeSetEmitter
             "ApplyTo",
             "TryApplyTo",
             "ApplyToBaseline",
+            "ChangeInfo",
+            "ChangeKind",
+            "EnumerateChanges",
+            "EnumerateChangedPaths",
+            "__SparseBox",
+            "__SparseCreateChangeInfo",
+            "__SparseKeyPath",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);
         propNames = new Dictionary<int, string>();

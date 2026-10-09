@@ -166,15 +166,14 @@
                 <div class="pg-change-table-wrap pg-roster-change-table-wrap">
                     <table class="pg-change-table" aria-label="Roster ChangeSet">
                         <thead>
-                            <tr><th>Operation</th><th>Key</th><th>Property</th><th>Before</th><th>After</th></tr>
+                            <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
                         </thead>
                         <tbody>
                             @foreach (var row in changeRows)
                             {
                                 <tr>
                                     <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                    <td><span class="pg-change-value">@row.Key</span></td>
-                                    <td><span class="pg-change-value">@row.Property</span></td>
+                                    <td><span class="pg-change-value">@row.Path</span></td>
                                     <td><span class="pg-change-value">@row.Before</span></td>
                                     <td><span class="pg-change-value">@row.After</span></td>
                                 </tr>
@@ -314,60 +313,35 @@
         return PlaygroundSnippets.RosterManualPatchCSharp("patch", _rosterChanges);
     }
 
-    private IReadOnlyList<(string Operation, string Key, string Property, string Before, string After)> BuildRosterChangeRows()
+    private IReadOnlyList<(string Operation, string Path, string Before, string After)> BuildRosterChangeRows()
     {
         if (_rosterChanges is null)
         {
             return [];
         }
 
-        var rows = new List<(string Operation, string Key, string Property, string Before, string After)>();
-        var quests = _rosterChanges.Quests;
-        foreach (var quest in quests.Added)
-        {
-            rows.Add(("Add", quest.Id, "-", "—", FormatQuestObject(quest)));
-        }
-
-        foreach (var quest in quests.Removed)
-        {
-            rows.Add(("Remove", quest.Id, "-", FormatQuestObject(quest), "—"));
-        }
-
-        foreach (var (key, edit) in quests.Edited)
-        {
-            if (edit.Title.IsChanged)
-            {
-                rows.Add(("Edit", key, "Title", FormatRosterValue(edit.Title.Before), FormatRosterValue(edit.Title.After)));
-            }
-            if (edit.Points.IsChanged)
-            {
-                rows.Add(("Edit", key, "Points", FormatRosterValue(edit.Points.Before), FormatRosterValue(edit.Points.After)));
-            }
-            if (edit.Scores.IsChanged)
-            {
-                rows.Add(("Edit", key, "Scores", FormatRosterValue(edit.Scores.Before), FormatRosterValue(edit.Scores.After)));
-            }
-        }
-
-        if (!quests.BeforeOrder.SequenceEqual(quests.AfterOrder, StringComparer.Ordinal))
-        {
-            rows.Add((
-                "Order",
-                "—",
-                "-",
-                $"[{string.Join(", ", quests.BeforeOrder)}]",
-                $"[{string.Join(", ", quests.AfterOrder)}]"
-            ));
-        }
-
-        return rows;
+        return _rosterChanges.EnumerateChanges()
+            .Select(static change => (
+                Operation: ChangeOperation(change.Kind),
+                change.Path,
+                Before: FormatRosterValue(change.Before),
+                After: FormatRosterValue(change.After)
+            ))
+            .ToArray();
     }
 
-    private static string FormatQuestObject(PlaygroundQuest quest) =>
-        $"{{ Title = {JsonSerializer.Serialize(quest.Title)}, Points = {quest.Points}, Scores = {JsonSerializer.Serialize(quest.Scores)} }}";
+    private static string FormatRosterValue(Optional<object?> value) =>
+        value.IsPresent ? PlaygroundJson.FormatChangeValue(value.Value) : "—";
 
-    private static string FormatRosterValue<T>(Optional<T> value) =>
-        value.IsPresent ? JsonSerializer.Serialize(value.Value) : "—";
+    private static string ChangeOperation(PlaygroundRoster.ChangeSet.ChangeKind kind) =>
+        kind switch
+        {
+            PlaygroundRoster.ChangeSet.ChangeKind.Changed => "Edit",
+            PlaygroundRoster.ChangeSet.ChangeKind.Added => "Add",
+            PlaygroundRoster.ChangeSet.ChangeKind.Removed => "Remove",
+            PlaygroundRoster.ChangeSet.ChangeKind.Order => "Order",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
 
     private static string ChangeOperationClass(string operation) =>
         $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";

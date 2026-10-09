@@ -99,9 +99,7 @@ public sealed class SparseKeyedDictChangeSetTests
             $"sparse single {json.Length} should scale vs full {fullJson.Length}"
         );
 
-        var back = JsonSerializer
-            .Deserialize<KeyedServerHolder.ChangePayload>(json)!
-            .ToChangeSet();
+        var back = JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(json)!.ToChangeSet();
         back.Items.Edited.ContainsKey("k7").ShouldBeTrue();
         back.Items.GetChange("k0").IsEmpty.ShouldBeTrue();
         AssertKeyedReplay(before, after, back);
@@ -122,14 +120,47 @@ public sealed class SparseKeyedDictChangeSetTests
         var json = JsonSerializer.Serialize(changes.ToPayload());
         json.ShouldContain("9999");
         json.ShouldNotContain("key150");
-        var back = JsonSerializer
-            .Deserialize<ScalarDictHolder.ChangePayload>(json)!
-            .ToChangeSet();
+        var back = JsonSerializer.Deserialize<ScalarDictHolder.ChangePayload>(json)!.ToChangeSet();
         back.Scores.Edited["key7"].ShouldBe(9999);
         back.Scores.GetChange("key0").IsEmpty.ShouldBeTrue();
         ScalarDictHolder
             .Patch.Between(back.ToPatch().Apply(DState(beforeDict)), DState(afterDict))
             .IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void EnumerateChangesFlattensDictionaryEntries()
+    {
+        var before = DState(new Dictionary<string, int> { ["edit"] = 1, ["remove"] = 2 });
+        var after = DState(new Dictionary<string, int> { ["edit"] = 3, ["add"] = 4 });
+        var entries = ScalarDictHolder
+            .ChangeSet.Between(before, after)
+            .EnumerateChanges()
+            .ToDictionary(static change => change.Path);
+
+        entries["Scores[\"edit\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Changed);
+        entries["Scores[\"edit\"]"].Before.Value.ShouldBe(1);
+        entries["Scores[\"edit\"]"].After.Value.ShouldBe(3);
+        entries["Scores[\"add\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Added);
+        entries["Scores[\"remove\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Removed);
+    }
+
+    [Test]
+    public void EnumerateChangesFlattensNestedDictionaryValues()
+    {
+        var before = TState(
+            new Dictionary<string, KeyedServer> { ["server"] = S("server", "before") }
+        );
+        var after = TState(
+            new Dictionary<string, KeyedServer> { ["server"] = S("server", "after") }
+        );
+        var entries = StructuralDictHolder
+            .ChangeSet.Between(before, after)
+            .EnumerateChanges()
+            .ToDictionary(static change => change.Path);
+
+        entries["Servers[\"server\"].Name"].Before.Value.ShouldBe("before");
+        entries["Servers[\"server\"].Name"].After.Value.ShouldBe("after");
     }
 
     [Test]

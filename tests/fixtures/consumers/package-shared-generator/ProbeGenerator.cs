@@ -169,6 +169,7 @@ internal static class ProbeSurface
         );
         var incrementalTypes = new[]
         {
+            typeof(SparseChangeSetEnumeratorEmitter),
             typeof(SparseLocationSnapshot),
             typeof(SparseExternalInit),
             typeof(RoslynSymbolCompat),

@@ -29,6 +29,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -43,6 +44,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public sealed class DetailsTransition : System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition.Item>, System.Collections.IEnumerable
             {
                 public System.Collections.Generic.IReadOnlyDictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar> Added { get; }
@@ -381,6 +396,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -395,6 +411,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public readonly struct CountTransition
             {
                 public SparseFragments.Optional<int> After { get; }
@@ -642,6 +672,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -656,6 +687,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public readonly struct CountTransition
             {
                 public SparseFragments.Optional<int> After { get; }
@@ -897,6 +942,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -911,6 +957,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public sealed class ItemsTransition : System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item>, System.Collections.IEnumerable
             {
                 public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> Added { get; }
@@ -1202,6 +1262,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogNested current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -1216,6 +1277,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogNested.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public readonly struct ChildrenTransition
             {
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> After { get; }
@@ -1547,6 +1622,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> ApplyToBaseline(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet Compose(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet next) { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = "") { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.ChangeInfo> EnumerateChanges() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet Invert() { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> RebaseOnto(SparseFragments.GeneratedApiFixtures.CatalogScalar current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> RebaseOnto(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -1561,6 +1637,20 @@ namespace SparseFragments.GeneratedApiFixtures
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet FromPatch(SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet FromPatch(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet FromPayload(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangePayload payload) { }
+            public sealed class ChangeInfo
+            {
+                public SparseFragments.Optional<object?> After { get; }
+                public SparseFragments.Optional<object?> Before { get; }
+                public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.ChangeKind Kind { get; }
+                public string Path { get; }
+            }
+            public enum ChangeKind
+            {
+                Changed = 0,
+                Added = 1,
+                Removed = 2,
+                Order = 3,
+            }
             public readonly struct CountTransition
             {
                 public SparseFragments.Optional<int> After { get; }

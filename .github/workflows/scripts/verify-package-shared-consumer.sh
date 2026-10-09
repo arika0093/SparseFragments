@@ -79,6 +79,7 @@ required_probe_tokens=(
     'SparseRebaseOptionEmitter'
     'SparseChangeSetMemberRebaseEmitter'
     'SparseFragmentPatchCollectionRebaseEmitter'
+    'SparseChangeSetEnumeratorEmitter'
     'RebasePolicyFieldPrefix'
     'SparseEmissionFeatures'
     'SparseMemberTransport'

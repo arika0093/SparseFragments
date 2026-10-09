@@ -119,6 +119,13 @@ a patch requires its fragment, a change set requires its patch, and a payload
 requires its change set. `GetEmittedTypeNames` lists the family root names used
 for collision checks.
 
+When a model emits a `ChangeSet`, it also exposes `EnumerateChanges()`, which
+flattens nested, keyed, and dictionary transitions into path-based `ChangeInfo`
+entries. `Before` and `After` use the configured runtime's `Optional<object?>`
+to preserve missing versus present-null values; `ChangeKind.Order` carries
+keyed collection order as a collection-level entry. Consumers decide how to
+format or display these entries.
+
 ## Edit-session configuration
 
 `SparseEditSessionDialect` configures the namespace and hint names for the

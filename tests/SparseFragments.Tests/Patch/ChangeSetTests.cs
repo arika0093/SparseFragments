@@ -59,6 +59,97 @@ public sealed class ChangeSetTests
     }
 
     [Test]
+    public void EnumerateChangesFlattensScalarAndNestedTransitions()
+    {
+        var before = Optional<Settings.Fragment?>.Present(
+            new Settings.Fragment
+            {
+                Label = Optional<string?>.Present("before"),
+                RetryCount = Optional<int>.Missing,
+                Nested = Optional<Nested.Fragment?>.Present(
+                    new Nested.Fragment { Host = Optional<string>.Present("host-before") }
+                ),
+            }
+        );
+        var after = Optional<Settings.Fragment?>.Present(
+            new Settings.Fragment
+            {
+                Label = Optional<string?>.Present(null),
+                RetryCount = Optional<int>.Present(3),
+                Nested = Optional<Nested.Fragment?>.Present(
+                    new Nested.Fragment { Host = Optional<string>.Present("host-after") }
+                ),
+            }
+        );
+
+        var entries = Settings
+            .ChangeSet.Between(before, after)
+            .EnumerateChanges()
+            .ToDictionary(static change => change.Path);
+
+        entries["Label"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
+        entries["Label"].Before.Value.ShouldBe("before");
+        entries["Label"].After.IsPresent.ShouldBeTrue();
+        entries["Label"].After.Value.ShouldBeNull();
+        entries["RetryCount"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Added);
+        entries["RetryCount"].Before.IsPresent.ShouldBeFalse();
+        entries["RetryCount"].After.Value.ShouldBe(3);
+        entries["Nested.Host"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
+        entries["Nested.Host"].Before.Value.ShouldBe("host-before");
+        entries["Nested.Host"].After.Value.ShouldBe("host-after");
+    }
+
+    [Test]
+    public void EnumerateChangesRepresentsKeyedItemsAndOrder()
+    {
+        Optional<KeyedServerHolder.Fragment?> State(params KeyedServer[] items) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(new KeyedServerHolder { Items = items.ToList() })
+            );
+
+        var before = State(
+            new KeyedServer
+            {
+                Id = "b",
+                Name = "before",
+                Count = 1,
+            },
+            new KeyedServer
+            {
+                Id = "c",
+                Name = "removed",
+                Count = 2,
+            }
+        );
+        var after = State(
+            new KeyedServer
+            {
+                Id = "a",
+                Name = "added",
+                Count = 3,
+            },
+            new KeyedServer
+            {
+                Id = "b",
+                Name = "after",
+                Count = 1,
+            }
+        );
+        var entries = KeyedServerHolder
+            .ChangeSet.Between(before, after)
+            .EnumerateChanges()
+            .ToDictionary(static change => change.Path);
+
+        entries["Items[\"a\"]"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Added);
+        entries["Items[\"c\"]"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Removed);
+        entries["Items[\"b\"].Name"].Before.Value.ShouldBe("before");
+        entries["Items[\"b\"].Name"].After.Value.ShouldBe("after");
+        entries["Items"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Order);
+        ((IReadOnlyList<string>)entries["Items"].Before.Value!).ShouldBe(["b", "c"]);
+        ((IReadOnlyList<string>)entries["Items"].After.Value!).ShouldBe(["a", "b"]);
+    }
+
+    [Test]
     public void RootMissingNullAndValueTransitions()
     {
         var missing = Optional<Settings.Fragment?>.Missing;

@@ -151,6 +151,8 @@ if (changes.Label.IsChanged)
 
 Unchanged members remain typed and report `IsChanged == false` without retaining anything: their `Before` and `After` are missing. Changed members preserve the missing, present-null, and present-value states, so missing to present, present null to missing, and value changes are all observable without losing presence information.
 
+For consumers that need rows or logs instead of typed traversal, `EnumerateChanges()` returns flattened `ChangeInfo` entries with a path, presence-aware `Before` and `After` values, and a `ChangeKind`. Nested values use dotted paths; keyed entries use their key in brackets. `Added`, `Removed`, and `Changed` classify value transitions, while `Order` uses the collection path and carries the before and after key sequences. The method supplies change data, not presentation or formatting.
+
 When a baseline-free operation is needed instead, cross the explicit boundary:
 
 ```csharp
