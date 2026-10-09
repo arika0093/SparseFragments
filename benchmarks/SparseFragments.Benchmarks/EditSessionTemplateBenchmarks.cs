@@ -43,6 +43,81 @@ public class EditSessionTemplateBenchmarks
                 "Restoring a dialect must retain the original output."
             );
         }
+        ValidateReplacementOrder();
+    }
+
+    private void ValidateReplacementOrder()
+    {
+        AssertMatchesReference(_session, _runtime, _patch);
+        AssertMatchesReference(
+            _session with
+            {
+                Namespace = "__OPTIONAL_TYPE__._",
+            },
+            _runtime with
+            {
+                OptionalType = "__CONFLICT_TYPE__",
+            },
+            _patch with
+            {
+                ConflictType = "__REBASE_RESULT_TYPE__",
+                RebaseResult = static _ => "__SESSION_NAMESPACE__",
+            }
+        );
+        AssertMatchesReference(
+            _session with
+            {
+                Namespace = "__OPTIONAL_TYPE",
+            },
+            _runtime with
+            {
+                OptionalType = "",
+            },
+            _patch with
+            {
+                ConflictType = "_",
+                RebaseResult = static _ => "",
+            }
+        );
+    }
+
+    private static void AssertMatchesReference(
+        SparseEditSessionDialect session,
+        SparseRuntimeDialect runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect patch
+    )
+    {
+        var expected = (
+            RenderReference("SparseEditSessionCore", session, runtime, patch),
+            RenderReference("SparseEditSessionWithCurrentCore", session, runtime, patch)
+        );
+        var actual = SparseEditSessionEmitter.RenderCoreSources(session, runtime, patch);
+        if (actual != expected)
+        {
+            throw new InvalidOperationException(
+                "Rendering must preserve sequential replacement semantics."
+            );
+        }
+    }
+
+    private static string RenderReference(
+        string name,
+        SparseEditSessionDialect session,
+        SparseRuntimeDialect runtime,
+        SparseFragmentPatchEmitter.SparsePatchDialect patch
+    )
+    {
+        using var stream =
+            typeof(SparseEditSessionEmitter).Assembly.GetManifestResourceStream(
+                "SparseFragments.Generator.Shared.Sessions." + name + ".template"
+            ) ?? throw new InvalidOperationException("Missing reference template.");
+        using var reader = new System.IO.StreamReader(stream);
+        return reader
+            .ReadToEnd()
+            .Replace("__SESSION_NAMESPACE__", session.Namespace)
+            .Replace("__OPTIONAL_TYPE__", runtime.OptionalType)
+            .Replace("__CONFLICT_TYPE__", patch.ConflictType)
+            .Replace("__REBASE_RESULT_TYPE__", patch.RebaseResult("TChangeSet"));
     }
 
     private static void ValidateSources((string Core, string CurrentCore) sources, string product)
