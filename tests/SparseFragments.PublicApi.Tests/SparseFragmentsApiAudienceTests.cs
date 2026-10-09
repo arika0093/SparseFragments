@@ -19,6 +19,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.ISparseKeyed`1",
         "SparseFragments.ISparseEditSession`1",
         "SparseFragments.ISparseEditSession`2",
+        "SparseFragments.ISparseEditSessionModelAccessor`1",
         "SparseFragments.MergeMode",
         "SparseFragments.SparseFragmentModelAttribute",
         "SparseFragments.SparseIgnoreAttribute",

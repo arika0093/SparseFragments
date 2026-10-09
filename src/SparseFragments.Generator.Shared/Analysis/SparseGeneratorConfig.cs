@@ -30,6 +30,7 @@ internal sealed record SparseGeneratorConfig
         string? ComparisonAttributeMetadataName = null,
         string? EditSessionInterfaceMetadataName = null,
         SparseEditSessionDialect? EditSessionDialect = null,
+        string? EditSessionModelAccessorInterfaceMetadataName = null,
         SparseDescriptorDialect? DescriptorDialect = null
     )
     {
@@ -58,6 +59,8 @@ internal sealed record SparseGeneratorConfig
         this.ComparisonAttributeMetadataName = ComparisonAttributeMetadataName;
         this.EditSessionInterfaceMetadataName = EditSessionInterfaceMetadataName;
         this.EditSessionDialect = EditSessionDialect;
+        this.EditSessionModelAccessorInterfaceMetadataName =
+            EditSessionModelAccessorInterfaceMetadataName;
         this.DescriptorDialect = DescriptorDialect;
     }
 
@@ -117,6 +120,11 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Product-owned names for the generated edit-session implementation.</summary>
     public SparseEditSessionDialect? EditSessionDialect { get; init; }
+
+    /// <summary>
+    /// Trusted model-accessor interface implemented by generated model sessions, or null when disabled.
+    /// </summary>
+    public string? EditSessionModelAccessorInterfaceMetadataName { get; init; }
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }

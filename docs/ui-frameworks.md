@@ -255,6 +255,15 @@ The neutral session members such as `Model`, `HasChanges`,
 available independently of Blazor. Context-taking helpers require an
 `EditContext` whose `Model` is the same instance as `session.Model`.
 
+Framework helpers read the session model through trusted framework access,
+which keeps the session's observable-change cache intact. Creating an
+`EditContext`, validating it, and resolving field paths do not by themselves
+disable cached `HasChanges` computation for observable-only edits. Reading
+`session.Model` directly still disables the cache permanently, because a
+retained raw reference can change without observable notifications. Keep edits
+on the `Observable` proxy while the cache matters; edits made straight to
+`EditContext.Model` bypass observable notifications.
+
 Edit-then-restore yields no semantic change even though fields were touched:
 
 ```csharp

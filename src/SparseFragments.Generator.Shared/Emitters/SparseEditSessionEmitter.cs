@@ -68,6 +68,8 @@ internal static class SparseEditSessionEmitter
                 "An edit-session interface metadata name is required.",
                 nameof(config)
             );
+        var modelAccessorInterfaceMetadataName =
+            config.EditSessionModelAccessorInterfaceMetadataName;
         var sessionDialect =
             config.EditSessionDialect
             ?? throw new ArgumentException("An edit-session dialect is required.", nameof(config));
@@ -138,16 +140,13 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(0, accessibility + " " + declaration + modelName);
         code.AppendLineAt(0, "{");
         code.AppendLineAt(1, "/// <summary>A typed edit session for this model.</summary>");
-        code.AppendLineAt(
-            1,
-            "public sealed class EditSession : "
-                + sessionInterface
-                + "<"
-                + modelType
-                + ", "
-                + modelType
-                + ".ChangeSet>"
-        );
+        var sessionBases = sessionInterface + "<" + modelType + ", " + modelType + ".ChangeSet>";
+        if (modelAccessorInterfaceMetadataName is not null)
+        {
+            sessionBases +=
+                ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
+        }
+        code.AppendLineAt(1, "public sealed class EditSession : " + sessionBases);
         code.AppendLineAt(1, "{");
         code.AppendLineAt(
             2,
@@ -195,6 +194,19 @@ internal static class SparseEditSessionEmitter
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
         code.AppendLineAt(2, "public " + modelType + " Model => _session.Model;");
+        if (modelAccessorInterfaceMetadataName is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets the live model for trusted framework use without affecting the change cache.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public "
+                    + modelType
+                    + " GetModelForFrameworkAccess() => _session.GetModelForFrameworkAccess();"
+            );
+        }
         code.AppendLineAt(
             2,
             "public " + modelType + "." + observable + " Observable => _session.Observable;"

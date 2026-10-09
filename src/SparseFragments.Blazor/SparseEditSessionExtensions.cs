@@ -13,11 +13,15 @@ namespace SparseFragments.Blazor;
 public static class SparseEditSessionExtensions
 {
     /// <summary>Creates an <see cref="EditContext"/> bound to the session's original model.</summary>
+    /// <remarks>
+    /// The model is obtained through trusted framework access, so creating the
+    /// context does not by itself disable the session's observable-change cache.
+    /// </remarks>
     public static EditContext CreateEditContext<TModel>(this ISparseEditSession<TModel> session)
         where TModel : class
     {
         ArgumentNullException.ThrowIfNull(session);
-        return new EditContext(session.Model);
+        return new EditContext(GetSessionModel(session));
     }
 
     /// <summary>Accepts the current model state and clears the associated Blazor modified state.</summary>
@@ -63,6 +67,10 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Resolves a Blazor field identifier for a member of the session model.</summary>
+    /// <remarks>
+    /// Path resolution reads through trusted framework access and does not by
+    /// itself disable the session's observable-change cache.
+    /// </remarks>
     public static FieldIdentifier Field<TModel>(
         this ISparseEditSession<TModel> session,
         string fieldName
@@ -71,7 +79,7 @@ public static class SparseEditSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
-        var model = session.Model;
+        var model = GetSessionModel(session);
         object? current = model;
         object? fieldOwner;
         string fieldNamePart;
@@ -176,7 +184,7 @@ public static class SparseEditSessionExtensions
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(message);
-        if (!IsSessionOwnedField(session.Model, field.Model))
+        if (!IsSessionOwnedField(GetSessionModel(session), field.Model))
         {
             throw new ArgumentException(
                 "The field must belong to the session's model.",
@@ -217,7 +225,7 @@ public static class SparseEditSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(editContext);
-        if (!ReferenceEquals(editContext.Model, session.Model))
+        if (!ReferenceEquals(editContext.Model, GetSessionModel(session)))
         {
             throw new ArgumentException(
                 "The EditContext must be bound to the session's model.",
@@ -225,6 +233,14 @@ public static class SparseEditSessionExtensions
             );
         }
     }
+
+    private static TModel GetSessionModel<TModel>(ISparseEditSession<TModel> session)
+        where TModel : class =>
+        // Trusted framework access keeps the observable-change cache intact;
+        // sessions without it fall back to the raw model, which disables caching.
+        session is ISparseEditSessionModelAccessor<TModel> accessor
+            ? accessor.GetModelForFrameworkAccess()
+            : session.Model;
 
     private static string ParseFieldKey(string key, string path)
     {

@@ -90,6 +90,11 @@ namespace SparseFragments
         public static SparseFragments.FragmentRebasePolicy<T> PreferCurrent(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
         public static SparseFragments.FragmentRebasePolicy<T> PreferIncoming(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
     }
+    public interface ISparseEditSessionModelAccessor<out TModel>
+        where out TModel :  class
+    {
+        TModel GetModelForFrameworkAccess();
+    }
     public interface ISparseEditSession<out TModel>
         where out TModel :  class
     {

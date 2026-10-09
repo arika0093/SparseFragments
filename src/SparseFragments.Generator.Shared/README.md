@@ -138,6 +138,11 @@ compilation contains session models, and calls
 `SparseEditSessionEmitter.AppendModelEditSession` from its product-extension
 callback. The product generator chooses its helper namespace; for example,
 `SparseFragments.Generator` configures `SparseFragments.Generated`.
+Setting the optional `EditSessionModelAccessorInterfaceMetadataName` additionally
+implements a trusted model-accessor interface on each generated session, so
+framework integrations can read the live model without invalidating the
+session's observable-change cache. Consumers without that interface keep the
+previous behavior: framework helpers fall back to the raw model.
 
 ## Member transport and rebase policies
 
