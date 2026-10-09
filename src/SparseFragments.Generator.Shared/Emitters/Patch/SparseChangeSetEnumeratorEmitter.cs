@@ -115,10 +115,57 @@ internal static class SparseChangeSetEnumeratorEmitter
             3,
             "var value = global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
         );
+        code.AppendLineAt(3, "return path + \"[\\\"\" + __SparseEscapeKey(value) + \"\\\"]\";");
+        code.AppendLineAt(2, "}");
+        // One canonical JSON-compatible escaping helper for keyed and
+        // dictionary paths (issue #137). Only backslash and quote were
+        // escaped before, emitting raw control characters that the Blazor
+        // field parser (which reads quoted keys as JSON) cannot deserialize.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Escapes a key for use inside a quoted change path segment.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>JSON string escaping: backslash, quote, \\b \\f \\n \\r \\t, and remaining C0 controls as \\u00XX. Plain keys pass through unchanged.</remarks>"
+        );
+        code.AppendLineAt(2, "private static string __SparseEscapeKey(string value)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var needsEscape = false;");
+        code.AppendLineAt(3, "foreach (var c in value)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (c < 0x20 || c == '\"' || c == '\\\\')");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "needsEscape = true;");
+        code.AppendLineAt(5, "break;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "if (!needsEscape) return value;");
         code.AppendLineAt(
             3,
-            "return path + \"[\\\"\" + value.Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\";"
+            "var builder = new global::System.Text.StringBuilder(value.Length + 8);"
         );
+        code.AppendLineAt(3, "foreach (var c in value)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "switch (c)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(4, "case '\"': builder.Append(\"\\\\\\\"\"); break;");
+        code.AppendLineAt(4, "case '\\\\': builder.Append(\"\\\\\\\\\"); break;");
+        code.AppendLineAt(4, "case '\\b': builder.Append(\"\\\\b\"); break;");
+        code.AppendLineAt(4, "case '\\f': builder.Append(\"\\\\f\"); break;");
+        code.AppendLineAt(4, "case '\\n': builder.Append(\"\\\\n\"); break;");
+        code.AppendLineAt(4, "case '\\r': builder.Append(\"\\\\r\"); break;");
+        code.AppendLineAt(4, "case '\\t': builder.Append(\"\\\\t\"); break;");
+        code.AppendLineAt(4, "default:");
+        code.AppendLineAt(
+            5,
+            "if (c < 0x20) builder.Append(\"\\\\u\").Append(((int)c).ToString(\"x4\", global::System.Globalization.CultureInfo.InvariantCulture));"
+        );
+        code.AppendLineAt(5, "else builder.Append(c);");
+        code.AppendLineAt(5, "break;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "return builder.ToString();");
         code.AppendLineAt(2, "}");
     }
 
@@ -135,7 +182,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>.</remarks>"
+            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings.</remarks>"
         );
         code.AppendLineAt(
             2,

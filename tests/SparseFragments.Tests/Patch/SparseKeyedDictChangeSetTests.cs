@@ -146,6 +146,32 @@ public sealed class SparseKeyedDictChangeSetTests
     }
 
     [Test]
+    public void EnumeratePathsEscapeControlCharacters()
+    {
+        var tricky = "a\nb\tc\"d\\e\r\nf\x01g";
+        var changes = ScalarDictHolder.ChangeSet.Between(
+            DState(new Dictionary<string, int>()),
+            DState(new Dictionary<string, int> { [tricky] = 1 })
+        );
+        changes.IsEmpty.ShouldBeFalse();
+
+        var enumerated = changes.EnumerateChanges().ToList();
+        enumerated.ShouldHaveSingleItem();
+        // Canonical JSON escaping: control characters never appear raw.
+        enumerated[0].Path.ShouldBe("Scores[\"a\\nb\\tc\\\"d\\\\e\\r\\nf\\u0001g\"]");
+        foreach (var c in enumerated[0].Path)
+        {
+            (c < 0x20).ShouldBeFalse();
+        }
+
+        // Both enumeration surfaces agree, and simple keys are unchanged.
+        changes.EnumerateChangedPaths().ShouldBe([enumerated[0].Path]);
+        var segment = enumerated[0].Path.Substring("Scores[".Length);
+        segment = segment.Substring(0, segment.Length - 1);
+        JsonSerializer.Deserialize<string>(segment)!.ShouldBe(tricky);
+    }
+
+    [Test]
     public void EnumerateChangesFlattensNestedDictionaryValues()
     {
         var before = TState(

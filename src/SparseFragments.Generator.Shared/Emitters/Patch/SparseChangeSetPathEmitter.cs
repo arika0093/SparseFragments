@@ -167,9 +167,9 @@ internal static class SparseChangeSetPathEmitter
                 + itemPath
                 + " = "
                 + memberPath
-                + " + \"[\\\"\" + "
+                + " + \"[\\\"\" + __SparseEscapeKey("
                 + key
-                + ".Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\";"
+                + ") + \"\\\"]\";"
         );
         code.AppendLineAt(
             4,
