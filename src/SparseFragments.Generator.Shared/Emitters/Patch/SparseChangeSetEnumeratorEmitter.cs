@@ -138,6 +138,10 @@ internal static class SparseChangeSetEnumeratorEmitter
             "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges()"
         );
         code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (IsEmpty)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "return global::System.Array.Empty<ChangeInfo>();");
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
             "var changes = new global::System.Collections.Generic.List<ChangeInfo>();"
