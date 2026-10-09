@@ -233,10 +233,25 @@ internal static class SparseObservableDescriptorEmitter
 
         if (
             member.Collection.ElementType.Name is null
-            || !member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
+            || member.Collection.ValueType is not null
+            || (
+                member.Collection.Kind != SparseCollectionKind.Array
+                && !member.Property.Type.NonNullableName.EndsWith(
+                    "[]",
+                    System.StringComparison.Ordinal
+                )
+            )
         )
         {
             return "null";
+        }
+
+        if (
+            !member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
+            && member.Collection.Kind == SparseCollectionKind.Array
+        )
+        {
+            return ReadOnlySequenceAccessor(member, path, dialect);
         }
 
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -258,6 +273,81 @@ internal static class SparseObservableDescriptorEmitter
             + "![index] }, typeof("
             + itemType
             + "))";
+    }
+
+    /// <summary>Emits a read-only sequence descriptor for list-like shapes.</summary>
+    /// <remarks>
+    /// Sources already implementing <c>IReadOnlyList&lt;T&gt;</c> stay live; pure
+    /// <c>IEnumerable&lt;T&gt;</c>/<c>IReadOnlyCollection&lt;T&gt;</c> sources are
+    /// snapshotted once per descriptor so repeated <c>GetItem</c> calls do not
+    /// re-enumerate. All mutation flags are false.
+    /// </remarks>
+    private static string ReadOnlySequenceAccessor(
+        SparseMemberModel member,
+        string path,
+        SparseDescriptorDialect dialect
+    )
+    {
+        var property = SparseNaming.EscapeIdentifier(member.Property.Name);
+        var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
+        var element = member.Collection.ElementType;
+        var itemType = element.NonNullableName;
+        var hasProxy = element.IsFragmentModel && element.IsReferenceType;
+        var viewType = hasProxy
+            ? itemType + "." + (element.ObservableTypeName ?? "Observable")
+            : itemType;
+        var itemAccessor = hasProxy ? AccessorName(itemType) : string.Empty;
+        // Transient element proxies notify the parent property; the collection itself
+        // has no notifying view, so size mutations are unsupported.
+        var changed =
+            "() => { __Raise(" + literal + "); if (__onChanged is not null) __onChanged(); }";
+        var wrap = hasProxy
+            ? "item is null ? null : new "
+                + viewType
+                + "(item, "
+                + changed
+                + ", __onRawModelAccess)"
+            : "item";
+        var descriptors = hasProxy
+            ? ", GetItemDescriptors = index => { var item = items[index]; var view = (object?)("
+                + wrap
+                + "); return view is null ? null : (("
+                + viewType
+                + ")view)."
+                + itemAccessor
+                + "("
+                + path
+                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }"
+            : string.Empty;
+        return "() => { var current = this."
+            + property
+            + "; if ((object?)current is null) return null; "
+            + "var source = (global::System.Collections.Generic.IEnumerable<"
+            + element.Name
+            + ">)current; "
+            + "var live = source as global::System.Collections.Generic.IReadOnlyList<"
+            + element.Name
+            + ">; "
+            + "global::System.Collections.Generic.IReadOnlyList<"
+            + element.Name
+            + "> items = live ?? (global::System.Collections.Generic.IReadOnlyList<"
+            + element.Name
+            + ">)global::System.Linq.Enumerable.ToArray(source); "
+            + "return new "
+            + dialect.ArrayDescriptorType
+            + "(typeof("
+            + itemType
+            + "), "
+            + IsNullableExpression(element.Name)
+            + ", new "
+            + dialect.ArrayDescriptorAccessType
+            + " { Count = () => items.Count, GetItem = index => { var item = items[index]; return (object?)("
+            + wrap
+            + "); }"
+            + descriptors
+            + " }, typeof("
+            + viewType
+            + ")); }";
     }
 
     private static string ListAccessor(
