@@ -1,9 +1,6 @@
 using System;
 using System.Collections;
-using System.Globalization;
-using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using Microsoft.AspNetCore.Components.Forms;
 using SparseFragments;
 
@@ -69,7 +66,10 @@ public static class SparseEditSessionExtensions
     /// <summary>Resolves a Blazor field identifier for a member of the session model.</summary>
     /// <remarks>
     /// Path resolution reads through trusted framework access and does not by
-    /// itself disable the session's observable-change cache.
+    /// itself disable the session's observable-change cache. List brackets take
+    /// positional indexes (<c>Lines[1]</c>) or, for keyed element types, quoted
+    /// stable keys (<c>Lines["b"]</c>) matching the change-enumeration spelling.
+    /// Quoted keys never act as positions, and removed keys fail as invalid paths.
     /// </remarks>
     public static FieldIdentifier Field<TModel>(
         this ISparseEditSession<TModel> session,
@@ -79,92 +79,7 @@ public static class SparseEditSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
-        var model = GetSessionModel(session);
-        object? current = model;
-        object? fieldOwner;
-        string fieldNamePart;
-        var index = 0;
-        while (index < fieldName.Length)
-        {
-            var start = index;
-            while (index < fieldName.Length && fieldName[index] is not '.' and not '[')
-            {
-                index++;
-            }
-
-            if (start == index || current is null)
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            fieldNamePart = fieldName[start..index];
-            fieldOwner = current;
-            var property = current
-                .GetType()
-                .GetProperty(fieldNamePart, BindingFlags.Instance | BindingFlags.Public);
-            if (property is null || property.GetIndexParameters().Length > 0)
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            current = property.GetValue(current);
-            while (index < fieldName.Length && fieldName[index] == '[')
-            {
-                if (current is null)
-                {
-                    throw InvalidFieldPath(fieldName);
-                }
-
-                var keyStart = ++index;
-                var insideQuotes = false;
-                var escaped = false;
-                while (index < fieldName.Length)
-                {
-                    var currentCharacter = fieldName[index];
-                    if (escaped)
-                    {
-                        escaped = false;
-                    }
-                    else if (insideQuotes && currentCharacter == '\\')
-                    {
-                        escaped = true;
-                    }
-                    else if (currentCharacter == '"')
-                    {
-                        insideQuotes = !insideQuotes;
-                    }
-                    else if (!insideQuotes && currentCharacter == ']')
-                    {
-                        break;
-                    }
-
-                    index++;
-                }
-
-                if (index == fieldName.Length || keyStart == index)
-                {
-                    throw InvalidFieldPath(fieldName);
-                }
-
-                var key = ParseFieldKey(fieldName[keyStart..index], fieldName);
-                index++;
-                current = ResolveIndexedValue(current, key, fieldName);
-            }
-
-            if (index == fieldName.Length)
-            {
-                return new FieldIdentifier(fieldOwner, fieldNamePart);
-            }
-
-            if (fieldName[index] != '.')
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            index++;
-        }
-
-        throw InvalidFieldPath(fieldName);
+        return SparseFieldPathResolver.Resolve(GetSessionModel(session), fieldName);
     }
 
     /// <summary>Surfaces a validation message for a field belonging to this session's model.</summary>
@@ -242,236 +157,14 @@ public static class SparseEditSessionExtensions
             ? accessor.GetModelForFrameworkAccess()
             : session.Model;
 
-    private static string ParseFieldKey(string key, string path)
-    {
-        if (key[0] != '"')
-        {
-            return key;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<string>(key) ?? string.Empty;
-        }
-        catch (JsonException)
-        {
-            throw InvalidFieldPath(path);
-        }
-    }
-
-    private static object? ResolveIndexedValue(object collection, string key, string path)
-    {
-        if (collection is string)
-        {
-            throw InvalidFieldPath(path);
-        }
-
-        if (collection is IList list)
-        {
-            if (
-                !int.TryParse(
-                    key,
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out var listIndex
-                )
-                || (uint)listIndex >= (uint)list.Count
-            )
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            return list[listIndex];
-        }
-
-        if (collection is IDictionary dictionary)
-        {
-            var dictionaryKey = ConvertDictionaryKey(collection, key, path);
-            if (!dictionary.Contains(dictionaryKey))
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            return dictionary[dictionaryKey];
-        }
-
-        if (TryGetReadOnlyDictionaryInterface(collection, out var dictionaryInterface))
-        {
-            var keyType = dictionaryInterface.GetGenericArguments()[0];
-            var dictionaryKey = ConvertKeyTextOrInvalidPath(keyType, key, path);
-            var containsKey = dictionaryInterface.GetMethod("ContainsKey");
-            var indexer = dictionaryInterface.GetProperty("Item");
-            if (
-                containsKey is null
-                || indexer is null
-                || containsKey.Invoke(collection, [dictionaryKey]) is not true
-            )
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            return indexer.GetValue(collection, [dictionaryKey]);
-        }
-
-        if (TryGetReadOnlyListInterface(collection, out var listInterface))
-        {
-            // Index lookup, not linear enumeration: the position spelling
-            // stays numeric-only here, while quoted stable keys are handled
-            // by the keyed-collection resolution.
-            if (!int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            var elementType = listInterface.GetGenericArguments()[0];
-            var indexer = listInterface.GetProperty("Item");
-            if (
-                indexer is null
-                || !TryGetReadOnlyCollectionCount(collection, elementType, out var count)
-            )
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            if ((uint)index >= (uint)count)
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            return indexer.GetValue(collection, [index]);
-        }
-
-        throw InvalidFieldPath(path);
-    }
-
-    private static object ConvertDictionaryKey(object collection, string key, string path)
-    {
-        if (collection is not IDictionary)
-        {
-            throw InvalidFieldPath(path);
-        }
-
-        var keyType = collection
-            .GetType()
-            .GetInterfaces()
-            .Where(static type =>
-                type.IsGenericType
-                && (
-                    type.GetGenericTypeDefinition() == typeof(IDictionary<,>)
-                    || type.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
-                )
-            )
-            .Select(static type => type.GetGenericArguments()[0])
-            .FirstOrDefault();
-        if (keyType is null || keyType == typeof(string))
-        {
-            return key;
-        }
-
-        return ConvertKeyTextOrInvalidPath(keyType, key, path);
-    }
-
-    private static object ConvertKeyTextOrInvalidPath(Type keyType, string key, string path)
-    {
-        try
-        {
-            return ConvertKeyText(keyType, key, path);
-        }
-        catch (Exception exception)
-            when (exception is ArgumentException or FormatException or InvalidCastException)
-        {
-            throw InvalidFieldPath(path);
-        }
-    }
-
-    private static object ConvertKeyText(Type keyType, string key, string path)
-    {
-        // Guid is not IConvertible, so Convert.ChangeType cannot parse it.
-        // Guid.TryParse is culture-independent.
-        var targetType = Nullable.GetUnderlyingType(keyType) ?? keyType;
-        if (targetType == typeof(Guid))
-        {
-            if (Guid.TryParse(key, out var guid))
-            {
-                return guid;
-            }
-
-            throw InvalidFieldPath(path);
-        }
-
-        return keyType.IsEnum
-            ? Enum.Parse(keyType, key, ignoreCase: false)
-            : Convert.ChangeType(key, keyType, CultureInfo.InvariantCulture);
-    }
-
-    private static ArgumentException InvalidFieldPath(string path) =>
-        new($"The field path '{path}' does not resolve to a public model member.", nameof(path));
-
-    private static bool TryGetReadOnlyDictionaryInterface(object collection, out Type interfaceType)
-    {
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
-            )
-            {
-                interfaceType = candidate;
-                return true;
-            }
-        }
-
-        interfaceType = null!;
-        return false;
-    }
-
-    private static bool TryGetReadOnlyListInterface(object collection, out Type interfaceType)
-    {
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)
-            )
-            {
-                interfaceType = candidate;
-                return true;
-            }
-        }
-
-        interfaceType = null!;
-        return false;
-    }
-
-    private static bool TryGetReadOnlyCollectionCount(
-        object collection,
-        Type elementType,
-        out int count
-    )
-    {
-        // Count is declared on IReadOnlyCollection<T>, which interface
-        // reflection does not flatten onto IReadOnlyList<T>.
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyCollection<>)
-                && candidate.GetGenericArguments()[0] == elementType
-                && candidate.GetProperty("Count")?.GetValue(collection) is int value
-            )
-            {
-                count = value;
-                return true;
-            }
-        }
-
-        count = 0;
-        return false;
-    }
-
     private static bool TryGetReadOnlyDictionaryValues(object collection, out IEnumerable? values)
     {
-        if (TryGetReadOnlyDictionaryInterface(collection, out var interfaceType))
+        if (
+            SparseFieldPathResolver.TryGetReadOnlyDictionaryInterface(
+                collection,
+                out var interfaceType
+            )
+        )
         {
             values = interfaceType.GetProperty("Values")?.GetValue(collection) as IEnumerable;
             return values is not null;

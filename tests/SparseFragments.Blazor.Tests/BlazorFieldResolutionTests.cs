@@ -147,4 +147,101 @@ public sealed class BlazorFieldResolutionTests
         Should.Throw<ArgumentException>(() => session.Field("Lines[abc].Quantity"));
         Should.Throw<ArgumentException>(() => session.Field("Lines[].Quantity"));
     }
+
+    private static OrderDto KeyedOrder() =>
+        new()
+        {
+            Number = "ORD-1",
+            Customer = new OrderCustomer { Name = "Ada" },
+            Lines = new()
+            {
+                new OrderLine
+                {
+                    Sku = "a",
+                    Quantity = 1,
+                    Price = 10m,
+                },
+                new OrderLine
+                {
+                    Sku = "b",
+                    Quantity = 2,
+                    Price = 20m,
+                },
+            },
+            Tags = new() { "fragile" },
+        };
+
+    [Test]
+    public void KeyedChangeInfoPathsResolveToFields()
+    {
+        var session = KeyedOrder().CreateEditSession();
+        session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+
+        var itemPath = session
+            .CreateChangeSet()
+            .EnumerateChanges()
+            .Select(change => change.Path)
+            .Single(path => path.StartsWith("Lines[", StringComparison.Ordinal));
+        itemPath.ShouldBe("Lines[\"b\"].Quantity");
+
+        var field = session.Field(itemPath);
+        ReferenceEquals(field.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+            .ShouldBeTrue();
+        field.FieldName.ShouldBe(nameof(OrderLine.Quantity));
+    }
+
+    [Test]
+    public void KeyedPathsSurviveReorder()
+    {
+        var session = KeyedOrder().CreateEditSession();
+        session.Model.Lines = session.Model.Lines.AsEnumerable().Reverse().ToList();
+        session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+
+        session.Model.Lines[0].Sku.ShouldBe("b");
+        var field = session.Field("Lines[\"b\"].Quantity");
+        ReferenceEquals(field.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+            .ShouldBeTrue();
+    }
+
+    [Test]
+    public void RemovedKeysNoLongerResolve()
+    {
+        var session = KeyedOrder().CreateEditSession();
+        session.Model.Lines.RemoveAll(line => line.Sku == "a");
+
+        Should.Throw<ArgumentException>(() => session.Field("Lines[\"a\"].Quantity"));
+        var survivor = session.Field("Lines[\"b\"].Quantity");
+        ReferenceEquals(survivor.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+            .ShouldBeTrue();
+    }
+
+    [Test]
+    public void QuotedNumericKeysAreIdentityNotPosition()
+    {
+        var session = new BlazorUnassignedOrder
+        {
+            Number = "ORD-1",
+            Items = new()
+            {
+                new BlazorUnassignedItem { Id = 7, Name = "existing" },
+            },
+        }.CreateEditSession();
+
+        var byKey = session.Field("Items[\"7\"].Name");
+        ReferenceEquals(byKey.Model, session.Model.Items.Single(item => item.Id == 7))
+            .ShouldBeTrue();
+
+        Should.Throw<ArgumentException>(() => session.Field("Items[7].Name"));
+        var byPosition = session.Field("Items[0].Name");
+        ReferenceEquals(byPosition.Model, session.Model.Items[0]).ShouldBeTrue();
+    }
+
+    [Test]
+    public void QuotedSegmentsOnUnkeyedListsFail()
+    {
+        var session = KeyedOrder().CreateEditSession();
+
+        Should.Throw<ArgumentException>(() => session.Field("Tags[\"fragile\"].Length"));
+        Should.Throw<ArgumentException>(() => session.Field("Tags[\"0\"]"));
+    }
 }

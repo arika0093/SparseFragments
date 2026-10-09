@@ -250,6 +250,15 @@ implementations without the legacy non-generic `IList`. Indexes resolve
 positionally through the indexer; out-of-range and non-numeric indexes fail
 as invalid paths.
 
+Keyed collections (members whose element type declares a stable key) also
+resolve quoted stable keys such as `Lines["b"].Quantity`. These are the paths
+`EnumerateChanges()` emits, so a changed item's path can be passed to
+`session.Field` directly and keeps resolving after reorders. Quoted keys never
+act as positions, even when numeric: `Items["7"]` looks up key `7` while
+`Items[7]` is the eighth position. Index spellings from
+`EnumerateChangedPaths()` (such as `Lines[1].Quantity`) resolve positionally.
+Removed keys no longer resolve and fail as invalid paths.
+
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
 available independently of Blazor. Context-taking helpers require an
