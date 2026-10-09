@@ -177,7 +177,7 @@ public sealed class PromotedIncrementalTests
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(4);
+            hints.Length.ShouldBe(5);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
@@ -269,7 +269,7 @@ public sealed class PromotedIncrementalTests
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(4);
+            hints.Length.ShouldBe(5);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
@@ -306,11 +306,11 @@ public sealed class PromotedIncrementalTests
         probe.SpfDiagnostics().ShouldBeEmpty();
         var sources = probe.Sources();
 
-        // The shared type gets its surface plus three implementation files,
-        // never a promoted duplicate.
+        // The shared type gets its surface plus implementations, never a
+        // promoted duplicate.
         sources
             .Keys.Count(key => key.Contains("InvExplicitShared", StringComparison.Ordinal))
-            .ShouldBe(4);
+            .ShouldBe(5);
         sources
             .Keys.Any(key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal))
             .ShouldBeFalse();

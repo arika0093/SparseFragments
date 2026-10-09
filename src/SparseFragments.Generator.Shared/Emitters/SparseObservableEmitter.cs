@@ -45,9 +45,9 @@ internal static class SparseObservableEmitter
                 + " : global::System.ComponentModel.INotifyPropertyChanged"
         );
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(2, "private readonly " + modelType + " __model;");
-        code.AppendLineAt(2, "private readonly global::System.Action? __onChanged;");
-        code.AppendLineAt(2, "private readonly global::System.Action? __onRawModelAccess;");
+        code.AppendLineAt(2, "internal readonly " + modelType + " __model;");
+        code.AppendLineAt(2, "internal readonly global::System.Action? __onChanged;");
+        code.AppendLineAt(2, "internal readonly global::System.Action? __onRawModelAccess;");
         foreach (var member in members)
         {
             if (
@@ -226,7 +226,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
-            "private void __Raise(string propertyName) => PropertyChanged?.Invoke(this, new global::System.ComponentModel.PropertyChangedEventArgs(propertyName));"
+            "internal void __Raise(string propertyName) => PropertyChanged?.Invoke(this, new global::System.ComponentModel.PropertyChangedEventArgs(propertyName));"
         );
         code.AppendLineAt(1, "}");
     }

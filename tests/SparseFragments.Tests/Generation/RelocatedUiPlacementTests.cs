@@ -100,7 +100,7 @@ public sealed class RelocatedUiPlacementTests
             """;
         var (_, _, all) = Generate(source);
         var hints = all.Keys.Where(static key => key.Contains("HintModel")).ToArray();
-        // Surface plus three implementations.
+        // Surface plus implementations (observable, view, session, factory).
         hints
             .Count(static key => key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal))
             .ShouldBe(1);
@@ -112,6 +112,9 @@ public sealed class RelocatedUiPlacementTests
             .ShouldBe(1);
         hints
             .Count(static key => key.EndsWith(".EditSession.g.cs", StringComparison.Ordinal))
+            .ShouldBe(1);
+        hints
+            .Count(static key => key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal))
             .ShouldBe(1);
     }
 
@@ -185,5 +188,40 @@ public sealed class RelocatedUiPlacementTests
         ((IMethodSymbol)toObservable)
             .ReturnType.ToDisplayString()
             .ShouldContain("SparseFragments.Generated");
+    }
+
+    [Test]
+    public void DescriptorFactoryLivesOutsideModel()
+    {
+        const string source = """
+            using SparseFragments;
+            namespace Reloc.Probe;
+            [SparseFragmentModel]
+            public partial class FactoryModel
+            {
+                public string Name { get; set; } = string.Empty;
+            }
+            """;
+        var (compilation, _, all) = Generate(source);
+        compilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+        var model = compilation.GetTypeByMetadataName("Reloc.Probe.FactoryModel");
+        model.ShouldNotBeNull();
+        model!.GetTypeMembers("DescriptorFactory").ShouldBeEmpty();
+        compilation
+            .GetSymbolsWithName("DescriptorFactory")
+            .OfType<INamedTypeSymbol>()
+            .Where(static symbol =>
+                symbol
+                    .ContainingNamespace.ToDisplayString()
+                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .ShouldHaveSingleItem();
+        all.Keys.Count(static key =>
+                key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal)
+            )
+            .ShouldBe(1);
     }
 }

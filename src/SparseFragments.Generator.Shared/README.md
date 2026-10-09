@@ -227,8 +227,11 @@ projection, collection/value helpers) with validated prerequisites
 (descriptor dialect plus the Observable family). Static per-model metadata is
 cached once per model and shared across accesses; generic implementations
 stay shared once per compilation where contract identity permits (today via
-the shared runtime). Per-model bridges keep using the DescriptorFactory
-placement seam until facade separation lands.
+the shared runtime). Per-model live bindings live in a `DescriptorFactory`
+(`.DescriptorFactory.g.cs`) inside the model container. The relocated
+`Observable` keeps a thin internal bridge delegating to its factory, so child
+`current.__SparseGet_X(path)` call sites keep working without naming private
+state.
 
 ## Member transport and rebase policies
 

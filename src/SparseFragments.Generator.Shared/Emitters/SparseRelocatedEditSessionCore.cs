@@ -189,9 +189,7 @@ internal static class SparseRelocatedEditSessionCore
                 2,
                 "public "
                     + descriptorDialect.DescriptorSetInterface
-                    + " Descriptors => __descriptors ?? (__descriptors = Observable."
-                    + SparseObservableDescriptorEmitter.AccessorName(modelType)
-                    + "(global::System.String.Empty));"
+                    + " Descriptors => __descriptors ?? (__descriptors = DescriptorFactory.Create(Observable, global::System.String.Empty));"
             );
         }
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");

@@ -122,7 +122,7 @@ internal static class SparseFragmentEmitter
                     config,
                     cancellationToken,
                     runtime.Namespace,
-                    config.DescriptorDialect
+                    null
                 )
             );
         }
@@ -147,6 +147,18 @@ internal static class SparseFragmentEmitter
                     cancellationToken
                 )
             );
+            if (config.DescriptorDialect is not null)
+            {
+                builder.Add(
+                    SparseDescriptorFactoryEmitter.BuildSource(
+                        model,
+                        members,
+                        config,
+                        cancellationToken,
+                        runtime.Namespace
+                    )
+                );
+            }
         }
 
         return builder.ToImmutable();

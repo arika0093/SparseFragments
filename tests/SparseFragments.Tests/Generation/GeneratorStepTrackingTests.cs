@@ -660,7 +660,7 @@ public sealed class GeneratorStepTrackingTests
         var changed = beforeSources
             .Keys.Where(key => sharedSources[key] != beforeSources[key])
             .ToArray();
-        changed.Length.ShouldBe(3);
+        changed.Length.ShouldBe(4);
         foreach (var hint in changed)
         {
             hint.ShouldContain("ShapeShared1");

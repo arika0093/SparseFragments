@@ -47,6 +47,29 @@ internal static class SparseModelImplementationEmitter
             config,
             cancellationToken
         );
+        if (
+            descriptorDialect is null
+            && config.DescriptorDialect is { } configured
+            && config.EffectiveEmissionFeatures.EmitObservable
+        )
+        {
+            // Thin bridge keeps child "$proxy.__SparseGet_X(path)" call sites
+            // working after the graph moves to DescriptorFactory.
+            var accessor = SparseObservableDescriptorEmitter.AccessorName(model.ModelTypeName);
+            var bridge =
+                "        internal "
+                + configured.DescriptorSetInterface
+                + " "
+                + accessor
+                + "(string pathPrefix) => DescriptorFactory.Create(this, pathPrefix);\n";
+            var closing = "\n    }\n";
+            var index = inner.LastIndexOf(closing, System.StringComparison.Ordinal);
+            if (index >= 0)
+            {
+                inner = inner.Substring(0, index) + "\n" + bridge + inner.Substring(index + 1);
+            }
+        }
+
         var source = WrapInContainer(model, inner, config, cancellationToken);
         return new SparseGeneratedSource(
             SparseGeneratedPlacement.ObservableHintName(model, cancellationToken),
@@ -170,7 +193,7 @@ internal static class SparseModelImplementationEmitter
         return code.ToString();
     }
 
-    private static string RelocateUiReferences(
+    internal static string RelocateUiReferences(
         string source,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
