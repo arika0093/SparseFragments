@@ -499,6 +499,25 @@ namespace __SESSION_NAMESPACE__
                 throw new InvalidOperationException("Reloading did not produce a model.");
             }
 
+            // The in-place writer copies only writable members. If the merged result
+            // differs from the live model in members that cannot be written in place
+            // (init-only or getter-only), writing would silently drop them while the
+            // baseline still advances. Probe that drift first: applying it is
+            // side-effect-free, so a reported conflict leaves both the live model
+            // and the retained baseline untouched.
+            var drift = _between(
+                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model)),
+                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(applied.Updated))
+            );
+            if (!_isEmpty(drift))
+            {
+                var probe = _tryApplyTo(drift, _model);
+                if (probe.Conflicts is not null)
+                {
+                    return new __REBASE_RESULT_TYPE__(rebased.Rebased, probe.Conflicts);
+                }
+            }
+
             _writeModel(_model, applied.Updated);
             _baseline = serverBaseline;
             RefreshAfterModelMutation();
