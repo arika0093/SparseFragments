@@ -105,7 +105,9 @@ if (response.IsSuccess)
 }
 ```
 
-`AcceptChanges(submitted)` advances only the baseline, so edits made after `CreateChangeSet` stay pending. When the server assigns keys or normalizes data, replace the model with the persisted state and start a fresh session instead of acknowledging the submitted transition. `ChangeSet` has no `ApplyInPlace`; a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`, which discards the before-state.
+The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
+
+For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. `ChangeSet` has no `ApplyInPlace`; a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`, which discards the before-state.
 
 See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
 

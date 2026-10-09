@@ -187,6 +187,20 @@ Concretely:
 * `Replace the whole collection.` Assigning a fresh collection to the member (a `Set` on the collection member itself) replaces the container wholesale rather than diffing elements.
 * `Reorder.` The resulting order is the final key order. Reversing `["a", "b"]` to `["b", "a"]` is a real (non-empty) patch whose replay reproduces the new order; there is no separate move identity.
 
+### Avoiding unintended order changes
+
+Because SparseFragments tracks element order as part of collection state, reordering items in a collection produces a non-empty change set with `OrderChanged == true`, even when individual elements are unchanged.
+
+When UI sorting should not be recorded as a persisted data change, use either of two strategies:
+
+1. **Sort in the view layer:** Keep the underlying model collection in its storage order and sort only during presentation (for example via LINQ `.OrderBy(...)` or a UI collection view).
+2. **Normalize before diffing:** When models hold an explicit sequence property (such as `Order` or `SortIndex`), sort the model collection by that property before diffing or creating a change set:
+
+```csharp
+items.Sort((a, b) => a.Order.CompareTo(b.Order));
+var changes = session.CreateChangeSet();
+```
+
 Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
 ## Database-assigned keys
@@ -334,3 +348,4 @@ A collection transition object may be enumerable while the root ChangeSet is not
 
 * `Duplicate keys are invalid.` A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
 * `Changing an element's identity is remove-old plus add-new.` If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"`, never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove plus add through `CreateChangeSet`, `ToPatch`, and `ApplyTo`.
+* `Natural keys vs stable identity.` When an editable domain attribute (such as a username, part code, or display name) serves as `[SparseKey]`, modifying it in a form causes the element to be removed and re-added rather than edited in place. To preserve row identity across edits, give the model an immutable surrogate key (such as a database ID or client GUID) for `[SparseKey]`, and keep the editable domain property as a regular property.

@@ -66,7 +66,43 @@ members keeps its normal edit-session APIs but cannot use in-place apply
 
 The session is synchronous. It provides no async submit, transport, or conflict
 framework. The application sends the change set through
-its own transport, then acknowledges the submitted transition:
+its own transport.
+
+### Recommended save workflow
+
+The standard and recommended workflow is:
+
+1. Disable UI editing while the save operation is in flight.
+2. Send the change payload (`session.CreateChangeSet().ToPayload()`).
+3. Receive the authoritative persisted state returned by the server (including any database-assigned IDs, normalization, or timestamps).
+4. Create a fresh edit session from the persisted state, and recreate UI-bound objects such as Blazor's `EditContext`:
+
+```csharp
+// 1. Disable editing in UI
+isSaving = true;
+try
+{
+    var submitted = session.CreateChangeSet();
+    var response = await SendChangesAsync(submitted.ToPayload());
+    if (response.IsSuccess)
+    {
+        // 3. Receive authoritative server state
+        var persisted = response.PersistedModel;
+
+        // 4. Create fresh session from persisted state
+        session = persisted.CreateEditSession();
+        editContext = session.CreateEditContext();
+    }
+}
+finally
+{
+    isSaving = false;
+}
+```
+
+This pattern cleanly absorbs server-assigned keys, modified timestamps, and value normalization without requiring partial-state reconciliation.
+
+For forms that keep editing enabled during submission when the server makes no schema changes, key assignments, or normalization, `session.AcceptChanges(submitted)` advances the retained baseline without touching the live model:
 
 ```csharp
 var session = order.CreateEditSession();
@@ -89,21 +125,34 @@ baseline on every changed path; a stale or foreign change set is rejected with
 `InvalidOperationException` and the baseline stays unchanged. Send exceptions
 leave the baseline unchanged because acknowledgement never ran.
 
-When additions carry server-assigned keys, do not acknowledge the unassigned
-transition. `AcceptChanges` rejects a baseline advance that would retain
-unassigned sentinels. Instead, receive the persisted model or refetch it,
-create a fresh edit session, and recreate the `EditContext`:
+`AcceptChanges` rejects transitions containing unassigned sentinels (`[SparseKey(Unassigned = ...)]`). Forms with newly added keyed rows must therefore use the fresh session pattern above once the server assigns persistent keys.
+
+### Carrying pending edits across a reload
+
+When a form needs to reload fresh server state (such as after background updates or a manual refresh) while keeping uncommitted user edits, integrate the pending changes before recreating the session.
+
+Until a dedicated session rebase API is introduced, use this pattern:
+
+1. Extract pending changes from the current session: `var pending = session.CreateChangeSet();`.
+2. Attempt to apply the pending changes onto the new server state: `pending.TryApplyTo(newServerState, out var merged)`.
+3. If conflicts occur (`TryApplyTo` returns `false`), do not recreate the session. Keep the current session and surface the conflicts (for example via `pending.RebaseOnto(newServerState)`).
+4. If the merge succeeds, recreate the session using the two-argument overload: `newServerState` serves as the baseline, and `merged` becomes the active model:
 
 ```csharp
-// Server persists the additions and assigns authoritative IDs.
-var persisted = await FetchPersistedOrderAsync();
-session = persisted.CreateEditSession();
+var pending = session.CreateChangeSet();
+if (!pending.TryApplyTo(newServerState, out var merged))
+{
+    // Conflicting edits: keep current session and display conflicts
+    ShowReloadConflicts(pending.RebaseOnto(newServerState).Conflicts);
+    return;
+}
+
+// Success: new server state becomes the baseline, merged becomes the active model
+session = newServerState.CreateEditSession(merged);
 editContext = session.CreateEditContext();
 ```
 
-No GUID auto-correlation or key remapping is provided. Normalization,
-reordering, and ID assignment are authoritative server state. Where that
-refresh is not implemented, disable editing while a save is in flight.
+This ensures the next `session.CreateChangeSet()` accurately reflects the differences between the new server baseline and the user's preserved edits.
 
 The session implements `INotifyPropertyChanged`: `HasChanges` is raised after
 accept operations and observable-proxy edits. Consumers re-read `HasChanges`
