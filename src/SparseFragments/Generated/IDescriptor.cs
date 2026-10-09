@@ -49,6 +49,13 @@ public interface IDescriptor
     bool TrySetValue(object? value);
 
     /// <summary>Gets descriptors for a nested generated model, when available.</summary>
+    /// <remarks>
+    /// Instance-bound: the set is captured against the current nested instance.
+    /// After the parent property is replaced or nulled, retained descriptors
+    /// keep their creation-time <see cref="Path"/> but writes fail safely
+    /// (false/null) instead of mutating the orphan. Re-resolve for the current
+    /// instance.
+    /// </remarks>
     IDescriptorSet? Child { get; }
 
     /// <summary>Gets sequence operations for this property, when supported.</summary>

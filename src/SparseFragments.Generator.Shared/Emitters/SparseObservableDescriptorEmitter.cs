@@ -87,7 +87,7 @@ internal static class SparseObservableDescriptorEmitter
                 + ", "
                 + Setter(member, members, runtimeNamespace, dialect)
                 + ", "
-                + ChildAccessor(member, path)
+                + ChildAccessor(member, path, dialect)
                 + ", "
                 + ArrayAccessor(member, path, dialect)
                 + ", "
@@ -197,7 +197,11 @@ internal static class SparseObservableDescriptorEmitter
         return "value => { " + converted + "this." + property + " = typed; return true; }";
     }
 
-    private static string ChildAccessor(SparseMemberModel member, string path)
+    private static string ChildAccessor(
+        SparseMemberModel member,
+        string path,
+        SparseDescriptorDialect dialect
+    )
     {
         if (
             member.ChildModel is null
@@ -208,17 +212,21 @@ internal static class SparseObservableDescriptorEmitter
             return "null";
         }
 
+        // Instance-bound descriptors: capture the current child model and fail
+        // writes safely once the parent resolves to a different instance.
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
         var accessor = AccessorName(member.ChildModel.Value.NonNullableName);
-        return "() => this."
+        return "() => { var current = this."
             + property
-            + " is null ? null : this."
-            + property
-            + "."
+            + "; if ((object?)current is null) return null; var captured = current.__SparseTarget; var inner = current."
             + accessor
             + "("
             + path
-            + ")";
+            + "); return "
+            + dialect.DescriptorSetType
+            + ".Guarded(inner, () => { var live = this."
+            + property
+            + "; if ((object?)live is null) return false; return global::System.Object.ReferenceEquals(live.__SparseTarget, captured); }); }";
     }
 
     private static string ArrayAccessor(
