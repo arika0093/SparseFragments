@@ -30,6 +30,7 @@ public static class VerifiedSamples
         RebasePolicy();
         RebaseRedacted();
         RebaseEndToEnd();
+        RebaseServerSave();
     }
 
     private static void CoreCreate()
@@ -570,6 +571,49 @@ public static class VerifiedSamples
             DocsCheck.Require(conflicts.Count > 0, "structured conflicts returned");
         }
         // /sample
+    }
+
+    private static void RebaseServerSave()
+    {
+        // sample: rebase-server-save
+        var saveA = new RebaseSettings { RetryCount = 1, Label = "a" };
+        var saveB = new RebaseSettings { RetryCount = 2, Label = "a" };
+        var saveOutgoing = saveA.CreateChangeSet(saveB);
+
+        var saveJson = JsonSerializer.Serialize(saveOutgoing.ToPayload());
+        var saveIncoming = JsonSerializer
+            .Deserialize<RebaseSettings.ChangePayload>(saveJson)!
+            .ToChangeSet();
+
+        // The client read state A alongside row version 7.
+        // The server loads the current row with its token inside the write transaction.
+        const int clientRowVersion = 7;
+        var stored = new RebaseSettings { RetryCount = 1, Label = "b" };
+        const int storedRowVersion = 7;
+
+        if (clientRowVersion != storedRowVersion)
+        {
+            throw new InvalidOperationException("The row changed under the client; reload first.");
+        }
+
+        if (!saveIncoming.TryApplyTo(stored, out var merged, out var saveConflicts))
+        {
+            throw new InvalidOperationException("The change conflicts with the current row.");
+        }
+
+        // Persist merged only when the row still carries storedRowVersion,
+        // then adopt the new token. Rebase never replaces that check.
+        const int savedRowVersion = storedRowVersion + 1;
+        // savedRowVersion == 8
+        // merged.RetryCount == 2
+        // merged.Label == "b"
+        // /sample
+        DocsCheck.Require(savedRowVersion == 8, "new token adopted after the guarded save");
+        DocsCheck.Require(
+            merged.RetryCount == 2 && merged.Label == "b",
+            "guarded save keeps both edits"
+        );
+        DocsCheck.Require(saveConflicts is null, "conflict-free save reports no conflicts");
     }
 
     private static void RebasePolicy()

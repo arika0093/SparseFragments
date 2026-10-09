@@ -403,7 +403,7 @@ The handler converts the payload with `ToChangeSet()`, loads only the current da
 
 ## End-to-End Example
 
-Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict:
+Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict. The payload shapes in this flow are specified in the [ChangePayload wire reference](change-payload.md).
 
 <!-- sample: rebase-e2e -->
 ```csharp
@@ -439,3 +439,45 @@ else
 <!-- /sample -->
 
 The transport in the middle can be HTTP, SignalR, or any message bus the application already uses. SparseFragments only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base, local, and current values without saving.
+
+### Save under a concurrency token
+
+Rebase reconciles member edits. It does not replace persistence race protection. The application carries its own concurrency token, such as a row version, ETag, or `UpdatedAt` marker, outside the `ChangeSet`, checks it inside the write transaction, and only then persists the rebased model under that token.
+
+<!-- sample: rebase-server-save -->
+```csharp
+var saveA = new RebaseSettings { RetryCount = 1, Label = "a" };
+var saveB = new RebaseSettings { RetryCount = 2, Label = "a" };
+var saveOutgoing = saveA.CreateChangeSet(saveB);
+
+var saveJson = JsonSerializer.Serialize(saveOutgoing.ToPayload());
+var saveIncoming = JsonSerializer
+    .Deserialize<RebaseSettings.ChangePayload>(saveJson)!
+    .ToChangeSet();
+
+// The client read state A alongside row version 7.
+// The server loads the current row with its token inside the write transaction.
+const int clientRowVersion = 7;
+var stored = new RebaseSettings { RetryCount = 1, Label = "b" };
+const int storedRowVersion = 7;
+
+if (clientRowVersion != storedRowVersion)
+{
+    throw new InvalidOperationException("The row changed under the client; reload first.");
+}
+
+if (!saveIncoming.TryApplyTo(stored, out var merged, out var saveConflicts))
+{
+    throw new InvalidOperationException("The change conflicts with the current row.");
+}
+
+// Persist merged only when the row still carries storedRowVersion,
+// then adopt the new token. Rebase never replaces that check.
+const int savedRowVersion = storedRowVersion + 1;
+// savedRowVersion == 8
+// merged.RetryCount == 2
+// merged.Label == "b"
+```
+<!-- /sample -->
+
+A token mismatch means the row moved under the client: reload the current state and rebase instead of saving. A rebase conflict means the edits overlap: surface the structured conflicts instead of saving. Only a rebased model saved under a still-current token completes the write. The conflict-checked `ChangeSet.TryApplyInPlace` fits bound models; the blind `ToPatch().ApplyInPlace` form skips the before-state check and suits callers that already own conflict handling, as described in [In-place application for bound models](#in-place-application-for-bound-models).

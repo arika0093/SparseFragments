@@ -139,9 +139,13 @@ check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/Verified
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     keyed-first-models keyed-first keyed-typed
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
+    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e rebase-server-save
 check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     mixed-apply rebase-in-place
+check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
+    payload-models payload-scalar-set payload-explicit-null payload-remove \
+    payload-nested payload-keyed payload-command payload-conversions payload-mixed \
+    payload-invert payload-version
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session
 
@@ -166,6 +170,7 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/model-shapes.md \
     docs/ui-frameworks.md \
     docs/fragments-and-patches.md \
+    docs/change-payload.md \
     docs/analyzer.md; then
     echo "Docs link check failed; see broken links above." >&2
     exit 1
