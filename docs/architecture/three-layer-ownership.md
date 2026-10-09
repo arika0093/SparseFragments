@@ -6,12 +6,15 @@ This document defines the Runtime, Generated-Once, and Per-Model layers,
 the criteria that place a helper in one of them, and the naming and
 visibility rules that later refactors build on.
 
-Related work: #176 owns model-facing facades, per-model placement, and
-multi-source emission. #178 owns the emission infrastructure that moves
-code between layers. #179 decouples semantic roles from product-specific
-generated names. #181 through #188 migrate individual helper families.
-When this document and a migration issue disagree, the migration issue
-records the deviation and its reason.
+Related work: #176 landed model-facing facades, per-model placement, and
+multi-source emission. #178 landed the emission infrastructure that moves
+code between layers. #179 decoupled semantic roles from product-specific
+generated names. #181 through #188 migrated individual helper families.
+This record was written for #177; the criteria, call rules, visibility
+rule, and naming scheme below remain the normative contract, while the
+ownership table now describes the landed implementation. Where this
+document and a migration issue disagreed during the work, the migration
+issue recorded the deviation and its reason.
 
 ## Layers
 
@@ -150,23 +153,24 @@ distinct, and unrelated model edits never churn other roots.
 
 ## Ownership and dependency table
 
-Status reflects the base commit of this design. Target states are
-implemented by the listed migration issues.
+Status reflects the landed implementation after the #190–#195 relocation
+(all migration issues closed). The migration column is history: it records
+which change landed each row, not pending work.
 
 | Helper family | Current location | Target layer | Criteria | Migration |
 | --- | --- | --- | --- | --- |
 | `Optional<T>`, `FragmentOperation<T>`, `MergeMode`, conflict/result/rebase-option types | Runtime (public contracts) | Runtime | C1, C2 | none; stable seam |
-| `SparseValueComparer`, `FragmentComparisonPrimitives` | Runtime | Runtime | C1, C2, C3 | none, pending #186 confirmation |
-| `SparseCollectionMerger`, `SparseCollectionRebase`, `SparseCollectionProvenance`, `SparseKeyedCollection` | Runtime | Runtime, with Generated-Once candidates per audit | C2, C3, C4 | #186 audits, #181-#183 migrate approved families |
-| Clone/cycle contexts, keyed primitives behind `SparseFragmentRuntime` | Runtime facade over Runtime implementations | Runtime seam, narrowed; generic bodies are Generated-Once candidates | C2, C3 | #186 narrows facade |
-| `SparseFragmentRuntime` itself | Runtime (public facade) | Runtime, narrowed to the required generated-to-runtime contract | C2 | #186 |
-| Generic clone/collection helpers emitted per model (`__Clone*`, materializers) | Per-Model output | Generated-Once | C3, C4 | #178 relocates, #176 placement |
-| Payload Core/Root/Change/item DTOs | Per-Model nested (`__Internal_<hash>`) | Generated-Once implementation containers (E1 stays public) | C4, C6 | #176 stage 3 |
-| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 stage 4, #178 |
-| JSON converters, descriptor factories | Per-Model | Per-Model, under implementation namespace | C5 | #176 stages 2-3 |
-| `Observable`, `ReadOnlyView`, `EditSession`, descriptor graphs | Per-Model nested | Generated-Once or implementation-namespace Per-Model types per #176 | C2, C5 | #176 stage 2 |
-| `ChangePayload` envelope facade | Per-Model | Per-Model public facade over Generated-Once DTOs | C2 | #176 stage 3 |
-| EditSession core helpers | Compilation-scoped generated source | Generated-Once | C4, C5 | #178 |
+| `SparseValueComparer`, `FragmentComparisonPrimitives` | Runtime | Runtime | C1, C2, C3 | none; confirmed by #186 |
+| `SparseCollectionMerger`, `SparseCollectionRebase`, `SparseCollectionProvenance`, `SparseKeyedCollection` | Runtime | Runtime, with Generated-Once candidates per audit | C2, C3, C4 | #186 audited; #181–#183 landed |
+| Clone/cycle contexts, keyed primitives behind `SparseFragmentRuntime` | Runtime facade over Runtime implementations | Runtime seam, narrowed; generic bodies are Generated-Once candidates | C2, C3 | #186 landed |
+| `SparseFragmentRuntime` itself | Runtime (public facade) | Runtime, narrowed to the required generated-to-runtime contract | C2 | #186 landed |
+| Generic clone/collection helpers emitted per model (`__Clone*`, materializers) | Generated-Once (`CloneKernels.g.cs`, read-only adapters, removal index) | Generated-Once | C3, C4 | #178, #176 landed (#190–#195) |
+| Payload Core/Root/Change/item DTOs | Generated-Once implementation containers (`__Internal_<hash>`, E1 stays public) | Generated-Once implementation containers (E1 stays public) | C4, C6 | #176 landed (#192) |
+| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model operations delegating to Generated-Once generics where C3 applies; bodies in `<Container>FragmentOperations`, `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194) |
+| JSON converters, descriptor factories | Per-Model facades over implementation-namespace bodies | Per-Model, under implementation namespace | C5 | #176 landed (#191, #192) |
+| `Observable`, `ReadOnlyView`, `EditSession`, descriptor graphs | Implementation-namespace Per-Model types in `SparseFragments.Generated` | Generated-Once or implementation-namespace Per-Model types per #176 | C2, C5 | #176 landed (#190, #191) |
+| `ChangePayload` envelope facade | Per-Model public facade over Generated-Once DTOs | Per-Model public facade over Generated-Once DTOs | C2 | #176 landed (#192) |
+| EditSession core helpers | Compilation-scoped generated source | Generated-Once | C4, C5 | #178 landed |
 
 ## Stable interfaces for later tracks
 

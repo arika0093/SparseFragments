@@ -168,7 +168,11 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/model-shapes.md \
     docs/ui-frameworks.md \
     docs/fragments-and-patches.md \
-    docs/analyzer.md; then
+    docs/analyzer.md \
+    docs/architecture/README.md \
+    docs/architecture/three-layer-ownership.md \
+    docs/architecture/semantic-roles.md \
+    docs/architecture/runtime-ownership-audit.md; then
     echo "Docs link check failed; see broken links above." >&2
     exit 1
 fi

@@ -6,9 +6,14 @@ roles. The owning generator binds those roles to its public names. This
 document lists the roles, the bindings, and which emitter assumptions
 are migrated here versus left to the emission infrastructure track.
 
-Related work: #176 owns model-specific placement and the public facade
+Related work: #176 landed model-specific placement and the public facade
 layout. #98 established the runtime-dialect boundary. #177 defines the
 Runtime, Generated-Once, and Per-Model layers this decoupling serves.
+This record was written for #179; the role model and binding mechanism
+below describe the current implementation. The standalone vocabulary is
+this product's configured (and shipped) binding, not a migration
+leftover: downstream generators rebind the same roles through
+`FamilyNames`.
 
 ## Role model
 
@@ -74,24 +79,34 @@ references and no `global::SparseFragments` token.
   remain and behave as before.
 - `SparseEmissionFeatures` collision names follow the bound family.
 
-## Remaining assumptions and owners
+## Landed assumptions and remaining seams
 
-Root declarations still emit standalone names (`Fragment`,
-`FragmentBuilder`, `Patch`, `ChangeSet`, `ChangePayload` literals
-across the declaration, algebra, payload, JSON, and UI emitters), as do
-operation and member names (`From`, `DeepClone`, `__SparseAreEqual`,
-`ToPatch`, `ToChangeSet`, merge-strategy and policy field owners).
-Threading families through every emitter signature belongs to the
-emission infrastructure track (#178), which is also relocating those
-declarations. Per-child UI fallbacks of the form
-`ObservableTypeName ?? "Observable"` and
-`ReadOnlyViewTypeName ?? "ReadOnlyView"` in the descriptor and
-read-only emitters stay until the UI relocation stage (#176, stage 2)
-gives those paths family context. Runtime member names on
-dialect-owned types (`AreEqual`, `MergeSet`, `CreateCloneContext`,
-`TryRebaseAppend`, provenance entry points) are stable contracts
-documented in the runtime ownership audit (#186); dialectizing them is
-follow-up work for the helper migrations (#181-#183), not this issue.
+Root declarations keep the standalone names (`Fragment`,
+`FragmentBuilder`, `Patch`, `ChangeSet`, `ChangePayload`) because the
+standalone family is this product's binding, alongside operation and
+member names (`From`, `DeepClone`, `__SparseAreEqual`, `ToPatch`,
+`ToChangeSet`, merge-strategy and policy field owners). A downstream
+generator rebinds the same roles through `FamilyNames` and the
+`SparseSemanticReference` resolver, with `ChildPatchName` /
+`ChildChangeSetName` delegates built from the same resolver. Per-child
+UI fallbacks of the form `ObservableTypeName ?? "Observable"` and
+`ReadOnlyViewTypeName ?? "ReadOnlyView"` in the descriptor and read-only
+emitters remain until UI paths carry family context; the relocated UI
+types themselves live in the per-model implementation containers
+(#190, #191). Runtime member names on dialect-owned types (`AreEqual`,
+`MergeSet`, `CreateCloneContext`, `TryRebaseAppend`, provenance entry
+points) are stable contracts documented in the runtime ownership audit
+(#186); dialectizing them is follow-up work for the helper migrations
+(#181–#183, landed for the approved families), not a silent emitter
+change. Family-aware overloads now exist across the declaration,
+observable, read-only, descriptor, and implementation emitters, with
+product call sites passing the configured `EffectiveFamilyNames` and the
+standalone family kept as the default; the emission-infrastructure track
+(#178) is landed. The current configuration surface,
+including `EmissionFeatures` and the dialect members, is documented in
+the [Shared README](../../src/SparseFragments.Generator.Shared/README.md)
+and verified by the downstream dialect fixture tests and
+`SemanticReferenceTests`.
 
 Generated-Once generic algorithms already obtain runtime types through
 generic parameters or explicit dialect contracts rather than fixed

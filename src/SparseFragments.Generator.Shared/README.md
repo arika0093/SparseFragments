@@ -54,7 +54,10 @@ state, operation, transition, payload, and view names
 (`SparseFamilyNames`, defaulting to the standalone
 `Fragment`/`Patch`/`ChangeSet` vocabulary). Child and nested references
 resolve through `SparseSemanticReference` from those bindings; see
-`docs/architecture/semantic-roles.md` for the role model and its limits.
+`docs/architecture/semantic-roles.md` for the role model and its limits,
+and `docs/architecture/README.md` for the contributor-oriented
+architecture overview (current layer placement, document status, and the
+migration ledger).
 
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
 helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch
