@@ -208,6 +208,13 @@ internal static class SparseEditSessionEmitter
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
+            // Descriptors are live views: every getter/setter delegate reads the
+            // current observable state, so the root set is cached per session
+            // instead of reallocating the whole graph on each access.
+            code.AppendLineAt(
+                2,
+                "private " + descriptorDialect.DescriptorSetInterface + "? __descriptors;"
+            );
             code.AppendLineAt(
                 2,
                 "/// <summary>Gets descriptors bound to this session's observable model.</summary>"
@@ -216,9 +223,9 @@ internal static class SparseEditSessionEmitter
                 2,
                 "public "
                     + descriptorDialect.DescriptorSetInterface
-                    + " Descriptors => Observable."
+                    + " Descriptors => __descriptors ?? (__descriptors = Observable."
                     + SparseObservableDescriptorEmitter.AccessorName(modelType)
-                    + "(global::System.String.Empty);"
+                    + "(global::System.String.Empty));"
             );
         }
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
