@@ -178,6 +178,14 @@ and the `SparseDescriptorValue` conversion helper. Set members (`HashSet<T>`,
 positional semantics; the `IReadOnlySet<T>` reference is only named for members
 declared with that type, so compilations without the type keep compiling. All
 dialect entries are required: Shared provides no implicit runtime fallback.
+`SparseDescriptorCapabilities` represents descriptor helpers as explicit
+Generated-Once capabilities (static metadata, instance bridges, change
+projection, collection/value helpers) with validated prerequisites
+(descriptor dialect plus the Observable family). Static per-model metadata is
+cached once per model and shared across accesses; generic implementations
+stay shared once per compilation where contract identity permits (today via
+the shared runtime). Per-model bridges keep using the DescriptorFactory
+placement seam until facade separation lands.
 
 ## Member transport and rebase policies
 
