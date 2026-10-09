@@ -286,7 +286,7 @@ internal static class SparseModelExtensionsEmitter
             2,
             "public event global::System.Action<"
                 + modelType
-                + ".ChangeSet>? ChangeSetChanged { add => _session.ChangeSetChanged += value; remove => _session.ChangeSetChanged -= value; }"
+                + ".ChangeSet>? TransitionObserved { add => _session.TransitionObserved += value; remove => _session.TransitionObserved -= value; }"
         );
         code.AppendLineAt(
             2,

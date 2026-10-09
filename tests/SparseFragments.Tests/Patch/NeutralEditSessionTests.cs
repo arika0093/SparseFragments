@@ -575,7 +575,7 @@ public sealed class NeutralEditSessionTests
         session.Current.Child.Value.ShouldBe(string.Empty);
 
         var notifications = new List<NeutralSessionModel.ChangeSet>();
-        session.ChangeSetChanged += notifications.Add;
+        session.TransitionObserved += notifications.Add;
         session.Observable.Name = "updated";
         session.Observable.Child!.Value = "nested";
 

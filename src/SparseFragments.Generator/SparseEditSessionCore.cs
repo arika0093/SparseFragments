@@ -342,7 +342,7 @@ namespace SparseFragments.__GeneratedSessionCore
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>Raised with the leaf transitions produced by each observable edit.</summary>
-        public event Action<TChangeSet>? ChangeSetChanged;
+        public event Action<TChangeSet>? TransitionObserved;
 
         /// <summary>Derives the baseline-aware change set between the retained baseline and current model.</summary>
         public TChangeSet CreateChangeSet()
@@ -572,7 +572,7 @@ namespace SparseFragments.__GeneratedSessionCore
 
             if (!_isEmpty(transition))
             {
-                ChangeSetChanged?.Invoke(transition);
+                TransitionObserved?.Invoke(transition);
             }
 
             OnPropertyChanged(nameof(HasChanges));
@@ -587,7 +587,7 @@ namespace SparseFragments.__GeneratedSessionCore
             _refreshObservable?.Invoke(_observable);
             if (!_isEmpty(transition))
             {
-                ChangeSetChanged?.Invoke(transition);
+                TransitionObserved?.Invoke(transition);
             }
 
             OnPropertyChanged(nameof(HasChanges));

@@ -99,8 +99,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
@@ -419,8 +419,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
@@ -679,8 +679,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
@@ -946,8 +946,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
@@ -1243,8 +1243,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
@@ -1596,8 +1596,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable Observable { get; }
-            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>? ChangeSetChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+            public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
