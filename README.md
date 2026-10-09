@@ -105,6 +105,21 @@ if (response.IsSuccess)
 }
 ```
 
+Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
+
+```csharp
+session.Observable.Name = "Updated";
+string shown = session.Current.Name;
+
+session.BatchEdit(() =>
+{
+    session.Observable.Name = "Batched";
+});
+
+session.RevertChanges();
+// session.HasChanges == false
+```
+
 The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
 
 For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
@@ -121,7 +136,7 @@ if (!pending.TryApplyInPlace(boundModel, out var conflicts))
 
 The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
 
-See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+`session.Descriptors` (per-member metadata for generic form builders) and `ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) are advanced seams. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
 
 ### Keyed Collections
 
@@ -213,6 +228,8 @@ The generated types answer different questions:
 | `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
 | `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON |
 | `SparseEditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
+
+Edit through `session.Observable` and read through `session.Current` rather than mutating `session.Model` directly; the proxy adds notifications and the read-only view cannot change state by accident. `session.Descriptors` and `ChangeSet.EnumerateChanges()` stay reserved for generic UI and diagnostics code. See [UI Editing](#ui-editing) and [UI frameworks](docs/ui-frameworks.md).
 
 The distinction is visible in a small example:
 

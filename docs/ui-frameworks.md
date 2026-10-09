@@ -57,6 +57,40 @@ for the net transition; nested batches join it. `PropertyChanged` and the
 optional `onChanged` callback are also coalesced. A batch does not roll back
 mutations if its action throws.
 
+### Edit through Observable, read through Current
+
+Bind controls to `session.Observable` and read display state from `session.Current`. The observable proxy edits the live model with notifications; the read-only view exposes the same state without setters, so display code cannot change it by accident:
+
+```csharp
+var line = new UiOrder { Number = "ORD-1" };
+var editSession = line.CreateEditSession();
+
+editSession.Observable.Number = "ORD-2";
+string shown = editSession.Current.Number;
+// shown == "ORD-2"
+// line.Number == "ORD-2"
+
+editSession.BatchEdit(() =>
+{
+    editSession.Observable.Number = "ORD-3";
+});
+
+editSession.RevertChanges();
+// line.Number == "ORD-1"
+// editSession.HasChanges == false
+```
+
+`RevertChanges()` writes the retained baseline back into the live model in place. It discards unsaved edits; it does not contact a server and does not advance the baseline. `Current` always reflects the live model, so it shows the reverted values immediately. For the full transition and payload vocabulary, see [Fragments and patches](fragments-and-patches.md) and [ChangeSet rebase](rebase.md).
+
+### Advanced inspection: Descriptors and flattened changes
+
+Ordinary editing needs only `Observable`, `Current`, and `CreateChangeSet()`. Two further seams exist for generic UI and diagnostics code:
+
+* `session.Descriptors` exposes per-member metadata (path, type, nullability, editability), live get/set accessors, and the property attributes from the source model. It backs generic form builders and validation; handwritten per-member code should use the typed surface instead.
+* `ChangeSet.EnumerateChanges()` flattens a transition into `ChangeInfo` rows (path, presence-aware before/after, `ChangeKind`), and `EnumerateChangedPaths()` lists the changed member paths. They feed logs, lists, and tests; ordinary editing reads the typed member transitions instead (see [Observe typed member transitions](fragments-and-patches.md#observe-typed-member-transitions)).
+
+Limitations: descriptors track the live model, so values read through them change as the model changes. Flattened enumeration describes one computed transition; it does not update when the model is edited further.
+
 `HasChanges` and `CreateChangeSet()` always compare that
 baseline with the model's current state, so edit-then-restore is clean even if a
 UI control reported that a field was touched. `CreatePatch()` projects the same
