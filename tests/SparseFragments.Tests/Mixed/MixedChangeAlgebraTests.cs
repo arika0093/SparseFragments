@@ -328,6 +328,62 @@ public sealed class MixedChangeAlgebraTests
     }
 
     [Test]
+    public void TrailingBlindRootSupersedesPriorMembers()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Label"), Transition("Nested.Host")],
+            [wholeBlind]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
+    public void LeadingBlindRootAbsorbsLaterMembers()
+    {
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [wholeBlind],
+            [Blind("Label"), Blind("Other")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].IsWholeRoot.ShouldBeTrue();
+    }
+
+    [Test]
+    public void WholeRootTransitionNeedsContinuity()
+    {
+        var wholeTransition = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.Transition,
+            MixedAfterKind.Value,
+            true
+        );
+        var wholeBlind = new MixedMemberOperation(
+            "$root",
+            MixedHistoryKind.BlindSet,
+            MixedAfterKind.Value,
+            true
+        );
+        var unjustified = MixedChangeAlgebra.ComposeSequences([wholeBlind], [wholeTransition]);
+        unjustified.Succeeded.ShouldBeFalse();
+        unjustified.Failures.ShouldHaveSingleItem();
+    }
+
+    [Test]
     public void PolicySeamDefaultsToPassthroughAndFailsClosed()
     {
         MixedChangeAlgebra.EnsurePassthrough(RedactedBeforePolicy.Passthrough);
