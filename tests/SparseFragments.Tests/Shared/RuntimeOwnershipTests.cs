@@ -97,13 +97,15 @@ public sealed class RuntimeOwnershipTests
     // Every facade member has a documented layer owner in
     // docs/architecture/runtime-ownership-audit.md. Pin the surface so
     // relocations change it deliberately instead of silently.
+    // 37 = 25 audited in #186 + 12 statically specialized comparison
+    // overloads added in #187 (same member names, concrete collection shapes).
     [Test]
     public void FacadeSurfaceMatchesTheAuditedContract()
     {
         var methods = typeof(SparseFragmentRuntime).GetMethods(
             BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly
         );
-        methods.Length.ShouldBe(25);
+        methods.Length.ShouldBe(37);
         methods
             .Select(static method => method.Name)
             .Distinct()
