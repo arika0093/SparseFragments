@@ -23,16 +23,28 @@ internal static class SparseReadOnlyViewEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        string? implementationNamespace = null
     )
     {
         var typeName = ReadOnlyViewTypeName(members);
         var modelFieldName = HelperName(MemberNames(members), "__model");
         var allMemberNames = MemberNames(members)
             .AddRange(readOnlyViewModels.SelectMany(static view => MemberNames(view.Members)));
-        var collectionName = HelperName(allMemberNames, "__SparseReadOnlyCollection");
-        var dictionaryName = HelperName(allMemberNames, "__SparseReadOnlyDictionary");
-        var dictionaryEntriesName = HelperName(allMemberNames, "__SparseReadOnlyDictionaryEntries");
+        // Generated-Once (#181): with an explicit namespace the generic
+        // adapters live once per compilation; per-model output only names
+        // them. Null keeps the legacy single-file emission for downstream
+        // dialects without a placement namespace.
+        var useShared = !string.IsNullOrEmpty(implementationNamespace);
+        var collectionName = useShared
+            ? SparseGeneratedOnceNames.QualifiedListAdapter(implementationNamespace!)
+            : HelperName(allMemberNames, "__SparseReadOnlyCollection");
+        var dictionaryName = useShared
+            ? SparseGeneratedOnceNames.QualifiedDictionaryAdapter(implementationNamespace!)
+            : HelperName(allMemberNames, "__SparseReadOnlyDictionary");
+        var dictionaryEntriesName = useShared
+            ? SparseGeneratedOnceNames.QualifiedDictionaryEntriesAdapter(implementationNamespace!)
+            : HelperName(allMemberNames, "__SparseReadOnlyDictionaryEntries");
         var pocoViewNames = PocoViewTypeNames(
             typeName,
             modelFieldName,
@@ -90,9 +102,22 @@ internal static class SparseReadOnlyViewEmitter
             }
         }
 
-        SparseReadOnlyAdapterEmitter.AppendCollectionAdapter(code, collectionName);
-        SparseReadOnlyAdapterEmitter.AppendDictionaryAdapter(code, dictionaryName, collectionName);
-        SparseReadOnlyAdapterEmitter.AppendDictionaryEntriesAdapter(code, dictionaryEntriesName);
+        // Shared adapters (#181) are emitted once per compilation; only the
+        // legacy single-file path redefines the generic adapters per model.
+        if (!useShared)
+        {
+            SparseReadOnlyAdapterEmitter.AppendCollectionAdapter(code, collectionName);
+            SparseReadOnlyAdapterEmitter.AppendDictionaryAdapter(
+                code,
+                dictionaryName,
+                collectionName
+            );
+            SparseReadOnlyAdapterEmitter.AppendDictionaryEntriesAdapter(
+                code,
+                dictionaryEntriesName
+            );
+        }
+
         code.AppendLineAt(1, "}");
     }
 

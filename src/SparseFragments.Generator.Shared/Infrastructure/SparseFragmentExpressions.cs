@@ -17,7 +17,8 @@ internal sealed class SparseFragmentExpressions(
     string valueComparer,
     string collectionMerger,
     string optionalType,
-    SparseFamilyNames? familyNames = null
+    SparseFamilyNames? familyNames = null,
+    string? cloneKernelsPrefix = null
 )
 {
     private string ValueComparer { get; } = valueComparer;
@@ -28,6 +29,14 @@ internal sealed class SparseFragmentExpressions(
     // Null keeps the standalone vocabulary so existing downstream call sites
     // compile unchanged; products with their own names pass their bindings.
     private SparseFamilyNames Family { get; } = familyNames ?? SparseFamilyNames.Standalone;
+
+    // Generated-Once (#182): with an explicit prefix the collection clone
+    // calls resolve to the compilation-scoped kernels; null keeps the legacy
+    // per-model private helpers for downstream dialects without placement.
+    private string? CloneKernelsPrefix { get; } = cloneKernelsPrefix;
+
+    private string CloneKernel(string name) =>
+        CloneKernelsPrefix is null ? name : CloneKernelsPrefix + "." + name;
 
     /// <summary>Builds the equality expression for one member's present values.</summary>
     /// <remarks>
@@ -194,7 +203,7 @@ internal sealed class SparseFragmentExpressions(
             {
                 var keySelector = CloneSelector(collection.ElementType, "key");
                 var valueSelector = CloneSelector(collection.ValueType.Value, "value");
-                return $"__CloneDictionary<{collection.ElementType.Name}, {collection.ValueType.Value.Name}, {member.Property.Type.Name}>({access}, {CloneContext}, {keySelector}, {valueSelector})";
+                return $"{CloneKernel("__CloneDictionary")}<{collection.ElementType.Name}, {collection.ValueType.Value.Name}, {member.Property.Type.Name}>({access}, {CloneContext}, {keySelector}, {valueSelector})";
             }
 
             return access;
@@ -204,13 +213,13 @@ internal sealed class SparseFragmentExpressions(
         return collection.CloneKind switch
         {
             SparseCloneCollectionKind.Array =>
-                $"__CloneArray<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
+                $"{CloneKernel("__CloneArray")}<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
             SparseCloneCollectionKind.List =>
-                $"__CloneList<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
+                $"{CloneKernel("__CloneList")}<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
             SparseCloneCollectionKind.Set => member.PortableSetView
             && IsInterfaceSet(collection.NamedTypeDefinition)
-                ? $"__CloneSetView<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})"
-                : $"__CloneSet<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
+                ? $"{CloneKernel("__CloneSetView")}<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})"
+                : $"{CloneKernel("__CloneSet")}<{elementType}, {member.Property.Type.Name}>({access}, {CloneContext}, {selector})",
             _ => access,
         };
     }

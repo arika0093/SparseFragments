@@ -3,7 +3,72 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits an index into the ordered dictionary removal list.</summary>
 internal static class SparseDictionaryRemovalIndexEmitter
 {
-    internal static void Emit(SharedIndentedBuilder code, string keyType, string comparer)
+    internal static void Emit(
+        SharedIndentedBuilder code,
+        string keyType,
+        string comparer,
+        string? implementationNamespace = null
+    )
+    {
+        // Generated-Once (#183): with an explicit namespace the kernels live
+        // once per compilation; per-patch output keeps only the internal
+        // reserve entry point used by ChangeSet/payload sync paths.
+        if (!string.IsNullOrEmpty(implementationNamespace))
+        {
+            var prefix =
+                SparseGeneratedOnceNames.QualifiedRemovalIndex(implementationNamespace!)
+                + "<"
+                + keyType
+                + ">";
+            code.AppendLineAt(
+                3,
+                "internal void __SparseReserveRemovals(int count) => "
+                    + prefix
+                    + ".ReserveRemovals(ref __removed, ref __removedLookup, count);"
+            );
+            return;
+        }
+
+        EmitLegacy(code, keyType, comparer);
+    }
+
+    internal static void EmitAdd(
+        SharedIndentedBuilder code,
+        string comparer,
+        bool keepReservedIndex,
+        string? keyType = null,
+        string? implementationNamespace = null
+    )
+    {
+        // Shared kernels (#183) take the ordered add inline: dedup, indexed
+        // insert and capacity growth live once per compilation.
+        if (!string.IsNullOrEmpty(implementationNamespace) && keyType is not null)
+        {
+            var prefix =
+                SparseGeneratedOnceNames.QualifiedRemovalIndex(implementationNamespace!)
+                + "<"
+                + keyType
+                + ">";
+            code.AppendLineAt(
+                4,
+                prefix
+                    + ".AddRemoval(__removed!, ref __removedLookup, key, "
+                    + (keepReservedIndex ? "true" : "false")
+                    + ");"
+            );
+            return;
+        }
+
+        EmitLegacyAdd(code, comparer, keepReservedIndex);
+    }
+
+    internal static string SharedPrefix(string keyType, string implementationNamespace) =>
+        SparseGeneratedOnceNames.QualifiedRemovalIndex(implementationNamespace)
+        + "<"
+        + keyType
+        + ">";
+
+    private static void EmitLegacy(SharedIndentedBuilder code, string keyType, string comparer)
     {
         code.AppendLineAt(3, "private void __SparseCancelRemoval(" + keyType + " key)");
         code.AppendLineAt(3, "{");
@@ -69,7 +134,7 @@ internal static class SparseDictionaryRemovalIndexEmitter
         EmitIndexedAdd(code, keyType);
     }
 
-    internal static void EmitAdd(
+    internal static void EmitLegacyAdd(
         SharedIndentedBuilder code,
         string comparer,
         bool keepReservedIndex

@@ -129,12 +129,22 @@ internal static class SparseFragmentEmitter
         if (!planErrors.IsDefaultOrEmpty && planErrors.Length > 0)
             throw new ArgumentException(planErrors[0], nameof(config));
         SparseDownstreamPolicy.ThrowOnInvalidTransport(members, patchDialect);
+        // Generated-Once (#182): with an explicit namespace the collection
+        // clone kernels live once per compilation; null keeps the legacy
+        // per-model private helpers for downstream dialects.
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        var cloneKernelsPrefix = implementationNamespace is null
+            ? null
+            : SparseGeneratedOnceNames.QualifiedCloneKernels(implementationNamespace);
         var expressions = new SparseFragmentExpressions(
             "__sparse_clone_context",
             runtime.ValueComparer,
             runtime.CollectionMerger,
             runtime.OptionalType,
-            config.EffectiveFamilyNames
+            config.EffectiveFamilyNames,
+            cloneKernelsPrefix
         );
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
@@ -213,11 +223,16 @@ internal static class SparseFragmentEmitter
                 poco.Members,
                 poco.Model.Constructor
             );
-        SparseFragmentCoreEmitter.AppendCollectionCloneHelpers(
-            code,
-            portableSetView,
-            bclHashSetSupportsCapacity
-        );
+        // Shared kernels (#182) are emitted once per compilation; only the
+        // legacy single-file path redefines them per model.
+        if (implementationNamespace is null)
+        {
+            SparseFragmentCoreEmitter.AppendCollectionCloneHelpers(
+                code,
+                portableSetView,
+                bclHashSetSupportsCapacity
+            );
+        }
         if (features.EmitFragment)
         {
             AppendFragment(
@@ -233,7 +248,8 @@ internal static class SparseFragmentEmitter
                 features,
                 generatedAccessibility,
                 constructor: model.Constructor,
-                ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
+                ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames,
+                implementationNamespace: implementationNamespace
             );
         }
         if (features.EmitFragment && features.EmitObservable)
@@ -252,7 +268,8 @@ internal static class SparseFragmentEmitter
                 code,
                 modelType,
                 members,
-                readOnlyViewModels
+                readOnlyViewModels,
+                implementationNamespace
             );
         }
 
@@ -297,7 +314,8 @@ internal static class SparseFragmentEmitter
         string generatedAccessibility,
         bool isRootModel = true,
         ModelConstructorBinding? constructor = null,
-        ImmutableArray<string> ignoredSettablePropertyNames = default
+        ImmutableArray<string> ignoredSettablePropertyNames = default,
+        string? implementationNamespace = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -360,7 +378,8 @@ internal static class SparseFragmentEmitter
             ignoredSettablePropertyNames,
             canApplyInPlace,
             features,
-            generatedAccessibility
+            generatedAccessibility,
+            implementationNamespace
         );
     }
 

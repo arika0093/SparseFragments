@@ -172,6 +172,17 @@ current single-file emission. `SparseGenerationResult.AdditionalSources`
 carries the implementation files with the surface file so per-model
 incremental isolation covers both.
 
+Compilation-scoped helpers live in the same namespace with stable hint names
+(`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
+`SparseGeneratedOnceNames` pins those identities; per-model output
+instantiates them instead of redefining the generic code. The product
+generator aggregates requirements across explicit and promoted models and
+emits each family once. Until the capability-driven plane from #178 lands,
+that aggregation is manual; #178 should replace the wiring, not the names.
+The clone family keeps the track-3 identity (`SparseCloneKernels`,
+`<ns>.CloneKernels.g.cs`); track-2's `SparseCloneHelpers`/`CloneHelpers.g.cs`
+is renamed to match at track-2 merge time.
+
 ## Descriptor configuration
 
 `SparseDescriptorDialect` names the caller-owned descriptor contracts and their

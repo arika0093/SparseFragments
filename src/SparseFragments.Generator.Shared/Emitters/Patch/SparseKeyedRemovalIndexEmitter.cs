@@ -2,7 +2,33 @@ namespace SparseFragments.Generator.Shared;
 
 internal static class SparseKeyedRemovalIndexEmitter
 {
-    internal static void Emit(SharedIndentedBuilder code, string keyType, string comparer)
+    internal static void Emit(
+        SharedIndentedBuilder code,
+        string keyType,
+        string comparer,
+        string? implementationNamespace = null
+    )
+    {
+        // Generated-Once (#183): the keyed patch drops its IndexedRemovals
+        // subclass and shares the plain list-plus-slots storage with
+        // dictionary patches; only the lookup field and the internal reserve
+        // entry point stay per patch.
+        if (!string.IsNullOrEmpty(implementationNamespace))
+        {
+            code.AppendLineAt(3, "private int[]? __removedLookup;");
+            SparseDictionaryRemovalIndexEmitter.Emit(
+                code,
+                keyType,
+                comparer,
+                implementationNamespace
+            );
+            return;
+        }
+
+        EmitLegacy(code, keyType, comparer);
+    }
+
+    private static void EmitLegacy(SharedIndentedBuilder code, string keyType, string comparer)
     {
         code.AppendLineAt(
             3,

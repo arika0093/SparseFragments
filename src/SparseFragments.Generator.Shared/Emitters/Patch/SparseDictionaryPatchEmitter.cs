@@ -7,7 +7,8 @@ internal static class SparseDictionaryPatchEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType = null
+        string? modelType = null,
+        string? implementationNamespace = null
     )
     {
         var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
@@ -38,9 +39,10 @@ internal static class SparseDictionaryPatchEmitter
             kind,
             comparer,
             hasPatch,
-            editedValueType
+            editedValueType,
+            implementationNamespace
         );
-        SparseDictionaryRemovalIndexEmitter.Emit(code, keyType, comparer);
+        SparseDictionaryRemovalIndexEmitter.Emit(code, keyType, comparer, implementationNamespace);
         EmitDictionaryApply(
             code,
             member,
@@ -124,9 +126,14 @@ internal static class SparseDictionaryPatchEmitter
         string kind,
         string comparer,
         bool hasPatch,
-        string editedValueType
+        string editedValueType,
+        string? implementationNamespace = null
     )
     {
+        // Shared removal prefix (#183); null keeps the legacy private kernels.
+        var sharedRemoval = string.IsNullOrEmpty(implementationNamespace)
+            ? null
+            : SparseDictionaryRemovalIndexEmitter.SharedPrefix(keyType, implementationNamespace!);
         code.AppendLineAt(
             2,
             "/// <summary>Dictionary patch for member '" + member.Property.Name + "'.</summary>"
@@ -212,7 +219,14 @@ internal static class SparseDictionaryPatchEmitter
         code.AppendLineAt(3, "public void SetEntry(" + keyType + " key, " + valueType + " value)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "EnsureGranular(\"SetEntry\");");
-        code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
+        code.AppendLineAt(
+            4,
+            sharedRemoval is null
+                ? "if (__removed is not null) __SparseCancelRemoval(key);"
+                : "if (__removed is not null) "
+                    + sharedRemoval
+                    + ".CancelRemoval(__removed!, ref __removedLookup, key);"
+        );
         code.AppendLineAt(4, "if (__edited is not null) __edited.Remove(key);");
         code.AppendLineAt(
             4,
@@ -235,7 +249,13 @@ internal static class SparseDictionaryPatchEmitter
             4,
             "__removed ??= new global::System.Collections.Generic.List<" + keyType + ">();"
         );
-        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer, keepReservedIndex: true);
+        SparseDictionaryRemovalIndexEmitter.EmitAdd(
+            code,
+            comparer,
+            keepReservedIndex: true,
+            keyType,
+            implementationNamespace
+        );
         code.AppendLineAt(3, "}");
         if (hasPatch)
         {
@@ -245,7 +265,11 @@ internal static class SparseDictionaryPatchEmitter
             code.AppendLineAt(4, "EnsureGranular(\"Edit\");");
             code.AppendLineAt(
                 4,
-                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed entry.\");"
+                sharedRemoval is null
+                    ? "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed entry.\");"
+                    : "if (__removed is not null && "
+                        + sharedRemoval
+                        + ".ContainsRemoved(__removed!, __removedLookup, key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed entry.\");"
             );
             code.AppendLineAt(
                 4,
@@ -280,7 +304,11 @@ internal static class SparseDictionaryPatchEmitter
             code.AppendLineAt(4, "EnsureGranular(\"UpdateEntry\");");
             code.AppendLineAt(
                 4,
-                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed entry. Set it again instead.\");"
+                sharedRemoval is null
+                    ? "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed entry. Set it again instead.\");"
+                    : "if (__removed is not null && "
+                        + sharedRemoval
+                        + ".ContainsRemoved(__removed!, __removedLookup, key)) throw new global::System.InvalidOperationException(\"Cannot update a removed entry. Set it again instead.\");"
             );
             code.AppendLineAt(
                 4,
