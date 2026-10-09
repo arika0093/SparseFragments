@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SparseFragments;
 using SparseFragments.Generator;
+using SparseFragments.Generator.Shared;
 
 /// <summary>
 /// Incremental-generator scale benchmarks for the promoted-model pipeline
@@ -50,6 +51,13 @@ public class GeneratorInvalidationBenchmarks
         }
 
         _baseCompilation = ScaleCompilations.Create(RootCount);
+        var errors = _baseCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error);
+        if (errors.Any())
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
+        }
         _unrelatedCompilation = _baseCompilation;
         _unrelatedDriver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
@@ -66,6 +74,10 @@ public class GeneratorInvalidationBenchmarks
         _sharedTrackedDriver = GeneratorStepTracking
             .CreateTrackedDriver()
             .RunGenerators(_baseCompilation);
+        ValidateDriver(_unrelatedDriver);
+        ValidateDriver(_sharedDriver);
+        ValidateDriver(_unrelatedTrackedDriver);
+        ValidateDriver(_sharedTrackedDriver);
         _unrelatedEdits = 0;
         _sharedEdits = 0;
         _unrelatedTrackedEdits = 0;
@@ -73,13 +85,49 @@ public class GeneratorInvalidationBenchmarks
         _preparedFor = RootCount;
     }
 
-    [Benchmark(Description = "Generator cold: full generation over N roots sharing one promoted type")]
+    private void ValidateDriver(GeneratorDriver driver)
+    {
+        var run = driver.GetRunResult();
+        var result = run.Results.Single();
+        if (result.Exception is not null)
+        {
+            throw new InvalidOperationException("Benchmark generation failed.", result.Exception);
+        }
+        var errors = run.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+        if (errors.Any())
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
+        }
+        var hints = result
+            .GeneratedSources.Select(source => source.HintName)
+            .ToHashSet(StringComparer.Ordinal);
+        for (var index = 0; index < RootCount; index++)
+        {
+            var typeName = "global::ScaleRoot" + index;
+            var expected =
+                SparseNaming.Sanitize(typeName, CancellationToken.None)
+                + "_"
+                + SparseNaming.GetStableTypeHash(typeName, CancellationToken.None)
+                + ".SparseFragments.g.cs";
+            if (!hints.Contains(expected))
+            {
+                throw new InvalidOperationException("Missing generated root: " + expected);
+            }
+        }
+    }
+
+    [Benchmark(
+        Description = "Generator cold: full generation over N roots sharing one promoted type"
+    )]
     public int ColdGeneration()
     {
         EnsurePrepared();
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new SparseFragmentsGenerator());
         driver = driver.RunGenerators(_baseCompilation);
-        return driver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Count();
+        return driver
+            .GetRunResult()
+            .Results.SelectMany(static result => result.GeneratedSources)
+            .Count();
     }
 
     [Benchmark(Description = "Generator incremental: edit a single unrelated root")]
@@ -90,7 +138,10 @@ public class GeneratorInvalidationBenchmarks
         var updated = ScaleCompilations.WithUnrelatedEdit(_unrelatedCompilation, _unrelatedEdits);
         _unrelatedDriver = _unrelatedDriver.RunGenerators(updated);
         _unrelatedCompilation = updated;
-        return _unrelatedDriver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Count();
+        return _unrelatedDriver
+            .GetRunResult()
+            .Results.SelectMany(static result => result.GeneratedSources)
+            .Count();
     }
 
     [Benchmark(Description = "Generator incremental: edit the shared promoted type")]
@@ -101,10 +152,15 @@ public class GeneratorInvalidationBenchmarks
         var updated = ScaleCompilations.WithSharedEdit(_sharedCompilation, _sharedEdits);
         _sharedDriver = _sharedDriver.RunGenerators(updated);
         _sharedCompilation = updated;
-        return _sharedDriver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Count();
+        return _sharedDriver
+            .GetRunResult()
+            .Results.SelectMany(static result => result.GeneratedSources)
+            .Count();
     }
 
-    [Benchmark(Description = "Generator steps: cached tracked outputs after an unrelated-root edit")]
+    [Benchmark(
+        Description = "Generator steps: cached tracked outputs after an unrelated-root edit"
+    )]
     public int IncrementalUnrelatedEdit_CachedSteps()
     {
         EnsurePrepared();
@@ -120,7 +176,9 @@ public class GeneratorInvalidationBenchmarks
         );
     }
 
-    [Benchmark(Description = "Generator steps: recomputed tracked outputs after a shared-type edit")]
+    [Benchmark(
+        Description = "Generator steps: recomputed tracked outputs after a shared-type edit"
+    )]
     public int IncrementalSharedEdit_RecomputedSteps()
     {
         EnsurePrepared();
@@ -144,8 +202,7 @@ public class GeneratorInvalidationBenchmarks
         {
             var files = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [SharedPath] =
-                    """
+                [SharedPath] = """
                     using SparseFragments;
                     public partial class ScaleShared
                     {
@@ -156,8 +213,7 @@ public class GeneratorInvalidationBenchmarks
             };
             for (var index = 0; index < rootCount; index++)
             {
-                files[$"ScaleRoot{index}.cs"] =
-                    $$"""
+                files[$"ScaleRoot{index}.cs"] = $$"""
                     using SparseFragments;
                     [SparseFragmentModel]
                     public partial class ScaleRoot{{index}}
@@ -175,12 +231,20 @@ public class GeneratorInvalidationBenchmarks
         {
             var rootCount = compilation.SyntaxTrees.Count(tree => tree.FilePath != SharedPath);
             var index = edit % rootCount;
-            return WithAppendedMember(compilation, $"ScaleRoot{index}.cs", $"public int UnrelatedEdit{edit} {{ get; set; }}");
+            return WithAppendedMember(
+                compilation,
+                $"ScaleRoot{index}.cs",
+                $"public int UnrelatedEdit{edit} {{ get; set; }}"
+            );
         }
 
         internal static CSharpCompilation WithSharedEdit(CSharpCompilation compilation, int edit)
         {
-            return WithAppendedMember(compilation, SharedPath, $"public string SharedEdit{edit} {{ get; set; }} = \"\";");
+            return WithAppendedMember(
+                compilation,
+                SharedPath,
+                $"public string SharedEdit{edit} {{ get; set; }} = \"\";"
+            );
         }
 
         private static CSharpCompilation WithAppendedMember(
@@ -217,9 +281,9 @@ public class GeneratorInvalidationBenchmarks
                 "SparseGeneratorScaleProbe",
                 trees,
                 references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithNullableContextOptions(
-                    NullableContextOptions.Enable
-                )
+                new CSharpCompilationOptions(
+                    OutputKind.DynamicallyLinkedLibrary
+                ).WithNullableContextOptions(NullableContextOptions.Enable)
             );
         }
     }
