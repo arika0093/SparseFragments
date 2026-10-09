@@ -351,13 +351,25 @@ namespace SparseFragments.CompilerServices
 {
     public static class SparseFragmentRuntime
     {
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.Dictionary<TKey, TValue>? left, System.Collections.Generic.Dictionary<TKey, TValue>? right) { }
         public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? left, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? right) { }
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.SortedDictionary<TKey, TValue>? left, System.Collections.Generic.SortedDictionary<TKey, TValue>? right) { }
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.SortedList<TKey, TValue>? left, System.Collections.Generic.SortedList<TKey, TValue>? right) { }
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.Dictionary<TKey, TValue>? left, System.Collections.Generic.Dictionary<TKey, TValue>? right, System.Func<TValue, TValue, bool> valueComparer) { }
         public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? left, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>>? right, System.Func<TValue, TValue, bool> valueComparer) { }
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.SortedDictionary<TKey, TValue>? left, System.Collections.Generic.SortedDictionary<TKey, TValue>? right, System.Func<TValue, TValue, bool> valueComparer) { }
+        public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.SortedList<TKey, TValue>? left, System.Collections.Generic.SortedList<TKey, TValue>? right, System.Func<TValue, TValue, bool> valueComparer) { }
         public static bool AreEqual(object? left, object? right) { }
         public static bool AreEqual<T>(T? left, T? right) { }
         public static bool AreSequenceEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
+        public static bool AreSequenceEqual<T>(System.Collections.Generic.List<T>? left, System.Collections.Generic.List<T>? right) { }
+        public static bool AreSequenceEqual<T>(T[]? left, T[]? right) { }
         public static bool AreSequenceEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right, System.Func<T, T, bool> itemComparer) { }
+        public static bool AreSequenceEqual<T>(System.Collections.Generic.List<T>? left, System.Collections.Generic.List<T>? right, System.Func<T, T, bool> itemComparer) { }
+        public static bool AreSequenceEqual<T>(T[]? left, T[]? right, System.Func<T, T, bool> itemComparer) { }
+        public static bool AreSetEqual<T>(System.Collections.Generic.HashSet<T>? left, System.Collections.Generic.HashSet<T>? right) { }
         public static bool AreSetEqual<T>(System.Collections.Generic.IEnumerable<T>? left, System.Collections.Generic.IEnumerable<T>? right) { }
+        public static bool AreSetEqual<T>(System.Collections.Generic.SortedSet<T>? left, System.Collections.Generic.SortedSet<T>? right) { }
         public static System.Collections.Generic.Dictionary<object, object> CreateCloneContext() { }
         public static System.Collections.Generic.HashSet<System.Collections.Generic.KeyValuePair<object, object>> CreateDiffCycleContext() { }
         public static System.Collections.Generic.HashSet<object> CreateFromCycleContext() { }
