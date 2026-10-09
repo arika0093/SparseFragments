@@ -14,6 +14,24 @@
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation | Any member via `[SparseMerge(typeof(Strategy))]` |
 
 ```csharp
+[SparseFragmentModel]
+public partial class Settings
+{
+    public string? Label { get; set; }                    // Replace (default for scalars)
+
+    public Child? Child { get; set; }                     // Deep (default for nested models)
+
+    [SparseMerge(MergeMode.Append)]
+    public IReadOnlyList<string> Plugins { get; set; } = [];   // concatenation
+
+    [SparseMerge(MergeMode.SetUnion)]
+    public ISet<string> Tags { get; set; } = new HashSet<string>(); // ordered union
+}
+```
+
+With that shape, layering behaves member by member:
+
+```csharp
 var lower = new Settings.Fragment
 {
     Label = "base",
@@ -32,22 +50,6 @@ var merged = lower.Merge(higher);
 // merged.Plugins == ["base-plugin", "extra-plugin"] (Append concatenates)
 ```
 
-```csharp
-[SparseFragmentModel]
-public partial class Settings
-{
-    public string? Label { get; set; }                    // Replace (default for scalars)
-
-    public Child? Child { get; set; }                     // Deep (default for nested models)
-
-    [SparseMerge(MergeMode.Append)]
-    public IReadOnlyList<string> Plugins { get; set; } = [];   // concatenation
-
-    [SparseMerge(MergeMode.SetUnion)]
-    public ISet<string> Tags { get; set; } = new HashSet<string>(); // ordered union
-}
-```
-
 Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf005-unsupported-merge-mode)):
 
 * `Deep` is only available for nested models (fragment models or structural types).
@@ -58,6 +60,8 @@ Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf
 Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)).
 
 An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit `Default` remains granular for keyed collections: it resolves to `Deep` for nested models and to `Replace` for everything else.
+
+Merge modes and Patch/ChangeSet granularity answer different questions. A merge mode decides how two fragment layers combine when both are present. Patch and ChangeSet granularity decides how an edit is expressed and sent: per-key operations for keyed lists and dictionaries under the implicit default, or one whole-value replacement under explicit `Replace`. Choosing `Replace` on a keyed member keeps merge behavior simple but gives up per-item add/remove/edit tracking for that member; see [Keyed collections](keyed-collections.md#atomic-vs-keyed-collections).
 
 ### `Append`
 
@@ -100,6 +104,58 @@ The contract rules:
 * `Rebase default.` The default `TryRebase` succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a `CustomStrategy` conflict otherwise.
 
 A member can carry both a merge strategy and a rebase policy. The strategy keeps owning `Merge`; the policy takes precedence for that member during rebase (see [ChangeSet rebase](rebase.md#rebase-policies)). A policy without any strategy needs no merge configuration at all.
+
+## Semantic Equality with [SparseCompare]
+
+`MergeMode` decides how present values combine; `[SparseCompare]` decides when two values count as equal. Place it on a fragment model or once per assembly:
+
+<!-- sample: merge-compare-models -->
+```csharp
+public readonly struct MergeToken
+{
+    public MergeToken(string value) => Value = value;
+
+    public string Value { get; }
+}
+
+public sealed class MergeTokenComparer : IEqualityComparer<MergeToken>
+{
+    public bool Equals(MergeToken left, MergeToken right) =>
+        string.Equals(left.Value, right.Value, StringComparison.OrdinalIgnoreCase);
+
+    public int GetHashCode(MergeToken value) =>
+        StringComparer.OrdinalIgnoreCase.GetHashCode(value.Value);
+}
+
+[SparseCompare(typeof(MergeToken), typeof(MergeTokenComparer))]
+[SparseFragmentModel]
+public partial class MergeDocsCompareSettings
+{
+    public MergeToken Token { get; set; }
+}
+```
+<!-- /sample -->
+
+The rules, verified against the generator analysis:
+
+* `Exact member type.` The first argument must be the exact member type, not a base type or an interface.
+* `Comparer shape.` The comparer implements `IEqualityComparer<T>` for that exact `T` and exposes an accessible parameterless constructor.
+* `Scope and inheritance.` A model-level rule applies to that model. An assembly-level rule applies compilation-wide. A nested model referenced by annotated roots inherits the rule when every referencing root agrees on one comparer for the type; one silent root or one conflicting comparer vetoes the inheritance.
+* `Lifetime.` Generated code keeps one comparer instance per configured member and may call it concurrently, so implementations stay stateless or thread-safe.
+* `Effect.` The comparer governs `Diff` detection, `ChangeSet.Between` matching, `Compose` contiguity checks, and rebase equality for that type. Collection membership still uses the collection's own comparer: a `HashSet<string>` built with `StringComparer.OrdinalIgnoreCase` compares case-insensitively regardless of `[SparseCompare]`.
+* `Against custom AreEqual.` A member with its own `[SparseMerge(typeof(...))]` strategy keeps its own `AreEqual` and does not use the type comparer. `[SparseCompare]` supplies the type-level default everywhere else.
+
+Comparer-equal values report no change:
+
+<!-- sample: merge-compare -->
+```csharp
+var before = new MergeDocsCompareSettings { Token = new MergeToken("a") };
+var after = new MergeDocsCompareSettings { Token = new MergeToken("A") };
+
+var diff = MergeDocsCompareSettings.Fragment.Diff(before, after);
+// diff.Token.IsPresent == false (comparer-equal: no change detected)
+```
+<!-- /sample -->
 
 ## Equality and Comparer Semantics
 

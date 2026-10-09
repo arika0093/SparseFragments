@@ -133,11 +133,13 @@ check_block() {
 }
 
 check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    core-models core-create core-layering core-diff core-patch core-between \
+    core-models core-create core-layering core-diff core-builder core-patch core-between \
     core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
     core-change-payload-models core-change-payload
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     keyed-first-models keyed-first keyed-typed
+check_block "merge-compare" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
+    merge-compare-models merge-compare
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
     rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
 check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \

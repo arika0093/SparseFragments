@@ -13,6 +13,7 @@ public static class VerifiedSamples
         CoreCreate();
         CoreLayering();
         CoreDiff();
+        CoreBuilder();
         CorePatch();
         CoreBetween();
         CoreChangeSet();
@@ -81,6 +82,29 @@ public static class VerifiedSamples
         var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
         // restored.RetryCount.Value == 2
         DocsCheck.Require(restored.RetryCount.Value == 2, "ApplyChanges replays the diff");
+        // /sample
+    }
+
+    private static void CoreBuilder()
+    {
+        // sample: core-builder
+        var original = new CounterSettings.Fragment { Label = "before" };
+
+        var builder = original.ToBuilder();
+        builder.Label = Optional<string?>.Present(null);
+
+        var result = builder.Build();
+        // result.Label.IsPresent == true, value null; original.Label stays "before"
+
+        builder.Label = Optional<string?>.Missing;
+        // builder.Build().Label.IsPresent == false; result still carries present null
+        DocsCheck.Require(
+            result.Label.IsPresent && result.Label.Value is null,
+            "built present null"
+        );
+        DocsCheck.Require(original.Label.Value == "before", "original untouched by the builder");
+        DocsCheck.Require(!builder.Build().Label.IsPresent, "builder tracks missing");
+        DocsCheck.Require(result.Label.IsPresent, "earlier build keeps present null");
         // /sample
     }
 

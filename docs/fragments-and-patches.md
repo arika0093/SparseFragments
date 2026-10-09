@@ -4,6 +4,18 @@ A `Fragment` is sparse state: for every model member it records missing, present
 
 The four answer different questions: a fragment says *what is specified*, a patch says *what to change* ("set these values"), a change set says *what changed* ("these values changed from X to Y"), and a change payload says *what travels* ("apply these transitions and commands"). The task table at the end maps each need to its API.
 
+## Choose the Operation
+
+Pick by what is known and what must be guaranteed:
+
+* Two ordinary models, no baseline needed later: `T.Fragment.Diff(before, after)` plus `ApplyChanges`. Use this for persistence and defaults comparison. The diff is a sparse `Fragment`, not a transition: it carries after-values only.
+* A baseline-free command: `new T.Patch { ... }` plus `Apply` (or `ApplyTo` for models). Use this for local edits and partial-update APIs where the writer never saw a baseline.
+* A baseline-aware transition: `T.ChangeSet.Between(before, after)`. Use this when later steps need undo (`Invert`), audit, sequencing (`Compose`), or conflict-aware reconciliation (`RebaseOnto`, `TryApplyTo`). The change set carries the before-state those operations require.
+* Crossing a process boundary: `ChangePayload` (`ToPayload` / `FromPatch` / `ToChangeSet` / `ToPatch`). It is the only form that travels as JSON.
+* Tracking unsaved edits in a running application: `model.CreateEditSession()`. The session retains its own baseline and derives change sets on demand; see [UI frameworks](ui-frameworks.md).
+
+Editing a `Fragment` and constructing an operation are different acts. `ToBuilder()` edits sparse state in place and `Build()` returns a new `Fragment`. `new T.Patch` constructs a baseline-free operation. Never build a transition by hand-editing a fragment: derive it with `Between` or `FromPatch` so presence and before-state stay exact.
+
 <!-- sample: core-models -->
 ```csharp
 using SparseFragments;
@@ -80,7 +92,7 @@ var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
 
 A `Patch` is mutable and baseline-free. It describes desired operations directly without recording which baseline state they were derived from.
 
-`new X.Patch { ... }` specifies these operations: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch to a fragment with `Apply`.
+`new X.Patch { ... }` specifies these operations: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. `Remove()` returns the member to missing, so the next merge falls through to the lower layer; it never assigns the C# default or runs a constructor. Apply a patch to a fragment with `Apply`.
 
 <!-- sample: core-patch -->
 ```csharp
@@ -99,6 +111,27 @@ remove.RetryCount.Remove();
 // !remove.Apply(basis).Value!.RetryCount.IsPresent
 ```
 <!-- /sample -->
+
+## Edit a Fragment with FragmentBuilder
+
+`Fragment.ToBuilder()` opens a mutable builder over a copy of the fragment's presence state. Assign members through the builder, including present `null` or back to missing, then call `Build()` for a new `Fragment`. The original fragment never changes, and neither does a previously built one: each `Build()` snapshots the builder's current state.
+
+<!-- sample: core-builder -->
+```csharp
+var original = new CounterSettings.Fragment { Label = "before" };
+
+var builder = original.ToBuilder();
+builder.Label = Optional<string?>.Present(null);
+
+var result = builder.Build();
+// result.Label.IsPresent == true, value null; original.Label stays "before"
+
+builder.Label = Optional<string?>.Missing;
+// builder.Build().Label.IsPresent == false; result still carries present null
+```
+<!-- /sample -->
+
+Nested fragments have their own typed builders: open the child builder from the parent's present value, edit it, and assign the built child back before building the parent. Builders are plain construction helpers with no baseline, so they cannot express before/after transitions; derive those with `Between` or `FromPatch` instead.
 
 ## Derive Transitions with ChangeSet
 
@@ -257,7 +290,9 @@ var fromPatch = CounterSettings.ChangeSet.FromPatch(start, desired);
 ```
 <!-- /sample -->
 
-`ChangeSet.ToPatch()` is the explicit information-loss boundary. It discards the before-state and returns the equivalent desired-operation patch. There is no silent mixed composition back into a ChangeSet. A baseline-free Patch can introduce a changed path whose before-state is unknown, so the composition stays explicit.
+`ChangeSet.ToPatch()` is the explicit information-loss boundary. It discards the before-state and returns the equivalent desired-operation patch. The result replays the same after-state from the same baseline but can no longer be inverted, composed, or rebased. There is no silent mixed composition back into a ChangeSet. A baseline-free Patch can introduce a changed path whose before-state is unknown, so the composition stays explicit.
+
+`ChangeSet.FromPatch(baseline, patch)` attaches a known baseline by applying the patch to it and diffing the result: the returned transition replays that patch from that baseline. Pass the state the patch was authored against; a different baseline produces a different transition, and the replay diverges with it.
 
 The client and server models may differ. A read projection can expose `HasPassword` while the write side accepts `NewPassword`, and the envelope does not require one shared CLR type on both sides: it names members and carries typed values, and each side converts the envelope into its own `Patch` or `ChangeSet`. The library performs no domain-specific model mapping.
 
@@ -308,7 +343,7 @@ ChangeSet -> Patch
     -> explicit ToPatch()
 ```
 
-`Compose` requires contiguous transitions: the first ChangeSet's after-state must equal the second's before-state, otherwise it throws `InvalidOperationException`. Static `Compose(first, second)` overloads mirror the instance methods on both types.
+`Compose` requires contiguous transitions: the first ChangeSet's after-state must equal the second's before-state, otherwise it throws `InvalidOperationException`. Static `Compose(first, second)` overloads mirror the instance methods on both types. `Invert()` swaps direction using only the stored before/after pair, so it needs no baseline; inverting twice returns the original transition.
 
 ## Serialize Patches and ChangeSets
 
@@ -394,6 +429,7 @@ var wire = JsonSerializer.Serialize(transition.ToPayload());
 | Need | API | Result |
 | --- | --- | --- |
 | Build a sparse override | `new T.Fragment { ... }` | Fragment |
+| Edit a sparse fragment | `fragment.ToBuilder()` ... `Build()` | Fragment |
 | Snapshot an ordinary model | `T.Fragment.From(model)` | Fragment |
 | Combine lower/higher layers | `lower.Merge(higher)` | Fragment |
 | Compare two ordinary models | `T.Fragment.Diff(before, after)` | Fragment diff |

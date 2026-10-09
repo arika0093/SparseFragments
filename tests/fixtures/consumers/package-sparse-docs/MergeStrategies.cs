@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using SparseFragments;
 
 // Canonical compile-checked mirror of docs/merge-strategies.md (#45).
@@ -13,6 +15,7 @@ public static class MergeStrategiesSamples
         SetUnionCombines();
         DeepMergesNestedModels();
         CustomStrategy();
+        CompareDetectsNoChange();
     }
 
     private static void AppendConcatenates()
@@ -69,6 +72,18 @@ public static class MergeStrategiesSamples
             lower.Merge(missing).ToModel().Note == "lower",
             "custom FragmentMergeStrategy missing falls through");
     }
+
+    private static void CompareDetectsNoChange()
+    {
+        // sample: merge-compare
+        var before = new MergeDocsCompareSettings { Token = new MergeToken("a") };
+        var after = new MergeDocsCompareSettings { Token = new MergeToken("A") };
+
+        var diff = MergeDocsCompareSettings.Fragment.Diff(before, after);
+        // diff.Token.IsPresent == false (comparer-equal: no change detected)
+        DocsCheck.Require(!diff.Token.IsPresent, "comparer-equal values report no change");
+        // /sample
+    }
 }
 
 [SparseFragmentModel]
@@ -111,3 +126,29 @@ public partial class MergeDocsPolicy
     [SparseMerge(typeof(DocsLastWriteStrategy))]
     public string? Note { get; set; }
 }
+
+// sample: merge-compare-models
+public readonly struct MergeToken
+{
+    public MergeToken(string value) => Value = value;
+
+    public string Value { get; }
+}
+
+public sealed class MergeTokenComparer : IEqualityComparer<MergeToken>
+{
+    public bool Equals(MergeToken left, MergeToken right) =>
+        string.Equals(left.Value, right.Value, StringComparison.OrdinalIgnoreCase);
+
+    public int GetHashCode(MergeToken value) =>
+        StringComparer.OrdinalIgnoreCase.GetHashCode(value.Value);
+}
+
+[SparseCompare(typeof(MergeToken), typeof(MergeTokenComparer))]
+[SparseFragmentModel]
+public partial class MergeDocsCompareSettings
+{
+    public MergeToken Token { get; set; }
+}
+
+// /sample

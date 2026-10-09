@@ -36,7 +36,7 @@ public partial class Settings
 }
 ```
 
-`[SparseIgnore]` can be inherited with a property declaration and is supported on promoted nested models. It cannot be used on a key or on required, init-only, or non-defaulted constructor-bound properties ([`SPF022`](analyzer.md#spf022-sparseignore-on-key), [`SPF023`](analyzer.md#spf023-sparseignore-on-unsupported-property)). It may be combined with `[JsonIgnore]`; `[JsonIgnore]` alone continues to affect generated JSON only.
+`[SparseIgnore]` can be inherited with a property declaration and is supported on promoted nested models. It cannot be used on a key or on required, init-only, or non-defaulted constructor-bound properties ([`SPF022`](analyzer.md#spf022-sparseignore-on-key), [`SPF023`](analyzer.md#spf023-sparseignore-on-unsupported-property)). Use `[SparseIgnore]` to remove a member from the generated surface and `[JsonIgnore]` to remove it from generated JSON only: a `[JsonIgnore]` member without `[SparseIgnore]` still merges, patches, diffs, and observes normally, and only its JSON conversion is skipped.
 
 Most members need no merge configuration: `MergeMode.Default` resolves to `Deep` for nested generated models and to `Replace` for scalars and ordinary collections. Add `[SparseMerge]` only when you want different behavior (see [Merge strategies](merge-strategies.md)):
 

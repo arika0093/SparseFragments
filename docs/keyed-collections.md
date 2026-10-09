@@ -66,6 +66,8 @@ An explicit `[SparseMerge(MergeMode.Replace)]` always selects whole-value semant
 
 A structural element is an element SparseFragments can patch through its generated member-level Fragment and Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
 
+Choose keyed patching when clients edit, add, remove, or reorder individual items and the server must reconcile those edits against concurrent state: the change set carries per-key operations that rebase element-wise. Choose whole replacement (`Replace`, `Append`, `SetUnion`, or a custom strategy) when the collection is written as one value, such as an append-only history or a computed snapshot. Whole replacement gives up per-item tracking for that member: merges combine whole values and payloads carry one replacement instead of granular entries.
+
 When no key is available and per-element patching is not needed, select whole-collection semantics explicitly:
 
 ```csharp
@@ -289,6 +291,8 @@ edits use the assigned IDs rather than the sentinel.
 itself is never acknowledged. No GUID auto-correlation or key remapping is
 provided. Where the authoritative refresh is not implemented, disable editing
 while a save is in flight.
+
+The refresh pattern is the same recommended save workflow as any other edit session: disable editing while the save is in flight, send the payload, then start a fresh session from the authoritative state (see [UI frameworks](ui-frameworks.md#recommended-save-workflow)). The payload itself travels like any other change set through the application's own transport (see [ChangeSet rebase](rebase.md)).
 
 ## Observe Typed Collection Transitions
 
