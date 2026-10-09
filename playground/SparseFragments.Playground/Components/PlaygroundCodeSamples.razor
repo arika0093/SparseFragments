@@ -10,8 +10,8 @@
 else if (Section == 2)
 {
     <div class="pg-code-samples">
-        <p class="pg-hint">Start with the merged fragment from Section 1. Unassigned operations stay unchanged; Set(null) stores null, while Remove clears this fragment's contribution.</p>
-        <MonacoView Content="@PatchCode" Language="csharp" Height="230px" />
+        <p class="pg-hint">Start with the merged fragment from Section 1. Unassigned operations stay unchanged; assigning null stores null, while Remove clears this fragment's contribution.</p>
+        <MonacoView Content="@PatchCode" Language="csharp" Height="260px" />
     </div>
 }
 else if (Section == 3)
@@ -40,7 +40,7 @@ else if (Section == 4)
         <p class="pg-hint">Create an EditSession to track model changes, then observe transitions and use them to implement logging, undo, and redo.</p>
         <FluentTabs Orientation="Orientation.Vertical">
             <FluentTab Header="Session / BatchEdit" Id="code-4-session">
-                <MonacoView Content="@SessionCode" Language="csharp" Height="360px" />
+                <MonacoView Content="@SessionCode" Language="csharp" Height="390px" />
             </FluentTab>
             <FluentTab Header="Monitor / Undo / Redo" Id="code-4-history">
                 <h3 class="pg-code-sample-subheading">Monitor changes</h3>
@@ -80,12 +80,14 @@ else if (Section == 4)
         """;
 
     private const string PatchCode = """
+        var fragment = lower.Merge(higher);
+
         var patch = new PlaygroundSettings.Patch();
-        patch.RetryCount = FragmentOperation<int>.Set(5);
-        patch.Label = FragmentOperation<string?>.Set(null);
+        patch.RetryCount = 5;
+        patch.Label = (string?)null;
         patch.Enabled = FragmentOperation<bool>.Remove;
 
-        var updated = merged.Apply(patch);
+        var updated = fragment.Apply(patch);
         // RetryCount=5, Label=null; Enabled is removed from this fragment.
         """;
 
@@ -140,14 +142,13 @@ else if (Section == 4)
             throw new InvalidOperationException("The changes could not be applied.");
         }
 
-        var appliedJson = PlaygroundJson.WriteRosterModel(updated);
-        // Render appliedJson in the Applied (JSON) result tab.
+        // updated holds ["b", "c", "d"]: "a" removed, "b" retitled, "c" rescored.
         """;
 
     private const string SessionCode = """
         var session = model.CreateEditSession(); // Capture the model as the baseline.
         var observable = session.Observable; // Bind input controls to this observable.
-        var current = session.Model; // Render the live model; edits update this instance.
+        var shown = session.Current.RetryCount; // Read display state from the read-only view.
 
         session.BatchEdit(() =>
         {
@@ -157,13 +158,14 @@ else if (Section == 4)
 
         if (session.HasChanges)
         {
+            var pending = session.CreateChangeSet(); // Typed before-to-after transition for save.
             session.AcceptChanges(); // Submit: keep the current state as the new baseline.
         }
         void Reset() => session.RevertChanges(); // Discard pending edits and restore the baseline.
         """;
 
     private const string MonitorCode = """
-        // Each stack stores one ChangeSet per BatchEdit.
+        // Each stack stores one ChangeSet per observed transition.
         var undo = new Stack<PlaygroundSettings.ChangeSet>();
         var redo = new Stack<PlaygroundSettings.ChangeSet>();
         var applyingHistory = false; // Prevent replayed transitions from being recorded again.
