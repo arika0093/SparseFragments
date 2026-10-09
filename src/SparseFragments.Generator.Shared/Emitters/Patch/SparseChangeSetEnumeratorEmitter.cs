@@ -115,10 +115,7 @@ internal static class SparseChangeSetEnumeratorEmitter
             3,
             "var value = global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
         );
-        code.AppendLineAt(
-            3,
-            "return path + \"[\\\"\" + value.Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\";"
-        );
+        code.AppendLineAt(3, "return path" + SparseCanonicalKeyPath.AppendQuoted("value") + ";");
         code.AppendLineAt(2, "}");
     }
 

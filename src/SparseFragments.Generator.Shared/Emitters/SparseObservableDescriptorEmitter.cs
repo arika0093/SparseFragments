@@ -744,7 +744,8 @@ internal static class SparseObservableDescriptorEmitter
                 + AccessorName(valueTypeDecl)
                 + "("
                 + path
-                + " + \"[\" + global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + SparseCanonicalKeyPath.AppendKey("key")
+                + "); }, "
             : string.Empty;
         return "() => { var current = this."
             + property
@@ -818,7 +819,8 @@ internal static class SparseObservableDescriptorEmitter
                 + AccessorName(member.Collection.ValueType.Value.NonNullableName)
                 + "("
                 + path
-                + " + \"[\" + global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + SparseCanonicalKeyPath.AppendKey("key")
+                + "); }, "
             : string.Empty;
         var viewTypeName = names.HasElementProxy
             ? names.ViewType.TrimEnd('?')

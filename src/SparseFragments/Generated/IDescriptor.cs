@@ -215,6 +215,13 @@ public interface IDictDescriptor
     bool TryGetValue(object? key, out object? value);
 
     /// <summary>Gets nested descriptors for a value that is a generated model.</summary>
+    /// <remarks>
+    /// The nested set's <see cref="IDescriptor.Path"/> uses the canonical
+    /// bracket-key form: the InvariantCulture key text, double-quoted with
+    /// backslash and quote escaping (for example <c>Scores["a]b"].Value</c>).
+    /// All key types render quoted without a type prefix, matching change-set
+    /// paths and Blazor field paths.
+    /// </remarks>
     IDescriptorSet? GetValueDescriptors(object? key);
 
     /// <summary>Attempts to add an entry through the generated observable view.</summary>

@@ -450,7 +450,7 @@ public sealed class ObservableTests
             .GetValueDescriptors("entry")!
             .TryGet(nameof(ObservableListChild.Name), out var dictionaryChildName)
             .ShouldBeTrue();
-        dictionaryChildName.Path.ShouldBe("ChildrenByName[entry].Name");
+        dictionaryChildName.Path.ShouldBe("ChildrenByName[\"entry\"].Name");
         dictionaryChildName.TrySetValue("dictionary-updated").ShouldBeTrue();
         model.Children[0].Name.ShouldBe("list-updated");
         model.ChildrenByName["entry"].Name.ShouldBe("dictionary-updated");

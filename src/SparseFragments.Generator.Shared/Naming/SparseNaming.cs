@@ -93,3 +93,28 @@ internal static class SparseNaming
             _ => "Replace",
         };
 }
+
+/// <summary>Canonical bracket-key path suffixes shared by descriptors and change sets.</summary>
+/// <remarks>
+/// Every key renders double-quoted with backslash and quote escaping, using the
+/// InvariantCulture text of the key. Numeric and Guid keys are not distinguished
+/// from strings; consumers parse the quoted text back with the key type.
+/// </remarks>
+internal static class SparseCanonicalKeyPath
+{
+    /// <summary>Builds a path-suffix expression for converted key text.</summary>
+    /// <param name="convertedTextExpression">Expression producing the key text.</param>
+    internal static string AppendQuoted(string convertedTextExpression) =>
+        " + \"[\\\"\" + "
+        + convertedTextExpression
+        + ".Replace(\"\\\\\", \"\\\\\\\\\").Replace(\"\\\"\", \"\\\\\\\"\") + \"\\\"]\"";
+
+    /// <summary>Builds a path-suffix expression for a boxed key value.</summary>
+    /// <param name="keyExpression">Expression producing the key (any type).</param>
+    internal static string AppendKey(string keyExpression) =>
+        AppendQuoted(
+            "(global::System.Convert.ToString("
+                + keyExpression
+                + ", global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)"
+        );
+}
