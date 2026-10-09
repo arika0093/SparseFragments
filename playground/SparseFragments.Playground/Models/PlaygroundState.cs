@@ -356,8 +356,10 @@ public static class PlaygroundJson
     }
 
     /// <summary>
-    /// Creates options for ChangeSet payload JSON. Generated payload types are not visible to the
-    /// System.Text.Json source generator, so they resolve through the reflection fallback.
+    /// Creates options for ChangePayload JSON. Generated payload types are not visible to the
+    /// System.Text.Json source generator in this compilation, so they resolve through the
+    /// reflection fallback. The payload DTOs are statically referenced named types, which keeps
+    /// this path working in trimmed builds; do not pass anonymous objects through it.
     /// </summary>
     public static JsonSerializerOptions ChangeSetOptions() =>
         new()
