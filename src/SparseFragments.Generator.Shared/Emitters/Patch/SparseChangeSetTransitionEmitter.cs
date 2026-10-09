@@ -257,11 +257,29 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(4, "Added = added.AsReadOnly();");
         code.AppendLineAt(4, "Removed = removed.AsReadOnly();");
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Whether this set transition contains no semantic changes.</summary>"
+        );
         code.AppendLineAt(3, "public bool IsEmpty { get; }");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Whether this set transition contains any semantic changes.</summary>"
+        );
         code.AppendLineAt(3, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(
+            3,
+            "/// <summary>The presence-aware set value before the transition.</summary>"
+        );
         code.AppendLineAt(3, "public " + opt + " Before { get; }");
+        code.AppendLineAt(
+            3,
+            "/// <summary>The presence-aware set value after the transition.</summary>"
+        );
         code.AppendLineAt(3, "public " + opt + " After { get; }");
+        code.AppendLineAt(3, "/// <summary>Values present only in the after set.</summary>");
         code.AppendLineAt(3, "public " + readOnlyList + " Added { get; }");
+        code.AppendLineAt(3, "/// <summary>Values present only in the before set.</summary>");
         code.AppendLineAt(3, "public " + readOnlyList + " Removed { get; }");
         code.AppendLineAt(
             3,
