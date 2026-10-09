@@ -10,15 +10,43 @@ internal static class SparseChangeSetEnumeratorEmitter
     internal static void Append(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         ComputePublicNames(members, out var propertyNames, out _);
         var runtime = dialect.RuntimeNamespace;
         var optionalObject = runtime + "Optional<object?>";
         AppendChangeInfoTypes(code, optionalObject);
-        AppendValueHelpers(code, runtime, optionalObject);
-        AppendMethod(code, members, propertyNames, optionalObject);
+        if (target is not null)
+        {
+            var ops = target.ChangeSetOperations;
+            AppendValueHelpers(ops, runtime, optionalObject);
+            AppendMethodShellStub(code, target);
+            AppendMethod(ops, members, propertyNames, optionalObject, target);
+        }
+        else
+        {
+            AppendValueHelpers(code, runtime, optionalObject);
+            AppendMethod(code, members, propertyNames, optionalObject, target);
+        }
+    }
+
+    private static void AppendMethodShellStub(
+        SharedIndentedBuilder code,
+        SparseOperationTarget target
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Enumerates flattened value transitions, including keyed collection order changes.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges() => "
+                + target.ChangeSetOperationsType
+                + ".EnumerateChanges(this);"
+        );
     }
 
     private static void AppendChangeInfoTypes(SharedIndentedBuilder code, string optionalObject)
@@ -219,23 +247,40 @@ internal static class SparseChangeSetEnumeratorEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         Dictionary<int, string> propertyNames,
-        string optionalObject
+        string optionalObject,
+        SparseOperationTarget? target = null
     )
     {
-        code.AppendLineAt(
-            2,
-            "/// <summary>Enumerates flattened value transitions, including keyed collection order changes.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while other keys are qualified by their runtime type name; residual same-type display collisions are disambiguated per enumeration with a deterministic <c>#2</c>-style suffix. Set members emit per-element <c>Added</c>/<c>Removed</c> entries at <c>Name[\"element\"]</c> when both sides are present (comparer-aware deltas); whole set presence transitions emit one aggregate entry.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges()"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "if (IsEmpty)");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Enumerates flattened value transitions, including keyed collection order changes.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges(ChangeSet self)"
+            );
+            code.AppendLineAt(2, "{");
+            AppendSelfAliases(code, members);
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Enumerates flattened value transitions, including keyed collection order changes.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while other keys are qualified by their runtime type name; residual same-type display collisions are disambiguated per enumeration with a deterministic <c>#2</c>-style suffix. Set members emit per-element <c>Added</c>/<c>Removed</c> entries at <c>Name[\"element\"]</c> when both sides are present (comparer-aware deltas); whole set presence transitions emit one aggregate entry.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges()"
+            );
+            code.AppendLineAt(2, "{");
+        }
+        code.AppendLineAt(3, target is null ? "if (IsEmpty)" : "if (self.IsEmpty)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "return global::System.Array.Empty<ChangeInfo>();");
         code.AppendLineAt(3, "}");
@@ -255,7 +300,10 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
-            var property = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
+            // Relocated bodies read transitions through the facade instance.
+            var property =
+                (target is null ? string.Empty : "self.")
+                + SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
             var path = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
                 member.Property.Name,
                 true

@@ -14,10 +14,12 @@ internal static class SparseFragmentPatchRebaseEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         _ = modelType;
+        var into = target?.PatchOperations ?? code;
         var runtime = dialect.RuntimeNamespace;
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
@@ -31,10 +33,35 @@ internal static class SparseFragmentPatchRebaseEmitter
         var optionsType = SparseRebaseOptionEmitter.OptionsType(dialect);
         var modeType = SparseRebaseOptionEmitter.ModeType(dialect);
 
-        AppendRebaseStateHelpers(code, runtime);
-        SparseRebaseOptionEmitter.AppendHelpers(code, dialect);
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Rebases a local patch onto a newer sparse state and reports structured conflicts.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static "
+                    + rebaseResult
+                    + " "
+                    + prefix
+                    + "Rebase("
+                    + optionalFragment
+                    + " baseState, Patch local, "
+                    + optionalFragment
+                    + " currentState, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.PatchOperationsType
+                    + "."
+                    + prefix
+                    + "Rebase(baseState, local, currentState, options);"
+            );
+        }
+        AppendRebaseStateHelpers(into, runtime);
+        SparseRebaseOptionEmitter.AppendHelpers(into, dialect);
         AppendRebaseHeader(
-            code,
+            into,
             prefix,
             rebaseResult,
             optionalFragment,
@@ -43,22 +70,23 @@ internal static class SparseFragmentPatchRebaseEmitter
             conflictKind,
             conflictList,
             optionsType,
-            runtime
+            runtime,
+            target is not null
         );
 
-        code.AppendLineAt(3, "var baseFragment = baseState.Value!;");
-        code.AppendLineAt(3, "var currentFragment = currentState.Value!;");
+        into.AppendLineAt(3, "var baseFragment = baseState.Value!;");
+        into.AppendLineAt(3, "var currentFragment = currentState.Value!;");
 
         foreach (var member in members)
         {
-            code.AppendLineAt(3, "{");
+            into.AppendLineAt(3, "{");
             if (member.ChildModel is not null)
-                AppendNestedMemberRebase(code, member, conflict, conflictKind, dialect);
+                AppendNestedMemberRebase(into, member, conflict, conflictKind, dialect);
             else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
-                AppendCollectionMemberRebase(code, member, conflict, conflictKind, dialect);
+                AppendCollectionMemberRebase(into, member, conflict, conflictKind, dialect);
             else
                 AppendScalarMemberRebase(
-                    code,
+                    into,
                     member,
                     kind,
                     conflict,
@@ -66,11 +94,11 @@ internal static class SparseFragmentPatchRebaseEmitter
                     dialect,
                     modeType
                 );
-            code.AppendLineAt(3, "}");
+            into.AppendLineAt(3, "}");
         }
 
-        code.AppendLineAt(3, "return new " + rebaseResult + "(result, conflicts);");
-        code.AppendLineAt(2, "}");
+        into.AppendLineAt(3, "return new " + rebaseResult + "(result, conflicts);");
+        into.AppendLineAt(2, "}");
     }
 
     private static void AppendRebaseStateHelpers(SharedIndentedBuilder code, string runtime)
@@ -114,7 +142,8 @@ internal static class SparseFragmentPatchRebaseEmitter
         string conflictKind,
         string conflictList,
         string optionsType,
-        string runtime
+        string runtime,
+        bool isRelocated = false
     )
     {
         code.AppendLineAt(
@@ -123,7 +152,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         );
         code.AppendLineAt(
             2,
-            "public static "
+            (isRelocated ? "internal static " : "public static ")
                 + rebaseResult
                 + " "
                 + prefix

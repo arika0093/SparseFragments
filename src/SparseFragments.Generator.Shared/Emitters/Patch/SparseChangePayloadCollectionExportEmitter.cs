@@ -8,7 +8,8 @@ internal static class SparseChangePayloadCollectionExportEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string modelType
+        string modelType,
+        SparseMemberOperationSplit? split = null
     )
     {
         var id = member.Id;
@@ -18,13 +19,47 @@ internal static class SparseChangePayloadCollectionExportEmitter
             "Change",
             id
         );
-        code.AppendLineAt(
-            3,
-            "/// <summary>Exports whole and granular operations as a payload change entry.</summary>"
-        );
-        code.AppendLineAt(3, "internal void __SparseExportChangePayload(" + change + " entry)");
+        if (split is not null)
+        {
+            // ChangeSet payload projection calls through the facade bridge.
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Exports whole and granular operations as a payload change entry.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "internal void __SparseExportChangePayload("
+                    + change
+                    + " entry) => "
+                    + split.OperationsType
+                    + ".__SparseExportChangePayload(this, entry);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Exports whole and granular operations as a payload change entry.</summary>"
+            );
+            code.AppendLineAt(
+                3,
+                "internal static void __SparseExportChangePayload("
+                    + SparseKeyedCollectionEmitter.CollectionPatchName(member)
+                    + " self, "
+                    + change
+                    + " entry)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                3,
+                "/// <summary>Exports whole and granular operations as a payload change entry.</summary>"
+            );
+            code.AppendLineAt(3, "internal void __SparseExportChangePayload(" + change + " entry)");
+        }
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var collection" + id + " = this;");
+        code.AppendLineAt(
+            4,
+            split is null ? "var collection" + id + " = this;" : "var collection" + id + " = self;"
+        );
         code.AppendLineAt(4, "var entry" + id + " = entry;");
         AppendExportEntryBody(code, member, dialect, modelType, id);
         code.AppendLineAt(3, "}");

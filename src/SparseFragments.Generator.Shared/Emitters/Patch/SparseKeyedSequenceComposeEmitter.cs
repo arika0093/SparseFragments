@@ -17,13 +17,65 @@ internal static class SparseKeyedSequenceComposeEmitter
         string listType,
         bool hasPatch,
         string comparer,
-        string runtime
+        string runtime,
+        SparseMemberOperationSplit? split = null
     )
     {
         var kind = runtime + "FragmentOperationKind";
         var operation = runtime + "FragmentOperation<" + listType + ">";
-        code.AppendLineAt(3, "public " + patchName + " Compose(" + patchName + " next)");
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Composes this keyed patch with a following patch.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " next) => "
+                    + split.OperationsType
+                    + ".Compose(this, next);"
+            );
+            split.Shell.AppendLineAt(3, "/// <summary>Composes two keyed patches.</summary>");
+            split.Shell.AppendLineAt(
+                3,
+                "public static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " first, "
+                    + patchName
+                    + " second) => "
+                    + split.OperationsType
+                    + ".Compose(first, second);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Composes a keyed patch with a following patch.</summary>"
+            );
+            code.AppendLineAt(
+                3,
+                "internal static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " self, "
+                    + patchName
+                    + " next)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(3, "public " + patchName + " Compose(" + patchName + " next)");
+        }
         code.AppendLineAt(3, "{");
+        if (split is not null)
+        {
+            SparseKeyedSequenceApplyEmitter.AppendKeyedFieldAliases(code);
+        }
         code.AppendLineAt(
             4,
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
@@ -373,15 +425,18 @@ internal static class SparseKeyedSequenceComposeEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "return result;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "public static "
-                + patchName
-                + " Compose("
-                + patchName
-                + " first, "
-                + patchName
-                + " second) { if (first is null) throw new global::System.ArgumentNullException(nameof(first)); return first.Compose(second); }"
-        );
+        if (split is null)
+        {
+            code.AppendLineAt(
+                3,
+                "public static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " first, "
+                    + patchName
+                    + " second) { if (first is null) throw new global::System.ArgumentNullException(nameof(first)); return first.Compose(second); }"
+            );
+        }
     }
 }

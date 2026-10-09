@@ -27,9 +27,33 @@ internal static class SparseChangeSetBetweenEmitter
         ImmutableArray<SparseMemberModel> members,
         string runtime,
         string optionalFragment,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Derives the canonical baseline-aware diff between two states.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>The change set snapshots its inputs: whole-root fragments are deep-cloned and member collection containers are copied at capture, so later caller-side mutation cannot alter retained history. Element values are shared by reference. Typed <c>Before</c>/<c>After</c> endpoints return fresh container snapshots for collection members.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet Between("
+                    + optionalFragment
+                    + " before, "
+                    + optionalFragment
+                    + " after) => "
+                    + target.ChangeSetOperationsType
+                    + ".Between(before, after);"
+            );
+            // The algorithm body below streams into the operation container.
+            code = target.ChangeSetOperations;
+        }
         code.AppendLineAt(2, "/// <summary>Deep-clones a retained whole-root fragment.</summary>");
         code.AppendLineAt(
             2,
@@ -51,7 +75,11 @@ internal static class SparseChangeSetBetweenEmitter
         );
         code.AppendLineAt(
             2,
-            "public static ChangeSet Between("
+            (
+                target is null
+                    ? "public static ChangeSet Between("
+                    : "internal static ChangeSet Between("
+            )
                 + optionalFragment
                 + " before, "
                 + optionalFragment
@@ -232,17 +260,51 @@ internal static class SparseChangeSetBetweenEmitter
     internal static void AppendModelBetween(
         SharedIndentedBuilder code,
         string modelType,
-        string optionalFragment
+        string optionalFragment,
+        SparseOperationTarget? target = null
     )
     {
-        code.AppendLineAt(
-            2,
-            "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public static ChangeSet Between(" + modelType + " before, " + modelType + " after)"
-        );
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet Between("
+                    + modelType
+                    + " before, "
+                    + modelType
+                    + " after) => "
+                    + target.ChangeSetOperationsType
+                    + ".Between(before, after);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static ChangeSet Between("
+                    + modelType
+                    + " before, "
+                    + modelType
+                    + " after)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet Between(" + modelType + " before, " + modelType + " after)"
+            );
+        }
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,

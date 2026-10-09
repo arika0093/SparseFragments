@@ -1,3 +1,13 @@
+namespace SparseFragments.Generated
+{
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogDictionaries_9C2E0F57 { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogImmutable_DB7A6929 { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_F8D43C18 { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_2E4BE5A4 { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogNested_46AF4EC4 { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_F0E227EA { }
+    public static class SparseFragments_GeneratedApiFixtures_global__SparseFragments_GeneratedApiFixtures_CatalogScalar_B3E96EAB { }
+}
 namespace SparseFragments.GeneratedApiFixtures
 {
     [SparseFragments.SparseFragmentModel]

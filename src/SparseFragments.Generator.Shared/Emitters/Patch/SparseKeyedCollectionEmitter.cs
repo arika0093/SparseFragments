@@ -109,7 +109,8 @@ internal static class SparseKeyedCollectionEmitter
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType = null,
-        string? implementationNamespace = null
+        string? implementationNamespace = null,
+        SparseOperationTarget? target = null
     )
     {
         foreach (var member in members)
@@ -126,7 +127,8 @@ internal static class SparseKeyedCollectionEmitter
                     member,
                     dialect,
                     modelType,
-                    implementationNamespace
+                    implementationNamespace,
+                    target
                 );
             }
             else
@@ -136,7 +138,8 @@ internal static class SparseKeyedCollectionEmitter
                     member,
                     dialect,
                     modelType,
-                    implementationNamespace
+                    implementationNamespace,
+                    target
                 );
             }
         }

@@ -79,4 +79,99 @@ internal static class SparsePerModelEmitter
             cancellationToken,
             config
         );
+
+    /// <summary>Builds surface plus relocated operation implementation for one explicit root.</summary>
+    /// <remarks>
+    /// With an explicit implementation namespace the Patch/ChangeSet
+    /// algorithms stream into the implementation source (issue #194) while
+    /// the surface keeps thin facades; otherwise only the surface is
+    /// produced. The implementation hint name resolves through
+    /// <see cref="SparseGeneratedPlacement"/> with the configured suffix.
+    /// </remarks>
+    /// <returns>Surface source, implementation source (if relocated) and its hint name.</returns>
+    public static (
+        string Surface,
+        string? Implementation,
+        string? ImplementationHint
+    ) BuildSplitSurface(
+        SparseModelInfo model,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        ImmutableArray<SparseStructuralModel> structuralModels,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config,
+        Action<
+            SharedIndentedBuilder,
+            SparseModelInfo,
+            ImmutableArray<SparseMemberModel>
+        >? appendProductExtensions = null
+    )
+    {
+        var (surface, implementation) = SparseFragmentEmitter.BuildSplitSource(
+            model,
+            members,
+            pocoCloneModels,
+            readOnlyViewModels,
+            structuralModels,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config,
+            appendProductExtensions
+        );
+        if (implementation is null)
+        {
+            return (surface, null, null);
+        }
+
+        return (
+            surface,
+            implementation,
+            SparseGeneratedPlacement.ImplementationHintName(
+                model,
+                config.EffectiveGeneratedImplementationSuffix,
+                cancellationToken
+            )
+        );
+    }
+
+    /// <summary>Builds surface plus relocated implementation for one promoted model.</summary>
+    /// <returns>Surface source, implementation source (if relocated) and its hint name.</returns>
+    public static (
+        string Surface,
+        string? Implementation,
+        string? ImplementationHint
+    ) BuildPromotedSplitSurface(
+        SparsePromotedModel promoted,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    )
+    {
+        var (surface, implementation) = SparseFragmentEmitter.BuildPromotedSplitSource(
+            promoted,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config
+        );
+        if (implementation is null)
+        {
+            return (surface, null, null);
+        }
+
+        return (
+            surface,
+            implementation,
+            SparseGeneratedPlacement.ImplementationHintName(
+                promoted.Model,
+                config.EffectiveGeneratedImplementationSuffix,
+                cancellationToken
+            )
+        );
+    }
 }

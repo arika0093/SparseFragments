@@ -28,6 +28,45 @@ internal static class SparseFragmentEmitter
         >? appendProductExtensions = null
     )
     {
+        return BuildSplitSource(
+            model,
+            members,
+            pocoCloneModels,
+            readOnlyViewModels,
+            structuralModels,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config,
+            appendProductExtensions
+        ).Surface;
+    }
+
+    /// <summary>Builds the surface source plus the relocated operation implementation, if any.</summary>
+    /// <remarks>
+    /// With an explicit implementation namespace, model-specific Patch and
+    /// ChangeSet algorithms stream into the implementation source while the
+    /// surface keeps thin facades (issue #194); otherwise only the surface
+    /// is produced and the single-file emission is unchanged.
+    /// </remarks>
+    /// <returns>The surface source and the optional implementation source.</returns>
+    public static (string Surface, string? Implementation) BuildSplitSource(
+        SparseModelInfo model,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        ImmutableArray<SparseStructuralModel> structuralModels,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config,
+        Action<
+            SharedIndentedBuilder,
+            SparseModelInfo,
+            ImmutableArray<SparseMemberModel>
+        >? appendProductExtensions = null
+    )
+    {
         return BuildSourceInternal(
             model,
             members,
@@ -43,6 +82,25 @@ internal static class SparseFragmentEmitter
     }
 
     public static string BuildPromotedSource(
+        SparsePromotedModel promoted,
+        bool bclHashSetImplementsReadOnlySet,
+        bool bclHashSetSupportsCapacity,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    )
+    {
+        return BuildPromotedSplitSource(
+            promoted,
+            bclHashSetImplementsReadOnlySet,
+            bclHashSetSupportsCapacity,
+            cancellationToken,
+            config
+        ).Surface;
+    }
+
+    /// <summary>Builds the promoted surface source plus the relocated implementation, if any.</summary>
+    /// <returns>The surface source and the optional implementation source.</returns>
+    public static (string Surface, string? Implementation) BuildPromotedSplitSource(
         SparsePromotedModel promoted,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
@@ -77,7 +135,7 @@ internal static class SparseFragmentEmitter
             + suffix;
     }
 
-    private static string BuildSourceInternal(
+    private static (string Surface, string? Implementation) BuildSourceInternal(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
@@ -177,6 +235,50 @@ internal static class SparseFragmentEmitter
         var generatedType = ModelDeclarationKeyword(model);
         var name = SparseNaming.EscapeIdentifier(model.Name);
         var generatedAccessibility = model.IsPublic ? "public" : "internal";
+        // Issue #194 relocates Patch/ChangeSet algorithms into the per-model
+        // operation container when the owning generator declares an
+        // implementation namespace. The in-place flags feed both the surface
+        // stubs and the implementation aliases, so they are hoisted here.
+        var canApplyPatchInPlace = !model.IsStruct;
+        var canApplyChangeSetInPlace =
+            canApplyPatchInPlace
+            && (
+                patchDialect.InPlaceWriteUnavailableKindMemberName is not null
+                || members.All(static member =>
+                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                )
+            );
+        SharedIndentedBuilder? patchOperations = null;
+        SharedIndentedBuilder? changeSetOperations = null;
+        SparseOperationTarget? operationTarget = null;
+        string? operationContainer = null;
+        string? operationNamespace = null;
+        if (implementationNamespace is not null && features.EmitPatch)
+        {
+            operationNamespace = implementationNamespace;
+            operationContainer = SparseGeneratedPlacement.GetImplementationContainer(
+                model,
+                cancellationToken
+            );
+            patchOperations = new SharedIndentedBuilder(cancellationToken) { IndentOffset = 1 };
+            changeSetOperations = new SharedIndentedBuilder(cancellationToken) { IndentOffset = 1 };
+            operationTarget = new SparseOperationTarget(
+                patchOperations,
+                changeSetOperations,
+                "global::"
+                    + implementationNamespace
+                    + "."
+                    + operationContainer
+                    + "."
+                    + SparseGeneratedPlacement.PatchOperationsSimpleName,
+                "global::"
+                    + implementationNamespace
+                    + "."
+                    + operationContainer
+                    + "."
+                    + SparseGeneratedPlacement.ChangeSetOperationsSimpleName
+            );
+        }
         var code = new SharedIndentedBuilder(cancellationToken);
         code.AppendLine("// <auto-generated />");
         code.AppendLine("#nullable enable");
@@ -249,7 +351,10 @@ internal static class SparseFragmentEmitter
                 generatedAccessibility,
                 constructor: model.Constructor,
                 ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames,
-                implementationNamespace: implementationNamespace
+                implementationNamespace: implementationNamespace,
+                operationTarget: operationTarget,
+                canApplyPatchInPlace: canApplyPatchInPlace,
+                canApplyChangeSetInPlace: canApplyChangeSetInPlace
             );
         }
         if (features.EmitFragment && features.EmitObservable)
@@ -280,7 +385,48 @@ internal static class SparseFragmentEmitter
             code.AppendLine("}");
         }
 
-        return code.ToString();
+        if (
+            operationTarget is null
+            || operationContainer is null
+            || operationNamespace is null
+            || patchOperations is null
+        )
+        {
+            return (code.ToString(), null);
+        }
+
+        var implementation = new SharedIndentedBuilder(cancellationToken);
+        SparseModelOperationFileEmitter.OpenImplementation(
+            implementation,
+            model,
+            modelType,
+            members,
+            patchDialect,
+            features,
+            operationNamespace,
+            operationContainer,
+            canApplyPatchInPlace,
+            cancellationToken
+        );
+        SparseModelOperationFileEmitter.OpenOperations(
+            implementation,
+            SparseGeneratedPlacement.PatchOperationsSimpleName,
+            "Patch"
+        );
+        implementation.Append(patchOperations.ToString());
+        SparseModelOperationFileEmitter.CloseOperations(implementation);
+        if (features.EmitChangeSet && changeSetOperations is not null)
+        {
+            SparseModelOperationFileEmitter.OpenOperations(
+                implementation,
+                SparseGeneratedPlacement.ChangeSetOperationsSimpleName,
+                "ChangeSet"
+            );
+            implementation.Append(changeSetOperations.ToString());
+            SparseModelOperationFileEmitter.CloseOperations(implementation);
+        }
+        SparseModelOperationFileEmitter.CloseImplementation(implementation);
+        return (code.ToString(), implementation.ToString());
     }
 
     private static ImmutableArray<SparseMemberModel> ApplyPortableSetView(
@@ -315,7 +461,10 @@ internal static class SparseFragmentEmitter
         bool isRootModel = true,
         ModelConstructorBinding? constructor = null,
         ImmutableArray<string> ignoredSettablePropertyNames = default,
-        string? implementationNamespace = null
+        string? implementationNamespace = null,
+        SparseOperationTarget? operationTarget = null,
+        bool canApplyPatchInPlace = false,
+        bool canApplyChangeSetInPlace = false
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -345,7 +494,6 @@ internal static class SparseFragmentEmitter
             .Where(static member => !member.Property.IsReadOnly && !member.Property.IsInitOnly)
             .ToImmutableArray();
         var canWriteInPlace = modelIsReferenceType && writableMembers.Length == members.Length;
-        var canApplyInPlace = modelIsReferenceType;
         SparseFragmentPatchEmitter.AppendFragmentMethods(
             code,
             modelType,
@@ -355,7 +503,7 @@ internal static class SparseFragmentEmitter
             patchDialect.WriteContract,
             features
         );
-        if (canWriteInPlace || (features.EmitPatch && canApplyInPlace))
+        if (canWriteInPlace || (features.EmitPatch && canApplyPatchInPlace))
         {
             AppendWritableMemberWriter(code, modelType, writableMembers);
         }
@@ -376,10 +524,12 @@ internal static class SparseFragmentEmitter
             members,
             patchDialect,
             ignoredSettablePropertyNames,
-            canApplyInPlace,
+            canApplyPatchInPlace,
             features,
             generatedAccessibility,
-            implementationNamespace
+            implementationNamespace,
+            operationTarget,
+            canApplyChangeSetInPlace
         );
     }
 

@@ -20,7 +20,8 @@ internal static class SparseChangeSetMixedEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         var payloadCore = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
@@ -29,6 +30,43 @@ internal static class SparseChangeSetMixedEmitter
             modelType,
             "RootChange"
         );
+        if (target is not null)
+        {
+            // Payload DTO bridges keep calling through the facade.
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts a validated root envelope to a change set.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.ArgumentException\">Thrown when the payload carries redacted before-states, which cannot form baseline-aware transitions.</exception>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static ChangeSet FromPayloadCore("
+                    + payloadCore
+                    + " payload) => "
+                    + target.ChangeSetOperationsType
+                    + ".FromPayloadCore(payload);"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <summary>Splits a validated envelope into baseline-aware transitions plus a blind patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Redacted before-states route to the blind patch without historical comparison; ordinary members keep baseline-aware validation. After-states must stay concrete.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static ChangeSet __SparseMixedPartition("
+                    + payloadCore
+                    + " payload, string pathPrefix, out Patch blindSets, out global::System.Collections.Generic.List<string> blindPaths) => "
+                    + target.ChangeSetOperationsType
+                    + ".__SparseMixedPartition(payload, pathPrefix, out blindSets, out blindPaths);"
+            );
+            code = target.ChangeSetOperations;
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Converts a validated root envelope to a change set.</summary>"

@@ -616,7 +616,12 @@ public sealed class GeneratorStepTrackingTests
         var sharedSources = shared.Sources();
         sharedSources.Keys.ShouldBe(beforeSources.Keys);
         var changed = beforeSources.Keys.Where(key => sharedSources[key] != beforeSources[key]).ToArray();
-        changed.Length.ShouldBe(1);
-        changed[0].ShouldContain("ShapeShared1");
+        // A shared-type edit changes exactly its own promoted files: the
+        // surface plus its relocated Patch/ChangeSet operations (issue #194).
+        changed.Length.ShouldBe(2);
+        foreach (var hint in changed)
+        {
+            hint.ShouldContain("ShapeShared1");
+        }
     }
 }

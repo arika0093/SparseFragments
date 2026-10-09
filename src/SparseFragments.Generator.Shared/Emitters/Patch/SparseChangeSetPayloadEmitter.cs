@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp;
+using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -231,7 +232,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(2, "public static " + payloadRoot + " FromFragment(Fragment value)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(
+        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
             code,
             System.Collections.Immutable.ImmutableArray.CreateRange(readable),
             endpoint,
@@ -248,7 +249,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(
+        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
             code,
             System.Collections.Immutable.ImmutableArray.CreateRange(readable),
             endpoint,
@@ -436,7 +437,8 @@ internal static class SparseChangeSetPayloadEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -446,19 +448,67 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadChange = PayloadTypeName(dialect, modelType, "Change");
         var rootChange = PayloadTypeName(dialect, modelType, "RootChange");
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangePayloadVersion, true);
-        code.AppendLineAt(
-            2,
-            "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangePayload ToPayload()");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "return new ChangePayload { Version = "
-                + versionLiteral
-                + ", Changes = ToPayloadCore(false).Changes };"
-        );
-        code.AppendLineAt(2, "}");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public ChangePayload ToPayload() => "
+                    + target.ChangeSetOperationsType
+                    + ".ToPayload(this);"
+            );
+            // The internal core projection stays callable in value form:
+            // nested change-set values project through the facade bridge.
+            code.AppendLineAt(
+                2,
+                "/// <summary>Builds the transport core for this change set.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal "
+                    + payloadCore
+                    + " ToPayloadCore(bool redactBefores) => "
+                    + target.ChangeSetOperationsType
+                    + ".ToPayloadCore(this, redactBefores);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts a change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(2, "internal static ChangePayload ToPayload(ChangeSet self)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "return new ChangePayload { Version = "
+                    + versionLiteral
+                    + ", Changes = ToPayloadCore(self, false).Changes };"
+            );
+            code.AppendLineAt(2, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(2, "public ChangePayload ToPayload()");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "return new ChangePayload { Version = "
+                    + versionLiteral
+                    + ", Changes = ToPayloadCore(false).Changes };"
+            );
+            code.AppendLineAt(2, "}");
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Builds the transport core for this change set.</summary>"
@@ -467,8 +517,19 @@ internal static class SparseChangeSetPayloadEmitter
             2,
             "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
         );
-        code.AppendLineAt(2, "internal " + payloadCore + " ToPayloadCore(bool redactBefores)");
+        code.AppendLineAt(
+            2,
+            (target is null ? "internal " : "internal static ")
+                + payloadCore
+                + " ToPayloadCore("
+                + (target is null ? string.Empty : "ChangeSet self, ")
+                + "bool redactBefores)"
+        );
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendSelfAliases(code, members);
+        }
         SparseChangePayloadPatchSyncEmitter.AppendIgnoredTransportGuard(code, members);
         code.AppendLineAt(
             3,
@@ -843,116 +904,6 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(2, "}");
     }
-
-    /// <summary>Emits the per-member snapshot loop shared by honest and redacting roots.</summary>
-    /// <remarks>Honest snapshots never redact; before snapshots redact flagged members plus everything under an ambient subtree flag.</remarks>
-    private static void AppendFromFragmentMembers(
-        SharedIndentedBuilder code,
-        System.Collections.Immutable.ImmutableArray<SparseMemberModel> members,
-        string endpoint,
-        string runtime,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType,
-        bool redactFlagged
-    )
-    {
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
-        {
-            var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var redact = redactFlagged && member.RedactBefore ? "true" : "redactBefores";
-            if (SparseChangeSetBasicsEmitter.IsNested(member))
-            {
-                var childModelType = member.ChildModel!.Value.NonNullableName;
-                var childRoot =
-                    childModelType + "." + PayloadTypeName(dialect, childModelType, "Root");
-                var childCall = redactFlagged
-                    ? childRoot + ".FromFragment(member" + member.Id + ".Value!, " + redact + ")"
-                    : childRoot + ".FromFragment(member" + member.Id + ".Value!)";
-                code.AppendLineAt(3, "var member" + member.Id + " = value." + property + ";");
-                var valueExpression = redactFlagged
-                    ? "("
-                        + redact
-                        + ") ? "
-                        + endpoint
-                        + "<"
-                        + childRoot
-                        + "?>.Redacted() : "
-                        + SnapshotValueExpression(
-                            endpoint,
-                            runtime,
-                            childRoot + "?",
-                            "member" + member.Id,
-                            childCall
-                        )
-                    : SnapshotValueExpression(
-                        endpoint,
-                        runtime,
-                        childRoot + "?",
-                        "member" + member.Id,
-                        childCall
-                    );
-                code.AppendLineAt(
-                    3,
-                    "if (member"
-                        + member.Id
-                        + ".IsPresent) result.Members.Add(new "
-                        + PayloadMemberName(modelType, "Change", member.Id)
-                        + " { Value = "
-                        + valueExpression
-                        + " });"
-                );
-            }
-            else
-            {
-                var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
-                var valueExpression = redactFlagged
-                    ? "("
-                        + redact
-                        + ") ? "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.Redacted() : "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional(value."
-                        + property
-                        + ")"
-                    : endpoint + "<" + valueType + ">.FromOptional(value." + property + ")";
-                code.AppendLineAt(
-                    3,
-                    "if (value."
-                        + property
-                        + ".IsPresent) result.Members.Add(new "
-                        + PayloadMemberName(modelType, "Change", member.Id)
-                        + " { Value = "
-                        + valueExpression
-                        + " });"
-                );
-            }
-        }
-    }
-
-    private static string SnapshotValueExpression(
-        string endpoint,
-        string runtime,
-        string childRoot,
-        string holder,
-        string childCall
-    ) =>
-        endpoint
-        + "<"
-        + childRoot
-        + ">.FromOptional("
-        + runtime
-        + "Optional<"
-        + childRoot
-        + ">.Present("
-        + holder
-        + ".Value is null ? null : "
-        + childCall
-        + "))";
 
     internal static string PayloadName(string? modelType, string suffix)
     {

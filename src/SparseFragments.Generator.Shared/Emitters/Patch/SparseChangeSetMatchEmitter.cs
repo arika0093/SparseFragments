@@ -38,26 +38,76 @@ internal static class SparseChangeSetMatchEmitter
         ImmutableArray<SparseMemberModel> members,
         string runtime,
         string optionalFragment,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         _ = runtime;
+        var shell = code;
         foreach (var side in new[] { "Before", "After" })
         {
             var field = side == "Before" ? "__sparse_wholeBefore" : "__sparse_wholeAfter";
-            code.AppendLineAt(
-                2,
-                "/// <summary>Whether the supplied state matches this transition's "
-                    + (side == "Before" ? "before" : "after")
-                    + " on every changed path.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "internal bool __Sparse" + side + "Matches(" + optionalFragment + " state)"
-            );
+            if (target is not null)
+            {
+                // Instance bridges stay on the facade: nested and element
+                // change-set values keep calling the probe in value form.
+                shell.AppendLineAt(
+                    2,
+                    "/// <summary>Whether the supplied state matches this transition's "
+                        + (side == "Before" ? "before" : "after")
+                        + " on every changed path.</summary>"
+                );
+                shell.AppendLineAt(
+                    2,
+                    "internal bool __Sparse"
+                        + side
+                        + "Matches("
+                        + optionalFragment
+                        + " state) => "
+                        + target.ChangeSetOperationsType
+                        + ".__Sparse"
+                        + side
+                        + "Matches(this, state);"
+                );
+                code = target.ChangeSetOperations;
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Whether the supplied state matches a transition's "
+                        + (side == "Before" ? "before" : "after")
+                        + " on every changed path.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "internal static bool __Sparse"
+                        + side
+                        + "Matches(ChangeSet self, "
+                        + optionalFragment
+                        + " state)"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Whether the supplied state matches this transition's "
+                        + (side == "Before" ? "before" : "after")
+                        + " on every changed path.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "internal bool __Sparse" + side + "Matches(" + optionalFragment + " state)"
+                );
+            }
             code.AppendLineAt(2, "{");
+            if (target is not null)
+            {
+                AppendSelfAliases(code, members);
+            }
             var __hasSparseMatch = members.Any(static m => IsKeyed(m) || IsDict(m));
-            code.AppendLineAt(3, "if (IsEmpty) return true;");
+            code.AppendLineAt(
+                3,
+                target is null ? "if (IsEmpty) return true;" : "if (self.IsEmpty) return true;"
+            );
             code.AppendLineAt(
                 3,
                 "if (__sparse_hasWhole) return Fragment.__SparseAreEqual(" + field + ", state);"

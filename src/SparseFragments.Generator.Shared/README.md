@@ -187,9 +187,26 @@ per-model container derives from the stable fully qualified model identity
 (never filesystem paths or emission ordering), UI type names dodge source
 member collisions, and surface/implementation hint names stay stable and
 unique. The namespace is explicit with no Shared fallback; null keeps the
-current single-file emission. `SparseGenerationResult.AdditionalSources`
+current single-file emission. `SparseGeneratorConfig.GeneratedImplementationSuffix`
+overrides the implementation hint-name suffix (default
+`".Implementation.g.cs"`). `SparseGenerationResult.AdditionalSources`
 carries the implementation files with the surface file so per-model
 incremental isolation covers both.
+
+With an explicit implementation namespace, model-specific Patch algorithms
+(apply, compose, invert, rebase and nested/keyed/dictionary operations) and
+ChangeSet algorithms (Between, Compose, Invert, Rebase, Apply, enumeration,
+payload projection and restoration) stream into the per-model
+`PatchOperations`/`ChangeSetOperations` containers. The model keeps thin
+typed facades: Patch retains its fields, typed `ref` member access, lazy
+nested identity, constructors and whole operations; ChangeSet retains its
+canonical sparse storage, constructor and typed transition API. Operation
+bodies take the facade as an explicit parameter and reach state through
+`internal` bridges, so `ref` identity, lazy aliasing, canonical sparsity
+and ownership behave as in single-file emission. Bare `Patch`/`ChangeSet`/
+`Fragment` references inside moved bodies resolve through file-level `using`
+aliases, so emitters carry no product-specific qualification. A null
+namespace keeps the legacy single-file emission for downstream dialects.
 
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).

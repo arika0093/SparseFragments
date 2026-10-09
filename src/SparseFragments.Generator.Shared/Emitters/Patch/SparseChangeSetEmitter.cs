@@ -29,7 +29,8 @@ internal static class SparseChangeSetEmitter
         ImmutableArray<string> ignoredSettablePropertyNames,
         SparseEmissionFeatures? features = null,
         bool canApplyInPlace = false,
-        string accessibility = "public"
+        string accessibility = "public",
+        SparseOperationTarget? target = null
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
@@ -67,29 +68,56 @@ internal static class SparseChangeSetEmitter
             members,
             runtime,
             optionalFragment,
-            dialect
+            dialect,
+            target
         );
         if (modelType is not null)
         {
-            SparseChangeSetBetweenEmitter.AppendModelBetween(code, modelType, optionalFragment);
+            SparseChangeSetBetweenEmitter.AppendModelBetween(
+                code,
+                modelType,
+                optionalFragment,
+                target
+            );
         }
-        SparseChangeSetPatchSyncEmitter.AppendFromPatch(code, members, optionalFragment, modelType);
-        SparseChangeSetPatchSyncEmitter.AppendToPatch(code, members, runtime, prefix, dialect);
-        SparseChangeSetPatchSyncEmitter.AppendInvert(code, members, runtime, optionalFragment);
-        SparseChangeSetPatchSyncEmitter.AppendApplyToBaseline(code, optionalFragment);
+        SparseChangeSetPatchSyncEmitter.AppendFromPatch(
+            code,
+            members,
+            optionalFragment,
+            modelType,
+            target
+        );
+        SparseChangeSetPatchSyncEmitter.AppendToPatch(
+            code,
+            members,
+            runtime,
+            prefix,
+            dialect,
+            target
+        );
+        SparseChangeSetPatchSyncEmitter.AppendInvert(
+            code,
+            members,
+            runtime,
+            optionalFragment,
+            target
+        );
+        SparseChangeSetPatchSyncEmitter.AppendApplyToBaseline(code, optionalFragment, target);
         SparseChangeSetComposeEmitter.AppendCompose(
             code,
             members,
             runtime,
             optionalFragment,
-            dialect
+            dialect,
+            target
         );
         SparseChangeSetMatchEmitter.AppendMatchHelpers(
             code,
             members,
             runtime,
             optionalFragment,
-            dialect
+            dialect,
+            target
         );
         SparseChangeSetRebaseEmitter.AppendRebase(
             code,
@@ -103,23 +131,43 @@ internal static class SparseChangeSetEmitter
             dialect,
             modelType,
             ignoredSettablePropertyNames,
-            canApplyInPlace
+            canApplyInPlace,
+            target
         );
         // The emitted model-targeted ApplyInPlace checks the before-state first.
-        SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect);
-        SparseChangeSetEnumeratorEmitter.Append(code, members, dialect);
-        SparseChangeSetPathEmitter.Append(code, members);
+        SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect, target);
+        SparseChangeSetEnumeratorEmitter.Append(code, members, dialect, target);
+        SparseChangeSetPathEmitter.Append(code, members, target);
         if (plan.EmitChangePayload)
         {
-            SparseChangeSetPayloadEmitter.AppendToPayload(code, members, dialect, modelType);
-            SparseChangePayloadReaderEmitter.AppendFromPayload(code, members, dialect, modelType);
+            SparseChangeSetPayloadEmitter.AppendToPayload(
+                code,
+                members,
+                dialect,
+                modelType,
+                target
+            );
+            SparseChangePayloadReaderEmitter.AppendFromPayload(
+                code,
+                members,
+                dialect,
+                modelType,
+                target
+            );
             SparseChangePayloadPatchSyncEmitter.AppendPatchFromCore(
                 code,
                 members,
                 dialect,
-                modelType
+                modelType,
+                target
             );
-            SparseChangeSetMixedEmitter.AppendMixedPartition(code, members, dialect, modelType);
+            SparseChangeSetMixedEmitter.AppendMixedPartition(
+                code,
+                members,
+                dialect,
+                modelType,
+                target
+            );
         }
         code.AppendLineAt(1, "}");
         code.AppendLine();

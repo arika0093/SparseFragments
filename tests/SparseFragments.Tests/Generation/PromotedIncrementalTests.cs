@@ -168,15 +168,22 @@ public sealed class PromotedIncrementalTests
         // The shared promoted output is byte-identical.
         afterSources[promotedHint].ShouldBe(beforeSources[promotedHint]);
         // Untouched roots are byte-identical; the edited root reflects the edit.
+        // Each explicit root emits a surface file plus its relocated
+        // Patch/ChangeSet operations file (issue #194).
         foreach (var root in new[] { "InvRoot2", "InvRoot3" })
         {
-            var hint = afterSources.Keys.Single(key => key.Contains(root, StringComparison.Ordinal));
-            afterSources[hint].ShouldBe(beforeSources[hint]);
+            var hints = afterSources.Keys.Where(key => key.Contains(root, StringComparison.Ordinal)).ToArray();
+            hints.Length.ShouldBe(2);
+            foreach (var hint in hints)
+            {
+                afterSources[hint].ShouldBe(beforeSources[hint]);
+            }
         }
-        var editedHint = afterSources.Keys.Single(key =>
+        var editedHints = afterSources.Keys.Where(key =>
             key.Contains("InvRoot1", StringComparison.Ordinal)
-        );
-        afterSources[editedHint].ShouldContain("EditMarker");
+        ).ToArray();
+        editedHints.Length.ShouldBe(2);
+        string.Concat(editedHints.Select(hint => afterSources[hint])).ShouldContain("EditMarker");
     }
 
     [Test]
@@ -245,10 +252,16 @@ public sealed class PromotedIncrementalTests
         afterSources[promotedHint].ShouldContain("C");
 
         // Root outputs only reference the promoted fragment by name.
+        // Each explicit root emits a surface file plus its relocated
+        // Patch/ChangeSet operations file (issue #194).
         foreach (var root in new[] { "InvRoot1", "InvRoot2" })
         {
-            var hint = afterSources.Keys.Single(key => key.Contains(root, StringComparison.Ordinal));
-            afterSources[hint].ShouldBe(beforeSources[hint]);
+            var hints = afterSources.Keys.Where(key => key.Contains(root, StringComparison.Ordinal)).ToArray();
+            hints.Length.ShouldBe(2);
+            foreach (var hint in hints)
+            {
+                afterSources[hint].ShouldBe(beforeSources[hint]);
+            }
         }
 
         // The shared edit must invalidate the promoted emit stage.
@@ -282,9 +295,12 @@ public sealed class PromotedIncrementalTests
         probe.SpfDiagnostics().ShouldBeEmpty();
         var sources = probe.Sources();
 
-        // The shared type gets exactly one explicit-root file, never a
-        // promoted duplicate.
-        sources.Keys.Count(key => key.Contains("InvExplicitShared", StringComparison.Ordinal)).ShouldBe(1);
+        // The shared type gets exactly one explicit-root surface file plus
+        // its relocated operations file, never a promoted duplicate.
+        var explicitHints = sources.Keys.Where(key => key.Contains("InvExplicitShared", StringComparison.Ordinal)).ToArray();
+        explicitHints.Length.ShouldBe(2);
+        explicitHints.Any(static key => key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)).ShouldBeTrue();
+        explicitHints.Any(static key => key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)).ShouldBeTrue();
         sources.Keys.Any(key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)).ShouldBeFalse();
         sources.Keys.Any(key => key.Contains("InvExplicitRoot1", StringComparison.Ordinal)).ShouldBeTrue();
         sources.Keys.Any(key => key.Contains("InvExplicitRoot2", StringComparison.Ordinal)).ShouldBeTrue();

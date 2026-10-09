@@ -839,7 +839,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
 
         var model = analysis.Model.Value;
         // Per-model plane: never a compilation-scoped helper (issue #178).
-        var source = SparsePerModelEmitter.BuildSurface(
+        // Relocated Patch/ChangeSet operations (issue #194) travel as an
+        // additional implementation source sharing per-model isolation.
+        var (surface, implementation, implementationHint) = SparsePerModelEmitter.BuildSplitSurface(
             model,
             analysis.Members,
             analysis.PocoCloneModels,
@@ -852,7 +854,18 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             (code, generatedModel, members) =>
                 SparseModelExtensionsEmitter.Append(code, generatedModel, members, Configuration)
         );
-        return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);
+        var additional =
+            implementation is not null && implementationHint is not null
+                ? ImmutableArray.Create(
+                    new SparseGeneratedSource(implementationHint, implementation)
+                )
+                : default;
+        return new SparseGenerationResult(
+            model.HintName,
+            surface,
+            analysis.Diagnostics,
+            additional
+        );
     }
 
     private static DiagnosticDescriptor GetDescriptor(string id) =>
@@ -926,17 +939,25 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             Configuration.PromotedHintNameSuffix,
             cancellationToken
         );
-        var source = SparsePerModelEmitter.BuildPromotedSurface(
-            promoted,
-            bclHashSetImplementsReadOnlySet,
-            bclHashSetSupportsCapacity,
-            cancellationToken,
-            Configuration
-        );
+        var (surface, implementation, implementationHint) =
+            SparsePerModelEmitter.BuildPromotedSplitSurface(
+                promoted,
+                bclHashSetImplementsReadOnlySet,
+                bclHashSetSupportsCapacity,
+                cancellationToken,
+                Configuration
+            );
+        var additional =
+            implementation is not null && implementationHint is not null
+                ? ImmutableArray.Create(
+                    new SparseGeneratedSource(implementationHint, implementation)
+                )
+                : default;
         return new SparseGenerationResult(
             hint,
-            source,
-            ImmutableArray<SparseGeneratorDiagnostic>.Empty
+            surface,
+            ImmutableArray<SparseGeneratorDiagnostic>.Empty,
+            additional
         );
     }
 }

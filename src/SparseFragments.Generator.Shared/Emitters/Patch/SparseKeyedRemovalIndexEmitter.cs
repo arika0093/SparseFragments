@@ -15,7 +15,9 @@ internal static class SparseKeyedRemovalIndexEmitter
         // entry point stay per patch.
         if (!string.IsNullOrEmpty(implementationNamespace))
         {
-            code.AppendLineAt(3, "private int[]? __removedLookup;");
+            // Relocated member operations reach the lookup through the facade
+            // instance, so the field is internal rather than private.
+            code.AppendLineAt(3, "internal int[]? __removedLookup;");
             SparseDictionaryRemovalIndexEmitter.Emit(
                 code,
                 keyType,
