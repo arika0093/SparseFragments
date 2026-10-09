@@ -513,7 +513,10 @@ namespace __SESSION_NAMESPACE__
         /// </remarks>
         public void AcceptChanges()
         {
-            var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(Model));
+            // Read the backing field directly: the public Model getter disables
+            // HasChanges caching as a side effect, and acknowledging a save must
+            // not downgrade later observable-only reads to full diffs.
+            var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             // Fail-fast when the live model cannot serve as a keyed baseline.
             // Probed against the retained baseline (distinct instances) because a
             // self-diff short-circuits on reference equality without validating keys.
