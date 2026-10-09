@@ -28,6 +28,9 @@ public class GeneratorInvalidationBenchmarks
     [Params(10, 100, 1000)]
     public int RootCount { get; set; }
 
+    [Params(false, true)]
+    public bool WithComparisonRules { get; set; }
+
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _unrelatedDriver = null!;
     private CSharpCompilation _unrelatedCompilation = null!;
@@ -43,18 +46,23 @@ public class GeneratorInvalidationBenchmarks
     private int _sharedTrackedEdits;
     private int _coldCompilations;
     private int _preparedFor = -1;
+    private bool _preparedWithComparisonRules;
 
     [GlobalSetup]
     public void Setup() => EnsurePrepared();
 
     private void EnsurePrepared()
     {
-        if (_preparedFor == RootCount && _baseCompilation is not null)
+        if (
+            _preparedFor == RootCount
+            && _preparedWithComparisonRules == WithComparisonRules
+            && _baseCompilation is not null
+        )
         {
             return;
         }
 
-        _baseCompilation = ScaleCompilations.Create(RootCount);
+        _baseCompilation = ScaleCompilations.Create(RootCount, WithComparisonRules);
         var errors = _baseCompilation
             .GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error);
@@ -98,13 +106,17 @@ public class GeneratorInvalidationBenchmarks
         Console.WriteLine(
             "Prepared source fingerprint ("
                 + RootCount
-                + " roots): "
+                + " roots, comparison rules: "
+                + WithComparisonRules
+                + "): "
                 + GetSourceFingerprint(_unrelatedDriver)
         );
         Console.WriteLine(
             "Fresh source fingerprint ("
                 + RootCount
-                + " roots): "
+                + " roots, comparison rules: "
+                + WithComparisonRules
+                + "): "
                 + GetSourceFingerprint(freshDriver)
         );
         _unrelatedEdits = 0;
@@ -112,6 +124,7 @@ public class GeneratorInvalidationBenchmarks
         _unrelatedTrackedEdits = 0;
         _sharedTrackedEdits = 0;
         _preparedFor = RootCount;
+        _preparedWithComparisonRules = WithComparisonRules;
     }
 
     private void ValidateEdits(Func<CSharpCompilation, int, CSharpCompilation> edit)
@@ -171,9 +184,10 @@ public class GeneratorInvalidationBenchmarks
         {
             throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
         }
-        var hints = result
-            .GeneratedSources.Select(source => source.HintName)
-            .ToHashSet(StringComparer.Ordinal);
+        var sources = result.GeneratedSources.ToDictionary(
+            source => source.HintName,
+            StringComparer.Ordinal
+        );
         for (var index = 0; index < RootCount; index++)
         {
             var typeName = "global::ScaleRoot" + index;
@@ -182,9 +196,20 @@ public class GeneratorInvalidationBenchmarks
                 + "_"
                 + SparseNaming.GetStableTypeHash(typeName, CancellationToken.None)
                 + ".SparseFragments.g.cs";
-            if (!hints.Contains(expected))
+            if (!sources.TryGetValue(expected, out var source))
             {
                 throw new InvalidOperationException("Missing generated root: " + expected);
+            }
+            if (
+                source
+                    .SourceText.ToString()
+                    .Contains("global::ScaleStringComparer", StringComparison.Ordinal)
+                != WithComparisonRules
+            )
+            {
+                throw new InvalidOperationException(
+                    "Generated roots must honor configured comparison rules."
+                );
             }
         }
     }
@@ -306,7 +331,7 @@ public class GeneratorInvalidationBenchmarks
     {
         private const string SharedPath = "ScaleShared.cs";
 
-        internal static CSharpCompilation Create(int rootCount)
+        internal static CSharpCompilation Create(int rootCount, bool withComparisonRules)
         {
             var files = new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -319,11 +344,29 @@ public class GeneratorInvalidationBenchmarks
                     }
                     """,
             };
+            if (withComparisonRules)
+            {
+                files["ScaleComparer.cs"] = """
+                    using System;
+                    using System.Collections.Generic;
+                    public sealed class ScaleStringComparer : IEqualityComparer<string>
+                    {
+                        public bool Equals(string? left, string? right) =>
+                            StringComparer.OrdinalIgnoreCase.Equals(left, right);
+                        public int GetHashCode(string value) =>
+                            StringComparer.OrdinalIgnoreCase.GetHashCode(value);
+                    }
+                    """;
+            }
+            var comparisonAttribute = withComparisonRules
+                ? "[SparseCompare(typeof(string), typeof(ScaleStringComparer))]"
+                : string.Empty;
             for (var index = 0; index < rootCount; index++)
             {
                 files[$"ScaleRoot{index}.cs"] = $$"""
                     using SparseFragments;
                     [SparseFragmentModel]
+                    {{comparisonAttribute}}
                     public partial class ScaleRoot{{index}}
                     {
                         public string Label { get; set; } = "";
@@ -337,7 +380,9 @@ public class GeneratorInvalidationBenchmarks
 
         internal static CSharpCompilation WithUnrelatedEdit(CSharpCompilation compilation, int edit)
         {
-            var rootCount = compilation.SyntaxTrees.Count(tree => tree.FilePath != SharedPath);
+            var rootCount = compilation.SyntaxTrees.Count(tree =>
+                tree.FilePath.StartsWith("ScaleRoot", StringComparison.Ordinal)
+            );
             var index = edit % rootCount;
             return WithRenamedProperty(compilation, $"ScaleRoot{index}.cs", edit);
         }
