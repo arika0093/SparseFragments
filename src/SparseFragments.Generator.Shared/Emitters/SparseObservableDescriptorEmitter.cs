@@ -470,6 +470,95 @@ internal static class SparseObservableDescriptorEmitter
             + "))";
     }
 
+    /// <summary>Emits a read-only dictionary descriptor for sorted/read-only shapes.</summary>
+    /// <remarks>
+    /// SortedDictionary, SortedList and IReadOnlyDictionary members have no
+    /// notifying observable view, so the descriptor stays live over the current
+    /// IReadOnlyDictionary without supporting size or value mutations.
+    /// </remarks>
+    private static string ReadOnlyDictionaryAccessor(
+        SparseMemberModel member,
+        string path,
+        SparseDescriptorDialect dialect
+    )
+    {
+        if (
+            member.Collection.ValueType is not SparseTypeModel valueType
+            || member.Collection.ElementType.Name is null
+            || valueType.Name is null
+            || member.Collection.CloneKind != SparseCloneCollectionKind.Dictionary
+        )
+        {
+            return "null";
+        }
+
+        var property = SparseNaming.EscapeIdentifier(member.Property.Name);
+        var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
+        var keyType = member.Collection.ElementType.Name;
+        var keyTypeDecl = member.Collection.ElementType.NonNullableName;
+        var valueTypeDecl = valueType.NonNullableName;
+        var hasProxy = valueType.IsFragmentModel && valueType.IsReferenceType;
+        var viewType = hasProxy
+            ? valueTypeDecl + "." + (valueType.ObservableTypeName ?? "Observable")
+            : valueTypeDecl;
+        var keyCast = dialect.DescriptorValueType + ".TryGet<" + keyType + ">";
+        var changed =
+            "() => { __Raise(" + literal + "); if (__onChanged is not null) __onChanged(); }";
+        string WrapValue(string variable) =>
+            hasProxy
+                ? variable
+                    + " is null ? null : new "
+                    + viewType
+                    + "("
+                    + variable
+                    + ", "
+                    + changed
+                    + ", __onRawModelAccess)"
+                : variable;
+        var childAccessor = hasProxy
+            ? "GetValueDescriptors = key => { if (key is null || !"
+                + keyCast
+                + "(key, out var typedKey) || !source.TryGetValue(typedKey, out var item)) return null; var view = (object?)("
+                + WrapValue("item")
+                + "); return view is null ? null : (("
+                + viewType
+                + ")view)."
+                + AccessorName(valueTypeDecl)
+                + "("
+                + path
+                + " + \"[\" + global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+            : string.Empty;
+        return "() => { var current = this."
+            + property
+            + "; if ((object?)current is null) return null; "
+            + "var source = (global::System.Collections.Generic.IReadOnlyDictionary<"
+            + keyType
+            + ", "
+            + valueType.Name
+            + ">)current; "
+            + "return new "
+            + dialect.DictionaryDescriptorType
+            + "(typeof("
+            + keyTypeDecl
+            + "), typeof("
+            + valueTypeDecl
+            + "), "
+            + IsNullableExpression(valueType.Name)
+            + ", new "
+            + dialect.DictionaryDescriptorAccessType
+            + " { Count = () => source.Count, "
+            + "Keys = () => global::System.Linq.Enumerable.Cast<object?>(source.Keys), "
+            + "TryGetValue = key => { if (key is null || !"
+            + keyCast
+            + "(key, out var typedKey) || !source.TryGetValue(typedKey, out var foundValue)) return (false, (object?)null); return (true, (object?)("
+            + WrapValue("foundValue")
+            + ")); }, "
+            + childAccessor
+            + "}, typeof("
+            + viewType
+            + ")); }";
+    }
+
     private static string DictionaryAccessor(
         SparseMemberModel member,
         string path,
@@ -478,7 +567,7 @@ internal static class SparseObservableDescriptorEmitter
     {
         if (!SparseObservableEmitter.IsObservableDictionary(member))
         {
-            return "null";
+            return ReadOnlyDictionaryAccessor(member, path, dialect);
         }
 
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
