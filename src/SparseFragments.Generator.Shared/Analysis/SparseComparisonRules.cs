@@ -31,18 +31,31 @@ internal static class SparseComparisonRules
             overwrite: false
         );
 
-        var roots = GetTypes(model.ContainingAssembly.GlobalNamespace, cancellationToken)
-            .Where(root => !SymbolEqualityComparer.Default.Equals(root, model))
-            .Where(root => HasAttribute(root, config.ModelAttributeMetadataName))
-            .ToArray();
+        // The per-compilation index is built once and shared by every model.
+        // Without any root-level comparison rules, inheritance cannot apply
+        // and the reference-graph scan is skipped entirely. Even when rules
+        // exist, inheritance is skipped unless some root declares a rule the
+        // model has not already mapped, preserving the pre-index fast path.
+        var index = SparseComparisonIndex.ForAssembly(
+            model.ContainingAssembly,
+            config,
+            cancellationToken
+        );
         if (
-            roots.Any(root =>
-                HasUnmappedRule(root, attributeName, comparerTypes, cancellationToken)
+            index.HasComparisonRules
+            && index.Roots.Any(root =>
+                !SymbolEqualityComparer.Default.Equals(root, model)
+                && HasUnmappedRule(root, attributeName, comparerTypes, cancellationToken)
             )
         )
         {
-            var parentRoots = roots
-                .Where(root => ReferencesModel(root, model, cancellationToken))
+            var parentRoots = index
+                .Roots.Select((root, ordinal) => (root, ordinal))
+                .Where(candidate =>
+                    !SymbolEqualityComparer.Default.Equals(candidate.root, model)
+                    && index.ReferencesModel(candidate.ordinal, model)
+                )
+                .Select(static candidate => candidate.root)
                 .ToArray();
             AddInheritedRules(comparerTypes, parentRoots, attributeName, cancellationToken);
         }
@@ -174,100 +187,6 @@ internal static class SparseComparisonRules
             }
         }
     }
-
-    private static bool ReferencesModel(
-        INamedTypeSymbol root,
-        INamedTypeSymbol target,
-        CancellationToken cancellationToken
-    )
-    {
-        var visited = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-        return VisitType(root, target, visited, cancellationToken);
-    }
-
-    private static bool VisitType(
-        ITypeSymbol type,
-        INamedTypeSymbol target,
-        HashSet<INamedTypeSymbol> visited,
-        CancellationToken cancellationToken
-    )
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (SymbolEqualityComparer.Default.Equals(type, target))
-        {
-            return true;
-        }
-
-        if (type is IArrayTypeSymbol array)
-        {
-            return VisitType(array.ElementType, target, visited, cancellationToken);
-        }
-
-        if (type is not INamedTypeSymbol named)
-        {
-            return false;
-        }
-
-        if (
-            named.TypeArguments.Any(argument =>
-                VisitType(argument, target, visited, cancellationToken)
-            )
-        )
-        {
-            return true;
-        }
-
-        if (SparseModelDiscovery.IsFrameworkType(named) || !visited.Add(named))
-        {
-            return false;
-        }
-
-        return named
-            .GetMembers()
-            .OfType<IPropertySymbol>()
-            .Any(property =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return !property.IsStatic
-                    && !property.IsIndexer
-                    && property.DeclaredAccessibility == Accessibility.Public
-                    && property.GetMethod?.DeclaredAccessibility == Accessibility.Public
-                    && VisitType(property.Type, target, visited, cancellationToken);
-            });
-    }
-
-    private static IEnumerable<INamedTypeSymbol> GetTypes(
-        INamespaceSymbol root,
-        CancellationToken cancellationToken
-    )
-    {
-        var pending = new Stack<INamespaceOrTypeSymbol>(root.GetMembers());
-        while (pending.Count > 0)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var current = pending.Pop();
-            if (current is INamespaceSymbol ns)
-            {
-                foreach (var member in ns.GetMembers())
-                {
-                    pending.Push(member);
-                }
-            }
-            else if (current is INamedTypeSymbol type)
-            {
-                yield return type;
-                foreach (var nested in type.GetTypeMembers())
-                {
-                    pending.Push(nested);
-                }
-            }
-        }
-    }
-
-    private static bool HasAttribute(INamedTypeSymbol model, string attributeName) =>
-        model
-            .GetAttributes()
-            .Any(attribute => MatchesAttribute(attribute.AttributeClass, attributeName));
 
     private static bool MatchesAttribute(INamedTypeSymbol? attributeType, string attributeName)
     {

@@ -14,6 +14,7 @@ public static class RebaseSamples
         ConflictingEditsProduceStructuredConflicts();
         PresenceAwareRootStateRebases();
         MixedRequestsApplyBlindSetsAtomically();
+        InPlaceApplyChecksBeforeState();
     }
 
     private static void DisjointEditsReplayCleanly()
@@ -112,6 +113,29 @@ public static class RebaseSamples
         DocsCheck.Require(
             outcome.WriteOnlyPaths.Count == 1 && outcome.WriteOnlyPaths[0] == "Label",
             "mixed outcome names the write-only path"
+        );
+    }
+
+    private static void InPlaceApplyChecksBeforeState()
+    {
+        // sample: rebase-in-place
+        var inPlaceBase = new RebaseDocsSettings { RetryCount = 1, Label = "a" };
+        var inPlaceEdited = new RebaseDocsSettings { RetryCount = 2, Label = "a" };
+        var boundModel = new RebaseDocsSettings { RetryCount = 1, Label = "b" };
+
+        var pending = inPlaceBase.CreateChangeSet(inPlaceEdited);
+        if (!pending.TryApplyInPlace(boundModel, out var inPlaceConflicts))
+        {
+            throw new InvalidOperationException("The change conflicts with the bound model.");
+        }
+
+        // boundModel.RetryCount == 2
+        // boundModel.Label == "b"
+        // /sample
+        DocsCheck.Require(inPlaceConflicts is null, "conflict-free in-place apply reports no conflicts");
+        DocsCheck.Require(
+            boundModel.RetryCount == 2 && boundModel.Label == "b",
+            "in-place apply replays the edit and keeps the concurrent edit"
         );
     }
 }

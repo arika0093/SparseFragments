@@ -11,6 +11,9 @@ public static class UiFrameworksSamples
         ObservableBinding();
         ObservableCollectionBinding();
         PatchFromBaselineVersusCurrent();
+        CurrentReflectsLiveObservableEdits();
+        BatchEditGroupsNotificationsAndReverts();
+        AdvancedInspectionUsesDescriptorsAndFlattenedChanges();
     }
 
     private static void ObservableCollectionBinding()
@@ -69,6 +72,60 @@ public static class UiFrameworksSamples
         model.Title = "a";
         var restored = session.CreateChangeSet();
         DocsCheck.Require(restored.IsEmpty, "edit-then-restore is empty");
+    }
+
+    private static void CurrentReflectsLiveObservableEdits()
+    {
+        var model = new UiWidget { Title = "a" };
+        var session = model.CreateEditSession();
+
+        session.Observable.Title = "b";
+        DocsCheck.Require(session.Current.Title == "b", "read-only view reflects live edits");
+        DocsCheck.Require(model.Title == "b", "observable writes through to the model");
+    }
+
+    private static void BatchEditGroupsNotificationsAndReverts()
+    {
+        var model = new UiWidget { Title = "a" };
+        var session = model.CreateEditSession();
+        var transitions = 0;
+        session.TransitionObserved += _ => transitions++;
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.Title = "b";
+            session.Observable.Title = "c";
+        });
+        DocsCheck.Require(transitions == 1, "batch raises one transition notification");
+        DocsCheck.Require(model.Title == "c", "batched edits apply to the model");
+        DocsCheck.Require(session.HasChanges, "batched edits stay pending");
+
+        session.RevertChanges();
+        DocsCheck.Require(model.Title == "a", "revert restores the baseline value");
+        DocsCheck.Require(!session.HasChanges, "revert clears pending changes");
+    }
+
+    private static void AdvancedInspectionUsesDescriptorsAndFlattenedChanges()
+    {
+        var model = new UiWidget { Title = "a" };
+        var session = model.CreateEditSession();
+
+        session.Observable.Title = "b";
+        DocsCheck.Require(
+            session.Descriptors.TryGet(nameof(UiWidget.Title), out var descriptor),
+            "descriptor lookup by member name");
+        DocsCheck.Require(
+            descriptor.GetValue() is "b",
+            "descriptor reads the live value");
+
+        var changes = session.CreateChangeSet();
+        var flattened = changes.EnumerateChanges().ToList();
+        DocsCheck.Require(
+            flattened.Count == 1 && flattened[0].Path == nameof(UiWidget.Title),
+            "flattened enumeration names the changed path");
+        DocsCheck.Require(
+            session.EnumerateChangedPaths().SequenceEqual(new[] { nameof(UiWidget.Title) }),
+            "changed paths list the member");
     }
 }
 

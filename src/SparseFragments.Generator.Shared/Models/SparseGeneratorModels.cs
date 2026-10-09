@@ -296,21 +296,34 @@ internal sealed record SparseGenerationAnalysis(
 internal sealed record SparseGenerationResult(
     string? HintName,
     string? Source,
-    ImmutableArray<SparseGeneratorDiagnostic> Diagnostics
+    ImmutableArray<SparseGeneratorDiagnostic> Diagnostics,
+    ImmutableArray<SparseGeneratedSource> AdditionalSources = default
 )
 {
     public bool Equals(SparseGenerationResult? other) =>
         other is not null
         && HintName == other.HintName
         && Source == other.Source
-        && SparseSequence.Equal(Diagnostics, other.Diagnostics);
+        && SparseSequence.Equal(Diagnostics, other.Diagnostics)
+        && SparseSequence.Equal(AdditionalSources, other.AdditionalSources);
 
     public override int GetHashCode() =>
         unchecked(
-            ((HintName?.GetHashCode() ?? 0) * 31 + (Source?.GetHashCode() ?? 0)) * 31
-            + SparseSequence.Hash(Diagnostics)
+            (
+                ((HintName?.GetHashCode() ?? 0) * 31 + (Source?.GetHashCode() ?? 0)) * 31
+                + SparseSequence.Hash(Diagnostics)
+            ) * 31
+            + SparseSequence.Hash(AdditionalSources)
         );
 }
+
+/// <summary>One additional emitted source beyond the model-facing surface file.</summary>
+/// <remarks>
+/// Carries a future implementation file (for example
+/// <c>*.Implementation.g.cs</c>) with a stable unique hint name. Per-model
+/// incremental isolation follows from value equality like the surface file.
+/// </remarks>
+internal readonly record struct SparseGeneratedSource(string HintName, string Source);
 
 internal static class SparseSequence
 {

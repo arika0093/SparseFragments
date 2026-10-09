@@ -104,7 +104,7 @@ remove.RetryCount.Remove();
 
 `T.ChangeSet.Between(beforeSparse, afterSparse)` takes sparse contribution states (`Optional<Fragment?>`) and returns the immutable before to after transition. It preserves presence transitions such as present to missing exactly, including the root missing, present-null, and present-value states.
 
-Replay it with `ToPatch()` followed by `Apply`, or reconcile it against newer state with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). A ChangeSet carries the before-state required for the transitions it represents. It does not store a mandatory full baseline snapshot beyond that semantic information.
+Replay it with `ToPatch()` followed by `Apply`, or reconcile it against newer state with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). A ChangeSet carries the before-state required for the transitions it represents. It does not store a mandatory full baseline snapshot beyond that semantic information. To update an already bound model object, prefer the conflict-checked `ChangeSet.TryApplyInPlace(model, out conflicts, options)`; the blind `ToPatch().ApplyInPlace(model)` form skips the before-state check (see [In-place application](rebase.md#in-place-application-for-bound-models)).
 
 For ordinary, present non-null model roots, prefer the generated extensions: `beforeModel.CreateChangeSet(afterModel)` and `model.CreateEditSession()`. `CreateChangeSet` delegates to `T.ChangeSet.Between`, while the session retains a baseline as an edit continues. `ChangeSet.FromPatch(baselineModel, patch)` and model-targeted apply and rebase methods are also available. These APIs snapshot through `Fragment.From` and delegate to the presence-aware behavior. Use the `Optional<Fragment?>` overloads when root missing, present-null, or present-value semantics matter.
 
@@ -151,7 +151,7 @@ if (changes.Label.IsChanged)
 
 Unchanged members remain typed and report `IsChanged == false` without retaining anything: their `Before` and `After` are missing. Changed members preserve the missing, present-null, and present-value states, so missing to present, present null to missing, and value changes are all observable without losing presence information.
 
-For consumers that need rows or logs instead of typed traversal, `EnumerateChanges()` returns flattened `ChangeInfo` entries with a path, presence-aware `Before` and `After` values, and a `ChangeKind`. Nested values use dotted paths; keyed entries use their key in brackets. `Added`, `Removed`, and `Changed` classify value transitions, while `Order` uses the collection path and carries the before and after key sequences. The method supplies change data, not presentation or formatting.
+For consumers that need rows or logs instead of typed traversal, `EnumerateChanges()` returns flattened `ChangeInfo` entries with a path, presence-aware `Before` and `After` values, and a `ChangeKind`. Nested values use dotted paths; keyed entries use their key in brackets. `Added`, `Removed`, and `Changed` classify value transitions, while `Order` uses the collection path and carries the before and after key sequences. The method supplies change data, not presentation or formatting. Flattened enumeration and `EnumerateChangedPaths()` are advanced inspection seams; ordinary editing reads the typed transitions above. Per-member metadata for generic UI code lives in `session.Descriptors` (see [UI frameworks](ui-frameworks.md#advanced-inspection-descriptors-and-flattened-changes)).
 
 When a baseline-free operation is needed instead, cross the explicit boundary:
 

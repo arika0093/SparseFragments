@@ -33,6 +33,20 @@ public partial class FreedSparseNestedModel
     }
 }
 
+[SparseFragmentModel]
+public partial class FreedEnumerateModel
+{
+    public string EnumerateChanges { get; set; } = string.Empty;
+
+    public string EnumerateChangedPaths { get; set; } = string.Empty;
+
+    public string ChangeInfo { get; set; } = string.Empty;
+
+    public string ChangeKind { get; set; } = string.Empty;
+
+    public string Other { get; set; } = string.Empty;
+}
+
 public sealed class FreedReservedNameTests
 {
     private static Optional<FreedChangesModel.Fragment?> Present(FreedChangesModel.Fragment fragment) =>
@@ -107,5 +121,68 @@ public sealed class FreedReservedNameTests
             )
         );
         changes.Name.IsChanged.ShouldBeTrue();
+    }
+
+    [Test]
+    public void EnumerationApiNamesGeneratePrefixedTransitions()
+    {
+        // Members colliding with ChangeSet enumeration helpers share one name map,
+        // so helper emitters and typed surfaces address the same property.
+        var before = Optional<FreedEnumerateModel.Fragment?>.Present(
+            FreedEnumerateModel.Fragment.From(
+                new FreedEnumerateModel
+                {
+                    EnumerateChanges = "a",
+                    EnumerateChangedPaths = "p1",
+                    ChangeInfo = "i1",
+                    ChangeKind = "k1",
+                    Other = "o",
+                }
+            )
+        );
+        var after = Optional<FreedEnumerateModel.Fragment?>.Present(
+            FreedEnumerateModel.Fragment.From(
+                new FreedEnumerateModel
+                {
+                    EnumerateChanges = "b",
+                    EnumerateChangedPaths = "p1",
+                    ChangeInfo = "i1",
+                    ChangeKind = "k1",
+                    Other = "o",
+                }
+            )
+        );
+        var changes = FreedEnumerateModel.ChangeSet.Between(before, after);
+        changes.IsEmpty.ShouldBeFalse();
+        changes.SparseEnumerateChanges.IsChanged.ShouldBeTrue();
+        changes.SparseEnumerateChanges.Before.Value.ShouldBe("a");
+        changes.SparseEnumerateChanges.After.Value.ShouldBe("b");
+        changes.SparseEnumerateChangedPaths.IsChanged.ShouldBeFalse();
+        changes.SparseChangeInfo.IsChanged.ShouldBeFalse();
+        changes.SparseChangeKind.IsChanged.ShouldBeFalse();
+        changes.Other.IsChanged.ShouldBeFalse();
+
+        // Flattened helpers still resolve on the same renamed surface.
+        var flattened = new List<FreedEnumerateModel.ChangeSet.ChangeInfo>(
+            changes.EnumerateChanges()
+        );
+        flattened.Count.ShouldBe(1);
+        flattened[0].Path.ShouldBe("EnumerateChanges");
+        changes.EnumerateChangedPaths().Count.ShouldBe(1);
+    }
+
+    [Test]
+    public void NonConflictingNamesRemainUnchanged()
+    {
+        var before = Optional<FreedEnumerateModel.Fragment?>.Present(
+            FreedEnumerateModel.Fragment.From(new FreedEnumerateModel { Other = "a" })
+        );
+        var after = Optional<FreedEnumerateModel.Fragment?>.Present(
+            FreedEnumerateModel.Fragment.From(new FreedEnumerateModel { Other = "b" })
+        );
+        var changes = FreedEnumerateModel.ChangeSet.Between(before, after);
+        changes.Other.IsChanged.ShouldBeTrue();
+        changes.Other.Before.Value.ShouldBe("a");
+        changes.Other.After.Value.ShouldBe("b");
     }
 }

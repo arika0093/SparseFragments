@@ -129,6 +129,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
         ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",
         EditSessionInterfaceMetadataName: "SparseFragments.ISparseEditSession",
+        GeneratedImplementationNamespace: "SparseFragments.Generated",
         EditSessionDialect: new SparseEditSessionDialect("SparseFragments.Generated"),
         EditSessionModelAccessorInterfaceMetadataName: "SparseFragments.ISparseEditSessionModelAccessor",
         DescriptorDialect: new SparseDescriptorDialect(
@@ -667,6 +668,22 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         if (result.HintName is not null && result.Source is not null)
         {
             context.AddSource(result.HintName, SourceText.From(result.Source, Encoding.UTF8));
+        }
+
+        // Model-facing surface and implementation files share one result so
+        // per-model incremental isolation covers both with stable hint names.
+        // A default (not merely empty) additional-sources array must not be
+        // enumerated: ImmutableArray iteration over default throws.
+        if (!result.AdditionalSources.IsDefaultOrEmpty)
+        {
+            foreach (var additional in result.AdditionalSources)
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+                context.AddSource(
+                    additional.HintName,
+                    SourceText.From(additional.Source, Encoding.UTF8)
+                );
+            }
         }
     }
 

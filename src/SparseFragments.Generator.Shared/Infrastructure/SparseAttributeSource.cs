@@ -129,6 +129,45 @@ internal static class SparseAttributeSource
             return boolean ? "true" : "false";
         }
 
+        // Nonfinite float/double constants have no literal form. Invariant
+        // Convert.ToString would emit tokens such as NaND or InfinityF, so
+        // name the runtime fields instead.
+        if (value is float single)
+        {
+            if (float.IsNaN(single))
+            {
+                return "global::System.Single.NaN";
+            }
+
+            if (float.IsPositiveInfinity(single))
+            {
+                return "global::System.Single.PositiveInfinity";
+            }
+
+            if (float.IsNegativeInfinity(single))
+            {
+                return "global::System.Single.NegativeInfinity";
+            }
+        }
+
+        if (value is double number)
+        {
+            if (double.IsNaN(number))
+            {
+                return "global::System.Double.NaN";
+            }
+
+            if (double.IsPositiveInfinity(number))
+            {
+                return "global::System.Double.PositiveInfinity";
+            }
+
+            if (double.IsNegativeInfinity(number))
+            {
+                return "global::System.Double.NegativeInfinity";
+            }
+        }
+
         var literal = Convert.ToString(value, CultureInfo.InvariantCulture);
         if (literal is null)
         {
