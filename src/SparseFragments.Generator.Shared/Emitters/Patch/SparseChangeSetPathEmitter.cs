@@ -153,20 +153,25 @@ internal static class SparseChangeSetPathEmitter
     )
     {
         var item = "__sparse_item_" + member.Id;
-        var key = "__sparse_key_" + member.Id;
         var itemPath = "__sparse_item_path_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
         code.AppendLineAt(3, "foreach (var " + item + " in " + property + ")");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var " + key + " = __SparseKeyText(" + item + ".Key);");
         code.AppendLineAt(
             4,
             "var "
                 + itemPath
-                + " = "
+                + " = __SparseKeyPath("
+                + seen
+                + ", "
                 + memberPath
-                + " + \"[\\\"\" + __SparseEscapeKey("
-                + key
-                + ") + \"\\\"]\";"
+                + ", "
+                + item
+                + ".Key);"
         );
         code.AppendLineAt(
             4,
@@ -213,9 +218,14 @@ internal static class SparseChangeSetPathEmitter
         // Mirrors EnumerateChanges set flattening (issue #174): per-element
         // paths when both sides are present, one aggregate path otherwise.
         var transition = "__sparse_set_transition_" + member.Id;
+        var seen = "__sparse_seen_" + member.Id;
         var added = "__sparse_set_added_" + member.Id;
         var removed = "__sparse_set_removed_" + member.Id;
         code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(
+            3,
+            "var " + seen + " = new global::System.Collections.Generic.HashSet<string>();"
+        );
         code.AppendLineAt(3, "if (" + transition + ".IsChanged)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -239,6 +249,8 @@ internal static class SparseChangeSetPathEmitter
                 + " in "
                 + transition
                 + ".Added) paths.Add(__SparseKeyPath("
+                + seen
+                + ", "
                 + memberPath
                 + ", "
                 + added
@@ -251,6 +263,8 @@ internal static class SparseChangeSetPathEmitter
                 + " in "
                 + transition
                 + ".Removed) paths.Add(__SparseKeyPath("
+                + seen
+                + ", "
                 + memberPath
                 + ", "
                 + removed
