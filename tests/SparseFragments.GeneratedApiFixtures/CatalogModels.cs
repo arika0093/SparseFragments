@@ -27,11 +27,24 @@ public partial class CatalogNested
 {
     public CatalogScalar Child { get; set; } = new();
 
+    [SparseMerge(MergeMode.Replace)]
+    public CatalogPoco? Metadata { get; set; }
+
+    [SparseMerge(MergeMode.Replace)]
+    public List<CatalogPoco?> MetadataItems { get; set; } = new();
+
     // Whole-value sequence: no key, replaced as a unit.
     [SparseMerge(MergeMode.Replace)]
     public List<CatalogScalar> Children { get; set; } = new();
 
     public CatalogScalar? Maybe { get; set; }
+}
+
+public sealed class CatalogPoco
+{
+    public string Label { get; set; } = string.Empty;
+
+    public CatalogPoco? Nested { get; set; }
 }
 
 // Keyed element; the roster below exposes typed per-key projections.

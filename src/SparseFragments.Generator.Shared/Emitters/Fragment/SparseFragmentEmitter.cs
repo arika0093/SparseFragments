@@ -241,7 +241,7 @@ internal static class SparseFragmentEmitter
                     runtime.Namespace
                 );
             }
-            SparseReadOnlyViewEmitter.AppendReadOnlyView(code, modelType, members);
+            SparseReadOnlyViewEmitter.AppendReadOnlyView(code, modelType, members, pocoCloneModels);
         }
 
         code.AppendLine("}");

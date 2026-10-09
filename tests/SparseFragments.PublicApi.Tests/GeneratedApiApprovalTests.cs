@@ -93,6 +93,20 @@ public sealed class GeneratedApiApprovalTests
         AssertNested(dictionaryChanges, "ScoresTransition");
         AssertNested(dictionaryChanges, "DetailsTransition");
         AssertNested(AssertNested(typeof(CatalogKeyedItem), "ChangeSet"), "IdTransition");
+
+        var nestedReadOnlyView = AssertNested(typeof(CatalogNested), "ReadOnlyView");
+        var metadataViewType = Nullable.GetUnderlyingType(
+            nestedReadOnlyView.GetProperty(nameof(CatalogNested.Metadata))!.PropertyType
+        );
+        metadataViewType.ShouldNotBeNull();
+        metadataViewType!.ShouldNotBe(typeof(CatalogPoco));
+        var metadataElementType = Nullable.GetUnderlyingType(
+            nestedReadOnlyView
+                .GetProperty(nameof(CatalogNested.MetadataItems))!
+                .PropertyType.GetGenericArguments()[0]
+        );
+        metadataElementType.ShouldBe(metadataViewType);
+        metadataViewType.GetProperty(nameof(CatalogPoco.Label)).ShouldNotBeNull();
     }
 
     [Test]

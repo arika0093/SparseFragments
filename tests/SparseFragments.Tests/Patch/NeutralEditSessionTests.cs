@@ -23,6 +23,27 @@ public partial class NeutralSessionChild
 }
 
 [SparseFragmentModel]
+public partial class NeutralSessionAtomicPocoModel
+{
+    [SparseMerge(MergeMode.Replace)]
+    public NeutralSessionAtomicPoco? Atomic { get; set; }
+
+    [SparseMerge(MergeMode.Replace)]
+    public List<NeutralSessionAtomicPoco?> Items { get; set; } = [];
+}
+
+public sealed class NeutralSessionAtomicPoco
+{
+    public string Label { get; set; } = string.Empty;
+
+    public NeutralSessionAtomicPoco? Nested { get; set; }
+
+    public string __model { get; set; } = string.Empty;
+
+    public string __SparseReadOnlyCollection { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
 public partial class ImmutableSessionModel
 {
     public string Name { get; init; } = string.Empty;
@@ -528,6 +549,41 @@ public sealed class NeutralEditSessionTests
         session.EnumerateChangedPaths().ShouldBe(["Child.Value", "Name"]);
         session.Current.Name.ShouldBe("updated");
         session.Current.Child.Value.ShouldBe("nested");
+    }
+
+    [Test]
+    public void CurrentWrapsAtomicPocoValuesAndCollectionElements()
+    {
+        var model = new NeutralSessionAtomicPocoModel
+        {
+            Atomic = new NeutralSessionAtomicPoco
+            {
+                Label = "atomic",
+                Nested = new NeutralSessionAtomicPoco { Label = "nested" },
+                __model = "poco backing-name collision",
+                __SparseReadOnlyCollection = "adapter-name collision",
+            },
+            Items = [new NeutralSessionAtomicPoco { Label = "item" }, null],
+        };
+        var session = model.CreateEditSession();
+        var atomic = session.Current.Atomic!.Value;
+        var nested = atomic.Nested!.Value;
+        var item = session.Current.Items[0]!.Value;
+
+        atomic.Label.ShouldBe("atomic");
+        atomic.__model.ShouldBe("poco backing-name collision");
+        atomic.__SparseReadOnlyCollection.ShouldBe("adapter-name collision");
+        nested.Label.ShouldBe("nested");
+        item.Label.ShouldBe("item");
+        session.Current.Items[1].ShouldBeNull();
+        atomic.GetType().ShouldNotBe(typeof(NeutralSessionAtomicPoco));
+        nested.GetType().ShouldNotBe(typeof(NeutralSessionAtomicPoco));
+        item.GetType().ShouldNotBe(typeof(NeutralSessionAtomicPoco));
+
+        model.Atomic!.Label = "updated";
+        atomic.Label.ShouldBe("updated");
+        model.Atomic = null;
+        session.Current.Atomic.ShouldBeNull();
     }
 
     [Test]
