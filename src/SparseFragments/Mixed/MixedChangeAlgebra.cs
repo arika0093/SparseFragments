@@ -362,6 +362,7 @@ public static class MixedChangeAlgebra
     {
         var composed = new List<MixedMemberOperation>(firstMembers.Count + secondMembers.Count);
         var failures = new List<MixedComposeResult>();
+        var consumedSecond = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var entry in firstMembers)
         {
@@ -383,19 +384,244 @@ public static class MixedChangeAlgebra
                 {
                     failures.Add(outcome);
                 }
+
+                consumedSecond.Add(entry.Key);
+                continue;
             }
-            else
+
+            // Segment-aware ancestor/descendant overlap (issue #130): a whole
+            // member operation overlaps its nested children and keyed entries.
+            // String-prefix matching is wrong ("A" does not overlap "AB").
+            var overlap = FindOverlap(entry.Value, secondMembers, consumedSecond);
+            if (overlap.HasValue)
             {
-                composed.Add(entry.Value);
+                consumedSecond.Add(overlap.Value.SecondKey);
+                var resolution = ResolveAncestorOverlap(entry.Value, overlap.Value.SecondOp);
+                if (resolution.Failure.HasValue)
+                {
+                    failures.Add(resolution.Failure.Value);
+                }
+
+                if (resolution.KeepFirst)
+                {
+                    composed.Add(entry.Value);
+                }
+
+                if (resolution.KeepSecond)
+                {
+                    composed.Add(overlap.Value.SecondOp);
+                }
+
+                continue;
             }
+
+            composed.Add(entry.Value);
         }
 
         foreach (var entry in secondMembers.Where(entry => !firstMembers.ContainsKey(entry.Key)))
         {
+            if (consumedSecond.Contains(entry.Key))
+            {
+                continue;
+            }
+
+            // Second-side entries overlapping an already-retained first entry
+            // were resolved above; check against retained first-side ancestors
+            // that were emitted without a same-key match.
+            var overlap = FindOverlapInComposed(entry.Value, composed);
+            if (overlap.HasValue)
+            {
+                var resolution = ResolveAncestorOverlap(overlap.Value, entry.Value);
+                if (resolution.Failure.HasValue)
+                {
+                    failures.Add(resolution.Failure.Value);
+                }
+
+                if (resolution.KeepSecond)
+                {
+                    // Replace the retained ancestor when the trailing side wins.
+                    if (!resolution.KeepFirst)
+                    {
+                        composed.Remove(overlap.Value);
+                    }
+
+                    composed.Add(entry.Value);
+                }
+
+                continue;
+            }
+
             composed.Add(entry.Value);
         }
 
         return new MixedSequenceComposition(failures.Count == 0, composed, failures);
+    }
+
+    private static (string SecondKey, MixedMemberOperation SecondOp)? FindOverlap(
+        MixedMemberOperation first,
+        Dictionary<string, MixedMemberOperation> secondMembers,
+        HashSet<string> consumedSecond
+    )
+    {
+        foreach (var entry in secondMembers)
+        {
+            if (
+                consumedSecond.Contains(entry.Key)
+                || string.Equals(first.Path, entry.Key, StringComparison.Ordinal)
+            )
+            {
+                continue;
+            }
+
+            if (IsAncestorOrDescendant(first.Path, entry.Key))
+            {
+                return (entry.Key, entry.Value);
+            }
+        }
+
+        return null;
+    }
+
+    private static MixedMemberOperation? FindOverlapInComposed(
+        MixedMemberOperation second,
+        List<MixedMemberOperation> composed
+    )
+    {
+        foreach (var existing in composed)
+        {
+            if (
+                !existing.IsWholeRoot
+                && !second.IsWholeRoot
+                && !string.Equals(existing.Path, second.Path, StringComparison.Ordinal)
+                && IsAncestorOrDescendant(existing.Path, second.Path)
+            )
+            {
+                return existing;
+            }
+        }
+
+        return null;
+    }
+
+    private sealed record OverlapResolution(
+        bool KeepFirst,
+        bool KeepSecond,
+        MixedComposeResult? Failure
+    );
+
+    private static OverlapResolution ResolveAncestorOverlap(
+        MixedMemberOperation first,
+        MixedMemberOperation second
+    )
+    {
+        var firstAncestor = IsStrictAncestor(first.Path, second.Path);
+        // Any transition side needs value-level continuity that descriptors
+        // cannot verify; never invent before values.
+        if (
+            first.History == MixedHistoryKind.Transition
+            || second.History == MixedHistoryKind.Transition
+        )
+        {
+            return new OverlapResolution(
+                false,
+                false,
+                new MixedComposeResult(
+                    false,
+                    firstAncestor ? first.Path : second.Path,
+                    MixedHistoryKind.Transition,
+                    second.After,
+                    false,
+                    false,
+                    "Overlapping operations on '"
+                        + first.Path
+                        + "' and '"
+                        + second.Path
+                        + "' need value-level continuity. Compose them through the typed ChangeSet API."
+                )
+            );
+        }
+
+        // Both blind: whole-member granularity wins. A trailing ancestor
+        // overwrites the prior child; a leading ancestor absorbs the later
+        // child edit, so no overwritten child or orphaned edit survives.
+        if (firstAncestor)
+        {
+            return new OverlapResolution(true, false, null);
+        }
+
+        return new OverlapResolution(false, true, null);
+    }
+
+    /// <summary>Whether either path is a strict segment ancestor of the other.</summary>
+    /// <remarks>
+    /// Segments split on '.' with bracket suffixes kept on their element
+    /// (so <c>Items["k"]</c> is one segment). <c>A</c> is not an ancestor of
+    /// <c>AB</c>; <c>Nested</c> is an ancestor of <c>Nested.Host</c>.
+    /// </remarks>
+    public static bool IsAncestorOrDescendant(string first, string second) =>
+        IsStrictAncestor(first, second) || IsStrictAncestor(second, first);
+
+    private static bool IsStrictAncestor(string ancestor, string descendant)
+    {
+        var a = SplitPathSegments(ancestor);
+        var d = SplitPathSegments(descendant);
+        if (a.Length >= d.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < a.Length; i++)
+        {
+            if (!string.Equals(a[i], d[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string[] SplitPathSegments(string path)
+    {
+        // Bracket keys never contain an unescaped '.' outside quotes in the
+        // canonical form, so a '.' split with bracket-awareness suffices.
+        var segments = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var depth = 0;
+        var inQuotes = false;
+        for (var i = 0; i < path.Length; i++)
+        {
+            var c = path[i];
+            if (c == '"' && (i == 0 || path[i - 1] != '\\'))
+            {
+                inQuotes = !inQuotes;
+                current.Append(c);
+                continue;
+            }
+
+            if (!inQuotes)
+            {
+                if (c == '[')
+                {
+                    depth++;
+                }
+                else if (c == ']')
+                {
+                    depth--;
+                }
+                else if (c == '.' && depth == 0)
+                {
+                    segments.Add(current.ToString());
+                    current.Clear();
+                    continue;
+                }
+            }
+
+            current.Append(c);
+        }
+
+        segments.Add(current.ToString());
+        return [.. segments];
     }
 
     /// <summary>Plans a rollback: transitions invert, blind sets are skipped and reported.</summary>

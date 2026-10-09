@@ -384,6 +384,56 @@ public sealed class MixedChangeAlgebraTests
     }
 
     [Test]
+    public void AncestorBlindOverwriteSupersedesDescendant()
+    {
+        // Trailing whole-member blind write supersedes a prior child edit.
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Items[\"k\"].Name")],
+            [Blind("Items[\"k\"]")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].Path.ShouldBe("Items[\"k\"]");
+    }
+
+    [Test]
+    public void LeadingBlindAncestorAbsorbsTrailingChild()
+    {
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Nested")],
+            [Blind("Nested.Host")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.ShouldHaveSingleItem();
+        composed.Composed[0].Path.ShouldBe("Nested");
+    }
+
+    [Test]
+    public void AncestorTransitionOverlapFailsWithoutInventingValues()
+    {
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Transition("Nested")],
+            [Transition("Nested.Host")]
+        );
+        composed.Succeeded.ShouldBeFalse();
+        composed.Failures.ShouldHaveSingleItem();
+        composed.Failures[0].FailureReason.ShouldContain("Nested");
+    }
+
+    [Test]
+    public void SiblingPathsStayDisjoint()
+    {
+        MixedChangeAlgebra.IsAncestorOrDescendant("A", "AB").ShouldBeFalse();
+        MixedChangeAlgebra.IsAncestorOrDescendant("Nested.Host", "Nested.Port").ShouldBeFalse();
+        var composed = MixedChangeAlgebra.ComposeSequences(
+            [Blind("Nested.Host")],
+            [Blind("Nested.Port")]
+        );
+        composed.Succeeded.ShouldBeTrue();
+        composed.Composed.Count.ShouldBe(2);
+    }
+
+    [Test]
     public void PolicySeamDefaultsToPassthroughAndFailsClosed()
     {
         MixedChangeAlgebra.EnsurePassthrough(RedactedBeforePolicy.Passthrough);
