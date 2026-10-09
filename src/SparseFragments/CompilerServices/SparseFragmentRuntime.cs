@@ -3,7 +3,7 @@ using System.ComponentModel;
 namespace SparseFragments.CompilerServices;
 
 /// <summary>Minimal generated-code runtime facade.</summary>
-/// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers.</remarks>
+/// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers. Method-level layer ownership is recorded in docs/architecture/runtime-ownership-audit.md.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class SparseFragmentRuntime
 {
