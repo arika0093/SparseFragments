@@ -24,7 +24,8 @@ internal sealed class SparseFragmentDeclarationEmitter(
         string fragmentInterface,
         string deepCloneable,
         System.Action<SharedIndentedBuilder>? appendAttributes = null,
-        string? advancedInterface = null
+        string? advancedInterface = null,
+        string accessibility = "public"
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
@@ -33,7 +34,7 @@ internal sealed class SparseFragmentDeclarationEmitter(
             "/// <summary>A sparse, presence-aware representation of this model.</summary>"
         );
         appendAttributes?.Invoke(code);
-        code.AppendLineAt(1, "public sealed class Fragment");
+        code.AppendLineAt(1, accessibility + " sealed class Fragment");
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "public Fragment() { }");
         code.AppendLine();
@@ -119,11 +120,15 @@ internal sealed class SparseFragmentDeclarationEmitter(
         code.AppendLine();
     }
 
-    public void AppendBuilder(SharedIndentedBuilder code, ImmutableArray<SparseMemberModel> members)
+    public void AppendBuilder(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string accessibility = "public"
+    )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
         code.AppendLineAt(1, "/// <summary>A mutable builder for a generated fragment.</summary>");
-        code.AppendLineAt(1, "public sealed class FragmentBuilder");
+        code.AppendLineAt(1, accessibility + " sealed class FragmentBuilder");
         code.AppendLineAt(1, "{");
         foreach (var member in members)
         {

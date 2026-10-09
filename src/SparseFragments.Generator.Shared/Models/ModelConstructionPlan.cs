@@ -61,29 +61,31 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                     property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
                 var hasPublicSetter =
                     property.SetMethod?.DeclaredAccessibility == Accessibility.Public;
+                var isConstructorBound = constructor.Parameters.Any(parameter =>
+                    parameter.PropertyName == property.Name
+                );
                 if (!hasPublicGetter && !hasPublicSetter)
                 {
                     continue;
                 }
 
                 if (
+                    hasPublicGetter
+                    && property.SetMethod is null
+                    && !isConstructorBound
+                    && !RoslynSymbolCompat.IsRequired(property)
+                    && SparsePromotedDiscovery.IsPartialType(pocoType, cancellationToken)
+                )
+                {
+                    // Computed getters are not construction state on partial POCOs.
+                    continue;
+                }
+
+                if (
                     !hasPublicGetter
-                    || (
-                        !hasPublicSetter
-                        && !(
-                            property.SetMethod is null
-                            && constructor.Parameters.Any(parameter =>
-                                parameter.PropertyName == property.Name
-                            )
-                        )
-                    )
+                    || (!hasPublicSetter && !isConstructorBound)
                     || (RoslynSymbolCompat.IsRequired(property) && !constructor.SetsRequiredMembers)
-                    || (
-                        property.SetMethod?.IsInitOnly == true
-                        && !constructor.Parameters.Any(parameter =>
-                            parameter.PropertyName == property.Name
-                        )
-                    )
+                    || (property.SetMethod?.IsInitOnly == true && !isConstructorBound)
                 )
                 {
                     return true;

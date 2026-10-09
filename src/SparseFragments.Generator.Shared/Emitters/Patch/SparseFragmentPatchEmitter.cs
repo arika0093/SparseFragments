@@ -71,97 +71,7 @@ internal static class SparseFragmentPatchEmitter
                 3,
                 "if (model is null) throw new global::System.ArgumentNullException(nameof(model));"
             );
-            code.AppendLineAt(3, "var __sparse_updated = ToModel();");
-            foreach (var member in members)
-            {
-                var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-                if (
-                    member.Collection.Kind == SparseCollectionKind.List
-                    && member.Collection.CloneKind == SparseCloneCollectionKind.List
-                )
-                {
-                    var listType =
-                        "global::System.Collections.Generic.List<"
-                        + member.Collection.ElementType.Name
-                        + ">";
-                    code.AppendLineAt(
-                        3,
-                        "if (model."
-                            + property
-                            + " is "
-                            + listType
-                            + " __sparse_list"
-                            + member.Id
-                            + " && __sparse_updated."
-                            + property
-                            + " is not null)"
-                    );
-                    code.AppendLineAt(3, "{");
-                    code.AppendLineAt(4, "__sparse_list" + member.Id + ".Clear();");
-                    code.AppendLineAt(
-                        4,
-                        "__sparse_list"
-                            + member.Id
-                            + ".AddRange(__sparse_updated."
-                            + property
-                            + ");"
-                    );
-                    code.AppendLineAt(3, "}");
-                    code.AppendLineAt(
-                        3,
-                        "else model." + property + " = __sparse_updated." + property + "!;"
-                    );
-                }
-                else if (member.Collection.IsDictionary)
-                {
-                    var dictionaryType =
-                        "global::System.Collections.Generic.Dictionary<"
-                        + member.Collection.ElementType.Name
-                        + ", "
-                        + member.Collection.ValueType!.Value.Name
-                        + ">";
-                    code.AppendLineAt(
-                        3,
-                        "if (model."
-                            + property
-                            + " is "
-                            + dictionaryType
-                            + " __sparse_dict"
-                            + member.Id
-                            + " && __sparse_updated."
-                            + property
-                            + " is not null)"
-                    );
-                    code.AppendLineAt(3, "{");
-                    code.AppendLineAt(4, "__sparse_dict" + member.Id + ".Clear();");
-                    code.AppendLineAt(
-                        4,
-                        "foreach (var __sparse_pair"
-                            + member.Id
-                            + " in __sparse_updated."
-                            + property
-                            + ") __sparse_dict"
-                            + member.Id
-                            + ".Add(__sparse_pair"
-                            + member.Id
-                            + ".Key, __sparse_pair"
-                            + member.Id
-                            + ".Value);"
-                    );
-                    code.AppendLineAt(3, "}");
-                    code.AppendLineAt(
-                        3,
-                        "else model." + property + " = __sparse_updated." + property + "!;"
-                    );
-                }
-                else
-                {
-                    code.AppendLineAt(
-                        3,
-                        "model." + property + " = __sparse_updated." + property + "!;"
-                    );
-                }
-            }
+            code.AppendLineAt(3, "__SparseWriteWritableTo(model);");
             code.AppendLineAt(2, "}");
         }
         AppendWriteToContract(code, modelType, members, writeContract);
@@ -402,7 +312,7 @@ internal static class SparseFragmentPatchEmitter
         );
     }
 
-    private static string MemberEmptyExpression(
+    internal static string MemberEmptyExpression(
         SparseMemberModel member,
         SparsePatchDialect dialect
     )
@@ -425,15 +335,16 @@ internal static class SparseFragmentPatchEmitter
         ImmutableArray<SparseMemberModel> members,
         SparsePatchDialect dialect,
         ImmutableArray<string> ignoredSettablePropertyNames = default,
-        bool canWriteInPlace = false,
-        SparseEmissionFeatures? features = null
+        bool canApplyInPlace = false,
+        SparseEmissionFeatures? features = null,
+        string accessibility = "public"
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
         if (!plan.EmitPatch)
             return;
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
-        code.AppendLineAt(1, "public sealed class Patch");
+        code.AppendLineAt(1, accessibility + " sealed class Patch");
         code.AppendLineAt(1, "{");
         SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect, modelType);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
@@ -471,19 +382,102 @@ internal static class SparseFragmentPatchEmitter
         }
         code.AppendLineAt(3, "return updated;");
         code.AppendLineAt(2, "}");
-        if (canWriteInPlace)
+        if (canApplyInPlace)
         {
             code.AppendLineAt(
                 2,
-                "/// <summary>Applies this patch to an existing model instance.</summary>"
+                "/// <summary>Result of applying a patch to an existing model instance.</summary>"
             );
-            code.AppendLineAt(2, "public void ApplyInPlace(" + modelType + " current)");
+            code.AppendLineAt(2, "public sealed class ApplyInPlaceResult");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "private ApplyInPlaceResult(string[] unsupportedMembers)");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(
+                4,
+                "UnsupportedMembers = global::System.Array.AsReadOnly(unsupportedMembers);"
+            );
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(
+                3,
+                "/// <summary>Whether the patch was applied to the model.</summary>"
+            );
+            code.AppendLineAt(3, "public bool Succeeded => UnsupportedMembers.Count == 0;");
+            code.AppendLineAt(
+                3,
+                "/// <summary>Names of immutable members that prevented the patch from being applied.</summary>"
+            );
+            code.AppendLineAt(
+                3,
+                "public global::System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }"
+            );
+            code.AppendLineAt(
+                3,
+                "internal static ApplyInPlaceResult Success { get; } = new(global::System.Array.Empty<string>());"
+            );
+            code.AppendLineAt(
+                3,
+                "internal static ApplyInPlaceResult Failure(global::System.Collections.Generic.List<string> unsupportedMembers) => new(unsupportedMembers.ToArray());"
+            );
+            code.AppendLineAt(2, "}");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies this patch to writable members of an existing model.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public ApplyInPlaceResult ApplyInPlace(" + modelType + " current)"
+            );
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
                 3,
                 "if (current is null) throw new global::System.ArgumentNullException(nameof(current));"
             );
-            code.AppendLineAt(3, "Fragment.From(current).Apply(this).WriteTo(current);");
+            var immutableMembers = members
+                .Where(static member => member.Property.IsReadOnly || member.Property.IsInitOnly)
+                .ToArray();
+            if (immutableMembers.Length > 0)
+            {
+                code.AppendLineAt(
+                    3,
+                    "var __sparse_unsupportedMembers = new global::System.Collections.Generic.List<string>();"
+                );
+                foreach (var member in immutableMembers)
+                {
+                    var propertyName =
+                        "nameof("
+                        + modelType
+                        + "."
+                        + SparseNaming.EscapeIdentifier(member.Property.Name)
+                        + ")";
+                    code.AppendLineAt(
+                        3,
+                        "if (__sparse_whole.Kind != "
+                            + Kind(dialect)
+                            + ".Keep) __sparse_unsupportedMembers.Add("
+                            + propertyName
+                            + ");"
+                    );
+                    code.AppendLineAt(
+                        3,
+                        "if (!("
+                            + MemberEmptyExpression(member, dialect)
+                            + ") && !__sparse_unsupportedMembers.Contains("
+                            + propertyName
+                            + ")) __sparse_unsupportedMembers.Add("
+                            + propertyName
+                            + ");"
+                    );
+                }
+                code.AppendLineAt(
+                    3,
+                    "if (__sparse_unsupportedMembers.Count > 0) return ApplyInPlaceResult.Failure(__sparse_unsupportedMembers);"
+                );
+            }
+            code.AppendLineAt(
+                3,
+                "Fragment.From(current).Apply(this).__SparseWriteWritableTo(current);"
+            );
+            code.AppendLineAt(3, "return ApplyInPlaceResult.Success;");
             code.AppendLineAt(2, "}");
         }
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
@@ -506,7 +500,8 @@ internal static class SparseFragmentPatchEmitter
                 dialect,
                 modelType,
                 ignoredSettablePropertyNames,
-                plan
+                plan,
+                accessibility
             );
         }
     }

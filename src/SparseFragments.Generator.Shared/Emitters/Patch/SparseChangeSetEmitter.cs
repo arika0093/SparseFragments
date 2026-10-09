@@ -27,7 +27,8 @@ internal static class SparseChangeSetEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
         ImmutableArray<string> ignoredSettablePropertyNames,
-        SparseEmissionFeatures? features = null
+        SparseEmissionFeatures? features = null,
+        string accessibility = "public"
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
@@ -39,7 +40,7 @@ internal static class SparseChangeSetEmitter
         );
         var between = "Patch." + prefix + "Between";
         var rebase = "Patch." + prefix + "Rebase";
-        code.AppendLineAt(1, "public sealed class ChangeSet");
+        code.AppendLineAt(1, accessibility + " sealed class ChangeSet");
         code.AppendLineAt(1, "{");
         SparseChangeSetBasicsEmitter.AppendFields(
             code,

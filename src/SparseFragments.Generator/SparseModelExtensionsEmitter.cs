@@ -25,9 +25,10 @@ internal static class SparseModelExtensionsEmitter
         var modelType = model.ModelTypeName;
         var extensionClass = ContainerName(model, cancellationToken);
         var observable = SparseObservableEmitter.ObservableTypeName(members);
+        var accessibility = model.IsPublic ? "public" : "internal";
 
         code.AppendLine();
-        code.AppendLineAt(0, "public static partial class " + extensionClass);
+        code.AppendLineAt(0, accessibility + " static partial class " + extensionClass);
         code.AppendLineAt(0, "{");
         code.AppendLineAt(
             1,
@@ -35,7 +36,8 @@ internal static class SparseModelExtensionsEmitter
         );
         code.AppendLineAt(
             1,
-            "public static "
+            accessibility
+                + " static "
                 + modelType
                 + ".ChangeSet CreateChangeSet(this "
                 + modelType
@@ -68,7 +70,8 @@ internal static class SparseModelExtensionsEmitter
             );
             code.AppendLineAt(
                 1,
-                "public static "
+                accessibility
+                    + " static "
                     + session
                     + " CreateEditSession(this "
                     + modelType
@@ -91,7 +94,8 @@ internal static class SparseModelExtensionsEmitter
             );
             code.AppendLineAt(
                 1,
-                "public static "
+                accessibility
+                    + " static "
                     + session
                     + " CreateEditSession(this "
                     + modelType
@@ -117,7 +121,8 @@ internal static class SparseModelExtensionsEmitter
             );
             code.AppendLineAt(
                 1,
-                "public static global::SparseFragments.Optional<"
+                accessibility
+                    + " static global::SparseFragments.Optional<"
                     + modelType
                     + "."
                     + observable

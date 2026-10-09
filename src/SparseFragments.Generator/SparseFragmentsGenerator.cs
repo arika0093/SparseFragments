@@ -143,7 +143,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "ApplyTo",
             "TryApplyTo",
             "WriteTo",
-            "ApplyInPlace"
+            "ApplyInPlace",
+            "ApplyInPlaceResult"
         )
     );
 
@@ -397,8 +398,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     );
     private static readonly DiagnosticDescriptor InPlaceWriteUnavailable = new(
         SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable,
-        "In-place submit is unavailable",
-        "Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission",
+        "In-place patching is limited",
+        "Model '{0}' has init-only or constructor-only members; in-place patches that include them return a structured failure",
         "SparseFragments",
         DiagnosticSeverity.Info,
         true,

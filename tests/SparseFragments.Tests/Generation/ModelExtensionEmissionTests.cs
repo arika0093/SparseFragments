@@ -20,7 +20,10 @@ public sealed class ModelExtensionEmissionTests
 
     private static (
         string ExtensionClass,
-        ImmutableArray<Diagnostic> CompilationDiagnostics
+        string ExtensionAccessibility,
+        ImmutableArray<Diagnostic> CompilationDiagnostics,
+        string GeneratedSource,
+        Compilation UpdatedCompilation
     ) Generate(string source, string path)
     {
         var tree = CSharpSyntaxTree.ParseText(source, path: path);
@@ -53,17 +56,21 @@ public sealed class ModelExtensionEmissionTests
             .GetRunResult()
             .Results.SelectMany(static result => result.GeneratedSources)
             .Single(static generated =>
-                generated
-                    .SourceText.ToString()
-                    .Contains("Extensions_", StringComparison.Ordinal)
+                generated.SourceText.ToString().Contains("Extensions_", StringComparison.Ordinal)
             )
             .SourceText.ToString();
         var match = Regex.Match(
             generatedSource,
-            @"public static partial class ([A-Za-z0-9_]+Extensions_[A-F0-9]{8})"
+            @"(public|internal) static partial class ([A-Za-z0-9_]+Extensions_[A-F0-9]{8})"
         );
         match.Success.ShouldBeTrue();
-        return (match.Groups[1].Value, updatedCompilation.GetDiagnostics());
+        return (
+            match.Groups[2].Value,
+            match.Groups[1].Value,
+            updatedCompilation.GetDiagnostics(),
+            generatedSource,
+            updatedCompilation
+        );
     }
 
     [Test]
@@ -84,6 +91,58 @@ public sealed class ModelExtensionEmissionTests
                 diagnostic.Severity == DiagnosticSeverity.Error
             )
             .ShouldBeEmpty();
+    }
+
+    [Test]
+    public void InternalModelUsesInternalGeneratedTypesAndExtensions()
+    {
+        const string source = """
+            using SparseFragments;
+            namespace Stable.Generated;
+            [SparseFragmentModel]
+            internal partial class InternalStableModel
+            {
+                public string Name { get; set; } = string.Empty;
+                public string Initial { get; init; } = string.Empty;
+                public string ConstructorValue { get; }
+                public InternalStableChild Child { get; set; } = new();
+                public InternalStableModel(string constructorValue) => ConstructorValue = constructorValue;
+            }
+            internal partial class InternalStableChild
+            {
+                public string Value { get; set; } = string.Empty;
+                public string Display => Value;
+            }
+            """;
+
+        var generated = Generate(source, "InternalModel.cs");
+
+        generated.ExtensionAccessibility.ShouldBe("internal");
+        generated.GeneratedSource.ShouldContain("internal partial class InternalStableModel");
+        generated.GeneratedSource.ShouldContain("internal sealed class Fragment");
+        generated.GeneratedSource.ShouldContain("internal sealed class FragmentBuilder");
+        generated.GeneratedSource.ShouldContain("internal sealed class Patch");
+        generated.GeneratedSource.ShouldContain("internal sealed class ChangeSet");
+        generated.GeneratedSource.ShouldContain("internal static partial class");
+        generated.GeneratedSource.ShouldContain(
+            "internal static global::Stable.Generated.InternalStableModel.ChangeSet CreateChangeSet"
+        );
+        generated
+            .CompilationDiagnostics.Where(static diagnostic =>
+                diagnostic.Severity == DiagnosticSeverity.Error
+            )
+            .ShouldBeEmpty();
+        var generatedChild = generated.UpdatedCompilation.GetTypeByMetadataName(
+            "Stable.Generated.InternalStableChild"
+        );
+        generatedChild.ShouldNotBeNull();
+        foreach (var generatedName in new[] { "Fragment", "Patch", "ChangeSet" })
+        {
+            generatedChild!
+                .GetTypeMembers(generatedName)
+                .Single()
+                .DeclaredAccessibility.ShouldBe(Accessibility.Internal);
+        }
     }
 
     [Test]

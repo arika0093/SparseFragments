@@ -125,7 +125,8 @@ internal readonly record struct SparseModelInfo(
     bool IsRecord,
     string HintName,
     ModelConstructorBinding? Constructor,
-    ImmutableArray<string> IgnoredSettablePropertyNames = default
+    ImmutableArray<string> IgnoredSettablePropertyNames = default,
+    bool IsPublic = true
 )
 {
     public bool Equals(SparseModelInfo other) =>
@@ -135,33 +136,27 @@ internal readonly record struct SparseModelInfo(
         && IsGlobalNamespace == other.IsGlobalNamespace
         && IsStruct == other.IsStruct
         && IsRecord == other.IsRecord
+        && IsPublic == other.IsPublic
         && HintName == other.HintName
         && Equals(Constructor, other.Constructor)
         && SparseSequence.Equal(IgnoredSettablePropertyNames, other.IgnoredSettablePropertyNames);
 
-    public override int GetHashCode() =>
-        unchecked(
-            (
-                (
-                    (
-                        (
-                            (
-                                (
-                                    (Name.GetHashCode() * 31 + ModelTypeName.GetHashCode()) * 31
-                                    + Namespace.GetHashCode()
-                                ) * 31
-                                + (IsGlobalNamespace ? 1 : 0)
-                            ) * 31
-                            + (IsStruct ? 1 : 0)
-                        ) * 31
-                        + (IsRecord ? 1 : 0)
-                    ) * 31
-                    + HintName.GetHashCode()
-                ) * 31
-                + (Constructor?.GetHashCode() ?? 0)
-            ) * 31
-            + SparseSequence.Hash(IgnoredSettablePropertyNames)
-        );
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            var hash = Name.GetHashCode();
+            hash = hash * 31 + ModelTypeName.GetHashCode();
+            hash = hash * 31 + Namespace.GetHashCode();
+            hash = hash * 31 + (IsGlobalNamespace ? 1 : 0);
+            hash = hash * 31 + (IsStruct ? 1 : 0);
+            hash = hash * 31 + (IsRecord ? 1 : 0);
+            hash = hash * 31 + (IsPublic ? 1 : 0);
+            hash = hash * 31 + HintName.GetHashCode();
+            hash = hash * 31 + (Constructor?.GetHashCode() ?? 0);
+            return hash * 31 + SparseSequence.Hash(IgnoredSettablePropertyNames);
+        }
+    }
 }
 
 internal sealed record SparseStructuralModel(

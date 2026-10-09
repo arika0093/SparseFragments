@@ -180,6 +180,53 @@ public sealed class StructuralPolicyTests
     }
 
     [Test]
+    public void NestedPartialPocoComputedPropertiesDoNotProduceStructuralOrCloneDiagnostics()
+    {
+        const string source = """
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class ComputedRoot
+            {
+                public string Name { get; set; } = string.Empty;
+                public string DisplayName => Name;
+                public ComputedChild Child { get; set; } = new();
+            }
+            public partial class ComputedChild
+            {
+                public string First { get; set; } = string.Empty;
+                public string Last { get; set; } = string.Empty;
+                public string DisplayName => First + " " + Last;
+            }
+            """;
+
+        var compilation = CreateCompilation(source);
+        var root = compilation.GetTypeByMetadataName("ComputedRoot")!;
+        var analysis = SparseModelAnalyzer.Analyze(root, AtomicConfig(), CancellationToken.None);
+
+        analysis.Diagnostics.ShouldBeEmpty();
+        analysis.Members.Select(static member => member.Property.Name).ShouldBe(["Child", "Name"]);
+        analysis.PromotedModels.Length.ShouldBe(1);
+        analysis
+            .PromotedModels[0]
+            .Members.Select(static member => member.Property.Name)
+            .ShouldBe(["First", "Last"]);
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new SparseFragmentsGenerator());
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            compilation,
+            out var updatedCompilation,
+            out var generatorDiagnostics
+        );
+        generatorDiagnostics
+            .Where(static diagnostic => diagnostic.Id is "SPF007" or "SPF008")
+            .ShouldBeEmpty();
+        updatedCompilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+    }
+
+    [Test]
     public void BothPolicies_ShareCloneHelperMechanics()
     {
         var atomic = SparseModelAnalyzer.Analyze(

@@ -45,22 +45,25 @@ internal sealed class SparseFragmentCoreEmitter
 
     public void AppendBuilder(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
-    ) => _declaration.AppendBuilder(code, members);
+        ImmutableArray<SparseMemberModel> members,
+        string accessibility = "public"
+    ) => _declaration.AppendBuilder(code, members, accessibility);
 
     public static void AppendDeclaration(
         SharedIndentedBuilder code,
         string fragmentInterface,
         string deepCloneable,
         System.Action<SharedIndentedBuilder>? appendAttributes = null,
-        string? advancedInterface = null
+        string? advancedInterface = null,
+        string accessibility = "public"
     ) =>
         SparseFragmentDeclarationEmitter.AppendDeclaration(
             code,
             fragmentInterface,
             deepCloneable,
             appendAttributes,
-            advancedInterface
+            advancedInterface,
+            accessibility
         );
 
     public void AppendMembers(

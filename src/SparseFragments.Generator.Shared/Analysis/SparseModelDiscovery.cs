@@ -308,7 +308,10 @@ internal static class SparseModelDiscovery
     {
         for (var current = type; current is not null; current = current.ContainingType)
         {
-            if (current.DeclaredAccessibility != Accessibility.Public)
+            if (
+                current.DeclaredAccessibility
+                is not (Accessibility.Public or Accessibility.Internal)
+            )
             {
                 return false;
             }
@@ -848,7 +851,8 @@ internal static class SparseModelDiscovery
             model.IsRecord,
             hintName,
             ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken),
-            GetIgnoredSettablePropertyNames(model, config, cancellationToken)
+            GetIgnoredSettablePropertyNames(model, config, cancellationToken),
+            model.DeclaredAccessibility == Accessibility.Public
         );
 
     private static ImmutableArray<string> GetIgnoredSettablePropertyNames(
