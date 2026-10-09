@@ -55,6 +55,14 @@ namespace __SESSION_NAMESPACE__
         /// <summary>Creates the recursive read-only view for a model.</summary>
         public Func<TModel, TCurrent> ToCurrent { get; init; } = null!;
 
+        /// <summary>Materializes a retained fragment as an ordinary model.</summary>
+        /// <remarks>
+        /// Used to recover the retained baseline when the live model is temporarily
+        /// invalid (such as duplicate keyed keys) and therefore cannot be diffed.
+        /// Null when the session was built without in-place recovery support.
+        /// </remarks>
+        public Func<TFragment, TModel>? BaselineToModel { get; init; }
+
         /// <summary>Attempts to apply a change set and returns its updated model or conflicts.</summary>
         public Func<
             TChangeSet,
@@ -169,7 +177,8 @@ namespace __SESSION_NAMESPACE__
                 configuration.Rebase,
                 configuration.EnumerateChangedPaths,
                 configuration.RefreshObservable,
-                cacheObservableChanges: true
+                cacheObservableChanges: true,
+                baselineToModel: configuration.BaselineToModel
             )
         {
             _current = configuration.ToCurrent(model);

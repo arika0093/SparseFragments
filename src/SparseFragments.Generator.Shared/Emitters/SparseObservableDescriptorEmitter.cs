@@ -152,13 +152,16 @@ internal static class SparseObservableDescriptorEmitter
                 SparseObservableEmitter.CollectionNames(member),
                 runtimeNamespace
             );
+            // The trusted accessor skips the raw-model notification: replacement below
+            // raises the change itself, so reading the incoming view must not
+            // invalidate the session cache as a side effect.
             return "value => { if (value is "
                 + viewType
                 + " view) { this."
                 + replace
                 + "(("
                 + propertyType
-                + ")view.Model); return true; } "
+                + ")view.UnsafeModel); return true; } "
                 + converted
                 + "this."
                 + replace

@@ -24,6 +24,10 @@ namespace __SESSION_NAMESPACE__
         where TObservable : class
     {
         private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
+        private const string UnassignedBaselineErrorMessage =
+            "An unassigned key cannot appear in the baseline of a keyed collection transition.";
+        private const string UnassignedChangeSetBaselineErrorMessage =
+            "An unassigned key cannot appear in the current baseline of a keyed ChangeSet.";
         private readonly Func<TModel, TFragment> _fromModel;
         private readonly Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> _between;
         private readonly Func<TChangeSet, TPatch> _toPatch;
@@ -43,6 +47,7 @@ namespace __SESSION_NAMESPACE__
         private readonly Func<TChangeSet, TChangeSet>? _invert;
         private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
         private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
+        private readonly Func<TFragment, TModel>? _baselineToModel;
         private readonly Action<TObservable>? _refreshObservable;
         private readonly Action? _onChanged;
         private bool _cacheObservableChanges;
@@ -52,6 +57,7 @@ namespace __SESSION_NAMESPACE__
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
         private int _batchDepth;
+        private bool _batchDirty;
         private bool _batchPropertyChanged;
         private bool _batchOnChanged;
 
@@ -98,7 +104,8 @@ namespace __SESSION_NAMESPACE__
             Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? rebase = null,
             Func<TChangeSet, IReadOnlyList<string>>? enumerateChangedPaths = null,
             Action<TObservable>? refreshObservable = null,
-            bool cacheObservableChanges = false
+            bool cacheObservableChanges = false,
+            Func<TFragment, TModel>? baselineToModel = null
         )
         {
             Model = model;
@@ -115,6 +122,7 @@ namespace __SESSION_NAMESPACE__
             _refreshObservable = refreshObservable;
             _onChanged = onChanged;
             _cacheObservableChanges = cacheObservableChanges;
+            _baselineToModel = baselineToModel;
             _baseline = __OPTIONAL_TYPE__<TFragment?>.Present(baseline);
             _lastObserved = __OPTIONAL_TYPE__<TFragment?>.Present(fromModel(model));
             _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
@@ -352,6 +360,12 @@ namespace __SESSION_NAMESPACE__
         public event Action<TChangeSet>? TransitionObserved;
 
         /// <summary>Runs observable edits as one transition notification, including nested batches.</summary>
+        /// <remarks>
+        /// Intermediate snapshot and diff work is deferred: each mutation inside the batch
+        /// only marks the session dirty, and a single diff from entry to exit is published
+        /// when the outermost batch completes (including when the edit delegate throws).
+        /// Batching is notification coalescing only; it never rolls the model back.
+        /// </remarks>
         public void BatchEdit(Action edit)
         {
             if (edit is null)
@@ -361,6 +375,7 @@ namespace __SESSION_NAMESPACE__
             if (isOuterBatch)
             {
                 _batchStart = _lastObserved;
+                _batchDirty = false;
                 _batchPropertyChanged = false;
                 _batchOnChanged = false;
             }
@@ -413,6 +428,17 @@ namespace __SESSION_NAMESPACE__
         /// <param name="changes">The transition to apply.</param>
         /// <param name="conflicts">Structured conflicts when the before-state cannot be applied.</param>
         /// <returns><see langword="true"/> when the model was updated; otherwise <see langword="false"/>.</returns>
+        /// <remarks>
+        /// Conflict detection is atomic: a conflicting before-state or an immutable
+        /// member leaves the live model untouched and reports
+        /// <see langword="false"/>. Once validation passes, the write itself runs
+        /// arbitrary model setters and collection operations, which can throw after
+        /// partially mutating the model. Such a failure propagates after the session
+        /// resynchronizes its snapshots, caches, and notifications, so later reads
+        /// observe the partial state instead of stale state. This method is not a
+        /// transaction; <see cref="BatchEdit"/> only batches notifications and never
+        /// rolls the model back either.
+        /// </remarks>
         public bool TryApplyInPlace(
             TChangeSet changes,
             out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
@@ -439,13 +465,32 @@ namespace __SESSION_NAMESPACE__
                 );
             }
 
-            _writeModel(_model, result.Updated);
+            var committed = false;
+            try
+            {
+                _writeModel(_model, result.Updated);
+                committed = true;
+            }
+            finally
+            {
+                if (!committed)
+                {
+                    // The model may be partially mutated; resynchronize observation
+                    // so the session never serves stale snapshots or caches.
+                    RefreshAfterModelMutation();
+                }
+            }
             conflicts = null;
             RefreshAfterModelMutation();
             return true;
         }
 
         /// <summary>Applies a change set in place or throws when its before-state conflicts.</summary>
+        /// <remarks>
+        /// See <see cref="TryApplyInPlace"/> for the failure contract: conflicts are
+        /// detected atomically, while setter failures may partially mutate the model
+        /// and propagate after the session resynchronizes.
+        /// </remarks>
         public void ApplyInPlace(TChangeSet changes)
         {
             if (!TryApplyInPlace(changes, out _))
@@ -457,20 +502,86 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Reverts the current model to its retained baseline in place.</summary>
+        /// <remarks>
+        /// When the live model is temporarily invalid (duplicate keyed keys or
+        /// unassigned keyed sentinels) it cannot be diffed, so the revert restores
+        /// the retained valid baseline directly instead of deriving a keyed diff
+        /// from the invalid state. The live model instance is preserved.
+        /// Snapshot-only sessions whose baseline differs in members that cannot be
+        /// written in place (init-only or getter-only) cannot revert this way; use
+        /// <see cref="TryRevertChanges"/> to detect that case and replace the session
+        /// instead. This method never restores immutable members in place.
+        /// </remarks>
         public void RevertChanges()
+        {
+            if (!TryRevertChanges(out _))
+            {
+                throw new InvalidOperationException(
+                    "The pending changes cannot be reverted in place because their "
+                        + "before-state conflicts or they include members that cannot be "
+                        + "written to an existing model. Use TryRevertChanges for structured "
+                        + "conflicts."
+                );
+            }
+        }
+
+        /// <summary>Reverts the current model to its retained baseline when possible in place.</summary>
+        /// <param name="conflicts">Structured conflicts when the pending changes cannot be reverted in place.</param>
+        /// <returns><see langword="true"/> when the model was reverted; otherwise <see langword="false"/>.</returns>
+        /// <remarks>
+        /// A <see langword="false"/> result leaves both the live model and the retained
+        /// baseline untouched. Snapshot-only sessions whose baseline differs in
+        /// init-only or getter-only members report their immutable operations as
+        /// conflicts here; adopt the baseline with a fresh session instead of expecting
+        /// an in-place restore. Mutable-model reverts keep the live instance stable.
+        /// </remarks>
+        public bool TryRevertChanges(out IReadOnlyList<__CONFLICT_TYPE__>? conflicts)
         {
             if (_invert is null)
             {
                 throw new NotSupportedException("This edit session cannot invert its change sets.");
             }
 
-            var changes = CreateChangeSet();
-            if (_isEmpty(changes))
+            TChangeSet changes;
+            try
             {
-                return;
+                changes = CreateChangeSet();
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+                conflicts = null;
+                return true;
             }
 
-            ApplyInPlace(_invert(changes));
+            if (_isEmpty(changes))
+            {
+                conflicts = null;
+                return true;
+            }
+
+            TChangeSet inverted;
+            try
+            {
+                inverted = _invert(changes);
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+                conflicts = null;
+                return true;
+            }
+
+            try
+            {
+                return TryApplyInPlace(inverted, out conflicts);
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                RevertFromInvalidKeyedState(exception);
+                conflicts = null;
+                return true;
+            }
         }
 
         /// <summary>
@@ -509,6 +620,25 @@ namespace __SESSION_NAMESPACE__
                 throw new InvalidOperationException("Reloading did not produce a model.");
             }
 
+            // The in-place writer copies only writable members. If the merged result
+            // differs from the live model in members that cannot be written in place
+            // (init-only or getter-only), writing would silently drop them while the
+            // baseline still advances. Probe that drift first: applying it is
+            // side-effect-free, so a reported conflict leaves both the live model
+            // and the retained baseline untouched.
+            var drift = _between(
+                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model)),
+                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(applied.Updated))
+            );
+            if (!_isEmpty(drift))
+            {
+                var probe = _tryApplyTo(drift, _model);
+                if (probe.Conflicts is not null)
+                {
+                    return new __REBASE_RESULT_TYPE__(rebased.Rebased, probe.Conflicts);
+                }
+            }
+
             _writeModel(_model, applied.Updated);
             _baseline = serverBaseline;
             RefreshAfterModelMutation();
@@ -523,7 +653,10 @@ namespace __SESSION_NAMESPACE__
         /// </remarks>
         public void AcceptChanges()
         {
-            var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(Model));
+            // Read the backing field directly: the public Model getter disables
+            // HasChanges caching as a side effect, and acknowledging a save must
+            // not downgrade later observable-only reads to full diffs.
+            var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             // Fail-fast when the live model cannot serve as a keyed baseline.
             // Probed against the retained baseline (distinct instances) because a
             // self-diff short-circuits on reference equality without validating keys.
@@ -586,6 +719,16 @@ namespace __SESSION_NAMESPACE__
 
         private void OnObservableChanged()
         {
+            if (_batchDepth > 0)
+            {
+                // Defer all snapshot/diff work to the outermost batch exit; only the
+                // net entry-to-exit transition is computed and published there.
+                _batchDirty = true;
+                _hasChangesCacheValid = false;
+                OnPropertyChanged(nameof(HasChanges));
+                return;
+            }
+
             var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             TChangeSet transition;
             try
@@ -656,14 +799,17 @@ namespace __SESSION_NAMESPACE__
             _batchPropertyChanged = false;
             var notifyOnChanged = _batchOnChanged;
             _batchOnChanged = false;
+            var dirty = _batchDirty;
+            _batchDirty = false;
 
-            if (start.IsPresent)
+            if (dirty)
             {
-                var transition = _between(start, _lastObserved);
-                if (!_isEmpty(transition))
-                {
-                    TransitionObserved?.Invoke(transition);
-                }
+                PublishBatchedTransition(start);
+            }
+            else if (start.IsPresent)
+            {
+                // No observable mutation ran inside the batch. Recompute nothing;
+                // deferred notifications below still flush.
             }
 
             if (notifyPropertyChanged)
@@ -677,8 +823,85 @@ namespace __SESSION_NAMESPACE__
             }
         }
 
+        private void PublishBatchedTransition(__OPTIONAL_TYPE__<TFragment?> start)
+        {
+            var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
+            if (!start.IsPresent)
+            {
+                _lastObserved = current;
+                _hasChangesCacheValid = false;
+                return;
+            }
+
+            TChangeSet transition;
+            try
+            {
+                transition = _between(start, current);
+            }
+            catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
+            {
+                // The net batch state cannot be diffed; keep the last valid
+                // observation so later diffs still start from valid state.
+                _hasChangesCacheValid = false;
+                return;
+            }
+
+            _lastObserved = current;
+            if (_cacheObservableChanges)
+            {
+                try
+                {
+                    _cachedHasChanges = !_isEmpty(_between(_baseline, current));
+                    _hasChangesCacheValid = true;
+                }
+                catch (InvalidOperationException exception)
+                    when (IsDuplicateKeyError(exception))
+                {
+                    _hasChangesCacheValid = false;
+                }
+            }
+
+            if (!_isEmpty(transition))
+            {
+                TransitionObserved?.Invoke(transition);
+            }
+        }
+
         private static bool IsDuplicateKeyError(InvalidOperationException exception) =>
             string.Equals(exception.Message, DuplicateKeyErrorMessage, StringComparison.Ordinal);
+
+        private static bool IsInvalidKeyedStateError(InvalidOperationException exception) =>
+            IsDuplicateKeyError(exception)
+            || string.Equals(
+                exception.Message,
+                UnassignedBaselineErrorMessage,
+                StringComparison.Ordinal
+            )
+            || string.Equals(
+                exception.Message,
+                UnassignedChangeSetBaselineErrorMessage,
+                StringComparison.Ordinal
+            );
+
+        private void RevertFromInvalidKeyedState(InvalidOperationException exception)
+        {
+            if (
+                _writeModel is null
+                || _baselineToModel is null
+                || !_baseline.IsPresent
+                || _baseline.Value is null
+            )
+            {
+                throw new InvalidOperationException(
+                    "The live model cannot be diffed because its keyed state is invalid, "
+                        + "and this session cannot materialize its baseline for recovery.",
+                    exception
+                );
+            }
+
+            _writeModel(_model, _baselineToModel(_baseline.Value));
+            RefreshAfterModelMutation();
+        }
 
         private void OnPropertyChanged(string propertyName)
         {

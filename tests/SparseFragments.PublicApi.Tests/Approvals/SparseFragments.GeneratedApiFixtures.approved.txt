@@ -128,6 +128,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogDictionaries serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {
@@ -466,6 +467,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogImmutable serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {
@@ -744,6 +746,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {
@@ -1029,6 +1032,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {
@@ -1344,6 +1348,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogNested serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {
@@ -2023,6 +2028,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogScalar serverState) { }
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Fragment
         {

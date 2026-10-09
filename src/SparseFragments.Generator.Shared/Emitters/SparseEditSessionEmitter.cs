@@ -170,7 +170,7 @@ internal static class SparseEditSessionEmitter
                 + tryApply
                 + ", WriteModel = "
                 + writeModel
-                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh() };"
+                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
         );
         code.AppendLineAt(2, "private readonly " + core + " _session;");
         code.AppendLineAt(
@@ -220,6 +220,13 @@ internal static class SparseEditSessionEmitter
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
+            // Descriptors are live views: every getter/setter delegate reads the
+            // current observable state, so the root set is cached per session
+            // instead of reallocating the whole graph on each access.
+            code.AppendLineAt(
+                2,
+                "private " + descriptorDialect.DescriptorSetInterface + "? __descriptors;"
+            );
             code.AppendLineAt(
                 2,
                 "/// <summary>Gets descriptors bound to this session's observable model.</summary>"
@@ -228,9 +235,9 @@ internal static class SparseEditSessionEmitter
                 2,
                 "public "
                     + descriptorDialect.DescriptorSetInterface
-                    + " Descriptors => Observable."
+                    + " Descriptors => __descriptors ?? (__descriptors = Observable."
                     + SparseObservableDescriptorEmitter.AccessorName(modelType)
-                    + "(global::System.String.Empty);"
+                    + "(global::System.String.Empty));"
             );
         }
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
@@ -288,6 +295,24 @@ internal static class SparseEditSessionEmitter
                 + ".ChangeSet changes) => _session.ApplyInPlace(changes);"
         );
         code.AppendLineAt(2, "public void RevertChanges() => _session.RevertChanges();");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Reverts the current model to its retained baseline when possible in place.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">Structured conflicts when the pending changes cannot be reverted in place.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the model was reverted; otherwise <see langword=\"false\"/>.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryRevertChanges(out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts) => _session.TryRevertChanges(out conflicts);"
+        );
         code.AppendLineAt(
             2,
             "public "

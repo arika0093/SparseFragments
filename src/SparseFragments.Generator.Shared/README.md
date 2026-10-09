@@ -222,3 +222,45 @@ request. After-states must stay concrete; a redacted after-state is malformed.
 The wire version stays `"0.1"`. No configuration is needed: the mixed surface
 uses only sibling generated names, the configured runtime namespace, and the
 configured conflict types.
+
+## Edit-session recovery, observable access, and batching
+
+Generated edit sessions expose `TryRevertChanges(out conflicts)`: `true`
+after restoring the retained baseline in place with the live model instance
+kept stable, `false` with structured conflicts when the revert cannot be
+applied in place (immutable members or before-state conflicts), leaving the
+model and the baseline untouched. `RevertChanges()` delegates to it and
+throws an immutable-aware message on failure. When the live model is
+temporarily invalid (duplicate keyed keys or unassigned keyed sentinels) it
+cannot be diffed, so the revert restores the retained baseline directly
+through the `BaselineToModel` configuration delegate (emitted as
+`Fragment.ToModel()`); sessions built without that delegate report an
+explicit recovery failure. `Reload` likewise refuses server states that move
+init-only or getter-only members, returning structured conflicts without
+touching the live model or the baseline.
+
+`SparseObservableList<TModel, TView>` and
+`SparseObservableDictionary<TKey, TModel, TView>` accept an optional
+`onRawModelAccess` constructor callback, invoked on every `Model` read so the
+owning session can drop its observable-change cache when raw mutations bypass
+wrapper notifications. Trusted generated code that already accounts for the
+access reads `UnsafeModel` instead; external callers should keep using
+`Model`. Both views expose `NotifyReset(bool reportChange = true)` for bulk
+backing-instance mutations: pass `false` when the owner already accounts for
+the write (generated `__SparseRefresh` does this after in-place writes,
+retiring views whose backing instance was replaced and emitting one `Reset`
+for views wrapping the same instance), and use the default when reporting
+your own bulk raw-model mutations. Backing collections that implement
+`INotifyCollectionChanged` forward their own events and must not be duplicated
+with this method.
+
+Session-bound descriptor graphs are cached per session: `Descriptors`
+resolves the root set once and reuses it, while nested accessors keep reading
+live observable state so reorder, replacement, reload, and revert stay fresh.
+`BatchEdit` defers intermediate snapshot and diff work: mutations inside the
+batch only mark the session dirty, and the outermost exit publishes a single
+entry-to-exit net transition (including when the edit delegate throws).
+Batching is notification coalescing only and never rolls the model back;
+likewise `TryApplyInPlace` detects conflicts atomically but runs arbitrary
+model setters, so a throwing setter may partially mutate the model before the
+session resynchronizes and the exception propagates.

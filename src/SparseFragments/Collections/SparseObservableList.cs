@@ -23,6 +23,7 @@ public sealed class SparseObservableList<TModel, TView>
     private readonly Func<TModel, Action, TView> _wrap;
     private readonly Func<TView, TModel> _unwrap;
     private readonly Action _onChanged;
+    private readonly Action? _onRawModelAccess;
     private readonly bool _cacheReferences;
     private readonly Dictionary<object, ProxyEntry> _proxies = new(
         SparseReferenceEqualityComparer.Instance
@@ -33,18 +34,26 @@ public sealed class SparseObservableList<TModel, TView>
     private bool _disposed;
 
     /// <summary>Creates a notifying view over a live mutable list.</summary>
+    /// <remarks>
+    /// The optional raw-model access callback is invoked when <see cref="Model"/> is
+    /// read so owners (such as an edit session) can invalidate caches that raw
+    /// mutations would bypass. Generated sessions pass their raw-model callback here;
+    /// trusted session internals read <see cref="UnsafeModel"/> instead.
+    /// </remarks>
     public SparseObservableList(
         IList<TModel> model,
         Func<TModel, Action, TView> wrap,
         Func<TView, TModel> unwrap,
         Action onChanged,
-        bool cacheReferences = false
+        bool cacheReferences = false,
+        Action? onRawModelAccess = null
     )
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
         _wrap = wrap ?? throw new ArgumentNullException(nameof(wrap));
         _unwrap = unwrap ?? throw new ArgumentNullException(nameof(unwrap));
         _onChanged = onChanged ?? throw new ArgumentNullException(nameof(onChanged));
+        _onRawModelAccess = onRawModelAccess;
         _cacheReferences = cacheReferences;
         if (_model is INotifyCollectionChanged notifying)
         {
@@ -53,7 +62,26 @@ public sealed class SparseObservableList<TModel, TView>
     }
 
     /// <summary>The live list instance wrapped by this view.</summary>
-    public IList<TModel> Model => _model;
+    /// <remarks>
+    /// Reading this property reports raw-model access to the owner so session caches
+    /// stay valid when the returned list is mutated directly. Generated session
+    /// internals that already account for the access read <see cref="UnsafeModel"/>.
+    /// </remarks>
+    public IList<TModel> Model
+    {
+        get
+        {
+            _onRawModelAccess?.Invoke();
+            return _model;
+        }
+    }
+
+    /// <summary>The live list instance without reporting raw-model access.</summary>
+    /// <remarks>
+    /// For trusted generated code only: the caller must raise the change itself.
+    /// External callers should read <see cref="Model"/> so session caches stay valid.
+    /// </remarks>
+    public IList<TModel> UnsafeModel => _model;
 
     /// <summary>Whether this view has been detached from its model collection.</summary>
     public bool IsDisposed => _disposed;
@@ -339,6 +367,46 @@ public sealed class SparseObservableList<TModel, TView>
         {
             array.SetValue(Wrap(_model[itemIndex]), index + itemIndex);
         }
+    }
+
+    /// <summary>
+    /// Raises a single Reset notification for bulk changes made directly to the backing list.
+    /// </summary>
+    /// <param name="reportChange">
+    /// Whether to report the change to the owner. Pass <see langword="false"/> when the
+    /// owner already accounts for the mutation (such as a session refreshing after an
+    /// in-place write) to avoid duplicate notifications.
+    /// </param>
+    /// <remarks>
+    /// Session internals call this with <see langword="false"/> after an in-place write
+    /// reuses the same backing instance; call it after your own bulk raw-model
+    /// mutations. Notifications for backing lists that implement
+    /// <see cref="INotifyCollectionChanged"/> are forwarded automatically and must not
+    /// be duplicated with this method.
+    /// </remarks>
+    public void NotifyReset(bool reportChange = true)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        PruneStale();
+        if (reportChange)
+        {
+            RaiseCollectionChanged(
+                new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
+            );
+            return;
+        }
+
+        _notificationVersion++;
+        PropertyChanged?.Invoke(this, CountChanged);
+        PropertyChanged?.Invoke(this, ItemChanged);
+        CollectionChanged?.Invoke(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
+        );
     }
 
     /// <inheritdoc />
