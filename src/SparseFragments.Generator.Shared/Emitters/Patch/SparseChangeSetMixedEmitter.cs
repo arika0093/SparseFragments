@@ -426,6 +426,30 @@ internal static class SparseChangeSetMixedEmitter
         code.AppendLineAt(3, "}");
     }
 
+    /// <summary>Emits the envelope version guard for public payload entry points.</summary>
+    /// <remarks>
+    /// Every public payload interpretation path validates the same wire
+    /// version at the root envelope boundary (issue #163); recursive nested
+    /// cores stay versionless. The guard runs before any partition or model
+    /// work, so rejection never mutates a supplied model.
+    /// </remarks>
+    private static void AppendVersionGuard(
+        SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        var versionLiteral = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
+            dialect.ChangePayloadVersion,
+            true
+        );
+        code.AppendLineAt(
+            3,
+            "if (!global::System.String.Equals(Version, "
+                + versionLiteral
+                + ", global::System.StringComparison.Ordinal)) throw new global::System.ArgumentException(\"Unsupported ChangePayload version.\", nameof(Version));"
+        );
+    }
+
     internal static void AppendMixedPayloadSurface(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -447,6 +471,7 @@ internal static class SparseChangeSetMixedEmitter
         );
         code.AppendLineAt(2, "public Patch ToPatch()");
         code.AppendLineAt(2, "{");
+        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out var __blind, out _);"
@@ -466,6 +491,7 @@ internal static class SparseChangeSetMixedEmitter
             "public ChangeSet InvertReversibleChanges(out global::System.Collections.Generic.IReadOnlyList<string> skippedPaths)"
         );
         code.AppendLineAt(2, "{");
+        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out _, out var __blindPaths);"
@@ -577,6 +603,7 @@ internal static class SparseChangeSetMixedEmitter
                 + "? updated, out MixedApplyResult result)"
         );
         code.AppendLineAt(2, "{");
+        AppendVersionGuard(code, dialect);
         code.AppendLineAt(
             3,
             "var __changes = ChangeSet.__SparseMixedPartition(this, string.Empty, out var __blind, out var __blindPaths);"
