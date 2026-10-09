@@ -1,0 +1,197 @@
+@using SparseFragments
+@using SparseFragments.Playground.Models
+@implements IDisposable
+
+<FluentCard Class="pg-fluent-card pg-section-card">
+    <div class="pg-card-head">
+        <h3>EditSession: Observable changes with Undo/Redo</h3>
+        <div class="pg-actions">
+            <FluentButton Appearance="Appearance.Neutral" Size="Size.Small"
+                Disabled="@(_undo.Count == 0)" @onclick="Undo">
+                Undo (@_undo.Count)
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" Size="Size.Small"
+                Disabled="@(_redo.Count == 0)" @onclick="Redo">
+                Redo (@_redo.Count)
+            </FluentButton>
+        </div>
+    </div>
+    <p class="pg-hint">
+        Each edit through <code>Observable</code> raises a leaf ChangeSet. Undo applies that
+        operation's inverse; Redo applies the original ChangeSet.
+    </p>
+    <div class="pg-grid">
+        <div class="pg-row">
+            <span class="pg-name notranslate" translate="no">Enabled <small>bool</small></span>
+            <FluentCheckbox Value="@_session.Observable.Enabled" ValueChanged="@OnEnabledChanged" />
+        </div>
+        <div class="pg-row">
+            <span class="pg-name notranslate" translate="no">RetryCount <small>int</small></span>
+            <FluentNumberField TValue="int" Style="width: 10rem;"
+                Value="@_session.Observable.RetryCount" ValueChanged="@OnRetryCountChanged" />
+        </div>
+        <div class="pg-row">
+            <span class="pg-name notranslate" translate="no">Label <small>string?</small></span>
+            <FluentTextField Placeholder="label" Style="flex: 1 1 12rem;"
+                Value="@_session.Observable.Label" ValueChanged="@OnLabelChanged" />
+        </div>
+        <div class="pg-row">
+            <span class="pg-name notranslate" translate="no">Nested.Host <small>string</small></span>
+            <FluentTextField Placeholder="host" Style="flex: 1 1 12rem;"
+                Value="@_session.Observable.Nested?.Host" ValueChanged="@OnHostChanged" />
+        </div>
+        <div class="pg-row">
+            <span class="pg-name notranslate" translate="no">Nested.Port <small>int</small></span>
+            <FluentNumberField TValue="int" Style="width: 10rem;"
+                Value="@(_session.Observable.Nested?.Port ?? 0)" ValueChanged="@OnPortChanged" />
+        </div>
+    </div>
+    <div class="pg-row">
+        <span class="pg-name">HasChanges</span>
+        <code>@_session.HasChanges</code>
+        @if (_lastPaths.Count > 0)
+        {
+            <span class="pg-hint">Last ChangeSet: @string.Join(", ", _lastPaths)</span>
+        }
+    </div>
+    <div class="pg-row">
+        <span class="pg-name">Current</span>
+        <span>
+            @_session.Current.Enabled · @_session.Current.RetryCount ·
+            @(_session.Current.Label ?? "(null)") ·
+            @(_session.Current.Nested?.Host ?? "(null)"):@(_session.Current.Nested?.Port.ToString() ?? "(null)")
+        </span>
+    </div>
+</FluentCard>
+
+@code {
+    private readonly Stack<PlaygroundSettings.ChangeSet> _undo = new();
+    private readonly Stack<PlaygroundSettings.ChangeSet> _redo = new();
+    private readonly List<string> _lastPaths = [];
+    private readonly PlaygroundSettings _model = new()
+    {
+        Enabled = true,
+        RetryCount = 3,
+        Label = "Draft",
+        Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
+        Plugins = ["base-plugin"],
+    };
+
+    private SparseEditSession<
+        PlaygroundSettings,
+        PlaygroundSettings.Fragment,
+        PlaygroundSettings.Patch,
+        PlaygroundSettings.ChangeSet,
+        PlaygroundSettings.Observable,
+        PlaygroundSettings.ReadOnlyView
+    > _session = null!;
+    private bool _replayingHistory;
+
+    protected override void OnInitialized()
+    {
+        _session = _model.CreateEditSession();
+        _session.ChangeSetChanged += OnChangeSetChanged;
+    }
+
+    private void OnChangeSetChanged(PlaygroundSettings.ChangeSet changes)
+    {
+        if (_replayingHistory)
+        {
+            return;
+        }
+
+        _undo.Push(changes);
+        _redo.Clear();
+        _lastPaths.Clear();
+        _lastPaths.AddRange(changes.EnumerateChangedPaths());
+    }
+
+    private Task OnEnabledChanged(bool value)
+    {
+        _session.Observable.Enabled = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnRetryCountChanged(int value)
+    {
+        _session.Observable.RetryCount = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLabelChanged(string? value)
+    {
+        _session.Observable.Label = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnHostChanged(string? value)
+    {
+        var nested = _session.Observable.Nested;
+        if (nested is not null)
+        {
+            nested.Host = value ?? string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnPortChanged(int value)
+    {
+        var nested = _session.Observable.Nested;
+        if (nested is not null)
+        {
+            nested.Port = value;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void Undo()
+    {
+        if (_undo.TryPop(out var changes))
+        {
+            var inverse = changes.Invert();
+            _replayingHistory = true;
+            try
+            {
+                _session.ApplyInPlace(inverse);
+                _redo.Push(changes);
+            }
+            finally
+            {
+                _replayingHistory = false;
+            }
+
+            _lastPaths.Clear();
+            _lastPaths.AddRange(inverse.EnumerateChangedPaths());
+        }
+    }
+
+    private void Redo()
+    {
+        if (_redo.TryPop(out var changes))
+        {
+            _replayingHistory = true;
+            try
+            {
+                _session.ApplyInPlace(changes);
+                _undo.Push(changes);
+            }
+            finally
+            {
+                _replayingHistory = false;
+            }
+
+            _lastPaths.Clear();
+            _lastPaths.AddRange(changes.EnumerateChangedPaths());
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_session is not null)
+        {
+            _session.ChangeSetChanged -= OnChangeSetChanged;
+        }
+    }
+}
