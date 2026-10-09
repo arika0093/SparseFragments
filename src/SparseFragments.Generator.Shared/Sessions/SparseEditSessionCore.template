@@ -52,6 +52,7 @@ namespace __SESSION_NAMESPACE__
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
         private int _batchDepth;
+        private bool _batchDirty;
         private bool _batchPropertyChanged;
         private bool _batchOnChanged;
 
@@ -342,6 +343,12 @@ namespace __SESSION_NAMESPACE__
         public event Action<TChangeSet>? TransitionObserved;
 
         /// <summary>Runs observable edits as one transition notification, including nested batches.</summary>
+        /// <remarks>
+        /// Intermediate snapshot and diff work is deferred: each mutation inside the batch
+        /// only marks the session dirty, and a single diff from entry to exit is published
+        /// when the outermost batch completes (including when the edit delegate throws).
+        /// Batching is notification coalescing only; it never rolls the model back.
+        /// </remarks>
         public void BatchEdit(Action edit)
         {
             if (edit is null)
@@ -351,6 +358,7 @@ namespace __SESSION_NAMESPACE__
             if (isOuterBatch)
             {
                 _batchStart = _lastObserved;
+                _batchDirty = false;
                 _batchPropertyChanged = false;
                 _batchOnChanged = false;
             }
@@ -598,6 +606,16 @@ namespace __SESSION_NAMESPACE__
 
         private void OnObservableChanged()
         {
+            if (_batchDepth > 0)
+            {
+                // Defer all snapshot/diff work to the outermost batch exit; only the
+                // net entry-to-exit transition is computed and published there.
+                _batchDirty = true;
+                _hasChangesCacheValid = false;
+                OnPropertyChanged(nameof(HasChanges));
+                return;
+            }
+
             var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             TChangeSet transition;
             try
@@ -668,14 +686,17 @@ namespace __SESSION_NAMESPACE__
             _batchPropertyChanged = false;
             var notifyOnChanged = _batchOnChanged;
             _batchOnChanged = false;
+            var dirty = _batchDirty;
+            _batchDirty = false;
 
-            if (start.IsPresent)
+            if (dirty)
             {
-                var transition = _between(start, _lastObserved);
-                if (!_isEmpty(transition))
-                {
-                    TransitionObserved?.Invoke(transition);
-                }
+                PublishBatchedTransition(start);
+            }
+            else if (start.IsPresent)
+            {
+                // No observable mutation ran inside the batch. Recompute nothing;
+                // deferred notifications below still flush.
             }
 
             if (notifyPropertyChanged)
@@ -686,6 +707,50 @@ namespace __SESSION_NAMESPACE__
             if (notifyOnChanged)
             {
                 _onChanged?.Invoke();
+            }
+        }
+
+        private void PublishBatchedTransition(__OPTIONAL_TYPE__<TFragment?> start)
+        {
+            var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
+            if (!start.IsPresent)
+            {
+                _lastObserved = current;
+                _hasChangesCacheValid = false;
+                return;
+            }
+
+            TChangeSet transition;
+            try
+            {
+                transition = _between(start, current);
+            }
+            catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
+            {
+                // The net batch state cannot be diffed; keep the last valid
+                // observation so later diffs still start from valid state.
+                _hasChangesCacheValid = false;
+                return;
+            }
+
+            _lastObserved = current;
+            if (_cacheObservableChanges)
+            {
+                try
+                {
+                    _cachedHasChanges = !_isEmpty(_between(_baseline, current));
+                    _hasChangesCacheValid = true;
+                }
+                catch (InvalidOperationException exception)
+                    when (IsDuplicateKeyError(exception))
+                {
+                    _hasChangesCacheValid = false;
+                }
+            }
+
+            if (!_isEmpty(transition))
+            {
+                TransitionObserved?.Invoke(transition);
             }
         }
 
