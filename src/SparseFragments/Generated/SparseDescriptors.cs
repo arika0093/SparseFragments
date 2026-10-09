@@ -84,7 +84,8 @@ public sealed class SparseDescriptor : IDescriptor
         Func<IArrayDescriptor?>? getArray = null,
         Func<IDictDescriptor?>? getDictionary = null,
         Type? viewType = null,
-        Func<ISetDescriptor?>? getSet = null
+        Func<ISetDescriptor?>? getSet = null,
+        SparseDescriptorShape? shape = null
     )
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -97,6 +98,7 @@ public sealed class SparseDescriptor : IDescriptor
         _getArray = getArray;
         _getDictionary = getDictionary;
         _getSet = getSet;
+        Shape = shape ?? new SparseDescriptorShape();
         Name = name;
         Path = path;
         Type = type;
@@ -149,6 +151,9 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public ISetDescriptor? Set => _getSet?.Invoke();
+
+    /// <inheritdoc />
+    public SparseDescriptorShape Shape { get; }
 
     /// <summary>Creates an instance-bound view that fails safely once stale.</summary>
     /// <param name="inner">The live descriptors to guard.</param>
@@ -208,6 +213,8 @@ public sealed class SparseDescriptor : IDescriptor
                 : null;
 
         public ISetDescriptor? Set => _isLive() ? _inner.Set : null;
+
+        public SparseDescriptorShape Shape => _inner.Shape;
     }
 }
 

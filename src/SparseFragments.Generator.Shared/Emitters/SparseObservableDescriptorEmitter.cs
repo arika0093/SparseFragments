@@ -97,8 +97,70 @@ internal static class SparseObservableDescriptorEmitter
                 + viewType
                 + "), "
                 + SetAccessor(member, dialect)
+                + ", "
+                + ShapeExpression(member, dialect)
                 + "),"
         );
+    }
+
+    /// <summary>Emits static shape metadata independent of live instances.</summary>
+    private static string ShapeExpression(SparseMemberModel member, SparseDescriptorDialect dialect)
+    {
+        var hasChild =
+            member.ChildModel is not null
+            && member.ChildIsReferenceType
+            && member.Property.Name != "PropertyChanged";
+        var elementKnown = member.Collection.ElementType.Name is not null;
+        var scalarSequence =
+            elementKnown
+            && member.Collection.ValueType is null
+            && (
+                member.Property.Type.NonNullableName.EndsWith("[]", System.StringComparison.Ordinal)
+                || member.Collection.Kind == SparseCollectionKind.Array
+            );
+        var hasArray = SparseObservableEmitter.IsObservableList(member) || scalarSequence;
+        var hasDictionary =
+            SparseObservableEmitter.IsObservableDictionary(member)
+            || (
+                member.Collection.ValueType is not null
+                && member.Collection.CloneKind == SparseCloneCollectionKind.Dictionary
+            );
+        var hasSet =
+            elementKnown
+            && member.Collection.ValueType is null
+            && member.Collection.Kind == SparseCollectionKind.Set;
+        string TypeOrNull(bool present, string name) => present ? "typeof(" + name + ")" : "null";
+        return "new "
+            + dialect.DescriptorShapeType
+            + " { HasChild = "
+            + (hasChild ? "true" : "false")
+            + ", ChildType = "
+            + TypeOrNull(hasChild, member.ChildModel?.NonNullableName ?? "object")
+            + ", HasArray = "
+            + (hasArray ? "true" : "false")
+            + ", ArrayItemType = "
+            + TypeOrNull(hasArray, member.Collection.ElementType.NonNullableName)
+            + ", ArrayItemNullable = "
+            + (hasArray && IsNullable(member.Collection.ElementType.Name) ? "true" : "false")
+            + ", HasDictionary = "
+            + (hasDictionary ? "true" : "false")
+            + ", DictionaryKeyType = "
+            + TypeOrNull(hasDictionary, member.Collection.ElementType.NonNullableName)
+            + ", DictionaryValueType = "
+            + TypeOrNull(hasDictionary, member.Collection.ValueType?.NonNullableName ?? "object")
+            + ", DictionaryValueNullable = "
+            + (
+                hasDictionary && IsNullable(member.Collection.ValueType?.Name ?? string.Empty)
+                    ? "true"
+                    : "false"
+            )
+            + ", HasSet = "
+            + (hasSet ? "true" : "false")
+            + ", SetItemType = "
+            + TypeOrNull(hasSet, member.Collection.ElementType.NonNullableName)
+            + ", SetItemNullable = "
+            + (hasSet && IsNullable(member.Collection.ElementType.Name) ? "true" : "false")
+            + " }";
     }
 
     private static string ViewTypeName(SparseMemberModel member, string runtimeNamespace)
@@ -1002,8 +1064,8 @@ internal static class SparseObservableDescriptorEmitter
             + ")) return false; ";
     }
 
-    private static bool IsNullable(string typeName) =>
-        typeName.EndsWith("?", System.StringComparison.Ordinal);
+    private static bool IsNullable(string? typeName) =>
+        typeName is not null && typeName.EndsWith("?", System.StringComparison.Ordinal);
 
     private static string IsNullableExpression(string typeName) =>
         IsNullable(typeName) ? "true" : "false";

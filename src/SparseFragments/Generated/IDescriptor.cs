@@ -71,6 +71,15 @@ public interface IDescriptor
     /// Edit an element's members by removing and re-adding the element.
     /// </remarks>
     ISetDescriptor? Set { get; }
+
+    /// <summary>Gets static declared shape information for this property.</summary>
+    /// <remarks>
+    /// Unlike the live <see cref="Child"/>, <see cref="Array"/>,
+    /// <see cref="Dictionary"/> and <see cref="Set"/> accessors (which return
+    /// null when the current value is null), the shape is always available and
+    /// describes what <em>could</em> be constructed for a null member.
+    /// </remarks>
+    SparseDescriptorShape Shape { get; }
 }
 
 /// <summary>Provides the descriptors for one generated model instance.</summary>
@@ -253,4 +262,51 @@ public interface ISetDescriptor
 
     /// <summary>Attempts to remove an item from the set.</summary>
     bool TryRemove(object? value);
+}
+
+/// <summary>Static declared shape information for one model property.</summary>
+/// <remarks>
+/// Shape answers "is this shape supported" without a live instance; the
+/// <c>Child</c>/<c>Array</c>/<c>Dictionary</c>/<c>Set</c> accessors answer
+/// "is there a live instance right now". A nullable member with no value has
+/// shape but no live accessors until it is assigned.
+/// </remarks>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+public sealed class SparseDescriptorShape
+{
+    /// <summary>Gets whether the property is a nested generated-model shape.</summary>
+    public bool HasChild { get; init; }
+
+    /// <summary>Gets the nested model type, or null when not a child shape.</summary>
+    public Type? ChildType { get; init; }
+
+    /// <summary>Gets whether the property is a sequence shape.</summary>
+    public bool HasArray { get; init; }
+
+    /// <summary>Gets the sequence item type, or null when not a sequence shape.</summary>
+    public Type? ArrayItemType { get; init; }
+
+    /// <summary>Gets whether sequence items accept null.</summary>
+    public bool ArrayItemNullable { get; init; }
+
+    /// <summary>Gets whether the property is a dictionary shape.</summary>
+    public bool HasDictionary { get; init; }
+
+    /// <summary>Gets the dictionary key type, or null when not a dictionary shape.</summary>
+    public Type? DictionaryKeyType { get; init; }
+
+    /// <summary>Gets the dictionary value type, or null when not a dictionary shape.</summary>
+    public Type? DictionaryValueType { get; init; }
+
+    /// <summary>Gets whether dictionary values accept null.</summary>
+    public bool DictionaryValueNullable { get; init; }
+
+    /// <summary>Gets whether the property is a set shape.</summary>
+    public bool HasSet { get; init; }
+
+    /// <summary>Gets the set item type, or null when not a set shape.</summary>
+    public Type? SetItemType { get; init; }
+
+    /// <summary>Gets whether set items accept null.</summary>
+    public bool SetItemNullable { get; init; }
 }

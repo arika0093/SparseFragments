@@ -144,6 +144,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "global::SparseFragments.Generated.SparseDictionaryDescriptorAccess",
             "global::SparseFragments.Generated.SparseSetDescriptor",
             "global::SparseFragments.Generated.SparseSetDescriptorAccess",
+            "global::SparseFragments.Generated.SparseDescriptorShape",
             "global::SparseFragments.Generated.SparseDescriptorValue"
         ),
         ReservedGeneratedNames: ImmutableArray.Create(

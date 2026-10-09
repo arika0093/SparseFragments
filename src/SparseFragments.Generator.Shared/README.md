@@ -145,12 +145,12 @@ callback. The product generator chooses its helper namespace; for example,
 generated implementations: `IDescriptor`/`IDescriptorSet` plus the
 `IArrayDescriptor`, `IDictDescriptor`, and `ISetDescriptor` shapes with their
 `SparseArrayDescriptorAccess`, `SparseDictionaryDescriptorAccess`, and
-`SparseSetDescriptorAccess` bags and the `SparseDescriptorValue` conversion
-helper. Set members (`HashSet<T>`, `ISet<T>`, `IReadOnlySet<T>`) expose
-membership over live model values with no positional semantics; the
-`IReadOnlySet<T>` reference is only named for members declared with that type,
-so compilations without the type keep compiling. All dialect entries are
-required: Shared provides no implicit runtime fallback.
+`SparseSetDescriptorAccess` bags, the `SparseDescriptorShape` static metadata,
+and the `SparseDescriptorValue` conversion helper. Set members (`HashSet<T>`,
+`ISet<T>`, `IReadOnlySet<T>`) expose membership over live model values with no
+positional semantics; the `IReadOnlySet<T>` reference is only named for members
+declared with that type, so compilations without the type keep compiling. All
+dialect entries are required: Shared provides no implicit runtime fallback.
 
 ## Member transport and rebase policies
 

@@ -341,6 +341,7 @@ internal sealed record SparseDescriptorDialect
         string DictionaryDescriptorAccessType,
         string SetDescriptorType,
         string SetDescriptorAccessType,
+        string DescriptorShapeType,
         string DescriptorValueType
     )
     {
@@ -357,6 +358,7 @@ internal sealed record SparseDescriptorDialect
         this.DictionaryDescriptorAccessType = DictionaryDescriptorAccessType;
         this.SetDescriptorType = SetDescriptorType;
         this.SetDescriptorAccessType = SetDescriptorAccessType;
+        this.DescriptorShapeType = DescriptorShapeType;
         this.DescriptorValueType = DescriptorValueType;
     }
 
@@ -385,6 +387,8 @@ internal sealed record SparseDescriptorDialect
     public string SetDescriptorType { get; init; }
 
     public string SetDescriptorAccessType { get; init; }
+
+    public string DescriptorShapeType { get; init; }
 
     public string DescriptorValueType { get; init; }
 }
