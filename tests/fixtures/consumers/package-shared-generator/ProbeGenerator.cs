@@ -116,6 +116,17 @@ internal static class ProbeSurface
         var memberPolicy = new SparseMemberPolicy("Secret", transport);
         var rebase = new SparseRebasePolicy(SparseRedactedBeforeBehavior.Passthrough);
         var sessionDialect = new SparseEditSessionDialect("PackageShared.Generated");
+        var capability = SparseEditSessionCapabilities.ForCompilation(true, true);
+        var roles = new[]
+        {
+            SparseEditSessionRoles.Model,
+            SparseEditSessionRoles.Fragment,
+            SparseEditSessionRoles.Patch,
+            SparseEditSessionRoles.ChangeSet,
+            SparseEditSessionRoles.Observable,
+            SparseEditSessionRoles.Current,
+        };
+        var adapterMembers = SparseEditSessionAdapterContract.RequiredMembers;
         var sessionRuntime = new SparseRuntimeDialect(
             "global::PackageShared.",
             "global::PackageShared.Optional",
@@ -207,6 +218,15 @@ internal static class ProbeSurface
                 + incrementalTypes.Length
         );
         code.AppendLineAt(0, "// observable=" + observable + " collection=" + collection.Kind);
+        code.AppendLineAt(
+            0,
+            "// session-capability="
+                + capability
+                + " roles="
+                + roles.Length
+                + " adapter="
+                + adapterMembers.Length
+        );
         code.AppendLineAt(
             0,
             "// policy="

@@ -143,6 +143,15 @@ implements a trusted model-accessor interface on each generated session, so
 framework integrations can read the live model without invalidating the
 session's observable-change cache. Consumers without that interface keep the
 previous behavior: framework helpers fall back to the raw model.
+`SparseEditSessionCapabilities` represents the reusable cores as explicit
+Generated-Once capabilities with validated prerequisites
+(`EditSessionDialect`, runtime/patch dialects, Fragment/Patch/ChangeSet/
+Observable families). `SparseEditSessionRoles` names the generic role binding
+(state, snapshot, command, transition, observable/current views) and
+`SparseEditSessionAdapterContract` documents the per-model delegate binding
+(FromModel, Between, ToPatch, advance baseline, projections, apply, invert,
+rebase, notifications). Until the capability aggregation pipeline lands, call
+`EmitCore`/`EmitCapability` once per compilation with the de-duplicated flags.
 
 ## Generated implementation placement
 
