@@ -86,7 +86,8 @@ public sealed class SparseDescriptor : IDescriptor
         Type? viewType = null,
         Func<ISetDescriptor?>? getSet = null,
         SparseDescriptorShape? shape = null,
-        bool isRequired = false
+        bool isRequired = false,
+        bool isNullableOblivious = false
     )
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -101,6 +102,7 @@ public sealed class SparseDescriptor : IDescriptor
         _getSet = getSet;
         Shape = shape ?? new SparseDescriptorShape();
         IsRequired = isRequired;
+        IsNullableOblivious = isNullableOblivious;
         Name = name;
         Path = path;
         Type = type;
@@ -127,6 +129,9 @@ public sealed class SparseDescriptor : IDescriptor
     public bool IsNullable { get; }
 
     /// <inheritdoc />
+    public bool IsNullableOblivious { get; }
+
+    /// <inheritdoc />
     public bool IsRequired { get; }
 
     /// <inheritdoc />
@@ -143,7 +148,9 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public bool TrySetValue(object? value) =>
-        _setValue is not null && (value is not null || IsNullable) && _setValue(value);
+        _setValue is not null
+        && (value is not null || IsNullable || IsNullableOblivious)
+        && _setValue(value);
 
     /// <inheritdoc />
     public IDescriptorSet? Child => _getChild?.Invoke();
@@ -191,6 +198,8 @@ public sealed class SparseDescriptor : IDescriptor
         public Type ViewType => _inner.ViewType;
 
         public bool IsNullable => _inner.IsNullable;
+
+        public bool IsNullableOblivious => _inner.IsNullableOblivious;
 
         public bool IsRequired => _inner.IsRequired;
 

@@ -576,7 +576,8 @@ internal static class SparseModelDiscovery
             hasExplicitJsonPropertyName,
             SparseJsonNaming.GetJsonIgnoreCondition(member.Property, cancellationToken),
             IsNullableType(member.Property.Type),
-            SparseAttributeSource.FormatPropertyAttributes(member.Property)
+            SparseAttributeSource.FormatPropertyAttributes(member.Property),
+            IsNullableObliviousType(member.Property.Type)
         );
         SparseTypeModel? childModel = null;
         string? childFragmentType = null;
@@ -652,6 +653,15 @@ internal static class SparseModelDiscovery
         return type is INamedTypeSymbol named
             && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
     }
+
+    /// <summary>Detects reference types compiled without nullable annotations.</summary>
+    /// <remarks>
+    /// Under <c>#nullable disable</c> (or pre-annotation code) reference types
+    /// carry <see cref="NullableAnnotation.None"/>: they accept null at runtime
+    /// even though they are neither annotated nullable nor non-nullable.
+    /// </remarks>
+    internal static bool IsNullableObliviousType(ITypeSymbol type) =>
+        type.IsReferenceType && type.NullableAnnotation == NullableAnnotation.None;
 
     internal static SparseCollectionInfo CreateCollectionInfo(
         SparseSymbolCollectionInfo collection,

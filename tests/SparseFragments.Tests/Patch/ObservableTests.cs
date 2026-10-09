@@ -231,6 +231,7 @@ public sealed class ObservableTests
         descriptor.Path.ShouldBe(nameof(ObservableHolder.Secret));
         descriptor.Type.ShouldBe(typeof(string));
         descriptor.IsNullable.ShouldBeFalse();
+        descriptor.IsNullableOblivious.ShouldBeFalse();
         descriptor.IsEditable.ShouldBeTrue();
         descriptor.IsReadOnly.ShouldBeFalse();
         descriptor.GetValue().ShouldBe("before");
@@ -255,6 +256,7 @@ public sealed class ObservableTests
             .Descriptors.TryGet(nameof(ObservableHolder.Note), out var nullableDescriptor)
             .ShouldBeTrue();
         nullableDescriptor.IsNullable.ShouldBeTrue();
+        nullableDescriptor.IsNullableOblivious.ShouldBeFalse();
         nullableDescriptor.TrySetValue(null).ShouldBeTrue();
         model.Note.ShouldBeNull();
     }

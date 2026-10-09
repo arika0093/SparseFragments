@@ -398,6 +398,7 @@ namespace SparseFragments.Generated
         SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         bool IsEditable { get; }
         bool IsNullable { get; }
+        bool IsNullableOblivious { get; }
         bool IsReadOnly { get; }
         bool IsRequired { get; }
         string Name { get; }
@@ -493,13 +494,30 @@ namespace SparseFragments.Generated
     }
     public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor
     {
-        public SparseDescriptor(string name, string path, System.Type type, bool isNullable, bool isEditable, System.Attribute[] attributes, System.Func<object?> getValue, System.Func<object?, bool>? setValue = null, System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null, System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null, System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null, System.Type? viewType = null, System.Func<SparseFragments.Generated.ISetDescriptor?>? getSet = null, SparseFragments.Generated.SparseDescriptorShape? shape = null, bool isRequired = false) { }
+        public SparseDescriptor(
+                    string name,
+                    string path,
+                    System.Type type,
+                    bool isNullable,
+                    bool isEditable,
+                    System.Attribute[] attributes,
+                    System.Func<object?> getValue,
+                    System.Func<object?, bool>? setValue = null,
+                    System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null,
+                    System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null,
+                    System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null,
+                    System.Type? viewType = null,
+                    System.Func<SparseFragments.Generated.ISetDescriptor?>? getSet = null,
+                    SparseFragments.Generated.SparseDescriptorShape? shape = null,
+                    bool isRequired = false,
+                    bool isNullableOblivious = false) { }
         public SparseFragments.Generated.IArrayDescriptor? Array { get; }
         public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
         public SparseFragments.Generated.IDescriptorSet? Child { get; }
         public SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         public bool IsEditable { get; }
         public bool IsNullable { get; }
+        public bool IsNullableOblivious { get; }
         public bool IsReadOnly { get; }
         public bool IsRequired { get; }
         public string Name { get; }

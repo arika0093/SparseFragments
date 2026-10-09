@@ -33,6 +33,15 @@ public interface IDescriptor
     /// <summary>Gets whether the property accepts null.</summary>
     bool IsNullable { get; }
 
+    /// <summary>Gets whether the property is nullable-oblivious.</summary>
+    /// <remarks>
+    /// True for reference types compiled without nullable annotations
+    /// (<c>#nullable disable</c> or legacy code): the runtime setter accepts
+    /// null even though <see cref="IsNullable"/> is false. Explicitly annotated
+    /// non-nullable and nullable members report false.
+    /// </remarks>
+    bool IsNullableOblivious { get; }
+
     /// <summary>Gets whether the property is a C# required member.</summary>
     /// <remarks>
     /// Independent of <see cref="IsNullable"/> (a required member may be

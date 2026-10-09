@@ -101,6 +101,8 @@ internal static class SparseObservableDescriptorEmitter
                 + ShapeExpression(member, dialect)
                 + ", "
                 + (member.Property.IsRequired ? "true" : "false")
+                + ", "
+                + (member.Property.IsNullableOblivious ? "true" : "false")
                 + "),"
         );
     }
@@ -207,9 +209,10 @@ internal static class SparseObservableDescriptorEmitter
         {
             var childObservable = SparseObservableEmitter.ChildObservableType(member);
             var childModelType = member.ChildModel.Value.NonNullableName;
-            var nullHandling = member.Property.IsNullable
-                ? "if (value is null) { this." + property + " = null; return true; } "
-                : "if (value is null) return false; ";
+            var nullHandling =
+                member.Property.IsNullable || member.Property.IsNullableOblivious
+                    ? "if (value is null) { this." + property + " = null; return true; } "
+                    : "if (value is null) return false; ";
             return "value => { "
                 + nullHandling
                 + "if (value is "
