@@ -21,6 +21,7 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
     where TChangeSet : class
     where TObservable : class
 {
+    private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
     private readonly Func<TModel, TFragment> _fromModel;
     private readonly Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> _between;
     private readonly Func<TChangeSet, TPatch> _toPatch;
@@ -307,8 +308,28 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
     public TObservable Observable => _observable;
 
     /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
-    public bool HasChanges =>
-        _hasChangesCacheValid ? _cachedHasChanges : !_isEmpty(CreateChangeSet());
+    public bool HasChanges
+    {
+        get
+        {
+            if (_hasChangesCacheValid)
+            {
+                return _cachedHasChanges;
+            }
+
+            TChangeSet changes;
+            try
+            {
+                changes = CreateChangeSet();
+            }
+            catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
+            {
+                return true;
+            }
+
+            return !_isEmpty(changes);
+        }
+    }
 
     /// <summary>Raised when session state or its observable model may have changed.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -516,7 +537,18 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
     private void OnObservableChanged()
     {
         var current = Optional<TFragment?>.Present(_fromModel(_model));
-        var transition = _between(_lastObserved, current);
+        TChangeSet transition;
+        try
+        {
+            transition = _between(_lastObserved, current);
+        }
+        catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
+        {
+            _hasChangesCacheValid = false;
+            OnPropertyChanged(nameof(HasChanges));
+            return;
+        }
+
         _lastObserved = current;
         if (_cacheObservableChanges)
         {
@@ -548,6 +580,9 @@ public class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservabl
     }
 
     private void DisableHasChangesCache() => _hasChangesCacheValid = false;
+
+    private static bool IsDuplicateKeyError(InvalidOperationException exception) =>
+        string.Equals(exception.Message, DuplicateKeyErrorMessage, StringComparison.Ordinal);
 
     private void OnPropertyChanged(string propertyName) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

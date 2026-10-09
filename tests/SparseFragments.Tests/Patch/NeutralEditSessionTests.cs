@@ -28,6 +28,19 @@ public partial class ImmutableSessionModel
     public string Name { get; init; } = string.Empty;
 }
 
+[SparseFragmentModel]
+public partial class DuplicateKeySessionItem
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class DuplicateKeySessionModel
+{
+    public List<DuplicateKeySessionItem> Items { get; set; } = [];
+}
+
 public sealed class NeutralEditSessionTests
 {
     [Test]
@@ -414,6 +427,79 @@ public sealed class NeutralEditSessionTests
         var submitted = session.CreateChangeSet();
         session.AcceptChanges(submitted);
         changed.Count(name => name == nameof(session.HasChanges)).ShouldBeGreaterThan(1);
+    }
+
+    [Test]
+    public void HasChangesReportsDuplicateKeysWithoutHidingOtherInvalidOperations()
+    {
+        var model = new DuplicateKeySessionModel
+        {
+            Items = [new DuplicateKeySessionItem { Id = "same" }],
+        };
+        var session = model.CreateEditSession();
+        model.Items.Add(new DuplicateKeySessionItem { Id = "same" });
+
+        session.HasChanges.ShouldBeTrue();
+        Should
+            .Throw<InvalidOperationException>(() => session.CreateChangeSet())
+            .Message.ShouldBe("Duplicate key in keyed collection.");
+
+        var unrelated = SparseEditSession<
+            NeutralSessionModel,
+            NeutralSessionModel.Fragment,
+            NeutralSessionModel.Patch,
+            NeutralSessionModel.ChangeSet,
+            NeutralSessionModel.Observable
+        >.Create(
+            new NeutralSessionModel(),
+            NeutralSessionModel.Fragment.From,
+            static (_, _) => throw new InvalidOperationException("Unrelated failure."),
+            static changes => changes.ToPatch(),
+            static changes => changes.IsEmpty,
+            static (_, baseline) => baseline,
+            static current => new NeutralSessionModel.Observable(current)
+        );
+
+        Should
+            .Throw<InvalidOperationException>(() => _ = unrelated.HasChanges)
+            .Message.ShouldBe("Unrelated failure.");
+
+        var isEmptyFailure = SparseEditSession<
+            NeutralSessionModel,
+            NeutralSessionModel.Fragment,
+            NeutralSessionModel.Patch,
+            NeutralSessionModel.ChangeSet,
+            NeutralSessionModel.Observable
+        >.Create(
+            new NeutralSessionModel(),
+            NeutralSessionModel.Fragment.From,
+            NeutralSessionModel.ChangeSet.Between,
+            static changes => changes.ToPatch(),
+            static _ => throw new InvalidOperationException("Duplicate key in keyed collection."),
+            static (_, baseline) => baseline,
+            static current => new NeutralSessionModel.Observable(current)
+        );
+
+        Should
+            .Throw<InvalidOperationException>(() => _ = isEmptyFailure.HasChanges)
+            .Message.ShouldBe("Duplicate key in keyed collection.");
+    }
+
+    [Test]
+    public void ObservableDuplicateKeyEditLeavesTheSessionRecoverable()
+    {
+        var session = new DuplicateKeySessionModel
+        {
+            Items = [new DuplicateKeySessionItem { Id = "same" }],
+        }.CreateEditSession();
+
+        session.Observable.Items.Add(
+            new DuplicateKeySessionItem.Observable(new DuplicateKeySessionItem { Id = "same" })
+        );
+
+        session.HasChanges.ShouldBeTrue();
+        session.Observable.Items.RemoveAt(1);
+        session.HasChanges.ShouldBeFalse();
     }
 
     [Test]
