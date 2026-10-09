@@ -213,66 +213,81 @@ internal static class SparseObservableSequenceDescriptorEmitter
             SparseObservableDescriptorEmitter.IsNullable(modelItemType),
             dialect
         );
-        var mutable = "!this." + property + "!.IsReadOnly";
+        var canWrite = "!this." + property + "!.IsReadOnly";
+        var canResize = canWrite + " && !this." + property + "!.IsFixedSize";
         // Assigned-key duplicates are rejected before any mutation; unassigned
         // sentinels are exempt and proceed like direct observable mutation.
         var duplicateAdd = DuplicateKeyGuard(member, names, property, "item", null);
         var duplicateSet = DuplicateKeyGuard(member, names, property, "item", "index");
+        // Provider failures surface as NotSupportedException for fixed-size or
+        // custom lists; the Try contract reports false instead of propagating.
+        const string unsupportedGuard =
+            "catch (global::System.NotSupportedException) { return false; } ";
         var setItem =
             "TrySetItem = (index, value) => { "
             + modelItemType
             + " item; if (!"
-            + mutable
+            + canWrite
             + " || (uint)index >= (uint)this."
             + property
             + "!.Count) return false; "
             + conversion
             + duplicateSet
-            + "this."
+            + "try { this."
             + property
-            + "!.SetModel(index, item); return true; }, ";
+            + "!.SetModel(index, item); } "
+            + unsupportedGuard
+            + "return true; }, ";
         var add =
             "TryAdd = value => { "
             + modelItemType
             + " item; if (!"
-            + mutable
+            + canResize
             + ") return false; "
             + conversion
             + duplicateAdd
-            + "this."
+            + "try { this."
             + property
-            + "!.AddModel(item); return true; }, ";
+            + "!.AddModel(item); } "
+            + unsupportedGuard
+            + "return true; }, ";
         var insert =
             "TryInsert = (index, value) => { "
             + modelItemType
             + " item; if (!"
-            + mutable
+            + canResize
             + " || index < 0 || index > this."
             + property
             + "!.Count) return false; "
             + conversion
             + duplicateAdd
-            + "this."
+            + "try { this."
             + property
-            + "!.InsertModel(index, item); return true; }, ";
+            + "!.InsertModel(index, item); } "
+            + unsupportedGuard
+            + "return true; }, ";
         var remove =
             "TryRemoveAt = index => { if (!"
-            + mutable
+            + canResize
             + " || (uint)index >= (uint)this."
             + property
-            + "!.Count) return false; this."
+            + "!.Count) return false; try { this."
             + property
-            + "!.RemoveAt(index); return true; }, ";
+            + "!.RemoveAt(index); } "
+            + unsupportedGuard
+            + "return true; }, ";
         var move =
             "TryMove = (oldIndex, newIndex) => { if (!"
-            + mutable
+            + canResize
             + " || (uint)oldIndex >= (uint)this."
             + property
             + "!.Count || (uint)newIndex >= (uint)this."
             + property
-            + "!.Count) return false; this."
+            + "!.Count) return false; try { this."
             + property
-            + "!.Move(oldIndex, newIndex); return true; }, ";
+            + "!.Move(oldIndex, newIndex); } "
+            + unsupportedGuard
+            + "return true; }, ";
         var keyed = KeyedSequenceMetadata(member, property, names, dialect);
         return "() => this."
             + property
@@ -293,15 +308,15 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + "!.Count, GetItem = index => this."
             + property
             + "![index], CanSetItem = () => "
-            + mutable
+            + canWrite
             + ", CanAdd = () => "
-            + mutable
+            + canResize
             + ", CanInsert = () => "
-            + mutable
+            + canResize
             + ", CanRemove = () => "
-            + mutable
+            + canResize
             + ", CanMove = () => "
-            + mutable
+            + canResize
             + ", "
             + descriptorChildAccessor
             + setItem

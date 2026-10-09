@@ -293,6 +293,7 @@ namespace SparseFragments
         public SparseObservableList(System.Collections.Generic.IList<TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false) { }
         public int Count { get; }
         public bool IsDisposed { get; }
+        public bool IsFixedSize { get; }
         public bool IsReadOnly { get; }
         public TView this[int index] { get; set; }
         public System.Collections.Generic.IList<TModel> Model { get; }

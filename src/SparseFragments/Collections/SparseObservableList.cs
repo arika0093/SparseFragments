@@ -70,6 +70,13 @@ public sealed class SparseObservableList<TModel, TView>
     /// <inheritdoc />
     public bool IsReadOnly => _model.IsReadOnly;
 
+    /// <summary>Gets whether the wrapped list has a fixed size.</summary>
+    /// <remarks>
+    /// True when the model also implements non-generic <see cref="System.Collections.IList"/>
+    /// and reports fixed size; replacements stay allowed while size changes do not.
+    /// </remarks>
+    public bool IsFixedSize => _model is System.Collections.IList raw && raw.IsFixedSize;
+
     /// <inheritdoc />
     public TView this[int index]
     {
