@@ -36,6 +36,8 @@ internal static class SparseReadOnlyViewEmitter
         code.AppendLineAt(1, "public sealed class " + typeName);
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "private readonly " + modelType + " __model;");
+        code.AppendLineAt(2, "/// <summary>Creates a read-only view over a live model.</summary>");
+        code.AppendLineAt(2, "/// <param name=\"model\">The model to expose.</param>");
         code.AppendLineAt(2, "public " + typeName + "(" + modelType + " model)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -71,6 +73,7 @@ internal static class SparseReadOnlyViewEmitter
                 + "."
                 + (child.ReadOnlyViewTypeName ?? "ReadOnlyView")
                 + (member.Property.IsNullable ? "?" : "");
+            AppendPropertySummary(code, member);
             code.AppendLineAt(2, "public " + viewType + " " + property);
             code.AppendLineAt(2, "{");
             code.AppendLineAt(3, "get");
@@ -124,6 +127,7 @@ internal static class SparseReadOnlyViewEmitter
             return;
         }
 
+        AppendPropertySummary(code, member);
         code.AppendLineAt(
             2,
             "public " + member.Property.Type.Name + " " + property + " => __model." + property + ";"
@@ -144,6 +148,7 @@ internal static class SparseReadOnlyViewEmitter
                 ? "global::System.Collections.Generic.IReadOnlyCollection<" + viewElement + ">"
                 : "global::System.Collections.Generic.IReadOnlyList<" + viewElement + ">";
         var nullable = member.Property.IsNullable ? "?" : "";
+        AppendPropertySummary(code, member);
         code.AppendLineAt(2, "public " + viewCollection + nullable + " " + property);
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "get");
@@ -182,6 +187,7 @@ internal static class SparseReadOnlyViewEmitter
         var modelValue = member.Collection.ValueType!.Value.Name;
         var viewValue = ReadOnlyValueType(member.Collection.ValueType.Value);
         var nullable = member.Property.IsNullable ? "?" : "";
+        AppendPropertySummary(code, member);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.IReadOnlyDictionary<"
@@ -235,6 +241,17 @@ internal static class SparseReadOnlyViewEmitter
             + (model.ReadOnlyViewTypeName ?? "ReadOnlyView")
             + (model.Name.EndsWith("?", System.StringComparison.Ordinal) ? "?" : "");
     }
+
+    private static void AppendPropertySummary(
+        SharedIndentedBuilder code,
+        SparseMemberModel member
+    ) =>
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets the read-only value of member '"
+                + member.Property.Name
+                + "'.</summary>"
+        );
 
     private static string ReadOnlyMapper(SparseTypeModel model)
     {
