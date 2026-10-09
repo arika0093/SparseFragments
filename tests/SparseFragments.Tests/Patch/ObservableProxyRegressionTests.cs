@@ -55,10 +55,10 @@ public sealed class ObservableProxyRegressionTests
     public void ListProxyIdentityIsStableAcrossAccessPatterns()
     {
         var model = new ObservableHolder { Children = [new() { Id = "a" }, new() { Id = "b" }] };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var view = proxy.Children!;
         var first = view[0];
-        var copy = new ObservableListChild.SparseObservable[view.Count];
+        var copy = new ListChildProxy[view.Count];
         view.CopyTo(copy, 0);
 
         ReferenceEquals(first, view[0]).ShouldBeTrue();
@@ -71,7 +71,7 @@ public sealed class ObservableProxyRegressionTests
     {
         var notified = 0;
         var model = new ObservableHolder { Children = [new() { Id = "a" }, new() { Id = "b" }] };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var view = proxy.Children!;
         var first = view[0];
         var second = view[1];
@@ -262,7 +262,7 @@ public sealed class ObservableProxyRegressionTests
     {
         var notified = 0;
         var model = new ObservableHolder { Tags = ["a"] };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var events = 0;
         proxy.Tags!.CollectionChanged += (_, _) => events++;
 
@@ -293,7 +293,7 @@ public sealed class ObservableProxyRegressionTests
     public void DictionaryProxyIdentityIsStable()
     {
         var model = new ObservableHolder { ChildrenByName = new() { ["a"] = new() { Id = "a" } } };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var view = proxy.ChildrenByName!;
 
         view.TryGetValue("a", out var first).ShouldBeTrue();
@@ -375,7 +375,7 @@ public sealed class ObservableProxyRegressionTests
     {
         var notified = 0;
         var model = new ObservableHolder { ChildrenByName = new() { ["a"] = new() { Id = "a" } } };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var view = proxy.ChildrenByName!;
         var current = view["a"];
 
@@ -427,7 +427,7 @@ public sealed class ObservableProxyRegressionTests
     {
         var notified = 0;
         var model = new ObservableHolder { ChildrenByName = new() { ["a"] = new() { Id = "a" } } };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var oldView = proxy.ChildrenByName!;
         var oldElement = oldView["a"];
 

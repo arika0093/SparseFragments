@@ -142,7 +142,7 @@ public sealed class ObservableTests
     public void ScalarGetSetAndNotification()
     {
         var model = new ObservableHolder { Title = "a" };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
 
         proxy.Title.ShouldBe("a");
@@ -155,7 +155,7 @@ public sealed class ObservableTests
     public void EqualitySuppression()
     {
         var model = new ObservableHolder { Title = "a" };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
 
         proxy.Title = "a";
@@ -170,7 +170,7 @@ public sealed class ObservableTests
     {
         var notified = 0;
         var model = new ObservableHolder { Child = new ObservableChild { Name = "n" } };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
 
         ReferenceEquals(proxy.Child, proxy.Child).ShouldBeTrue();
         var names = Events(proxy);
@@ -186,11 +186,11 @@ public sealed class ObservableTests
     {
         var notified = 0;
         var model = new ObservableHolder { Child = new ObservableChild { Name = "old" } };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var names = Events(proxy);
 
         var first = proxy.Child;
-        proxy.Child = new ObservableChild.SparseObservable(new ObservableChild { Name = "new" });
+        proxy.Child = new ChildProxy(new ObservableChild { Name = "new" });
         model.Child.Name.ShouldBe("new");
         ReferenceEquals(first, proxy.Child).ShouldBeFalse();
         proxy.Child!.Name.ShouldBe("new");
@@ -202,11 +202,11 @@ public sealed class ObservableTests
     public void NullNestedPassthrough()
     {
         var model = new ObservableHolder { MaybeChild = null };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
 
         proxy.MaybeChild.ShouldBeNull();
 
-        proxy.MaybeChild = new ObservableChild.SparseObservable(new ObservableChild { Name = "x" });
+        proxy.MaybeChild = new ChildProxy(new ObservableChild { Name = "x" });
         model.MaybeChild!.Name.ShouldBe("x");
         proxy.MaybeChild!.Name.ShouldBe("x");
 
@@ -219,7 +219,7 @@ public sealed class ObservableTests
     public void InitAndReadOnlyMembers()
     {
         var model = new ObservableHolder { OwningCount = 3, Title = "t" };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
 
         proxy.OwningCount.ShouldBe(3);
         proxy.Title = "t2";
@@ -485,7 +485,7 @@ public sealed class ObservableTests
         {
             Spot = new ObservableSpot { X = 1, Y = 2 },
         };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
 
         proxy.Spot.X.ShouldBe(1);
@@ -498,7 +498,7 @@ public sealed class ObservableTests
     public void CollectionReplacement()
     {
         var model = new ObservableHolder { Tags = new() { "a" } };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
 
         var same = model.Tags;
@@ -514,7 +514,7 @@ public sealed class ObservableTests
     public void PlainModelCollectionMutationsBypassViewNotifications()
     {
         var model = new ObservableHolder { Tags = ["a"] };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
         var collectionEvents = 0;
         proxy.Tags!.CollectionChanged += (_, _) => collectionEvents++;
@@ -532,7 +532,7 @@ public sealed class ObservableTests
         var notified = 0;
         var source = new List<string> { "a", "b" };
         var model = new ObservableHolder { Tags = source };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var names = Events(proxy);
         var events = new List<NotifyCollectionChangedEventArgs>();
         var viewPropertyNames = new List<string?>();
@@ -585,7 +585,7 @@ public sealed class ObservableTests
         var notified = 0;
         var first = new ObservableListChild { Id = "a", Name = "A" };
         var model = new ObservableHolder { Children = [first] };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var names = Events(proxy);
         var view = proxy.Children!;
         var firstProxy = view[0];
@@ -601,7 +601,7 @@ public sealed class ObservableTests
         names.ShouldBe(["Children", "Children"]);
         notified.ShouldBe(2);
 
-        var added = new ObservableListChild.SparseObservable(new ObservableListChild { Id = "b" });
+        var added = new ListChildProxy(new ObservableListChild { Id = "b" });
         view.Add(added);
         view[0].Name = "active";
         notified.ShouldBe(4);
@@ -614,7 +614,7 @@ public sealed class ObservableTests
         var notified = 0;
         var child = new ObservableListChild { Id = "a" };
         var model = new ObservableHolder { Children = [child] };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var oldView = proxy.Children!;
         var oldElement = oldView[0];
         var replacement = new List<ObservableListChild> { new() { Id = "b" } };
@@ -633,7 +633,7 @@ public sealed class ObservableTests
     {
         var source = new ObservableCollection<string> { "a" };
         var notified = 0;
-        var proxy = new ObservableHolder.Observable(
+        var proxy = new HolderObservable(
             new ObservableHolder { LiveTags = source },
             () => notified++
         );
@@ -654,7 +654,7 @@ public sealed class ObservableTests
     public void CollectionTypeUsesTheObservableListView()
     {
         var source = new Collection<string> { "a" };
-        var proxy = new ObservableHolder.Observable(new ObservableHolder { LegacyTags = source });
+        var proxy = new HolderObservable(new ObservableHolder { LegacyTags = source });
         var events = new List<NotifyCollectionChangedEventArgs>();
         proxy.LegacyTags!.CollectionChanged += (_, args) => events.Add(args);
 
@@ -675,7 +675,7 @@ public sealed class ObservableTests
             Metadata = new Dictionary<string, string> { ["a"] = "one" },
             ChildrenByName = new Dictionary<string, ObservableListChild> { ["a"] = child },
         };
-        var proxy = new ObservableHolder.Observable(model, () => notified++);
+        var proxy = new HolderObservable(model, () => notified++);
         var metadataEvents = new List<NotifyCollectionChangedEventArgs>();
         var childEvents = new List<NotifyCollectionChangedEventArgs>();
         var dictionaryPropertyNames = new List<string?>();
@@ -692,10 +692,7 @@ public sealed class ObservableTests
         childProxy.Name = "new";
         proxy.ChildrenByName.Remove("a").ShouldBeTrue();
         childProxy.Name = "detached";
-        proxy.ChildrenByName.Add(
-            "b",
-            new ObservableListChild.SparseObservable(new ObservableListChild { Id = "b" })
-        );
+        proxy.ChildrenByName.Add("b", new ListChildProxy(new ObservableListChild { Id = "b" }));
         proxy.ChildrenByName.Clear();
 
         metadataEvents
@@ -729,7 +726,7 @@ public sealed class ObservableTests
     public void ArrayRemainsReplaceOnly()
     {
         var source = new[] { "a" };
-        var proxy = new ObservableHolder.Observable(new ObservableHolder { Labels = source });
+        var proxy = new HolderObservable(new ObservableHolder { Labels = source });
 
         ReferenceEquals(source, proxy.Labels).ShouldBeTrue();
     }
@@ -743,7 +740,7 @@ public sealed class ObservableTests
             Value = 1,
             Next = new ObservableNode { Value = 2 },
         };
-        var proxy = new ObservableNode.Observable(model, () => notified++);
+        var proxy = new NodeObservable(model, () => notified++);
 
         proxy.Next!.Value = 20;
         model.Next!.Value.ShouldBe(20);
@@ -759,7 +756,7 @@ public sealed class ObservableTests
             Model = "m",
             PropertyChanged = "p",
         };
-        var proxy = new ObservableCollision.SparseObservable(model);
+        var proxy = new CollisionProxy(model);
         var names = Events(proxy);
 
         proxy.Observable.ShouldBe("o");
@@ -842,7 +839,7 @@ public sealed class ObservableTests
     public void NullableMembers()
     {
         var model = new ObservableHolder { Note = "x" };
-        var proxy = new ObservableHolder.Observable(model);
+        var proxy = new HolderObservable(model);
         var names = Events(proxy);
 
         proxy.Note = null;

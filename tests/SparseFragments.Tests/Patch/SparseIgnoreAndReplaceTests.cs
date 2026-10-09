@@ -63,9 +63,13 @@ public sealed class SparseIgnoreAndReplaceTests
         var current = new SparseIgnoreModel { Secret = "current-secret", Value = 1 };
         var fragment = SparseIgnoreModel.Fragment.From(current);
 
-        typeof(SparseIgnoreModel.Fragment).GetProperty(nameof(SparseIgnoreBase.Secret)).ShouldBeNull();
-        typeof(SparseIgnoreModel.ChangeSet).GetProperty(nameof(SparseIgnoreBase.Secret)).ShouldBeNull();
-        typeof(SparseIgnoreModel.Observable).GetProperty(nameof(SparseIgnoreBase.Secret)).ShouldBeNull();
+        typeof(SparseIgnoreModel.Fragment)
+            .GetProperty(nameof(SparseIgnoreBase.Secret))
+            .ShouldBeNull();
+        typeof(SparseIgnoreModel.ChangeSet)
+            .GetProperty(nameof(SparseIgnoreBase.Secret))
+            .ShouldBeNull();
+        typeof(IgnoreObservable).GetProperty(nameof(SparseIgnoreBase.Secret)).ShouldBeNull();
         fragment.ToModel().Secret.ShouldBe("base-secret");
 
         var patch = SparseIgnoreModel.Patch.Between(
@@ -90,7 +94,9 @@ public sealed class SparseIgnoreAndReplaceTests
     public void SparseIgnoreIsAppliedToPromotedModelsAndTheirApplyTo()
     {
         var current = new SparseIgnoreChild { Token = "current-token", Count = 1 };
-        typeof(SparseIgnoreChild.Fragment).GetProperty(nameof(SparseIgnoreChild.Token)).ShouldBeNull();
+        typeof(SparseIgnoreChild.Fragment)
+            .GetProperty(nameof(SparseIgnoreChild.Token))
+            .ShouldBeNull();
         SparseIgnoreChild.Fragment.From(current).ToModel().Token.ShouldBe("child-token");
 
         var patch = SparseIgnoreChild.Patch.Between(
@@ -161,11 +167,17 @@ public sealed class SparseIgnoreAndReplaceTests
 
         var dictionaryBefore = new ReplaceDictionaryHolder
         {
-            Items = new() { ["a"] = new KeyedServer { Id = "a", Name = "old" } },
+            Items = new()
+            {
+                ["a"] = new KeyedServer { Id = "a", Name = "old" },
+            },
         };
         var dictionaryAfter = new ReplaceDictionaryHolder
         {
-            Items = new() { ["b"] = new KeyedServer { Id = "b", Name = "new" } },
+            Items = new()
+            {
+                ["b"] = new KeyedServer { Id = "b", Name = "new" },
+            },
         };
         var dictPatch = ReplaceDictionaryHolder.Patch.Between(
             ReplaceDictionaryHolder.Fragment.From(dictionaryBefore),
@@ -186,9 +198,6 @@ public sealed class SparseIgnoreAndReplaceTests
         var roundTripped = JsonSerializer
             .Deserialize<ReplaceDictionaryHolder.ChangePayload>(serialized)!
             .ToChangeSet();
-        roundTripped
-            .ToPatch()
-            .ApplyTo(dictionaryBefore)
-            .Items.Keys.ShouldBe(["b"]);
+        roundTripped.ToPatch().ApplyTo(dictionaryBefore).Items.Keys.ShouldBe(["b"]);
     }
 }

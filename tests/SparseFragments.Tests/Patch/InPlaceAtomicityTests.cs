@@ -10,8 +10,8 @@ public sealed class InPlaceAtomicityTests
         NeutralSessionModel.Fragment,
         NeutralSessionModel.Patch,
         NeutralSessionModel.ChangeSet,
-        NeutralSessionModel.Observable,
-        NeutralSessionModel.ReadOnlyView
+        NeutralObservable,
+        NeutralView
     > CreateSession(
         NeutralSessionModel model,
         NeutralSessionModel updated,
@@ -25,8 +25,8 @@ public sealed class InPlaceAtomicityTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >
         {
             FromModel = NeutralSessionModel.Fragment.From,
@@ -35,8 +35,8 @@ public sealed class InPlaceAtomicityTests
             IsEmpty = static changes => changes.IsEmpty,
             AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline),
             ToObservable = static (current, changed, access) =>
-                new NeutralSessionModel.Observable(current, changed, access),
-            ToCurrent = static current => new NeutralSessionModel.ReadOnlyView(current),
+                new NeutralObservable(current, changed, access),
+            ToCurrent = static current => new NeutralView(current),
             TryApplyTo = (_, _) =>
                 ((NeutralSessionModel?)updated, (IReadOnlyList<SparseConflict>?)null),
             WriteModel = (current, next) => writeModel(current, next),
@@ -48,8 +48,8 @@ public sealed class InPlaceAtomicityTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >.Create(model, configuration);
         session.TransitionObserved += transitions.Add;
         session.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);

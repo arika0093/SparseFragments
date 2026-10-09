@@ -178,8 +178,8 @@ public sealed class SparseEditSessionTests
 
         teams[0].Name.ShouldBe("team");
         teams[0].Members[0].Skills[0].ShouldBe("csharp");
-        (teams is IList<Team.ReadOnlyView>).ShouldBeFalse();
-        (teams[0].Members is IList<TeamMember.ReadOnlyView>).ShouldBeFalse();
+        (teams is System.Collections.IList).ShouldBeFalse();
+        (teams[0].Members is System.Collections.IList).ShouldBeFalse();
         (teams[0].Members[0].Skills is IList<string>).ShouldBeFalse();
     }
 

@@ -45,8 +45,8 @@ public sealed class ObservableModelGuardTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >
         {
             FromModel = current =>
@@ -59,8 +59,8 @@ public sealed class ObservableModelGuardTests
             IsEmpty = static changes => changes.IsEmpty,
             AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline),
             ToObservable = static (current, changed, access) =>
-                new NeutralSessionModel.Observable(current, changed, access),
-            ToCurrent = static current => new NeutralSessionModel.ReadOnlyView(current),
+                new NeutralObservable(current, changed, access),
+            ToCurrent = static current => new NeutralView(current),
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             RefreshObservable = static observable => observable.__SparseRefresh(),
         };
@@ -69,8 +69,8 @@ public sealed class ObservableModelGuardTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >.Create(model, configuration);
 
         // Touch the views without reading Model: caching must survive.

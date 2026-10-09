@@ -12,14 +12,39 @@ public sealed class AotEmissionDefaultsTests
     [Test]
     public async Task StandaloneDefaults_ExposeEveryFamily()
     {
-        // Compile-time presence: each nested type exists only when the
-        // default feature selection emits its family.
+        // Compile-time presence: fragment families stay nested; UI/editing
+        // types live in the configured generated namespace (issue #190).
         _ = typeof(PayloadRoot.Fragment);
         _ = typeof(PayloadRoot.Patch);
         _ = typeof(PayloadRoot.ChangeSet);
         _ = typeof(PayloadRoot.ChangePayload);
-        _ = typeof(PayloadRoot.Observable);
         _ = typeof(PayloadRoot.FragmentBuilder);
+        var nested = typeof(PayloadRoot).GetNestedTypes().Select(static type => type.Name).ToList();
+        await Assert.That(nested.Contains("Observable")).IsFalse();
+        await Assert.That(nested.Contains("ReadOnlyView")).IsFalse();
+        await Assert.That(nested.Contains("EditSession")).IsFalse();
+        var session = new PayloadRoot { Label = "a" }.CreateEditSession();
+        await Assert
+            .That(
+                session
+                    .Observable.GetType()
+                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .IsTrue();
+        await Assert
+            .That(
+                session
+                    .Current.GetType()
+                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .IsTrue();
+        await Assert
+            .That(
+                session
+                    .GetType()
+                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .IsTrue();
         await Assert.That(typeof(PayloadRoot.Fragment).Name).IsEqualTo("Fragment");
     }
 

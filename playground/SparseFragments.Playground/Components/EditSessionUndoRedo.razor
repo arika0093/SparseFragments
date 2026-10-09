@@ -1,6 +1,8 @@
 @using System.Text.Json
 @using SparseFragments
 @using SparseFragments.Playground.Models
+@using SettingsSession = global::SparseFragments.Generated.SparseFragments_Playground_Models_global__SparseFragments_Playground_Models_PlaygroundSettings_8CCC56BA.EditSession;
+@using TaskObservable = global::SparseFragments.Generated.SparseFragments_Playground_Models_global__SparseFragments_Playground_Models_PlaygroundTask_7DF0D56E.Observable;
 @implements IDisposable
 <div class="pg-grid pg-two-pane">
     <FluentCard Class="pg-fluent-card">
@@ -172,8 +174,8 @@
     private readonly Stack<PlaygroundSettings.ChangeSet> _undo = new();
     private readonly Stack<PlaygroundSettings.ChangeSet> _redo = new();
     private readonly List<LogEntry> _log = [];
-    private readonly Dictionary<PlaygroundTask.Observable, int> _pointsDrafts = [];
-    private readonly Dictionary<PlaygroundTask.Observable, string> _idDrafts = [];
+    private readonly Dictionary<TaskObservable, int> _pointsDrafts = [];
+    private readonly Dictionary<TaskObservable, string> _idDrafts = [];
     private readonly PlaygroundSettings _model = new()
     {
         Enabled = true,
@@ -190,7 +192,7 @@
         ],
     };
 
-    private PlaygroundSettings.EditSession _session = null!;
+    private SettingsSession _session = null!;
     private List<PlaygroundTask> _baselineTasks = [];
     private string _baselineJson = string.Empty;
     private string _activeTab = "diff";
@@ -208,7 +210,7 @@
 
     private string CurrentJson => PlaygroundJson.WriteModel(_session.Model);
 
-    private RenderFragment<(PlaygroundTask.Observable Task, int Index)> TaskRow => item =>
+    private RenderFragment<(TaskObservable Task, int Index)> TaskRow => item =>
         @<div class="@TaskRowClass(item.Task, item.Index) pg-task-row">
             <div class="pg-task-line">
                 <div class="pg-roster-field @(IsTaskIdChanged(item.Task) ? "pg-changed" : "")">
@@ -288,13 +290,13 @@
         if (value != _session.Model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
     }
 
-    private void UpdatePoints(PlaygroundTask.Observable task, int value)
+    private void UpdatePoints(TaskObservable task, int value)
     {
         _pointsDrafts[task] = value;
         if (value != task.Points) Edit(() => task.Points = value);
     }
 
-    private void CommitTaskId(PlaygroundTask.Observable task)
+    private void CommitTaskId(TaskObservable task)
     {
         var value = GetIdDraft(task).Trim();
         if (string.IsNullOrWhiteSpace(value)
@@ -311,10 +313,10 @@
         }
     }
 
-    private string GetIdDraft(PlaygroundTask.Observable task) =>
+    private string GetIdDraft(TaskObservable task) =>
         _idDrafts.TryGetValue(task, out var value) ? value : task.Id;
 
-    private int GetPointsDraft(PlaygroundTask.Observable task) =>
+    private int GetPointsDraft(TaskObservable task) =>
         _pointsDrafts.TryGetValue(task, out var value) ? value : task.Points;
 
     private void AddTask()
@@ -329,13 +331,12 @@
         }
         while (!existing.Add(id));
 
-        var task = new PlaygroundTask.Observable(new PlaygroundTask
+        Edit(() => _session.Observable.Tasks.AddModel(new PlaygroundTask
         {
             Id = id,
             Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
             Points = Random.Shared.Next(1, 100),
-        });
-        Edit(() => _session.Observable.Tasks.Add(task));
+        }));
     }
 
     private void RemoveTask(int index) => Edit(() => _session.Observable.Tasks.RemoveAt(index));
@@ -398,10 +399,10 @@
         }
     };
 
-    private bool IsTaskIdChanged(PlaygroundTask.Observable task) =>
+    private bool IsTaskIdChanged(TaskObservable task) =>
         IsTaskFieldChanged(task, nameof(PlaygroundTask.Id));
 
-    private bool IsTaskFieldChanged(PlaygroundTask.Observable task, string property)
+    private bool IsTaskFieldChanged(TaskObservable task, string property)
     {
         var baseline = GetTaskBaseline(task);
         if (baseline is null)
@@ -418,7 +419,7 @@
         };
     }
 
-    private string TaskRowClass(PlaygroundTask.Observable task, int index)
+    private string TaskRowClass(TaskObservable task, int index)
     {
         var baseline = GetTaskBaseline(task);
         if (baseline is null)
@@ -429,7 +430,7 @@
         return IsTaskMoved(baseline, index) ? "pg-roster-row pg-moved" : "pg-roster-row";
     }
 
-    private PlaygroundTask? GetTaskBaseline(PlaygroundTask.Observable task)
+    private PlaygroundTask? GetTaskBaseline(TaskObservable task)
     {
         // Keyed diff is by Id (see docs/keyed-collections.md "Changing an element's
         // identity is remove-old plus add-new"). A cached entry whose Id no longer
@@ -499,7 +500,7 @@
     }
 
     private PlaygroundSettings _baselineModel = null!;
-    private readonly Dictionary<PlaygroundTask.Observable, PlaygroundTask> _taskBaselines = [];
+    private readonly Dictionary<TaskObservable, PlaygroundTask> _taskBaselines = [];
 
     private PlaygroundSettings CloneModel() =>
         JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)

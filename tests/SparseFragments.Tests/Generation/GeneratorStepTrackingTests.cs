@@ -52,7 +52,10 @@ public sealed class GeneratorStepTrackingTests
         public int TotalSourceBytes() => Sources().Values.Sum(static source => source.Length);
 
         public int PromotedSourceCount() =>
-            Sources().Keys.Count(static key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal));
+            Sources()
+                .Keys.Count(static key =>
+                    key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)
+                );
 
         public ImmutableArray<Diagnostic> SpfDiagnostics() =>
             DriverResult
@@ -61,7 +64,9 @@ public sealed class GeneratorStepTrackingTests
 
         public IReadOnlyList<IncrementalStepRunReason> Reasons(string trackingName) =>
             GeneratorResult.TrackedSteps.TryGetValue(trackingName, out var steps)
-                ? steps.SelectMany(static step => step.Outputs.Select(static output => output.Reason)).ToArray()
+                ? steps
+                    .SelectMany(static step => step.Outputs.Select(static output => output.Reason))
+                    .ToArray()
                 : Array.Empty<IncrementalStepRunReason>();
 
         public string StepTable() =>
@@ -70,10 +75,18 @@ public sealed class GeneratorStepTrackingTests
                 TrackedStageNames.Select(name =>
                 {
                     var reasons = Reasons(name);
-                    var cached = reasons.Count(static reason => reason == IncrementalStepRunReason.Cached);
-                    var unchanged = reasons.Count(static reason => reason == IncrementalStepRunReason.Unchanged);
-                    var modified = reasons.Count(static reason => reason == IncrementalStepRunReason.Modified);
-                    var fresh = reasons.Count(static reason => reason == IncrementalStepRunReason.New);
+                    var cached = reasons.Count(static reason =>
+                        reason == IncrementalStepRunReason.Cached
+                    );
+                    var unchanged = reasons.Count(static reason =>
+                        reason == IncrementalStepRunReason.Unchanged
+                    );
+                    var modified = reasons.Count(static reason =>
+                        reason == IncrementalStepRunReason.Modified
+                    );
+                    var fresh = reasons.Count(static reason =>
+                        reason == IncrementalStepRunReason.New
+                    );
                     return $"{name}: outputs={reasons.Count}, cached={cached}, unchanged={unchanged}, modified={modified}, new={fresh}";
                 })
             );
@@ -97,9 +110,9 @@ public sealed class GeneratorStepTrackingTests
             "SparseStepTrackingProbe",
             trees,
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithNullableContextOptions(
-                NullableContextOptions.Enable
-            )
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary
+            ).WithNullableContextOptions(NullableContextOptions.Enable)
         );
     }
 
@@ -132,36 +145,36 @@ public sealed class GeneratorStepTrackingTests
 
     private static string SharedSource() =>
         """
-        using SparseFragments;
-        public partial class TrackShared
-        {
-            public string A { get; set; } = "";
-            public string B { get; set; } = "";
-        }
-        """;
+            using SparseFragments;
+            public partial class TrackShared
+            {
+                public string A { get; set; } = "";
+                public string B { get; set; } = "";
+            }
+            """;
 
     private static string RootSource(string rootName) =>
         $$"""
-        using SparseFragments;
-        [SparseFragmentModel]
-        public partial class {{rootName}}
-        {
-            public string Label { get; set; } = "";
-            public TrackShared Child { get; set; } = new();
-        }
-        """;
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class {{rootName}}
+            {
+                public string Label { get; set; } = "";
+                public TrackShared Child { get; set; } = new();
+            }
+            """;
 
     private static string RootSourceWithExtra(string rootName, string extraMember) =>
         $$"""
-        using SparseFragments;
-        [SparseFragmentModel]
-        public partial class {{rootName}}
-        {
-            public string Label { get; set; } = "";
-            public TrackShared Child { get; set; } = new();
-            {{extraMember}}
-        }
-        """;
+            using SparseFragments;
+            [SparseFragmentModel]
+            public partial class {{rootName}}
+            {
+                public string Label { get; set; } = "";
+                public TrackShared Child { get; set; } = new();
+                {{extraMember}}
+            }
+            """;
 
     private static Dictionary<string, string> ThreeRootFiles() =>
         new(StringComparer.Ordinal)
@@ -178,7 +191,9 @@ public sealed class GeneratorStepTrackingTests
         reasons.ShouldNotBeEmpty($"expected tracking data for '{stage}'\n{probe.StepTable()}");
         reasons
             .All(static reason => reason == IncrementalStepRunReason.Cached)
-            .ShouldBeTrue($"expected '{stage}' to stay cached, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to stay cached, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
     }
 
     /// <summary>
@@ -197,7 +212,9 @@ public sealed class GeneratorStepTrackingTests
             .All(static reason =>
                 reason is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged
             )
-            .ShouldBeTrue($"expected '{stage}' to change no output, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to change no output, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
     }
 
     private static void HasRecomputed(Probe probe, string stage)
@@ -206,7 +223,9 @@ public sealed class GeneratorStepTrackingTests
         reasons.ShouldNotBeEmpty($"expected tracking data for '{stage}'\n{probe.StepTable()}");
         reasons
             .Any(static reason => reason != IncrementalStepRunReason.Cached)
-            .ShouldBeTrue($"expected '{stage}' to recompute, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to recompute, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
     }
 
     private static void HasModified(Probe probe, string stage)
@@ -215,7 +234,9 @@ public sealed class GeneratorStepTrackingTests
         reasons.ShouldNotBeEmpty($"expected tracking data for '{stage}'\n{probe.StepTable()}");
         reasons
             .Any(static reason => reason == IncrementalStepRunReason.Modified)
-            .ShouldBeTrue($"expected '{stage}' to change an output, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to change an output, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
     }
 
     private static void IsMixed(Probe probe, string stage)
@@ -224,10 +245,14 @@ public sealed class GeneratorStepTrackingTests
         reasons.ShouldNotBeEmpty($"expected tracking data for '{stage}'\n{probe.StepTable()}");
         reasons
             .Any(static reason => reason == IncrementalStepRunReason.Cached)
-            .ShouldBeTrue($"expected '{stage}' to keep cached outputs, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to keep cached outputs, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
         reasons
             .Any(static reason => reason != IncrementalStepRunReason.Cached)
-            .ShouldBeTrue($"expected '{stage}' to recompute some outputs, got: {string.Join(", ", reasons)}\n{probe.StepTable()}");
+            .ShouldBeTrue(
+                $"expected '{stage}' to recompute some outputs, got: {string.Join(", ", reasons)}\n{probe.StepTable()}"
+            );
     }
 
     [Test]
@@ -330,12 +355,13 @@ public sealed class GeneratorStepTrackingTests
         {
             var members = string.Join(
                 "\n",
-                Enumerable.Range(0, properties).Select(index => $"    public string Prop{index} {{ get; set; }} = \"\";")
+                Enumerable
+                    .Range(0, properties)
+                    .Select(index => $"    public string Prop{index} {{ get; set; }} = \"\";")
             );
             return new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["Wide.cs"] =
-                    $$"""
+                ["Wide.cs"] = $$"""
                     using SparseFragments;
                     [SparseFragmentModel]
                     public partial class WideModel
@@ -356,7 +382,11 @@ public sealed class GeneratorStepTrackingTests
         wide.TotalSourceBytes().ShouldBeGreaterThan(narrow.TotalSourceBytes());
 
         // An unrelated edit preserves the hint set.
-        var edited = Rerun(narrow, "Wide.cs", Wide(4)["Wide.cs"].Replace("}", "    public int EditMarker { get; set; }\n}"));
+        var edited = Rerun(
+            narrow,
+            "Wide.cs",
+            Wide(4)["Wide.cs"].Replace("}", "    public int EditMarker { get; set; }\n}")
+        );
         edited.SpfDiagnostics().ShouldBeEmpty();
         edited.Sources().Keys.ShouldBe(narrow.Sources().Keys);
     }
@@ -373,8 +403,7 @@ public sealed class GeneratorStepTrackingTests
                     level == depth - 1
                         ? string.Empty
                         : $"\n    public DepthLevel{level + 1} Child {{ get; set; }} = new();";
-                files[$"DepthLevel{level}.cs"] =
-                    $$"""
+                files[$"DepthLevel{level}.cs"] = $$"""
                     using SparseFragments;
                     public partial class DepthLevel{{level}}
                     {
@@ -383,8 +412,7 @@ public sealed class GeneratorStepTrackingTests
                     """;
             }
 
-            files["DeepRoot.cs"] =
-                """
+            files["DeepRoot.cs"] = """
                 using SparseFragments;
                 [SparseFragmentModel]
                 public partial class DeepRoot
@@ -418,7 +446,11 @@ public sealed class GeneratorStepTrackingTests
             """
         );
         edited.SpfDiagnostics().ShouldBeEmpty();
-        foreach (var hint in sources.Keys.Where(static key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)))
+        foreach (
+            var hint in sources.Keys.Where(static key =>
+                key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)
+            )
+        )
         {
             edited.Sources()[hint].ShouldBe(sources[hint]);
         }
@@ -431,8 +463,7 @@ public sealed class GeneratorStepTrackingTests
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < fanOut; index++)
         {
-            files[$"FanChild{index}.cs"] =
-                $$"""
+            files[$"FanChild{index}.cs"] = $$"""
                 using SparseFragments;
                 public partial class FanChild{{index}}
                 {
@@ -444,10 +475,13 @@ public sealed class GeneratorStepTrackingTests
 
         var members = string.Join(
             "\n",
-            Enumerable.Range(0, fanOut).Select(index => $"    public FanChild{index} Child{index} {{ get; set; }} = new();")
+            Enumerable
+                .Range(0, fanOut)
+                .Select(index =>
+                    $"    public FanChild{index} Child{index} {{ get; set; }} = new();"
+                )
         );
-        files["FanRoot.cs"] =
-            $$"""
+        files["FanRoot.cs"] = $$"""
             using SparseFragments;
             [SparseFragmentModel]
             public partial class FanRoot
@@ -493,7 +527,9 @@ public sealed class GeneratorStepTrackingTests
         var probe = Run(files);
         probe.SpfDiagnostics().ShouldBeEmpty();
         var sources = probe.Sources();
-        sources.Keys.Any(static key => key.Contains("ShapeKeyedRoot", StringComparison.Ordinal)).ShouldBeTrue();
+        sources
+            .Keys.Any(static key => key.Contains("ShapeKeyedRoot", StringComparison.Ordinal))
+            .ShouldBeTrue();
 
         // Deterministic across cold runs; an unrelated edit preserves the hint set.
         Run(files).Sources().ShouldBe(sources);
@@ -549,8 +585,7 @@ public sealed class GeneratorStepTrackingTests
             var files = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var shared = 0; shared < count; shared++)
             {
-                files[$"Shared{shared}.cs"] =
-                    $$"""
+                files[$"Shared{shared}.cs"] = $$"""
                     using SparseFragments;
                     public partial class ShapeShared{{shared}}
                     {
@@ -558,8 +593,7 @@ public sealed class GeneratorStepTrackingTests
                     }
                     """;
                 var name = $"ShapeRoot{shared}";
-                files[$"{name}.cs"] =
-                    $$"""
+                files[$"{name}.cs"] = $$"""
                     using SparseFragments;
                     [SparseFragmentModel]
                     public partial class {{name}}
@@ -576,7 +610,11 @@ public sealed class GeneratorStepTrackingTests
         var before = Run(Promoted(3));
         before.SpfDiagnostics().ShouldBeEmpty();
         var beforeSources = before.Sources();
-        beforeSources.Keys.Count(static key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)).ShouldBe(3);
+        beforeSources
+            .Keys.Count(static key =>
+                key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)
+            )
+            .ShouldBe(3);
 
         // An unrelated root edit preserves every promoted file byte-identically.
         var unrelated = Rerun(
@@ -594,7 +632,11 @@ public sealed class GeneratorStepTrackingTests
             """
         );
         unrelated.SpfDiagnostics().ShouldBeEmpty();
-        foreach (var hint in beforeSources.Keys.Where(static key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)))
+        foreach (
+            var hint in beforeSources.Keys.Where(static key =>
+                key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal)
+            )
+        )
         {
             unrelated.Sources()[hint].ShouldBe(beforeSources[hint]);
         }
@@ -615,8 +657,13 @@ public sealed class GeneratorStepTrackingTests
         shared.SpfDiagnostics().ShouldBeEmpty();
         var sharedSources = shared.Sources();
         sharedSources.Keys.ShouldBe(beforeSources.Keys);
-        var changed = beforeSources.Keys.Where(key => sharedSources[key] != beforeSources[key]).ToArray();
-        changed.Length.ShouldBe(1);
-        changed[0].ShouldContain("ShapeShared1");
+        var changed = beforeSources
+            .Keys.Where(key => sharedSources[key] != beforeSources[key])
+            .ToArray();
+        changed.Length.ShouldBe(3);
+        foreach (var hint in changed)
+        {
+            hint.ShouldContain("ShapeShared1");
+        }
     }
 }

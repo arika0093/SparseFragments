@@ -52,13 +52,18 @@ public sealed class GeneratedApiApprovalTests
                     "Patch",
                     "ChangeSet",
                     "ChangePayload",
-                    "Observable",
-                    "ReadOnlyView",
                     "FragmentBuilder",
-                    "EditSession",
                 }
             )
                 AssertNested(model, nested);
+
+            // Relocated stage (#190): UI/editing types live outside the model.
+            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("Observable");
+            model
+                .GetNestedTypes()
+                .Select(static type => type.Name)
+                .ShouldNotContain("ReadOnlyView");
+            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("EditSession");
 
             var changeSet = AssertNested(model, "ChangeSet");
             AssertMethods(
@@ -98,7 +103,7 @@ public sealed class GeneratedApiApprovalTests
         AssertNested(dictionaryChanges, "DetailsTransition");
         AssertNested(AssertNested(typeof(CatalogKeyedItem), "ChangeSet"), "IdTransition");
 
-        var nestedReadOnlyView = AssertNested(typeof(CatalogNested), "ReadOnlyView");
+        var nestedReadOnlyView = new CatalogNested().CreateEditSession().Current.GetType();
         var metadataViewType = Nullable.GetUnderlyingType(
             nestedReadOnlyView.GetProperty(nameof(CatalogNested.Metadata))!.PropertyType
         );
@@ -128,8 +133,10 @@ public sealed class GeneratedApiApprovalTests
     {
         var session = new CatalogScalar().CreateEditSession();
 
-        session.GetType().ShouldBe(typeof(CatalogScalar.EditSession));
-        typeof(CatalogScalar.EditSession)
+        session.GetType().Namespace.ShouldStartWith("SparseFragments.Generated");
+        session.GetType().Name.ShouldBe("EditSession");
+        session
+            .GetType()
             .GetInterfaces()
             .ShouldContain(
                 typeof(SparseFragments.ISparseEditSession<CatalogScalar, CatalogScalar.ChangeSet>)
@@ -140,7 +147,7 @@ public sealed class GeneratedApiApprovalTests
         var baseline = new CatalogScalar { Name = "baseline" };
         var current = new CatalogScalar { Name = "current" };
         var separateBaselineSession = baseline.CreateEditSession(current);
-        separateBaselineSession.GetType().ShouldBe(typeof(CatalogScalar.EditSession));
+        separateBaselineSession.GetType().ShouldBe(session.GetType());
         ReferenceEquals(separateBaselineSession.Model, current).ShouldBeTrue();
         separateBaselineSession.Current.Name.ShouldBe("current");
     }

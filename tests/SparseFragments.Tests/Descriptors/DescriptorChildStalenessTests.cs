@@ -31,9 +31,7 @@ public sealed class DescriptorChildStalenessTests
         var retained = child.Child.ShouldNotBeNull();
         retained!.TryGet(nameof(ObservableChild.Name), out var name).ShouldBeTrue();
 
-        session.Observable.Child = new ObservableChild.SparseObservable(
-            new ObservableChild { Name = "new" }
-        );
+        child.TrySetValue(new ObservableChild { Name = "new" }).ShouldBeTrue();
 
         name.TrySetValue("orphan edit").ShouldBeFalse();
         oldChild.Name.ShouldBe("old");
@@ -66,9 +64,7 @@ public sealed class DescriptorChildStalenessTests
         name.TrySetValue("orphan edit").ShouldBeFalse();
         oldChild.Name.ShouldBe("old");
 
-        session.Observable.MaybeChild = new ObservableChild.SparseObservable(
-            new ObservableChild { Name = "replacement" }
-        );
+        child.TrySetValue(new ObservableChild { Name = "replacement" }).ShouldBeTrue();
         // Still bound to the first instance, not the replacement.
         name.TrySetValue("orphan edit").ShouldBeFalse();
         model.MaybeChild!.Name.ShouldBe("replacement");
@@ -93,7 +89,7 @@ public sealed class DescriptorChildStalenessTests
         retained!.TryGet(nameof(StaleItem.Notes), out var notes).ShouldBeTrue();
         var liveArray = notes.Array.ShouldNotBeNull();
 
-        session.Observable.Item = new StaleItem.Observable(new StaleItem());
+        item.TrySetValue(new StaleItem()).ShouldBeTrue();
 
         notes.Array.ShouldBeNull();
         liveArray!.TryAdd("orphan").ShouldBeFalse();

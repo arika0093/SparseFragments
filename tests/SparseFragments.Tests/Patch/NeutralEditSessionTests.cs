@@ -654,7 +654,7 @@ public sealed class NeutralEditSessionTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable
+            NeutralObservable
         >.Create(
             new NeutralSessionModel(),
             NeutralSessionModel.Fragment.From,
@@ -662,7 +662,7 @@ public sealed class NeutralEditSessionTests
             static changes => changes.ToPatch(),
             static changes => changes.IsEmpty,
             static (_, baseline) => baseline,
-            static current => new NeutralSessionModel.Observable(current)
+            static current => new NeutralObservable(current)
         );
 
         Should
@@ -674,7 +674,7 @@ public sealed class NeutralEditSessionTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable
+            NeutralObservable
         >.Create(
             new NeutralSessionModel(),
             NeutralSessionModel.Fragment.From,
@@ -682,7 +682,7 @@ public sealed class NeutralEditSessionTests
             static changes => changes.ToPatch(),
             static _ => throw new InvalidOperationException("Duplicate key in keyed collection."),
             static (_, baseline) => baseline,
-            static current => new NeutralSessionModel.Observable(current)
+            static current => new NeutralObservable(current)
         );
 
         Should
@@ -699,7 +699,7 @@ public sealed class NeutralEditSessionTests
         }.CreateEditSession();
 
         session.Observable.Items.Add(
-            new DuplicateKeySessionItem.Observable(new DuplicateKeySessionItem { Id = "same" })
+            new DuplicateItemObservable(new DuplicateKeySessionItem { Id = "same" })
         );
 
         session.HasChanges.ShouldBeTrue();
@@ -760,9 +760,7 @@ public sealed class NeutralEditSessionTests
     public void StreamingViewEnumeratesPerAccessWithoutSnapshot()
     {
         var counting = new CountingEnumerable("a", "b", "c");
-        var view = new StreamingSessionModel.ReadOnlyView(
-            new StreamingSessionModel { Items = counting }
-        ).Items;
+        var view = new StreamingView(new StreamingSessionModel { Items = counting }).Items;
 
         // Non-collection sources pay a full enumeration per Count/indexed read.
         view.Count.ShouldBe(3);
@@ -789,9 +787,7 @@ public sealed class NeutralEditSessionTests
         {
             yield return "v" + version;
         }
-        var view = new StreamingSessionModel.ReadOnlyView(
-            new StreamingSessionModel { Items = Dynamic() }
-        ).Items;
+        var view = new StreamingView(new StreamingSessionModel { Items = Dynamic() }).Items;
         view[0].ShouldBe("v0");
 
         // No snapshot: the next read observes the latest enumeration.
@@ -804,7 +800,7 @@ public sealed class NeutralEditSessionTests
     {
         // Single-pass sequences are unsupported: every read enumerates anew,
         // so a drained source reads back empty rather than replaying.
-        var view = new StreamingSessionModel.ReadOnlyView(
+        var view = new StreamingView(
             new StreamingSessionModel { Items = new SinglePassEnumerable("a") }
         ).Items;
         view.Count.ShouldBe(1);
@@ -887,8 +883,8 @@ public sealed class NeutralEditSessionTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >
         {
             FromModel = current =>
@@ -901,8 +897,8 @@ public sealed class NeutralEditSessionTests
             IsEmpty = static changes => changes.IsEmpty,
             AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline),
             ToObservable = static (current, changed, access) =>
-                new NeutralSessionModel.Observable(current, changed, access),
-            ToCurrent = static current => new NeutralSessionModel.ReadOnlyView(current),
+                new NeutralObservable(current, changed, access),
+            ToCurrent = static current => new NeutralView(current),
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             RefreshObservable = static observable => observable.__SparseRefresh(),
         };
@@ -911,8 +907,8 @@ public sealed class NeutralEditSessionTests
             NeutralSessionModel.Fragment,
             NeutralSessionModel.Patch,
             NeutralSessionModel.ChangeSet,
-            NeutralSessionModel.Observable,
-            NeutralSessionModel.ReadOnlyView
+            NeutralObservable,
+            NeutralView
         >.Create(model, configuration);
         session.Observable.Name = "observable edit";
         var afterNotification = snapshots;

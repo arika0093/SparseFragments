@@ -77,6 +77,81 @@ internal static class SparseFragmentEmitter
             + suffix;
     }
 
+    /// <summary>Builds relocated implementation sources for one model.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="readOnlyViewModels">Read-only view models.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
+    public static ImmutableArray<SparseGeneratedSource> BuildImplementationSources(
+        SparseModelInfo model,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    )
+    {
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        if (implementationNamespace is null)
+        {
+            return ImmutableArray<SparseGeneratedSource>.Empty;
+        }
+
+        var features = config.EffectiveEmissionFeatures;
+        if (!features.EmitFragment || !features.EmitObservable)
+        {
+            return ImmutableArray<SparseGeneratedSource>.Empty;
+        }
+
+        var runtime =
+            config.RuntimeDialect
+            ?? throw new ArgumentException(
+                "A runtime dialect is required for source emission.",
+                nameof(config)
+            );
+        var builder = ImmutableArray.CreateBuilder<SparseGeneratedSource>();
+        if (!model.IsStruct)
+        {
+            builder.Add(
+                SparseModelImplementationEmitter.BuildObservableSource(
+                    model,
+                    members,
+                    config,
+                    cancellationToken,
+                    runtime.Namespace,
+                    config.DescriptorDialect
+                )
+            );
+        }
+
+        builder.Add(
+            SparseModelImplementationEmitter.BuildReadOnlyViewSource(
+                model,
+                members,
+                readOnlyViewModels,
+                config,
+                cancellationToken,
+                implementationNamespace
+            )
+        );
+        if (!model.IsStruct)
+        {
+            builder.Add(
+                SparseModelImplementationEmitter.BuildEditSessionSource(
+                    model,
+                    members,
+                    config,
+                    cancellationToken
+                )
+            );
+        }
+
+        return builder.ToImmutable();
+    }
+
     private static string BuildSourceInternal(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
@@ -252,8 +327,10 @@ internal static class SparseFragmentEmitter
                 implementationNamespace: implementationNamespace
             );
         }
-        if (features.EmitFragment && features.EmitObservable)
+        if (features.EmitFragment && features.EmitObservable && implementationNamespace is null)
         {
+            // Relocated stage: UI/editing types live in AdditionalSources under
+            // the configured namespace; the surface keeps only Fragment state.
             if (!model.IsStruct)
             {
                 SparseObservableEmitter.AppendObservable(
@@ -271,6 +348,30 @@ internal static class SparseFragmentEmitter
                 readOnlyViewModels,
                 implementationNamespace
             );
+        }
+
+        if (
+            implementationNamespace is not null
+            && features.EmitFragment
+            && features.EmitObservable
+            && config.DescriptorDialect is not null
+        )
+        {
+            foreach (var member in members)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.IsNullOrEmpty(member.Property.AttributeExpressions))
+                {
+                    code.AppendLineAt(
+                        1,
+                        "internal static global::System.Attribute[] __SparseAttributes_"
+                            + member.Id
+                            + "() => new global::System.Attribute[] { "
+                            + member.Property.AttributeExpressions
+                            + " };"
+                    );
+                }
+            }
         }
 
         code.AppendLine("}");

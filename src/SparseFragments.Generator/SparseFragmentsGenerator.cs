@@ -852,7 +852,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             (code, generatedModel, members) =>
                 SparseModelExtensionsEmitter.Append(code, generatedModel, members, Configuration)
         );
-        return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);
+        var additional = SparsePerModelEmitter.BuildImplementationSources(
+            model,
+            analysis.Members,
+            analysis.ReadOnlyViewModels,
+            cancellationToken,
+            Configuration
+        );
+        return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics, additional);
     }
 
     private static DiagnosticDescriptor GetDescriptor(string id) =>
@@ -933,10 +940,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             cancellationToken,
             Configuration
         );
+        var additional = SparsePerModelEmitter.BuildPromotedImplementationSources(
+            promoted,
+            cancellationToken,
+            Configuration
+        );
         return new SparseGenerationResult(
             hint,
             source,
-            ImmutableArray<SparseGeneratorDiagnostic>.Empty
+            ImmutableArray<SparseGeneratorDiagnostic>.Empty,
+            additional
         );
     }
 }

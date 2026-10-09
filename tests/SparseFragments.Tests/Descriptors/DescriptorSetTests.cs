@@ -123,7 +123,7 @@ public sealed class DescriptorSetTests
         sets!.ItemType.ShouldBe(typeof(ObservableChild));
         sets.Count.ShouldBe(1);
         sets.Contains(person).ShouldBeTrue();
-        sets.Contains(new ObservableChild.SparseObservable(person)).ShouldBeTrue();
+        sets.Contains(new ChildProxy(person)).ShouldBeTrue();
         sets.Contains(new ObservableChild { Name = "ann" }).ShouldBeFalse();
 
         var other = new ObservableChild { Name = "bob" };

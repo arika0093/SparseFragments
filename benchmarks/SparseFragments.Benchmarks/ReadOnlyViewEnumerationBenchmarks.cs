@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
+using BenchStreamingView = global::SparseFragments.Generated.global__global__BenchStreamingModel_DE8AC0C4.ReadOnlyView;
 
 [SparseFragmentModel]
 public partial class BenchStreamingModel
@@ -39,7 +40,7 @@ public class ReadOnlyViewEnumerationBenchmarks
     [Benchmark(Baseline = true)]
     public int IndexedReads_List()
     {
-        var view = new BenchStreamingModel.ReadOnlyView(_list);
+        var view = new BenchStreamingView(_list);
         var sum = 0;
         for (var i = 0; i < view.Items.Count; i++)
         {
@@ -52,7 +53,7 @@ public class ReadOnlyViewEnumerationBenchmarks
     [Benchmark]
     public int IndexedReads_Lazy()
     {
-        var view = new BenchStreamingModel.ReadOnlyView(_lazy);
+        var view = new BenchStreamingView(_lazy);
         var sum = 0;
         for (var i = 0; i < view.Items.Count; i++)
         {
@@ -65,7 +66,7 @@ public class ReadOnlyViewEnumerationBenchmarks
     [Benchmark]
     public int Foreach_Lazy()
     {
-        var view = new BenchStreamingModel.ReadOnlyView(_lazy);
+        var view = new BenchStreamingView(_lazy);
         var sum = 0;
         foreach (var item in view.Items)
         {

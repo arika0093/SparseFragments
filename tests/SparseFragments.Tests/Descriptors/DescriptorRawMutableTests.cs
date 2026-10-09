@@ -64,8 +64,8 @@ public sealed class DescriptorRawMutableTests
             RawMutableHolder.Fragment,
             RawMutableHolder.Patch,
             RawMutableHolder.ChangeSet,
-            RawMutableHolder.Observable,
-            RawMutableHolder.ReadOnlyView
+            RawObservable,
+            RawView
         >
         {
             FromModel = current =>
@@ -78,8 +78,8 @@ public sealed class DescriptorRawMutableTests
             IsEmpty = static changes => changes.IsEmpty,
             AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline),
             ToObservable = static (current, changed, access) =>
-                new RawMutableHolder.Observable(current, changed, access),
-            ToCurrent = static current => new RawMutableHolder.ReadOnlyView(current),
+                new RawObservable(current, changed, access),
+            ToCurrent = static current => new RawView(current),
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             RefreshObservable = static observable => observable.__SparseRefresh(),
         };
@@ -88,8 +88,8 @@ public sealed class DescriptorRawMutableTests
             RawMutableHolder.Fragment,
             RawMutableHolder.Patch,
             RawMutableHolder.ChangeSet,
-            RawMutableHolder.Observable,
-            RawMutableHolder.ReadOnlyView
+            RawObservable,
+            RawView
         >.Create(model, configuration);
 
         session.Observable.Title = "observable edit";
@@ -104,7 +104,7 @@ public sealed class DescriptorRawMutableTests
 
         // The hand-built core has no generated EditSession subclass; resolve the
         // session-bound descriptor set through the observable's internal accessor.
-        var accessor = typeof(RawMutableHolder.Observable)
+        var accessor = typeof(RawObservable)
             .GetMethods(
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance
             )

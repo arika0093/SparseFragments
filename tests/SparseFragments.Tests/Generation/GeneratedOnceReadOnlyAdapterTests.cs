@@ -89,7 +89,7 @@ public sealed class GeneratedOnceReadOnlyAdapterTests
             .ShouldBe(1);
 
         var perModel = sources
-            .Where(pair => pair.Key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal))
+            .Where(pair => pair.Key.EndsWith(".ReadOnlyView.g.cs", StringComparison.Ordinal))
             .Select(pair => pair.Value)
             .ToArray();
         perModel.Length.ShouldBe(2);

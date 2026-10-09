@@ -91,9 +91,7 @@ public sealed class CrossBoundaryLifecycleTests
         {
             client.Observable.Number = "ORD-2";
             client.Observable.Child!.Host = "db.new";
-            client.Observable.Items.Add(
-                new LifecycleItem.Observable(new LifecycleItem { Id = 2, Name = "second" })
-            );
+            client.Observable.Items.AddModel(new LifecycleItem { Id = 2, Name = "second" });
             client.Observable.Scores["a"] = 2;
         });
         transitions.Count.ShouldBe(1);

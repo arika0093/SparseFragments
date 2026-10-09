@@ -120,4 +120,205 @@ internal static class SparseGeneratedPlacement
         model.IsGlobalNamespace
             ? "global::" + model.ModelTypeName
             : model.Namespace + "." + model.ModelTypeName;
+
+    /// <summary>Gets the container name for a qualified child type name.</summary>
+    /// <remarks>
+    /// Mirrors <see cref="FullyQualifiedIdentity"/> so parent references to a
+    /// child resolve to the same container the child's own file declares.
+    /// </remarks>
+    /// <param name="qualifiedTypeName">Child <c>NonNullableName</c>.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A container name matching the model's own scheme.</returns>
+    public static string GetContainerForQualifiedName(
+        string qualifiedTypeName,
+        CancellationToken cancellationToken
+    )
+    {
+        var identity = QualifiedIdentity(qualifiedTypeName);
+        var container =
+            SparseNaming.Sanitize(identity, cancellationToken)
+            + "_"
+            + SparseNaming.GetStableTypeHash(identity, cancellationToken);
+        return char.IsLetter(container[0]) || container[0] == '_' ? container : "_" + container;
+    }
+
+    /// <summary>Gets the qualified observable reference, relocating when enabled.</summary>
+    /// <param name="model">Owning model.</param>
+    /// <param name="simpleName">Collision-resolved simple name.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetObservableReference(
+        SparseModelInfo model,
+        string simpleName,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? model.ModelTypeName + "." + simpleName
+            : "global::"
+                + root
+                + "."
+                + GetImplementationContainer(model, cancellationToken)
+                + "."
+                + simpleName;
+    }
+
+    /// <summary>Gets the qualified read-only-view reference, relocating when enabled.</summary>
+    /// <param name="model">Owning model.</param>
+    /// <param name="simpleName">Collision-resolved simple name.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetReadOnlyViewReference(
+        SparseModelInfo model,
+        string simpleName,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => GetObservableReference(model, simpleName, config, cancellationToken);
+
+    /// <summary>Gets the qualified edit-session reference, relocating when enabled.</summary>
+    /// <param name="model">Owning model.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetEditSessionReference(
+        SparseModelInfo model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => GetObservableReference(model, "EditSession", config, cancellationToken);
+
+    /// <summary>Gets the qualified child observable reference.</summary>
+    /// <param name="child">Child type model.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetChildObservableReference(
+        SparseTypeModel child,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        var simple = child.ObservableTypeName ?? "Observable";
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? child.NonNullableName + "." + simple
+            : "global::"
+                + root
+                + "."
+                + GetContainerForQualifiedName(child.NonNullableName, cancellationToken)
+                + "."
+                + simple;
+    }
+
+    /// <summary>Gets the qualified child read-only-view reference.</summary>
+    /// <param name="child">Child type model.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetChildReadOnlyViewReference(
+        SparseTypeModel child,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        var simple = child.ReadOnlyViewTypeName ?? "ReadOnlyView";
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? child.NonNullableName + "." + simple
+            : "global::"
+                + root
+                + "."
+                + GetContainerForQualifiedName(child.NonNullableName, cancellationToken)
+                + "."
+                + simple;
+    }
+
+    /// <summary>Gets the qualified descriptor-factory reference for a model.</summary>
+    /// <param name="model">Owning model.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    public static string GetDescriptorFactoryReference(
+        SparseModelInfo model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => GetObservableReference(model, "DescriptorFactory", config, cancellationToken);
+
+    /// <summary>Gets the qualified child descriptor-factory reference.</summary>
+    /// <param name="childQualifiedName">Child <c>NonNullableName</c>.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>Factory reference matching the child's own container.</returns>
+    public static string GetChildDescriptorFactoryReference(
+        string childQualifiedName,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? childQualifiedName + ".DescriptorFactory"
+            : "global::"
+                + root
+                + "."
+                + GetContainerForQualifiedName(childQualifiedName, cancellationToken)
+                + ".DescriptorFactory";
+    }
+
+    /// <summary>Gets the observable implementation hint name.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A hint distinct from the surface file.</returns>
+    public static string ObservableHintName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => ImplementationHintName(model, ".Observable.g.cs", cancellationToken);
+
+    /// <summary>Gets the read-only-view implementation hint name.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A hint distinct from the surface file.</returns>
+    public static string ReadOnlyViewHintName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => ImplementationHintName(model, ".ReadOnlyView.g.cs", cancellationToken);
+
+    /// <summary>Gets the edit-session implementation hint name.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A hint distinct from the surface file.</returns>
+    public static string EditSessionHintName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => ImplementationHintName(model, ".EditSession.g.cs", cancellationToken);
+
+    /// <summary>Gets the descriptor-factory implementation hint name.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>A hint distinct from the surface file.</returns>
+    public static string DescriptorFactoryHintName(
+        SparseModelInfo model,
+        CancellationToken cancellationToken
+    ) => ImplementationHintName(model, ".DescriptorFactory.g.cs", cancellationToken);
+
+    private static string QualifiedIdentity(string qualifiedTypeName)
+    {
+        if (!qualifiedTypeName.StartsWith("global::", System.StringComparison.Ordinal))
+        {
+            return qualifiedTypeName;
+        }
+
+        var rest = qualifiedTypeName.Substring("global::".Length);
+        var lastDot = rest.LastIndexOf('.');
+        if (lastDot < 0)
+        {
+            return "global::" + qualifiedTypeName;
+        }
+
+        var ns = rest.Substring(0, lastDot);
+        return ns + "." + qualifiedTypeName;
+    }
 }

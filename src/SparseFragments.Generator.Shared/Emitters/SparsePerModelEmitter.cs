@@ -58,6 +58,46 @@ internal static class SparsePerModelEmitter
             appendProductExtensions
         );
 
+    /// <summary>Builds relocated implementation sources for one explicit root.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="readOnlyViewModels">Read-only view models.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
+    public static ImmutableArray<SparseGeneratedSource> BuildImplementationSources(
+        SparseModelInfo model,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    ) =>
+        SparseFragmentEmitter.BuildImplementationSources(
+            model,
+            members,
+            readOnlyViewModels,
+            cancellationToken,
+            config
+        );
+
+    /// <summary>Builds relocated implementation sources for one promoted model.</summary>
+    /// <param name="promoted">Promoted model.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
+    public static ImmutableArray<SparseGeneratedSource> BuildPromotedImplementationSources(
+        SparsePromotedModel promoted,
+        CancellationToken cancellationToken,
+        SparseGeneratorConfig config
+    ) =>
+        SparseFragmentEmitter.BuildImplementationSources(
+            promoted.Model,
+            promoted.Members,
+            promoted.ReadOnlyViewModels,
+            cancellationToken,
+            config
+        );
+
     /// <summary>Builds the per-model surface source for one promoted model.</summary>
     /// <param name="promoted">Promoted model.</param>
     /// <param name="bclHashSetImplementsReadOnlySet">Target-framework set support.</param>

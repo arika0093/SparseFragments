@@ -25,20 +25,33 @@ internal static class SparseModelExtensionsEmitter
         var cancellationToken = code.CancellationToken;
         var modelType = model.ModelTypeName;
         var extensionClass = ContainerName(model, cancellationToken);
-        var observable = SparseObservableEmitter.ObservableTypeName(members);
+        var family = config.EffectiveFamilyNames;
+        var observableSimple = SparseObservableEmitter.ObservableTypeName(members, family);
         var accessibility = model.IsPublic ? "public" : "internal";
-        var readOnlyView = SparseReadOnlyViewEmitter.ReadOnlyViewTypeName(members);
+        var readOnlySimple = SparseReadOnlyViewEmitter.ReadOnlyViewTypeName(members, family);
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        var relocated = implementationNamespace is not null;
+        var observableRef = relocated
+            ? SparseGeneratedPlacement.GetObservableReference(
+                model,
+                observableSimple,
+                config,
+                cancellationToken
+            )
+            : modelType + "." + observableSimple;
 
         code.AppendLine();
-        if (!model.IsStruct)
+        if (!model.IsStruct && !relocated)
         {
             SparseEditSessionEmitter.AppendModelEditSession(
                 code,
                 model,
                 modelType,
                 accessibility,
-                observable,
-                readOnlyView,
+                observableSimple,
+                readOnlySimple,
                 members,
                 config
             );
@@ -70,7 +83,9 @@ internal static class SparseModelExtensionsEmitter
 
         if (!model.IsStruct)
         {
-            var editSession = modelType + ".EditSession";
+            var editSession = relocated
+                ? SparseGeneratedPlacement.GetEditSessionReference(model, config, cancellationToken)
+                : modelType + ".EditSession";
             code.AppendLineAt(
                 1,
                 "/// <summary>Creates a framework-neutral edit session using this model as both the baseline source and live current value.</summary>"
@@ -112,9 +127,7 @@ internal static class SparseModelExtensionsEmitter
                 1,
                 accessibility
                     + " static global::SparseFragments.Optional<"
-                    + modelType
-                    + "."
-                    + observable
+                    + observableRef
                     + "?> ToObservable(this global::SparseFragments.Optional<"
                     + modelType
                     + "?> model, global::System.Action? onChanged = null)"
@@ -123,22 +136,16 @@ internal static class SparseModelExtensionsEmitter
             code.AppendLineAt(
                 2,
                 "if (!model.IsPresent) return global::SparseFragments.Optional<"
-                    + modelType
-                    + "."
-                    + observable
+                    + observableRef
                     + "?>.Missing;"
             );
             code.AppendLineAt(2, "var value = model.Value;");
             code.AppendLineAt(
                 2,
                 "return global::SparseFragments.Optional<"
-                    + modelType
-                    + "."
-                    + observable
+                    + observableRef
                     + "?>.Present(value is null ? null : new "
-                    + modelType
-                    + "."
-                    + observable
+                    + observableRef
                     + "(value, onChanged));"
             );
             code.AppendLineAt(1, "}");

@@ -18,30 +18,30 @@ public static class UiFrameworksSamples
 
     private static void ObservableCollectionBinding()
     {
-        var model = new UiWidget
-        {
-            Items = [new UiWidgetItem { Id = "a", Name = "first" }],
-        };
+        var model = new UiWidget { Items = [new UiWidgetItem { Id = "a", Name = "first" }] };
         var collectionChanges = 0;
         var session = model.CreateEditSession();
         var observable = session.Observable;
         observable.Items.CollectionChanged += (_, _) => collectionChanges++;
 
-        observable.Items.Add(
-            new UiWidgetItem.Observable(new UiWidgetItem { Id = "b", Name = "second" })
-        );
+        observable.Items.AddModel(new UiWidgetItem { Id = "b", Name = "second" });
         observable.Items[0].Name = "updated";
 
         DocsCheck.Require(model.Items.Count == 2, "view mutations update the model list");
         DocsCheck.Require(collectionChanges == 1, "list edits raise collection notifications");
         DocsCheck.Require(
             session.CreateChangeSet().Items.IsChanged,
-            "element proxy edits are reflected in the session change set");
+            "element proxy edits are reflected in the session change set"
+        );
     }
 
     private static void ObservableBinding()
     {
-        var model = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "n" } };
+        var model = new UiWidget
+        {
+            Title = "a",
+            Child = new UiWidgetChild { Name = "n" },
+        };
         var seen = new List<string>();
         var session = model.CreateEditSession();
         var observable = session.Observable;
@@ -51,7 +51,8 @@ public static class UiFrameworksSamples
         DocsCheck.Require(model.Title == "b", "observable writes through to the model");
         DocsCheck.Require(
             seen.Count == 1 && seen[0] == "Title",
-            "scalar set raises PropertyChanged");
+            "scalar set raises PropertyChanged"
+        );
 
         observable.Title = "b";
         DocsCheck.Require(seen.Count == 1, "same value does not notify");
@@ -113,19 +114,20 @@ public static class UiFrameworksSamples
         session.Observable.Title = "b";
         DocsCheck.Require(
             session.Descriptors.TryGet(nameof(UiWidget.Title), out var descriptor),
-            "descriptor lookup by member name");
-        DocsCheck.Require(
-            descriptor.GetValue() is "b",
-            "descriptor reads the live value");
+            "descriptor lookup by member name"
+        );
+        DocsCheck.Require(descriptor.GetValue() is "b", "descriptor reads the live value");
 
         var changes = session.CreateChangeSet();
         var flattened = changes.EnumerateChanges().ToList();
         DocsCheck.Require(
             flattened.Count == 1 && flattened[0].Path == nameof(UiWidget.Title),
-            "flattened enumeration names the changed path");
+            "flattened enumeration names the changed path"
+        );
         DocsCheck.Require(
             session.EnumerateChangedPaths().SequenceEqual(new[] { nameof(UiWidget.Title) }),
-            "changed paths list the member");
+            "changed paths list the member"
+        );
     }
 }
 
