@@ -30,12 +30,21 @@ internal static class SparseComparisonRules
             overwrite: false
         );
 
-        var parentRoots = GetTypes(model.ContainingAssembly.GlobalNamespace, cancellationToken)
+        var roots = GetTypes(model.ContainingAssembly.GlobalNamespace, cancellationToken)
             .Where(root => !SymbolEqualityComparer.Default.Equals(root, model))
             .Where(root => HasAttribute(root, config.ModelAttributeMetadataName))
-            .Where(root => ReferencesModel(root, model, cancellationToken))
             .ToArray();
-        AddInheritedRules(comparerTypes, parentRoots, attributeName, cancellationToken);
+        if (
+            roots.Any(root =>
+                HasUnmappedRule(root, attributeName, comparerTypes, cancellationToken)
+            )
+        )
+        {
+            var parentRoots = roots
+                .Where(root => ReferencesModel(root, model, cancellationToken))
+                .ToArray();
+            AddInheritedRules(comparerTypes, parentRoots, attributeName, cancellationToken);
+        }
         AddRules(
             comparerTypes,
             model.ContainingAssembly.GetAttributes(),
@@ -44,6 +53,28 @@ internal static class SparseComparisonRules
             overwrite: false
         );
         return new SparseComparisonRuleSet(comparerTypes);
+    }
+
+    private static bool HasUnmappedRule(
+        INamedTypeSymbol root,
+        string attributeName,
+        Dictionary<ITypeSymbol, INamedTypeSymbol?> comparerTypes,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var attribute in root.GetAttributes())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (
+                attribute.AttributeClass?.ToDisplayString() == attributeName
+                && attribute.ConstructorArguments.FirstOrDefault().Value is ITypeSymbol valueType
+                && !comparerTypes.ContainsKey(valueType)
+            )
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void AddInheritedRules(
