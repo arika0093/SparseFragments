@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using BenchmarkDotNet.Attributes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -38,6 +40,7 @@ public class GeneratorInvalidationBenchmarks
     private int _sharedEdits;
     private int _unrelatedTrackedEdits;
     private int _sharedTrackedEdits;
+    private int _coldCompilations;
     private int _preparedFor = -1;
 
     [GlobalSetup]
@@ -78,6 +81,29 @@ public class GeneratorInvalidationBenchmarks
         ValidateDriver(_sharedDriver);
         ValidateDriver(_unrelatedTrackedDriver);
         ValidateDriver(_sharedTrackedDriver);
+        var freshCompilation = CreateFreshCompilation();
+        if (ReferenceEquals(freshCompilation.Assembly, _baseCompilation.Assembly))
+        {
+            throw new InvalidOperationException(
+                "Cold compilation must have a distinct assembly symbol."
+            );
+        }
+        var freshDriver = CSharpGeneratorDriver
+            .Create(new SparseFragmentsGenerator())
+            .RunGenerators(freshCompilation);
+        ValidateDriver(freshDriver);
+        Console.WriteLine(
+            "Prepared source fingerprint ("
+                + RootCount
+                + " roots): "
+                + GetSourceFingerprint(_unrelatedDriver)
+        );
+        Console.WriteLine(
+            "Fresh source fingerprint ("
+                + RootCount
+                + " roots): "
+                + GetSourceFingerprint(freshDriver)
+        );
         _unrelatedEdits = 0;
         _sharedEdits = 0;
         _unrelatedTrackedEdits = 0;
@@ -116,6 +142,26 @@ public class GeneratorInvalidationBenchmarks
         }
     }
 
+    private static string GetSourceFingerprint(GeneratorDriver driver)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (
+            var source in driver
+                .GetRunResult()
+                .Results.Single()
+                .GeneratedSources.OrderBy(static source => source.HintName, StringComparer.Ordinal)
+        )
+        {
+            var name = Encoding.UTF8.GetBytes(source.HintName);
+            var text = Encoding.UTF8.GetBytes(source.SourceText.ToString());
+            hash.AppendData(BitConverter.GetBytes(name.Length));
+            hash.AppendData(name);
+            hash.AppendData(BitConverter.GetBytes(text.Length));
+            hash.AppendData(text);
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
     [Benchmark(
         Description = "Generator cold: full generation over N roots sharing one promoted type"
     )]
@@ -129,6 +175,21 @@ public class GeneratorInvalidationBenchmarks
             .Results.SelectMany(static result => result.GeneratedSources)
             .Count();
     }
+
+    [Benchmark(Description = "Generator cold: fresh compilation and driver over N roots")]
+    public int ColdCompilationGeneration()
+    {
+        EnsurePrepared();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new SparseFragmentsGenerator());
+        driver = driver.RunGenerators(CreateFreshCompilation());
+        return driver
+            .GetRunResult()
+            .Results.SelectMany(static result => result.GeneratedSources)
+            .Count();
+    }
+
+    private CSharpCompilation CreateFreshCompilation() =>
+        _baseCompilation.WithAssemblyName("SparseGeneratorScaleProbe_" + ++_coldCompilations);
 
     [Benchmark(Description = "Generator incremental: edit a single unrelated root")]
     public int IncrementalUnrelatedEdit()
