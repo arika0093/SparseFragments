@@ -577,19 +577,138 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             .Collect()
             .Select(static (presence, _) => presence.Any(static value => value))
             .WithComparer(EqualityComparer<bool>.Default);
-        var hasEditSessionModels = analyzed
-            .Select(
-                static (analysis, _) => analysis.Model.HasValue && !analysis.Model.Value.IsStruct
-            )
+        var generatedOncePlan = analyzed
             .Collect()
-            .Select(static (presence, _) => presence.Any(static value => value))
-            .WithComparer(EqualityComparer<bool>.Default);
+            .Combine(promotedDedup)
+            .Combine(bclSetSupport)
+            .Select(
+                static (input, cancellationToken) =>
+                    SparseGeneratedCapabilityPlanner.Aggregate(
+                        input.Left.Left,
+                        input.Left.Right.Distinct,
+                        Configuration.EffectiveEmissionFeatures,
+                        input.Right.ReadOnlySet,
+                        input.Right.Capacity,
+                        cancellationToken
+                    )
+            )
+            .WithComparer(EqualityComparer<SparseGeneratedOncePlan>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOncePlan");
+        var generatedOnceErrors = generatedOncePlan
+            .Select(
+                static (plan, _) =>
+                    SparseGeneratedCapabilityPlanner.Validate(
+                        plan,
+                        Configuration.EffectiveEmissionFeatures
+                    )
+            )
+            .WithComparer(EqualityComparer<ImmutableArray<string>>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOnceValidation");
         context.RegisterSourceOutput(
-            hasEditSessionModels,
+            generatedOnceErrors,
+            static (productionContext, errors) =>
+            {
+                foreach (var message in errors)
+                {
+                    productionContext.ReportDiagnostic(
+                        Diagnostic.Create(InvalidEmissionPlan, Location.None, message)
+                    );
+                }
+            }
+        );
+        var needsEditSession = generatedOncePlan
+            .Select(static (plan, _) => plan.Has(SparseGeneratedCapability.EditSession))
+            .WithComparer(EqualityComparer<bool>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOnceEditSession");
+        context.RegisterSourceOutput(
+            needsEditSession,
             static (productionContext, emit) =>
             {
                 if (emit)
                     SparseEditSessionEmitter.EmitCore(productionContext, Configuration);
+            }
+        );
+        var clonePlan = generatedOncePlan
+            .Select(
+                static (plan, _) =>
+                    (
+                        Needed: plan.Has(SparseGeneratedCapability.CloneHelpers),
+                        Portable: plan.NeedsPortableSetView,
+                        Capacity: plan.HashSetSupportsCapacity
+                    )
+            )
+            .WithComparer(EqualityComparer<(bool Needed, bool Portable, bool Capacity)>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOnceCloneHelpers");
+        context.RegisterSourceOutput(
+            clonePlan,
+            static (productionContext, plan) =>
+            {
+                var implementationNamespace = SparseGeneratedOnceEmitter.TryGetNamespace(
+                    Configuration
+                );
+                if (plan.Needed && implementationNamespace is not null)
+                    productionContext.AddSource(
+                        SparseGeneratedOnceEmitter.CloneHelpersHintName(implementationNamespace),
+                        SourceText.From(
+                            SparseGeneratedOnceEmitter.RenderCloneHelpers(
+                                implementationNamespace,
+                                plan.Portable,
+                                plan.Capacity,
+                                productionContext.CancellationToken
+                            ),
+                            Encoding.UTF8
+                        )
+                    );
+            }
+        );
+        var needsReadOnlyAdapters = generatedOncePlan
+            .Select(static (plan, _) => plan.Has(SparseGeneratedCapability.ReadOnlyAdapters))
+            .WithComparer(EqualityComparer<bool>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOnceReadOnlyAdapters");
+        context.RegisterSourceOutput(
+            needsReadOnlyAdapters,
+            static (productionContext, emit) =>
+            {
+                var implementationNamespace = SparseGeneratedOnceEmitter.TryGetNamespace(
+                    Configuration
+                );
+                if (emit && implementationNamespace is not null)
+                    productionContext.AddSource(
+                        SparseGeneratedOnceEmitter.ReadOnlyAdaptersHintName(
+                            implementationNamespace
+                        ),
+                        SourceText.From(
+                            SparseGeneratedOnceEmitter.RenderReadOnlyAdapters(
+                                implementationNamespace,
+                                productionContext.CancellationToken
+                            ),
+                            Encoding.UTF8
+                        )
+                    );
+            }
+        );
+        var needsRemovalIndex = generatedOncePlan
+            .Select(static (plan, _) => plan.Has(SparseGeneratedCapability.RemovalIndex))
+            .WithComparer(EqualityComparer<bool>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.GeneratedOnceRemovalIndex");
+        context.RegisterSourceOutput(
+            needsRemovalIndex,
+            static (productionContext, emit) =>
+            {
+                var implementationNamespace = SparseGeneratedOnceEmitter.TryGetNamespace(
+                    Configuration
+                );
+                if (emit && implementationNamespace is not null)
+                    productionContext.AddSource(
+                        SparseGeneratedOnceEmitter.RemovalIndexHintName(implementationNamespace),
+                        SourceText.From(
+                            SparseGeneratedOnceEmitter.RenderRemovalIndex(
+                                implementationNamespace,
+                                productionContext.CancellationToken
+                            ),
+                            Encoding.UTF8
+                        )
+                    );
             }
         );
         var shouldEmitIsExternalInit = context
@@ -705,7 +824,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        var source = SparseFragmentEmitter.BuildSource(
+        // Per-model plane: never a compilation-scoped helper (issue #178).
+        var source = SparsePerModelEmitter.BuildSurface(
             model,
             analysis.Members,
             analysis.PocoCloneModels,
@@ -792,7 +912,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             Configuration.PromotedHintNameSuffix,
             cancellationToken
         );
-        var source = SparseFragmentEmitter.BuildPromotedSource(
+        var source = SparsePerModelEmitter.BuildPromotedSurface(
             promoted,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,

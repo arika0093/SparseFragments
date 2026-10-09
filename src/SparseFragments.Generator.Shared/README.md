@@ -146,6 +146,18 @@ previous behavior: framework helpers fall back to the raw model.
 
 ## Generated implementation placement
 
+`SparseGeneratedCapabilityPlanner` derives one compilation-scoped plan from
+the product feature selection, the analyzed model shapes (explicit and
+promoted), the applicable collection families, and the target-framework
+facts. `SparseGeneratedOnceEmitter` renders only the requested helper
+families — edit-session core, collection clone helpers, read-only
+adapters, and removal-index helpers — once per compilation as normally
+`internal` types using the configured runtime and patch dialects. Hint
+names and type identities derive from the owning generator namespaces, so
+coexisting products stay distinct. Missing feature prerequisites report the
+configured `InvalidEmissionPlan` diagnostic. Per-model output stays on the
+separate `SparsePerModelEmitter` path and never re-emits these helpers.
+
 `SparseGeneratorConfig.GeneratedImplementationNamespace` declares where
 per-model generated implementations live once facade/implementation separation
 lands. All placement decisions flow through `SparseGeneratedPlacement`: the
