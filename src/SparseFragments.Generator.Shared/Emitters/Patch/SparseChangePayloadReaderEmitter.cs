@@ -12,13 +12,32 @@ internal static class SparseChangePayloadReaderEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
         var endpoint = runtime + "ChangePayloadEndpoint";
         var payloadRoot = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Root");
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangePayloadVersion, true);
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts a validated envelope to a complete change set.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Redacted or otherwise incomplete histories are rejected; project them with <see cref=\"ChangePayload.ToPatch\"/> instead.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet FromPayload(ChangePayload payload) => "
+                    + target.ChangeSetOperationsType
+                    + ".FromPayload(payload);"
+            );
+            code = target.ChangeSetOperations;
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Converts a validated envelope to a complete change set.</summary>"
@@ -27,7 +46,14 @@ internal static class SparseChangePayloadReaderEmitter
             2,
             "/// <remarks>Redacted or otherwise incomplete histories are rejected; project them with <see cref=\"ChangePayload.ToPatch\"/> instead.</remarks>"
         );
-        code.AppendLineAt(2, "public static ChangeSet FromPayload(ChangePayload payload)");
+        code.AppendLineAt(
+            2,
+            (
+                target is null
+                    ? "public static ChangeSet FromPayload(ChangePayload payload)"
+                    : "internal static ChangeSet FromPayload(ChangePayload payload)"
+            )
+        );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,

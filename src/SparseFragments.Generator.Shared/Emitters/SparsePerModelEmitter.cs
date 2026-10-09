@@ -121,8 +121,10 @@ internal static class SparsePerModelEmitter
         );
 
     /// <summary>Builds split surface and implementation sources for one explicit root.</summary>
-    /// <remarks>Stage 3 (#192): the implementation source carries the typed payload
-    /// DTOs and Fragment JSON converter bodies under the shared resolver hint;
+    /// <remarks>Union of the reloc-2 payload/Fragment-operations split (stage 3, #192)
+    /// and the reloc-3 Patch/ChangeSet operation split (issue #194): the implementation
+    /// source carries payload DTOs, Fragment operations/converter plus Patch/ChangeSet
+    /// operations under the shared resolver hint with the configured suffix;
     /// null means legacy single-file emission.</remarks>
     public static (string Surface, SparseGeneratedSource? Implementation) BuildSplitSurface(
         SparseModelInfo model,
@@ -157,7 +159,7 @@ internal static class SparsePerModelEmitter
             return (surface, null);
         var hint = SparseGeneratedPlacement.ImplementationHintName(
             model,
-            ".Implementation.g.cs",
+            config.EffectiveGeneratedImplementationSuffix,
             cancellationToken
         );
         return (surface, new SparseGeneratedSource(hint, implementation));
@@ -183,7 +185,7 @@ internal static class SparsePerModelEmitter
             return (surface, null);
         var hint = SparseGeneratedPlacement.ImplementationHintName(
             promoted.Model,
-            ".Implementation.g.cs",
+            config.EffectiveGeneratedImplementationSuffix,
             cancellationToken
         );
         return (surface, new SparseGeneratedSource(hint, implementation));

@@ -286,6 +286,8 @@ public sealed class PromotedIncrementalTests
         afterSources[promotedHint].ShouldContain("C");
 
         // Root outputs only reference the promoted fragment by name.
+        // Each explicit root emits a surface file plus its relocated
+        // Patch/ChangeSet operations file (issue #194).
         foreach (var root in new[] { "InvRoot1", "InvRoot2" })
         {
             var hints = afterSources

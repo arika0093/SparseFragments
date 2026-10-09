@@ -14,12 +14,62 @@ internal static class SparseDictionaryAlgebraEmitter
         string operation,
         string kind,
         string comparer,
-        bool hasPatch
+        bool hasPatch,
+        SparseMemberOperationSplit? split = null
     )
     {
-        // Compose.
-        code.AppendLineAt(3, "public " + patchName + " Compose(" + patchName + " next)");
-        code.AppendLineAt(3, "{");
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Composes this dictionary patch with a following patch.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " next) => "
+                    + split.OperationsType
+                    + ".Compose(this, next);"
+            );
+            split.Shell.AppendLineAt(3, "/// <summary>Composes two dictionary patches.</summary>");
+            split.Shell.AppendLineAt(
+                3,
+                "public static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " first, "
+                    + patchName
+                    + " second) => "
+                    + split.OperationsType
+                    + ".Compose(first, second);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Composes a dictionary patch with a following patch.</summary>"
+            );
+            code.AppendLineAt(
+                3,
+                "internal static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " self, "
+                    + patchName
+                    + " next)"
+            );
+            code.AppendLineAt(3, "{");
+            SparseDictionaryPatchEmitter.AppendDictionaryFieldAliases(code);
+        }
+        else
+        {
+            // Compose.
+            code.AppendLineAt(3, "public " + patchName + " Compose(" + patchName + " next)");
+            code.AppendLineAt(3, "{");
+        }
         code.AppendLineAt(
             4,
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
@@ -183,16 +233,19 @@ internal static class SparseDictionaryAlgebraEmitter
         code.AppendLineAt(4, "if (set.Count > 0) result.__set = set;");
         code.AppendLineAt(4, "return result;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "public static "
-                + patchName
-                + " Compose("
-                + patchName
-                + " first, "
-                + patchName
-                + " second) { if (first is null) throw new global::System.ArgumentNullException(nameof(first)); return first.Compose(second); }"
-        );
+        if (split is null)
+        {
+            code.AppendLineAt(
+                3,
+                "public static "
+                    + patchName
+                    + " Compose("
+                    + patchName
+                    + " first, "
+                    + patchName
+                    + " second) { if (first is null) throw new global::System.ArgumentNullException(nameof(first)); return first.Compose(second); }"
+            );
+        }
     }
 
     internal static void EmitDictionaryRebase(
@@ -208,16 +261,42 @@ internal static class SparseDictionaryAlgebraEmitter
         string comparer,
         bool hasPatch,
         string editedValueType,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseMemberOperationSplit? split = null
     )
     {
         // Rebase (simplified key-wise).
         var resultType = dialect.RebaseResult(patchName);
         var conflictType = dialect.ConflictType;
         var conflictKindType = dialect.ConflictKindType;
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Rebases this dictionary patch onto a newer member value.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public static "
+                    + resultType
+                    + " Rebase("
+                    + optionalDict
+                    + " baseState, "
+                    + patchName
+                    + " local, "
+                    + optionalDict
+                    + " currentState) => "
+                    + split.OperationsType
+                    + ".Rebase(baseState, local, currentState);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Rebases a dictionary patch onto a newer member value.</summary>"
+            );
+        }
         code.AppendLineAt(
             3,
-            "public static "
+            (split is null ? "public static " : "internal static ")
                 + resultType
                 + " Rebase("
                 + optionalDict

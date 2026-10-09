@@ -33,7 +33,8 @@ internal sealed record SparseGeneratorConfig
         string? EditSessionModelAccessorInterfaceMetadataName = null,
         SparseDescriptorDialect? DescriptorDialect = null,
         string? GeneratedImplementationNamespace = null,
-        SparseFamilyNames? FamilyNames = null
+        SparseFamilyNames? FamilyNames = null,
+        string? GeneratedImplementationSuffix = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -66,6 +67,7 @@ internal sealed record SparseGeneratorConfig
         this.DescriptorDialect = DescriptorDialect;
         this.GeneratedImplementationNamespace = GeneratedImplementationNamespace;
         this.FamilyNames = FamilyNames;
+        this.GeneratedImplementationSuffix = GeneratedImplementationSuffix;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -150,6 +152,15 @@ internal sealed record SparseGeneratorConfig
     /// </remarks>
     public SparseFamilyNames? FamilyNames { get; init; }
 
+    /// <summary>Product-owned implementation hint-name suffix, or null for the shared default.</summary>
+    /// <remarks>
+    /// Stages that relocate generated machinery into per-model implementation
+    /// files resolve the suffix through <see cref="SparseGeneratedPlacement"/>
+    /// so hint splitting stays product-neutral. Shared provides the default;
+    /// products override only to match their own hint conventions.
+    /// </remarks>
+    public string? GeneratedImplementationSuffix { get; init; }
+
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
     public SparseDiagnosticIdMap EffectiveDiagnosticIds => DiagnosticIds;
@@ -163,6 +174,12 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Effective family-name bindings, defaulting to the standalone vocabulary.</summary>
     public SparseFamilyNames EffectiveFamilyNames => FamilyNames ?? SparseFamilyNames.Standalone;
+
+    /// <summary>Effective implementation hint-name suffix, defaulting to the shared convention.</summary>
+    public string EffectiveGeneratedImplementationSuffix =>
+        GeneratedImplementationSuffix is { Length: > 0 }
+            ? GeneratedImplementationSuffix
+            : SparseGeneratedPlacement.DefaultImplementationSuffix;
 
     /// <summary>Effective product-declared type names, or empty when none are appended.</summary>
     public ImmutableArray<string> EffectiveProductExtensionNames =>

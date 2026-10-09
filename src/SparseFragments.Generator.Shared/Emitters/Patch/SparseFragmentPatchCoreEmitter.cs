@@ -26,13 +26,17 @@ internal static class SparseFragmentPatchCoreEmitter
                     + "<"
                     + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
                     + ">";
-                code.AppendLineAt(2, "private " + type + " " + field + ";");
+                // Relocated operation bodies reach state through these
+                // fields, so they are internal rather than private. The
+                // typed ref accessor stays on the facade to preserve
+                // in-place mutation identity.
+                code.AppendLineAt(2, "internal " + type + " " + field + ";");
                 code.AppendLineAt(2, "public ref " + type + " " + name + " => ref " + field + ";");
             }
             else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
                 var type = SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
-                code.AppendLineAt(2, "private " + type + "? " + field + ";");
+                code.AppendLineAt(2, "internal " + type + "? " + field + ";");
                 code.AppendLineAt(
                     2,
                     "public "
@@ -51,7 +55,7 @@ internal static class SparseFragmentPatchCoreEmitter
             else
             {
                 var type = dialect.ChildPatchName(member);
-                code.AppendLineAt(2, "private " + type + "? " + field + ";");
+                code.AppendLineAt(2, "internal " + type + "? " + field + ";");
                 code.AppendLineAt(
                     2,
                     "public "
@@ -85,13 +89,16 @@ internal static class SparseFragmentPatchCoreEmitter
         var wholePrefix = SparseNaming.WholeApiPrefix(
             members.Select(static member => member.Property.Name)
         );
+        // The whole-operation field and the member-emptiness predicate stay
+        // on the facade as storage, but relocated operation bodies read them
+        // through internal access.
         code.AppendLineAt(
             2,
-            "private " + operation + "<Fragment?> " + dialect.WholeFieldName + ";"
+            "internal " + operation + "<Fragment?> " + dialect.WholeFieldName + ";"
         );
         code.AppendLineAt(
             2,
-            "private bool "
+            "internal bool "
                 + dialect.MembersEmptyName
                 + " => "
                 + SparseFragmentPatchEmitter.MembersEmptyExpression(members, dialect)
@@ -241,18 +248,46 @@ internal static class SparseFragmentPatchCoreEmitter
     }
 
     /// <summary>Emits per-member ApplyMembers used by both Optional apply paths.</summary>
+    /// <param name="target">Relocation target, or null for single-file emission.</param>
     public static void AppendPatchApplyMembers(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
-        code.AppendLineAt(2, "internal Fragment ApplyMembers(Fragment current) => new Fragment");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "internal Fragment ApplyMembers(Fragment current) => "
+                    + target.PatchOperationsType
+                    + ".ApplyMembers(this, current);"
+            );
+            AppendPatchApplyMembersBody(target.PatchOperations, members, dialect, "self.");
+            return;
+        }
+
+        AppendPatchApplyMembersBody(code, members, dialect, string.Empty);
+    }
+
+    private static void AppendPatchApplyMembersBody(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string receiver
+    )
+    {
+        var declaration =
+            receiver.Length == 0
+                ? "internal Fragment ApplyMembers(Fragment current) => new Fragment"
+                : "internal static Fragment ApplyMembers(Patch self, Fragment current) => new Fragment";
+        code.AppendLineAt(2, declaration);
         code.AppendLineAt(2, "{");
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var field = dialect.MemberField(member);
+            var field = receiver + dialect.MemberField(member);
             string expression;
             if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
@@ -293,24 +328,88 @@ internal static class SparseFragmentPatchCoreEmitter
         code.AppendLineAt(2, "};");
     }
 
+    /// <summary>Aliases patch facade state as locals for relocated bodies.</summary>
+    /// <remarks>
+    /// Relocated Patch operations take the facade as an explicit
+    /// <c>self</c> parameter. Payload projection bodies only read patch
+    /// state, so plain locals preserve the legacy read semantics exactly.
+    /// </remarks>
+    internal static void AppendPatchSelfAliases(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        int indent = 3
+    )
+    {
+        code.AppendLineAt(
+            indent,
+            "var " + dialect.WholeFieldName + " = self." + dialect.WholeFieldName + ";"
+        );
+        foreach (var member in members)
+        {
+            var field = dialect.MemberField(member);
+            code.AppendLineAt(indent, "var " + field + " = self." + field + ";");
+        }
+    }
+
     /// <summary>Emits the Optional apply path.</summary>
+    /// <param name="target">Relocation target, or null for single-file emission.</param>
     public static void AppendPatchOptionalApply(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string methodDeclaration
+        string methodDeclaration,
+        SparseOperationTarget? target = null
+    )
+    {
+        if (target is not null)
+        {
+            var optional = SparseFragmentPatchEmitter.OptionalFragment(dialect);
+            code.AppendLineAt(
+                2,
+                "public "
+                    + optional
+                    + " Apply("
+                    + optional
+                    + " current) => "
+                    + target.PatchOperationsType
+                    + ".Apply(this, current);"
+            );
+            AppendPatchOptionalApplyBody(
+                target.PatchOperations,
+                dialect,
+                "internal static " + optional + " Apply(Patch self, " + optional + " current)",
+                "self."
+            );
+            return;
+        }
+
+        AppendPatchOptionalApplyBody(code, dialect, methodDeclaration, string.Empty);
+    }
+
+    private static void AppendPatchOptionalApplyBody(
+        SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string methodDeclaration,
+        string receiver
     )
     {
         var optional = SparseFragmentPatchEmitter.OptionalFragment(dialect);
         code.AppendLineAt(2, methodDeclaration);
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "current = " + dialect.WholeFieldName + ".Apply(current);");
-        code.AppendLineAt(3, "if (" + dialect.MembersEmptyName + ") return current;");
+        code.AppendLineAt(3, "current = " + receiver + dialect.WholeFieldName + ".Apply(current);");
+        code.AppendLineAt(3, "if (" + receiver + dialect.MembersEmptyName + ") return current;");
         code.AppendLineAt(
             3,
             "var basis = current.IsPresent && current.Value is not null ? current.Value : new Fragment();"
         );
-        code.AppendLineAt(3, "return " + optional + ".Present(ApplyMembers(basis));");
+        code.AppendLineAt(
+            3,
+            "return "
+                + optional
+                + ".Present("
+                + (receiver.Length == 0 ? "ApplyMembers(basis));" : "ApplyMembers(self, basis));")
+        );
         code.AppendLineAt(2, "}");
     }
 }

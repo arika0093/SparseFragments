@@ -34,17 +34,43 @@ internal static class SparseChangeSetRebaseEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
         ImmutableArray<string> ignoredSettablePropertyNames = default,
-        bool canApplyInPlace = false
+        bool canApplyInPlace = false,
+        SparseOperationTarget? target = null
     )
     {
         _ = between;
         _ = prefix;
+        var shell = code;
         var conflict = dialect.ConflictType;
         var conflictKind = dialect.ConflictKindType;
         var conflictList = "global::System.Collections.Generic.List<" + dialect.ConflictType + ">";
         var optionsType = SparseRebaseOptionEmitter.OptionsType(dialect);
         var modeType = SparseRebaseOptionEmitter.ModeType(dialect);
         var missingValue = runtime + "Optional<object?>.Missing";
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Rebases this change onto a newer state without requiring the original baseline.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Redacted-before members pass through as explicit operations unless the options reject them.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public "
+                    + rebaseResult
+                    + " RebaseOnto("
+                    + optionalFragment
+                    + " current, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.ChangeSetOperationsType
+                    + ".RebaseOnto(this, current, options);"
+            );
+            code = target.ChangeSetOperations;
+        }
         code.AppendLineAt(
             2,
             "private static "
@@ -80,15 +106,20 @@ internal static class SparseChangeSetRebaseEmitter
         );
         code.AppendLineAt(
             2,
-            "public "
+            (target is null ? "public " : "internal static ")
                 + rebaseResult
                 + " RebaseOnto("
+                + (target is null ? string.Empty : "ChangeSet self, ")
                 + optionalFragment
                 + " current, "
                 + optionsType
                 + "? options = null)"
         );
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendSelfAliases(code, members);
+        }
         var __hasSparseRb = members.Any(static m => IsKeyed(m) || IsDict(m));
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
@@ -123,7 +154,10 @@ internal static class SparseChangeSetRebaseEmitter
             "    return " + rebaseResult + ".Success(Between(current, __sparse_wholeAfter));"
         );
         code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "var __local = ToPatch();");
+        code.AppendLineAt(
+            4,
+            target is null ? "var __local = ToPatch();" : "var __local = ToPatch(self);"
+        );
         code.AppendLineAt(
             4,
             "var __rb = " + rebase + "(__sparse_wholeBefore, __local, current, options);"
@@ -138,7 +172,11 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
-            "if (IsEmpty) return " + rebaseResult + ".Success(Between(current, current));"
+            target is null
+                ? "if (IsEmpty) return " + rebaseResult + ".Success(Between(current, current));"
+                : "if (self.IsEmpty) return "
+                    + rebaseResult
+                    + ".Success(Between(current, current));"
         );
         code.AppendLineAt(3, "if (!current.IsPresent || current.Value is null)");
         code.AppendLineAt(3, "{");
@@ -452,8 +490,17 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(2, "}");
         if (modelType is not null)
         {
-            AppendModelRebase(code, modelType, optionalFragment, rebaseResult, optionsType);
+            SparseChangeSetModelRebaseEmitter.AppendModelRebase(
+                shell,
+                code,
+                modelType,
+                optionalFragment,
+                rebaseResult,
+                optionsType,
+                target
+            );
             AppendModelTryApply(
+                shell,
                 code,
                 modelType,
                 optionalFragment,
@@ -464,35 +511,14 @@ internal static class SparseChangeSetRebaseEmitter
                 members,
                 optionsType,
                 ignoredSettablePropertyNames,
-                canApplyInPlace
+                canApplyInPlace,
+                target
             );
         }
     }
 
-    private static void AppendModelRebase(
-        SharedIndentedBuilder code,
-        string modelType,
-        string optionalFragment,
-        string rebaseResult,
-        string optionsType
-    )
-    {
-        code.AppendLineAt(2, "/// <summary>Rebases this change onto an ordinary model.</summary>");
-        code.AppendLineAt(
-            2,
-            "public "
-                + rebaseResult
-                + " RebaseOnto("
-                + modelType
-                + " current, "
-                + optionsType
-                + "? options = null) => RebaseOnto("
-                + optionalFragment
-                + ".Present(Fragment.From(current)), options);"
-        );
-    }
-
     private static void AppendModelTryApply(
+        SharedIndentedBuilder shell,
         SharedIndentedBuilder code,
         string modelType,
         string optionalFragment,
@@ -503,55 +529,180 @@ internal static class SparseChangeSetRebaseEmitter
         ImmutableArray<SparseMemberModel> members,
         string optionsType,
         ImmutableArray<string> ignoredSettablePropertyNames,
-        bool canApplyInPlace
+        bool canApplyInPlace,
+        SparseOperationTarget? target
     )
     {
-        code.AppendLineAt(
-            2,
-            "/// <summary>Applies this change to an ordinary model if it can be rebased without conflicts.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryApplyTo("
-                + modelType
-                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
-                + modelType
-                + "? updated, "
-                + optionsType
-                + "? options = null)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "return TryApplyTo(current, out updated, out _, options);");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Applies this change to an ordinary model and returns structured conflicts when rebasing fails.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryApplyTo("
-                + modelType
-                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
-                + modelType
-                + "? updated, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
-                + conflictType
-                + ">? conflicts, "
-                + optionsType
-                + "? options = null)"
-        );
+        if (target is not null)
+        {
+            shell.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an ordinary model if it can be rebased without conflicts.</summary>"
+            );
+            shell.AppendLineAt(
+                2,
+                "public bool TryApplyTo("
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.ChangeSetOperationsType
+                    + ".TryApplyTo(this, current, out updated, options);"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an ordinary model and returns structured conflicts when rebasing fails.</summary>"
+            );
+            shell.AppendLineAt(
+                2,
+                "public bool TryApplyTo("
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                    + conflictType
+                    + ">? conflicts, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.ChangeSetOperationsType
+                    + ".TryApplyTo(this, current, out updated, out conflicts, options);"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies a change to an ordinary model if it can be rebased without conflicts.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static bool TryApplyTo("
+                    + "ChangeSet self, "
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, "
+                    + optionsType
+                    + "? options = null)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "return TryApplyTo(self, current, out updated, out _, options);");
+            code.AppendLineAt(2, "}");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies a change to an ordinary model and returns structured conflicts when rebasing fails.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static bool TryApplyTo("
+                    + "ChangeSet self, "
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                    + conflictType
+                    + ">? conflicts, "
+                    + optionsType
+                    + "? options = null)"
+            );
+            AppendTryApplyBody(
+                code,
+                optionalFragment,
+                ignoredSettablePropertyNames,
+                selfName: "self"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an ordinary model if it can be rebased without conflicts.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public bool TryApplyTo("
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, "
+                    + optionsType
+                    + "? options = null)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "return TryApplyTo(current, out updated, out _, options);");
+            code.AppendLineAt(2, "}");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an ordinary model and returns structured conflicts when rebasing fails.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public bool TryApplyTo("
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                    + modelType
+                    + "? updated, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                    + conflictType
+                    + ">? conflicts, "
+                    + optionsType
+                    + "? options = null)"
+            );
+            AppendTryApplyBody(
+                code,
+                optionalFragment,
+                ignoredSettablePropertyNames,
+                selfName: null
+            );
+        }
+        if (
+            canApplyInPlace
+            && (
+                members.All(static member =>
+                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                ) || inPlaceWriteUnavailableKindMemberName is not null
+            )
+        )
+        {
+            AppendModelTryApplyInPlace(
+                shell,
+                code,
+                modelType,
+                conflictType,
+                conflictKindType,
+                inPlaceWriteUnavailableKindMemberName,
+                runtime,
+                members,
+                optionsType,
+                target
+            );
+        }
+    }
+
+    private static void AppendTryApplyBody(
+        SharedIndentedBuilder code,
+        string optionalFragment,
+        ImmutableArray<string> ignoredSettablePropertyNames,
+        string? selfName
+    )
+    {
+        var self = selfName is null ? string.Empty : selfName + ".";
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
             "var __state = " + optionalFragment + ".Present(Fragment.From(current));"
         );
         code.AppendLineAt(3, "ChangeSet __toApply;");
-        code.AppendLineAt(3, "if (options is null && __SparseBeforeMatches(__state))");
+        code.AppendLineAt(3, "if (options is null && " + self + "__SparseBeforeMatches(__state))");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "__toApply = this;");
+        code.AppendLineAt(4, "__toApply = " + (selfName ?? "this") + ";");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "else");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var __rebase = RebaseOnto(__state, options);");
+        code.AppendLineAt(
+            4,
+            selfName is null
+                ? "var __rebase = RebaseOnto(__state, options);"
+                : "var __rebase = RebaseOnto(" + selfName + ", __state, options);"
+        );
         code.AppendLineAt(4, "if (__rebase.HasConflicts)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "updated = null;");
@@ -579,29 +730,10 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(3, "conflicts = null;");
         code.AppendLineAt(3, "return true;");
         code.AppendLineAt(2, "}");
-        if (
-            canApplyInPlace
-            && (
-                members.All(static member =>
-                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
-                ) || inPlaceWriteUnavailableKindMemberName is not null
-            )
-        )
-        {
-            AppendModelTryApplyInPlace(
-                code,
-                modelType,
-                conflictType,
-                conflictKindType,
-                inPlaceWriteUnavailableKindMemberName,
-                runtime,
-                members,
-                optionsType
-            );
-        }
     }
 
     private static void AppendModelTryApplyInPlace(
+        SharedIndentedBuilder shell,
         SharedIndentedBuilder code,
         string modelType,
         string conflictType,
@@ -609,9 +741,65 @@ internal static class SparseChangeSetRebaseEmitter
         string? inPlaceWriteUnavailableKindMemberName,
         string runtime,
         ImmutableArray<SparseMemberModel> members,
-        string optionsType
+        string optionsType,
+        SparseOperationTarget? target
     )
     {
+        if (target is not null)
+        {
+            shell.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an existing model after checking its before-state.</summary>"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <remarks>Returns an in-place write conflict when the change includes an immutable member.</remarks>"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <param name=\"current\">The existing model instance to update.</param>"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <param name=\"conflicts\">Structured conflicts when rebasing fails or an immutable member cannot be written.</param>"
+            );
+            shell.AppendLineAt(2, "/// <param name=\"options\">Optional rebase behavior.</param>");
+            shell.AppendLineAt(
+                2,
+                "/// <returns><see langword=\"true\"/> when the update was applied.</returns>"
+            );
+            shell.AppendLineAt(
+                2,
+                "public bool TryApplyInPlace("
+                    + modelType
+                    + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
+                    + conflictType
+                    + ">? conflicts, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.ChangeSetOperationsType
+                    + ".TryApplyInPlace(this, current, out conflicts, options);"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <summary>Applies this change to an existing model or throws when its before-state conflicts or it includes an immutable member.</summary>"
+            );
+            shell.AppendLineAt(
+                2,
+                "/// <param name=\"current\">The existing model instance to update.</param>"
+            );
+            shell.AppendLineAt(2, "/// <param name=\"options\">Optional rebase behavior.</param>");
+            shell.AppendLineAt(
+                2,
+                "public void ApplyInPlace("
+                    + modelType
+                    + " current, "
+                    + optionsType
+                    + "? options = null) => "
+                    + target.ChangeSetOperationsType
+                    + ".ApplyInPlace(this, current, options);"
+            );
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Applies this change to an existing model after checking its before-state.</summary>"
@@ -635,7 +823,11 @@ internal static class SparseChangeSetRebaseEmitter
         );
         code.AppendLineAt(
             2,
-            "public bool TryApplyInPlace("
+            (
+                target is null
+                    ? "public bool TryApplyInPlace("
+                    : "internal static bool TryApplyInPlace(ChangeSet self, "
+            )
                 + modelType
                 + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out global::System.Collections.Generic.IReadOnlyList<"
                 + conflictType
@@ -653,13 +845,23 @@ internal static class SparseChangeSetRebaseEmitter
             "var __state = " + runtime + "Optional<Fragment?>.Present(Fragment.From(current));"
         );
         code.AppendLineAt(3, "ChangeSet __toApply;");
-        code.AppendLineAt(3, "if (options is null && __SparseBeforeMatches(__state))");
+        code.AppendLineAt(
+            3,
+            target is null
+                ? "if (options is null && __SparseBeforeMatches(__state))"
+                : "if (options is null && self.__SparseBeforeMatches(__state))"
+        );
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "__toApply = this;");
+        code.AppendLineAt(4, target is null ? "__toApply = this;" : "__toApply = self;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "else");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var __rebase = RebaseOnto(__state, options);");
+        code.AppendLineAt(
+            4,
+            target is null
+                ? "var __rebase = RebaseOnto(__state, options);"
+                : "var __rebase = RebaseOnto(self, __state, options);"
+        );
         code.AppendLineAt(4, "if (__rebase.HasConflicts)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "conflicts = __rebase.Conflicts;");
@@ -744,7 +946,11 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(2, "/// <param name=\"options\">Optional rebase behavior.</param>");
         code.AppendLineAt(
             2,
-            "public void ApplyInPlace("
+            (
+                target is null
+                    ? "public void ApplyInPlace("
+                    : "internal static void ApplyInPlace(ChangeSet self, "
+            )
                 + modelType
                 + " current, "
                 + optionsType
@@ -753,7 +959,9 @@ internal static class SparseChangeSetRebaseEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "if (!TryApplyInPlace(current, out var conflicts, options)) throw new global::System.InvalidOperationException(\"The change set cannot be applied in place because it conflicts or includes immutable members.\");"
+            target is null
+                ? "if (!TryApplyInPlace(current, out var conflicts, options)) throw new global::System.InvalidOperationException(\"The change set cannot be applied in place because it conflicts or includes immutable members.\");"
+                : "if (!TryApplyInPlace(self, current, out var conflicts, options)) throw new global::System.InvalidOperationException(\"The change set cannot be applied in place because it conflicts or includes immutable members.\");"
         );
         code.AppendLineAt(2, "}");
     }

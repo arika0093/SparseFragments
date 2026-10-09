@@ -28,9 +28,11 @@ internal static class SparseChangeSetDictTransitionEmitter
         string prop,
         string trans,
         string runtime,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
+        var shell = code;
         var keyType = KeyTypeOf(member);
         var valueType = ValueTypeOf(member);
         var dictType = member.Property.Type.Name;
@@ -248,9 +250,14 @@ internal static class SparseChangeSetDictTransitionEmitter
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
+        if (target is not null)
+        {
+            // Projection algorithms move into the change-set operation container.
+            code = target.ChangeSetOperations;
+        }
         code.AppendLineAt(
             2,
-            "private "
+            (target is null ? "private " : "internal static ")
                 + trans
                 + " __SparseBuild_"
                 + member.Id
@@ -647,17 +654,35 @@ internal static class SparseChangeSetDictTransitionEmitter
         }
         code.AppendLineAt(2, "}");
         // Sparse projection from canonical storage.
-        code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
+        if (target is null)
+        {
+            code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Projects the typed dictionary transition from canonical sparse storage.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static " + trans + " __SparseProject_" + member.Id + "(ChangeSet self)"
+            );
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendMemberStateAliases(code, member);
+        }
         code.AppendLineAt(
             3,
             "if (__sparse_hasWhole) return __SparseBuild_"
                 + member.Id
                 + "(__SparseBefore_"
                 + member.Id
-                + "(), __SparseAfter_"
+                + (target is null ? "(), __SparseAfter_" : "(self), __SparseAfter_")
                 + member.Id
-                + "());"
+                + (target is null ? "());" : "(self));")
         );
         code.AppendLineAt(3, "if (!" + HasField(member) + ")");
         code.AppendLineAt(3, "{");
@@ -687,16 +712,35 @@ internal static class SparseChangeSetDictTransitionEmitter
             hasPatch
         );
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(
+        var property = target is null ? code : shell;
+        property.AppendLineAt(
             2,
             "/// <summary>Gets the typed dictionary transition for member '"
                 + member.Property.Name
                 + "'.</summary>"
         );
-        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
-        code.AppendLineAt(
-            2,
-            "public " + trans + " " + prop + " => __SparseProject_" + member.Id + "();"
-        );
+        property.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        if (target is not null)
+        {
+            shell.AppendLineAt(
+                2,
+                "public "
+                    + trans
+                    + " "
+                    + prop
+                    + " => "
+                    + target.ChangeSetOperationsType
+                    + ".__SparseProject_"
+                    + member.Id
+                    + "(this);"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "public " + trans + " " + prop + " => __SparseProject_" + member.Id + "();"
+            );
+        }
     }
 }

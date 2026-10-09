@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp;
+using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -18,7 +19,8 @@ internal static class SparseChangeSetPayloadTransferEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
@@ -36,19 +38,67 @@ internal static class SparseChangeSetPayloadTransferEmitter
             "RootChange"
         );
         var versionLiteral = SymbolDisplay.FormatLiteral(dialect.ChangePayloadVersion, true);
-        code.AppendLineAt(
-            2,
-            "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangePayload ToPayload()");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "return new ChangePayload { Version = "
-                + versionLiteral
-                + ", Changes = ToPayloadCore(false).Changes };"
-        );
-        code.AppendLineAt(2, "}");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public ChangePayload ToPayload() => "
+                    + target.ChangeSetOperationsType
+                    + ".ToPayload(this);"
+            );
+            // The internal core projection stays callable in value form:
+            // nested change-set values project through the facade bridge.
+            code.AppendLineAt(
+                2,
+                "/// <summary>Builds the transport core for this change set.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal "
+                    + payloadCore
+                    + " ToPayloadCore(bool redactBefores) => "
+                    + target.ChangeSetOperationsType
+                    + ".ToPayloadCore(this, redactBefores);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts a change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(2, "internal static ChangePayload ToPayload(ChangeSet self)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "return new ChangePayload { Version = "
+                    + versionLiteral
+                    + ", Changes = ToPayloadCore(self, false).Changes };"
+            );
+            code.AppendLineAt(2, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
+            );
+            code.AppendLineAt(2, "public ChangePayload ToPayload()");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "return new ChangePayload { Version = "
+                    + versionLiteral
+                    + ", Changes = ToPayloadCore(false).Changes };"
+            );
+            code.AppendLineAt(2, "}");
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Builds the transport core for this change set.</summary>"
@@ -57,8 +107,19 @@ internal static class SparseChangeSetPayloadTransferEmitter
             2,
             "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
         );
-        code.AppendLineAt(2, "internal " + payloadCore + " ToPayloadCore(bool redactBefores)");
+        code.AppendLineAt(
+            2,
+            (target is null ? "internal " : "internal static ")
+                + payloadCore
+                + " ToPayloadCore("
+                + (target is null ? string.Empty : "ChangeSet self, ")
+                + "bool redactBefores)"
+        );
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendSelfAliases(code, members);
+        }
         SparseChangePayloadPatchSyncEmitter.AppendIgnoredTransportGuard(code, members);
         code.AppendLineAt(
             3,

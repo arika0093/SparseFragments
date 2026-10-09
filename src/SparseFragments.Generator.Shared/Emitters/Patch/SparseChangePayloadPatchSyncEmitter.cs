@@ -14,12 +14,34 @@ internal static class SparseChangePayloadPatchSyncEmitter
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        string? implementationNamespace = null
+        string? implementationNamespace = null,
+        SparseOperationTarget? target = null
     )
     {
         if (modelType is null)
             return;
-        AppendCoreFromPatch(code, members, dialect, modelType, implementationNamespace);
+        if (target is not null)
+        {
+            var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Builds a baseline-free command core from this patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>. JSON-ignored members throw instead of exporting lossy cores.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal "
+                    + core
+                    + " ToChangePayloadCore() => "
+                    + target.PatchOperationsType
+                    + ".ToChangePayloadCore(this);"
+            );
+            code = target.PatchOperations;
+        }
+        AppendCoreFromPatch(code, members, dialect, modelType, implementationNamespace, target);
     }
 
     /// <summary>Emits the core-to-patch projection inside <c>ChangeSet</c>.</summary>
@@ -27,11 +49,30 @@ internal static class SparseChangePayloadPatchSyncEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         if (modelType is null)
             return;
+        if (target is not null)
+        {
+            var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+            // The payload DTO bridges keep calling through the facade.
+            code.AppendLineAt(
+                2,
+                "/// <summary>Projects a validated command core to a baseline-free patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static Patch PatchFromPayloadCore("
+                    + core
+                    + " payload) => "
+                    + target.ChangeSetOperationsType
+                    + ".PatchFromPayloadCore(payload);"
+            );
+            code = target.ChangeSetOperations;
+        }
         AppendPatchFromCoreMethod(code, members, dialect, modelType);
     }
 
@@ -40,7 +81,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string modelType,
-        string? implementationNamespace = null
+        string? implementationNamespace = null,
+        SparseOperationTarget? target = null
     )
     {
         var core = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
@@ -53,8 +95,19 @@ internal static class SparseChangePayloadPatchSyncEmitter
             2,
             "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>. JSON-ignored members throw instead of exporting lossy cores.</remarks>"
         );
-        code.AppendLineAt(2, "internal " + core + " ToChangePayloadCore()");
+        code.AppendLineAt(
+            2,
+            (target is null ? "internal " : "internal static ")
+                + core
+                + " ToChangePayloadCore("
+                + (target is null ? string.Empty : "Patch self")
+                + ")"
+        );
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            SparseFragmentPatchCoreEmitter.AppendPatchSelfAliases(code, members, dialect);
+        }
         AppendIgnoredPatchGuard(code, members, dialect);
         code.AppendLineAt(
             3,

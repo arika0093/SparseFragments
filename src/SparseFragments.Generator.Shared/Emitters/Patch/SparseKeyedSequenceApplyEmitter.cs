@@ -3,6 +3,17 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits keyed-sequence Apply and Between algebra.</summary>
 internal static class SparseKeyedSequenceApplyEmitter
 {
+    /// <summary>Aliases nested keyed-patch fields by reference for relocated bodies.</summary>
+    internal static void AppendKeyedFieldAliases(SharedIndentedBuilder code)
+    {
+        code.AppendLineAt(4, "ref var __whole = ref self.__whole;");
+        code.AppendLineAt(4, "ref var __added = ref self.__added;");
+        code.AppendLineAt(4, "ref var __removed = ref self.__removed;");
+        code.AppendLineAt(4, "ref var __removedLookup = ref self.__removedLookup;");
+        code.AppendLineAt(4, "ref var __edited = ref self.__edited;");
+        code.AppendLineAt(4, "ref var __order = ref self.__order;");
+    }
+
     internal static void EmitKeyedApply(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -11,13 +22,50 @@ internal static class SparseKeyedSequenceApplyEmitter
         string listType,
         bool hasPatch,
         string comparer,
-        string runtime
+        string runtime,
+        SparseMemberOperationSplit? split = null
     )
     {
         var optionalList = runtime + "Optional<" + listType + ">";
         var kind = runtime + "FragmentOperationKind";
-        code.AppendLineAt(3, "public " + optionalList + " Apply(" + optionalList + " current)");
+        var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Applies this keyed patch to a member value.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public "
+                    + optionalList
+                    + " Apply("
+                    + optionalList
+                    + " current) => "
+                    + split.OperationsType
+                    + ".Apply(this, current);"
+            );
+            code.AppendLineAt(3, "/// <summary>Applies a keyed patch to a member value.</summary>");
+            code.AppendLineAt(
+                3,
+                "internal static "
+                    + optionalList
+                    + " Apply("
+                    + patchName
+                    + " self, "
+                    + optionalList
+                    + " current)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(3, "public " + optionalList + " Apply(" + optionalList + " current)");
+        }
         code.AppendLineAt(3, "{");
+        if (split is not null)
+        {
+            AppendKeyedFieldAliases(code);
+        }
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
@@ -34,7 +82,10 @@ internal static class SparseKeyedSequenceApplyEmitter
             4,
             "if (__whole.Kind != " + kind + ".Keep) return __whole.Apply(current);"
         );
-        code.AppendLineAt(4, "if (IsEmpty) return current;");
+        code.AppendLineAt(
+            4,
+            "if (" + (split is null ? string.Empty : "self.") + "IsEmpty) return current;"
+        );
         code.AppendLineAt(
             4,
             "if (!current.IsPresent || (object?)current.Value is null) throw new global::System.InvalidOperationException(\"Cannot apply granular collection operations to a missing collection.\");"
@@ -272,14 +323,38 @@ internal static class SparseKeyedSequenceApplyEmitter
         bool hasPatch,
         string comparer,
         string facade,
-        string runtime
+        string runtime,
+        SparseMemberOperationSplit? split = null
     )
     {
         var optionalList = runtime + "Optional<" + listType + ">";
         var operation = runtime + "FragmentOperation<" + listType + ">";
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Derives a keyed patch between two member values.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public static "
+                    + patchName
+                    + " Between("
+                    + optionalList
+                    + " before, "
+                    + optionalList
+                    + " after) => "
+                    + split.OperationsType
+                    + ".Between(before, after);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Derives a keyed patch between two member values.</summary>"
+            );
+        }
         code.AppendLineAt(
             3,
-            "public static "
+            (split is null ? "public static " : "internal static ")
                 + patchName
                 + " Between("
                 + optionalList

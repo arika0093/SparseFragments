@@ -13,16 +13,46 @@ internal static class SparseKeyedSequenceRebaseEmitter
         bool hasPatch,
         string comparer,
         string facade,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseMemberOperationSplit? split = null
     )
     {
         var runtime = dialect.RuntimeNamespace;
         var resultType = dialect.RebaseResult(patchName);
         var conflictType = dialect.ConflictType;
         var conflictKindType = dialect.ConflictKindType;
+        if (split is not null)
+        {
+            split.Shell.AppendLineAt(
+                3,
+                "/// <summary>Rebases this keyed patch onto a newer member value.</summary>"
+            );
+            split.Shell.AppendLineAt(
+                3,
+                "public static "
+                    + resultType
+                    + " Rebase("
+                    + runtime
+                    + "Optional<"
+                    + listType
+                    + "> baseState, "
+                    + patchName
+                    + " local, "
+                    + runtime
+                    + "Optional<"
+                    + listType
+                    + "> currentState) => "
+                    + split.OperationsType
+                    + ".Rebase(baseState, local, currentState);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Rebases a keyed patch onto a newer member value.</summary>"
+            );
+        }
         code.AppendLineAt(
             3,
-            "public static "
+            (split is null ? "public static " : "internal static ")
                 + resultType
                 + " Rebase("
                 + runtime

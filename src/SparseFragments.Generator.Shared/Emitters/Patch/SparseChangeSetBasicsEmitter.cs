@@ -77,9 +77,11 @@ internal static class SparseChangeSetBasicsEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
-        code.AppendLineAt(2, "private readonly bool __sparse_hasWhole;");
-        code.AppendLineAt(2, "private readonly " + optionalFragment + " __sparse_wholeBefore;");
-        code.AppendLineAt(2, "private readonly " + optionalFragment + " __sparse_wholeAfter;");
+        // Canonical sparse storage stays on the facade; relocated operation
+        // bodies reach it through internal access.
+        code.AppendLineAt(2, "internal readonly bool __sparse_hasWhole;");
+        code.AppendLineAt(2, "internal readonly " + optionalFragment + " __sparse_wholeBefore;");
+        code.AppendLineAt(2, "internal readonly " + optionalFragment + " __sparse_wholeAfter;");
         ComputePublicNames(members, out _, out var transNames);
         foreach (var member in members)
         {
@@ -87,7 +89,7 @@ internal static class SparseChangeSetBasicsEmitter
             {
                 code.AppendLineAt(
                     2,
-                    "private readonly "
+                    "internal readonly "
                         + ChildChangeSet(member, dialect)
                         + "? "
                         + NestedField(member)
@@ -100,19 +102,19 @@ internal static class SparseChangeSetBasicsEmitter
                 var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
                 var trans = transNames[member.Id];
                 var keyType = KeyTypeOf(member);
-                code.AppendLineAt(2, "private readonly bool " + HasField(member) + ";");
-                code.AppendLineAt(2, "private readonly bool " + KeyedWholeFlag(member) + ";");
+                code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
+                code.AppendLineAt(2, "internal readonly bool " + KeyedWholeFlag(member) + ";");
                 code.AppendLineAt(
                     2,
-                    "private readonly " + opt + " " + KeyedWholeBefore(member) + ";"
+                    "internal readonly " + opt + " " + KeyedWholeBefore(member) + ";"
                 );
                 code.AppendLineAt(
                     2,
-                    "private readonly " + opt + " " + KeyedWholeAfter(member) + ";"
+                    "internal readonly " + opt + " " + KeyedWholeAfter(member) + ";"
                 );
                 code.AppendLineAt(
                     2,
-                    "private readonly global::System.Collections.Generic.List<"
+                    "internal readonly global::System.Collections.Generic.List<"
                         + trans
                         + ".Item>? "
                         + KeyedItems(member)
@@ -122,7 +124,7 @@ internal static class SparseChangeSetBasicsEmitter
                 {
                     code.AppendLineAt(
                         2,
-                        "private readonly global::System.Collections.Generic.List<"
+                        "internal readonly global::System.Collections.Generic.List<"
                             + keyType
                             + ">? "
                             + KeyedBeforeOrder(member)
@@ -130,7 +132,7 @@ internal static class SparseChangeSetBasicsEmitter
                     );
                     code.AppendLineAt(
                         2,
-                        "private readonly global::System.Collections.Generic.List<"
+                        "internal readonly global::System.Collections.Generic.List<"
                             + keyType
                             + ">? "
                             + KeyedAfterOrder(member)
@@ -141,9 +143,9 @@ internal static class SparseChangeSetBasicsEmitter
             else
             {
                 var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
-                code.AppendLineAt(2, "private readonly " + opt + " " + BeforeField(member) + ";");
-                code.AppendLineAt(2, "private readonly " + opt + " " + AfterField(member) + ";");
-                code.AppendLineAt(2, "private readonly bool " + HasField(member) + ";");
+                code.AppendLineAt(2, "internal readonly " + opt + " " + BeforeField(member) + ";");
+                code.AppendLineAt(2, "internal readonly " + opt + " " + AfterField(member) + ";");
+                code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
             }
         }
     }
@@ -205,7 +207,9 @@ internal static class SparseChangeSetBasicsEmitter
                 parts.Add("bool has" + member.Id);
             }
         }
-        code.AppendLineAt(2, "private ChangeSet(" + string.Join(", ", parts) + ")");
+        // The canonical-state constructor stays on the facade; relocated
+        // operation bodies construct through internal access.
+        code.AppendLineAt(2, "internal ChangeSet(" + string.Join(", ", parts) + ")");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "__sparse_hasWhole = hasWhole;");
         code.AppendLineAt(3, "__sparse_wholeBefore = wholeBefore;");
@@ -243,6 +247,177 @@ internal static class SparseChangeSetBasicsEmitter
             }
         }
         code.AppendLineAt(2, "}");
+    }
+
+    /// <summary>Aliases canonical facade state as locals for relocated bodies.</summary>
+    /// <remarks>
+    /// Relocated ChangeSet operations take the facade as an explicit
+    /// <c>self</c> parameter. These aliases let moved bodies keep their
+    /// original field references verbatim; ChangeSet state is immutable, so
+    /// plain locals preserve the legacy read semantics exactly.
+    /// </remarks>
+    internal static void AppendSelfAliases(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        int indent = 3
+    )
+    {
+        code.AppendLineAt(indent, "var __sparse_hasWhole = self.__sparse_hasWhole;");
+        code.AppendLineAt(indent, "var __sparse_wholeBefore = self.__sparse_wholeBefore;");
+        code.AppendLineAt(indent, "var __sparse_wholeAfter = self.__sparse_wholeAfter;");
+        foreach (var member in members)
+        {
+            if (IsNested(member))
+            {
+                code.AppendLineAt(
+                    indent,
+                    "var " + NestedField(member) + " = self." + NestedField(member) + ";"
+                );
+            }
+            else if (IsKeyed(member))
+            {
+                code.AppendLineAt(
+                    indent,
+                    "var " + HasField(member) + " = self." + HasField(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeFlag(member) + " = self." + KeyedWholeFlag(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeBefore(member) + " = self." + KeyedWholeBefore(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeAfter(member) + " = self." + KeyedWholeAfter(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedItems(member) + " = self." + KeyedItems(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedBeforeOrder(member) + " = self." + KeyedBeforeOrder(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedAfterOrder(member) + " = self." + KeyedAfterOrder(member) + ";"
+                );
+            }
+            else if (IsDict(member))
+            {
+                code.AppendLineAt(
+                    indent,
+                    "var " + HasField(member) + " = self." + HasField(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeFlag(member) + " = self." + KeyedWholeFlag(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeBefore(member) + " = self." + KeyedWholeBefore(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedWholeAfter(member) + " = self." + KeyedWholeAfter(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedItems(member) + " = self." + KeyedItems(member) + ";"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    indent,
+                    "var " + BeforeField(member) + " = self." + BeforeField(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + AfterField(member) + " = self." + AfterField(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + HasField(member) + " = self." + HasField(member) + ";"
+                );
+            }
+        }
+    }
+
+    /// <summary>Aliases whole-state plus one member's canonical fields as locals.</summary>
+    /// <remarks>
+    /// Expression-bodied state readers become block-bodied when relocated;
+    /// these aliases let their projection expressions move verbatim.
+    /// </remarks>
+    internal static void AppendMemberStateAliases(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        int indent = 3
+    )
+    {
+        code.AppendLineAt(indent, "var __sparse_hasWhole = self.__sparse_hasWhole;");
+        code.AppendLineAt(indent, "var __sparse_wholeBefore = self.__sparse_wholeBefore;");
+        code.AppendLineAt(indent, "var __sparse_wholeAfter = self.__sparse_wholeAfter;");
+        if (IsNested(member))
+        {
+            code.AppendLineAt(
+                indent,
+                "var " + NestedField(member) + " = self." + NestedField(member) + ";"
+            );
+            return;
+        }
+
+        if (IsKeyed(member) || IsDict(member))
+        {
+            code.AppendLineAt(
+                indent,
+                "var " + HasField(member) + " = self." + HasField(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + KeyedWholeFlag(member) + " = self." + KeyedWholeFlag(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + KeyedWholeBefore(member) + " = self." + KeyedWholeBefore(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + KeyedWholeAfter(member) + " = self." + KeyedWholeAfter(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + KeyedItems(member) + " = self." + KeyedItems(member) + ";"
+            );
+            if (IsKeyed(member))
+            {
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedBeforeOrder(member) + " = self." + KeyedBeforeOrder(member) + ";"
+                );
+                code.AppendLineAt(
+                    indent,
+                    "var " + KeyedAfterOrder(member) + " = self." + KeyedAfterOrder(member) + ";"
+                );
+            }
+        }
+        else
+        {
+            code.AppendLineAt(
+                indent,
+                "var " + BeforeField(member) + " = self." + BeforeField(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + AfterField(member) + " = self." + AfterField(member) + ";"
+            );
+            code.AppendLineAt(
+                indent,
+                "var " + HasField(member) + " = self." + HasField(member) + ";"
+            );
+        }
     }
 
     internal static string EmptyArgs(ImmutableArray<SparseMemberModel> members)

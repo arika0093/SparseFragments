@@ -21,6 +21,20 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparseGeneratedPlacement
 {
+    /// <summary>Shared default implementation hint-name suffix.</summary>
+    /// <remarks>
+    /// Products override through
+    /// <see cref="SparseGeneratorConfig.GeneratedImplementationSuffix"/>; the
+    /// default keeps downstream fixtures stable without product literals.
+    /// </remarks>
+    public const string DefaultImplementationSuffix = ".Implementation.g.cs";
+
+    /// <summary>Simple name of the per-model patch operation container.</summary>
+    public const string PatchOperationsSimpleName = "PatchOperations";
+
+    /// <summary>Simple name of the per-model change-set operation container.</summary>
+    public const string ChangeSetOperationsSimpleName = "ChangeSetOperations";
+
     /// <summary>Gets the configured implementation namespace, or null when disabled.</summary>
     /// <param name="config">Owning generator configuration.</param>
     /// <returns>The explicit namespace, or null for single-file emission.</returns>
@@ -71,6 +85,28 @@ internal static class SparseGeneratedPlacement
             ? null
             : root + "." + GetImplementationContainer(model, cancellationToken) + "." + simpleName;
     }
+
+    /// <summary>Gets the fully qualified patch operation container name, or null when disabled.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>The qualified name, or null for single-file emission.</returns>
+    public static string? GetPatchOperationsTypeName(
+        SparseModelInfo model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => GetImplementationTypeName(model, config, PatchOperationsSimpleName, cancellationToken);
+
+    /// <summary>Gets the fully qualified change-set operation container name, or null when disabled.</summary>
+    /// <param name="model">Model identity.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="cancellationToken">Cooperative cancellation.</param>
+    /// <returns>The qualified name, or null for single-file emission.</returns>
+    public static string? GetChangeSetOperationsTypeName(
+        SparseModelInfo model,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    ) => GetImplementationTypeName(model, config, ChangeSetOperationsSimpleName, cancellationToken);
 
     /// <summary>Resolves a collision-aware generated UI type name.</summary>
     /// <remarks>

@@ -38,17 +38,52 @@ internal static class SparseSemanticBetweenEmitter
     public static void AppendBetweenMethod(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
-        SparseBetweenDialect dialect
+        SparseBetweenDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Derives a patch between two sparse contribution states, preserving presence exactly.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static Patch "
+                    + dialect.MethodPrefix
+                    + "Between("
+                    + dialect.OptionalFragmentType
+                    + " before, "
+                    + dialect.OptionalFragmentType
+                    + " after) => "
+                    + target.PatchOperationsType
+                    + "."
+                    + dialect.MethodPrefix
+                    + "Between(before, after);"
+            );
+            AppendBetweenBody(target.PatchOperations, members, dialect, isStatic: true);
+            return;
+        }
+
+        AppendBetweenBody(code, members, dialect, isStatic: false);
+    }
+
+    private static void AppendBetweenBody(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseBetweenDialect dialect,
+        bool isStatic
+    )
+    {
         code.AppendLineAt(
             2,
             "/// <summary>Derives a patch between two sparse contribution states, preserving presence exactly.</summary>"
         );
         code.AppendLineAt(
             2,
-            "public static Patch "
+            (isStatic ? "internal static Patch " : "public static Patch ")
                 + dialect.MethodPrefix
                 + "Between("
                 + dialect.OptionalFragmentType

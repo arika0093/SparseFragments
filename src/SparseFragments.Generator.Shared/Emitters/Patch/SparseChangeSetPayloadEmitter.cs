@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp;
+using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -310,7 +311,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(2, "public static " + payloadRoot + " FromFragment(Fragment value)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(
+        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
             code,
             System.Collections.Immutable.ImmutableArray.CreateRange(readable),
             endpoint,
@@ -328,7 +329,7 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(
+        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
             code,
             System.Collections.Immutable.ImmutableArray.CreateRange(readable),
             endpoint,
@@ -514,120 +515,23 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(1, "}");
     }
 
-    /// <summary>Emits the per-member snapshot loop shared by honest and redacting roots.</summary>
-    /// <remarks>Honest snapshots never redact; before snapshots redact flagged members plus everything under an ambient subtree flag.</remarks>
-    private static void AppendFromFragmentMembers(
+    internal static void AppendToPayload(
         SharedIndentedBuilder code,
-        System.Collections.Immutable.ImmutableArray<SparseMemberModel> members,
-        string endpoint,
-        string runtime,
+        ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
-        bool redactFlagged,
-        string? implementationNamespace = null
-    )
-    {
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
-        {
-            var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var redact = redactFlagged && member.RedactBefore ? "true" : "redactBefores";
-            if (SparseChangeSetBasicsEmitter.IsNested(member))
-            {
-                var childModelType = member.ChildModel!.Value.NonNullableName;
-                var childRoot = QualifiedChildPayloadType(
-                    dialect,
-                    childModelType,
-                    "Root",
-                    implementationNamespace
-                );
-                var childCall = redactFlagged
-                    ? childRoot + ".FromFragment(member" + member.Id + ".Value!, " + redact + ")"
-                    : childRoot + ".FromFragment(member" + member.Id + ".Value!)";
-                code.AppendLineAt(3, "var member" + member.Id + " = value." + property + ";");
-                var valueExpression = redactFlagged
-                    ? "("
-                        + redact
-                        + ") ? "
-                        + endpoint
-                        + "<"
-                        + childRoot
-                        + "?>.Redacted() : "
-                        + SnapshotValueExpression(
-                            endpoint,
-                            runtime,
-                            childRoot + "?",
-                            "member" + member.Id,
-                            childCall
-                        )
-                    : SnapshotValueExpression(
-                        endpoint,
-                        runtime,
-                        childRoot + "?",
-                        "member" + member.Id,
-                        childCall
-                    );
-                code.AppendLineAt(
-                    3,
-                    "if (member"
-                        + member.Id
-                        + ".IsPresent) result.Members.Add(new "
-                        + PayloadMemberName(modelType, "Change", member.Id)
-                        + " { Value = "
-                        + valueExpression
-                        + " });"
-                );
-            }
-            else
-            {
-                var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
-                var valueExpression = redactFlagged
-                    ? "("
-                        + redact
-                        + ") ? "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.Redacted() : "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional(value."
-                        + property
-                        + ")"
-                    : endpoint + "<" + valueType + ">.FromOptional(value." + property + ")";
-                code.AppendLineAt(
-                    3,
-                    "if (value."
-                        + property
-                        + ".IsPresent) result.Members.Add(new "
-                        + PayloadMemberName(modelType, "Change", member.Id)
-                        + " { Value = "
-                        + valueExpression
-                        + " });"
-                );
-            }
-        }
-    }
-
-    private static string SnapshotValueExpression(
-        string endpoint,
-        string runtime,
-        string childRoot,
-        string holder,
-        string childCall
+        SparseOperationTarget? target = null
     ) =>
-        endpoint
-        + "<"
-        + childRoot
-        + ">.FromOptional("
-        + runtime
-        + "Optional<"
-        + childRoot
-        + ">.Present("
-        + holder
-        + ".Value is null ? null : "
-        + childCall
-        + "))";
+        // Reloc-2 split: transfer bodies live in the dedicated TransferEmitter;
+        // this facade preserves the pre-split call site while reloc-3 routes
+        // through the same target-aware implementation.
+        SparseChangeSetPayloadTransferEmitter.AppendToPayload(
+            code,
+            members,
+            dialect,
+            modelType,
+            target
+        );
 
     internal static string PayloadName(string? modelType, string suffix)
     {

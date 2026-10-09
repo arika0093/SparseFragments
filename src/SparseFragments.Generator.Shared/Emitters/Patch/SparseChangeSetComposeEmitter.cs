@@ -27,23 +27,70 @@ internal static class SparseChangeSetComposeEmitter
         ImmutableArray<SparseMemberModel> members,
         string runtime,
         string optionalFragment,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         _ = optionalFragment;
-        code.AppendLineAt(
-            2,
-            "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangeSet Compose(ChangeSet next)");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public ChangeSet Compose(ChangeSet next) => "
+                    + target.ChangeSetOperationsType
+                    + ".Compose(this, next);"
+            );
+            code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet Compose(ChangeSet first, ChangeSet second) => "
+                    + target.ChangeSetOperationsType
+                    + ".Compose(first, second);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static ChangeSet Compose(ChangeSet self, ChangeSet next)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
+            );
+            code.AppendLineAt(2, "public ChangeSet Compose(ChangeSet next)");
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                3,
+                "if (self is null) throw new global::System.ArgumentNullException(nameof(self));"
+            );
+            AppendSelfAliases(code, members);
+        }
         var __hasSparse = members.Any(static m => IsKeyed(m) || IsDict(m));
         code.AppendLineAt(
             3,
             "if (next is null) throw new global::System.ArgumentNullException(nameof(next));"
         );
-        code.AppendLineAt(3, "if (IsEmpty) return next;");
-        code.AppendLineAt(3, "if (next.IsEmpty) return this;");
+        code.AppendLineAt(
+            3,
+            target is null ? "if (IsEmpty) return next;" : "if (self.IsEmpty) return next;"
+        );
+        code.AppendLineAt(
+            3,
+            target is null ? "if (next.IsEmpty) return this;" : "if (next.IsEmpty) return self;"
+        );
         code.AppendLineAt(3, "if (__sparse_hasWhole || next.__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "if (__sparse_hasWhole && next.__sparse_hasWhole)");
@@ -71,11 +118,15 @@ internal static class SparseChangeSetComposeEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "if (!__SparseAfterMatches(next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+            target is null
+                ? "if (!__SparseAfterMatches(next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
+                : "if (!self.__SparseAfterMatches(next.__sparse_wholeBefore)) throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
         code.AppendLineAt(
             4,
-            "var __mergedBefore = Invert().ToPatch().Apply(next.__sparse_wholeBefore);"
+            target is null
+                ? "var __mergedBefore = Invert().ToPatch().Apply(next.__sparse_wholeBefore);"
+                : "var __mergedBefore = Invert(self).ToPatch().Apply(next.__sparse_wholeBefore);"
         );
         code.AppendLineAt(4, "return Between(__mergedBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(3, "}");
@@ -240,15 +291,21 @@ internal static class SparseChangeSetComposeEmitter
             AppendPragmaRestoreNullKey(code, 3);
         code.AppendLineAt(3, "return new ChangeSet(" + string.Join(", ", args) + ");");
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
-        code.AppendLineAt(2, "public static ChangeSet Compose(ChangeSet first, ChangeSet second)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (first is null) throw new global::System.ArgumentNullException(nameof(first));"
-        );
-        code.AppendLineAt(3, "return first." + "Compose(second);");
-        code.AppendLineAt(2, "}");
+        if (target is null)
+        {
+            code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet Compose(ChangeSet first, ChangeSet second)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (first is null) throw new global::System.ArgumentNullException(nameof(first));"
+            );
+            code.AppendLineAt(3, "return first." + "Compose(second);");
+            code.AppendLineAt(2, "}");
+        }
     }
 
     /// <summary>Emits per-key sparse compose for a keyed member.</summary>

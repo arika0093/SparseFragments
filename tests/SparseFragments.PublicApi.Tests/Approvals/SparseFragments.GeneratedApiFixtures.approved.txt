@@ -1,8 +1,7 @@
 namespace SparseFragments.Generated
 {
-    public class SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80
+    public static class SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80.ReadOnlyView Current { get; }
@@ -48,9 +47,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC
+    public static class SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC.ReadOnlyView Current { get; }
@@ -96,9 +94,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D
+    public static class SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D.ReadOnlyView Current { get; }
@@ -144,9 +141,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911
+    public static class SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911.ReadOnlyView Current { get; }
@@ -189,9 +185,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B
+    public static class SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B.ReadOnlyView Current { get; }
@@ -251,9 +246,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B
+    public static class SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B.ReadOnlyView Current { get; }
@@ -301,9 +295,8 @@ namespace SparseFragments.Generated
         public override SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) { }
         public override void Write(System.Text.Json.Utf8JsonWriter writer, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment value, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC
+    public static class SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC
     {
-        public SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC() { }
         public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>
         {
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC.ReadOnlyView Current { get; }

@@ -28,9 +28,11 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         string prop,
         string trans,
         string runtime,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
+        var shell = code;
         var keyType = KeyTypeOf(member);
         var elementType = ElementTypeOf(member);
         var listType = member.Property.Type.Name;
@@ -242,28 +244,60 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
-        // Key helper.
-        code.AppendLineAt(
-            2,
-            "private static "
-                + keyType
-                + " __SparseKeyOf_ChangeSet_"
-                + member.Id
-                + "("
-                + elementType
-                + " element)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
-        );
-        code.AppendLineAt(3, KeyOfBody(member));
-        code.AppendLineAt(2, "}");
+        // Key helper: stays on the facade for single-file emission; it moves
+        // into the operation container (below) when relocating.
+        if (target is null)
+        {
+            code.AppendLineAt(
+                2,
+                "private static "
+                    + keyType
+                    + " __SparseKeyOf_ChangeSet_"
+                    + member.Id
+                    + "("
+                    + elementType
+                    + " element)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
+            );
+            code.AppendLineAt(3, KeyOfBody(member));
+            code.AppendLineAt(2, "}");
+        }
+        if (target is not null)
+        {
+            // Projection algorithms move into the change-set operation
+            // container; the typed shell above stays on the facade. The key
+            // extractor is only used by the build helper, so it moves along.
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Extracts the stable key for a keyed transition element.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "private static "
+                    + keyType
+                    + " __SparseKeyOf_ChangeSet_"
+                    + member.Id
+                    + "("
+                    + elementType
+                    + " element)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
+            );
+            code.AppendLineAt(3, KeyOfBody(member));
+            code.AppendLineAt(2, "}");
+        }
         // Build helper (semantic before/after projection over sparse storage; never reads patch ops).
         code.AppendLineAt(
             2,
-            "private "
+            (target is null ? "private " : "internal static ")
                 + trans
                 + " __SparseBuild_"
                 + member.Id
@@ -647,17 +681,35 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(2, "}");
         // Sparse projection: derive typed transition from canonical
         // sparse storage without full member snapshots.
-        code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
+        if (target is null)
+        {
+            code.AppendLineAt(2, "private " + trans + " __SparseProject_" + member.Id + "()");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Projects the typed keyed transition from canonical sparse storage.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static " + trans + " __SparseProject_" + member.Id + "(ChangeSet self)"
+            );
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendMemberStateAliases(code, member);
+        }
         code.AppendLineAt(
             3,
             "if (__sparse_hasWhole) return __SparseBuild_"
                 + member.Id
                 + "(__SparseBefore_"
                 + member.Id
-                + "(), __SparseAfter_"
+                + (target is null ? "(), __SparseAfter_" : "(self), __SparseAfter_")
                 + member.Id
-                + "());"
+                + (target is null ? "());" : "(self));")
         );
         code.AppendLineAt(3, "if (!" + HasField(member) + ")");
         code.AppendLineAt(3, "{");
@@ -753,17 +805,36 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + "(default, default, __added, __removed, __edited, __bO, __aO, __oc, __stored, false);"
         );
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(
+        var property = target is null ? code : shell;
+        property.AppendLineAt(
             2,
             "/// <summary>Gets the typed keyed transition for member '"
                 + member.Property.Name
                 + "'.</summary>"
         );
-        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
-        code.AppendLineAt(
-            2,
-            "public " + trans + " " + prop + " => __SparseProject_" + member.Id + "();"
-        );
+        property.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        if (target is not null)
+        {
+            shell.AppendLineAt(
+                2,
+                "public "
+                    + trans
+                    + " "
+                    + prop
+                    + " => "
+                    + target.ChangeSetOperationsType
+                    + ".__SparseProject_"
+                    + member.Id
+                    + "(this);"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "public " + trans + " " + prop + " => __SparseProject_" + member.Id + "();"
+            );
+        }
     }
 
     internal static string KeyOfBody(SparseMemberModel member)

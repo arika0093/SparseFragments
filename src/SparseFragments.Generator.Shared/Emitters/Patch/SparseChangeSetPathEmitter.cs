@@ -6,23 +6,61 @@ internal static class SparseChangeSetPathEmitter
 {
     internal static void Append(
         SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members
+        ImmutableArray<SparseMemberModel> members,
+        SparseOperationTarget? target = null
     )
     {
         SparseChangeSetEmitter.ComputePublicNames(members, out var propertyNames, out _);
-        code.AppendLineAt(
-            2,
-            "/// <summary>Enumerates changed member paths, descending through nested models.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\")"
-        );
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Enumerates changed member paths, descending through nested models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\") => "
+                    + target.ChangeSetOperationsType
+                    + ".EnumerateChangedPaths(this, prefix);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Enumerates changed member paths, descending through nested models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(ChangeSet self, string prefix = \"\")"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Enumerates changed member paths, descending through nested models.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\")"
+            );
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            SparseChangeSetBasicsEmitter.AppendSelfAliases(code, members);
+        }
         code.AppendLineAt(
             3,
             "if (prefix is null) throw new global::System.ArgumentNullException(nameof(prefix));"
@@ -39,6 +77,8 @@ internal static class SparseChangeSetPathEmitter
         foreach (var member in members)
         {
             var escapedProperty = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
+            // Relocated bodies read transitions through the facade instance.
+            var transitionAccess = (target is null ? string.Empty : "self.") + escapedProperty;
             var literal = Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(
                 member.Property.Name,
                 true
@@ -58,26 +98,26 @@ internal static class SparseChangeSetPathEmitter
             {
                 code.AppendLineAt(
                     3,
-                    "paths.AddRange(" + escapedProperty + ".EnumerateChangedPaths(" + local + "));"
+                    "paths.AddRange(" + transitionAccess + ".EnumerateChangedPaths(" + local + "));"
                 );
             }
             else if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
-                AppendKeyedPaths(code, member, escapedProperty, local);
+                AppendKeyedPaths(code, member, transitionAccess, local);
             }
             else if (SparseChangeSetBasicsEmitter.IsDict(member))
             {
-                AppendDictionaryPaths(code, member, escapedProperty, local);
+                AppendDictionaryPaths(code, member, transitionAccess, local);
             }
             else if (SparseChangeSetBasicsEmitter.IsSet(member))
             {
-                AppendSetPaths(code, member, escapedProperty, local);
+                AppendSetPaths(code, member, transitionAccess, local);
             }
             else
             {
                 code.AppendLineAt(
                     3,
-                    "if (" + escapedProperty + ".IsChanged) paths.Add(" + local + ");"
+                    "if (" + transitionAccess + ".IsChanged) paths.Add(" + local + ");"
                 );
             }
         }

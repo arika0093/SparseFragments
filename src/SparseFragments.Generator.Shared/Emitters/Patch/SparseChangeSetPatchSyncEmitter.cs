@@ -26,18 +26,49 @@ internal static class SparseChangeSetPatchSyncEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string optionalFragment,
-        string? modelType
+        string? modelType,
+        SparseOperationTarget? target = null
     )
     {
         _ = members;
-        code.AppendLineAt(
-            2,
-            "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "public static ChangeSet FromPatch(" + optionalFragment + " baseline, Patch patch)"
-        );
+        var shell = code;
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet FromPatch("
+                    + optionalFragment
+                    + " baseline, Patch patch) => "
+                    + target.ChangeSetOperationsType
+                    + ".FromPatch(baseline, patch);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static ChangeSet FromPatch("
+                    + optionalFragment
+                    + " baseline, Patch patch)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public static ChangeSet FromPatch(" + optionalFragment + " baseline, Patch patch)"
+            );
+        }
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
@@ -48,14 +79,29 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(2, "}");
         if (modelType is not null)
         {
-            code.AppendLineAt(
-                2,
-                "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "public static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
-            );
+            if (target is not null)
+            {
+                // NOTE: code already streams into the operation container here.
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "internal static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "public static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
+                );
+            }
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
                 3,
@@ -64,6 +110,21 @@ internal static class SparseChangeSetPatchSyncEmitter
                     + ".Present(Fragment.From(baseline)), patch);"
             );
             code.AppendLineAt(2, "}");
+            if (target is not null)
+            {
+                shell.AppendLineAt(
+                    2,
+                    "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
+                );
+                shell.AppendLineAt(
+                    2,
+                    "public static ChangeSet FromPatch("
+                        + modelType
+                        + " baseline, Patch patch) => "
+                        + target.ChangeSetOperationsType
+                        + ".FromPatch(baseline, patch);"
+                );
+            }
         }
     }
 
@@ -72,16 +133,41 @@ internal static class SparseChangeSetPatchSyncEmitter
         ImmutableArray<SparseMemberModel> members,
         string runtime,
         string prefix,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseOperationTarget? target = null
     )
     {
         var between = "Patch." + prefix + "Between";
-        code.AppendLineAt(
-            2,
-            "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
-        );
-        code.AppendLineAt(2, "public Patch ToPatch()");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public Patch ToPatch() => " + target.ChangeSetOperationsType + ".ToPatch(this);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
+            );
+            code.AppendLineAt(2, "internal static Patch ToPatch(ChangeSet self)");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
+            );
+            code.AppendLineAt(2, "public Patch ToPatch()");
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendSelfAliases(code, members);
+        }
         code.AppendLineAt(
             3,
             "if (__sparse_hasWhole) return "
@@ -101,7 +187,13 @@ internal static class SparseChangeSetPatchSyncEmitter
             }
             else if (IsKeyed(member) || IsDict(member))
             {
-                AppendKeyedDictToPatch(code, member, name, dialect);
+                AppendKeyedDictToPatch(
+                    code,
+                    member,
+                    name,
+                    dialect,
+                    selfName: target is null ? null : "self"
+                );
             }
             else
             {
@@ -134,8 +226,21 @@ internal static class SparseChangeSetPatchSyncEmitter
             {
                 continue;
             }
-            code.AppendLineAt(2, "private int __SparseRemovalCount" + member.Id + "()");
+            code.AppendLineAt(
+                2,
+                (
+                    target is null
+                        ? "private int __SparseRemovalCount"
+                        : "internal static int __SparseRemovalCount"
+                )
+                    + member.Id
+                    + (target is null ? "()" : "(ChangeSet self)")
+            );
             code.AppendLineAt(2, "{");
+            if (target is not null)
+            {
+                AppendSelfAliases(code, members);
+            }
             code.AppendLineAt(3, "int count = 0;");
             code.AppendLineAt(3, "if (" + KeyedItems(member) + " is not null)");
             code.AppendLineAt(3, "{");
@@ -153,25 +258,51 @@ internal static class SparseChangeSetPatchSyncEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string runtime,
-        string optionalFragment
+        string optionalFragment,
+        SparseOperationTarget? target = null
     )
     {
         _ = runtime;
         _ = optionalFragment;
+        var into = target?.ChangeSetOperations ?? code;
         // Per-key item inverters: reverse add/remove, nested edits,
         // endpoints, and indexes without recovering full snapshots.
         foreach (var member in members)
         {
             if (!IsKeyed(member) && !IsDict(member))
                 continue;
-            AppendItemInverter(code, members, member, runtime);
+            AppendItemInverter(into, members, member, runtime);
         }
-        code.AppendLineAt(
-            2,
-            "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
-        );
-        code.AppendLineAt(2, "public ChangeSet Invert()");
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public ChangeSet Invert() => " + target.ChangeSetOperationsType + ".Invert(this);"
+            );
+            code = into;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
+            );
+            code.AppendLineAt(2, "internal static ChangeSet Invert(ChangeSet self)");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
+            );
+            code.AppendLineAt(2, "public ChangeSet Invert()");
+        }
         code.AppendLineAt(2, "{");
+        if (target is not null)
+        {
+            AppendSelfAliases(code, members);
+        }
         var emptyTail = MemberEmptyTail(members);
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
@@ -230,33 +361,93 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(2, "}");
     }
 
-    internal static void AppendApplyToBaseline(SharedIndentedBuilder code, string optionalFragment)
+    internal static void AppendApplyToBaseline(
+        SharedIndentedBuilder code,
+        string optionalFragment,
+        SparseOperationTarget? target = null
+    )
     {
         // Baseline advancement for synchronous edit sessions: the before-state
         // check rejects stale transitions, then the patch projection computes
         // the candidate baseline before the caller commits it.
-        code.AppendLineAt(
-            2,
-            "/// <summary>Validates this transition against the supplied baseline and returns the advanced baseline.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>Only changed paths are compared; members this change set does not encode are never validated.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
-        );
-        code.AppendLineAt(
-            2,
-            "public " + optionalFragment + " ApplyToBaseline(" + optionalFragment + " baseline)"
-        );
+        if (target is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Validates this transition against the supplied baseline and returns the advanced baseline.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Only changed paths are compared; members this change set does not encode are never validated.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
+            );
+            code.AppendLineAt(
+                2,
+                "public "
+                    + optionalFragment
+                    + " ApplyToBaseline("
+                    + optionalFragment
+                    + " baseline) => "
+                    + target.ChangeSetOperationsType
+                    + ".ApplyToBaseline(this, baseline);"
+            );
+            code = target.ChangeSetOperations;
+            code.AppendLineAt(
+                2,
+                "/// <summary>Validates a transition against the supplied baseline and returns the advanced baseline.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Only changed paths are compared; members the change set does not encode are never validated.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
+            );
+            code.AppendLineAt(
+                2,
+                "internal static "
+                    + optionalFragment
+                    + " ApplyToBaseline(ChangeSet self, "
+                    + optionalFragment
+                    + " baseline)"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Validates this transition against the supplied baseline and returns the advanced baseline.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Only changed paths are compared; members this change set does not encode are never validated.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
+            );
+            code.AppendLineAt(
+                2,
+                "public " + optionalFragment + " ApplyToBaseline(" + optionalFragment + " baseline)"
+            );
+        }
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "if (!__SparseBeforeMatches(baseline)) throw new global::System.InvalidOperationException(\"The change set is stale or incompatible with the supplied baseline.\");"
+            target is null
+                ? "if (!__SparseBeforeMatches(baseline)) throw new global::System.InvalidOperationException(\"The change set is stale or incompatible with the supplied baseline.\");"
+                : "if (!self.__SparseBeforeMatches(baseline)) throw new global::System.InvalidOperationException(\"The change set is stale or incompatible with the supplied baseline.\");"
         );
-        code.AppendLineAt(3, "var __advanced = ToPatch().Apply(baseline);");
+        code.AppendLineAt(
+            3,
+            target is null
+                ? "var __advanced = ToPatch().Apply(baseline);"
+                : "var __advanced = ToPatch(self).Apply(baseline);"
+        );
         code.AppendLineAt(
             3,
             "if (!__advanced.IsPresent || __advanced.Value is null) throw new global::System.InvalidOperationException(\"Advancing the baseline did not produce a valid model state.\");"
@@ -334,7 +525,8 @@ internal static class SparseChangeSetPatchSyncEmitter
         SparseMemberModel member,
         string escName,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? removalCountExpression = null
+        string? removalCountExpression = null,
+        string? selfName = null
     )
     {
         var id = member.Id;
@@ -399,7 +591,10 @@ internal static class SparseChangeSetPatchSyncEmitter
                 "__coll"
                     + id
                     + ".__SparseReserveRemovals("
-                    + (removalCountExpression ?? "__SparseRemovalCount" + id + "()")
+                    + (
+                        removalCountExpression
+                        ?? "__SparseRemovalCount" + id + "(" + (selfName ?? string.Empty) + ")"
+                    )
                     + ");"
             );
             code.AppendLineAt(8, "__reservedRemovals" + id + " = true;");
