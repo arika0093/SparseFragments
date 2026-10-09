@@ -56,6 +56,14 @@ public interface IDescriptor
 
     /// <summary>Gets dictionary operations for this property, when supported.</summary>
     IDictDescriptor? Dictionary { get; }
+
+    /// <summary>Gets set operations for this property, when supported.</summary>
+    /// <remarks>
+    /// Set members expose membership over live model values; unlike sequences
+    /// there are no positional semantics and no per-item nested descriptors.
+    /// Edit an element's members by removing and re-adding the element.
+    /// </remarks>
+    ISetDescriptor? Set { get; }
 }
 
 /// <summary>Provides the descriptors for one generated model instance.</summary>
@@ -169,4 +177,41 @@ public interface IDictDescriptor
 
     /// <summary>Attempts to remove an entry through the generated observable view.</summary>
     bool TryRemove(object? key);
+}
+
+/// <summary>Describes and edits a set through its live model values.</summary>
+/// <remarks>
+/// Membership uses the backing set's comparer. Mutation is supported only where
+/// the backing set is mutable; each effective add or remove raises the parent
+/// property notification. No-op adds/removes report false and raise nothing.
+/// </remarks>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+public interface ISetDescriptor
+{
+    /// <summary>Gets the declared item type.</summary>
+    Type ItemType { get; }
+
+    /// <summary>Gets whether set items accept null.</summary>
+    bool IsItemNullable { get; }
+
+    /// <summary>Gets the current number of items.</summary>
+    int Count { get; }
+
+    /// <summary>Gets whether items can be added.</summary>
+    bool CanAdd { get; }
+
+    /// <summary>Gets whether items can be removed.</summary>
+    bool CanRemove { get; }
+
+    /// <summary>Gets the live item values.</summary>
+    IEnumerable<object?> Items { get; }
+
+    /// <summary>Determines whether an item is a member of the set.</summary>
+    bool Contains(object? item);
+
+    /// <summary>Attempts to add an item to the set.</summary>
+    bool TryAdd(object? value);
+
+    /// <summary>Attempts to remove an item from the set.</summary>
+    bool TryRemove(object? value);
 }

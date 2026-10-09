@@ -52,6 +52,7 @@ public sealed class SparseDescriptor : IDescriptor
     private readonly Func<IDescriptorSet?>? _getChild;
     private readonly Func<IArrayDescriptor?>? _getArray;
     private readonly Func<IDictDescriptor?>? _getDictionary;
+    private readonly Func<ISetDescriptor?>? _getSet;
 
     /// <summary>Creates a descriptor backed by generated property accessors.</summary>
     public SparseDescriptor(
@@ -66,7 +67,8 @@ public sealed class SparseDescriptor : IDescriptor
         Func<IDescriptorSet?>? getChild = null,
         Func<IArrayDescriptor?>? getArray = null,
         Func<IDictDescriptor?>? getDictionary = null,
-        Type? viewType = null
+        Type? viewType = null,
+        Func<ISetDescriptor?>? getSet = null
     )
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -78,6 +80,7 @@ public sealed class SparseDescriptor : IDescriptor
         _getChild = getChild;
         _getArray = getArray;
         _getDictionary = getDictionary;
+        _getSet = getSet;
         Name = name;
         Path = path;
         Type = type;
@@ -127,6 +130,9 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public IDictDescriptor? Dictionary => _getDictionary?.Invoke();
+
+    /// <inheritdoc />
+    public ISetDescriptor? Set => _getSet?.Invoke();
 }
 
 /// <summary>Defines generated accessors for a sequence descriptor.</summary>
@@ -382,6 +388,82 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
 
     /// <inheritdoc />
     public bool TryRemove(object? key) => CanRemove && _access.TryRemove?.Invoke(key) == true;
+}
+
+/// <summary>Defines generated accessors for a set descriptor.</summary>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+public sealed class SparseSetDescriptorAccess
+{
+    /// <summary>Gets or sets the current set count.</summary>
+    public Func<int>? Count { get; set; }
+
+    /// <summary>Gets or sets whether items can be added.</summary>
+    public Func<bool>? CanAdd { get; set; }
+
+    /// <summary>Gets or sets whether items can be removed.</summary>
+    public Func<bool>? CanRemove { get; set; }
+
+    /// <summary>Gets or sets an enumerable of the live item values.</summary>
+    public Func<IEnumerable<object?>>? Items { get; set; }
+
+    /// <summary>Gets or sets the membership operation.</summary>
+    public Func<object?, bool>? Contains { get; set; }
+
+    /// <summary>Gets or sets the set add operation.</summary>
+    public Func<object?, bool>? TryAdd { get; set; }
+
+    /// <summary>Gets or sets the set removal operation.</summary>
+    public Func<object?, bool>? TryRemove { get; set; }
+}
+
+/// <summary>Describes a set and delegates edits to its live model values.</summary>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+public sealed class SparseSetDescriptor : ISetDescriptor
+{
+    private readonly SparseSetDescriptorAccess _access;
+
+    /// <summary>Creates a set descriptor with its declared item type and accessors.</summary>
+    public SparseSetDescriptor(Type itemType, bool isItemNullable, SparseSetDescriptorAccess access)
+    {
+        ItemType = itemType ?? throw new ArgumentNullException(nameof(itemType));
+        IsItemNullable = isItemNullable;
+        _access = access ?? throw new ArgumentNullException(nameof(access));
+    }
+
+    /// <inheritdoc />
+    public Type ItemType { get; }
+
+    /// <inheritdoc />
+    public bool IsItemNullable { get; }
+
+    /// <inheritdoc />
+    public int Count =>
+        (
+            _access.Count
+            ?? throw new InvalidOperationException("The generated set count is not configured.")
+        )();
+
+    /// <inheritdoc />
+    public bool CanAdd => _access.CanAdd?.Invoke() == true;
+
+    /// <inheritdoc />
+    public bool CanRemove => _access.CanRemove?.Invoke() == true;
+
+    /// <inheritdoc />
+    public IEnumerable<object?> Items =>
+        (
+            _access.Items
+            ?? throw new InvalidOperationException("The generated set items are not configured.")
+        )();
+
+    /// <inheritdoc />
+    public bool Contains(object? item) => _access.Contains?.Invoke(item) == true;
+
+    /// <inheritdoc />
+    public bool TryAdd(object? value) => CanAdd && _access.TryAdd?.Invoke(value) == true;
+
+    /// <inheritdoc />
+    public bool TryRemove(object? value) => CanRemove && _access.TryRemove?.Invoke(value) == true;
 }
 
 /// <summary>Converts boxed descriptor values to the generated property's CLR type.</summary>

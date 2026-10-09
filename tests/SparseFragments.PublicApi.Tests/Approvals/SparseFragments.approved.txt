@@ -395,6 +395,7 @@ namespace SparseFragments.Generated
         bool IsReadOnly { get; }
         string Name { get; }
         string Path { get; }
+        SparseFragments.Generated.ISetDescriptor? Set { get; }
         System.Type Type { get; }
         System.Type ViewType { get; }
         object? GetValue();
@@ -421,6 +422,18 @@ namespace SparseFragments.Generated
         bool TryGetValue(object? key, out object? value);
         bool TryRemove(object? key);
         bool TrySetValue(object? key, object? value);
+    }
+    public interface ISetDescriptor
+    {
+        bool CanAdd { get; }
+        bool CanRemove { get; }
+        int Count { get; }
+        bool IsItemNullable { get; }
+        System.Type ItemType { get; }
+        System.Collections.Generic.IEnumerable<object?> Items { get; }
+        bool Contains(object? item);
+        bool TryAdd(object? value);
+        bool TryRemove(object? value);
     }
     public sealed class SparseArrayDescriptor : SparseFragments.Generated.IArrayDescriptor
     {
@@ -461,7 +474,7 @@ namespace SparseFragments.Generated
     }
     public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor
     {
-        public SparseDescriptor(string name, string path, System.Type type, bool isNullable, bool isEditable, System.Attribute[] attributes, System.Func<object?> getValue, System.Func<object?, bool>? setValue = null, System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null, System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null, System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null, System.Type? viewType = null) { }
+        public SparseDescriptor(string name, string path, System.Type type, bool isNullable, bool isEditable, System.Attribute[] attributes, System.Func<object?> getValue, System.Func<object?, bool>? setValue = null, System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null, System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null, System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null, System.Type? viewType = null, System.Func<SparseFragments.Generated.ISetDescriptor?>? getSet = null) { }
         public SparseFragments.Generated.IArrayDescriptor? Array { get; }
         public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
         public SparseFragments.Generated.IDescriptorSet? Child { get; }
@@ -471,6 +484,7 @@ namespace SparseFragments.Generated
         public bool IsReadOnly { get; }
         public string Name { get; }
         public string Path { get; }
+        public SparseFragments.Generated.ISetDescriptor? Set { get; }
         public System.Type Type { get; }
         public System.Type ViewType { get; }
         public object? GetValue() { }
@@ -520,5 +534,29 @@ namespace SparseFragments.Generated
         public System.Func<object?, System.ValueTuple<bool, object?>>? TryGetValue { get; set; }
         public System.Func<object?, bool>? TryRemove { get; set; }
         public System.Func<object?, object?, bool>? TrySetValue { get; set; }
+    }
+    public sealed class SparseSetDescriptor : SparseFragments.Generated.ISetDescriptor
+    {
+        public SparseSetDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseSetDescriptorAccess access) { }
+        public bool CanAdd { get; }
+        public bool CanRemove { get; }
+        public int Count { get; }
+        public bool IsItemNullable { get; }
+        public System.Type ItemType { get; }
+        public System.Collections.Generic.IEnumerable<object?> Items { get; }
+        public bool Contains(object? item) { }
+        public bool TryAdd(object? value) { }
+        public bool TryRemove(object? value) { }
+    }
+    public sealed class SparseSetDescriptorAccess
+    {
+        public SparseSetDescriptorAccess() { }
+        public System.Func<bool>? CanAdd { get; set; }
+        public System.Func<bool>? CanRemove { get; set; }
+        public System.Func<object?, bool>? Contains { get; set; }
+        public System.Func<int>? Count { get; set; }
+        public System.Func<System.Collections.Generic.IEnumerable<object?>>? Items { get; set; }
+        public System.Func<object?, bool>? TryAdd { get; set; }
+        public System.Func<object?, bool>? TryRemove { get; set; }
     }
 }
