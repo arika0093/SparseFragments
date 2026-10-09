@@ -65,7 +65,8 @@ public sealed class SparseDescriptor : IDescriptor
         Func<object?, bool>? setValue = null,
         Func<IDescriptorSet?>? getChild = null,
         Func<IArrayDescriptor?>? getArray = null,
-        Func<IDictDescriptor?>? getDictionary = null
+        Func<IDictDescriptor?>? getDictionary = null,
+        Type? viewType = null
     )
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -80,6 +81,7 @@ public sealed class SparseDescriptor : IDescriptor
         Name = name;
         Path = path;
         Type = type;
+        ViewType = viewType ?? type;
         IsNullable = isNullable;
         IsEditable = isEditable && setValue is not null;
         IsReadOnly = !IsEditable;
@@ -94,6 +96,9 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public Type Type { get; }
+
+    /// <inheritdoc />
+    public Type ViewType { get; }
 
     /// <inheritdoc />
     public bool IsNullable { get; }
@@ -178,16 +183,21 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
     public SparseArrayDescriptor(
         Type itemType,
         bool isItemNullable,
-        SparseArrayDescriptorAccess access
+        SparseArrayDescriptorAccess access,
+        Type? itemViewType = null
     )
     {
         ItemType = itemType ?? throw new ArgumentNullException(nameof(itemType));
         IsItemNullable = isItemNullable;
+        ItemViewType = itemViewType ?? itemType;
         _access = access ?? throw new ArgumentNullException(nameof(access));
     }
 
     /// <inheritdoc />
     public Type ItemType { get; }
+
+    /// <inheritdoc />
+    public Type ItemViewType { get; }
 
     /// <inheritdoc />
     public bool IsItemNullable { get; }
@@ -294,12 +304,14 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
         Type keyType,
         Type valueType,
         bool isValueNullable,
-        SparseDictionaryDescriptorAccess access
+        SparseDictionaryDescriptorAccess access,
+        Type? valueViewType = null
     )
     {
         KeyType = keyType ?? throw new ArgumentNullException(nameof(keyType));
         ValueType = valueType ?? throw new ArgumentNullException(nameof(valueType));
         IsValueNullable = isValueNullable;
+        ValueViewType = valueViewType ?? valueType;
         _access = access ?? throw new ArgumentNullException(nameof(access));
     }
 
@@ -308,6 +320,9 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
 
     /// <inheritdoc />
     public Type ValueType { get; }
+
+    /// <inheritdoc />
+    public Type ValueViewType { get; }
 
     /// <inheritdoc />
     public bool IsValueNullable { get; }

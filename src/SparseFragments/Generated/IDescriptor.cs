@@ -15,7 +15,20 @@ public interface IDescriptor
     string Path { get; }
 
     /// <summary>Gets the property's CLR type.</summary>
+    /// <remarks>
+    /// Declared model type. The runtime value returned by <see cref="GetValue"/>
+    /// may be a generated observable/view proxy for nested generated models;
+    /// see <see cref="ViewType"/> for the runtime type.
+    /// </remarks>
     Type Type { get; }
+
+    /// <summary>Gets the runtime observable/view type returned by current reads.</summary>
+    /// <remarks>
+    /// Equals <see cref="Type"/> for scalars and unproxied shapes; for nested
+    /// generated-model references it names the generated observable proxy type,
+    /// and for proxied collections the element/value view type differs.
+    /// </remarks>
+    Type ViewType { get; }
 
     /// <summary>Gets whether the property accepts null.</summary>
     bool IsNullable { get; }
@@ -61,7 +74,11 @@ public interface IDescriptorSet
 public interface IArrayDescriptor
 {
     /// <summary>Gets the declared item type.</summary>
+    /// <remarks>Declared model element type; see <see cref="ItemViewType"/> for the runtime view type.</remarks>
     Type ItemType { get; }
+
+    /// <summary>Gets the runtime item view type returned by current reads.</summary>
+    Type ItemViewType { get; }
 
     /// <summary>Gets whether sequence items accept null.</summary>
     bool IsItemNullable { get; }
@@ -114,7 +131,11 @@ public interface IDictDescriptor
     Type KeyType { get; }
 
     /// <summary>Gets the declared value type.</summary>
+    /// <remarks>Declared model value type; see <see cref="ValueViewType"/> for the runtime view type.</remarks>
     Type ValueType { get; }
+
+    /// <summary>Gets the runtime value view type returned by current reads.</summary>
+    Type ValueViewType { get; }
 
     /// <summary>Gets whether dictionary values accept null.</summary>
     bool IsValueNullable { get; }

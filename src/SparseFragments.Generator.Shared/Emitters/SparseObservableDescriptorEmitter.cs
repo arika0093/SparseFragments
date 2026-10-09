@@ -60,6 +60,7 @@ internal static class SparseObservableDescriptorEmitter
         var path =
             "(pathPrefix.Length == 0 ? " + literal + " : pathPrefix + \".\" + " + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
+        var viewType = ViewTypeName(member, runtimeNamespace);
         code.AppendLineAt(
             4,
             "new "
@@ -86,8 +87,30 @@ internal static class SparseObservableDescriptorEmitter
                 + ArrayAccessor(member, path, dialect)
                 + ", "
                 + DictionaryAccessor(member, path, dialect)
-                + "),"
+                + ", typeof("
+                + viewType
+                + "))"
+                + ","
         );
+    }
+
+    private static string ViewTypeName(SparseMemberModel member, string runtimeNamespace)
+    {
+        if (member.ChildModel is not null && member.ChildIsReferenceType)
+        {
+            return SparseObservableEmitter.ChildObservableType(member);
+        }
+
+        if (
+            SparseObservableEmitter.IsObservableList(member)
+            || SparseObservableEmitter.IsObservableDictionary(member)
+        )
+        {
+            var names = SparseObservableEmitter.CollectionNames(member);
+            return SparseObservableEmitter.CollectionViewType(member, names, runtimeNamespace);
+        }
+
+        return member.Property.Type.NonNullableName;
     }
 
     private static string Attributes(SparseMemberModel member) =>
@@ -227,7 +250,9 @@ internal static class SparseObservableDescriptorEmitter
             + property
             + "!.Length, GetItem = index => this."
             + property
-            + "![index] })";
+            + "![index] }, typeof("
+            + itemType
+            + "))";
     }
 
     private static string ListAccessor(
@@ -341,7 +366,13 @@ internal static class SparseObservableDescriptorEmitter
             + insert
             + remove
             + move
-            + " })";
+            + " }, typeof("
+            + (
+                names.HasElementProxy
+                    ? names.ViewType.TrimEnd('?')
+                    : member.Collection.ElementType.NonNullableName
+            )
+            + "))";
     }
 
     private static string DictionaryAccessor(
@@ -442,7 +473,13 @@ internal static class SparseObservableDescriptorEmitter
             + keyCast
             + "(key, out var typedKey)) return false; return this."
             + property
-            + "!.Remove(typedKey); } })";
+            + "!.Remove(typedKey); } }, typeof("
+            + (
+                names.HasElementProxy
+                    ? names.ViewType.TrimEnd('?')
+                    : member.Collection.ValueType.Value.NonNullableName
+            )
+            + "))";
     }
 
     private static string ValueConversion(
