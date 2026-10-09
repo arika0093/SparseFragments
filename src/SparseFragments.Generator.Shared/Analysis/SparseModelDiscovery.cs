@@ -597,7 +597,10 @@ internal static class SparseModelDiscovery
             var host = childIsStructural
                 ? StructuralHostName(member.ChildModel, config, cancellationToken)
                 : SparseNaming.NonNullableTypeName(member.ChildModel);
-            childFragmentType = host + "." + SparseWellKnownNames.FragmentTypeName;
+            childFragmentType = SparseSemanticReference.ChildFragmentType(
+                host,
+                config.EffectiveFamilyNames
+            );
         }
 
         SparseTypeModel? mergeStrategyType = null;
@@ -796,7 +799,7 @@ internal static class SparseModelDiscovery
 
         // UI type names resolve through the central placement resolver.
         return SparseGeneratedPlacement.ResolveUiTypeName(
-            "ReadOnlyView",
+            config.EffectiveFamilyNames.ReadOnlyView,
             GetMembers(model, config, cancellationToken)
                 .Select(static member => member.Property.Name)
         );
@@ -816,7 +819,7 @@ internal static class SparseModelDiscovery
 
         // UI type names resolve through the central placement resolver.
         return SparseGeneratedPlacement.ResolveUiTypeName(
-            "Observable",
+            config.EffectiveFamilyNames.Observable,
             GetMembers(model, config, cancellationToken)
                 .Select(static member => member.Property.Name)
         );

@@ -5,13 +5,18 @@ internal sealed class SparseFragmentExpressions(
     string cloneContext,
     string valueComparer,
     string collectionMerger,
-    string optionalType
+    string optionalType,
+    SparseFamilyNames? familyNames = null
 )
 {
     private string ValueComparer { get; } = valueComparer;
     private string CollectionMerger { get; } = collectionMerger;
     private string CloneContext { get; } = cloneContext;
     private string OptionalType { get; } = optionalType;
+
+    // Null keeps the standalone vocabulary so existing downstream call sites
+    // compile unchanged; products with their own names pass their bindings.
+    private SparseFamilyNames Family { get; } = familyNames ?? SparseFamilyNames.Standalone;
 
     public string ValueEqualityExpression(SparseMemberModel member, string left, string right)
     {
@@ -58,7 +63,9 @@ internal sealed class SparseFragmentExpressions(
 
     private string FragmentElementEquality(SparseTypeModel element, string left, string right)
     {
-        var fragment = element.NonNullableName + ".Fragment";
+        // The state-role name is product-owned; resolve the reference through
+        // the shared semantic model instead of rebuilding a product literal.
+        var fragment = SparseSemanticReference.ChildFragmentType(element.NonNullableName, Family);
         var optionalFragment = OptionalType + "<" + fragment + "?>";
         var equal =
             fragment

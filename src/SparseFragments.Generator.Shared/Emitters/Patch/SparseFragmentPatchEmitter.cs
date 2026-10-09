@@ -17,8 +17,10 @@ internal static class SparseFragmentPatchEmitter
         member.ChildModel is null ? member.Property.Type.Name : member.ChildFragmentType + "?";
 
     internal static string ChildPatch(SparseMemberModel member) =>
-        member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
-        + "Patch";
+        SparseSemanticReference.ChildPatchType(
+            member.ChildFragmentType!,
+            SparseFamilyNames.Standalone
+        );
 
     internal static bool IsCollectionPatch(SparseMemberModel member) =>
         SparseKeyedCollectionEmitter.IsCollectionPatch(member);
@@ -259,8 +261,10 @@ internal static class SparseFragmentPatchEmitter
     }
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
-        member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
-        + "ChangeSet";
+        SparseSemanticReference.ChildChangeSetType(
+            member.ChildFragmentType!,
+            SparseFamilyNames.Standalone
+        );
 
     internal static string Operation(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperation";

@@ -49,6 +49,12 @@ redaction attribute metadata name: members carrying the downstream redaction
 attribute emit a redacted before-state from `ToPayload()`. Merge enum values are
 normalized to shared semantic modes before validation and emission; the
 downstream enum does not need to reuse `SparseFragments.MergeMode`.
+`SparseGeneratorConfig.FamilyNames` optionally rebinds the generated
+state, operation, transition, payload, and view names
+(`SparseFamilyNames`, defaulting to the standalone
+`Fragment`/`Patch`/`ChangeSet` vocabulary). Child and nested references
+resolve through `SparseSemanticReference` from those bindings; see
+`docs/architecture/semantic-roles.md` for the role model and its limits.
 
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
 helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch

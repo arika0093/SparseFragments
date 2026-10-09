@@ -84,24 +84,30 @@ internal sealed record SparseEmissionFeatures
     /// Member-prefixed payload DTO names cannot collide with member names by
     /// construction and are not listed.
     /// </remarks>
-    public ImmutableArray<string> GetEmittedTypeNames()
+    public ImmutableArray<string> GetEmittedTypeNames() =>
+        GetEmittedTypeNames(SparseFamilyNames.Standalone);
+
+    /// <summary>Generated type names this selection emits under one product vocabulary.</summary>
+    /// <param name="family">Product family-name bindings.</param>
+    /// <returns>The family root names in the product vocabulary.</returns>
+    public ImmutableArray<string> GetEmittedTypeNames(SparseFamilyNames family)
     {
         var names = ImmutableArray.CreateBuilder<string>();
         if (EmitFragment)
         {
-            names.Add(SparseWellKnownNames.FragmentTypeName);
-            names.Add("FragmentBuilder");
+            names.Add(family.Fragment);
+            names.Add(family.FragmentBuilder);
         }
         if (EmitPatch)
-            names.Add("Patch");
+            names.Add(family.Patch);
         if (EmitChangeSet)
-            names.Add("ChangeSet");
+            names.Add(family.ChangeSet);
         if (EmitChangePayload)
-            names.Add("ChangePayload");
+            names.Add(family.ChangePayload);
         if (EmitObservable)
         {
-            names.Add("Observable");
-            names.Add("SparseObservable");
+            names.Add(family.Observable);
+            names.Add("Sparse" + family.Observable);
         }
         return names.ToImmutable();
     }
