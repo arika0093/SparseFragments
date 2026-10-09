@@ -1,8 +1,18 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
+using SparseFragments.Generated;
 
 namespace SparseFragments.Tests;
+
+[AttributeUsage(AttributeTargets.Property)]
+public sealed class PasswordAttribute : Attribute
+{
+    public PasswordAttribute(string scope) => Scope = scope;
+
+    public string Scope { get; set; }
+}
 
 [SparseFragmentModel]
 public partial class ObservableChild
@@ -38,19 +48,37 @@ public partial class ObservableHolder
 {
     public string Title { get; set; } = string.Empty;
 
+    [Password("login", Scope = "credential")]
+    public string Secret { get; set; } = string.Empty;
+
     public string? Note { get; set; }
 
     public ObservableChild Child { get; set; } = new();
 
     public ObservableChild? MaybeChild { get; set; }
 
+    [SparseMerge(MergeMode.Replace)]
+    public ObservableChild? ReplaceChild { get; set; } = new();
+
     public ObservableSpot Spot { get; set; }
 
     public List<string> Tags { get; set; } = new();
 
+    [SparseMerge(MergeMode.Replace)]
+    public List<string> ReplacementTags { get; set; } = new();
+
+    public List<string?> NullableTags { get; set; } = new();
+
     public List<ObservableListChild> Children { get; set; } = new();
 
     public Dictionary<string, string> Metadata { get; set; } = new();
+
+    public Dictionary<string, string?> NullableMetadata { get; set; } = new();
+
+    public IList<string> InterfaceTags { get; set; } = new List<string>();
+
+    public IDictionary<string, string> InterfaceMetadata { get; set; } =
+        new Dictionary<string, string>();
 
     public Dictionary<string, ObservableListChild> ChildrenByName { get; set; } = new();
 
@@ -63,6 +91,16 @@ public partial class ObservableHolder
     public string[] Labels { get; set; } = [];
 
     public int OwningCount { get; init; }
+}
+
+[SparseFragmentModel]
+public partial class ObservablePrivateAttributeModel
+{
+    [AttributeUsage(AttributeTargets.Property)]
+    private sealed class PrivateMarkerAttribute : Attribute;
+
+    [PrivateMarker]
+    public string Value { get; set; } = string.Empty;
 }
 
 [SparseFragmentModel]
@@ -181,9 +219,262 @@ public sealed class ObservableTests
     }
 
     [Test]
+    public void SessionDescriptorsReadAndEditScalarPropertiesThroughObservable()
+    {
+        var model = new ObservableHolder { Secret = "before" };
+        var session = model.CreateEditSession();
+        var notifications = Events(session.Observable);
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Secret), out var descriptor)
+            .ShouldBeTrue();
+        descriptor.Path.ShouldBe(nameof(ObservableHolder.Secret));
+        descriptor.Type.ShouldBe(typeof(string));
+        descriptor.IsNullable.ShouldBeFalse();
+        descriptor.IsEditable.ShouldBeTrue();
+        descriptor.IsReadOnly.ShouldBeFalse();
+        descriptor.GetValue().ShouldBe("before");
+        descriptor.TrySetValue(null).ShouldBeFalse();
+        var password = descriptor.Attributes.OfType<PasswordAttribute>().SingleOrDefault();
+        password.ShouldNotBeNull();
+        password!.Scope.ShouldBe("credential");
+
+        descriptor.TrySetValue("after").ShouldBeTrue();
+        model.Secret.ShouldBe("after");
+        session.HasChanges.ShouldBeTrue();
+        notifications.ShouldContain(nameof(ObservableHolder.Secret));
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.OwningCount), out var initDescriptor)
+            .ShouldBeTrue();
+        initDescriptor.IsEditable.ShouldBeFalse();
+        initDescriptor.IsReadOnly.ShouldBeTrue();
+        initDescriptor.TrySetValue(10).ShouldBeFalse();
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Note), out var nullableDescriptor)
+            .ShouldBeTrue();
+        nullableDescriptor.IsNullable.ShouldBeTrue();
+        nullableDescriptor.TrySetValue(null).ShouldBeTrue();
+        model.Note.ShouldBeNull();
+    }
+
+    [Test]
+    public void DescriptorsCanMaterializePrivateNestedPropertyAttributes()
+    {
+        var session = new ObservablePrivateAttributeModel().CreateEditSession();
+
+        session
+            .Descriptors.Members.Single()
+            .Attributes.Single()
+            .GetType()
+            .Name.ShouldBe("PrivateMarkerAttribute");
+    }
+
+    [Test]
+    public void NestedDescriptorsCarryPathsAndEditThroughChildObservable()
+    {
+        var model = new ObservableHolder { Child = new ObservableChild { Name = "before" } };
+        var session = model.CreateEditSession();
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Child), out var childDescriptor)
+            .ShouldBeTrue();
+        var childDescriptors = childDescriptor.Child;
+        childDescriptors.ShouldNotBeNull();
+        childDescriptors!
+            .TryGet(nameof(ObservableChild.Name), out var nameDescriptor)
+            .ShouldBeTrue();
+        nameDescriptor.Path.ShouldBe("Child.Name");
+        nameDescriptor.TrySetValue("after").ShouldBeTrue();
+
+        model.Child.Name.ShouldBe("after");
+        session.HasChanges.ShouldBeTrue();
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.ReplaceChild), out var replaceDescriptor)
+            .ShouldBeTrue();
+        var replaceChildDescriptors = replaceDescriptor.Child;
+        replaceChildDescriptors.ShouldNotBeNull();
+        replaceChildDescriptors!
+            .TryGet(nameof(ObservableChild.Name), out var replaceChildName)
+            .ShouldBeTrue();
+        replaceChildName.TrySetValue("replaced").ShouldBeTrue();
+        model.ReplaceChild!.Name.ShouldBe("replaced");
+    }
+
+    [Test]
+    public void CollectionDescriptorsExposeMetadataAndNotifyThroughObservableViews()
+    {
+        var model = new ObservableHolder
+        {
+            ReplacementTags = ["a"],
+            NullableTags = ["initial"],
+            Metadata = new Dictionary<string, string> { ["first"] = "one" },
+            NullableMetadata = new Dictionary<string, string?> { ["first"] = "one" },
+            Children = [new ObservableListChild { Id = "item", Name = "before" }],
+            ChildrenByName = new Dictionary<string, ObservableListChild>
+            {
+                ["entry"] = new() { Id = "mapped", Name = "before" },
+            },
+        };
+        var session = model.CreateEditSession();
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.ReplacementTags), out var tagsDescriptor)
+            .ShouldBeTrue();
+        var tags = tagsDescriptor.Array;
+        tags.ShouldNotBeNull();
+        var tagNotifications = new List<NotifyCollectionChangedAction>();
+        var observableNotifications = Events(session.Observable);
+        session.Observable.ReplacementTags!.CollectionChanged += (_, args) =>
+            tagNotifications.Add(args.Action);
+        tags!.ItemType.ShouldBe(typeof(string));
+        tags.IsItemNullable.ShouldBeFalse();
+        tags.CanAdd.ShouldBeTrue();
+        tags.CanInsert.ShouldBeTrue();
+        tags.CanRemove.ShouldBeTrue();
+        tags.CanMove.ShouldBeTrue();
+        tags.TryAdd("b").ShouldBeTrue();
+        tags.TryInsert(1, "inserted").ShouldBeTrue();
+        tags.TryMove(2, 0).ShouldBeTrue();
+        tags.TryRemoveAt(2).ShouldBeTrue();
+        tags.TryAdd(null).ShouldBeFalse();
+        model.ReplacementTags.ShouldBe(["b", "a"]);
+        tagNotifications.ShouldBe([
+            NotifyCollectionChangedAction.Add,
+            NotifyCollectionChangedAction.Add,
+            NotifyCollectionChangedAction.Move,
+            NotifyCollectionChangedAction.Remove,
+        ]);
+        observableNotifications
+            .Count(name => name == nameof(ObservableHolder.ReplacementTags))
+            .ShouldBe(4);
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Metadata), out var metadataDescriptor)
+            .ShouldBeTrue();
+        var metadata = metadataDescriptor.Dictionary;
+        metadata.ShouldNotBeNull();
+        metadata!.KeyType.ShouldBe(typeof(string));
+        metadata.ValueType.ShouldBe(typeof(string));
+        metadata.IsValueNullable.ShouldBeFalse();
+        var dictionaryNotifications = new List<NotifyCollectionChangedAction>();
+        session.Observable.Metadata!.CollectionChanged += (_, args) =>
+            dictionaryNotifications.Add(args.Action);
+        metadata.TryGetValue("first", out var first).ShouldBeTrue();
+        first.ShouldBe("one");
+        metadata.TryAdd("first", "duplicate").ShouldBeFalse();
+        metadata.TrySetValue("missing", "value").ShouldBeFalse();
+        metadata.TryAdd("null", null).ShouldBeFalse();
+        metadata.TryGetValue(null, out _).ShouldBeFalse();
+        metadata.TryAdd(null, "value").ShouldBeFalse();
+        metadata.TrySetValue(null, "value").ShouldBeFalse();
+        metadata.TryRemove(null).ShouldBeFalse();
+        metadata.TryAdd("second", "two").ShouldBeTrue();
+        metadata.TrySetValue("first", "updated").ShouldBeTrue();
+        metadata.TryRemove("second").ShouldBeTrue();
+        model.Metadata.ShouldBe(new Dictionary<string, string> { ["first"] = "updated" });
+        dictionaryNotifications.ShouldBe([
+            NotifyCollectionChangedAction.Add,
+            NotifyCollectionChangedAction.Replace,
+            NotifyCollectionChangedAction.Remove,
+        ]);
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.InterfaceTags), out var interfaceTags)
+            .ShouldBeTrue();
+        interfaceTags.TrySetValue(interfaceTags.GetValue()).ShouldBeTrue();
+        interfaceTags.Array!.TryAdd("still-live").ShouldBeTrue();
+        model.InterfaceTags.ShouldBe(["still-live"]);
+
+        session
+            .Descriptors.TryGet(
+                nameof(ObservableHolder.InterfaceMetadata),
+                out var interfaceMetadata
+            )
+            .ShouldBeTrue();
+        interfaceMetadata.TrySetValue(interfaceMetadata.GetValue()).ShouldBeTrue();
+        interfaceMetadata.Dictionary!.TryAdd("still-live", "value").ShouldBeTrue();
+        model.InterfaceMetadata.ShouldBe(
+            new Dictionary<string, string> { ["still-live"] = "value" }
+        );
+
+        session
+            .Descriptors.TryGet(
+                nameof(ObservableHolder.NullableTags),
+                out var nullableTagsDescriptor
+            )
+            .ShouldBeTrue();
+        var nullableTags = nullableTagsDescriptor.Array;
+        nullableTags.ShouldNotBeNull();
+        nullableTags!.IsItemNullable.ShouldBeTrue();
+        nullableTags.TryAdd(null).ShouldBeTrue();
+
+        session
+            .Descriptors.TryGet(
+                nameof(ObservableHolder.NullableMetadata),
+                out var nullableMetadataDescriptor
+            )
+            .ShouldBeTrue();
+        var nullableMetadata = nullableMetadataDescriptor.Dictionary;
+        nullableMetadata.ShouldNotBeNull();
+        nullableMetadata!.IsValueNullable.ShouldBeTrue();
+        nullableMetadata.TryAdd("null", null).ShouldBeTrue();
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Children), out var childrenDescriptor)
+            .ShouldBeTrue();
+        var children = childrenDescriptor.Array;
+        children.ShouldNotBeNull();
+        var childProxy = children!.GetItem(0);
+        children.TrySetItem(0, childProxy).ShouldBeTrue();
+        children!
+            .GetItemDescriptors(0)!
+            .TryGet(nameof(ObservableListChild.Name), out var childName)
+            .ShouldBeTrue();
+        childName.Path.ShouldBe("Children[0].Name");
+        childName.TrySetValue("list-updated").ShouldBeTrue();
+
+        session
+            .Descriptors.TryGet(
+                nameof(ObservableHolder.ChildrenByName),
+                out var childrenByNameDescriptor
+            )
+            .ShouldBeTrue();
+        var childrenByName = childrenByNameDescriptor.Dictionary;
+        childrenByName.ShouldNotBeNull();
+        childrenByName!.TryGetValue("entry", out var childDictionaryProxy).ShouldBeTrue();
+        childrenByName.TrySetValue("entry", childDictionaryProxy).ShouldBeTrue();
+        childrenByName!
+            .GetValueDescriptors("entry")!
+            .TryGet(nameof(ObservableListChild.Name), out var dictionaryChildName)
+            .ShouldBeTrue();
+        dictionaryChildName.Path.ShouldBe("ChildrenByName[entry].Name");
+        dictionaryChildName.TrySetValue("dictionary-updated").ShouldBeTrue();
+        model.Children[0].Name.ShouldBe("list-updated");
+        model.ChildrenByName["entry"].Name.ShouldBe("dictionary-updated");
+
+        session
+            .Descriptors.TryGet(nameof(ObservableHolder.Labels), out var labelsDescriptor)
+            .ShouldBeTrue();
+        var labels = labelsDescriptor.Array;
+        labels.ShouldNotBeNull();
+        labels!.ItemType.ShouldBe(typeof(string));
+        labels.Count.ShouldBe(0);
+        labels.CanAdd.ShouldBeFalse();
+        labels.CanSetItem.ShouldBeFalse();
+        labels.TryAdd("unsupported").ShouldBeFalse();
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
     public void ValueTypeStructuralMember()
     {
-        var model = new ObservableHolder { Spot = new ObservableSpot { X = 1, Y = 2 } };
+        var model = new ObservableHolder
+        {
+            Spot = new ObservableSpot { X = 1, Y = 2 },
+        };
         var proxy = new ObservableHolder.Observable(model);
         var names = Events(proxy);
 
@@ -247,16 +538,16 @@ public sealed class ObservableTests
 
         ReferenceEquals(source, model.Tags).ShouldBeTrue();
         model.Tags.ShouldBeEmpty();
-        events.Select(args => args.Action).ShouldBe(
-            [
+        events
+            .Select(args => args.Action)
+            .ShouldBe([
                 NotifyCollectionChangedAction.Add,
                 NotifyCollectionChangedAction.Add,
                 NotifyCollectionChangedAction.Replace,
                 NotifyCollectionChangedAction.Move,
                 NotifyCollectionChangedAction.Remove,
                 NotifyCollectionChangedAction.Reset,
-            ]
-        );
+            ]);
         events[0].NewStartingIndex.ShouldBe(2);
         events[1].NewStartingIndex.ShouldBe(1);
         events[2].OldStartingIndex.ShouldBe(0);
@@ -264,20 +555,18 @@ public sealed class ObservableTests
         events[3].NewStartingIndex.ShouldBe(1);
         names.ShouldBe(["Tags", "Tags", "Tags", "Tags", "Tags", "Tags"]);
         notified.ShouldBe(6);
-        viewPropertyNames.ShouldBe(
-            [
-                "Count",
-                "Item[]",
-                "Count",
-                "Item[]",
-                "Item[]",
-                "Item[]",
-                "Count",
-                "Item[]",
-                "Count",
-                "Item[]",
-            ]
-        );
+        viewPropertyNames.ShouldBe([
+            "Count",
+            "Item[]",
+            "Count",
+            "Item[]",
+            "Item[]",
+            "Item[]",
+            "Count",
+            "Item[]",
+            "Count",
+            "Item[]",
+        ]);
     }
 
     [Test]
@@ -399,34 +688,30 @@ public sealed class ObservableTests
         );
         proxy.ChildrenByName.Clear();
 
-        metadataEvents.Select(args => args.Action).ShouldBe(
-            [
+        metadataEvents
+            .Select(args => args.Action)
+            .ShouldBe([
                 NotifyCollectionChangedAction.Add,
                 NotifyCollectionChangedAction.Replace,
                 NotifyCollectionChangedAction.Remove,
-            ]
-        );
-        dictionaryPropertyNames.ShouldBe(
-            ["Count", "Item[]", "Item[]", "Count", "Item[]"]
-        );
-        childEvents.Select(args => args.Action).ShouldBe(
-            [
+            ]);
+        dictionaryPropertyNames.ShouldBe(["Count", "Item[]", "Item[]", "Count", "Item[]"]);
+        childEvents
+            .Select(args => args.Action)
+            .ShouldBe([
                 NotifyCollectionChangedAction.Remove,
                 NotifyCollectionChangedAction.Add,
                 NotifyCollectionChangedAction.Reset,
-            ]
-        );
-        names.ShouldBe(
-            [
-                "Metadata",
-                "Metadata",
-                "Metadata",
-                "ChildrenByName",
-                "ChildrenByName",
-                "ChildrenByName",
-                "ChildrenByName",
-            ]
-        );
+            ]);
+        names.ShouldBe([
+            "Metadata",
+            "Metadata",
+            "Metadata",
+            "ChildrenByName",
+            "ChildrenByName",
+            "ChildrenByName",
+            "ChildrenByName",
+        ]);
         notified.ShouldBe(7);
     }
 

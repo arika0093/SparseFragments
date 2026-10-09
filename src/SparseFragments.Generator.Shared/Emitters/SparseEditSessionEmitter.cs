@@ -199,6 +199,24 @@ internal static class SparseEditSessionEmitter
             2,
             "public " + modelType + "." + readOnlyView + " Current => _session.Current;"
         );
+        if (
+            config.DescriptorDialect is { } descriptorDialect
+            && config.EffectiveEmissionFeatures.EmitObservable
+        )
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets descriptors bound to this session's observable model.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public "
+                    + descriptorDialect.DescriptorSetInterface
+                    + " Descriptors => Observable."
+                    + SparseObservableDescriptorEmitter.AccessorName(modelType)
+                    + "(global::System.String.Empty);"
+            );
+        }
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
         code.AppendLineAt(
             2,

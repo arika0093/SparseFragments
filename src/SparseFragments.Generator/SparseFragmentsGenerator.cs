@@ -130,6 +130,19 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",
         EditSessionInterfaceMetadataName: "SparseFragments.ISparseEditSession",
         EditSessionDialect: new SparseEditSessionDialect("SparseFragments.Generated"),
+        DescriptorDialect: new SparseDescriptorDialect(
+            "global::SparseFragments.Generated.IDescriptor",
+            "global::SparseFragments.Generated.IDescriptorSet",
+            "global::SparseFragments.Generated.IArrayDescriptor",
+            "global::SparseFragments.Generated.IDictDescriptor",
+            "global::SparseFragments.Generated.SparseDescriptor",
+            "global::SparseFragments.Generated.SparseDescriptorSet",
+            "global::SparseFragments.Generated.SparseArrayDescriptor",
+            "global::SparseFragments.Generated.SparseArrayDescriptorAccess",
+            "global::SparseFragments.Generated.SparseDictionaryDescriptor",
+            "global::SparseFragments.Generated.SparseDictionaryDescriptorAccess",
+            "global::SparseFragments.Generated.SparseDescriptorValue"
+        ),
         ReservedGeneratedNames: ImmutableArray.Create(
             "Fragment",
             "FragmentBuilder",

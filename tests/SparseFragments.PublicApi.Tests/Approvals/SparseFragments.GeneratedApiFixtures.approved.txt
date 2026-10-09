@@ -111,6 +111,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable Observable { get; }
@@ -447,6 +448,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable Observable { get; }
@@ -723,6 +725,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable Observable { get; }
@@ -1006,6 +1009,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable Observable { get; }
@@ -1319,6 +1323,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Observable Observable { get; }
@@ -1688,6 +1693,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class EditSession : SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView Current { get; }
+            public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar Model { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable Observable { get; }

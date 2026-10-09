@@ -107,6 +107,9 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         }
     }
 
+    /// <summary>Sets a model value, useful when values are exposed as observable proxies.</summary>
+    public void SetModel(TKey key, TModel value) => Set(key, value);
+
     /// <inheritdoc />
     public void Add(KeyValuePair<TKey, TView> item) => Add(item.Key, item.Value);
 

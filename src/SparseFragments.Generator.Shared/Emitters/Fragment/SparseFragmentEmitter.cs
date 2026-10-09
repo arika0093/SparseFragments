@@ -242,7 +242,8 @@ internal static class SparseFragmentEmitter
                     code,
                     modelType,
                     members,
-                    runtime.Namespace
+                    runtime.Namespace,
+                    config.DescriptorDialect
                 );
             }
             SparseReadOnlyViewEmitter.AppendReadOnlyView(

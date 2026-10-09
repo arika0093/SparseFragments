@@ -285,6 +285,7 @@ namespace SparseFragments
         public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<TKey, TView>> GetEnumerator() { }
         public bool Remove(System.Collections.Generic.KeyValuePair<TKey, TView> item) { }
         public bool Remove(TKey key) { }
+        public void SetModel(TKey key, TModel value) { }
         public bool TryGetValue(TKey key, out TView value) { }
     }
     public sealed class SparseObservableList<TModel, TView> : System.Collections.Generic.ICollection<TView>, System.Collections.Generic.IEnumerable<TView>, System.Collections.Generic.IList<TView>, System.Collections.Generic.IReadOnlyCollection<TView>, System.Collections.Generic.IReadOnlyList<TView>, System.Collections.ICollection, System.Collections.IEnumerable, System.Collections.IList, System.Collections.Specialized.INotifyCollectionChanged, System.ComponentModel.INotifyPropertyChanged, System.IDisposable
@@ -310,6 +311,7 @@ namespace SparseFragments
         public void Move(int oldIndex, int newIndex) { }
         public bool Remove(TView item) { }
         public void RemoveAt(int index) { }
+        public void SetModel(int index, TModel item) { }
     }
     public enum SparseRebaseMode
     {
@@ -359,5 +361,158 @@ namespace SparseFragments.CompilerServices
         public static bool TryRebaseSequenceSetUnionArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
         public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
         public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
+    }
+}
+namespace SparseFragments.Generated
+{
+    public interface IArrayDescriptor
+    {
+        bool CanAdd { get; }
+        bool CanInsert { get; }
+        bool CanMove { get; }
+        bool CanRemove { get; }
+        bool CanSetItem { get; }
+        int Count { get; }
+        bool IsItemNullable { get; }
+        System.Type ItemType { get; }
+        object? GetItem(int index);
+        SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index);
+        bool TryAdd(object? value);
+        bool TryInsert(int index, object? value);
+        bool TryMove(int oldIndex, int newIndex);
+        bool TryRemoveAt(int index);
+        bool TrySetItem(int index, object? value);
+    }
+    public interface IDescriptor
+    {
+        SparseFragments.Generated.IArrayDescriptor? Array { get; }
+        System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        SparseFragments.Generated.IDescriptorSet? Child { get; }
+        SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
+        bool IsEditable { get; }
+        bool IsNullable { get; }
+        bool IsReadOnly { get; }
+        string Name { get; }
+        string Path { get; }
+        System.Type Type { get; }
+        object? GetValue();
+        bool TrySetValue(object? value);
+    }
+    public interface IDescriptorSet
+    {
+        System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> Members { get; }
+        bool TryGet(string name, out SparseFragments.Generated.IDescriptor descriptor);
+    }
+    public interface IDictDescriptor
+    {
+        bool CanAdd { get; }
+        bool CanRemove { get; }
+        bool CanSet { get; }
+        int Count { get; }
+        bool IsValueNullable { get; }
+        System.Type KeyType { get; }
+        System.Collections.Generic.IEnumerable<object?> Keys { get; }
+        System.Type ValueType { get; }
+        SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key);
+        bool TryAdd(object? key, object? value);
+        bool TryGetValue(object? key, out object? value);
+        bool TryRemove(object? key);
+        bool TrySetValue(object? key, object? value);
+    }
+    public sealed class SparseArrayDescriptor : SparseFragments.Generated.IArrayDescriptor
+    {
+        public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access) { }
+        public bool CanAdd { get; }
+        public bool CanInsert { get; }
+        public bool CanMove { get; }
+        public bool CanRemove { get; }
+        public bool CanSetItem { get; }
+        public int Count { get; }
+        public bool IsItemNullable { get; }
+        public System.Type ItemType { get; }
+        public object? GetItem(int index) { }
+        public SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index) { }
+        public bool TryAdd(object? value) { }
+        public bool TryInsert(int index, object? value) { }
+        public bool TryMove(int oldIndex, int newIndex) { }
+        public bool TryRemoveAt(int index) { }
+        public bool TrySetItem(int index, object? value) { }
+    }
+    public sealed class SparseArrayDescriptorAccess
+    {
+        public SparseArrayDescriptorAccess() { }
+        public System.Func<bool>? CanAdd { get; set; }
+        public System.Func<bool>? CanInsert { get; set; }
+        public System.Func<bool>? CanMove { get; set; }
+        public System.Func<bool>? CanRemove { get; set; }
+        public System.Func<bool>? CanSetItem { get; set; }
+        public System.Func<int>? Count { get; set; }
+        public System.Func<int, object?>? GetItem { get; set; }
+        public System.Func<int, SparseFragments.Generated.IDescriptorSet?>? GetItemDescriptors { get; set; }
+        public System.Func<object?, bool>? TryAdd { get; set; }
+        public System.Func<int, object?, bool>? TryInsert { get; set; }
+        public System.Func<int, int, bool>? TryMove { get; set; }
+        public System.Func<int, bool>? TryRemoveAt { get; set; }
+        public System.Func<int, object?, bool>? TrySetItem { get; set; }
+    }
+    public sealed class SparseDescriptor : SparseFragments.Generated.IDescriptor
+    {
+        public SparseDescriptor(string name, string path, System.Type type, bool isNullable, bool isEditable, System.Attribute[] attributes, System.Func<object?> getValue, System.Func<object?, bool>? setValue = null, System.Func<SparseFragments.Generated.IDescriptorSet?>? getChild = null, System.Func<SparseFragments.Generated.IArrayDescriptor?>? getArray = null, System.Func<SparseFragments.Generated.IDictDescriptor?>? getDictionary = null) { }
+        public SparseFragments.Generated.IArrayDescriptor? Array { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        public SparseFragments.Generated.IDescriptorSet? Child { get; }
+        public SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
+        public bool IsEditable { get; }
+        public bool IsNullable { get; }
+        public bool IsReadOnly { get; }
+        public string Name { get; }
+        public string Path { get; }
+        public System.Type Type { get; }
+        public object? GetValue() { }
+        public bool TrySetValue(object? value) { }
+    }
+    public sealed class SparseDescriptorSet : SparseFragments.Generated.IDescriptorSet
+    {
+        public SparseDescriptorSet(System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> members) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> Members { get; }
+        public bool TryGet(string name, out SparseFragments.Generated.IDescriptor descriptor) { }
+    }
+    public static class SparseDescriptorValue
+    {
+        public static bool TryGet<T>(object? value, out T result) { }
+    }
+    public sealed class SparseDictionaryDescriptor : SparseFragments.Generated.IDictDescriptor
+    {
+        public SparseDictionaryDescriptor(System.Type keyType, System.Type valueType, bool isValueNullable, SparseFragments.Generated.SparseDictionaryDescriptorAccess access) { }
+        public bool CanAdd { get; }
+        public bool CanRemove { get; }
+        public bool CanSet { get; }
+        public int Count { get; }
+        public bool IsValueNullable { get; }
+        public System.Type KeyType { get; }
+        public System.Collections.Generic.IEnumerable<object?> Keys { get; }
+        public System.Type ValueType { get; }
+        public SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key) { }
+        public bool TryAdd(object? key, object? value) { }
+        public bool TryGetValue(object? key, out object? value) { }
+        public bool TryRemove(object? key) { }
+        public bool TrySetValue(object? key, object? value) { }
+    }
+    public sealed class SparseDictionaryDescriptorAccess
+    {
+        public SparseDictionaryDescriptorAccess() { }
+        public System.Func<bool>? CanAdd { get; set; }
+        public System.Func<bool>? CanRemove { get; set; }
+        public System.Func<bool>? CanSet { get; set; }
+        public System.Func<int>? Count { get; set; }
+        public System.Func<object?, SparseFragments.Generated.IDescriptorSet?>? GetValueDescriptors { get; set; }
+        public System.Func<System.Collections.Generic.IEnumerable<object?>>? Keys { get; set; }
+        public System.Func<object?, object?, bool>? TryAdd { get; set; }
+        [System.Runtime.CompilerServices.TupleElementNames(new string?[]?[] {
+                "Found",
+                "Value"})]
+        public System.Func<object?, System.ValueTuple<bool, object?>>? TryGetValue { get; set; }
+        public System.Func<object?, bool>? TryRemove { get; set; }
+        public System.Func<object?, object?, bool>? TrySetValue { get; set; }
     }
 }

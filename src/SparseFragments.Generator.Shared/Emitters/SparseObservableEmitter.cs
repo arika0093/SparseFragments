@@ -25,7 +25,8 @@ internal static class SparseObservableEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        string runtimeNamespace
+        string runtimeNamespace,
+        SparseDescriptorDialect? descriptorDialect
     )
     {
         var observable = ObservableTypeName(members);
@@ -129,6 +130,17 @@ internal static class SparseObservableEmitter
             AppendMember(code, member, members, runtimeNamespace);
         }
 
+        if (descriptorDialect is not null)
+        {
+            SparseObservableDescriptorEmitter.Append(
+                code,
+                modelType,
+                members,
+                runtimeNamespace,
+                descriptorDialect
+            );
+        }
+
         code.AppendLineAt(2, "internal void __SparseRefresh()");
         code.AppendLineAt(2, "{");
         foreach (
@@ -150,7 +162,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(1, "}");
     }
 
-    private static string ChildObservableType(SparseMemberModel member)
+    internal static string ChildObservableType(SparseMemberModel member)
     {
         var model = member.ChildModel!.Value;
         if (model.ObservableTypeName is not null)
@@ -220,7 +232,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(2, "}");
     }
 
-    private static bool IsObservableList(SparseMemberModel member)
+    internal static bool IsObservableList(SparseMemberModel member)
     {
         var type = member.Property.Type.NonNullableName;
         return member.Collection.ElementType.Name is not null
@@ -247,7 +259,7 @@ internal static class SparseObservableEmitter
             );
     }
 
-    private static bool IsObservableDictionary(SparseMemberModel member)
+    internal static bool IsObservableDictionary(SparseMemberModel member)
     {
         var type = member.Property.Type.NonNullableName;
         return member.Collection.ValueType is not null
@@ -271,7 +283,7 @@ internal static class SparseObservableEmitter
             );
     }
 
-    private static CollectionProxyNames CollectionNames(SparseMemberModel member)
+    internal static CollectionProxyNames CollectionNames(SparseMemberModel member)
     {
         var element = member.Collection.ElementType;
         var value = member.Collection.ValueType;
@@ -507,7 +519,7 @@ internal static class SparseObservableEmitter
             ? "item => item is null ? default! : item.__SparseTarget"
             : "static item => item";
 
-    private static string CollectionViewType(
+    internal static string CollectionViewType(
         SparseMemberModel member,
         CollectionProxyNames types,
         string runtimeNamespace
@@ -528,7 +540,7 @@ internal static class SparseObservableEmitter
                 + types.ViewType
                 + ">";
 
-    private static string ReplacementMethodName(
+    internal static string ReplacementMethodName(
         SparseMemberModel member,
         string prefix,
         ImmutableArray<SparseMemberModel> members
@@ -543,7 +555,7 @@ internal static class SparseObservableEmitter
         return candidate.ToString();
     }
 
-    private readonly record struct CollectionProxyNames(
+    internal readonly record struct CollectionProxyNames(
         string ModelType,
         string ViewType,
         bool HasElementProxy,

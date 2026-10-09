@@ -575,7 +575,8 @@ internal static class SparseModelDiscovery
             jsonPropertyName,
             hasExplicitJsonPropertyName,
             SparseJsonNaming.GetJsonIgnoreCondition(member.Property, cancellationToken),
-            IsNullableType(member.Property.Type)
+            IsNullableType(member.Property.Type),
+            SparseAttributeSource.FormatPropertyAttributes(member.Property)
         );
         SparseTypeModel? childModel = null;
         string? childFragmentType = null;

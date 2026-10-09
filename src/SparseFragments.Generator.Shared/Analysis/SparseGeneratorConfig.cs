@@ -29,7 +29,8 @@ internal sealed record SparseGeneratorConfig
         ImmutableArray<string> ProductExtensionNames = default,
         string? ComparisonAttributeMetadataName = null,
         string? EditSessionInterfaceMetadataName = null,
-        SparseEditSessionDialect? EditSessionDialect = null
+        SparseEditSessionDialect? EditSessionDialect = null,
+        SparseDescriptorDialect? DescriptorDialect = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -57,6 +58,7 @@ internal sealed record SparseGeneratorConfig
         this.ComparisonAttributeMetadataName = ComparisonAttributeMetadataName;
         this.EditSessionInterfaceMetadataName = EditSessionInterfaceMetadataName;
         this.EditSessionDialect = EditSessionDialect;
+        this.DescriptorDialect = DescriptorDialect;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -115,6 +117,9 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Product-owned names for the generated edit-session implementation.</summary>
     public SparseEditSessionDialect? EditSessionDialect { get; init; }
+
+    /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
+    public SparseDescriptorDialect? DescriptorDialect { get; init; }
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
@@ -318,6 +323,58 @@ internal sealed record SparseEditSessionDialect
 
     /// <summary>Hint name for the generated current-view edit-session helper source.</summary>
     public string CurrentCoreHintName { get; init; }
+}
+
+internal sealed record SparseDescriptorDialect
+{
+    public SparseDescriptorDialect(
+        string DescriptorInterface,
+        string DescriptorSetInterface,
+        string ArrayDescriptorInterface,
+        string DictionaryDescriptorInterface,
+        string DescriptorType,
+        string DescriptorSetType,
+        string ArrayDescriptorType,
+        string ArrayDescriptorAccessType,
+        string DictionaryDescriptorType,
+        string DictionaryDescriptorAccessType,
+        string DescriptorValueType
+    )
+    {
+        this.DescriptorInterface = DescriptorInterface;
+        this.DescriptorSetInterface = DescriptorSetInterface;
+        this.ArrayDescriptorInterface = ArrayDescriptorInterface;
+        this.DictionaryDescriptorInterface = DictionaryDescriptorInterface;
+        this.DescriptorType = DescriptorType;
+        this.DescriptorSetType = DescriptorSetType;
+        this.ArrayDescriptorType = ArrayDescriptorType;
+        this.ArrayDescriptorAccessType = ArrayDescriptorAccessType;
+        this.DictionaryDescriptorType = DictionaryDescriptorType;
+        this.DictionaryDescriptorAccessType = DictionaryDescriptorAccessType;
+        this.DescriptorValueType = DescriptorValueType;
+    }
+
+    public string DescriptorInterface { get; init; }
+
+    public string DescriptorSetInterface { get; init; }
+
+    public string ArrayDescriptorInterface { get; init; }
+
+    public string DictionaryDescriptorInterface { get; init; }
+
+    public string DescriptorType { get; init; }
+
+    public string DescriptorSetType { get; init; }
+
+    public string ArrayDescriptorType { get; init; }
+
+    public string ArrayDescriptorAccessType { get; init; }
+
+    public string DictionaryDescriptorType { get; init; }
+
+    public string DictionaryDescriptorAccessType { get; init; }
+
+    public string DescriptorValueType { get; init; }
 }
 
 internal readonly record struct SparseMergeModeMap

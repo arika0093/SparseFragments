@@ -92,6 +92,23 @@ public sealed class SparseObservableList<TModel, TView>
         }
     }
 
+    /// <summary>Replaces an element with a model value and raises one Replace notification.</summary>
+    public void SetModel(int index, TModel item)
+    {
+        ThrowIfDisposed();
+        var oldModel = _model[index];
+        Mutate(
+            () => _model[index] = item,
+            new NotifyCollectionChangedEventArgs(
+                NotifyCollectionChangedAction.Replace,
+                Wrap(item),
+                Wrap(oldModel),
+                index
+            ),
+            () => PruneRemoved(oldModel)
+        );
+    }
+
     /// <summary>Moves an element and raises one Move notification.</summary>
     public void Move(int oldIndex, int newIndex)
     {
