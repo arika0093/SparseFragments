@@ -234,6 +234,7 @@ Blazor extension methods:
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
+| `session.AddValidationError(store, fieldPath, message)` | Resolves `fieldPath` with `session.Field` and surfaces a message |
 
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
@@ -267,6 +268,11 @@ editContext.OnValidationRequested += (sender, _) =>
 Errors obtained elsewhere (for example structured rebase conflicts) surface
 the same way with
 `uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`.
+Fields resolved from the session keep working when they point at nested
+members, list elements, or dictionary values: the error is accepted as long as
+the field model is still reachable from the session model. Fields built from
+another model graph stay rejected. The `fieldPath` overload covers the same
+paths without passing a `FieldIdentifier` between graphs.
 The model type must be a reference type.
 
 A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.

@@ -160,6 +160,11 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Surfaces a validation message for a field belonging to this session's model.</summary>
+    /// <remarks>
+    /// Fields resolved from this session (root, nested, list-element, and
+    /// dictionary-value paths) are accepted when their model instance is still
+    /// reachable from the session model. Fields from unrelated graphs stay rejected.
+    /// </remarks>
     public static void AddValidationError<TModel>(
         this ISparseEditSession<TModel> session,
         ValidationMessageStore store,
@@ -171,7 +176,7 @@ public static class SparseEditSessionExtensions
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(message);
-        if (!ReferenceEquals(field.Model, session.Model))
+        if (!IsSessionOwnedField(session.Model, field.Model))
         {
             throw new ArgumentException(
                 "The field must belong to the session's model.",
@@ -180,6 +185,28 @@ public static class SparseEditSessionExtensions
         }
 
         store.Add(field, message);
+    }
+
+    /// <summary>Surfaces a validation message for a session model member path.</summary>
+    /// <remarks>
+    /// The path uses the same spelling as <see cref="Field{TModel}"/>, so nested,
+    /// indexed, and keyed members resolve without handing a <c>FieldIdentifier</c>
+    /// across model graphs.
+    /// </remarks>
+    public static void AddValidationError<TModel>(
+        this ISparseEditSession<TModel> session,
+        ValidationMessageStore store,
+        string fieldPath,
+        string message
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentException.ThrowIfNullOrEmpty(fieldPath);
+        ArgumentNullException.ThrowIfNull(message);
+
+        store.Add(session.Field(fieldPath), message);
     }
 
     private static void ValidateEditContext<TModel>(
@@ -289,4 +316,84 @@ public static class SparseEditSessionExtensions
 
     private static ArgumentException InvalidFieldPath(string path) =>
         new($"The field path '{path}' does not resolve to a public model member.", nameof(path));
+
+    private static bool IsSessionOwnedField(object sessionModel, object fieldModel)
+    {
+        if (ReferenceEquals(fieldModel, sessionModel))
+        {
+            return true;
+        }
+
+        // Reference walk over the live graph: everything reachable through public
+        // members and collections belongs to this session, while sibling graphs
+        // and detached instances are never visited.
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        var pending = new Stack<object>();
+        pending.Push(sessionModel);
+        visited.Add(sessionModel);
+        while (pending.Count > 0)
+        {
+            foreach (var child in EnumerateChildReferences(pending.Pop()))
+            {
+                if (ReferenceEquals(child, fieldModel))
+                {
+                    return true;
+                }
+
+                if (visited.Add(child))
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<object> EnumerateChildReferences(object parent)
+    {
+        foreach (
+            var property in parent
+                .GetType()
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+        )
+        {
+            if (!property.CanRead || property.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
+            var propertyChild = ToChildReference(property.GetValue(parent));
+            if (propertyChild is not null)
+            {
+                yield return propertyChild;
+            }
+        }
+
+        if (parent is IDictionary dictionary)
+        {
+            foreach (var value in dictionary.Values)
+            {
+                var valueChild = ToChildReference(value);
+                if (valueChild is not null)
+                {
+                    yield return valueChild;
+                }
+            }
+        }
+        else if (parent is IEnumerable enumerable and not string)
+        {
+            foreach (var element in enumerable)
+            {
+                var elementChild = ToChildReference(element);
+                if (elementChild is not null)
+                {
+                    yield return elementChild;
+                }
+            }
+        }
+    }
+
+    private static object? ToChildReference(object? value) =>
+        value is null or string || value.GetType().IsValueType ? null : value;
 }
