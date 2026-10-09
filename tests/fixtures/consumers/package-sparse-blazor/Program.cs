@@ -85,6 +85,8 @@ uiSession.AcceptChanges();
 DocsCheck.Require(!uiSession.HasChanges, "re-baselined");
 // /sample
 
+UiDocSamples.Run();
+
 Console.WriteLine("SparseFragments Blazor consumer passed.");
 
 static void Require(bool condition, string capability)
@@ -103,6 +105,112 @@ internal static class DocsCheck
         {
             throw new InvalidOperationException("Failed: " + capability);
         }
+    }
+}
+
+public static class UiDocSamples
+{
+    public static void Run()
+    {
+        SubmitRefreshAndConflict();
+        WpfObservableBinding();
+    }
+
+    private static void SubmitRefreshAndConflict()
+    {
+        // sample: ui-blazor-form
+        var formOrder = new BlazorDocsOrder { Number = "ORD-1" };
+        var formSession = formOrder.CreateEditSession();
+        var formContext = formSession.CreateEditContext();
+        var formStore = formSession.CreateValidationStore(formContext);
+        formContext.OnValidationRequested += (_, _) =>
+        {
+            formStore.Clear();
+            if (string.IsNullOrEmpty(formSession.Model.Number))
+            {
+                formStore.Add(
+                    formSession.Field(nameof(BlazorDocsOrder.Number)),
+                    "Number is required."
+                );
+            }
+        };
+
+        formSession.Model.Number = "ORD-2";
+        if (!formContext.Validate())
+        {
+            throw new InvalidOperationException("The form has validation errors.");
+        }
+
+        // Send formSession.CreateChangeSet().ToPayload() through the
+        // application transport. The server rebases it onto the current row:
+        // unchanged here, the server kept a newer Number instead.
+        var submitted = formSession.CreateChangeSet();
+        var serverState = new BlazorDocsOrder { Number = "SERVER" };
+        var surfacedConflicts = 0;
+        var surfacedPath = string.Empty;
+        if (!submitted.TryApplyTo(serverState, out _, out var formConflicts))
+        {
+            foreach (var formConflict in formConflicts)
+            {
+                formSession.AddValidationError(
+                    formStore,
+                    formConflict.PathText,
+                    "Server kept a newer value."
+                );
+                surfacedConflicts++;
+                surfacedPath = formConflict.PathText;
+            }
+        }
+
+        // surfacedConflicts == 1
+        // surfacedPath == "Number"
+        // The next save starts from the authoritative persisted state.
+        var persisted = new BlazorDocsOrder { Number = "ORD-2" };
+        formSession = persisted.CreateEditSession();
+        formContext = formSession.CreateEditContext();
+        // formSession.HasChanges == false
+        // /sample
+        DocsCheck.Require(
+            surfacedConflicts == 1 && surfacedPath == nameof(BlazorDocsOrder.Number),
+            "structured conflict names the member"
+        );
+        DocsCheck.Require(
+            !formSession.HasChanges,
+            "fresh session on persisted state is clean"
+        );
+    }
+
+    private static void WpfObservableBinding()
+    {
+        // sample: ui-wpf-session
+        var stockModel = new UiOrder { Number = "ORD-1" };
+        var saveEnabled = false;
+        var stockSession = stockModel.CreateEditSession(
+            onChanged: () =>
+            {
+                saveEnabled = true;
+            }
+        );
+        var stockView = stockSession.Observable;
+
+        stockView.Number = "ORD-2";
+        stockView.Items.AddModel(new UiOrderItem { Id = "line-1", Name = "First item" });
+        // saveEnabled == true
+        // stockModel.Number == "ORD-2"
+        // stockSession.Current.Number == "ORD-2"
+
+        var stockChanges = stockSession.CreateChangeSet();
+        // stockChanges.Number.After.Value == "ORD-2"
+        // /sample
+        DocsCheck.Require(saveEnabled, "observable edits raise the change callback");
+        DocsCheck.Require(
+            stockModel.Number == "ORD-2" && stockSession.Current.Number == "ORD-2",
+            "observable writes through to the live model behind the read-only view"
+        );
+        DocsCheck.Require(
+            stockChanges.Number.After.Value == "ORD-2",
+            "session derives the semantic transition"
+        );
     }
 }
 

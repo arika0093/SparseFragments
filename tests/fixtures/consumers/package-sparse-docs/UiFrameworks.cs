@@ -1,4 +1,5 @@
 using SparseFragments;
+using SparseFragments.Generated;
 
 // Canonical compile-checked mirror of docs/ui-frameworks.md (#48).
 // Covers the shared UI editing model: bind the session's generated Observable
@@ -14,6 +15,12 @@ public static class UiFrameworksSamples
         CurrentReflectsLiveObservableEdits();
         BatchEditGroupsNotificationsAndReverts();
         AdvancedInspectionUsesDescriptorsAndFlattenedChanges();
+        AcceptSubmittedAdvancesBaselineOnly();
+        ReloadKeepsPendingEdits();
+        ReloadConflictLeavesSessionUntouched();
+        RevertRestoresBaseline();
+        DescriptorFirst();
+        DescriptorChanges();
     }
 
     private static void ObservableCollectionBinding()
@@ -129,6 +136,182 @@ public static class UiFrameworksSamples
             "changed paths list the member"
         );
     }
+
+    private static void AcceptSubmittedAdvancesBaselineOnly()
+    {
+        // sample: ui-accept-flow
+        var orderModel = new UiOrder { Number = "a" };
+        var orderSession = orderModel.CreateEditSession();
+
+        orderSession.Observable.Number = "b";
+        var submitted = orderSession.CreateChangeSet();
+
+        // The server persisted the submitted transition unchanged,
+        // and the user kept typing while the save was in flight.
+        orderSession.Observable.Number = "c";
+        orderSession.AcceptChanges(submitted);
+        // orderSession.HasChanges == true
+        // orderSession.CreateChangeSet() carries only Number "b" -> "c"
+
+        // When the server returns the authoritative state instead, start over from it.
+        var persisted = new UiOrder { Number = "b" };
+        var freshSession = persisted.CreateEditSession();
+        // freshSession.HasChanges == false
+        // /sample
+        DocsCheck.Require(orderSession.HasChanges, "later edits stay pending");
+        var pending = orderSession.CreateChangeSet();
+        DocsCheck.Require(
+            pending.Number.Before.Value == "b" && pending.Number.After.Value == "c",
+            "baseline advanced by the submitted transition"
+        );
+        DocsCheck.Require(!freshSession.HasChanges, "fresh session on persisted state is clean");
+    }
+
+    private static void ReloadKeepsPendingEdits()
+    {
+        // sample: ui-reload
+        var reloadModel = new UiOrder { Number = "base" };
+        var reloadSession = reloadModel.CreateEditSession();
+        reloadSession.Observable.Number = "local";
+        var serverState = new UiOrder
+        {
+            Number = "base",
+            Items = [new UiOrderItem { Id = "line-1", Name = "First item" }],
+        };
+
+        var reload = reloadSession.Reload(serverState);
+        // reload.HasConflicts == false
+        // reloadSession.Model.Number == "local"
+        // reloadSession.Model.Items.Count == 1
+        // reloadSession.HasChanges == true
+        // /sample
+        DocsCheck.Require(!reload.HasConflicts, "disjoint server state merges cleanly");
+        DocsCheck.Require(
+            ReferenceEquals(reloadSession.Model, reloadModel),
+            "reload keeps the live model instance"
+        );
+        DocsCheck.Require(
+            reloadSession.Model.Number == "local" && reloadSession.Model.Items.Count == 1,
+            "pending edit kept and server state adopted"
+        );
+        var pending = reloadSession.CreateChangeSet();
+        DocsCheck.Require(
+            pending.Number.Before.Value == "base" && pending.Number.After.Value == "local",
+            "server state becomes the new baseline"
+        );
+    }
+
+    private static void ReloadConflictLeavesSessionUntouched()
+    {
+        // sample: ui-reload-conflict
+        var conflictModel = new UiOrder { Number = "base" };
+        var conflictSession = conflictModel.CreateEditSession();
+        conflictSession.Observable.Number = "local";
+        var conflictingServer = new UiOrder { Number = "server" };
+
+        var conflicted = conflictSession.Reload(conflictingServer);
+        // conflicted.HasConflicts == true
+        // conflictSession.Model.Number == "local"
+        // conflictSession.HasChanges == true
+        // /sample
+        DocsCheck.Require(conflicted.HasConflicts, "overlapping edit reports a conflict");
+        DocsCheck.Require(
+            conflicted.Conflicts.Single().PathText == nameof(UiOrder.Number),
+            "conflict names the member"
+        );
+        DocsCheck.Require(
+            conflictSession.Model.Number == "local" && conflictSession.HasChanges,
+            "conflicted reload leaves the live model and baseline untouched"
+        );
+    }
+
+    private static void RevertRestoresBaseline()
+    {
+        // sample: ui-revert
+        var revertModel = new UiOrder { Number = "a" };
+        var revertSession = revertModel.CreateEditSession();
+        revertSession.Observable.Number = "b";
+
+        var reverted = revertSession.TryRevertChanges(out var revertConflicts);
+        // reverted == true
+        // revertConflicts is null
+        // revertModel.Number == "a"
+        // revertSession.HasChanges == false
+        // /sample
+        DocsCheck.Require(reverted, "mutable edits revert in place");
+        DocsCheck.Require(revertConflicts is null, "clean revert reports no conflicts");
+        DocsCheck.Require(
+            revertModel.Number == "a" && !revertSession.HasChanges,
+            "revert restores the baseline value"
+        );
+    }
+
+    private static void DescriptorFirst()
+    {
+        // sample: ui-descriptor-first
+        var catalogModel = new UiOrder { Number = "a" };
+        var catalogSession = catalogModel.CreateEditSession();
+
+        var found = catalogSession.Descriptors.TryGet("Number", out var title);
+        // found == true
+        // title.Name == "Number"
+        // title.GetValue() is "a"
+        var metadata = (ISparsePropertyMetadata)title;
+        // metadata.DeclaredType == typeof(string)
+        // metadata.IsNullable == false
+
+        var renamed = title.TrySetValue("b");
+        // renamed == true
+        // catalogModel.Number == "b"
+
+        var items = catalogSession.Descriptors.TryGet("Items", out var itemsDescriptor);
+        // items == true
+        var added = itemsDescriptor.Array!.TryAdd(new UiOrderItem { Id = "a", Name = "first" });
+        // added == true
+        // catalogModel.Items.Count == 1
+        // /sample
+        DocsCheck.Require(found && title.Name == "Number", "descriptor lookup by member name");
+        DocsCheck.Require(title.GetValue() is "b", "descriptor reads the live value");
+        DocsCheck.Require(
+            metadata.DeclaredType == typeof(string) && !metadata.IsNullable,
+            "static metadata describes the declared member"
+        );
+        DocsCheck.Require(
+            renamed && catalogModel.Number == "b",
+            "descriptor writes the live model"
+        );
+        DocsCheck.Require(
+            items && added && catalogModel.Items.Count == 1,
+            "collection descriptor mutates through the observable view"
+        );
+    }
+
+    private static void DescriptorChanges()
+    {
+        // sample: ui-descriptor-changes
+        var logModel = new UiOrder { Number = "a" };
+        var logSession = logModel.CreateEditSession();
+        logSession.Observable.Number = "b";
+
+        var rows = logSession.CreateChangeSet().EnumerateChanges().ToList();
+        // rows.Count == 1
+        // rows[0].Path == "Number"
+        // rows[0].Kind reports an edited value
+        // logSession.EnumerateChangedPaths() lists "Number"
+        // /sample
+        DocsCheck.Require(
+            rows.Count == 1 && rows[0].Path == nameof(UiOrder.Number),
+            "flattened enumeration names the changed path"
+        );
+        DocsCheck.Require(
+            rows[0].Kind.ToString() == "Changed",
+            "flattened enumeration classifies the edit"
+        );
+        DocsCheck.Require(
+            logSession.EnumerateChangedPaths().SequenceEqual(new[] { nameof(UiOrder.Number) }),
+            "changed paths list the member"
+        );
+    }
 }
 
 [SparseFragmentModel]
@@ -155,3 +338,21 @@ public partial class UiWidgetItem
 
     public string Name { get; set; } = string.Empty;
 }
+
+// sample: ui-descriptor-models
+[SparseFragmentModel]
+public partial class UiOrder
+{
+    public string Number { get; set; } = string.Empty;
+
+    public List<UiOrderItem> Items { get; set; } = new();
+}
+
+public partial class UiOrderItem
+{
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+}
+// /sample

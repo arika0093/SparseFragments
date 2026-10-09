@@ -147,7 +147,11 @@ check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloa
     payload-nested payload-keyed payload-command payload-conversions payload-mixed \
     payload-invert payload-version
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
-    ui-session-models ui-session
+    ui-session-models ui-session ui-blazor-form ui-wpf-session
+check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+    ui-accept-flow ui-reload ui-reload-conflict ui-revert
+check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+    ui-descriptor-models ui-descriptor-first ui-descriptor-changes
 
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
@@ -169,6 +173,7 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     docs/cloning-and-ownership.md \
     docs/model-shapes.md \
     docs/ui-frameworks.md \
+    docs/descriptors.md \
     docs/fragments-and-patches.md \
     docs/change-payload.md \
     docs/analyzer.md; then
