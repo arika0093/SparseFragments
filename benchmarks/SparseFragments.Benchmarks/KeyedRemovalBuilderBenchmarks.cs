@@ -7,6 +7,8 @@ public enum KeyedRemovalBuilderShape
     Duplicate,
     RemoveAddRemove,
     Mixed,
+    AddOnly,
+    EditOnly,
 }
 
 [MemoryDiagnoser]
@@ -38,10 +40,14 @@ public class KeyedRemovalBuilderBenchmarks
             .Select(index => new BenchValueKeyedItem { Id = index, Count = index })
             .ToArray();
         var referenceBase = Optional<BenchKeyedServerHolder.Fragment?>.Present(
-            BenchKeyedServerHolder.Fragment.From(new() { Items = [.. _servers] })
+            BenchKeyedServerHolder.Fragment.From(
+                new() { Items = Shape == KeyedRemovalBuilderShape.AddOnly ? [] : [.. _servers] }
+            )
         );
         var valueBase = Optional<BenchValueKeyedHolder.Fragment?>.Present(
-            BenchValueKeyedHolder.Fragment.From(new() { Items = [.. _values] })
+            BenchValueKeyedHolder.Fragment.From(
+                new() { Items = Shape == KeyedRemovalBuilderShape.AddOnly ? [] : [.. _values] }
+            )
         );
         var referencePatch = ReferenceBuild();
         var valuePatch = ValueBuild();
@@ -49,9 +55,11 @@ public class KeyedRemovalBuilderBenchmarks
         var valueResult = valuePatch.Apply(valueBase).Value!.Items.Value!;
         var cancel = Shape == KeyedRemovalBuilderShape.RemoveAddRemove;
         var mixed = Shape == KeyedRemovalBuilderShape.Mixed;
+        var added = Shape == KeyedRemovalBuilderShape.AddOnly;
+        var edited = mixed || Shape == KeyedRemovalBuilderShape.EditOnly;
         var offset = mixed ? Size / 2 : 0;
         var expected =
-            cancel ? Size
+            cancel || added || Shape == KeyedRemovalBuilderShape.EditOnly ? Size
             : mixed ? Size - offset
             : 0;
         if (
@@ -59,8 +67,8 @@ public class KeyedRemovalBuilderBenchmarks
             || valuePatch.IsEmpty != cancel
             || referenceResult.Count != expected
             || valueResult.Count != expected
-            || referenceBase.Value!.Items.Value!.Count != Size
-            || valueBase.Value!.Items.Value!.Count != Size
+            || referenceBase.Value!.Items.Value!.Count != (added ? 0 : Size)
+            || valueBase.Value!.Items.Value!.Count != (added ? 0 : Size)
         )
         {
             throw new InvalidOperationException(
@@ -71,8 +79,8 @@ public class KeyedRemovalBuilderBenchmarks
         {
             if (
                 _servers[index].Count != index
-                || referenceBase.Value!.Items.Value![index].Count != index
-                || valueBase.Value!.Items.Value![index].Count != index
+                || (!added && referenceBase.Value!.Items.Value![index].Count != index)
+                || (!added && valueBase.Value!.Items.Value![index].Count != index)
             )
             {
                 throw new InvalidOperationException(
@@ -83,7 +91,7 @@ public class KeyedRemovalBuilderBenchmarks
         for (var index = 0; index < expected; index++)
         {
             var source = index + offset;
-            var count = source + (mixed ? 1 : 0);
+            var count = source + (edited ? 1 : 0);
             if (
                 referenceResult[index].Id != _servers[source].Id
                 || valueResult[index].Id != source
@@ -108,6 +116,69 @@ public class KeyedRemovalBuilderBenchmarks
         }
         RequireRemovedRejection(() => removedReference.Items.Edit(_servers[0].Id));
         RequireRemovedRejection(() => removedValue.Items.Edit(_values[0].Id));
+        ValidateRemovalReinsertion();
+    }
+
+    private static void ValidateRemovalReinsertion()
+    {
+        var reference = new BenchKeyedServerHolder.Patch();
+        var value = new BenchValueKeyedHolder.Patch();
+        var keys = new List<string>();
+        for (var candidate = 0; keys.Count < 64; candidate++)
+        {
+            var key = "probe-" + candidate;
+            if ((EqualityComparer<string>.Default.GetHashCode(key) & 127) == 0)
+            {
+                keys.Add(key);
+            }
+        }
+        var servers = keys.Select((key, index) => new BenchKeyedServer { Id = key, Count = index })
+            .ToList();
+        var values = Enumerable
+            .Range(0, 64)
+            .Select(index => new BenchValueKeyedItem { Id = index * 128, Count = index })
+            .ToList();
+        for (var index = 0; index < 64; index++)
+        {
+            reference.Items.Remove(keys[index]);
+            value.Items.Remove(values[index].Id);
+        }
+        foreach (var key in keys)
+        {
+            RequireRemovedRejection(() => reference.Items.Edit(key));
+        }
+        foreach (var item in values)
+        {
+            RequireRemovedRejection(() => value.Items.Edit(item.Id));
+        }
+        reference.Items.Add(servers[0]);
+        value.Items.Add(values[0]);
+        RequireRemovedRejection(() => reference.Items.Edit(keys[1]));
+        RequireRemovedRejection(() => value.Items.Edit(values[1].Id));
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            reference.Items.Remove(keys[0]);
+            value.Items.Remove(values[0].Id);
+        }
+        RequireRemovedRejection(() => reference.Items.Edit(keys[0]));
+        RequireRemovedRejection(() => value.Items.Edit(values[0].Id));
+        var referenceBase = Optional<BenchKeyedServerHolder.Fragment?>.Present(
+            BenchKeyedServerHolder.Fragment.From(new() { Items = servers })
+        );
+        var valueBase = Optional<BenchValueKeyedHolder.Fragment?>.Present(
+            BenchValueKeyedHolder.Fragment.From(new() { Items = values })
+        );
+        if (
+            reference.Apply(referenceBase).Value!.Items.Value!.Count != 0
+            || value.Apply(valueBase).Value!.Items.Value!.Count != 0
+            || servers.Count != 64
+            || values.Count != 64
+        )
+        {
+            throw new InvalidOperationException(
+                "Colliding keyed removals must support cancellation, reinsertion and deduplication."
+            );
+        }
     }
 
     private static void RequireRemovedRejection(Action action)
@@ -127,7 +198,7 @@ public class KeyedRemovalBuilderBenchmarks
     public BenchKeyedServerHolder.Patch ReferenceBuild()
     {
         var patch = new BenchKeyedServerHolder.Patch();
-        var removed = Shape == KeyedRemovalBuilderShape.Mixed ? Size / 2 : Size;
+        var removed = RemovalCount;
         for (var index = 0; index < removed; index++)
         {
             patch.Items.Remove(_servers[index].Id);
@@ -136,18 +207,21 @@ public class KeyedRemovalBuilderBenchmarks
                 patch.Items.Remove(_servers[index].Id);
             }
         }
-        if (Shape == KeyedRemovalBuilderShape.RemoveAddRemove)
+        if (Shape is KeyedRemovalBuilderShape.RemoveAddRemove or KeyedRemovalBuilderShape.AddOnly)
         {
             foreach (var server in _servers)
             {
                 patch.Items.Add(server);
             }
+        }
+        if (Shape == KeyedRemovalBuilderShape.RemoveAddRemove)
+        {
             foreach (var server in _servers)
             {
                 patch.Items.Remove(server.Id);
             }
         }
-        if (Shape == KeyedRemovalBuilderShape.Mixed)
+        if (Shape is KeyedRemovalBuilderShape.Mixed or KeyedRemovalBuilderShape.EditOnly)
         {
             for (var index = removed; index < Size; index++)
             {
@@ -161,7 +235,7 @@ public class KeyedRemovalBuilderBenchmarks
     public BenchValueKeyedHolder.Patch ValueBuild()
     {
         var patch = new BenchValueKeyedHolder.Patch();
-        var removed = Shape == KeyedRemovalBuilderShape.Mixed ? Size / 2 : Size;
+        var removed = RemovalCount;
         for (var index = 0; index < removed; index++)
         {
             patch.Items.Remove(_values[index].Id);
@@ -170,18 +244,21 @@ public class KeyedRemovalBuilderBenchmarks
                 patch.Items.Remove(_values[index].Id);
             }
         }
-        if (Shape == KeyedRemovalBuilderShape.RemoveAddRemove)
+        if (Shape is KeyedRemovalBuilderShape.RemoveAddRemove or KeyedRemovalBuilderShape.AddOnly)
         {
             foreach (var value in _values)
             {
                 patch.Items.Add(value);
             }
+        }
+        if (Shape == KeyedRemovalBuilderShape.RemoveAddRemove)
+        {
             foreach (var value in _values)
             {
                 patch.Items.Remove(value.Id);
             }
         }
-        if (Shape == KeyedRemovalBuilderShape.Mixed)
+        if (Shape is KeyedRemovalBuilderShape.Mixed or KeyedRemovalBuilderShape.EditOnly)
         {
             for (var index = removed; index < Size; index++)
             {
@@ -190,4 +267,12 @@ public class KeyedRemovalBuilderBenchmarks
         }
         return patch;
     }
+
+    private int RemovalCount =>
+        Shape switch
+        {
+            KeyedRemovalBuilderShape.Mixed => Size / 2,
+            KeyedRemovalBuilderShape.AddOnly or KeyedRemovalBuilderShape.EditOnly => 0,
+            _ => Size,
+        };
 }
