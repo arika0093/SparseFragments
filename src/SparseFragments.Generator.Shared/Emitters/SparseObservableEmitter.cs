@@ -371,7 +371,7 @@ internal static class SparseObservableEmitter
                 + literal
                 + "); if (__onChanged is not null) __onChanged(); }, "
                 + (types.HasElementProxy ? "true" : "false")
-                + "); }"
+                + ", __onRawModelAccess); }"
         );
         code.AppendLineAt(4, "return __view_" + member.Id + "!;");
         code.AppendLineAt(3, "}");
@@ -474,7 +474,7 @@ internal static class SparseObservableEmitter
                 + literal
                 + "); if (__onChanged is not null) __onChanged(); }, "
                 + (types.HasElementProxy ? "true" : "false")
-                + "); }"
+                + ", __onRawModelAccess); }"
         );
         code.AppendLineAt(4, "return __view_" + member.Id + "!;");
         code.AppendLineAt(3, "}");

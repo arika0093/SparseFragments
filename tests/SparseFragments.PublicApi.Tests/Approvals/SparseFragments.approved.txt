@@ -264,13 +264,14 @@ namespace SparseFragments
     public sealed class SparseObservableDictionary<TKey, TModel, TView> : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IDictionary<TKey, TView>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<TKey, TView>>, System.Collections.Generic.IReadOnlyDictionary<TKey, TView>, System.Collections.IEnumerable, System.Collections.Specialized.INotifyCollectionChanged, System.ComponentModel.INotifyPropertyChanged, System.IDisposable
         where TKey :  notnull
     {
-        public SparseObservableDictionary(System.Collections.Generic.IDictionary<TKey, TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false) { }
+        public SparseObservableDictionary(System.Collections.Generic.IDictionary<TKey, TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false, System.Action? onRawModelAccess = null) { }
         public int Count { get; }
         public bool IsDisposed { get; }
         public bool IsReadOnly { get; }
         public TView this[TKey key] { get; set; }
         public System.Collections.Generic.ICollection<TKey> Keys { get; }
         public System.Collections.Generic.IDictionary<TKey, TModel> Model { get; }
+        public System.Collections.Generic.IDictionary<TKey, TModel> UnsafeModel { get; }
         public System.Collections.Generic.ICollection<TView> Values { get; }
         public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged;
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -290,12 +291,13 @@ namespace SparseFragments
     }
     public sealed class SparseObservableList<TModel, TView> : System.Collections.Generic.ICollection<TView>, System.Collections.Generic.IEnumerable<TView>, System.Collections.Generic.IList<TView>, System.Collections.Generic.IReadOnlyCollection<TView>, System.Collections.Generic.IReadOnlyList<TView>, System.Collections.ICollection, System.Collections.IEnumerable, System.Collections.IList, System.Collections.Specialized.INotifyCollectionChanged, System.ComponentModel.INotifyPropertyChanged, System.IDisposable
     {
-        public SparseObservableList(System.Collections.Generic.IList<TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false) { }
+        public SparseObservableList(System.Collections.Generic.IList<TModel> model, System.Func<TModel, System.Action, TView> wrap, System.Func<TView, TModel> unwrap, System.Action onChanged, bool cacheReferences = false, System.Action? onRawModelAccess = null) { }
         public int Count { get; }
         public bool IsDisposed { get; }
         public bool IsReadOnly { get; }
         public TView this[int index] { get; set; }
         public System.Collections.Generic.IList<TModel> Model { get; }
+        public System.Collections.Generic.IList<TModel> UnsafeModel { get; }
         public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged;
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         public void Add(TView item) { }
