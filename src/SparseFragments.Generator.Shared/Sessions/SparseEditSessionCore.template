@@ -626,17 +626,30 @@ namespace __SESSION_NAMESPACE__
             // baseline still advances. Probe that drift first: applying it is
             // side-effect-free, so a reported conflict leaves both the live model
             // and the retained baseline untouched.
-            var drift = _between(
-                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model)),
-                __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(applied.Updated))
-            );
-            if (!_isEmpty(drift))
+            // The live model may legitimately hold invalid keyed state at reload
+            // time (e.g. a draft row with an unassigned sentinel key awaiting a
+            // server assignment). Such state cannot be diffed as a probe baseline,
+            // so skip the drift check and fall through to the normal write path
+            // instead of reporting immutable drift.
+            try
             {
-                var probe = _tryApplyTo(drift, _model);
-                if (probe.Conflicts is not null)
+                var drift = _between(
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model)),
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(applied.Updated))
+                );
+                if (!_isEmpty(drift))
                 {
-                    return new __REBASE_RESULT_TYPE__(rebased.Rebased, probe.Conflicts);
+                    var probe = _tryApplyTo(drift, _model);
+                    if (probe.Conflicts is not null)
+                    {
+                        return new __REBASE_RESULT_TYPE__(rebased.Rebased, probe.Conflicts);
+                    }
                 }
+            }
+            catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
+            {
+                // The probe baseline cannot be diffed; the normal write path below
+                // still picks up the server state while keeping the sentinel pending.
             }
 
             _writeModel(_model, applied.Updated);
