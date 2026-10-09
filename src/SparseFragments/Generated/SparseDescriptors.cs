@@ -85,7 +85,8 @@ public sealed class SparseDescriptor : IDescriptor
         Func<IDictDescriptor?>? getDictionary = null,
         Type? viewType = null,
         Func<ISetDescriptor?>? getSet = null,
-        SparseDescriptorShape? shape = null
+        SparseDescriptorShape? shape = null,
+        bool isRequired = false
     )
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -99,6 +100,7 @@ public sealed class SparseDescriptor : IDescriptor
         _getDictionary = getDictionary;
         _getSet = getSet;
         Shape = shape ?? new SparseDescriptorShape();
+        IsRequired = isRequired;
         Name = name;
         Path = path;
         Type = type;
@@ -123,6 +125,9 @@ public sealed class SparseDescriptor : IDescriptor
 
     /// <inheritdoc />
     public bool IsNullable { get; }
+
+    /// <inheritdoc />
+    public bool IsRequired { get; }
 
     /// <inheritdoc />
     public bool IsEditable { get; }
@@ -186,6 +191,8 @@ public sealed class SparseDescriptor : IDescriptor
         public Type ViewType => _inner.ViewType;
 
         public bool IsNullable => _inner.IsNullable;
+
+        public bool IsRequired => _inner.IsRequired;
 
         public bool IsEditable => _inner.IsEditable;
 

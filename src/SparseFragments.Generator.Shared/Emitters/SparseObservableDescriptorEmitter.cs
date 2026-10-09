@@ -99,6 +99,8 @@ internal static class SparseObservableDescriptorEmitter
                 + SetAccessor(member, dialect)
                 + ", "
                 + ShapeExpression(member, dialect)
+                + ", "
+                + (member.Property.IsRequired ? "true" : "false")
                 + "),"
         );
     }

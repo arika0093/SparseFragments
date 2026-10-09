@@ -33,6 +33,15 @@ public interface IDescriptor
     /// <summary>Gets whether the property accepts null.</summary>
     bool IsNullable { get; }
 
+    /// <summary>Gets whether the property is a C# required member.</summary>
+    /// <remarks>
+    /// Independent of <see cref="IsNullable"/> (a required member may be
+    /// nullable) and of validation attributes such as <c>RequiredAttribute</c>
+    /// (see <see cref="Attributes"/>): it reports the <c>required</c> keyword
+    /// for creation forms. Editing existing instances is unaffected.
+    /// </remarks>
+    bool IsRequired { get; }
+
     /// <summary>Gets whether the property itself can be replaced.</summary>
     bool IsEditable { get; }
 
