@@ -107,6 +107,16 @@ public sealed class GeneratedApiApprovalTests
         );
         metadataElementType.ShouldBe(metadataViewType);
         metadataViewType.GetProperty(nameof(CatalogPoco.Label)).ShouldNotBeNull();
+
+        var keyEntriesType = nestedReadOnlyView
+            .GetProperty(nameof(CatalogNested.MetadataByKey))!
+            .PropertyType;
+        keyEntriesType
+            .GetGenericTypeDefinition()
+            .ShouldBe(typeof(System.Collections.Generic.IReadOnlyCollection<>));
+        var entryKeyType = keyEntriesType.GetGenericArguments()[0].GetGenericArguments()[0];
+        entryKeyType.ShouldNotBe(typeof(CatalogPoco));
+        entryKeyType.GetProperty(nameof(CatalogPoco.Label)).ShouldNotBeNull();
     }
 
     [Test]

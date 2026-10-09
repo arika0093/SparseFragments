@@ -44,6 +44,43 @@ public sealed class NeutralSessionAtomicPoco
 }
 
 [SparseFragmentModel]
+public partial class NeutralSessionUnconstructablePocoModel
+{
+    [SparseMerge(MergeMode.Replace)]
+    [SparseCloneReferenceSafe]
+    public NeutralSessionUnconstructablePoco? Atomic { get; set; }
+
+    [SparseMerge(MergeMode.Replace)]
+    [SparseCloneReferenceSafe]
+    public Dictionary<NeutralSessionUnconstructablePoco, string> ByKey { get; set; } = [];
+
+    [SparseMerge(MergeMode.Replace)]
+    [SparseCloneReferenceSafe]
+    public object? Opaque { get; set; }
+}
+
+public sealed class NeutralSessionUnconstructablePoco
+{
+    private NeutralSessionUnconstructablePoco(
+        string label,
+        NeutralSessionUnconstructablePoco? nested
+    )
+    {
+        Label = label;
+        Nested = nested;
+    }
+
+    public string Label { get; }
+
+    public NeutralSessionUnconstructablePoco? Nested { get; }
+
+    public static NeutralSessionUnconstructablePoco Create(
+        string label,
+        NeutralSessionUnconstructablePoco? nested = null
+    ) => new(label, nested);
+}
+
+[SparseFragmentModel]
 public partial class ImmutableSessionModel
 {
     public string Name { get; init; } = string.Empty;
@@ -584,6 +621,37 @@ public sealed class NeutralEditSessionTests
         atomic.Label.ShouldBe("updated");
         model.Atomic = null;
         session.Current.Atomic.ShouldBeNull();
+    }
+
+    [Test]
+    public void CurrentWrapsUnconstructableNestedPocosAndDictionaryKeys()
+    {
+        var atomic = NeutralSessionUnconstructablePoco.Create(
+            "atomic",
+            NeutralSessionUnconstructablePoco.Create("nested")
+        );
+        var key = NeutralSessionUnconstructablePoco.Create("key");
+        var model = new NeutralSessionUnconstructablePocoModel
+        {
+            Atomic = atomic,
+            ByKey = new Dictionary<NeutralSessionUnconstructablePoco, string> { [key] = "value" },
+            Opaque = atomic,
+        };
+        var session = model.CreateEditSession();
+        var atomicView = session.Current.Atomic!.Value;
+        var nestedView = atomicView.Nested!.Value;
+        var entry = session.Current.ByKey.Single();
+        var opaque = session.Current.Opaque!.Value;
+
+        atomicView.Label.ShouldBe("atomic");
+        nestedView.Label.ShouldBe("nested");
+        entry.Key.Label.ShouldBe("key");
+        entry.Value.ShouldBe("value");
+        atomicView.GetType().ShouldNotBe(typeof(NeutralSessionUnconstructablePoco));
+        nestedView.GetType().ShouldNotBe(typeof(NeutralSessionUnconstructablePoco));
+        entry.Key.GetType().ShouldNotBe(typeof(NeutralSessionUnconstructablePoco));
+        opaque.HasValue.ShouldBeTrue();
+        opaque.GetType().ShouldNotBe(typeof(NeutralSessionUnconstructablePoco));
     }
 
     [Test]

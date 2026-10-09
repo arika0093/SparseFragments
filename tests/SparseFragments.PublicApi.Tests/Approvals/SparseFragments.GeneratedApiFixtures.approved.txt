@@ -1104,6 +1104,8 @@ namespace SparseFragments.GeneratedApiFixtures
         [SparseFragments.SparseMerge(SparseFragments.MergeMode.Replace)]
         public SparseFragments.GeneratedApiFixtures.CatalogPoco? Metadata { get; set; }
         [SparseFragments.SparseMerge(SparseFragments.MergeMode.Replace)]
+        public System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string> MetadataByKey { get; set; }
+        [SparseFragments.SparseMerge(SparseFragments.MergeMode.Replace)]
         public System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?> MetadataItems { get; set; }
         public SparseFragments.GeneratedApiFixtures.CatalogNested DeepClone() { }
         [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
@@ -1128,6 +1130,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet Maybe { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.MetadataTransition Metadata { get; }
+            [System.Text.Json.Serialization.JsonIgnore]
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.MetadataByKeyTransition MetadataByKey { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.MetadataItemsTransition MetadataItems { get; }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested current, SparseFragments.ChangePayloadRebaseOptions? options = null) { }
@@ -1154,6 +1158,12 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> Before { get; }
                 public bool IsChanged { get; }
             }
+            public readonly struct MetadataByKeyTransition
+            {
+                public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> After { get; }
+                public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> Before { get; }
+                public bool IsChanged { get; }
+            }
             public readonly struct MetadataItemsTransition
             {
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>> After { get; }
@@ -1175,6 +1185,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool IsEmpty { get; }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> Maybe { get; init; }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogPoco?> Metadata { get; init; }
+            public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> MetadataByKey { get; init; }
             public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>> MetadataItems { get; init; }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment> JsonConverter { get; }
@@ -1203,6 +1214,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<>& Children { get; }
             public SparseFragments.Optional<>& Maybe { get; }
             public SparseFragments.Optional<>& Metadata { get; }
+            public SparseFragments.Optional<>& MetadataByKey { get; }
             public SparseFragments.Optional<>& MetadataItems { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Build() { }
         }
@@ -1213,10 +1225,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseObservableList<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable> Children { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable? Maybe { get; set; }
             public SparseFragments.GeneratedApiFixtures.CatalogPoco? Metadata { get; set; }
+            public SparseFragments.SparseObservableDictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string, string> MetadataByKey { get; }
             public SparseFragments.SparseObservableList<SparseFragments.GeneratedApiFixtures.CatalogPoco?, SparseFragments.GeneratedApiFixtures.CatalogPoco?> MetadataItems { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested Model { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public void ReplaceChildren(System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar> value) { }
+            public void ReplaceMetadataByKey(System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string> value) { }
             public void ReplaceMetadataItems(System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?> value) { }
         }
         public sealed class Patch
@@ -1228,6 +1242,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool IsEmpty { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch Maybe { get; set; }
             public SparseFragments.FragmentOperation<>& Metadata { get; }
+            public SparseFragments.FragmentOperation<>& MetadataByKey { get; }
             public SparseFragments.FragmentOperation<>& MetadataItems { get; }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> Apply(SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment?> current) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch.ApplyInPlaceResult ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested current) { }
@@ -1254,6 +1269,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView> Children { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView? Maybe { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView.@__SparseReadOnlyPoco_CatalogPoco_FB11B090? Metadata { get; }
+            public System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView.@__SparseReadOnlyPoco_CatalogPoco_FB11B090, string>> MetadataByKey { get; }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView.@__SparseReadOnlyPoco_CatalogPoco_FB11B090?> MetadataItems { get; }
             public readonly struct @__SparseReadOnlyPoco_CatalogPoco_FB11B090
             {
@@ -1265,7 +1281,8 @@ namespace SparseFragments.GeneratedApiFixtures
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange1), "Children")]
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange2), "Maybe")]
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange3), "Metadata")]
-        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4), "MetadataItems")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4), "MetadataByKey")]
+        [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5), "MetadataItems")]
         [System.Text.Json.Serialization.JsonDerivedType(typeof(SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadRootChange), "$root")]
         [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName="member")]
         public abstract class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
@@ -1331,6 +1348,22 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
         {
             public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange4() { }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("after")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(1)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? After { get; set; }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("before")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Before { get; set; }
+            [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+            [System.Text.Json.Serialization.JsonPropertyName("value")]
+            [System.Text.Json.Serialization.JsonPropertyOrder(0)]
+            public SparseFragments.ChangePayloadEndpoint<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>? Value { get; set; }
+        }
+        public sealed class SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5 : SparseFragments.GeneratedApiFixtures.CatalogNested.SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange
+        {
+            public SparseFragments_GeneratedApiFixtures_CatalogNestedChangePayloadChange5() { }
             [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
             [System.Text.Json.Serialization.JsonPropertyName("after")]
             [System.Text.Json.Serialization.JsonPropertyOrder(1)]

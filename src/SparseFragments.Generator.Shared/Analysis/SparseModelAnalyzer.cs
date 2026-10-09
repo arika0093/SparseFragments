@@ -166,6 +166,11 @@ internal static class SparseModelAnalyzer
                 SparseModelDiscovery.CreatePocoCloneModel(pocoType, config, cancellationToken)
             )
             .ToImmutableArray();
+        var readOnlyViewModels = SparseReadOnlyViewModelDiscovery.GetReadOnlyViewModels(
+            members,
+            config,
+            cancellationToken
+        );
         var structuralModels = SparseModelDiscovery
             .CollectStructuralTypes(members, config, cancellationToken)
             .Select(type =>
@@ -201,7 +206,8 @@ internal static class SparseModelAnalyzer
             pocoCloneModels,
             structuralModels,
             capabilityDiagnostics,
-            promotedModels
+            promotedModels,
+            readOnlyViewModels
         );
     }
 

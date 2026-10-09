@@ -15,6 +15,7 @@ internal static class SparseFragmentEmitter
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
@@ -31,6 +32,7 @@ internal static class SparseFragmentEmitter
             model,
             members,
             pocoCloneModels,
+            readOnlyViewModels,
             structuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
@@ -52,6 +54,7 @@ internal static class SparseFragmentEmitter
             promoted.Model,
             promoted.Members,
             promoted.PocoCloneModels,
+            promoted.ReadOnlyViewModels,
             promoted.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
@@ -78,6 +81,7 @@ internal static class SparseFragmentEmitter
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
         ImmutableArray<SparseStructuralModel> structuralModels,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
@@ -241,7 +245,12 @@ internal static class SparseFragmentEmitter
                     runtime.Namespace
                 );
             }
-            SparseReadOnlyViewEmitter.AppendReadOnlyView(code, modelType, members, pocoCloneModels);
+            SparseReadOnlyViewEmitter.AppendReadOnlyView(
+                code,
+                modelType,
+                members,
+                readOnlyViewModels
+            );
         }
 
         code.AppendLine("}");

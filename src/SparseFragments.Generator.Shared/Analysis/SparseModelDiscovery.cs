@@ -641,7 +641,7 @@ internal static class SparseModelDiscovery
         );
     }
 
-    private static bool IsNullableType(ITypeSymbol type)
+    internal static bool IsNullableType(ITypeSymbol type)
     {
         if (type.NullableAnnotation == NullableAnnotation.Annotated)
         {
@@ -652,7 +652,7 @@ internal static class SparseModelDiscovery
             && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
     }
 
-    private static SparseCollectionInfo CreateCollectionInfo(
+    internal static SparseCollectionInfo CreateCollectionInfo(
         SparseSymbolCollectionInfo collection,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
@@ -713,7 +713,7 @@ internal static class SparseModelDiscovery
         );
     }
 
-    private static SparseTypeModel CreateTypeModel(
+    internal static SparseTypeModel CreateTypeModel(
         ITypeSymbol type,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
@@ -729,6 +729,13 @@ internal static class SparseModelDiscovery
         {
             isFragmentModel = true;
         }
+        var pocoReadOnlyViewKey = isFragmentModel
+            ? null
+            : SparseReadOnlyViewModelDiscovery.GetPocoReadOnlyViewKey(
+                type,
+                config,
+                cancellationToken
+            );
 
         string? pocoCloneHelperName = null;
         if (
@@ -759,7 +766,8 @@ internal static class SparseModelDiscovery
                 : string.Empty,
             UsesDefaultScalarEquality(type),
             GetObservableTypeName(type, isFragmentModel, config, cancellationToken),
-            GetReadOnlyViewTypeName(type, isFragmentModel, config, cancellationToken)
+            GetReadOnlyViewTypeName(type, isFragmentModel, config, cancellationToken),
+            pocoReadOnlyViewKey
         );
     }
 
@@ -815,7 +823,7 @@ internal static class SparseModelDiscovery
         return name.ToString();
     }
 
-    private static bool UsesDefaultScalarEquality(ITypeSymbol type)
+    internal static bool UsesDefaultScalarEquality(ITypeSymbol type)
     {
         if (
             type is INamedTypeSymbol nullable
@@ -946,12 +954,18 @@ internal static class SparseModelDiscovery
                 )
                 .Select(type => CreateStructuralModel(type, config, cancellationToken))
                 .ToImmutableArray();
+            var readOnlyViewModels = SparseReadOnlyViewModelDiscovery.GetReadOnlyViewModels(
+                promotedMembers,
+                config,
+                cancellationToken
+            );
             result.Add(
                 new SparsePromotedModel(
                     CreateModelInfo(promoted, string.Empty, config, cancellationToken),
                     memberModels,
                     pocoCloneModels,
-                    structuralModels
+                    structuralModels,
+                    readOnlyViewModels
                 )
             );
         }

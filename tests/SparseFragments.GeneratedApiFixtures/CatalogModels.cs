@@ -33,6 +33,9 @@ public partial class CatalogNested
     [SparseMerge(MergeMode.Replace)]
     public List<CatalogPoco?> MetadataItems { get; set; } = new();
 
+    [SparseMerge(MergeMode.Replace)]
+    public Dictionary<CatalogPoco, string> MetadataByKey { get; set; } = new();
+
     // Whole-value sequence: no key, replaced as a unit.
     [SparseMerge(MergeMode.Replace)]
     public List<CatalogScalar> Children { get; set; } = new();

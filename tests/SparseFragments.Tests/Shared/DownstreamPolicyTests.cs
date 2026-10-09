@@ -194,6 +194,7 @@ public sealed class DownstreamPolicyTests
             ReadModel(),
             members,
             ImmutableArray<SparsePocoCloneModel>.Empty,
+            ImmutableArray<SparseReadOnlyViewModel>.Empty,
             ImmutableArray<SparseStructuralModel>.Empty,
             bclHashSetImplementsReadOnlySet: false,
             bclHashSetSupportsCapacity: false,

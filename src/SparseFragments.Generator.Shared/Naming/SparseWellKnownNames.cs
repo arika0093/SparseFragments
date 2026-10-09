@@ -7,6 +7,8 @@ internal static class SparseWellKnownNames
 
     public const string FragmentTypeName = "Fragment";
     public const string CloneHelperPrefix = "__Clone_";
+    public const string ReadOnlyValueViewPrefix = "__ReadOnlyValueView_";
+    public const string OpaqueReadOnlyViewKey = "__OpaqueReadOnlyView";
     public const string MergeStrategyFieldPrefix = "__sparse_merge_strategy_";
     public const string RebasePolicyFieldPrefix = "__sparse_rebase_policy_";
 }

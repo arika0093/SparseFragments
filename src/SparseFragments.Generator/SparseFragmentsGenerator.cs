@@ -655,6 +655,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             model,
             analysis.Members,
             analysis.PocoCloneModels,
+            analysis.ReadOnlyViewModels,
             analysis.StructuralModels,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,

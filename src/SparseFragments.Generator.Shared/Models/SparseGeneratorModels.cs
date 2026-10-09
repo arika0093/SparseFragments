@@ -17,7 +17,8 @@ internal readonly record struct SparseTypeModel(
     string PatchApiPrefix = "",
     bool UsesDefaultScalarEquality = false,
     string? ObservableTypeName = null,
-    string? ReadOnlyViewTypeName = null
+    string? ReadOnlyViewTypeName = null,
+    string? PocoReadOnlyViewKey = null
 );
 
 internal readonly record struct SparsePropertyModel(
@@ -204,11 +205,41 @@ internal sealed record SparsePocoCloneModel(
         );
 }
 
+internal sealed record SparseReadOnlyViewModel(
+    string Key,
+    string Name,
+    string SourceTypeName,
+    ImmutableArray<SparseMemberModel> Members,
+    bool IsOpaque = false,
+    bool StoresValue = true
+)
+{
+    public bool Equals(SparseReadOnlyViewModel? other) =>
+        other is not null
+        && Key == other.Key
+        && Name == other.Name
+        && SourceTypeName == other.SourceTypeName
+        && IsOpaque == other.IsOpaque
+        && StoresValue == other.StoresValue
+        && SparseSequence.Equal(Members, other.Members);
+
+    public override int GetHashCode()
+    {
+        var hash = Key.GetHashCode();
+        hash = unchecked(hash * 31 + Name.GetHashCode());
+        hash = unchecked(hash * 31 + SourceTypeName.GetHashCode());
+        hash = unchecked(hash * 31 + (IsOpaque ? 1 : 0));
+        hash = unchecked(hash * 31 + (StoresValue ? 1 : 0));
+        return unchecked(hash * 31 + SparseSequence.Hash(Members));
+    }
+}
+
 internal sealed record SparsePromotedModel(
     SparseModelInfo Model,
     ImmutableArray<SparseMemberModel> Members,
     ImmutableArray<SparsePocoCloneModel> PocoCloneModels,
-    ImmutableArray<SparseStructuralModel> StructuralModels
+    ImmutableArray<SparseStructuralModel> StructuralModels,
+    ImmutableArray<SparseReadOnlyViewModel> ReadOnlyViewModels = default
 )
 {
     public bool Equals(SparsePromotedModel? other) =>
@@ -216,16 +247,17 @@ internal sealed record SparsePromotedModel(
         && Model.Equals(other.Model)
         && SparseSequence.Equal(Members, other.Members)
         && SparseSequence.Equal(PocoCloneModels, other.PocoCloneModels)
-        && SparseSequence.Equal(StructuralModels, other.StructuralModels);
+        && SparseSequence.Equal(StructuralModels, other.StructuralModels)
+        && SparseSequence.Equal(ReadOnlyViewModels, other.ReadOnlyViewModels);
 
-    public override int GetHashCode() =>
-        unchecked(
-            (
-                (Model.GetHashCode() * 31 + SparseSequence.Hash(Members)) * 31
-                + SparseSequence.Hash(PocoCloneModels)
-            ) * 31
-            + SparseSequence.Hash(StructuralModels)
-        );
+    public override int GetHashCode()
+    {
+        var hash = Model.GetHashCode();
+        hash = unchecked(hash * 31 + SparseSequence.Hash(Members));
+        hash = unchecked(hash * 31 + SparseSequence.Hash(PocoCloneModels));
+        hash = unchecked(hash * 31 + SparseSequence.Hash(StructuralModels));
+        return unchecked(hash * 31 + SparseSequence.Hash(ReadOnlyViewModels));
+    }
 }
 
 internal sealed record SparseGenerationAnalysis(
@@ -234,7 +266,8 @@ internal sealed record SparseGenerationAnalysis(
     ImmutableArray<SparsePocoCloneModel> PocoCloneModels,
     ImmutableArray<SparseStructuralModel> StructuralModels,
     ImmutableArray<SparseGeneratorDiagnostic> Diagnostics,
-    ImmutableArray<SparsePromotedModel> PromotedModels = default
+    ImmutableArray<SparsePromotedModel> PromotedModels = default,
+    ImmutableArray<SparseReadOnlyViewModel> ReadOnlyViewModels = default
 )
 {
     public bool Equals(SparseGenerationAnalysis? other) =>
@@ -244,7 +277,8 @@ internal sealed record SparseGenerationAnalysis(
         && SparseSequence.Equal(PocoCloneModels, other.PocoCloneModels)
         && SparseSequence.Equal(StructuralModels, other.StructuralModels)
         && SparseSequence.Equal(Diagnostics, other.Diagnostics)
-        && SparseSequence.Equal(PromotedModels, other.PromotedModels);
+        && SparseSequence.Equal(PromotedModels, other.PromotedModels)
+        && SparseSequence.Equal(ReadOnlyViewModels, other.ReadOnlyViewModels);
 
     public override int GetHashCode()
     {
@@ -253,7 +287,8 @@ internal sealed record SparseGenerationAnalysis(
         hash = unchecked(hash * 31 + SparseSequence.Hash(PocoCloneModels));
         hash = unchecked(hash * 31 + SparseSequence.Hash(StructuralModels));
         hash = unchecked(hash * 31 + SparseSequence.Hash(Diagnostics));
-        return unchecked(hash * 31 + SparseSequence.Hash(PromotedModels));
+        hash = unchecked(hash * 31 + SparseSequence.Hash(PromotedModels));
+        return unchecked(hash * 31 + SparseSequence.Hash(ReadOnlyViewModels));
     }
 }
 

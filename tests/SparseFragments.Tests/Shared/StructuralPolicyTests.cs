@@ -488,6 +488,7 @@ public sealed class StructuralPolicyTests
             model,
             analysis.Members,
             analysis.PocoCloneModels,
+            analysis.ReadOnlyViewModels,
             analysis.StructuralModels,
             bclHashSetImplementsReadOnlySet: false,
             bclHashSetSupportsCapacity: false,
