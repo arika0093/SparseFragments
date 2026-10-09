@@ -244,6 +244,12 @@ not parse fail as invalid paths. Resolution works for mutable dictionaries
 and for read-only `IReadOnlyDictionary<TKey, TValue>` models alike, including
 implementations that do not expose the legacy non-generic `IDictionary`.
 
+List members resolve through numeric indexes such as `Lines[1].Quantity`,
+for mutable lists and read-only `IReadOnlyList<T>` models alike, including
+implementations without the legacy non-generic `IList`. Indexes resolve
+positionally through the indexer; out-of-range and non-numeric indexes fail
+as invalid paths.
+
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
 available independently of Blazor. Context-taking helpers require an

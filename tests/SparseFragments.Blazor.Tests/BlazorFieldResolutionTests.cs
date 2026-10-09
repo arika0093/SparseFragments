@@ -104,4 +104,47 @@ public sealed class BlazorFieldResolutionTests
             .GetValidationMessages(session.Field("ByName[\"billing\"].Name"))
             .ShouldContain("Required.");
     }
+
+    private static ReadOnlyLineSheet LineSheet() =>
+        new()
+        {
+            Lines = new ReadOnlyListStub<OrderLine>(
+                new List<OrderLine>
+                {
+                    new()
+                    {
+                        Sku = "a",
+                        Quantity = 1,
+                        Price = 10m,
+                    },
+                    new()
+                    {
+                        Sku = "b",
+                        Quantity = 2,
+                        Price = 20m,
+                    },
+                }
+            ),
+        };
+
+    [Test]
+    public void PureReadOnlyListResolvesNestedPath()
+    {
+        var session = LineSheet().CreateEditSession();
+        (session.Model.Lines is System.Collections.IList).ShouldBeFalse();
+
+        var field = session.Field("Lines[1].Quantity");
+        ReferenceEquals(field.Model, session.Model.Lines[1]).ShouldBeTrue();
+        field.FieldName.ShouldBe(nameof(OrderLine.Quantity));
+    }
+
+    [Test]
+    public void PureReadOnlyListPreservesBoundsAndMalformedPathErrors()
+    {
+        var session = LineSheet().CreateEditSession();
+
+        Should.Throw<ArgumentException>(() => session.Field("Lines[10].Quantity"));
+        Should.Throw<ArgumentException>(() => session.Field("Lines[abc].Quantity"));
+        Should.Throw<ArgumentException>(() => session.Field("Lines[].Quantity"));
+    }
 }

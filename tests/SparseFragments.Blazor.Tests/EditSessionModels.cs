@@ -102,3 +102,9 @@ public partial class ReadOnlyContactBook
     public IReadOnlyDictionary<int, OrderCustomer> ByNumber { get; set; } =
         new Dictionary<int, OrderCustomer>();
 }
+
+[SparseFragmentModel]
+public partial class ReadOnlyLineSheet
+{
+    public IReadOnlyList<OrderLine> Lines { get; set; } = new List<OrderLine>();
+}

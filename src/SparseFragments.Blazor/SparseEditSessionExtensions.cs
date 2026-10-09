@@ -245,6 +245,11 @@ public static class SparseEditSessionExtensions
 
     private static object? ResolveIndexedValue(object collection, string key, string path)
     {
+        if (collection is string)
+        {
+            throw InvalidFieldPath(path);
+        }
+
         if (collection is IList list)
         {
             if (
@@ -290,6 +295,34 @@ public static class SparseEditSessionExtensions
             }
 
             return indexer.GetValue(collection, [dictionaryKey]);
+        }
+
+        if (TryGetReadOnlyListInterface(collection, out var listInterface))
+        {
+            // Index lookup, not linear enumeration: the position spelling
+            // stays numeric-only here, while quoted stable keys are handled
+            // by the keyed-collection resolution.
+            if (!int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
+            {
+                throw InvalidFieldPath(path);
+            }
+
+            var elementType = listInterface.GetGenericArguments()[0];
+            var indexer = listInterface.GetProperty("Item");
+            if (
+                indexer is null
+                || !TryGetReadOnlyCollectionCount(collection, elementType, out var count)
+            )
+            {
+                throw InvalidFieldPath(path);
+            }
+
+            if ((uint)index >= (uint)count)
+            {
+                throw InvalidFieldPath(path);
+            }
+
+            return indexer.GetValue(collection, [index]);
         }
 
         throw InvalidFieldPath(path);
@@ -373,6 +406,50 @@ public static class SparseEditSessionExtensions
         }
 
         interfaceType = null!;
+        return false;
+    }
+
+    private static bool TryGetReadOnlyListInterface(object collection, out Type interfaceType)
+    {
+        foreach (var candidate in collection.GetType().GetInterfaces())
+        {
+            if (
+                candidate.IsGenericType
+                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)
+            )
+            {
+                interfaceType = candidate;
+                return true;
+            }
+        }
+
+        interfaceType = null!;
+        return false;
+    }
+
+    private static bool TryGetReadOnlyCollectionCount(
+        object collection,
+        Type elementType,
+        out int count
+    )
+    {
+        // Count is declared on IReadOnlyCollection<T>, which interface
+        // reflection does not flatten onto IReadOnlyList<T>.
+        foreach (var candidate in collection.GetType().GetInterfaces())
+        {
+            if (
+                candidate.IsGenericType
+                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyCollection<>)
+                && candidate.GetGenericArguments()[0] == elementType
+                && candidate.GetProperty("Count")?.GetValue(collection) is int value
+            )
+            {
+                count = value;
+                return true;
+            }
+        }
+
+        count = 0;
         return false;
     }
 
