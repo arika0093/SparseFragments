@@ -12,7 +12,9 @@ namespace SparseFragments.Generator.Shared;
 internal sealed record SparseGeneratedOnceRequirements(
     bool NeedsReadOnlyCollection,
     bool NeedsReadOnlyDictionary,
-    bool NeedsReadOnlyEntries
+    bool NeedsReadOnlyEntries,
+    bool NeedsCloneKernels = false,
+    bool NeedsPortableSetView = false
 )
 {
     /// <summary>Empty requirements: no shared helper is needed.</summary>
@@ -29,7 +31,9 @@ internal sealed record SparseGeneratedOnceRequirements(
         new(
             NeedsReadOnlyCollection || other.NeedsReadOnlyCollection,
             NeedsReadOnlyDictionary || other.NeedsReadOnlyDictionary,
-            NeedsReadOnlyEntries || other.NeedsReadOnlyEntries
+            NeedsReadOnlyEntries || other.NeedsReadOnlyEntries,
+            NeedsCloneKernels || other.NeedsCloneKernels,
+            NeedsPortableSetView || other.NeedsPortableSetView
         );
 
     /// <summary>Computes read-only adapter needs for one model.</summary>
@@ -71,4 +75,68 @@ internal sealed record SparseGeneratedOnceRequirements(
                 or SparseCollectionKind.List
                 or SparseCollectionKind.MutableList
                 or SparseCollectionKind.Set;
+
+    /// <summary>Computes clone kernel needs for one model.</summary>
+    /// <remarks>
+    /// The kernel family is emitted as a unit: array/list kernels call each
+    /// other, so per-shape splitting would break cross-calls. The portable
+    /// set bridge stays conditional on interface-set usage.
+    /// </remarks>
+    /// <param name="members">Model members.</param>
+    /// <param name="pocoCloneModels">POCO clone models.</param>
+    /// <returns>Requirements for the model.</returns>
+    public static SparseGeneratedOnceRequirements ForCloneKernels(
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparsePocoCloneModel> pocoCloneModels
+    )
+    {
+        var needsClone =
+            members.Any(static member =>
+                member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
+            )
+            || (
+                !pocoCloneModels.IsDefault
+                && pocoCloneModels.Any(static poco =>
+                    poco.Members.Any(static member =>
+                        member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
+                    )
+                )
+            );
+        var needsPortableView =
+            needsClone
+            && (
+                members.Any(static member => IsInterfaceSet(member.Collection.NamedTypeDefinition))
+                || (
+                    !pocoCloneModels.IsDefault
+                    && pocoCloneModels.Any(static poco =>
+                        poco.Members.Any(static member =>
+                            IsInterfaceSet(member.Collection.NamedTypeDefinition)
+                        )
+                    )
+                )
+            );
+        return new(false, false, false, needsClone, needsPortableView);
+    }
+
+    /// <summary>Computes all Generated-Once needs for one model.</summary>
+    /// <param name="members">Model members.</param>
+    /// <param name="pocoCloneModels">POCO clone models.</param>
+    /// <param name="readOnlyViewModels">POCO read-only views.</param>
+    /// <param name="emitReadOnlyViews">Whether read-only views are emitted.</param>
+    /// <returns>Combined requirements for the model.</returns>
+    public static SparseGeneratedOnceRequirements ForModel(
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        bool emitReadOnlyViews
+    )
+    {
+        var readOnly = emitReadOnlyViews ? ForReadOnlyView(members, readOnlyViewModels) : Empty;
+        return readOnly.Union(ForCloneKernels(members, pocoCloneModels));
+    }
+
+    private static bool IsInterfaceSet(string? namedTypeDefinition) =>
+        namedTypeDefinition
+            is SparseWellKnownNames.InterfaceSetTypeDefinition
+                or SparseWellKnownNames.ReadOnlySetTypeDefinition;
 }

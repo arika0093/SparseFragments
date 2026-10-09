@@ -128,11 +128,21 @@ internal static class SparseFragmentEmitter
         if (!planErrors.IsDefaultOrEmpty && planErrors.Length > 0)
             throw new ArgumentException(planErrors[0], nameof(config));
         SparseDownstreamPolicy.ThrowOnInvalidTransport(members, patchDialect);
+        // Generated-Once (#182): with an explicit namespace the collection
+        // clone kernels live once per compilation; null keeps the legacy
+        // per-model private helpers for downstream dialects.
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        var cloneKernelsPrefix = implementationNamespace is null
+            ? null
+            : SparseGeneratedOnceNames.QualifiedCloneKernels(implementationNamespace);
         var expressions = new SparseFragmentExpressions(
             "__sparse_clone_context",
             runtime.ValueComparer,
             runtime.CollectionMerger,
-            runtime.OptionalType
+            runtime.OptionalType,
+            cloneKernelsPrefix
         );
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
@@ -211,11 +221,16 @@ internal static class SparseFragmentEmitter
                 poco.Members,
                 poco.Model.Constructor
             );
-        SparseFragmentCoreEmitter.AppendCollectionCloneHelpers(
-            code,
-            portableSetView,
-            bclHashSetSupportsCapacity
-        );
+        // Shared kernels (#182) are emitted once per compilation; only the
+        // legacy single-file path redefines them per model.
+        if (implementationNamespace is null)
+        {
+            SparseFragmentCoreEmitter.AppendCollectionCloneHelpers(
+                code,
+                portableSetView,
+                bclHashSetSupportsCapacity
+            );
+        }
         if (features.EmitFragment)
         {
             AppendFragment(
@@ -251,7 +266,7 @@ internal static class SparseFragmentEmitter
                 modelType,
                 members,
                 readOnlyViewModels,
-                SparseGeneratedPlacement.TryGetImplementationNamespace(config)
+                implementationNamespace
             );
         }
 

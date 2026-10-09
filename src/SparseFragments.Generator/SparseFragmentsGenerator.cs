@@ -592,18 +592,22 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                     SparseEditSessionEmitter.EmitCore(productionContext, Configuration);
             }
         );
-        // Generated-Once read-only adapters (#181, interim #178 seam): one
-        // shared source per compilation, aggregated over explicit and
-        // promoted models. Per-model output only instantiates these types.
+        // Generated-Once shared helpers (#181 adapters, #182 clone kernels;
+        // interim #178 seam): one shared source per family per compilation,
+        // aggregated over explicit and promoted models. Per-model output only
+        // instantiates these types. Names stay pinned in
+        // SparseGeneratedOnceNames; #178 should replace this manual wiring
+        // with its feature plan.
         var explicitReadOnlyNeeds = analyzed
             .Select(
                 static (analysis, _) =>
                     analysis.Model.HasValue
-                    && Configuration.EffectiveEmissionFeatures.EmitFragment
-                    && Configuration.EffectiveEmissionFeatures.EmitObservable
-                        ? SparseGeneratedOnceRequirements.ForReadOnlyView(
+                        ? SparseGeneratedOnceRequirements.ForModel(
                             analysis.Members,
-                            analysis.ReadOnlyViewModels
+                            analysis.PocoCloneModels,
+                            analysis.ReadOnlyViewModels,
+                            Configuration.EffectiveEmissionFeatures.EmitFragment
+                                && Configuration.EffectiveEmissionFeatures.EmitObservable
                         )
                         : SparseGeneratedOnceRequirements.Empty
             )
@@ -612,49 +616,73 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         var promotedReadOnlyNeeds = distinctPromoted
             .Select(
                 static (promoted, _) =>
-                    Configuration.EffectiveEmissionFeatures.EmitFragment
-                    && Configuration.EffectiveEmissionFeatures.EmitObservable
-                        ? SparseGeneratedOnceRequirements.ForReadOnlyView(
-                            promoted.Members,
-                            promoted.ReadOnlyViewModels
-                        )
-                        : SparseGeneratedOnceRequirements.Empty
+                    SparseGeneratedOnceRequirements.ForModel(
+                        promoted.Members,
+                        promoted.PocoCloneModels,
+                        promoted.ReadOnlyViewModels,
+                        Configuration.EffectiveEmissionFeatures.EmitFragment
+                            && Configuration.EffectiveEmissionFeatures.EmitObservable
+                    )
             )
             .Collect()
             .WithTrackingName("SparseFragmentsGenerator.PromotedReadOnlyNeeds");
         var readOnlyNeeds = explicitReadOnlyNeeds
             .Combine(promotedReadOnlyNeeds)
+            .Combine(bclSetSupport)
             .Select(
                 static (input, _) =>
                 {
+                    var ((explicitNeeds, promotedNeeds), bcl) = input;
                     var combined = SparseGeneratedOnceRequirements.Empty;
-                    foreach (var entry in input.Left)
+                    foreach (var entry in explicitNeeds)
                         combined = combined.Union(entry);
-                    foreach (var entry in input.Right)
+                    foreach (var entry in promotedNeeds)
                         combined = combined.Union(entry);
-                    return combined;
+                    // The portable set bridge is TFM-dependent: keep the shape
+                    // flag only when the BCL set lacks IReadOnlySet support.
+                    if (!bcl.ReadOnlySet)
+                        return combined;
+                    return combined with { NeedsPortableSetView = false };
                 }
             )
             .WithComparer(EqualityComparer<SparseGeneratedOnceRequirements>.Default)
             .WithTrackingName("SparseFragmentsGenerator.CombinedReadOnlyNeeds");
         context.RegisterSourceOutput(
-            readOnlyNeeds,
-            static (productionContext, needs) =>
+            readOnlyNeeds.Combine(bclSetSupport),
+            static (productionContext, input) =>
             {
+                var (needs, bcl) = input;
                 var implementationNamespace = Configuration.GeneratedImplementationNamespace;
-                if (string.IsNullOrEmpty(implementationNamespace) || !needs.NeedsReadOnlyAdapters)
+                if (string.IsNullOrEmpty(implementationNamespace))
                     return;
-                var source = SparseGeneratedOnceReadOnlyAdapters.BuildSource(
-                    implementationNamespace!,
-                    needs.NeedsReadOnlyCollection,
-                    needs.NeedsReadOnlyDictionary,
-                    needs.NeedsReadOnlyEntries,
-                    productionContext.CancellationToken
-                );
-                productionContext.AddSource(
-                    SparseGeneratedOnceNames.ReadOnlyAdaptersHintName(implementationNamespace!),
-                    SourceText.From(source, Encoding.UTF8)
-                );
+                if (needs.NeedsReadOnlyAdapters)
+                {
+                    var adapters = SparseGeneratedOnceReadOnlyAdapters.BuildSource(
+                        implementationNamespace!,
+                        needs.NeedsReadOnlyCollection,
+                        needs.NeedsReadOnlyDictionary,
+                        needs.NeedsReadOnlyEntries,
+                        productionContext.CancellationToken
+                    );
+                    productionContext.AddSource(
+                        SparseGeneratedOnceNames.ReadOnlyAdaptersHintName(implementationNamespace!),
+                        SourceText.From(adapters, Encoding.UTF8)
+                    );
+                }
+
+                if (needs.NeedsCloneKernels)
+                {
+                    var kernels = SparseGeneratedOnceCloneKernels.BuildSource(
+                        implementationNamespace!,
+                        needs.NeedsPortableSetView,
+                        bcl.Capacity,
+                        productionContext.CancellationToken
+                    );
+                    productionContext.AddSource(
+                        SparseGeneratedOnceNames.CloneKernelsHintName(implementationNamespace!),
+                        SourceText.From(kernels, Encoding.UTF8)
+                    );
+                }
             }
         );
         var shouldEmitIsExternalInit = context
