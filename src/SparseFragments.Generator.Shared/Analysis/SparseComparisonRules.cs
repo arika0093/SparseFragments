@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -66,7 +67,7 @@ internal static class SparseComparisonRules
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (
-                attribute.AttributeClass?.ToDisplayString() == attributeName
+                MatchesAttribute(attribute.AttributeClass, attributeName)
                 && attribute.ConstructorArguments.FirstOrDefault().Value is ITypeSymbol valueType
                 && !comparerTypes.ContainsKey(valueType)
             )
@@ -96,7 +97,7 @@ internal static class SparseComparisonRules
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (
-                    attribute.AttributeClass?.ToDisplayString() == attributeName
+                    MatchesAttribute(attribute.AttributeClass, attributeName)
                     && attribute.ConstructorArguments.FirstOrDefault().Value
                         is ITypeSymbol valueType
                 )
@@ -159,7 +160,7 @@ internal static class SparseComparisonRules
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (
-                attribute.AttributeClass?.ToDisplayString() != attributeName
+                !MatchesAttribute(attribute.AttributeClass, attributeName)
                 || attribute.ConstructorArguments.Length < 2
                 || attribute.ConstructorArguments[0].Value is not ITypeSymbol valueType
             )
@@ -266,7 +267,28 @@ internal static class SparseComparisonRules
     private static bool HasAttribute(INamedTypeSymbol model, string attributeName) =>
         model
             .GetAttributes()
-            .Any(attribute => attribute.AttributeClass?.ToDisplayString() == attributeName);
+            .Any(attribute => MatchesAttribute(attribute.AttributeClass, attributeName));
+
+    private static bool MatchesAttribute(INamedTypeSymbol? attributeType, string attributeName)
+    {
+        if (attributeType is null)
+        {
+            return false;
+        }
+        var simpleClass =
+            attributeType.TypeKind == TypeKind.Class
+            && attributeType.Arity == 0
+            && attributeType.SpecialType == SpecialType.None;
+        if (
+            simpleClass
+            && attributeType.NullableAnnotation != NullableAnnotation.Annotated
+            && !attributeName.EndsWith(attributeType.Name, StringComparison.Ordinal)
+        )
+        {
+            return false;
+        }
+        return attributeType.ToDisplayString() == attributeName;
+    }
 
     private static AttributeData? FindRule(
         IEnumerable<AttributeData> attributes,
@@ -279,7 +301,7 @@ internal static class SparseComparisonRules
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (
-                attribute.AttributeClass?.ToDisplayString() == attributeName
+                MatchesAttribute(attribute.AttributeClass, attributeName)
                 && attribute.ConstructorArguments.Length >= 2
                 && attribute.ConstructorArguments[0].Value is ITypeSymbol configuredType
                 && SymbolEqualityComparer.Default.Equals(configuredType, valueType)
