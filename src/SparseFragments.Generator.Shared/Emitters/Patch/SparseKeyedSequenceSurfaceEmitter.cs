@@ -149,7 +149,22 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 )
                 + " && __edited.ContainsKey(key!)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
         );
-        code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            // Unassigned keys can never sit in __removed (Remove rejects them),
+            // so skip the cancellation scan. The guard also narrows key to
+            // not-null for the non-nullable __SparseCancelRemoval parameter.
+            code.AppendLineAt(
+                4,
+                "if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + " && __removed is not null) __SparseCancelRemoval(key);"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
+        }
         code.AppendLineAt(
             4,
             "__added ??= new global::System.Collections.Generic.List<" + elementType + ">();"
