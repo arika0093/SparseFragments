@@ -248,7 +248,8 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
             {
                 return !_isEmpty(CreateChangeSet());
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
+                when (ex.Message == "Duplicate key in keyed collection.")
             {
                 return true;
             }

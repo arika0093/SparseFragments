@@ -117,6 +117,30 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
+    public void HasChangesPropagatesUnrelatedInvalidOperationExceptions()
+    {
+        var session = SparseEditSession<
+            NeutralSessionModel,
+            NeutralSessionModel.Fragment,
+            NeutralSessionModel.Patch,
+            NeutralSessionModel.ChangeSet,
+            object
+        >.Create(
+            new NeutralSessionModel(),
+            NeutralSessionModel.Fragment.From,
+            (_, _) => throw new InvalidOperationException("Unrelated failure."),
+            _ => new NeutralSessionModel.Patch(),
+            _ => false,
+            (_, baseline) => baseline,
+            _ => new object()
+        );
+
+        Should
+            .Throw<InvalidOperationException>(() => session.HasChanges)
+            .Message.ShouldBe("Unrelated failure.");
+    }
+
+    [Test]
     public void FragmentAndPatchWriteIntoExistingModelAndPreserveCollectionIdentity()
     {
         var patchModel = new NeutralSessionModel { Name = "before" };
