@@ -1,5 +1,5 @@
 using SparseFragments;
-using SparseFragments.__GeneratedSessionCore;
+using SparseFragments.Generated;
 
 namespace SparseFragments.Tests;
 

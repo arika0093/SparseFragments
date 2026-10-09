@@ -41,6 +41,12 @@
     >
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Content>
+    <Content
+      Include="Sessions/**/*.template"
+      Pack="true"
+      PackagePath="contentFiles/cs/netstandard2.0/Sessions/%(Filename)%(Extension)"
+    />
+    <None Remove="Sessions/**/*.template" />
     <None Include="build/SparseFragments.Generator.Shared.props" Pack="true" PackagePath="build/" />
   </ItemGroup>
 </Project>

@@ -28,7 +28,8 @@ internal sealed record SparseGeneratorConfig
         SparseEmissionFeatures? EmissionFeatures = null,
         ImmutableArray<string> ProductExtensionNames = default,
         string? ComparisonAttributeMetadataName = null,
-        string? EditSessionInterfaceMetadataName = null
+        string? EditSessionInterfaceMetadataName = null,
+        SparseEditSessionDialect? EditSessionDialect = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -55,6 +56,7 @@ internal sealed record SparseGeneratorConfig
         this.ProductExtensionNames = ProductExtensionNames;
         this.ComparisonAttributeMetadataName = ComparisonAttributeMetadataName;
         this.EditSessionInterfaceMetadataName = EditSessionInterfaceMetadataName;
+        this.EditSessionDialect = EditSessionDialect;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -110,6 +112,9 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Generic edit-session interface implemented by generated model sessions, or null when disabled.</summary>
     public string? EditSessionInterfaceMetadataName { get; init; }
+
+    /// <summary>Product-owned names for the generated edit-session implementation.</summary>
+    public SparseEditSessionDialect? EditSessionDialect { get; init; }
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
@@ -290,6 +295,29 @@ internal sealed record SparseRuntimeDialect
 
     /// <summary>Generated per-member rebase policy field prefix, or null for the shared default.</summary>
     public string? RebasePolicyFieldPrefix { get; init; }
+}
+
+internal sealed record SparseEditSessionDialect
+{
+    public SparseEditSessionDialect(
+        string Namespace,
+        string CoreHintName = "Generated.EditSessionCore.g.cs",
+        string CurrentCoreHintName = "Generated.EditSessionWithCurrentCore.g.cs"
+    )
+    {
+        this.Namespace = Namespace;
+        this.CoreHintName = CoreHintName;
+        this.CurrentCoreHintName = CurrentCoreHintName;
+    }
+
+    /// <summary>Namespace containing the generated edit-session helper types.</summary>
+    public string Namespace { get; init; }
+
+    /// <summary>Hint name for the generated edit-session helper source.</summary>
+    public string CoreHintName { get; init; }
+
+    /// <summary>Hint name for the generated current-view edit-session helper source.</summary>
+    public string CurrentCoreHintName { get; init; }
 }
 
 internal readonly record struct SparseMergeModeMap

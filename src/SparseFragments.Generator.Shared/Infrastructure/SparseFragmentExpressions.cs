@@ -5,7 +5,7 @@ internal sealed class SparseFragmentExpressions(
     string cloneContext,
     string valueComparer,
     string collectionMerger,
-    string optionalType = "global::SparseFragments.Optional"
+    string optionalType
 )
 {
     private string ValueComparer { get; } = valueComparer;

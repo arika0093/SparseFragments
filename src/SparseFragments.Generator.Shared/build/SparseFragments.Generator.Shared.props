@@ -16,5 +16,15 @@
       Include="$(MSBuildThisFileDirectory)../contentFiles/cs/netstandard2.0/**/*.cs"
       LinkBase="SparseShared"
     />
+    <EmbeddedResource
+      Include="$(MSBuildThisFileDirectory)../contentFiles/cs/netstandard2.0/Sessions/SparseEditSessionCore.template"
+      LogicalName="SparseFragments.Generator.Shared.Sessions.SparseEditSessionCore.template"
+      Type="Non-Resx"
+    />
+    <EmbeddedResource
+      Include="$(MSBuildThisFileDirectory)../contentFiles/cs/netstandard2.0/Sessions/SparseEditSessionWithCurrentCore.template"
+      LogicalName="SparseFragments.Generator.Shared.Sessions.SparseEditSessionWithCurrentCore.template"
+      Type="Non-Resx"
+    />
   </ItemGroup>
 </Project>

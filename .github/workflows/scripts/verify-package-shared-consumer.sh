@@ -20,12 +20,14 @@ package_directory="${1:-}"
 fixture_dir="tests/fixtures/consumers/package-shared-generator"
 fixture_csproj="${fixture_dir}/PackageShared.Generator.csproj"
 fixture_source="${fixture_dir}/ProbeGenerator.cs"
+consumer_csproj="${fixture_dir}/PackageShared.Consumer.csproj"
+consumer_source="${fixture_dir}/Consumer.cs"
 
 if [[ -z "${package_directory}" ]]; then
     echo "Usage: $(basename "$0") <package-directory>" >&2
     exit 2
 fi
-if [[ ! -f "${fixture_csproj}" || ! -f "${fixture_source}" ]]; then
+if [[ ! -f "${fixture_csproj}" || ! -f "${fixture_source}" || ! -f "${consumer_csproj}" || ! -f "${consumer_source}" ]]; then
     echo "Shared package consumer fixture missing under '${fixture_dir}'." >&2
     exit 1
 fi
@@ -87,10 +89,19 @@ required_probe_tokens=(
     'SparseFragmentEmitHelpers'
     'SparseFragmentExpressions'
     'SparseObservableEmitter'
+    'SparseEditSessionEmitter'
+    'SparseEditSessionDialect'
+    'RenderCoreSources'
 )
 for token in "${required_probe_tokens[@]}"; do
     if ! grep -F -q "${token}" "${fixture_source}"; then
         echo "Shared consumer probe '${fixture_source}' must reference '${token}' (representative category coverage)." >&2
+        exit 1
+    fi
+done
+for template in SparseEditSessionCore.template SparseEditSessionWithCurrentCore.template; do
+    if ! unzip -Z1 "${package}" | grep -F "contentFiles/cs/netstandard2.0/Sessions/${template}" >/dev/null; then
+        echo "Shared package is missing the edit-session template '${template}'." >&2
         exit 1
     fi
 done
@@ -110,8 +121,19 @@ else
 fi
 cp "${fixture_csproj}" "${work}/"
 cp "${fixture_source}" "${work}/"
+mkdir "${work}/consumer"
+cp "${consumer_csproj}" "${work}/consumer/"
+cp "${consumer_source}" "${work}/consumer/"
 
 dotnet build "${work}/PackageShared.Generator.csproj" \
+    --configuration Release \
+    -p:SparseSharedPackageVersion="${version}" \
+    -p:RestoreAdditionalProjectSources="${feed}"
+
+# Run the packaged generator in a consumer compilation. The probe requests the
+# embedded session templates and asserts its custom runtime dialect without a
+# SparseFragments runtime reference.
+dotnet build "${work}/consumer/PackageShared.Consumer.csproj" \
     --configuration Release \
     -p:SparseSharedPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}"

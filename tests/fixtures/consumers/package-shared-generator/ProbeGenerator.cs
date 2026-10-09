@@ -115,6 +115,38 @@ internal static class ProbeSurface
         var transport = SparseMemberTransport.RedactedBefore;
         var memberPolicy = new SparseMemberPolicy("Secret", transport);
         var rebase = new SparseRebasePolicy(SparseRedactedBeforeBehavior.Passthrough);
+        var sessionDialect = new SparseEditSessionDialect("PackageShared.Generated");
+        var sessionRuntime = new SparseRuntimeDialect(
+            "global::PackageShared.",
+            "global::PackageShared.Optional",
+            "global::PackageShared.MergeStrategy",
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Runtime",
+            "__package_shared_merge_"
+        );
+        var sessionPatch = new SparseFragmentPatchEmitter.SparsePatchDialect(
+            "global::PackageShared.",
+            "__sparse_whole",
+            "__SparseMembersEmpty",
+            static item => "__sparse_patch_member_" + item.Id,
+            static _ => string.Empty,
+            "Apply",
+            false,
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Conflict",
+            "global::PackageShared.ConflictKind",
+            static payload => "global::PackageShared.Rebase<" + payload + ">",
+            static _ => "global::PackageShared.Patch",
+            static _ => "global::PackageShared.ChangeSet",
+            PayloadImplementationContainerPrefix: "PackageSharedInternal"
+        );
+        var sessionSources = SparseEditSessionEmitter.RenderCoreSources(
+            sessionDialect,
+            sessionRuntime,
+            sessionPatch
+        );
         var write = new SparseWriteContract(
             "global::PackageShared.WriteCmd",
             ImmutableArray.Create(new SparseWriteMember("Secret", "NewSecret"))
@@ -128,7 +160,8 @@ internal static class ProbeSurface
         var expressions = new SparseFragmentExpressions(
             "__cloneContext",
             "global::PackageShared.Runtime",
-            "global::PackageShared.Runtime"
+            "global::PackageShared.Runtime",
+            "global::PackageShared.Optional"
         );
         var clone = expressions.CloneValueExpression(elementType, "value");
         var observable = SparseObservableEmitter.ObservableTypeName(
@@ -188,6 +221,15 @@ internal static class ProbeSurface
                 + " emitted="
                 + emittedNames.Length
         );
-        return code.ToString();
+        if (
+            !sessionSources.Core.Contains(
+                "global::PackageShared.Optional",
+                StringComparison.Ordinal
+            ) || sessionSources.Core.Contains("global::SparseFragments", StringComparison.Ordinal)
+        )
+        {
+            throw new InvalidOperationException("The edit-session dialect was not applied.");
+        }
+        return "// Shared generator API and template probe passed.";
     }
 }

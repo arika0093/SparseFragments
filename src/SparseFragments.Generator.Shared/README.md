@@ -119,6 +119,19 @@ a patch requires its fragment, a change set requires its patch, and a payload
 requires its change set. `GetEmittedTypeNames` lists the family root names used
 for collision checks.
 
+## Edit-session configuration
+
+`SparseEditSessionDialect` configures the namespace and hint names for the
+generated edit-session helper types. The helper source uses the optional type
+from `SparseRuntimeDialect` and the conflict and rebase-result types from
+`SparsePatchDialect`, so Shared does not select product runtime types. A
+consumer that emits edit sessions sets `EditSessionInterfaceMetadataName` and
+`EditSessionDialect`, calls `SparseEditSessionEmitter.EmitCore` once when a
+compilation contains session models, and calls
+`SparseEditSessionEmitter.AppendModelEditSession` from its product-extension
+callback. The product generator chooses its helper namespace; for example,
+`SparseFragments.Generator` configures `SparseFragments.Generated`.
+
 ## Member transport and rebase policies
 
 `SparseMemberPolicy` assigns a transport to one member by name:

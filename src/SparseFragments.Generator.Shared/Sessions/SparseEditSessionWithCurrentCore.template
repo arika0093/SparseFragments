@@ -3,9 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using SparseFragments;
 
-namespace SparseFragments.__GeneratedSessionCore
+namespace __SESSION_NAMESPACE__
 {
     /// <summary>Generated operations used to create a typed edit session.</summary>
     /// <typeparam name="TModel">The live model type.</typeparam>
@@ -34,7 +33,7 @@ namespace SparseFragments.__GeneratedSessionCore
         public Func<TModel, TFragment> FromModel { get; init; } = null!;
 
         /// <summary>Derives a change set between two sparse fragment states.</summary>
-        public Func<Optional<TFragment?>, Optional<TFragment?>, TChangeSet> Between { get; init; } =
+        public Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> Between { get; init; } =
             null!;
 
         /// <summary>Projects a change set to a baseline-free patch.</summary>
@@ -46,8 +45,8 @@ namespace SparseFragments.__GeneratedSessionCore
         /// <summary>Advances a baseline by a change set.</summary>
         public Func<
             TChangeSet,
-            Optional<TFragment?>,
-            Optional<TFragment?>
+            __OPTIONAL_TYPE__<TFragment?>,
+            __OPTIONAL_TYPE__<TFragment?>
         > AdvanceBaseline { get; init; } = null!;
 
         /// <summary>Creates an observable proxy with edit and raw-model access callbacks.</summary>
@@ -60,7 +59,7 @@ namespace SparseFragments.__GeneratedSessionCore
         public Func<
             TChangeSet,
             TModel,
-            (TModel? Updated, IReadOnlyList<SparseConflict>? Conflicts)
+            (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts)
         >? TryApplyTo { get; init; }
 
         /// <summary>Writes an updated model into the existing live model instance.</summary>
@@ -70,7 +69,7 @@ namespace SparseFragments.__GeneratedSessionCore
         public Func<TChangeSet, TChangeSet>? Invert { get; init; }
 
         /// <summary>Rebases a change set onto a newer model state.</summary>
-        public Func<TChangeSet, TModel, RebaseResult<TChangeSet>>? Rebase { get; init; }
+        public Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? Rebase { get; init; }
 
         /// <summary>Enumerates changed paths from a generated change set.</summary>
         public Func<TChangeSet, IReadOnlyList<string>>? EnumerateChangedPaths { get; init; }

@@ -129,6 +129,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
         ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",
         EditSessionInterfaceMetadataName: "SparseFragments.ISparseEditSession",
+        EditSessionDialect: new SparseEditSessionDialect("SparseFragments.Generated"),
         ReservedGeneratedNames: ImmutableArray.Create(
             "Fragment",
             "FragmentBuilder",
@@ -569,7 +570,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             static (productionContext, emit) =>
             {
                 if (emit)
-                    SparseEditSessionCoreEmitter.Emit(productionContext);
+                    SparseEditSessionEmitter.EmitCore(productionContext, Configuration);
             }
         );
         var shouldEmitIsExternalInit = context
@@ -669,11 +670,6 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        var sessionInterfaceMetadataName =
-            Configuration.EditSessionInterfaceMetadataName
-            ?? throw new InvalidOperationException(
-                "The edit-session interface metadata name is not configured."
-            );
         var source = SparseFragmentEmitter.BuildSource(
             model,
             analysis.Members,
@@ -685,12 +681,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             cancellationToken,
             Configuration,
             (code, generatedModel, members) =>
-                SparseModelExtensionsEmitter.Append(
-                    code,
-                    generatedModel,
-                    members,
-                    sessionInterfaceMetadataName
-                )
+                SparseModelExtensionsEmitter.Append(code, generatedModel, members, Configuration)
         );
         return new SparseGenerationResult(model.HintName, source, analysis.Diagnostics);
     }
