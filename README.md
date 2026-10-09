@@ -89,11 +89,11 @@ See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, a
 
 Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
 
-`SparseEditSession` compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
+An edit session (the per-model `EditSession` in `SparseFragments.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
 
 ```csharp
 var session = order.CreateEditSession();
-session.Model.Name = "Updated";
+session.Observable.Name = "Updated";
 
 var submitted = session.CreateChangeSet();
 var response = await SendChangesAsync(submitted.ToPayload());
@@ -105,7 +105,7 @@ if (response.IsSuccess)
 }
 ```
 
-Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
+Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. A raw `session.Model` reference edits the same instance without notifications and disables the session's observable-change cache, so prefer the proxy while the session tracks edits. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
 
 ```csharp
 session.Observable.Name = "Updated";
@@ -136,7 +136,7 @@ if (!pending.TryApplyInPlace(boundModel, out var conflicts))
 
 The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
 
-`session.Descriptors` (per-member metadata for generic form builders) and `ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) are advanced seams. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+`ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) is an advanced seam. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration. Per-member metadata for generic form builders lives in the session descriptors described there.
 
 ### Keyed Collections
 
@@ -186,12 +186,16 @@ var environment = new Settings.Fragment
 var effective = defaults.Merge(environment);
 
 var patch = new Settings.Patch { Label = "production" };
+patch.Database.Port = 7432;
 var updated = effective.Apply(patch);
 
 var changes = Settings.ChangeSet.Between(effective, updated);
 
 Console.WriteLine(updated.ToModel().Label); // production
+Console.WriteLine(updated.ToModel().Database!.Host); // db.local, preserved by the patch
 Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(changes.Database.Port.Before.Value); // 6432
+Console.WriteLine(changes.Database.Port.After.Value); // 7432
 
 [SparseFragmentModel]
 public partial class Settings
@@ -213,7 +217,7 @@ Save it as `quickstart.cs` and run:
 dotnet run --file quickstart.cs
 ```
 
-The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after.
+The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after. The patch edits Label and the nested port while `Database.Host` falls through untouched. When the same transition must survive concurrent edits, send it through `ChangePayload` and reconcile with `RebaseOnto` (see [ChangeSet rebase](docs/rebase.md)).
 
 The [documentation](#documentation) covers the full APIs and detailed behavior.
 
@@ -227,9 +231,9 @@ The generated types answer different questions:
 | `Patch` | What should change? | Baseline-free commands and local edits |
 | `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
 | `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON |
-| `SparseEditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
+| `EditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
 
-Edit through `session.Observable` and read through `session.Current` rather than mutating `session.Model` directly; the proxy adds notifications and the read-only view cannot change state by accident. `session.Descriptors` and `ChangeSet.EnumerateChanges()` stay reserved for generic UI and diagnostics code. See [UI Editing](#ui-editing) and [UI frameworks](docs/ui-frameworks.md).
+Edit through `session.Observable` and read through `session.Current` rather than mutating `session.Model` directly; the proxy adds notifications and the read-only view cannot change state by accident. `ChangeSet.EnumerateChanges()` stays reserved for diagnostics code. See [UI Editing](#ui-editing) and [UI frameworks](docs/ui-frameworks.md).
 
 The distinction is visible in a small example:
 
@@ -239,7 +243,7 @@ The distinction is visible in a small example:
   * Database.Port is 5432
 * *Patch*: is presence-aware edit.
   * keep Label as-is
-  * reset Database.Host to default 
+  * drop the Database.Host contribution with `Remove()`, so a lower layer falls through on the next merge
   * set Database.Port to 6432
 * *ChangeSet*: is presence-aware before → after transition.
   * Database.Host changed from "db.local" to default value
@@ -259,11 +263,11 @@ Optional<string?> value = "hello";
 Optional<string?> explicitNull = Optional<string?>.Present(null);
 ```
 
-Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand.
+Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand. A Patch `Remove()` drops one member contribution back to missing; on the next merge that member falls through to the lower layer. It never assigns the C# default or runs a constructor.
 
 ### Source Generation
 
-`[SparseFragmentModel]` generates code like the following. The state and
+`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state and
 operation families stay nested in the model; per-model UI and editing types
 live in a stable `SparseFragments.Generated` container:
 
@@ -314,13 +318,12 @@ The code is generated at compile time, uses no reflection for these generated op
 
 * Released as `netstandard2.0`.
   * .NET Framework 4.6.1 or later
-  * .NET (all versions)
-  * MAUI
-  * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version) as well.
+  * .NET Core 2.0 or later, .NET 5 or later
+  * .NET MAUI and other platforms that support `netstandard2.0` (see [Select .NET Standard version](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version)).
 * Generated code requires C# 9.0 or later.
   * Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project.
   * The `netstandard2.0` and .NET Framework targets default to C# 7.3, so those consumers must opt in explicitly.
-* Source generation works only in *IDE* environments using Roslyn 4.3.1 or later.
+* Source generation runs in any build that uses Roslyn 4.3.1 or later (SDK and compiler requirement). The versions below add design-time IDE support:
   * VisualStudio 2022: 17.3 or later
   * JetBrains Rider: 2023.1 or later
   * Unity: 6 or later
