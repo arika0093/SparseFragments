@@ -77,3 +77,18 @@ public partial class BlazorUnassignedOrder
 
     public List<BlazorUnassignedItem> Items { get; set; } = new();
 }
+
+[SparseFragmentModel]
+public partial class GuidContact
+{
+    [SparseKey]
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class GuidDirectory
+{
+    public Dictionary<Guid, GuidContact> ById { get; set; } = new();
+}

@@ -303,15 +303,33 @@ public static class SparseEditSessionExtensions
 
         try
         {
-            return keyType.IsEnum
-                ? Enum.Parse(keyType, key, ignoreCase: false)
-                : Convert.ChangeType(key, keyType, CultureInfo.InvariantCulture);
+            return ConvertKeyText(keyType, key, path);
         }
         catch (Exception exception)
             when (exception is ArgumentException or FormatException or InvalidCastException)
         {
             throw InvalidFieldPath(path);
         }
+    }
+
+    private static object ConvertKeyText(Type keyType, string key, string path)
+    {
+        // Guid is not IConvertible, so Convert.ChangeType cannot parse it.
+        // Guid.TryParse is culture-independent.
+        var targetType = Nullable.GetUnderlyingType(keyType) ?? keyType;
+        if (targetType == typeof(Guid))
+        {
+            if (Guid.TryParse(key, out var guid))
+            {
+                return guid;
+            }
+
+            throw InvalidFieldPath(path);
+        }
+
+        return keyType.IsEnum
+            ? Enum.Parse(keyType, key, ignoreCase: false)
+            : Convert.ChangeType(key, keyType, CultureInfo.InvariantCulture);
     }
 
     private static ArgumentException InvalidFieldPath(string path) =>

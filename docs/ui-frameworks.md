@@ -236,6 +236,12 @@ Blazor extension methods:
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
 | `session.AddValidationError(store, fieldPath, message)` | Resolves `fieldPath` with `session.Field` and surfaces a message |
 
+Dictionary members resolve through bracketed keys such as
+`Contacts["billing"].Name`. The canonical spelling quotes the key; an unquoted
+key is accepted when it needs no escaping. Non-string keys (numeric, enum,
+`Guid`) parse from the same spelling with invariant culture, and keys that do
+not parse fail as invalid paths.
+
 The neutral session members such as `Model`, `HasChanges`,
 `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain
 available independently of Blazor. Context-taking helpers require an
