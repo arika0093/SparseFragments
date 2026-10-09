@@ -418,6 +418,17 @@ namespace __SESSION_NAMESPACE__
         /// <param name="changes">The transition to apply.</param>
         /// <param name="conflicts">Structured conflicts when the before-state cannot be applied.</param>
         /// <returns><see langword="true"/> when the model was updated; otherwise <see langword="false"/>.</returns>
+        /// <remarks>
+        /// Conflict detection is atomic: a conflicting before-state or an immutable
+        /// member leaves the live model untouched and reports
+        /// <see langword="false"/>. Once validation passes, the write itself runs
+        /// arbitrary model setters and collection operations, which can throw after
+        /// partially mutating the model. Such a failure propagates after the session
+        /// resynchronizes its snapshots, caches, and notifications, so later reads
+        /// observe the partial state instead of stale state. This method is not a
+        /// transaction; <see cref="BatchEdit"/> only batches notifications and never
+        /// rolls the model back either.
+        /// </remarks>
         public bool TryApplyInPlace(
             TChangeSet changes,
             out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
@@ -444,13 +455,32 @@ namespace __SESSION_NAMESPACE__
                 );
             }
 
-            _writeModel(_model, result.Updated);
+            var committed = false;
+            try
+            {
+                _writeModel(_model, result.Updated);
+                committed = true;
+            }
+            finally
+            {
+                if (!committed)
+                {
+                    // The model may be partially mutated; resynchronize observation
+                    // so the session never serves stale snapshots or caches.
+                    RefreshAfterModelMutation();
+                }
+            }
             conflicts = null;
             RefreshAfterModelMutation();
             return true;
         }
 
         /// <summary>Applies a change set in place or throws when its before-state conflicts.</summary>
+        /// <remarks>
+        /// See <see cref="TryApplyInPlace"/> for the failure contract: conflicts are
+        /// detected atomically, while setter failures may partially mutate the model
+        /// and propagate after the session resynchronizes.
+        /// </remarks>
         public void ApplyInPlace(TChangeSet changes)
         {
             if (!TryApplyInPlace(changes, out _))
