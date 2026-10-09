@@ -199,7 +199,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while composite keys serialize as JSON so distinct keys never share a path.</remarks>"
+            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while composite keys serialize as JSON so distinct keys never share a path. Set members emit per-element <c>Added</c>/<c>Removed</c> entries at <c>Name[\"element\"]</c> when both sides are present (comparer-aware deltas); whole set presence transitions emit one aggregate entry.</remarks>"
         );
         code.AppendLineAt(
             2,
@@ -243,6 +243,10 @@ internal static class SparseChangeSetEnumeratorEmitter
             {
                 AppendDictionaryChanges(code, member, property, path);
             }
+            else if (IsSet(member))
+            {
+                AppendSetChanges(code, member, property, path, optionalObject);
+            }
             else
             {
                 AppendValueChange(code, property, path, "value" + member.Id);
@@ -273,6 +277,83 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + local
                 + ".After));"
         );
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendSetChanges(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string property,
+        string path,
+        string optionalObject
+    )
+    {
+        // Set-element membership deltas at audit granularity (issue #174):
+        // per-element entries reuse the collision-resistant key text and the
+        // comparer-aware typed deltas, so distinct values never share a path.
+        var transition = "__sparse_set_transition_" + member.Id;
+        var added = "__sparse_set_added_" + member.Id;
+        var removed = "__sparse_set_removed_" + member.Id;
+        code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(3, "if (" + transition + ".IsChanged)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!"
+                + transition
+                + ".Before.IsPresent || !"
+                + transition
+                + ".After.IsPresent || (object?)"
+                + transition
+                + ".Before.Value is null || (object?)"
+                + transition
+                + ".After.Value is null)"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "changes.Add(__SparseCreateChangeInfo("
+                + path
+                + ", "
+                + transition
+                + ".Before, "
+                + transition
+                + ".After));"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "else");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "foreach (var " + added + " in " + transition + ".Added)");
+        code.AppendLineAt(
+            6,
+            "changes.Add(new ChangeInfo(__SparseKeyPath("
+                + path
+                + ", "
+                + added
+                + "), "
+                + optionalObject
+                + ".Missing, "
+                + optionalObject
+                + ".Present((object?)"
+                + added
+                + "), ChangeKind.Added));"
+        );
+        code.AppendLineAt(5, "foreach (var " + removed + " in " + transition + ".Removed)");
+        code.AppendLineAt(
+            6,
+            "changes.Add(new ChangeInfo(__SparseKeyPath("
+                + path
+                + ", "
+                + removed
+                + "), "
+                + optionalObject
+                + ".Present((object?)"
+                + removed
+                + "), "
+                + optionalObject
+                + ".Missing, ChangeKind.Removed));"
+        );
+        code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
     }
 

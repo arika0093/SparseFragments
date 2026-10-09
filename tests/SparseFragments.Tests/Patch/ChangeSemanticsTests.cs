@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using SparseFragments;
 
 [assembly: SparseCompare(
@@ -322,5 +323,66 @@ public sealed class ChangeSemanticsTests
             new ReadOnlySetTransitionModel { Values = new HashSet<string>() }
         );
         empty.IsEmpty.ShouldBeTrue();
+    }
+
+    [Test]
+    public void EnumerateChangesExposesSetMembershipDeltas()
+    {
+        var changes = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.Ordinal) { "keep", "remove" },
+            },
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.Ordinal) { "keep", "add" },
+            }
+        );
+        changes.IsEmpty.ShouldBeFalse();
+
+        var entries = changes.EnumerateChanges().ToDictionary(static change => change.Path);
+        entries.Count.ShouldBe(2);
+        entries["Values[\"add\"]"].Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
+        entries["Values[\"add\"]"].Before.IsPresent.ShouldBeFalse();
+        entries["Values[\"add\"]"].After.Value.ShouldBe("add");
+        entries["Values[\"remove\"]"]
+            .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Removed);
+        entries["Values[\"remove\"]"].Before.Value.ShouldBe("remove");
+        entries["Values[\"remove\"]"].After.IsPresent.ShouldBeFalse();
+        changes
+            .EnumerateChangedPaths()
+            .OrderBy(static path => path)
+            .ShouldBe(["Values[\"add\"]", "Values[\"remove\"]"]);
+
+        // Cancelled add/remove pairs enumerate nothing.
+        var cancelled = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel { Values = new HashSet<string> { "same" } },
+            new SetTransitionModel { Values = new HashSet<string> { "same" } }
+        );
+        cancelled.IsEmpty.ShouldBeTrue();
+        cancelled.EnumerateChanges().ShouldBeEmpty();
+
+        // Comparer-equal sets report no deltas despite different spellings.
+        var folded = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ABC" },
+            },
+            new SetTransitionModel
+            {
+                Values = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "abc" },
+            }
+        );
+        folded.EnumerateChanges().ShouldBeEmpty();
+
+        // Whole set presence transitions stay aggregate entries.
+        var added = SetTransitionModel.ChangeSet.Between(
+            new SetTransitionModel { Values = null! },
+            new SetTransitionModel { Values = new HashSet<string> { "a" } }
+        );
+        added.IsEmpty.ShouldBeFalse();
+        var aggregate = added.EnumerateChanges().ToList();
+        aggregate.ShouldHaveSingleItem();
+        aggregate[0].Path.ShouldBe("Values");
     }
 }

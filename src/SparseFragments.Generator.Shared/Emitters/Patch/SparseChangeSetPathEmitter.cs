@@ -69,6 +69,10 @@ internal static class SparseChangeSetPathEmitter
             {
                 AppendDictionaryPaths(code, member, escapedProperty, local);
             }
+            else if (SparseChangeSetBasicsEmitter.IsSet(member))
+            {
+                AppendSetPaths(code, member, escapedProperty, local);
+            }
             else
             {
                 code.AppendLineAt(
@@ -196,6 +200,62 @@ internal static class SparseChangeSetPathEmitter
             );
         }
 
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendSetPaths(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string property,
+        string memberPath
+    )
+    {
+        // Mirrors EnumerateChanges set flattening (issue #174): per-element
+        // paths when both sides are present, one aggregate path otherwise.
+        var transition = "__sparse_set_transition_" + member.Id;
+        var added = "__sparse_set_added_" + member.Id;
+        var removed = "__sparse_set_removed_" + member.Id;
+        code.AppendLineAt(3, "var " + transition + " = " + property + ";");
+        code.AppendLineAt(3, "if (" + transition + ".IsChanged)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!"
+                + transition
+                + ".Before.IsPresent || !"
+                + transition
+                + ".After.IsPresent || (object?)"
+                + transition
+                + ".Before.Value is null || (object?)"
+                + transition
+                + ".After.Value is null) paths.Add("
+                + memberPath
+                + ");"
+        );
+        code.AppendLineAt(
+            4,
+            "else { foreach (var "
+                + added
+                + " in "
+                + transition
+                + ".Added) paths.Add(__SparseKeyPath("
+                + memberPath
+                + ", "
+                + added
+                + "));"
+        );
+        code.AppendLineAt(
+            4,
+            "foreach (var "
+                + removed
+                + " in "
+                + transition
+                + ".Removed) paths.Add(__SparseKeyPath("
+                + memberPath
+                + ", "
+                + removed
+                + ")); }"
+        );
         code.AppendLineAt(3, "}");
     }
 
