@@ -27,6 +27,21 @@ internal static class SparseDictionaryRemovalIndexEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "return slot;");
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "private bool __SparseContainsRemoved(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (__removedLookup is not null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "return __removedLookup[__SparseRemovedSlot(key, __removedLookup)] != 0;"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "foreach (var existing in __removed!)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "if (" + comparer + ".Equals(existing, key)) return true;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "return false;");
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "private void __SparseRebuildRemovedIndex(int capacity)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var slots = new int[capacity];");

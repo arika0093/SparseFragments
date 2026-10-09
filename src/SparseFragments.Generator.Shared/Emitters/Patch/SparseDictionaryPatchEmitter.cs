@@ -245,9 +245,7 @@ internal static class SparseDictionaryPatchEmitter
             code.AppendLineAt(4, "EnsureGranular(\"Edit\");");
             code.AppendLineAt(
                 4,
-                "if (__removed is not null) foreach (var r in __removed) if ("
-                    + comparer
-                    + ".Equals(r, key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed entry.\");"
+                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed entry.\");"
             );
             code.AppendLineAt(
                 4,
@@ -282,9 +280,7 @@ internal static class SparseDictionaryPatchEmitter
             code.AppendLineAt(4, "EnsureGranular(\"UpdateEntry\");");
             code.AppendLineAt(
                 4,
-                "if (__removed is not null) foreach (var r in __removed) if ("
-                    + comparer
-                    + ".Equals(r, key)) throw new global::System.InvalidOperationException(\"Cannot update a removed entry. Set it again instead.\");"
+                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed entry. Set it again instead.\");"
             );
             code.AppendLineAt(
                 4,
