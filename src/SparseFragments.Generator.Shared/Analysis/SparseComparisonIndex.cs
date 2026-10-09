@@ -37,6 +37,34 @@ internal sealed class SparseComparisonIndex
 
     private static readonly object Gate = new();
 
+    private readonly Dictionary<INamedTypeSymbol, SparseComparisonRuleSet> _ruleSets = new(
+        SymbolEqualityComparer.Default
+    );
+
+    internal SparseComparisonRuleSet? GetCachedRuleSet(INamedTypeSymbol model)
+    {
+        lock (_ruleSets)
+        {
+            return _ruleSets.TryGetValue(model, out var rules) ? rules : null;
+        }
+    }
+
+    internal SparseComparisonRuleSet CacheRuleSet(
+        INamedTypeSymbol model,
+        SparseComparisonRuleSet rules
+    )
+    {
+        lock (_ruleSets)
+        {
+            if (_ruleSets.TryGetValue(model, out var cached))
+            {
+                return cached;
+            }
+            _ruleSets.Add(model, rules);
+            return rules;
+        }
+    }
+
     private SparseComparisonIndex(
         ImmutableArray<INamedTypeSymbol> roots,
         ImmutableArray<HashSet<INamedTypeSymbol>> closures,
