@@ -277,6 +277,24 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(2, "public void RevertChanges() => _session.RevertChanges();");
         code.AppendLineAt(
             2,
+            "/// <summary>Reverts the current model to its retained baseline when possible in place.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">Structured conflicts when the pending changes cannot be reverted in place.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the model was reverted; otherwise <see langword=\"false\"/>.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryRevertChanges(out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts) => _session.TryRevertChanges(out conflicts);"
+        );
+        code.AppendLineAt(
+            2,
             "public "
                 + rebaseResultType
                 + " Reload("

@@ -497,8 +497,35 @@ namespace __SESSION_NAMESPACE__
         /// unassigned keyed sentinels) it cannot be diffed, so the revert restores
         /// the retained valid baseline directly instead of deriving a keyed diff
         /// from the invalid state. The live model instance is preserved.
+        /// Snapshot-only sessions whose baseline differs in members that cannot be
+        /// written in place (init-only or getter-only) cannot revert this way; use
+        /// <see cref="TryRevertChanges"/> to detect that case and replace the session
+        /// instead. This method never restores immutable members in place.
         /// </remarks>
         public void RevertChanges()
+        {
+            if (!TryRevertChanges(out _))
+            {
+                throw new InvalidOperationException(
+                    "The pending changes cannot be reverted in place because their "
+                        + "before-state conflicts or they include members that cannot be "
+                        + "written to an existing model. Use TryRevertChanges for structured "
+                        + "conflicts."
+                );
+            }
+        }
+
+        /// <summary>Reverts the current model to its retained baseline when possible in place.</summary>
+        /// <param name="conflicts">Structured conflicts when the pending changes cannot be reverted in place.</param>
+        /// <returns><see langword="true"/> when the model was reverted; otherwise <see langword="false"/>.</returns>
+        /// <remarks>
+        /// A <see langword="false"/> result leaves both the live model and the retained
+        /// baseline untouched. Snapshot-only sessions whose baseline differs in
+        /// init-only or getter-only members report their immutable operations as
+        /// conflicts here; adopt the baseline with a fresh session instead of expecting
+        /// an in-place restore. Mutable-model reverts keep the live instance stable.
+        /// </remarks>
+        public bool TryRevertChanges(out IReadOnlyList<__CONFLICT_TYPE__>? conflicts)
         {
             if (_invert is null)
             {
@@ -513,12 +540,14 @@ namespace __SESSION_NAMESPACE__
             catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
             {
                 RevertFromInvalidKeyedState(exception);
-                return;
+                conflicts = null;
+                return true;
             }
 
             if (_isEmpty(changes))
             {
-                return;
+                conflicts = null;
+                return true;
             }
 
             TChangeSet inverted;
@@ -529,19 +558,19 @@ namespace __SESSION_NAMESPACE__
             catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
             {
                 RevertFromInvalidKeyedState(exception);
-                return;
+                conflicts = null;
+                return true;
             }
 
-            // Only keyed-validity failures heal here: genuine before-state or
-            // immutable-member conflicts throw different messages and propagate,
-            // and the baseline restore below heals even a partially applied write.
             try
             {
-                ApplyInPlace(inverted);
+                return TryApplyInPlace(inverted, out conflicts);
             }
             catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
             {
                 RevertFromInvalidKeyedState(exception);
+                conflicts = null;
+                return true;
             }
         }
 
