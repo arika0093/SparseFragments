@@ -136,6 +136,38 @@ public interface IArrayDescriptor
 
     /// <summary>Attempts to move an item through the generated observable view.</summary>
     bool TryMove(int oldIndex, int newIndex);
+
+    /// <summary>Gets whether the sequence carries stable keyed identity.</summary>
+    /// <remarks>
+    /// Sourced from the generator's key analysis; generic editors must not
+    /// reverse-engineer <c>SparseKey</c> conventions themselves. Positional APIs
+    /// stay positional: use <see cref="GetItemKey"/> and <see cref="IndexOfKey"/>
+    /// to track identity through reorder.
+    /// </remarks>
+    bool IsKeyed { get; }
+
+    /// <summary>Gets the key type, or null for unkeyed sequences.</summary>
+    Type? KeyType { get; }
+
+    /// <summary>Gets the key property names in key order.</summary>
+    /// <remarks>Empty for unkeyed sequences and interface-computed keys.</remarks>
+    IReadOnlyList<string> KeyPropertyNames { get; }
+
+    /// <summary>Gets the assigned key of the item at an index.</summary>
+    /// <remarks>Null when unkeyed or the item has no key.</remarks>
+    object? GetItemKey(int index);
+
+    /// <summary>Finds the first index with an equal assigned key.</summary>
+    /// <remarks>
+    /// Pure key equality: unassigned sentinels match like any other value, so
+    /// callers exempting them must check <see cref="IsUnassignedKey"/> first.
+    /// Returns -1 when unkeyed, unconvertible, or absent.
+    /// </remarks>
+    int IndexOfKey(object? key);
+
+    /// <summary>Determines whether a key is the configured unassigned marker.</summary>
+    /// <remarks>Always false when the sequence configures no marker.</remarks>
+    bool IsUnassignedKey(object? key);
 }
 
 /// <summary>Describes and edits a dictionary through its generated observable view.</summary>

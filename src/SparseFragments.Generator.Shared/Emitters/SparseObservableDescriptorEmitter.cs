@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace SparseFragments.Generator.Shared;
@@ -461,7 +462,8 @@ internal static class SparseObservableDescriptorEmitter
             + property
             + "!.Count) return false; this."
             + property
-            + "!.Move(oldIndex, newIndex); return true; }";
+            + "!.Move(oldIndex, newIndex); return true; }, ";
+        var keyed = KeyedSequenceMetadata(member, property, names, dialect);
         return "() => this."
             + property
             + " is null ? null : "
@@ -495,15 +497,110 @@ internal static class SparseObservableDescriptorEmitter
             + insert
             + remove
             + move
-            + ", "
             + modelResolver
+            + (keyed.Resolvers.Length == 0 ? string.Empty : ", " + keyed.Resolvers)
             + " }, typeof("
             + (
                 names.HasElementProxy
                     ? names.ViewType.TrimEnd('?')
                     : member.Collection.ElementType.NonNullableName
             )
-            + ")), static () => true)";
+            + ")"
+            + keyed.ConstructorArgs
+            + "), static () => true)";
+    }
+
+    /// <summary>Emits keyed-identity metadata sourced from key analysis.</summary>
+    /// <remarks>
+    /// Unkeyed sequences contribute no resolvers and null constructor metadata,
+    /// so <c>IsKeyed</c> stays false and lookups report absent.
+    /// </remarks>
+    private static (string Resolvers, string ConstructorArgs) KeyedSequenceMetadata(
+        SparseMemberModel member,
+        string property,
+        SparseObservableEmitter.CollectionProxyNames names,
+        SparseDescriptorDialect dialect
+    )
+    {
+        var keyTypeName = member.Collection.KeyTypeName;
+        if (!member.Collection.IsKeyedSequence || keyTypeName is null)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        var modelType = member.Collection.ElementType.NonNullableName;
+        var keyCast = dialect.DescriptorValueType + ".TryGet<" + keyTypeName + ">";
+        var comparer =
+            "global::System.Collections.Generic.EqualityComparer<" + keyTypeName + ">.Default";
+        var bang = SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : string.Empty;
+        string KeyOf(string modeller)
+        {
+            var cast = "((" + modelType + ")" + modeller + ")";
+            if (member.Collection.KeyKind == SparseKeyKind.Interface)
+            {
+                return cast + ".SparseKey" + bang;
+            }
+
+            var keys = member.Collection.KeyPropertyNames;
+            if (keys.Length == 1)
+            {
+                return cast + "." + SparseNaming.EscapeIdentifier(keys[0]) + bang;
+            }
+
+            return "("
+                + string.Join(
+                    ", ",
+                    keys.Select(key => cast + "." + SparseNaming.EscapeIdentifier(key))
+                )
+                + ")";
+        }
+        // Views hold proxies for reference fragments; keys always read the model.
+        string Unwrap(string view)
+        {
+            return names.HasElementProxy
+                ? "("
+                    + view
+                    + " is "
+                    + names.ViewType.TrimEnd('?')
+                    + " keyedProxy ? (object?)keyedProxy.__SparseTarget : "
+                    + view
+                    + ")"
+                : "(object?)(" + view + ")";
+        }
+        var resolvers =
+            "GetItemKey = index => { var rawKeyedItem = this."
+            + property
+            + "![index]; var keyedModel = "
+            + Unwrap("rawKeyedItem")
+            + "; if (keyedModel is null) return null; return (object?)("
+            + KeyOf("keyedModel")
+            + "); }, "
+            + "IndexOfKey = key => { if (!"
+            + keyCast
+            + "(key, out var typedKey)) return -1; var keyedList = this."
+            + property
+            + "!; for (var keyedIndex = 0; keyedIndex < keyedList.Count; keyedIndex++) { var keyedModel = "
+            + Unwrap("keyedList[keyedIndex]")
+            + "; if (keyedModel is null) continue; if ("
+            + comparer
+            + ".Equals("
+            + KeyOf("keyedModel")
+            + ", typedKey)) return keyedIndex; } return -1; }, "
+            + "IsUnassignedKey = key => { if (!"
+            + keyCast
+            + "(key, out var typedKey)) return false; return "
+            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "typedKey")
+            + "; }, ";
+        var namesLiteral =
+            "new string[] { "
+            + string.Join(
+                ", ",
+                member.Collection.KeyPropertyNames.Select(name =>
+                    SymbolDisplay.FormatLiteral(name, true)
+                )
+            )
+            + " }";
+        return (resolvers, ", typeof(" + keyTypeName + "), " + namesLiteral);
     }
 
     /// <summary>Emits a read-only dictionary descriptor for sorted/read-only shapes.</summary>

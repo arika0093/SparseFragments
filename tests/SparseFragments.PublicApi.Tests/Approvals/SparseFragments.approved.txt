@@ -374,10 +374,16 @@ namespace SparseFragments.Generated
         bool CanSetItem { get; }
         int Count { get; }
         bool IsItemNullable { get; }
+        bool IsKeyed { get; }
         System.Type ItemType { get; }
         System.Type ItemViewType { get; }
+        System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        System.Type? KeyType { get; }
         object? GetItem(int index);
         SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index);
+        object? GetItemKey(int index);
+        int IndexOfKey(object? key);
+        bool IsUnassignedKey(object? key);
         bool TryAdd(object? value);
         bool TryInsert(int index, object? value);
         bool TryMove(int oldIndex, int newIndex);
@@ -437,7 +443,7 @@ namespace SparseFragments.Generated
     }
     public sealed class SparseArrayDescriptor : SparseFragments.Generated.IArrayDescriptor
     {
-        public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access, System.Type? itemViewType = null) { }
+        public SparseArrayDescriptor(System.Type itemType, bool isItemNullable, SparseFragments.Generated.SparseArrayDescriptorAccess access, System.Type? itemViewType = null, System.Type? keyType = null, string[]? keyPropertyNames = null) { }
         public bool CanAdd { get; }
         public bool CanInsert { get; }
         public bool CanMove { get; }
@@ -445,10 +451,16 @@ namespace SparseFragments.Generated
         public bool CanSetItem { get; }
         public int Count { get; }
         public bool IsItemNullable { get; }
+        public bool IsKeyed { get; }
         public System.Type ItemType { get; }
         public System.Type ItemViewType { get; }
+        public System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        public System.Type? KeyType { get; }
         public object? GetItem(int index) { }
         public SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index) { }
+        public object? GetItemKey(int index) { }
+        public int IndexOfKey(object? key) { }
+        public bool IsUnassignedKey(object? key) { }
         public bool TryAdd(object? value) { }
         public bool TryInsert(int index, object? value) { }
         public bool TryMove(int oldIndex, int newIndex) { }
@@ -467,7 +479,10 @@ namespace SparseFragments.Generated
         public System.Func<int>? Count { get; set; }
         public System.Func<int, object?>? GetItem { get; set; }
         public System.Func<int, SparseFragments.Generated.IDescriptorSet?>? GetItemDescriptors { get; set; }
+        public System.Func<int, object?>? GetItemKey { get; set; }
         public System.Func<int, object?>? GetItemModel { get; set; }
+        public System.Func<object?, int>? IndexOfKey { get; set; }
+        public System.Func<object?, bool>? IsUnassignedKey { get; set; }
         public System.Func<object?, bool>? TryAdd { get; set; }
         public System.Func<int, object?, bool>? TryInsert { get; set; }
         public System.Func<int, int, bool>? TryMove { get; set; }

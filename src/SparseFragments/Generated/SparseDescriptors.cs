@@ -257,6 +257,15 @@ public sealed class SparseArrayDescriptorAccess
     /// <summary>Gets or sets the item model resolver used for staleness checks.</summary>
     /// <remarks>Returns the unwrapped model for an index, or null when unknown.</remarks>
     public Func<int, object?>? GetItemModel { get; set; }
+
+    /// <summary>Gets or sets the item key resolver.</summary>
+    public Func<int, object?>? GetItemKey { get; set; }
+
+    /// <summary>Gets or sets the positional key lookup.</summary>
+    public Func<object?, int>? IndexOfKey { get; set; }
+
+    /// <summary>Gets or sets the unassigned-marker test.</summary>
+    public Func<object?, bool>? IsUnassignedKey { get; set; }
 }
 
 /// <summary>Describes a sequence and delegates edits to its generated observable view.</summary>
@@ -270,12 +279,18 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
         Type itemType,
         bool isItemNullable,
         SparseArrayDescriptorAccess access,
-        Type? itemViewType = null
+        Type? itemViewType = null,
+        Type? keyType = null,
+        string[]? keyPropertyNames = null
     )
     {
         ItemType = itemType ?? throw new ArgumentNullException(nameof(itemType));
         IsItemNullable = isItemNullable;
         ItemViewType = itemViewType ?? itemType;
+        KeyType = keyType;
+        KeyPropertyNames = Array.AsReadOnly(
+            (string[])(keyPropertyNames?.Clone() ?? Array.Empty<string>())
+        );
         _access = access ?? throw new ArgumentNullException(nameof(access));
     }
 
@@ -284,6 +299,24 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
 
     /// <inheritdoc />
     public Type ItemViewType { get; }
+
+    /// <inheritdoc />
+    public bool IsKeyed => KeyType is not null;
+
+    /// <inheritdoc />
+    public Type? KeyType { get; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> KeyPropertyNames { get; }
+
+    /// <inheritdoc />
+    public object? GetItemKey(int index) => _access.GetItemKey?.Invoke(index);
+
+    /// <inheritdoc />
+    public int IndexOfKey(object? key) => _access.IndexOfKey?.Invoke(key) ?? -1;
+
+    /// <inheritdoc />
+    public bool IsUnassignedKey(object? key) => _access.IsUnassignedKey?.Invoke(key) == true;
 
     /// <inheritdoc />
     public bool IsItemNullable { get; }
@@ -374,6 +407,18 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
         public Type ItemViewType => _inner.ItemViewType;
 
         public bool IsItemNullable => _inner.IsItemNullable;
+
+        public bool IsKeyed => _inner.IsKeyed;
+
+        public Type? KeyType => _inner.KeyType;
+
+        public IReadOnlyList<string> KeyPropertyNames => _inner.KeyPropertyNames;
+
+        public object? GetItemKey(int index) => _inner.GetItemKey(index);
+
+        public int IndexOfKey(object? key) => _inner.IndexOfKey(key);
+
+        public bool IsUnassignedKey(object? key) => _inner.IsUnassignedKey(key);
 
         public int Count => _inner.Count;
 
