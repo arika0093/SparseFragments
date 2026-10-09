@@ -330,16 +330,23 @@ internal static class SparseChangeSetEnumeratorEmitter
     )
     {
         var transition = "__sparse_dictionary_transition_" + member.Id;
-        var item = "__sparse_dictionary_item_" + member.Id;
-        var itemPath = "__sparse_dictionary_path_" + member.Id;
-        code.AppendLineAt(3, "var " + transition + " = " + property + ";");
-        code.AppendLineAt(
-            3,
-            "if (" + transition + ".Before.IsPresent || " + transition + ".After.IsPresent)"
-        );
+        code.AppendLineAt(3, "if (!__sparse_hasWhole && !" + KeyedWholeFlag(member) + ")");
         code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "if (" + KeyedItems(member) + " is not null)");
+        code.AppendLineAt(4, "{");
+        AppendDictionaryItems(code, member, KeyedItems(member), path, 5);
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "else");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var " + transition + " = " + property + ";");
         code.AppendLineAt(
             4,
+            "if (" + transition + ".Before.IsPresent || " + transition + ".After.IsPresent)"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
             "changes.Add(__SparseCreateChangeInfo("
                 + path
                 + ", "
@@ -348,17 +355,32 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + transition
                 + ".After));"
         );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "else");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "foreach (var " + item + " in " + transition + ")");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
+        AppendDictionaryItems(code, member, transition, path, 5);
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendDictionaryItems(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string items,
+        string path,
+        int indent
+    )
+    {
+        var item = "__sparse_dictionary_item_" + member.Id;
+        var itemPath = "__sparse_dictionary_path_" + member.Id;
+        code.AppendLineAt(indent, "foreach (var " + item + " in " + items + ")");
+        code.AppendLineAt(indent, "{");
         code.AppendLineAt(
-            5,
+            indent + 1,
             "var " + itemPath + " = __SparseKeyPath(" + path + ", " + item + ".Key);"
         );
         code.AppendLineAt(
-            5,
+            indent + 1,
             "if ("
                 + item
                 + ".IsAdded || "
@@ -371,16 +393,22 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + item
                 + ".After));"
         );
-        code.AppendLineAt(5, "if (" + item + ".IsEdited)");
-        code.AppendLineAt(5, "{");
+        code.AppendLineAt(indent + 1, "if (" + item + ".IsEdited)");
+        code.AppendLineAt(indent + 1, "{");
         if (member.Collection.ValueType?.IsFragmentModel == true)
         {
-            AppendNestedChanges(code, item + ".Edit", itemPath, "dictionary" + member.Id, 5);
+            AppendNestedChanges(
+                code,
+                item + ".Edit",
+                itemPath,
+                "dictionary" + member.Id,
+                indent + 1
+            );
         }
         else
         {
             code.AppendLineAt(
-                6,
+                indent + 2,
                 "changes.Add(__SparseCreateChangeInfo("
                     + itemPath
                     + ", "
@@ -391,8 +419,7 @@ internal static class SparseChangeSetEnumeratorEmitter
             );
         }
 
-        code.AppendLineAt(5, "}");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(3, "}");
+        code.AppendLineAt(indent + 1, "}");
+        code.AppendLineAt(indent, "}");
     }
 }
