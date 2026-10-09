@@ -51,6 +51,12 @@ The session retains a private fragment snapshot as its baseline and exposes the
 live model as `Model`, alongside a stable typed `Observable` proxy over the same
 instance. The single-argument overload `baseline.CreateEditSession()` captures that model as both the baseline and the live instance to edit; the two-argument overload `baseline.CreateEditSession(current)` retains the `current` instance as the live model while snapshotting `baseline` separately. You can also compare models directly without a session via `baseline.CreateChangeSet(current)`.
 
+Use `session.BatchEdit(() => { ... })` when one user action needs several
+observable mutations. The outermost batch raises one `TransitionObserved` event
+for the net transition; nested batches join it. `PropertyChanged` and the
+optional `onChanged` callback are also coalesced. A batch does not roll back
+mutations if its action throws.
+
 `HasChanges` and `CreateChangeSet()` always compare that
 baseline with the model's current state, so edit-then-restore is clean even if a
 UI control reported that a field was touched. `CreatePatch()` projects the same

@@ -104,6 +104,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
@@ -424,6 +425,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
@@ -684,6 +686,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
@@ -951,6 +954,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
@@ -1248,6 +1252,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }
@@ -1601,6 +1606,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges() { }
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
+            public void BatchEdit(System.Action edit) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() { }

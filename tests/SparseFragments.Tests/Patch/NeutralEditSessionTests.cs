@@ -177,6 +177,67 @@ public sealed class NeutralEditSessionTests
     }
 
     [Test]
+    public void BatchEditCombinesNestedObservableTransitionsAndNotifications()
+    {
+        var model = new NeutralSessionModel { Name = "before", Tags = ["one"] };
+        var onChangedCount = 0;
+        var session = model.CreateEditSession(() => onChangedCount++);
+        var transitions = new List<NeutralSessionModel.ChangeSet>();
+        var propertyChangedCount = 0;
+        session.TransitionObserved += transitions.Add;
+        session.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(session.HasChanges))
+            {
+                propertyChangedCount++;
+            }
+        };
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.Name = "after";
+            session.BatchEdit(() => session.Observable.Tags.Add("two"));
+            session.Observable.Name = "before";
+        });
+
+        transitions.Count.ShouldBe(1);
+        transitions[0].Name.IsChanged.ShouldBeFalse();
+        transitions[0].Tags.After.Value.ShouldBe(["one", "two"]);
+        propertyChangedCount.ShouldBe(1);
+        onChangedCount.ShouldBe(1);
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.Name = "temporary";
+            session.Observable.Name = "before";
+        });
+
+        transitions.Count.ShouldBe(1);
+        propertyChangedCount.ShouldBe(2);
+        onChangedCount.ShouldBe(2);
+    }
+
+    [Test]
+    public void BatchEditPublishesChangesWhenTheActionThrows()
+    {
+        var session = new NeutralSessionModel { Name = "before" }.CreateEditSession();
+        var transitions = new List<NeutralSessionModel.ChangeSet>();
+        session.TransitionObserved += transitions.Add;
+
+        Should.Throw<InvalidOperationException>(() =>
+            session.BatchEdit(() =>
+            {
+                session.Observable.Name = "after";
+                throw new InvalidOperationException("edit failed");
+            })
+        );
+
+        transitions.Count.ShouldBe(1);
+        transitions[0].Name.Before.Value.ShouldBe("before");
+        transitions[0].Name.After.Value.ShouldBe("after");
+    }
+
+    [Test]
     public void SessionDetectsUnnotifiedInPlaceCollectionChanges()
     {
         var model = new NeutralSessionModel();

@@ -45,11 +45,16 @@ namespace SparseFragments.__GeneratedSessionCore
         private readonly Func<TChangeSet, TModel, RebaseResult<TChangeSet>>? _rebase;
         private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
         private readonly Action<TObservable>? _refreshObservable;
+        private readonly Action? _onChanged;
         private bool _cacheObservableChanges;
         private bool _hasChangesCacheValid;
         private bool _cachedHasChanges;
         private Optional<TFragment?> _lastObserved;
         private Optional<TFragment?> _baseline;
+        private Optional<TFragment?> _batchStart;
+        private int _batchDepth;
+        private bool _batchPropertyChanged;
+        private bool _batchOnChanged;
 
         internal EditSessionCore(
             TModel model,
@@ -109,18 +114,11 @@ namespace SparseFragments.__GeneratedSessionCore
             _rebase = rebase;
             _enumerateChangedPaths = enumerateChangedPaths;
             _refreshObservable = refreshObservable;
+            _onChanged = onChanged;
             _cacheObservableChanges = cacheObservableChanges;
             _baseline = Optional<TFragment?>.Present(baseline);
             _lastObserved = Optional<TFragment?>.Present(fromModel(model));
-            _observable = toObservable(
-                model,
-                () =>
-                {
-                    OnObservableChanged();
-                    onChanged?.Invoke();
-                },
-                DisableHasChangesCache
-            );
+            _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
         }
 
         /// <summary>Creates a session capturing the current model state as its baseline.</summary>
@@ -343,6 +341,35 @@ namespace SparseFragments.__GeneratedSessionCore
 
         /// <summary>Raised with the leaf transitions produced by each observable edit.</summary>
         public event Action<TChangeSet>? TransitionObserved;
+
+        /// <summary>Runs observable edits as one transition notification, including nested batches.</summary>
+        public void BatchEdit(Action edit)
+        {
+            if (edit is null)
+                throw new ArgumentNullException(nameof(edit));
+
+            var isOuterBatch = _batchDepth == 0;
+            if (isOuterBatch)
+            {
+                _batchStart = _lastObserved;
+                _batchPropertyChanged = false;
+                _batchOnChanged = false;
+            }
+
+            _batchDepth++;
+            try
+            {
+                edit();
+            }
+            finally
+            {
+                _batchDepth--;
+                if (isOuterBatch)
+                {
+                    CompleteBatchEdit();
+                }
+            }
+        }
 
         /// <summary>Derives the baseline-aware change set between the retained baseline and current model.</summary>
         public TChangeSet CreateChangeSet()
@@ -570,7 +597,7 @@ namespace SparseFragments.__GeneratedSessionCore
                 _hasChangesCacheValid = true;
             }
 
-            if (!_isEmpty(transition))
+            if (_batchDepth == 0 && !_isEmpty(transition))
             {
                 TransitionObserved?.Invoke(transition);
             }
@@ -585,7 +612,7 @@ namespace SparseFragments.__GeneratedSessionCore
             _lastObserved = current;
             _hasChangesCacheValid = false;
             _refreshObservable?.Invoke(_observable);
-            if (!_isEmpty(transition))
+            if (_batchDepth == 0 && !_isEmpty(transition))
             {
                 TransitionObserved?.Invoke(transition);
             }
@@ -599,10 +626,60 @@ namespace SparseFragments.__GeneratedSessionCore
             _hasChangesCacheValid = false;
         }
 
+        private void OnObservableMutation()
+        {
+            OnObservableChanged();
+            if (_batchDepth > 0)
+            {
+                _batchOnChanged = true;
+            }
+            else
+            {
+                _onChanged?.Invoke();
+            }
+        }
+
+        private void CompleteBatchEdit()
+        {
+            var start = _batchStart;
+            _batchStart = default;
+            var notifyPropertyChanged = _batchPropertyChanged;
+            _batchPropertyChanged = false;
+            var notifyOnChanged = _batchOnChanged;
+            _batchOnChanged = false;
+
+            if (start.IsPresent)
+            {
+                var transition = _between(start, _lastObserved);
+                if (!_isEmpty(transition))
+                {
+                    TransitionObserved?.Invoke(transition);
+                }
+            }
+
+            if (notifyPropertyChanged)
+            {
+                OnPropertyChanged(nameof(HasChanges));
+            }
+
+            if (notifyOnChanged)
+            {
+                _onChanged?.Invoke();
+            }
+        }
+
         private static bool IsDuplicateKeyError(InvalidOperationException exception) =>
             string.Equals(exception.Message, DuplicateKeyErrorMessage, StringComparison.Ordinal);
 
-        private void OnPropertyChanged(string propertyName) =>
+        private void OnPropertyChanged(string propertyName)
+        {
+            if (_batchDepth > 0)
+            {
+                _batchPropertyChanged = true;
+                return;
+            }
+
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

@@ -290,6 +290,15 @@ internal static class SparseModelExtensionsEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Runs observable edits as one transition notification, including nested batches.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"edit\">The observable edits to run.</param>");
+        code.AppendLineAt(
+            2,
+            "public void BatchEdit(global::System.Action edit) => _session.BatchEdit(edit);"
+        );
+        code.AppendLineAt(
+            2,
             "public " + modelType + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
         );
         code.AppendLineAt(
