@@ -69,6 +69,32 @@ internal static class SparseModelAnalyzer
             cancellationToken
         );
 
+        // Member-level rebase policies validate against the generated member
+        // shape: whole-member reconciliation cannot target nested, keyed,
+        // dictionary, or merge-collection members.
+        for (var index = 0; index < members.Length && index < memberModels.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (
+                members[index].RebasePolicyType is not null
+                && !SparseMergeValidation.IsValidRebasePolicy(
+                    members[index],
+                    memberModels[index],
+                    config,
+                    cancellationToken
+                )
+            )
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        config.EffectiveDiagnosticIds.InvalidRebasePolicy,
+                        members[index].Property.Locations.FirstOrDefault(),
+                        members[index].Property.Name
+                    )
+                );
+            }
+        }
+
         // Formerly a late render-time check: reserved generated-name collisions
         // now fail during analysis on the shared collision primitive, keeping
         // the historical single generated-name diagnostic with no source location.

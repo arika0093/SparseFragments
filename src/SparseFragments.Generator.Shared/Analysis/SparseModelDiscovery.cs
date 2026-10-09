@@ -147,6 +147,25 @@ internal static class SparseModelDiscovery
                 mode = config.EffectiveMergeModeMap.Normalize(requestedMode);
             }
 
+            INamedTypeSymbol? rebasePolicyType = null;
+            if (config.RebasePolicyAttributeMetadataName is not null)
+            {
+                foreach (var attribute in property.GetAttributes())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (
+                        attribute.AttributeClass?.ToDisplayString()
+                            == config.RebasePolicyAttributeMetadataName
+                        && attribute.ConstructorArguments.FirstOrDefault()
+                            is { Kind: TypedConstantKind.Type } policyConstant
+                    )
+                    {
+                        rebasePolicyType = policyConstant.Value as INamedTypeSymbol;
+                        break;
+                    }
+                }
+            }
+
             yield return new SparseSymbolMemberModel(
                 index++,
                 property,
@@ -154,7 +173,8 @@ internal static class SparseModelDiscovery
                 mode,
                 SparseCollectionAnalyzer.GetCollectionInfo(property.Type),
                 mergeStrategyType,
-                hasExplicitMergeMode
+                hasExplicitMergeMode,
+                rebasePolicyType
             );
         }
     }
@@ -575,6 +595,12 @@ internal static class SparseModelDiscovery
             );
         }
 
+        SparseTypeModel? rebasePolicyType = null;
+        if (member.RebasePolicyType is not null)
+        {
+            rebasePolicyType = CreateTypeModel(member.RebasePolicyType, config, cancellationToken);
+        }
+
         return new SparseMemberModel(
             member.Id,
             property,
@@ -586,7 +612,8 @@ internal static class SparseModelDiscovery
             childIsStructural,
             childIsReferenceType,
             HasExplicitMergeMode: member.HasExplicitMergeMode,
-            RedactBefore: IsRedactBefore(member.Property, config)
+            RedactBefore: IsRedactBefore(member.Property, config),
+            RebasePolicyType: rebasePolicyType
         );
     }
 

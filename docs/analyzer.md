@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF026)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF027)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -31,6 +31,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF024](#spf024-invalid-unassigned-key-sentinel) | Invalid unassigned key sentinel | Error |
 | [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
 | [SPF026](#spf026-in-place-submit-is-unavailable) | In-place submit is unavailable | Info |
+| [SPF027](#spf027-invalid-custom-rebase-policy) | Invalid custom rebase policy | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -333,3 +334,36 @@ public partial class Widget
 * Message: `Model '{0}' has init-only or constructor-only members and does not support in-place writes or edit-session submission`
 * Cause: The model contains an init-only or get-only member. Generated `CreateEditSession()` remains available, but APIs that mutate an existing model (`Fragment.WriteTo` and `Patch.ApplyInPlace`) are omitted or unavailable.
 * Fix: Make all members writable when in-place application is required. Immutable models continue to support the ordinary fragment, patch, and change-set APIs.
+
+## SPF027: Invalid custom rebase policy
+
+* Message: `Rebase policy for member '{0}' must derive from FragmentRebasePolicy<TMember>, be a concrete, accessible type, and target a scalar or whole-replace member`
+* Cause: The generator checked the policy type against each requirement and at
+  least one failed: base type or `TMember` mismatch, or the policy is `abstract`,
+  generic, or not accessibly constructible. Policies also cannot target nested
+  models, keyed or dictionary members, or `Append`/`SetUnion` members, which
+  reconcile member by member instead of as one value.
+* Fix: Derive from `FragmentRebasePolicy<TMember>` with `TMember` exactly matching
+  the member type, make the policy a concrete class with an accessible
+  parameterless constructor, and apply it to a scalar or whole-replace member.
+  See [ChangeSet rebase](rebase.md).
+
+```csharp
+public sealed class LabelPolicy : FragmentRebasePolicy<string?>
+{
+    public override bool AreEqual(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.Ordinal);
+
+    public override bool TryRebase(Optional<string?> editBase, Optional<string?> desired, Optional<string?> current, out Optional<string?> rebased, out string? reason)
+    {
+        return FragmentRebasePolicy<string?>.FailOnConflict().TryRebase(editBase, desired, current, out rebased, out reason);
+    }
+}
+
+[SparseFragmentModel]
+public partial class PolicySettings
+{
+    [SparseRebasePolicy(typeof(LabelPolicy))]
+    public string? Label { get; set; } = "";
+}
+```

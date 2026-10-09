@@ -45,7 +45,25 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         var conflict = dialect.ConflictType;
         var conflictKind = dialect.ConflictKindType;
         var trans = TransNameFor(members, member);
-        code.AppendLineAt(4, "if (" + HasField(member) + ")");
+        SparseChangeSetMemberRebaseEmitter.AppendRedactedGuard(
+            code,
+            member,
+            lit,
+            runtime,
+            conflict,
+            dialect,
+            HasField(member),
+            [
+                "__rh" + id + " = true;",
+                "__rwhole" + id + " = " + KeyedWholeFlag(member) + ";",
+                "__rwb" + id + " = " + KeyedWholeBefore(member) + ";",
+                "__rwa" + id + " = " + KeyedWholeAfter(member) + ";",
+                "__ritems" + id + " = " + KeyedItems(member) + ";",
+                "__rbO" + id + " = " + KeyedBeforeOrder(member) + ";",
+                "__raO" + id + " = " + KeyedAfterOrder(member) + ";",
+            ]
+        );
+        code.AppendLineAt(4, "if (" + HasField(member) + " && !__red" + id + ")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(4, "var __curM" + id + " = __cur." + esc + ";");
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))

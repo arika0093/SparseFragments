@@ -6,7 +6,8 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Emits the generated declaration shell: fragment type, storage/members and builder API.</summary>
 internal sealed class SparseFragmentDeclarationEmitter(
     string optional,
-    string mergeStrategyFieldPrefix
+    string mergeStrategyFieldPrefix,
+    string? rebasePolicyFieldPrefix = null
 )
 {
     private string Optional { get; } = optional;
@@ -14,6 +15,9 @@ internal sealed class SparseFragmentDeclarationEmitter(
 
     public string MergeStrategyField(SparseMemberModel member) =>
         SparseFragmentEmitHelpers.MergeStrategyField(MergeStrategyFieldPrefix, member);
+
+    public string RebasePolicyField(SparseMemberModel member) =>
+        (rebasePolicyFieldPrefix ?? SparseWellKnownNames.RebasePolicyFieldPrefix) + member.Id;
 
     public static void AppendDeclaration(
         SharedIndentedBuilder code,
@@ -39,7 +43,9 @@ internal sealed class SparseFragmentDeclarationEmitter(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         string mergeStrategy,
-        System.Action<SharedIndentedBuilder>? appendMemberAttributes = null
+        System.Action<SharedIndentedBuilder>? appendMemberAttributes = null,
+        string? rebasePolicyBase = null,
+        System.Func<SparseMemberModel, string>? rebasePolicyField = null
     )
     {
         foreach (var member in members)
@@ -66,6 +72,30 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .Append(MergeStrategyField(member))
                 .Append(" = new ")
                 .Append(member.MergeStrategyType!.Value.Name)
+                .AppendLine("();");
+        }
+        foreach (var member in members.Where(static member => member.RebasePolicyType is not null))
+        {
+            if (rebasePolicyBase is null)
+            {
+                throw new System.InvalidOperationException(
+                    "A rebase policy base type is required to emit member rebase policies."
+                );
+            }
+
+            code.AppendIndent(2)
+                .Append("internal static readonly ")
+                .Append(rebasePolicyBase)
+                .Append("<")
+                .Append(member.Property.Type.Name)
+                .Append("> ")
+                .Append(
+                    rebasePolicyField is null
+                        ? RebasePolicyField(member)
+                        : rebasePolicyField(member)
+                )
+                .Append(" = new ")
+                .Append(member.RebasePolicyType!.Value.Name)
                 .AppendLine("();");
         }
         code.AppendLine();

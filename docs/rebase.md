@@ -203,6 +203,125 @@ A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own t
 * the default implementation succeeds when the desired state still matches the edit base (unchanged local edit, so the current state wins) or when the current state matches the edit base or the desired state (clean replay or already applied), and reports a conflict otherwise;
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
 
+## Rebase Policies
+
+This section is a reference. It defines policy selection without merge coupling.
+
+A member-level policy selects rebase behavior without requiring a custom merge strategy. The policy below merges divergent labels instead of conflicting:
+
+<!-- sample: rebase-policy-models -->
+```csharp
+using SparseFragments;
+
+[SparseFragmentModel]
+public partial class RebasePolicySettings
+{
+    public string? Label { get; set; }
+
+    [SparseRebasePolicy(typeof(ConcatLabelPolicy))]
+    public string? Tag { get; set; }
+}
+
+public sealed class ConcatLabelPolicy : FragmentRebasePolicy<string?>
+{
+    public override bool AreEqual(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.Ordinal);
+
+    public override bool TryRebase(
+        Optional<string?> editBase,
+        Optional<string?> desired,
+        Optional<string?> current,
+        out Optional<string?> rebased,
+        out string? reason
+    )
+    {
+        if (!editBase.IsPresent || !desired.IsPresent || !current.IsPresent)
+        {
+            return FragmentRebasePolicy<string?>
+                .FailOnConflict()
+                .TryRebase(editBase, desired, current, out rebased, out reason);
+        }
+
+        if (AreEqual(desired.Value, editBase.Value))
+        {
+            rebased = current;
+            reason = null;
+            return true;
+        }
+
+        if (AreEqual(current.Value, editBase.Value) || AreEqual(current.Value, desired.Value))
+        {
+            rebased = desired;
+            reason = null;
+            return true;
+        }
+
+        rebased = Optional<string?>.Present(desired.Value + "|" + current.Value);
+        reason = null;
+        return true;
+    }
+}
+```
+<!-- /sample -->
+
+<!-- sample: rebase-policy -->
+```csharp
+var policyBase = new RebasePolicySettings { Label = "a", Tag = "a" };
+var policyEdited = new RebasePolicySettings { Label = "b", Tag = "b" };
+var policyCurrent = new RebasePolicySettings { Label = "a", Tag = "c" };
+
+if (!policyBase.CreateChangeSet(policyEdited).TryApplyTo(policyCurrent, out var merged))
+{
+    throw new InvalidOperationException("The policy reconciles divergent labels.");
+}
+
+// merged.Label == "b"
+// merged.Tag == "b|c"
+```
+<!-- /sample -->
+
+Selection order for scalar and whole-replace members: an explicit `FragmentRebasePolicy<T>` first, then `FragmentMergeStrategy<T>.TryRebase`, then `ChangePayloadRebaseOptions.DefaultRebaseMode` when it is not `Default`, then the built-in three-way reconciliation. Merge still uses the merge strategy when a policy is present.
+
+Policies apply to scalar and whole-replace members only. Nested models, keyed sequences, dictionaries, and `Append`/`SetUnion` members reconcile member by member; a whole-member policy on those shapes fails with [SPF027](analyzer.md#spf027-invalid-custom-rebase-policy).
+
+`FragmentRebasePolicy<T>` ships `FailOnConflict`, `PreferIncoming`, and `PreferCurrent` factories. The prefer modes overwrite on divergence and never report a conflict; they are last-write-wins shortcuts rather than reconciliations that found no conflict.
+
+## Redacted Before-States
+
+This section is a how-to. It shows the strict opt-in for write-only members.
+
+A redacted-before member carries its desired value but withholds its before-state, as with a write-only secret. By default it passes through as its explicit patch operation: no historical comparison, no invented baseline, and no automatic undo. Pass `RejectChangesWithRedactedBeforeValuesDuringRebase = true` to fail instead:
+
+<!-- sample: rebase-redacted -->
+```csharp
+var secretBase = new RebaseSettings { RetryCount = 1, Label = "a" };
+var secretEdited = new RebaseSettings { RetryCount = 1, Label = "new-secret" };
+var secretCurrent = new RebaseSettings { RetryCount = 1, Label = "other" };
+var redacted = new ChangePayloadRebaseOptions
+{
+    RejectChangesWithRedactedBeforeValuesDuringRebase = true,
+    RedactedBeforePaths = ["Label"],
+};
+
+if (
+    secretBase
+        .CreateChangeSet(secretEdited)
+        .TryApplyTo(secretCurrent, out _, out var redactedConflicts, redacted)
+)
+{
+    throw new InvalidOperationException("Expected a redacted-before failure.");
+}
+
+var redactedConflict = redactedConflicts.Single();
+// redactedConflict.Kind == SparseConflictKind.RedactedBefore
+// redactedConflict.Path == ["Label"]
+```
+<!-- /sample -->
+
+This section is a reference. It defines strict behavior.
+
+Strict failure is atomic for a mixed request: the redacted member is excluded from the rebased change and `TryApplyTo` returns `false` without a partially applied model. Reports carry path and kind but no secret plaintext: the `RedactedBefore` conflict attaches missing base, local, and current values. Redacted is not `Missing`: the desired value is present and only its history is withheld. Unconditional `Patch` application is a baseline-free overwrite rather than a historical rebase, so it never consults these options.
+
 ## No Revision History Required
 
 This section is an explanation. It separates ChangeSet state from persistence concerns.

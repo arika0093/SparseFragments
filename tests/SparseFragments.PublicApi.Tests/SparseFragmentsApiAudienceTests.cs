@@ -23,6 +23,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.SparseRedactBeforeAttribute",
         "SparseFragments.SparseKeyAttribute",
         "SparseFragments.SparseMergeAttribute",
+        "SparseFragments.SparseRebasePolicyAttribute",
         "SparseFragments.SparseCloneReferenceSafeAttribute",
     ];
 

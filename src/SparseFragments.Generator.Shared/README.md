@@ -76,6 +76,30 @@ different public vocabulary should not expose the standalone API shape; they
 should reuse the shared analysis and focused emitters to write their own surface
 and inject only product-owned extensions.
 
+## Rebase policy configuration
+
+Member-level rebase policies travel through the same configuration layer.
+`SparseGeneratorConfig` accepts optional `RebasePolicyAttributeMetadataName`
+and `RebasePolicyBaseMetadataName` values; when both are set, analysis reads
+the named attribute, validates the policy type against the named
+`FragmentRebasePolicy<T>` base (see `SPF027`), and emits per-member policy
+dispatch ahead of the merge strategy's `TryRebase`. Leave both null to disable
+the feature. `SparseRuntimeDialect` accepts an optional
+`RebasePolicyFieldPrefix` for the generated policy fields.
+
+`SparsePatchDialect` accepts optional `RebaseOptionsType`, `RebaseModeType`,
+`RebasePolicyType`, and `RebasePolicyField` values. Each null entry derives
+from the dialect's own runtime namespace (`ChangePayloadRebaseOptions`,
+`SparseRebaseMode`, `FragmentRebasePolicy`), so generated rebase signatures
+always name caller-owned types. A downstream runtime that enables the
+generated options overloads provides those types itself: an options record
+with `RejectChangesWithRedactedBeforeValuesDuringRebase`,
+`RedactedBeforePaths`, `DefaultRebaseMode`, `IsRedactedBefore`, and `Nest`;
+a `SparseRebaseMode` enum (`Default`, `FailOnConflict`, `PreferIncoming`,
+`PreferCurrent`); a `FragmentRebasePolicy<T>` base with presence-aware
+`TryRebase`/`AreEqual`; and a `RedactedBefore` member on its conflict-kind
+enum. Generated code calls only those members.
+
 `SparseFragments.Generator` itself keeps compiling the sibling Shared sources
 directly in-repo via a `Compile` glob in
 `src/SparseFragments.Generator/SparseFragments.Generator.csproj`. That in-repo

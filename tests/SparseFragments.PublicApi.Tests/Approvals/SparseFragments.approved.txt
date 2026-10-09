@@ -28,6 +28,16 @@ namespace SparseFragments
         [System.Text.Json.Serialization.JsonStringEnumMemberName("reorder")]
         Reorder = 3,
     }
+    public sealed class ChangePayloadRebaseOptions : System.IEquatable<SparseFragments.ChangePayloadRebaseOptions>
+    {
+        public ChangePayloadRebaseOptions() { }
+        public SparseFragments.SparseRebaseMode DefaultRebaseMode { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string> RedactedBeforePaths { get; init; }
+        public bool RejectChangesWithRedactedBeforeValuesDuringRebase { get; init; }
+        public bool IsRedactedBefore(System.Collections.Generic.IReadOnlyList<string> path) { }
+        public bool IsRedactedBefore(string? pathText) { }
+        public SparseFragments.ChangePayloadRebaseOptions Nest(string segment) { }
+    }
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangePayloadState>))]
     public enum ChangePayloadState
     {
@@ -70,6 +80,15 @@ namespace SparseFragments
         public SparseFragments.Optional<T> Apply(SparseFragments.Optional<T> current) { }
         public static SparseFragments.FragmentOperation<T> Set(T? value) { }
         public static SparseFragments.FragmentOperation<T> op_Implicit(T? value) { }
+    }
+    public abstract class FragmentRebasePolicy<T>
+    {
+        protected FragmentRebasePolicy() { }
+        public abstract bool AreEqual(T? left, T? right);
+        public abstract bool TryRebase(SparseFragments.Optional<T> editBase, SparseFragments.Optional<T> desired, SparseFragments.Optional<T> current, out SparseFragments.Optional<T> rebased, out string? reason);
+        public static SparseFragments.FragmentRebasePolicy<T> FailOnConflict(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
+        public static SparseFragments.FragmentRebasePolicy<T> PreferCurrent(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
+        public static SparseFragments.FragmentRebasePolicy<T> PreferIncoming(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
     }
     public interface ISparseKeyed<out TKey>
     {
@@ -193,6 +212,7 @@ namespace SparseFragments
         CollectionAppend = 3,
         CollectionSetUnion = 4,
         CustomStrategy = 5,
+        RedactedBefore = 6,
     }
     public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TObservable>
         where TModel :  class
@@ -289,6 +309,19 @@ namespace SparseFragments
         public void Move(int oldIndex, int newIndex) { }
         public bool Remove(TView item) { }
         public void RemoveAt(int index) { }
+    }
+    public enum SparseRebaseMode
+    {
+        Default = 0,
+        FailOnConflict = 1,
+        PreferIncoming = 2,
+        PreferCurrent = 3,
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
+    public sealed class SparseRebasePolicyAttribute : System.Attribute
+    {
+        public SparseRebasePolicyAttribute(System.Type policyType) { }
+        public System.Type? PolicyType { get; }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class SparseRedactBeforeAttribute : System.Attribute

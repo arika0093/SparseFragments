@@ -22,7 +22,9 @@ internal sealed record SparseGeneratorConfig
         SparseStructuralPolicy StructuralPolicy = SparseStructuralPolicy.AtomicReplace,
         ImmutableArray<string> ReservedGeneratedNames = default,
         SparseRuntimeDialect? RuntimeDialect = null,
-        SparseFragmentPatchEmitter.SparsePatchDialect? PatchDialect = null
+        SparseFragmentPatchEmitter.SparsePatchDialect? PatchDialect = null,
+        string? RebasePolicyAttributeMetadataName = null,
+        string? RebasePolicyBaseMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -43,6 +45,8 @@ internal sealed record SparseGeneratorConfig
         this.StructuralHostPrefix = StructuralHostPrefix;
         this.RuntimeDialect = RuntimeDialect;
         this.PatchDialect = PatchDialect;
+        this.RebasePolicyAttributeMetadataName = RebasePolicyAttributeMetadataName;
+        this.RebasePolicyBaseMetadataName = RebasePolicyBaseMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -81,6 +85,12 @@ internal sealed record SparseGeneratorConfig
 
     public SparseFragmentPatchEmitter.SparsePatchDialect? PatchDialect { get; init; }
 
+    /// <summary>Attribute marking a member-level rebase policy, or null when the product has none.</summary>
+    public string? RebasePolicyAttributeMetadataName { get; init; }
+
+    /// <summary>Rebase policy base type for validation, or null when the product has none.</summary>
+    public string? RebasePolicyBaseMetadataName { get; init; }
+
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
     public SparseDiagnosticIdMap EffectiveDiagnosticIds => DiagnosticIds;
@@ -114,7 +124,8 @@ internal sealed record SparseDiagnosticIdMap
         string InvalidKeyedInterface,
         string DuplicateJsonPropertyName,
         string SparseIgnoreOnKey,
-        string SparseIgnoreUnsupportedProperty
+        string SparseIgnoreUnsupportedProperty,
+        string InvalidRebasePolicy = "SPF027"
     )
     {
         this.MustBePartial = MustBePartial;
@@ -140,6 +151,7 @@ internal sealed record SparseDiagnosticIdMap
         this.DuplicateJsonPropertyName = DuplicateJsonPropertyName;
         this.SparseIgnoreOnKey = SparseIgnoreOnKey;
         this.SparseIgnoreUnsupportedProperty = SparseIgnoreUnsupportedProperty;
+        this.InvalidRebasePolicy = InvalidRebasePolicy;
     }
 
     public string MustBePartial { get; init; }
@@ -187,6 +199,8 @@ internal sealed record SparseDiagnosticIdMap
     public string SparseIgnoreOnKey { get; init; }
 
     public string SparseIgnoreUnsupportedProperty { get; init; }
+
+    public string InvalidRebasePolicy { get; init; }
 }
 
 internal sealed record SparseRuntimeDialect
@@ -199,7 +213,8 @@ internal sealed record SparseRuntimeDialect
         string ValueComparer,
         string CollectionMerger,
         string CollectionRebase,
-        string MergeStrategyFieldPrefix
+        string MergeStrategyFieldPrefix,
+        string? RebasePolicyFieldPrefix = null
     )
     {
         this.Namespace = Namespace;
@@ -210,6 +225,7 @@ internal sealed record SparseRuntimeDialect
         this.CollectionMerger = CollectionMerger;
         this.CollectionRebase = CollectionRebase;
         this.MergeStrategyFieldPrefix = MergeStrategyFieldPrefix;
+        this.RebasePolicyFieldPrefix = RebasePolicyFieldPrefix;
     }
 
     public string Namespace { get; init; }
@@ -227,6 +243,9 @@ internal sealed record SparseRuntimeDialect
     public string CollectionRebase { get; init; }
 
     public string MergeStrategyFieldPrefix { get; init; }
+
+    /// <summary>Generated per-member rebase policy field prefix, or null for the shared default.</summary>
+    public string? RebasePolicyFieldPrefix { get; init; }
 }
 
 internal readonly record struct SparseMergeModeMap

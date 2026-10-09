@@ -18,6 +18,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
     private const string ModelAttributeName = "SparseFragments.SparseFragmentModelAttribute";
     private const string MergeAttributeName = "SparseFragments.SparseMergeAttribute";
     private const string MergeStrategyBaseName = "SparseFragments.FragmentMergeStrategy<T>";
+    private const string RebasePolicyAttributeName = "SparseFragments.SparseRebasePolicyAttribute";
+    private const string RebasePolicyBaseName = "SparseFragments.FragmentRebasePolicy<T>";
 
     private const string EmitIsExternalInitOption =
         "build_property.SparseFragmentsEmitIsExternalInit";
@@ -81,7 +83,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.InvalidKeyedInterface,
             SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName,
             SparseFragmentsDiagnosticIds.SparseIgnoreOnKey,
-            SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty
+            SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty,
+            SparseFragmentsDiagnosticIds.InvalidRebasePolicy
         ),
         HintNameSuffix: ".SparseFragments.g.cs",
         PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -94,7 +97,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
             "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
             "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
-            "__sparse_merge_strategy_"
+            "__sparse_merge_strategy_",
+            "__sparse_rebase_policy_"
         ),
         PatchDialect: new SparseFragmentPatchEmitter.SparsePatchDialect(
             "global::SparseFragments.",
@@ -110,8 +114,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             static payload => "global::SparseFragments.RebaseResult<" + payload + ">",
             SparseFragmentPatchEmitter.ChildPatch,
             SparseFragmentPatchEmitter.DefaultChildChangeSet,
-            MergeStrategyField: static member => "__sparse_merge_strategy_" + member.Id
+            MergeStrategyField: static member => "__sparse_merge_strategy_" + member.Id,
+            RebaseOptionsType: "global::SparseFragments.ChangePayloadRebaseOptions",
+            RebaseModeType: "global::SparseFragments.SparseRebaseMode",
+            RebasePolicyType: "global::SparseFragments.FragmentRebasePolicy",
+            RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id
         ),
+        RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
+        RebasePolicyBaseMetadataName: RebasePolicyBaseName,
         ReservedGeneratedNames: ImmutableArray.Create(
             "Fragment",
             "FragmentBuilder",
@@ -170,6 +180,15 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf004-invalid-custom-merge-strategy"
+    );
+    private static readonly DiagnosticDescriptor InvalidRebasePolicy = new(
+        SparseFragmentsDiagnosticIds.InvalidRebasePolicy,
+        "Invalid custom rebase policy",
+        "Rebase policy for member '{0}' must derive from FragmentRebasePolicy<TMember>, be a concrete, accessible type, and target a scalar or whole-replace member",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf027-invalid-custom-rebase-policy"
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
         SparseFragmentsDiagnosticIds.UnsupportedMerge,
@@ -620,6 +639,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.UnsupportedModel => UnsupportedModel,
             SparseFragmentsDiagnosticIds.MissingConstructor => MissingConstructor,
             SparseFragmentsDiagnosticIds.InvalidMergeStrategy => InvalidMergeStrategy,
+            SparseFragmentsDiagnosticIds.InvalidRebasePolicy => InvalidRebasePolicy,
             SparseFragmentsDiagnosticIds.UnsupportedMerge => UnsupportedMerge,
             SparseFragmentsDiagnosticIds.UnsupportedRequired => UnsupportedRequired,
             SparseFragmentsDiagnosticIds.UnsupportedStructural => UnsupportedStructural,
