@@ -166,6 +166,47 @@ public sealed class ChangeSetTests
     }
 
     [Test]
+    public void EnumerateChangesReportsRootPresenceTransitions()
+    {
+        var missing = Optional<Settings.Fragment?>.Missing;
+        var nullState = Optional<Settings.Fragment?>.Present(null);
+        var value = Present(MakeSettings());
+
+        // Missing -> present-null is nonempty and enumerated as $root Added.
+        var added = Settings.ChangeSet.Between(missing, nullState);
+        added.IsEmpty.ShouldBeFalse();
+        var addedEntries = added.EnumerateChanges().ToList();
+        addedEntries.ShouldHaveSingleItem();
+        addedEntries[0].Path.ShouldBe("$root");
+        addedEntries[0].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Added);
+        added.EnumerateChangedPaths().ShouldBe(["$root"]);
+
+        // Present-null -> missing reads as Removed.
+        var removed = Settings.ChangeSet.Between(nullState, missing);
+        removed.IsEmpty.ShouldBeFalse();
+        removed.EnumerateChanges().Single().Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Removed);
+
+        // Present-null -> present-value reads as Changed.
+        var valued = Settings.ChangeSet.Between(nullState, value);
+        valued.IsEmpty.ShouldBeFalse();
+        valued.EnumerateChanges().Single().Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
+
+        // Nested whole-child presence transitions are not dropped.
+        var nestedMissing = Optional<Settings.Fragment?>.Present(
+            new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Missing }
+        );
+        var nestedPresent = Optional<Settings.Fragment?>.Present(
+            new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Present(null) }
+        );
+        var nested = Settings.ChangeSet.Between(nestedMissing, nestedPresent);
+        nested.IsEmpty.ShouldBeFalse();
+        nested
+            .EnumerateChanges()
+            .Select(static change => change.Path)
+            .ShouldContain("Nested.$root");
+    }
+
+    [Test]
     public void NestedStructuralChangeIsPreserved()
     {
         var before = Present(

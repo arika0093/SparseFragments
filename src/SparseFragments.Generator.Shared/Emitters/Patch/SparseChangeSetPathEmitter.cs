@@ -16,6 +16,10 @@ internal static class SparseChangeSetPathEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\")"
         );
         code.AppendLineAt(2, "{");
@@ -24,6 +28,14 @@ internal static class SparseChangeSetPathEmitter
             "if (prefix is null) throw new global::System.ArgumentNullException(nameof(prefix));"
         );
         code.AppendLineAt(3, "var paths = new global::System.Collections.Generic.List<string>();");
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "paths.Add(prefix.Length == 0 ? \"$root\" : prefix + \".\" + \"$root\");"
+        );
+        code.AppendLineAt(4, "return paths.AsReadOnly();");
+        code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
             var escapedProperty = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);

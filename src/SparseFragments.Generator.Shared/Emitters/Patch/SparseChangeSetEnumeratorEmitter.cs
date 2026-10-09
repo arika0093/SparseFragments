@@ -135,6 +135,10 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
             "public global::System.Collections.Generic.IEnumerable<ChangeInfo> EnumerateChanges()"
         );
         code.AppendLineAt(2, "{");
@@ -146,6 +150,16 @@ internal static class SparseChangeSetEnumeratorEmitter
             3,
             "var changes = new global::System.Collections.Generic.List<ChangeInfo>();"
         );
+        // Root presence transitions carry no member values but are nonempty
+        // history; report them instead of silently dropping them (issue #127).
+        code.AppendLineAt(3, "if (__sparse_hasWhole)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "changes.Add(__SparseCreateChangeInfo(\"$root\", __sparse_wholeBefore, __sparse_wholeAfter));"
+        );
+        code.AppendLineAt(4, "return changes;");
+        code.AppendLineAt(3, "}");
         foreach (var member in members)
         {
             var property = SparseNaming.EscapeIdentifier(propertyNames[member.Id]);
