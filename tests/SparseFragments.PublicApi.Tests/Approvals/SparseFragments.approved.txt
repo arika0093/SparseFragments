@@ -284,6 +284,7 @@ namespace SparseFragments
         public void CopyTo(System.Collections.Generic.KeyValuePair<TKey, TView>[] array, int arrayIndex) { }
         public void Dispose() { }
         public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<TKey, TView>> GetEnumerator() { }
+        public void NotifyReset(bool reportChange = true) { }
         public bool Remove(System.Collections.Generic.KeyValuePair<TKey, TView> item) { }
         public bool Remove(TKey key) { }
         public void SetModel(TKey key, TModel value) { }
@@ -311,6 +312,7 @@ namespace SparseFragments
         public void Insert(int index, TView item) { }
         public void InsertModel(int index, TModel item) { }
         public void Move(int oldIndex, int newIndex) { }
+        public void NotifyReset(bool reportChange = true) { }
         public bool Remove(TView item) { }
         public void RemoveAt(int index) { }
         public void SetModel(int index, TModel item) { }

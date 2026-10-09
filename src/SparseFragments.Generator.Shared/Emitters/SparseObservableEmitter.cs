@@ -154,6 +154,47 @@ internal static class SparseObservableEmitter
                 "__Raise(" + SymbolDisplay.FormatLiteral(property.Name, true) + ");"
             );
         }
+        foreach (var member in members)
+        {
+            if (member.Property.Name == "PropertyChanged")
+            {
+                continue;
+            }
+
+            if (!IsObservableList(member) && !IsObservableDictionary(member))
+            {
+                continue;
+            }
+
+            // Views whose backing instance was replaced are retired so bindings
+            // re-fetch; views wrapping the same bulk-mutated instance get one Reset,
+            // unless the backing collection already notifies on its own.
+            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+            code.AppendLineAt(
+                3,
+                "if (!global::System.Object.ReferenceEquals(__target_collection_"
+                    + member.Id
+                    + ", __model."
+                    + name
+                    + ")) { __view_"
+                    + member.Id
+                    + "?.Dispose(); __view_"
+                    + member.Id
+                    + " = null; __target_collection_"
+                    + member.Id
+                    + " = null; }"
+            );
+            code.AppendLineAt(
+                3,
+                "else if (__view_"
+                    + member.Id
+                    + " is not null && !(__target_collection_"
+                    + member.Id
+                    + " is global::System.Collections.Specialized.INotifyCollectionChanged)) __view_"
+                    + member.Id
+                    + ".NotifyReset(false);"
+            );
+        }
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,

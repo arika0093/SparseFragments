@@ -369,6 +369,46 @@ public sealed class SparseObservableList<TModel, TView>
         }
     }
 
+    /// <summary>
+    /// Raises a single Reset notification for bulk changes made directly to the backing list.
+    /// </summary>
+    /// <param name="reportChange">
+    /// Whether to report the change to the owner. Pass <see langword="false"/> when the
+    /// owner already accounts for the mutation (such as a session refreshing after an
+    /// in-place write) to avoid duplicate notifications.
+    /// </param>
+    /// <remarks>
+    /// Session internals call this with <see langword="false"/> after an in-place write
+    /// reuses the same backing instance; call it after your own bulk raw-model
+    /// mutations. Notifications for backing lists that implement
+    /// <see cref="INotifyCollectionChanged"/> are forwarded automatically and must not
+    /// be duplicated with this method.
+    /// </remarks>
+    public void NotifyReset(bool reportChange = true)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        PruneStale();
+        if (reportChange)
+        {
+            RaiseCollectionChanged(
+                new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
+            );
+            return;
+        }
+
+        _notificationVersion++;
+        PropertyChanged?.Invoke(this, CountChanged);
+        PropertyChanged?.Invoke(this, ItemChanged);
+        CollectionChanged?.Invoke(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)
+        );
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
