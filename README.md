@@ -199,26 +199,24 @@ The generated types answer different questions:
 | `Fragment` | Which values are provided? | Layers, overrides, partially supplied values |
 | `Patch` | What should change? | Baseline-free commands and local edits |
 | `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
-| `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON (`"version": "0.1"`) |
+| `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON |
 | `SparseEditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
-
-`Fragment` is presence-aware state and merge. `Patch` is baseline-free operations. `ChangeSet` is baseline-aware transitions plus conflict-aware rebase. `ChangePayload` is transport only: one envelope carries `ChangeSet` transitions and `Patch` commands member by member, with `missing`, `null`, `value`, and `redacted` endpoint states. Members marked `[SparseRedactBefore]` travel without their before-state; such envelopes convert with `ToPatch()`, while `ToChangeSet()` accepts only complete histories. `SparseEditSession` compares the retained baseline with the live model; it provides no transport or conflict framework.
 
 The distinction is visible in a small example:
 
-```text
-Fragment
-    Label is not provided
-    Database.Port is 6432
-
-Patch
-    set Label to null
-    set Database.Port to 6432
-
-ChangeSet
-    Label: "default" -> null
-    Database.Port: 5432 -> 6432
-```
+* *Fragment*: is presence-aware state and merge. 
+  * Label is "default"
+  * Database.Host is "db.local"
+  * Database.Port is 5432
+* *Patch*: is presence-aware edit.
+  * keep Label as-is
+  * reset Database.Host to default 
+  * set Database.Port to 6432
+* *ChangeSet*: is presence-aware before → after transition.
+  * Database.Host changed from "db.local" to default value
+  * Database.Port: 5432 -> 6432
+* *ChangePayload*: is transport format.
+  * Serialized format of *ChangeSet*/*Patch*.
 
 All three follow the source model's nesting and configured collection behavior.
 
@@ -278,7 +276,9 @@ The code is generated at compile time, uses no reflection for these generated op
   * .NET (all versions)
   * MAUI
   * Works in most other [frameworks](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version) as well.
-* Generated code requires C# 9.0 or later. Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project. The `netstandard2.0` and .NET Framework targets default to C# 7.3, so those consumers must opt in explicitly. Using a language version newer than a target framework's default is not an officially supported combination per [C# language versioning](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-versioning); a successful build does not change that policy. `record struct` models need C# 10 or later. The contract covers generated consumer code only; the generator itself may use newer C#.
+* Generated code requires C# 9.0 or later.
+  * Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project.
+  * The `netstandard2.0` and .NET Framework targets default to C# 7.3, so those consumers must opt in explicitly.
 * Source generation works only in *IDE* environments using Roslyn 4.3.1 or later.
   * VisualStudio 2022: 17.3 or later
   * JetBrains Rider: 2023.1 or later
@@ -286,7 +286,7 @@ The code is generated at compile time, uses no reflection for these generated op
 
 ### SparseFragments.Blazor
 
-Extension for `EditContext`. Requires `net8.0` or later.
+Requires `net8.0` or later.
 
 ## License
 
