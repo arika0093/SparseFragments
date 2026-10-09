@@ -346,7 +346,8 @@ internal static class SparseFragmentPatchEmitter
         ImmutableArray<string> ignoredSettablePropertyNames = default,
         bool canApplyInPlace = false,
         SparseEmissionFeatures? features = null,
-        string accessibility = "public"
+        string accessibility = "public",
+        string? implementationNamespace = null
     )
     {
         var plan = features ?? SparseEmissionFeatures.Standalone;
@@ -359,7 +360,13 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(1, accessibility + " sealed class Patch");
         code.AppendLineAt(1, "{");
-        SparseKeyedCollectionEmitter.EmitCollectionPatches(code, members, dialect, modelType);
+        SparseKeyedCollectionEmitter.EmitCollectionPatches(
+            code,
+            members,
+            dialect,
+            modelType,
+            implementationNamespace
+        );
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,

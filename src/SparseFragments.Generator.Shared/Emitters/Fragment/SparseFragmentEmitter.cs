@@ -246,7 +246,8 @@ internal static class SparseFragmentEmitter
                 features,
                 generatedAccessibility,
                 constructor: model.Constructor,
-                ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
+                ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames,
+                implementationNamespace: implementationNamespace
             );
         }
         if (features.EmitFragment && features.EmitObservable)
@@ -311,7 +312,8 @@ internal static class SparseFragmentEmitter
         string generatedAccessibility,
         bool isRootModel = true,
         ModelConstructorBinding? constructor = null,
-        ImmutableArray<string> ignoredSettablePropertyNames = default
+        ImmutableArray<string> ignoredSettablePropertyNames = default,
+        string? implementationNamespace = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -374,7 +376,8 @@ internal static class SparseFragmentEmitter
             ignoredSettablePropertyNames,
             canApplyInPlace,
             features,
-            generatedAccessibility
+            generatedAccessibility,
+            implementationNamespace
         );
     }
 

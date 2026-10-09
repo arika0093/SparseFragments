@@ -592,8 +592,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                     SparseEditSessionEmitter.EmitCore(productionContext, Configuration);
             }
         );
-        // Generated-Once shared helpers (#181 adapters, #182 clone kernels;
-        // interim #178 seam): one shared source per family per compilation,
+        // Generated-Once shared helpers (#181 adapters, #182 clone kernels,
+        // #183 removal index; interim #178 seam): one shared source per family
         // aggregated over explicit and promoted models. Per-model output only
         // instantiates these types. Names stay pinned in
         // SparseGeneratedOnceNames; #178 should replace this manual wiring
@@ -681,6 +681,18 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                     productionContext.AddSource(
                         SparseGeneratedOnceNames.CloneKernelsHintName(implementationNamespace!),
                         SourceText.From(kernels, Encoding.UTF8)
+                    );
+                }
+
+                if (needs.NeedsRemovalIndex)
+                {
+                    var removalIndex = SparseGeneratedOnceRemovalIndex.BuildSource(
+                        implementationNamespace!,
+                        productionContext.CancellationToken
+                    );
+                    productionContext.AddSource(
+                        SparseGeneratedOnceNames.RemovalIndexHintName(implementationNamespace!),
+                        SourceText.From(removalIndex, Encoding.UTF8)
                     );
                 }
             }

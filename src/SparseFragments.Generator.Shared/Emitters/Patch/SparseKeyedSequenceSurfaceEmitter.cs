@@ -7,7 +7,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType = null
+        string? modelType = null,
+        string? implementationNamespace = null
     )
     {
         var patchName = SparseKeyedCollectionEmitter.CollectionPatchName(member);
@@ -25,6 +26,10 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             : elementType;
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
+        // Shared removal prefix (#183); null keeps the legacy private kernels.
+        var sharedRemoval = string.IsNullOrEmpty(implementationNamespace)
+            ? null
+            : SparseDictionaryRemovalIndexEmitter.SharedPrefix(keyType, implementationNamespace!);
 
         code.AppendLineAt(
             2,
@@ -92,7 +97,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + ".Set(value) };"
             );
         }
-        SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer);
+        SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer, implementationNamespace);
         code.AppendLineAt(3, "private void EnsureGranular(string operation)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -156,14 +161,27 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             // not-null for the non-nullable __SparseCancelRemoval parameter.
             code.AppendLineAt(
                 4,
-                "if (!"
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
-                    + " && __removed is not null) __SparseCancelRemoval(key);"
+                sharedRemoval is null
+                    ? "if (!"
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        + " && __removed is not null) __SparseCancelRemoval(key);"
+                    : "if (!"
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        + " && __removed is not null) "
+                        + sharedRemoval
+                        + ".CancelRemoval(__removed!, ref __removedLookup, key);"
             );
         }
         else
         {
-            code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
+            code.AppendLineAt(
+                4,
+                sharedRemoval is null
+                    ? "if (__removed is not null) __SparseCancelRemoval(key);"
+                    : "if (__removed is not null) "
+                        + sharedRemoval
+                        + ".CancelRemoval(__removed!, ref __removedLookup, key);"
+            );
         }
         code.AppendLineAt(
             4,
@@ -195,7 +213,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "__removed ??= new global::System.Collections.Generic.List<" + keyType + ">();"
         );
-        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer, keepReservedIndex: false);
+        SparseDictionaryRemovalIndexEmitter.EmitAdd(
+            code,
+            comparer,
+            keepReservedIndex: false,
+            keyType,
+            implementationNamespace
+        );
         code.AppendLineAt(3, "}");
         // Edit / Update.
         if (hasPatch)
@@ -213,7 +237,11 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 );
             code.AppendLineAt(
                 4,
-                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed element. Add it again instead.\");"
+                sharedRemoval is null
+                    ? "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed element. Add it again instead.\");"
+                    : "if (__removed is not null && "
+                        + sharedRemoval
+                        + ".ContainsRemoved(__removed!, __removedLookup, key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed element. Add it again instead.\");"
             );
             code.AppendLineAt(
                 4,
@@ -264,7 +292,11 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 );
             code.AppendLineAt(
                 4,
-                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed element. Add it again instead.\");"
+                sharedRemoval is null
+                    ? "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed element. Add it again instead.\");"
+                    : "if (__removed is not null && "
+                        + sharedRemoval
+                        + ".ContainsRemoved(__removed!, __removedLookup, key)) throw new global::System.InvalidOperationException(\"Cannot update a removed element. Add it again instead.\");"
             );
             code.AppendLineAt(
                 4,

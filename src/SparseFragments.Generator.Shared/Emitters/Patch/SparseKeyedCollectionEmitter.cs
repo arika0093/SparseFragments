@@ -108,7 +108,8 @@ internal static class SparseKeyedCollectionEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType = null
+        string? modelType = null,
+        string? implementationNamespace = null
     )
     {
         foreach (var member in members)
@@ -120,7 +121,13 @@ internal static class SparseKeyedCollectionEmitter
 
             if (IsDictionary(member))
             {
-                SparseDictionaryPatchEmitter.EmitDictionaryPatch(code, member, dialect, modelType);
+                SparseDictionaryPatchEmitter.EmitDictionaryPatch(
+                    code,
+                    member,
+                    dialect,
+                    modelType,
+                    implementationNamespace
+                );
             }
             else
             {
@@ -128,7 +135,8 @@ internal static class SparseKeyedCollectionEmitter
                     code,
                     member,
                     dialect,
-                    modelType
+                    modelType,
+                    implementationNamespace
                 );
             }
         }

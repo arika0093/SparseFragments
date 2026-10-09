@@ -14,7 +14,8 @@ internal sealed record SparseGeneratedOnceRequirements(
     bool NeedsReadOnlyDictionary,
     bool NeedsReadOnlyEntries,
     bool NeedsCloneKernels = false,
-    bool NeedsPortableSetView = false
+    bool NeedsPortableSetView = false,
+    bool NeedsRemovalIndex = false
 )
 {
     /// <summary>Empty requirements: no shared helper is needed.</summary>
@@ -33,7 +34,8 @@ internal sealed record SparseGeneratedOnceRequirements(
             NeedsReadOnlyDictionary || other.NeedsReadOnlyDictionary,
             NeedsReadOnlyEntries || other.NeedsReadOnlyEntries,
             NeedsCloneKernels || other.NeedsCloneKernels,
-            NeedsPortableSetView || other.NeedsPortableSetView
+            NeedsPortableSetView || other.NeedsPortableSetView,
+            NeedsRemovalIndex || other.NeedsRemovalIndex
         );
 
     /// <summary>Computes read-only adapter needs for one model.</summary>
@@ -132,7 +134,27 @@ internal sealed record SparseGeneratedOnceRequirements(
     )
     {
         var readOnly = emitReadOnlyViews ? ForReadOnlyView(members, readOnlyViewModels) : Empty;
-        return readOnly.Union(ForCloneKernels(members, pocoCloneModels));
+        return readOnly
+            .Union(ForCloneKernels(members, pocoCloneModels))
+            .Union(ForRemovalIndex(members));
+    }
+
+    /// <summary>Computes removal-index needs for one model.</summary>
+    /// <remarks>
+    /// Dictionary and keyed-sequence patches share the ordered-removal
+    /// kernels; whole-replace members need none.
+    /// </remarks>
+    /// <param name="members">Model members.</param>
+    /// <returns>Requirements for the model.</returns>
+    public static SparseGeneratedOnceRequirements ForRemovalIndex(
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        var needs = members.Any(static member =>
+            !(member.HasExplicitMergeMode && member.MergeMode == SparseMergeModes.Replace)
+            && (member.Collection.IsDictionary || member.Collection.IsKeyedSequence)
+        );
+        return new(false, false, false, NeedsRemovalIndex: needs);
     }
 
     private static bool IsInterfaceSet(string? namedTypeDefinition) =>
