@@ -201,6 +201,14 @@ qualified `global::<ns>.__Internal_<hash>` form. The `"0.1"` wire format,
 redacted/missing/null/value distinctions, validation, and `JsonIgnore` rules
 are unchanged.
 
+The same implementation file carries the per-model `Fragment` operations
+class (`<container>FragmentOperations`, `internal static`). It owns the
+model-specific conversion (`From`, `ToModel`, projection), merge, diff, and
+deep-clone bodies plus POCO clone helpers; the model keeps one-line facades
+on `Fragment`/`FragmentBuilder` and the root projection bridge. Reference
+cycles, comparers, merge modes, and presence semantics are unchanged, and
+collection kernels stay compilation-scoped under issue #182.
+
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
 `SparseGeneratedOnceNames` pins those identities; per-model output with an

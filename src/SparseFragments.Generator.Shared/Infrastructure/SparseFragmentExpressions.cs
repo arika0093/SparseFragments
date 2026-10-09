@@ -18,7 +18,9 @@ internal sealed class SparseFragmentExpressions(
     string collectionMerger,
     string optionalType,
     SparseFamilyNames? familyNames = null,
-    string? cloneKernelsPrefix = null
+    string? cloneKernelsPrefix = null,
+    string memberFieldQualifier = "",
+    string pocoHelperQualifier = ""
 )
 {
     private string ValueComparer { get; } = valueComparer;
@@ -52,7 +54,10 @@ internal sealed class SparseFragmentExpressions(
     {
         if (member.ComparisonComparerType is not null)
         {
-            return SparseFragmentEmitHelpers.ComparisonComparerField(member)
+            // Stage 4 (#193): operations-class emission qualifies the generated
+            // comparer field through the Fragment alias; surface code is bare.
+            return memberFieldQualifier
+                + SparseFragmentEmitHelpers.ComparisonComparerField(member)
                 + ".Equals("
                 + left
                 + ", "
@@ -139,9 +144,13 @@ internal sealed class SparseFragmentExpressions(
         var cloneHelperName = type.PocoCloneHelperName;
         if (cloneHelperName is not null)
         {
+            // Stage 4 (#193): POCO helpers live in the per-model operations
+            // class under split emission; the qualifier keeps surface bridges
+            // resolving while operations bodies stay bare.
+            var qualified = pocoHelperQualifier + cloneHelperName;
             return type.IsReferenceType
-                ? $"{access} is null ? default! : {cloneHelperName}({access}, {CloneContext})"
-                : $"{cloneHelperName}({access}, {CloneContext})";
+                ? $"{access} is null ? default! : {qualified}({access}, {CloneContext})"
+                : $"{qualified}({access}, {CloneContext})";
         }
 
         return access;
@@ -159,9 +168,10 @@ internal sealed class SparseFragmentExpressions(
         var cloneHelperName = member.Property.Type.PocoCloneHelperName;
         if (cloneHelperName is not null)
         {
+            var qualified = pocoHelperQualifier + cloneHelperName;
             return member.Property.Type.IsReferenceType
-                ? $"{access} is null ? null! : {cloneHelperName}({access}, {CloneContext})"
-                : $"{cloneHelperName}({access}, {CloneContext})";
+                ? $"{access} is null ? null! : {qualified}({access}, {CloneContext})"
+                : $"{qualified}({access}, {CloneContext})";
         }
 
         var cloned = CloneCollectionExpression(member, access);
@@ -180,7 +190,8 @@ internal sealed class SparseFragmentExpressions(
         var cloneHelperName = member.Property.Type.PocoCloneHelperName;
         if (cloneHelperName is not null)
         {
-            return $"{access} is null ? null : {cloneHelperName}({access}!, {CloneContext})";
+            var qualified = pocoHelperQualifier + cloneHelperName;
+            return $"{access} is null ? null : {qualified}({access}!, {CloneContext})";
         }
 
         var cloned = CloneCollectionExpression(member, access + "!");
