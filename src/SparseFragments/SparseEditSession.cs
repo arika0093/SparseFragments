@@ -240,7 +240,20 @@ public sealed class SparseEditSession<TModel, TFragment, TPatch, TChangeSet, TOb
     public TObservable Observable => _observable;
 
     /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
-    public bool HasChanges => !_isEmpty(CreateChangeSet());
+    public bool HasChanges
+    {
+        get
+        {
+            try
+            {
+                return !_isEmpty(CreateChangeSet());
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+        }
+    }
 
     /// <summary>Raised when session state or its observable model may have changed.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;

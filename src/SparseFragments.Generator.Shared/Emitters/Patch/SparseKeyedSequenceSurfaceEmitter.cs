@@ -139,7 +139,14 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         }
         code.AppendLineAt(
             4,
-            "if (__edited is not null && __edited.ContainsKey(key)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
+            "if (__edited is not null"
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? " && !"
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        : ""
+                )
+                + " && __edited.ContainsKey(key!)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
         );
         code.AppendLineAt(
             4,

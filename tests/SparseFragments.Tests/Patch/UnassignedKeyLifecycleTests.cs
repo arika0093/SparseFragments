@@ -307,4 +307,19 @@ public sealed class UnassignedKeyLifecycleTests
         session.HasChanges.ShouldBeTrue();
         session.CreateChangeSet().Items.Edited.Count.ShouldBe(1);
     }
+
+    [Test]
+    public void HasChangesTreatsTemporaryDuplicateKeysAsPending()
+    {
+        var model = new AssignedServerHolder { Items = [Item(7, "existing")] };
+        var session = model.CreateEditSession();
+        var duplicate = Item(7, "duplicate");
+        session.Model.Items.Add(duplicate);
+
+        session.HasChanges.ShouldBeTrue();
+        Should.Throw<InvalidOperationException>(() => session.CreateChangeSet());
+
+        session.Model.Items.Remove(duplicate);
+        session.HasChanges.ShouldBeFalse();
+    }
 }

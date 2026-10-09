@@ -215,7 +215,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
                     + ") { __afterOrder"
                     + id
-                    + ".Add(__k); __unassignedAfter"
+                    + ".Add(__k!); __unassignedAfter"
                     + id
                     + ".Add(__item); continue; }"
             );
@@ -223,7 +223,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             6,
             SparseKeyedCollectionEmitter.AddUniqueEntry("__afterMap" + id, "__k", "__item")
         );
-        code.AppendLineAt(6, "__afterOrder" + id + ".Add(__k);");
+        code.AppendLineAt(6, "__afterOrder" + id + ".Add(__k!);");
         code.AppendLineAt(5, "}");
         // Edited (nested sparse ChangeSets for surviving keys).
         code.AppendLineAt(
@@ -358,11 +358,19 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             6,
             "{ var __r = 0; foreach (var __k in __afterOrder"
                 + id
-                + ") if (__beforeMap"
+                + ") if ("
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "!"
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                            + " && "
+                        : ""
+                )
+                + "__beforeMap"
                 + id
-                + ".ContainsKey(__k)) __afterRank"
+                + ".ContainsKey(__k!)) __afterRank"
                 + id
-                + "[__k] = __r++; }"
+                + "[__k!] = __r++; }"
         );
         code.AppendLineAt(
             6,
@@ -476,7 +484,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                     + id
                     + ".Add(new "
                     + trans
-                    + ".Item(__k, default, "
+                    + ".Item(__k!, default, "
                     + runtime
                     + "Optional<"
                     + elementType
@@ -559,7 +567,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 + id
                 + ".Add(new "
                 + trans
-                + ".Item(__k, __ib, __ia, __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit, false));"
+                + ".Item(__k!, __ib, __ia, __bi, __ai, !__inBefore, false, __isEdited, __isReordered, __fullEdit, false));"
         );
         code.AppendLineAt(7, "}");
         code.AppendLineAt(6, "}");

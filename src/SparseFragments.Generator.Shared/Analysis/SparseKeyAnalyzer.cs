@@ -362,7 +362,7 @@ internal static class SparseKeyAnalyzer
                 return false;
             }
 
-            if (GetKeyTypeProblem(property.Type, cancellationToken) is not null)
+            if (GetKeyTypeProblem(property.Type, cancellationToken) == KeyTypeProblem.Collection)
             {
                 return false;
             }
@@ -490,7 +490,7 @@ internal static class SparseKeyAnalyzer
             return false;
         }
 
-        if (GetKeyTypeProblem(keyType, cancellationToken) is not null)
+        if (GetKeyTypeProblem(keyType, cancellationToken) == KeyTypeProblem.Collection)
         {
             return false;
         }
@@ -503,7 +503,8 @@ internal static class SparseKeyAnalyzer
         info = new SparseKeyInfo(
             SparseKeyKind.Interface,
             ImmutableArray<string>.Empty,
-            NonNullableTypeName(keyType)
+            NonNullableTypeName(keyType),
+            GetKeyTypeProblem(keyType, cancellationToken) == KeyTypeProblem.Nullable ? "null" : null
         );
         return true;
     }
@@ -548,28 +549,45 @@ internal static class SparseKeyAnalyzer
             argument.Key == "Unassigned"
         );
         if (named.Key is null)
+        {
+            if (IsNullableKeyType(keyType))
+            {
+                expression = "null";
+            }
             return true;
+        }
 
         var constant = named.Value;
         var sourceType = constant.Type;
-        if (
-            constant.IsNull
-            || constant.Value is null
-            || sourceType is null
-            || constant.Kind is not (TypedConstantKind.Primitive or TypedConstantKind.Enum)
-        )
+        if (constant.IsNull || constant.Value is null)
         {
-            error = "Unassigned must be a non-null constant convertible to the key property type.";
+            if (keyType.IsReferenceType || IsNullableValueType(keyType))
+            {
+                expression = "null";
+                return true;
+            }
+
+            error = "Unassigned null requires a nullable key type.";
             return false;
         }
 
         if (
-            sourceType.SpecialType != keyType.SpecialType
-            && !SymbolEqualityComparer.Default.Equals(sourceType, keyType)
+            sourceType is null
+            || constant.Kind is not (TypedConstantKind.Primitive or TypedConstantKind.Enum)
+        )
+        {
+            error = "Unassigned must be a constant convertible to the key property type.";
+            return false;
+        }
+
+        var conversionTarget = NullableUnderlyingType(keyType) ?? keyType;
+        if (
+            sourceType.SpecialType != conversionTarget.SpecialType
+            && !SymbolEqualityComparer.Default.Equals(sourceType, conversionTarget)
             && !CanConvertNumericConstant(
                 constant.Value,
                 sourceType.SpecialType,
-                keyType.SpecialType
+                conversionTarget.SpecialType
             )
         )
         {
@@ -730,7 +748,8 @@ internal static class SparseKeyAnalyzer
                 property.Type,
                 config,
                 diagnostics,
-                cancellationToken
+                cancellationToken,
+                allowNullable: true
             );
         }
 
@@ -925,18 +944,6 @@ internal static class SparseKeyAnalyzer
 
         var keyType = distinctKeys[0];
         var problem = GetKeyTypeProblem(keyType, cancellationToken);
-        if (problem == KeyTypeProblem.Nullable)
-        {
-            diagnostics.Add(
-                new SparseGeneratorDiagnostic(
-                    config.EffectiveDiagnosticIds.NullableKey,
-                    element.Locations.FirstOrDefault(),
-                    element.Name
-                )
-            );
-            return;
-        }
-
         if (problem == KeyTypeProblem.Collection)
         {
             diagnostics.Add(
@@ -986,12 +993,13 @@ internal static class SparseKeyAnalyzer
         ITypeSymbol keyType,
         SparseGeneratorConfig config,
         ImmutableArray<SparseGeneratorDiagnostic>.Builder diagnostics,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool allowNullable = false
     )
     {
         switch (GetKeyTypeProblem(keyType, cancellationToken))
         {
-            case KeyTypeProblem.Nullable:
+            case KeyTypeProblem.Nullable when !allowNullable:
                 diagnostics.Add(
                     new SparseGeneratorDiagnostic(
                         config.EffectiveDiagnosticIds.NullableKey,
@@ -1024,17 +1032,6 @@ internal static class SparseKeyAnalyzer
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (
-            type.NullableAnnotation == NullableAnnotation.Annotated
-            || (
-                type is INamedTypeSymbol namedNullable
-                && namedNullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
-            )
-        )
-        {
-            return KeyTypeProblem.Nullable;
-        }
-
         if (type is IArrayTypeSymbol)
         {
             return KeyTypeProblem.Collection;
@@ -1050,8 +1047,25 @@ internal static class SparseKeyAnalyzer
             return KeyTypeProblem.Collection;
         }
 
+        if (IsNullableKeyType(type))
+        {
+            return KeyTypeProblem.Nullable;
+        }
+
         return null;
     }
+
+    private static bool IsNullableKeyType(ITypeSymbol type) =>
+        type.NullableAnnotation == NullableAnnotation.Annotated || IsNullableValueType(type);
+
+    private static bool IsNullableValueType(ITypeSymbol type) =>
+        NullableUnderlyingType(type) is not null;
+
+    private static ITypeSymbol? NullableUnderlyingType(ITypeSymbol type) =>
+        type is INamedTypeSymbol named
+        && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
+            ? named.TypeArguments[0]
+            : null;
 
     private static bool HasAttributeArguments(AttributeData attribute) =>
         attribute.ConstructorArguments.Length > 0;

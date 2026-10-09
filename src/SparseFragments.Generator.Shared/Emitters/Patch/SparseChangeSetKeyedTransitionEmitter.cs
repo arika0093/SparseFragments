@@ -364,13 +364,13 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 4,
                 "if ("
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
-                    + ") { __afterOrder.Add(__k); __unassignedAfter.Add(__item); continue; }"
+                    + ") { __afterOrder.Add(__k!); __unassignedAfter.Add(__item); continue; }"
             );
         code.AppendLineAt(
             4,
             SparseKeyedCollectionEmitter.AddUniqueEntry("__afterMap", "__k", "__item")
         );
-        code.AppendLineAt(4, "__afterOrder.Add(__k);");
+        code.AppendLineAt(4, "__afterOrder.Add(__k!);");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
@@ -461,7 +461,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         );
         code.AppendLineAt(
             3,
-            "{ var __r = 0; foreach (var __k in __afterOrder) if (__beforeMap.ContainsKey(__k)) __afterRank[__k] = __r++; }"
+            "{ var __r = 0; foreach (var __k in __afterOrder) if ("
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? "!"
+                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                            + " && "
+                        : ""
+                )
+                + "__beforeMap.ContainsKey(__k!)) __afterRank[__k!] = __r++; }"
         );
         code.AppendLineAt(
             3,
@@ -526,7 +534,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                     + elementFrag
                     + ".From(__ua))); __items.Add(new "
                     + trans
-                    + ".Item(__k, default, "
+                    + ".Item(__k!, default, "
                     + runtime
                     + "Optional<"
                     + elementType
@@ -589,7 +597,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             5,
             "__items.Add(new "
                 + trans
-                + ".Item(__k, __ib, "
+                + ".Item(__k!, __ib, "
                 + runtime
                 + "Optional<"
                 + elementType
@@ -623,7 +631,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             4,
             "__items.Add(new "
                 + trans
-                + ".Item(__k, "
+                + ".Item(__k!, "
                 + runtime
                 + "Optional<"
                 + elementType
@@ -761,10 +769,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
     internal static string KeyOfBody(SparseMemberModel member)
     {
         if (member.Collection.KeyKind == SparseKeyKind.Interface)
-            return "return element.SparseKey;";
+            return "return element.SparseKey"
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : "")
+                + ";";
         var keys = member.Collection.KeyPropertyNames;
         if (keys.Length == 1)
-            return "return element." + SparseNaming.EscapeIdentifier(keys[0]) + ";";
+            return "return element."
+                + SparseNaming.EscapeIdentifier(keys[0])
+                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : "")
+                + ";";
         var builder = new System.Text.StringBuilder("(");
         for (var i = 0; i < keys.Length; i++)
         {

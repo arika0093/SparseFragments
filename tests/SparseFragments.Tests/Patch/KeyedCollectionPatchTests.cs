@@ -86,6 +86,81 @@ public partial class AssignedServerHolder
     public List<AssignedServer> Items { get; set; } = new();
 }
 
+[SparseFragmentModel]
+public partial class NullableKeyServer
+{
+    [SparseKey]
+    public string? Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class NullableKeyServerHolder
+{
+    public List<NullableKeyServer> Items { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class NullableValueKeyServer
+{
+    [SparseKey]
+    public int? Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class NullableValueKeyServerHolder
+{
+    public List<NullableValueKeyServer> Items { get; set; } = new();
+}
+
+public partial class NullableInterfaceKeyServer : ISparseKeyed<string?>
+{
+    public string? Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string? SparseKey => Id;
+}
+
+[SparseFragmentModel]
+public partial class NullableInterfaceKeyServerHolder
+{
+    public List<NullableInterfaceKeyServer> Items { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class ExplicitNullKeyServer
+{
+    [SparseKey(Unassigned = null)]
+    public string? Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class ExplicitNullKeyServerHolder
+{
+    public List<ExplicitNullKeyServer> Items { get; set; } = new();
+}
+
+[SparseFragmentModel]
+public partial class OverrideNullableKeyServer
+{
+    [SparseKey(Unassigned = "pending")]
+    public string? Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class OverrideNullableKeyServerHolder
+{
+    public List<OverrideNullableKeyServer> Items { get; set; } = new();
+}
+
 public sealed class KeyedCollectionPatchTests
 {
     private static KeyedServer Server(string id, string name = "", int count = 0) =>
@@ -262,6 +337,188 @@ public sealed class KeyedCollectionPatchTests
             .Rebased.Apply(concurrent)
             .Value!.Items.Value!.Select(item => item.Name)
             .ShouldBe(["existing", "concurrent", "first", "second"]);
+    }
+
+    [Test]
+    public void NullableKeysDefaultToNullAsUnassigned()
+    {
+        Optional<NullableKeyServerHolder.Fragment?> F(params NullableKeyServer[] items) =>
+            Optional<NullableKeyServerHolder.Fragment?>.Present(
+                NullableKeyServerHolder.Fragment.From(
+                    new NullableKeyServerHolder { Items = items.ToList() }
+                )
+            );
+
+        var before = F(new NullableKeyServer { Id = "existing", Name = "existing" });
+        var after = F(
+            new NullableKeyServer { Id = null, Name = "first" },
+            new NullableKeyServer { Id = "existing", Name = "existing" },
+            new NullableKeyServer { Id = null, Name = "second" }
+        );
+
+        var patch = NullableKeyServerHolder.Patch.Between(before, after);
+        patch
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
+        var changes = NullableKeyServerHolder.ChangeSet.Between(before, after);
+        changes.Items.Added.Select(item => item.Name).ShouldBe(["first", "second"]);
+        changes
+            .Items.AfterOrder.Select(static key => (string?)key)
+            .ShouldBe(new string?[] { null, "existing", null });
+        changes
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
+
+        var updated = F(new NullableKeyServer { Id = "existing", Name = "updated" });
+        var first = NullableKeyServerHolder.ChangeSet.Between(before, updated);
+        var second = NullableKeyServerHolder.ChangeSet.Between(updated, after);
+        first
+            .Compose(second)
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["first", "existing", "second"]);
+
+        var concurrent = F(
+            new NullableKeyServer { Id = "existing", Name = "existing" },
+            new NullableKeyServer { Id = "concurrent", Name = "concurrent" }
+        );
+        var rebased = changes.RebaseOnto(concurrent);
+        rebased.HasConflicts.ShouldBeFalse();
+        rebased
+            .Rebased.ToPatch()
+            .Apply(concurrent)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["existing", "concurrent", "first", "second"]);
+
+        Should.Throw<InvalidOperationException>(() =>
+            NullableKeyServerHolder.Patch.Between(after, before)
+        );
+        Should.Throw<InvalidOperationException>(() =>
+            NullableKeyServerHolder.ChangeSet.Between(after, before)
+        );
+    }
+
+    [Test]
+    public void NullableValueKeysDefaultToNullAsUnassigned()
+    {
+        var before = Optional<NullableValueKeyServerHolder.Fragment?>.Present(
+            NullableValueKeyServerHolder.Fragment.From(
+                new NullableValueKeyServerHolder
+                {
+                    Items = [new NullableValueKeyServer { Id = 3, Name = "existing" }],
+                }
+            )
+        );
+        var after = Optional<NullableValueKeyServerHolder.Fragment?>.Present(
+            NullableValueKeyServerHolder.Fragment.From(
+                new NullableValueKeyServerHolder
+                {
+                    Items =
+                    [
+                        new NullableValueKeyServer { Id = null, Name = "new" },
+                        new NullableValueKeyServer { Id = 3, Name = "existing" },
+                    ],
+                }
+            )
+        );
+
+        NullableValueKeyServerHolder
+            .Patch.Between(before, after)
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["new", "existing"]);
+    }
+
+    [Test]
+    public void NullableInterfaceKeysDefaultToNullAsUnassigned()
+    {
+        var before = Optional<NullableInterfaceKeyServerHolder.Fragment?>.Present(
+            NullableInterfaceKeyServerHolder.Fragment.From(
+                new NullableInterfaceKeyServerHolder
+                {
+                    Items = [new NullableInterfaceKeyServer { Id = "existing", Name = "existing" }],
+                }
+            )
+        );
+        var after = Optional<NullableInterfaceKeyServerHolder.Fragment?>.Present(
+            NullableInterfaceKeyServerHolder.Fragment.From(
+                new NullableInterfaceKeyServerHolder
+                {
+                    Items =
+                    [
+                        new NullableInterfaceKeyServer { Id = null, Name = "new" },
+                        new NullableInterfaceKeyServer { Id = "existing", Name = "existing" },
+                    ],
+                }
+            )
+        );
+
+        NullableInterfaceKeyServerHolder
+            .ChangeSet.Between(before, after)
+            .ToPatch()
+            .Apply(before)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["new", "existing"]);
+    }
+
+    [Test]
+    public void ExplicitNullAndOverrideNullableSentinelsAreSupported()
+    {
+        var explicitBefore = Optional<ExplicitNullKeyServerHolder.Fragment?>.Present(
+            ExplicitNullKeyServerHolder.Fragment.From(
+                new ExplicitNullKeyServerHolder
+                {
+                    Items = [new ExplicitNullKeyServer { Id = "existing", Name = "existing" }],
+                }
+            )
+        );
+        var explicitAfter = Optional<ExplicitNullKeyServerHolder.Fragment?>.Present(
+            ExplicitNullKeyServerHolder.Fragment.From(
+                new ExplicitNullKeyServerHolder
+                {
+                    Items =
+                    [
+                        new ExplicitNullKeyServer { Id = null, Name = "new" },
+                        new ExplicitNullKeyServer { Id = "existing", Name = "existing" },
+                    ],
+                }
+            )
+        );
+        ExplicitNullKeyServerHolder
+            .Patch.Between(explicitBefore, explicitAfter)
+            .Apply(explicitBefore)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["new", "existing"]);
+
+        var overrideBefore = Optional<OverrideNullableKeyServerHolder.Fragment?>.Present(
+            OverrideNullableKeyServerHolder.Fragment.From(
+                new OverrideNullableKeyServerHolder
+                {
+                    Items = [new OverrideNullableKeyServer { Id = "existing", Name = "existing" }],
+                }
+            )
+        );
+        var overrideAfter = Optional<OverrideNullableKeyServerHolder.Fragment?>.Present(
+            OverrideNullableKeyServerHolder.Fragment.From(
+                new OverrideNullableKeyServerHolder
+                {
+                    Items =
+                    [
+                        new OverrideNullableKeyServer { Id = "pending", Name = "new" },
+                        new OverrideNullableKeyServer { Id = "existing", Name = "existing" },
+                    ],
+                }
+            )
+        );
+        OverrideNullableKeyServerHolder
+            .Patch.Between(overrideBefore, overrideAfter)
+            .Apply(overrideBefore)
+            .Value!.Items.Value!.Select(item => item.Name)
+            .ShouldBe(["new", "existing"]);
     }
 
     [Test]

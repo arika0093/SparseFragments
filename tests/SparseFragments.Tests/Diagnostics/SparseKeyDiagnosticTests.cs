@@ -52,13 +52,16 @@ public sealed class SparseKeyDiagnosticTests
             .OrderBy(static id => id)
             .ToArray();
         actual.ShouldBe(expectedIds.OrderBy(static id => id).ToArray());
-        foreach (var diagnostic in diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)))
+        foreach (
+            var diagnostic in diagnostics.Where(d =>
+                d.Id.StartsWith("SPF", StringComparison.Ordinal)
+            )
+        )
         {
             diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
-            diagnostic
-                .Descriptor.HelpLinkUri.ShouldStartWith(
-                    "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf"
-                );
+            diagnostic.Descriptor.HelpLinkUri.ShouldStartWith(
+                "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf"
+            );
         }
     }
 
@@ -282,11 +285,28 @@ public sealed class SparseKeyDiagnosticTests
     }
 
     [Test]
+    public void Spf018_NullableCompositeComponentReportsError()
+    {
+        const string element = """
+            [SparseKey("TenantId", "Id")]
+            public partial class Keyed
+            {
+                public string TenantId { get; set; } = "";
+                public string? Id { get; set; }
+            }
+            """;
+        var (diagnostics, sources) = Run(WithHolder(element));
+        AssertSpfIds(diagnostics, ["SPF018"]);
+        sources.ShouldBeEmpty();
+    }
+
+    [Test]
     [Arguments("nullableProperty")]
     [Arguments("nullableValueProperty")]
-    [Arguments("nullableComponent")]
     [Arguments("nullableInterfaceKey")]
-    public void Spf018_NullableKeyReportsError(string kind)
+    [Arguments("explicitNull")]
+    [Arguments("override")]
+    public void NullableScalarKeysGenerateWithoutDiagnostics(string kind)
     {
         var element = kind switch
         {
@@ -304,30 +324,37 @@ public sealed class SparseKeyDiagnosticTests
                     public int? Id { get; set; }
                 }
                 """,
-            "nullableComponent" => """
-                [SparseKey("TenantId", "Id")]
-                public partial class Keyed
-                {
-                    public string TenantId { get; set; } = "";
-                    public string? Id { get; set; }
-                }
-                """,
             "nullableInterfaceKey" => """
                 public partial class Keyed : ISparseKeyed<string?>
                 {
-                    public string Id { get; set; } = "";
+                    public string? Id { get; set; }
                     public string? SparseKey => Id;
+                }
+                """,
+            "explicitNull" => """
+                public partial class Keyed
+                {
+                    [SparseKey(Unassigned = null)]
+                    public string? Id { get; set; }
+                }
+                """,
+            "override" => """
+                public partial class Keyed
+                {
+                    [SparseKey(Unassigned = "pending")]
+                    public string? Id { get; set; }
                 }
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF018"]);
-        sources.ShouldBeEmpty();
+        diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
+        sources.Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal)).ShouldBeTrue();
     }
 
     [Test]
     [Arguments("listProperty")]
+    [Arguments("nullableListProperty")]
     [Arguments("arrayComponent")]
     [Arguments("dictionaryInterfaceKey")]
     public void Spf019_CollectionShapedKeyReportsError(string kind)
@@ -339,6 +366,13 @@ public sealed class SparseKeyDiagnosticTests
                 {
                     [SparseKey]
                     public List<string> Ids { get; set; } = new();
+                }
+                """,
+            "nullableListProperty" => """
+                public partial class Keyed
+                {
+                    [SparseKey]
+                    public List<string>? Ids { get; set; }
                 }
                 """,
             "arrayComponent" => """
@@ -404,9 +438,10 @@ public sealed class SparseKeyDiagnosticTests
                 public string Name { get; set; } = "";
                 public List<NestedLeaf> Items { get; set; } = new();
             }
+            [SparseKey(nameof(Tenant), nameof(Id))]
             public partial class NestedLeaf
             {
-                [SparseKey]
+                public string Tenant { get; set; } = "";
                 public string? Id { get; set; }
             }
             [SparseFragmentModel]
@@ -469,9 +504,7 @@ public sealed class SparseKeyDiagnosticTests
         };
         var (diagnostics, sources) = Run(WithHolder(element));
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
-        sources
-            .Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal))
-            .ShouldBeTrue();
+        sources.Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal)).ShouldBeTrue();
     }
 
     [Test]
@@ -499,8 +532,6 @@ public sealed class SparseKeyDiagnosticTests
             """;
         var (diagnostics, sources) = Run(source);
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
-        sources
-            .Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal))
-            .ShouldBeTrue();
+        sources.Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal)).ShouldBeTrue();
     }
 }

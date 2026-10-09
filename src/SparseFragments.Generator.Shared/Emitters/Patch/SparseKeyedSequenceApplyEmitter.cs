@@ -427,7 +427,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                 5,
                 "if ("
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                    + ") { afterOrder.Add(k); unassignedAfter.Add(item); continue; }"
+                    + ") { afterOrder.Add(k!); unassignedAfter.Add(item); continue; }"
             );
         }
         code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("afterMap", "k", "item"));

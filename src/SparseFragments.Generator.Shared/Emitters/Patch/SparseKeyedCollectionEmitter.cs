@@ -146,10 +146,12 @@ internal static class SparseKeyedCollectionEmitter
         + map
         + ".ContainsKey("
         + key
+        + "!"
         + ")) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); "
         + map
         + ".Add("
         + key
+        + "!"
         + ", "
         + value
         + ");";
@@ -197,13 +199,19 @@ internal static class SparseKeyedCollectionEmitter
         if (member.Collection.KeyKind == SparseKeyKind.Interface)
         {
             // ISparseKeyed<TKey>: computed/custom identity without reflection.
-            code.AppendLineAt(indent + 1, "return element.SparseKey;");
+            code.AppendLineAt(
+                indent + 1,
+                "return element.SparseKey" + (HasUnassignedKey(member) ? "!" : "") + ";"
+            );
         }
         else if (keys.Length == 1)
         {
             code.AppendLineAt(
                 indent + 1,
-                "return element." + SparseNaming.EscapeIdentifier(keys[0]) + ";"
+                "return element."
+                    + SparseNaming.EscapeIdentifier(keys[0])
+                    + (HasUnassignedKey(member) ? "!" : "")
+                    + ";"
             );
         }
         else
