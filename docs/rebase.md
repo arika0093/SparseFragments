@@ -73,18 +73,31 @@ var applied = result.Rebased.ToPatch().Apply(missing);
 
 ### In-place application for bound models
 
-When the destination object is already bound to a UI, apply through the baseline-free Patch API (details in [UI frameworks](ui-frameworks.md)):
+When the destination object is already bound to a UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`. It rebases the change onto the bound model's current state first, so an unrelated concurrent edit is preserved while a conflicting edit surfaces as a structured conflict:
 
+<!-- sample: rebase-in-place -->
 ```csharp
-var changes = baseline.CreateChangeSet(edited);
-changes.ToPatch().ApplyInPlace(boundModel);
+var inPlaceBase = new RebaseDocsSettings { RetryCount = 1, Label = "a" };
+var inPlaceEdited = new RebaseDocsSettings { RetryCount = 2, Label = "a" };
+var boundModel = new RebaseDocsSettings { RetryCount = 1, Label = "b" };
+
+var pending = inPlaceBase.CreateChangeSet(inPlaceEdited);
+if (!pending.TryApplyInPlace(boundModel, out var inPlaceConflicts))
+{
+    throw new InvalidOperationException("The change conflicts with the bound model.");
+}
+
+// boundModel.RetryCount == 2
+// boundModel.Label == "b"
 ```
+<!-- /sample -->
+
+`ApplyInPlace(model, options)` is the throwing form of the same check. When the change includes an init-only or constructor-only member, the in-place write cannot complete: `TryApplyInPlace` returns `false` with an in-place write conflict, and `ApplyInPlace` throws `InvalidOperationException`.
+
+The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check. `ToPatch()` discards the before-state, so the result can no longer rebase or report conflicts. Use it only when the caller already owns conflict handling.
 
 `Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)` mutate the existing model instead of returning
-a replacement. ChangeSet has no `ApplyInPlace`; a blind overwrite must spell
-`changes.ToPatch().ApplyInPlace(model)` so conflicting edits cannot slip through
-an unguarded call. `ToPatch()` discards the before-state, so the result is a
-baseline-free operation that can no longer rebase or report conflicts.
+a replacement.
 `List<T>` and `Dictionary<TKey,TValue>` properties keep their
 existing collection object and replace its contents; nested model properties
 may be replaced. Get-only or init-only members prevent these in-place APIs

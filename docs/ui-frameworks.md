@@ -71,6 +71,10 @@ properties retain their collection instance and have their contents replaced.
 Nested model values may be replaced. A model with init-only or constructor-only
 members keeps its normal edit-session APIs but cannot use in-place apply
 (see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+`ChangeSet.TryApplyInPlace(model, out conflicts, options)` applies a
+baseline-aware transition to a bound model after rebasing onto its current
+state; the blind `ToPatch().ApplyInPlace(model)` form skips that check
+(see [ChangeSet rebase](rebase.md#in-place-application-for-bound-models)).
 
 The session is synchronous. It provides no async submit, transport, or conflict
 framework. The application sends the change set through

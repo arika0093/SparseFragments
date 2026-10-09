@@ -107,7 +107,19 @@ if (response.IsSuccess)
 
 The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
 
-For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. `ChangeSet` has no `ApplyInPlace`; a blind overwrite must spell `changes.ToPatch().ApplyInPlace(model)`, which discards the before-state.
+For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
+
+```csharp
+var pending = baseline.CreateChangeSet(edited);
+if (!pending.TryApplyInPlace(boundModel, out var conflicts))
+{
+    ShowConflicts(conflicts);
+    return;
+}
+// boundModel now carries the change; unrelated concurrent edits are preserved.
+```
+
+The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
 
 See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
 
