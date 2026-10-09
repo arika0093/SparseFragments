@@ -13,6 +13,10 @@ internal static class SparseEditSessionEmitter
         "SparseFragments.Generator.Shared.Sessions.SparseEditSessionCore.template";
     private const string CurrentCoreResourceName =
         "SparseFragments.Generator.Shared.Sessions.SparseEditSessionWithCurrentCore.template";
+    private static readonly Lazy<string> CoreTemplate = new(() => ReadTemplate(CoreResourceName));
+    private static readonly Lazy<string> CurrentCoreTemplate = new(() =>
+        ReadTemplate(CurrentCoreResourceName)
+    );
 
     public static void EmitCore(SourceProductionContext context, SparseGeneratorConfig config)
     {
@@ -43,8 +47,8 @@ internal static class SparseEditSessionEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect
     ) =>
         (
-            RenderTemplate(CoreResourceName, sessionDialect, runtimeDialect, patchDialect),
-            RenderTemplate(CurrentCoreResourceName, sessionDialect, runtimeDialect, patchDialect)
+            RenderTemplate(CoreTemplate.Value, sessionDialect, runtimeDialect, patchDialect),
+            RenderTemplate(CurrentCoreTemplate.Value, sessionDialect, runtimeDialect, patchDialect)
         );
 
     public static void AppendModelEditSession(
@@ -284,12 +288,7 @@ internal static class SparseEditSessionEmitter
         code.AppendLine();
     }
 
-    private static string RenderTemplate(
-        string resourceName,
-        SparseEditSessionDialect sessionDialect,
-        SparseRuntimeDialect runtimeDialect,
-        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect
-    )
+    private static string ReadTemplate(string resourceName)
     {
         var assembly = typeof(SparseEditSessionEmitter).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName);
@@ -303,11 +302,18 @@ internal static class SparseEditSessionEmitter
                     + string.Join(", ", assembly.GetManifestResourceNames())
             );
         using var reader = new StreamReader(stream);
-        return reader
-            .ReadToEnd()
+        return reader.ReadToEnd();
+    }
+
+    private static string RenderTemplate(
+        string template,
+        SparseEditSessionDialect sessionDialect,
+        SparseRuntimeDialect runtimeDialect,
+        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect
+    ) =>
+        template
             .Replace("__SESSION_NAMESPACE__", sessionDialect.Namespace)
             .Replace("__OPTIONAL_TYPE__", runtimeDialect.OptionalType)
             .Replace("__CONFLICT_TYPE__", patchDialect.ConflictType)
             .Replace("__REBASE_RESULT_TYPE__", patchDialect.RebaseResult("TChangeSet"));
-    }
 }
