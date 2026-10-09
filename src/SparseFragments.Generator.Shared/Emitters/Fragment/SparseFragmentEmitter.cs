@@ -250,7 +250,8 @@ internal static class SparseFragmentEmitter
                 code,
                 modelType,
                 members,
-                readOnlyViewModels
+                readOnlyViewModels,
+                SparseGeneratedPlacement.TryGetImplementationNamespace(config)
             );
         }
 
