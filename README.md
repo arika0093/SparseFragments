@@ -167,6 +167,7 @@ The package contains the source generator, so no additional generation step is r
 
 With .NET 10 or later, the whole example fits in a single file:
 
+<!-- sample: readme-quickstart -->
 ```csharp
 #:package SparseFragments@*
 
@@ -210,6 +211,7 @@ public partial class DatabaseSettings
     public int Port { get; set; } = 5432;
 }
 ```
+<!-- /sample -->
 
 Save it as `quickstart.cs` and run:
 
@@ -257,16 +259,19 @@ All three follow the source model's nesting and configured collection behavior.
 
 `Optional<T>` represents the three states that a normal property cannot distinguish: missing, present `null`, and present value.
 
+<!-- sample: readme-optional-states -->
 ```csharp
 Optional<string?> missing = Optional<string?>.Missing;
 Optional<string?> value = "hello";
 Optional<string?> explicitNull = Optional<string?>.Present(null);
 ```
+<!-- /sample -->
 
 Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand. A Patch `Remove()` drops one member contribution back to missing; on the next merge that member falls through to the lower layer. It never assigns the C# default or runs a constructor.
 
 ### Source Generation
 
+<!-- illustrative: simplified names; does not compile as written -->
 `[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state and
 operation families stay nested in the model; per-model UI and editing types
 live in a stable `SparseFragments.Generated` container:

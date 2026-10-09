@@ -49,8 +49,9 @@ It is a **source-only package** compiled into the consuming generator, and downs
   - Do not paraphrase it into this file; follow the original.
 - Apply it to every documentation, apply the same principles.
 - Existing docs are English. Keep the language of the file you edit.
-- Code samples in `docs/*.md` are guarded by `verify-docs-samples.sh` against compile-checked fixtures in `package-sparse-docs/*.cs`. 
-  - When changing a sample, update the matching fixture too (`<!-- sample: name -->` markers).
+- Code samples in `docs/*.md` are guarded by `verify-docs-samples.sh` against compile-checked fixtures in `package-sparse-docs/*.cs`; the README Quick Start and presence blocks are guarded the same way by `verify-sparsefragments-readme.sh` against `package-sparse-readme/Program.cs`.
+  - When changing a sample, update the matching fixture too (`<!-- sample: name -->` markers in Markdown, `// sample: name` regions in fixtures). Every marker must be registered in the verify scripts; unregistered markers fail the build.
+  - Snippets that must not compile (error illustrations, ellipsized shapes) carry `<!-- illustrative: reason -->` instead of sample markers and stay outside exact verification.
 
 ## Contributing
 ### Commit Rules

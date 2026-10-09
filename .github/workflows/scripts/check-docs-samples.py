@@ -2,13 +2,20 @@
 """Verify annotated Markdown samples match canonical fixtures exactly (#68).
 
 Usage: check-docs-samples.py <guide> <fixture> <id> [<id> ...]
+       check-docs-samples.py --coverage <guide> <id> [<id> ...]
 
 Markdown convention: a line `<!-- sample: <id> -->`, then a fenced block,
 then `<!-- /sample -->`. Fixture convention: `// sample: <id>` ...
 `// /sample` (possibly several regions per id; concatenated in order).
-Normalization (both sides): drop `using ...;` lines and blank lines, strip
+Normalization (both sides): drop `using ...;` lines, `dotnet run --file`
+directives (`#:package ...`), and blank lines, strip
 leading/trailing whitespace, LF line endings. Anything else must match
 exactly, so drift in statements, models, or asserted results fails the check.
+
+Coverage mode lists every `<!-- sample: -->` id in the guide and fails when
+an id has no registered fixture guard. The verify scripts pass the same id
+list to both modes, so a newly added marker without a `check_block`
+registration fails the build.
 """
 
 import re
@@ -86,11 +93,38 @@ def normalize(lines):
             continue
         if re.fullmatch(r"using\s[^;]+;", stripped):
             continue
+        if stripped.startswith("#:"):
+            # dotnet-file directives (e.g. `#:package` in the README
+            # quick-start) travel with the doc snippet, never the fixture.
+            continue
         kept.append(stripped)
     return kept
 
 
+def coverage(argv):
+    if len(argv) < 3:
+        print("Usage: check-docs-samples.py --coverage <guide> <id> [<id> ...]")
+        return 2
+    guide, ids = argv[2], argv[3:]
+    try:
+        md_blocks = extract_md(guide)
+    except OSError as error:
+        print("Docs sample drift: cannot read guide '%s': %s" % (guide, error))
+        return 1
+    unlisted = sorted(set(md_blocks) - set(ids))
+    if unlisted:
+        for sample_id in unlisted:
+            print(
+                "Docs sample drift: guide '%s' has <!-- sample: %s --> with no fixture guard; "
+                "register it in a check_block call." % (guide, sample_id)
+            )
+        return 1
+    return 0
+
+
 def main(argv):
+    if len(argv) >= 2 and argv[1] == "--coverage":
+        return coverage(argv)
     if len(argv) < 4:
         print("Usage: check-docs-samples.py <guide> <fixture> <id> [<id> ...]")
         return 2

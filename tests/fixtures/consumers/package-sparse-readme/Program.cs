@@ -2,46 +2,57 @@ using System.Text.Json;
 using SparseFragments;
 
 // Canonical compile-checked mirror of the root README.md.
-// Each block below corresponds to the Quick Start and the core Generated API
-// sections (model shape, Optional states, Fragment merge, typed Patch,
-// ChangeSet transitions with typed observation, JSON round-trip and rebase).
-// Keep the model shapes (Settings with [SparseFragmentModel], reachable
-// partial DatabaseSettings) in sync with the README so CI fails when the
-// public generated API drifts from the documented samples.
+// The `// sample: <id>` regions below match the same-id fenced blocks in
+// README.md exactly after normalization; verify-sparsefragments-readme.sh
+// fails on drift. Regions execute as top-level statements so documented
+// results are verified, not just compiled. Keep the model shapes (Settings
+// with [SparseFragmentModel], reachable partial DatabaseSettings) in sync
+// with the README so CI fails when the public generated API drifts from the
+// documented samples.
 
 // Presence Tracking: the three states of Optional<T>.
+// sample: readme-optional-states
 Optional<string?> missing = Optional<string?>.Missing;
 Optional<string?> value = "hello";
 Optional<string?> explicitNull = Optional<string?>.Present(null);
+// /sample
 Require(!missing.IsPresent, "Optional missing");
 Require(value.IsPresent && value.Value == "hello", "Optional present value");
 Require(explicitNull.IsPresent && explicitNull.Value is null, "Optional present null");
 
-// Quick Start: defaults, environment overrides and merge.
-var defaults = Settings.Fragment.From(
-    new Settings
-    {
-        Label = "default",
-        Database = new() { Host = "db.local", Port = 5432 },
-    });
+// Quick Start: typed Patch editing (source fragment is never mutated), then
+// the ChangeSet transition. Comment lines stay outside the sample region so
+// the region matches the README block exactly.
+// sample: readme-quickstart
+var defaults = Settings.Fragment.From(new Settings
+{
+    Label = "default",
+    Database = new() { Host = "db.local", Port = 5432 },
+});
+
 var environment = new Settings.Fragment
 {
     Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
+
 var effective = defaults.Merge(environment);
 Require(effective.Database.Value!.Port.Value == 6432, "merge higher priority wins");
 Require(effective.Database.Value.Host.Value == "db.local", "merge falls through nested missing members");
 Require(effective.Label.Value == "default", "merge keeps lower value for missing members");
 
-// Quick Start: typed Patch editing (source fragment is never mutated).
 var patch = new Settings.Patch { Label = "production" };
 patch.Database.Port = 7432;
 var updated = effective.Apply(patch);
 Require(updated.ToModel().Label == "production", "typed patch applies");
 Require(updated.Database.Value!.Port.Value == 7432, "typed nested set");
 
-// Quick Start: ChangeSet captures the before -> after transition.
 var changes = Settings.ChangeSet.Between(effective, updated);
+Console.WriteLine(updated.ToModel().Label); // production
+Console.WriteLine(updated.ToModel().Database!.Host); // db.local, preserved by the patch
+Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(changes.Database.Port.Before.Value); // 6432
+Console.WriteLine(changes.Database.Port.After.Value); // 7432
+// /sample
 Require(changes.Label.IsChanged, "typed transition reports the Label change");
 Require(changes.Label.Before.Value == "default", "typed transition Before");
 Require(changes.Label.After.Value == "production", "typed transition After");
@@ -71,6 +82,7 @@ static void Require(bool condition, string capability)
 // Mirrors the README Quick Start model. Reachable partial nested models
 // auto-generate Fragment/Patch, so DatabaseSettings stays undecorated but
 // partial because the samples construct DatabaseSettings.Fragment directly.
+// sample: readme-quickstart
 [SparseFragmentModel]
 public partial class Settings
 {
@@ -83,3 +95,4 @@ public partial class DatabaseSettings
     public string Host { get; set; } = "localhost";
     public int Port { get; set; } = 5432;
 }
+// /sample

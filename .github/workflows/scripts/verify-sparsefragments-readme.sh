@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the standalone SparseFragments README samples (#315).
+# Verifies the standalone SparseFragments README samples (#315, #201).
 #
 # The canonical compile-checked source is
 # tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
@@ -12,6 +12,11 @@
 # between the README and that canonical source, then builds and runs the
 # fixture against the packed packages so CI fails when the public generated
 # API breaks the documented samples.
+#
+# Runnable README blocks carry `<!-- sample: <id> -->` markers and must match
+# their fixture regions exactly (check-docs-samples.py, same normalization as
+# the docs guides). Snippets that must not compile carry
+# `<!-- illustrative: reason -->` instead and stay outside exact verification.
 #
 # Usage: verify-sparsefragments-readme.sh <package-directory> [readme-path]
 set -euo pipefail
@@ -83,6 +88,20 @@ for token in "${required_tokens[@]}"; do
         exit 1
     fi
 done
+
+# 2b. Exact sample verification (#201). The runnable Quick Start and presence
+# blocks must match their canonical fixture regions exactly (after
+# normalization), so token presence alone cannot hide statement-level drift.
+if ! python3 "$(dirname "$0")/check-docs-samples.py" "${readme_path}" "${fixture_program}" \
+    readme-quickstart readme-optional-states; then
+    echo "README sample drift: see mismatches above." >&2
+    exit 1
+fi
+if ! python3 "$(dirname "$0")/check-docs-samples.py" --coverage "${readme_path}" \
+    readme-quickstart readme-optional-states; then
+    echo "README sample drift: see unguarded markers above." >&2
+    exit 1
+fi
 
 # 3. Compile and run the canonical fixture against the packed packages.
 # The core glob pins the version digit so the Blazor package

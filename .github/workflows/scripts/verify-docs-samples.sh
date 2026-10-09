@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies representative docs/*.md samples (#45).
+# Verifies docs/*.md samples (#45, #68, #201).
 #
 # The canonical compile-checked sources are
 # tests/fixtures/consumers/package-sparse-docs/*.cs (one topic file per guide
@@ -8,6 +8,16 @@
 # canonical fixture source, then builds and runs both fixtures against the
 # packed release-candidate packages so CI fails when the public generated API
 # breaks a documented sample.
+#
+# Adding a verified sample: wrap the fenced block in `<!-- sample: <id> -->`
+# ... `<!-- /sample -->`, add the matching `// sample: <id>` ...
+# `// /sample` region to the canonical fixture (and execute it from Run() so
+# the documented result is verified, not just compiled), then register the id
+# in the check_block list for its guide. The coverage check below fails when a
+# guide contains a marker with no registration. Snippets that must not
+# compile (error illustrations, ellipsized shapes) carry
+# `<!-- illustrative: reason -->` instead of a sample marker and stay outside
+# exact verification.
 #
 # Tests consume the packed release-candidate packages via a local feed (no
 # ProjectReference fallback, no second pack). The Blazor fixture resolves both
@@ -137,7 +147,7 @@ check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/Verified
     core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
     core-change-payload-models core-change-payload
 check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    keyed-first-models keyed-first keyed-typed
+    keyed-first-models keyed-first keyed-unassigned-model keyed-unassigned-flow keyed-typed
 check_block "merge-compare" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
     merge-compare-models merge-compare
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
@@ -155,6 +165,42 @@ check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks
 check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
 
+# 1c. Marker coverage (#201). Every `<!-- sample: -->` id in a guide must be
+# registered for exact verification above, so a newly added marker without a
+# fixture guard fails the build. Keep each list identical to the ids checked
+# for its guide.
+check_coverage() {
+    local topic="$1"
+    local guide="$2"
+    shift 2
+    if ! python3 "$(dirname "$0")/check-docs-samples.py" --coverage "${guide}" "$@"; then
+        echo "Docs sample drift [${topic}]: see unguarded markers above." >&2
+        exit 1
+    fi
+}
+
+check_coverage "core" "docs/fragments-and-patches.md" \
+    core-models core-create core-layering core-diff core-builder core-patch core-between \
+    core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
+    core-change-payload-models core-change-payload
+check_coverage "keyed" "docs/keyed-collections.md" \
+    keyed-first-models keyed-first keyed-unassigned-model keyed-unassigned-flow keyed-typed
+check_coverage "merge-compare" "docs/merge-strategies.md" \
+    merge-compare-models merge-compare
+check_coverage "rebase" "docs/rebase.md" \
+    rebase-first-models rebase-first rebase-presence rebase-in-place rebase-applied \
+    rebase-conflict rebase-policy-models rebase-policy rebase-redacted mixed-apply \
+    rebase-e2e rebase-server-save
+check_coverage "payload" "docs/change-payload.md" \
+    payload-models payload-scalar-set payload-explicit-null payload-remove \
+    payload-nested payload-keyed payload-command payload-conversions payload-mixed \
+    payload-invert payload-version
+check_coverage "ui" "docs/ui-frameworks.md" \
+    ui-session-models ui-accept-flow ui-reload ui-reload-conflict ui-revert \
+    ui-session ui-blazor-form ui-wpf-session
+check_coverage "descriptors" "docs/descriptors.md" \
+    ui-descriptor-models ui-descriptor-first ui-descriptor-changes
+
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
@@ -166,23 +212,12 @@ check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs"
     'session.Field(' \
     'AddValidationError'
 
-# 1c. Internal link and anchor validation (#68).
+# 1d. Internal link and anchor validation (#68, #201). Files are discovered
+# rather than enumerated, so new guides (including Descriptor, architecture,
+# and benchmark pages) are covered automatically.
+mapfile -t docs_files < <(find docs -name '*.md' | sort)
 if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
-    README.md \
-    docs/merge-strategies.md \
-    docs/keyed-collections.md \
-    docs/rebase.md \
-    docs/cloning-and-ownership.md \
-    docs/model-shapes.md \
-    docs/ui-frameworks.md \
-    docs/descriptors.md \
-    docs/fragments-and-patches.md \
-    docs/change-payload.md \
-    docs/analyzer.md \
-    docs/architecture/README.md \
-    docs/architecture/three-layer-ownership.md \
-    docs/architecture/semantic-roles.md \
-    docs/architecture/runtime-ownership-audit.md; then
+    README.md "${docs_files[@]}"; then
     echo "Docs link check failed; see broken links above." >&2
     exit 1
 fi

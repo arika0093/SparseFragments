@@ -28,6 +28,7 @@ public static class VerifiedSamples
         RebaseFirst();
         RebaseApplied();
         RebaseConflict();
+        RebasePresence();
         RebasePolicy();
         RebaseRedacted();
         RebaseEndToEnd();
