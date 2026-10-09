@@ -230,6 +230,7 @@ internal static class SparseFragmentPatchEmitter
         Func<SparseMemberModel, string> ChildChangeSetName,
         string PayloadImplementationContainerPrefix,
         bool HashSetSupportsCapacity = false,
+        bool HashSetImplementsReadOnlySet = false,
         Func<SparseMemberModel, string>? MemberValueType = null,
         Func<SparseMemberModel, string>? CollectionPatchName = null,
         Func<SparseMemberModel, string>? MergeStrategyField = null,

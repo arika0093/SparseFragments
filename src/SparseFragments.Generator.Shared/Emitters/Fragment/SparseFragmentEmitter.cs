@@ -110,6 +110,7 @@ internal static class SparseFragmentEmitter
         patchDialect = patchDialect with
         {
             HashSetSupportsCapacity = bclHashSetSupportsCapacity,
+            HashSetImplementsReadOnlySet = bclHashSetImplementsReadOnlySet,
             MergeStrategyField =
                 patchDialect.MergeStrategyField
                 ?? (member => runtime.MergeStrategyFieldPrefix + member.Id),

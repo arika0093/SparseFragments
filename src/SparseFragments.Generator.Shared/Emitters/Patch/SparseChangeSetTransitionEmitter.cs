@@ -132,7 +132,14 @@ internal static class SparseChangeSetTransitionEmitter
         {
             var prop = SparseNaming.EscapeIdentifier(propNames[member.Id]);
             if (IsSet(member))
-                AppendSetTransition(code, member, prop, transNames[member.Id], runtime);
+                AppendSetTransition(
+                    code,
+                    member,
+                    prop,
+                    transNames[member.Id],
+                    runtime,
+                    dialect.HashSetImplementsReadOnlySet
+                );
             else if (IsScalar(member))
                 AppendScalarTransition(code, member, prop, transNames[member.Id], runtime);
             else if (IsNested(member))
@@ -472,6 +479,15 @@ internal static class SparseChangeSetTransitionEmitter
         string prop,
         string trans,
         string runtime
+    ) => AppendSetTransition(code, member, prop, trans, runtime, supportsReadOnlySet: true);
+
+    internal static void AppendSetTransition(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string prop,
+        string trans,
+        string runtime,
+        bool supportsReadOnlySet
     )
     {
         var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
@@ -528,17 +544,27 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(3, "public " + readOnlyList + " Added { get; }");
         code.AppendLineAt(3, "/// <summary>Values present only in the before set.</summary>");
         code.AppendLineAt(3, "public " + readOnlyList + " Removed { get; }");
+        // IReadOnlySet<T> only exists on netstandard2.1 and later. Compilations
+        // without the type (netstandard2.0, net48) cannot declare it, and naming
+        // it would fail compilation, so fall back to comparer-agnostic search.
+        var contains = supportsReadOnlySet
+            ? "((object?)values.Value is global::System.Collections.Generic.ISet<"
+                + elementType
+                + "> set ? set.Contains(value) : (object?)values.Value is global::System.Collections.Generic.IReadOnlySet<"
+                + elementType
+                + "> readOnly ? readOnly.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value))"
+            : "((object?)values.Value is global::System.Collections.Generic.ISet<"
+                + elementType
+                + "> set ? set.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value))";
         code.AppendLineAt(
             3,
             "internal static bool __Contains("
                 + opt
                 + " values, "
                 + elementType
-                + " value) => values.IsPresent && (object?)values.Value is not null && ((object?)values.Value is global::System.Collections.Generic.ISet<"
-                + elementType
-                + "> set ? set.Contains(value) : (object?)values.Value is global::System.Collections.Generic.IReadOnlySet<"
-                + elementType
-                + "> readOnly ? readOnly.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value));"
+                + " value) => values.IsPresent && (object?)values.Value is not null && "
+                + contains
+                + ";"
         );
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
