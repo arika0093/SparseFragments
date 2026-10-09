@@ -92,6 +92,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + ".Set(value) };"
             );
         }
+        SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer);
         code.AppendLineAt(3, "private void EnsureGranular(string operation)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -148,10 +149,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 )
                 + " && __edited.ContainsKey(key!)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
         );
-        code.AppendLineAt(
-            4,
-            "if (__removed is not null) __removed.RemoveAll(k => " + comparer + ".Equals(k, key));"
-        );
+        code.AppendLineAt(4, "if (__removed is not null) __SparseCancelRemoval(key);");
         code.AppendLineAt(
             4,
             "__added ??= new global::System.Collections.Generic.List<" + elementType + ">();"
@@ -182,13 +180,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "__removed ??= new global::System.Collections.Generic.List<" + keyType + ">();"
         );
-        code.AppendLineAt(
-            4,
-            "foreach (var existing in __removed) if ("
-                + comparer
-                + ".Equals(existing, key)) return;"
-        );
-        code.AppendLineAt(4, "__removed.Add(key);");
+        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer, keepReservedIndex: false);
         code.AppendLineAt(3, "}");
         // Edit / Update.
         if (hasPatch)
@@ -206,9 +198,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 );
             code.AppendLineAt(
                 4,
-                "if (__removed is not null) foreach (var r in __removed) if ("
-                    + comparer
-                    + ".Equals(r, key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed element. Add it again instead.\");"
+                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot edit a removed element. Add it again instead.\");"
             );
             code.AppendLineAt(
                 4,
@@ -259,9 +249,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 );
             code.AppendLineAt(
                 4,
-                "if (__removed is not null) foreach (var r in __removed) if ("
-                    + comparer
-                    + ".Equals(r, key)) throw new global::System.InvalidOperationException(\"Cannot update a removed element. Add it again instead.\");"
+                "if (__removed is not null && __SparseContainsRemoved(key)) throw new global::System.InvalidOperationException(\"Cannot update a removed element. Add it again instead.\");"
             );
             code.AppendLineAt(
                 4,

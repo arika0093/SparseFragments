@@ -71,9 +71,16 @@ internal static class SparseDictionaryRemovalIndexEmitter
         EmitIndexedAdd(code, keyType);
     }
 
-    internal static void EmitAdd(SharedIndentedBuilder code, string comparer)
+    internal static void EmitAdd(
+        SharedIndentedBuilder code,
+        string comparer,
+        bool keepReservedIndex
+    )
     {
-        code.AppendLineAt(4, "if (__removedLookup is not null || __removed!.Count >= 32)");
+        var condition = keepReservedIndex
+            ? "__removedLookup is not null || __removed!.Count >= 32"
+            : "__removed!.Count >= 32";
+        code.AppendLineAt(4, "if (" + condition + ")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "__SparseAddIndexedRemoval(key);");
         code.AppendLineAt(5, "return;");
@@ -85,6 +92,10 @@ internal static class SparseDictionaryRemovalIndexEmitter
                 + ".Equals(existing, key)) return;"
         );
         code.AppendLineAt(4, "__removed.Add(key);");
+        if (!keepReservedIndex)
+        {
+            code.AppendLineAt(4, "__removedLookup = null;");
+        }
     }
 
     private static void EmitIndexedAdd(SharedIndentedBuilder code, string keyType)

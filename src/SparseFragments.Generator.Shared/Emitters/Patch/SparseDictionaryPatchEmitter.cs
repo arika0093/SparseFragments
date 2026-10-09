@@ -235,7 +235,7 @@ internal static class SparseDictionaryPatchEmitter
             4,
             "__removed ??= new global::System.Collections.Generic.List<" + keyType + ">();"
         );
-        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer);
+        SparseDictionaryRemovalIndexEmitter.EmitAdd(code, comparer, keepReservedIndex: true);
         code.AppendLineAt(3, "}");
         if (hasPatch)
         {
