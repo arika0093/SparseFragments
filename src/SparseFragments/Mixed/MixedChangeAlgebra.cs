@@ -563,11 +563,14 @@ public static class MixedChangeAlgebra
         return null;
     }
 
-    private sealed record OverlapResolution(
-        bool KeepFirst,
-        bool KeepSecond,
-        MixedComposeResult? Failure
-    );
+    private sealed record OverlapResolution
+    {
+        public bool KeepFirst { get; init; }
+
+        public bool KeepSecond { get; init; }
+
+        public MixedComposeResult? Failure { get; init; }
+    }
 
     private static OverlapResolution ResolveAncestorOverlap(
         MixedMemberOperation first,
@@ -582,10 +585,11 @@ public static class MixedChangeAlgebra
             || second.History == MixedHistoryKind.Transition
         )
         {
-            return new OverlapResolution(
-                false,
-                false,
-                new MixedComposeResult(
+            return new OverlapResolution
+            {
+                KeepFirst = false,
+                KeepSecond = false,
+                Failure = new MixedComposeResult(
                     false,
                     firstAncestor ? first.Path : second.Path,
                     MixedHistoryKind.Transition,
@@ -597,8 +601,8 @@ public static class MixedChangeAlgebra
                         + "' and '"
                         + second.Path
                         + "' need value-level continuity. Compose them through the typed ChangeSet API."
-                )
-            );
+                ),
+            };
         }
 
         // Both blind: whole-member granularity wins. A trailing ancestor
@@ -606,10 +610,20 @@ public static class MixedChangeAlgebra
         // child edit, so no overwritten child or orphaned edit survives.
         if (firstAncestor)
         {
-            return new OverlapResolution(true, false, null);
+            return new OverlapResolution
+            {
+                KeepFirst = true,
+                KeepSecond = false,
+                Failure = null,
+            };
         }
 
-        return new OverlapResolution(false, true, null);
+        return new OverlapResolution
+        {
+            KeepFirst = false,
+            KeepSecond = true,
+            Failure = null,
+        };
     }
 
     /// <summary>Whether either path is a strict segment ancestor of the other.</summary>
