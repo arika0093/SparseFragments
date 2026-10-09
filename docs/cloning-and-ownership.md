@@ -1,7 +1,5 @@
 # Cloning and Ownership
 
-This page is an explanation and reference for value ownership.
-
 Values assigned directly to a Fragment or Patch are normally kept by reference. `Fragment.From(model)` copies supported model state, and `DeepClone()` creates an explicit independent copy.
 
 For mutable objects such as lists, mutating a shared value after assignment also changes the value observed through the Fragment or Patch.
@@ -20,8 +18,6 @@ Do not mutate a shared object after assigning it if the Fragment or Patch must r
 
 ## Operation and Ownership Table
 
-This section is a reference. It defines whether each operation shares or snapshots.
-
 | Operation | Shares or snapshots? |
 | --- | --- |
 | `Fragment.From(model)` | Snapshots: the fragment graph is an isolated copy |
@@ -36,13 +32,9 @@ This section is a reference. It defines whether each operation shares or snapsho
 | ChangeSet payload deserialization | Snapshots (freshly deserialized values) |
 | Granular keyed-collection edits | New container, shared element references |
 
-SparseFragments does not clone every assigned value during `Merge` or `Apply`, so those operations may reuse caller-provided references.
-
-The original fragment is never mutated (`Apply` builds a new one), but the patch, the assigned source value, and the result alias the same instance. When a patch value must stay independent, clone it before assigning and leave the source alone afterwards.
+As summarized above, `Merge` and `Apply` do not clone assigned values, reusing caller-provided references instead. While `Apply` constructs and returns a new fragment rather than mutating the original, the resulting fragment shares reference-type member instances with the patch and the assigned source.
 
 ## In-place application
-
-This section is a how-to. It defines when identity-preserving apply applies.
 
 For writable reference-type models, generated `Fragment.WriteTo(model)` and
 `Patch.ApplyInPlace(model)` preserve the
@@ -55,8 +47,6 @@ members disable in-place APIs; see
 [`SPF026`](analyzer.md#spf026-in-place-submit-is-unavailable).
 
 ## `DeepClone`
-
-This section is a how-to. It shows how to isolate a graph.
 
 `DeepClone` structurally clones supported models and fragments. Members marked `[SparseCloneReferenceSafe]` are carried over by reference; everything else becomes independent:
 
@@ -81,8 +71,6 @@ public partial class Settings
 * Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors ([`SPF008`](analyzer.md#spf008-unsupported-deep-clone-member)); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
 
 ## Graph and Cycle Behavior
-
-This section is a reference. It defines which operations accept cycles.
 
 Not every operation accepts cyclic object graphs:
 

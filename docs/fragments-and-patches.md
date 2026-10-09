@@ -20,9 +20,7 @@ public partial class CounterSettings
 
 ## Create a Sparse Fragment
 
-This section is a how-to. It shows the two construction paths.
-
-`new T.Fragment { ... }` represents only the members you specify. `T.Fragment.From(model)` snapshots an ordinary model as a full contribution.
+`new T.Fragment { ... }` specifies only the members you assign. Any unassigned members remain missing. In contrast, `T.Fragment.From(model)` snapshots an ordinary model into a complete fragment contribution, isolating the fragment from subsequent mutations of the source model.
 
 <!-- sample: core-create -->
 ```csharp
@@ -40,15 +38,11 @@ var sparse = new CounterSettings.Fragment
 ```
 <!-- /sample -->
 
-`From` isolates the Fragment from later mutation of the source model. Direct sparse construction keeps assigned reference values unless explicitly cloned (see [Clone & ownership](cloning-and-ownership.md)).
+Direct sparse construction keeps assigned reference values unless explicitly cloned (see [Clone & ownership](cloning-and-ownership.md)).
 
-Use `new T.Fragment { ... }` for sparse contributions and overrides. Use `Fragment.From(model)` when an existing ordinary model should become a full Fragment state. A snapshot stays stable while the source model keeps changing.
-
-Missing never equals a present value, not even a present `null` or `default`. Therefore `missing` to present null, present null to missing, and missing to present default are all observable transitions.
+SparseFragments distinguishes missing members from present values, including present `null` or type defaults. Because missing never equals a present value, transitions between missing, present null, and present defaults are all distinct, observable states.
 
 ## Layer Overrides with Merge
-
-This section is a how-to. It shows how to combine sparse contributions.
 
 `lower.Merge(higher)` overlays two fragments: present members of the higher layer win, missing members fall through. Direction matters because the higher-priority layer is the argument.
 
@@ -66,9 +60,7 @@ var effective = defaults.Merge(environment).Merge(user);
 
 ## Diff Ordinary Models
 
-This section is a how-to. It shows how to persist only what differs.
-
-`Fragment.Diff(beforeModel, afterModel)` compares two ordinary models and returns a sparse `Fragment` holding the changed after-values. Apply it with `ApplyChanges`. Use it to persist only what differs from defaults.
+`Fragment.Diff(beforeModel, afterModel)` compares two ordinary models and returns a sparse `Fragment` holding the changed after-values. Apply it with `ApplyChanges` to persist only what differs from defaults.
 
 <!-- sample: core-diff -->
 ```csharp
@@ -86,11 +78,9 @@ var restored = CounterSettings.Fragment.From(beforeModel).ApplyChanges(diff);
 
 ## Apply Explicit Edits with Patch
 
-This section is a how-to. It shows how to express baseline-free edits.
+A `Patch` is mutable and baseline-free. It describes desired operations directly without recording which baseline state they were derived from.
 
-`new X.Patch { ... }` expresses edits directly: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch with `Apply`.
-
-A Patch is mutable and baseline-free. It carries desired operations without saying which state they were derived from.
+`new X.Patch { ... }` specifies these operations: assigning a value sets it (including an explicit `null`), `Remove()` drops the contribution, and untouched members stay unchanged. Apply a patch to a fragment with `Apply`.
 
 <!-- sample: core-patch -->
 ```csharp
@@ -111,8 +101,6 @@ remove.RetryCount.Remove();
 <!-- /sample -->
 
 ## Derive Transitions with ChangeSet
-
-This section is a how-to. It shows how to capture a baseline-aware transition.
 
 `T.ChangeSet.Between(beforeSparse, afterSparse)` takes sparse contribution states (`Optional<Fragment?>`) and returns the immutable before to after transition. It preserves presence transitions such as present to missing exactly, including the root missing, present-null, and present-value states.
 
@@ -137,8 +125,6 @@ Use `ChangeSet.Between` when comparing sparse states whose transition may later 
 All baseline-dependent operations belong to ChangeSet. Use a mutable `Patch` for baseline-free local operations only.
 
 ## Observe Typed Member Transitions
-
-This section is an explanation. It describes what a member transition contains.
 
 A `ChangeSet` is the immutable observed before to after transition. Generated member names mirror the source model, so reading a transition needs no reflection, property descriptors, or `object?` casts:
 
@@ -227,8 +213,6 @@ The root `ChangeSet` itself is not a generic enumerable. Model members are heter
 
 ## Patch vs ChangeSet vs ChangePayload
 
-This section is an explanation. It states when each type applies.
-
 ```text
 Patch
     "set these values"
@@ -276,8 +260,6 @@ var fromPatch = CounterSettings.ChangeSet.FromPatch(start, desired);
 The client and server models may differ. A read projection can expose `HasPassword` while the write side accepts `NewPassword`, and the envelope does not require one shared CLR type on both sides: it names members and carries typed values, and each side converts the envelope into its own `Patch` or `ChangeSet`. The library performs no domain-specific model mapping.
 
 ## Compose and Invert ChangeSets
-
-This section is a reference. It lists the closed composition rules.
 
 ChangeSets compose sequentially and invert without an external baseline, while Patches compose as baseline-free operations:
 
@@ -328,8 +310,6 @@ ChangeSet -> Patch
 
 ## Serialize Patches and ChangeSets
 
-This section is a how-to with reference details for the wire format.
-
 Generated `Fragment` types carry `System.Text.Json` support through
 `FragmentJsonConverter`. A `ChangeSet` travels only through its generated
 transport type. Serialize a ChangeSet through its generated payload:
@@ -360,8 +340,6 @@ NativeAOT source-generated metadata for generated ChangePayload types is exercis
 Typed projections such as `IsChanged`, keyed `Added`, `Removed`, and `Edited`, and `BeforeOrder` and `AfterOrder` are not duplicated in the payload; `ToChangeSet()` reconstructs them.
 
 ### ChangePayload JSON
-
-This subsection is a reference. It defines the wire format.
 
 Serialize and deserialize the generated `T.ChangePayload`, not `T.ChangeSet` or `T.Patch`. A `ChangeSet` enters the envelope with `ToPayload()`; a `Patch` enters it with `ChangePayload.FromPatch(patch)`, which redacts every before-state by construction. The `changes` array mixes both kinds member by member: one member can carry a regular before/after transition while another carries a baseline-free command. The typed member variants are suitable for OpenAPI endpoint schemas.
 
@@ -410,8 +388,6 @@ var wire = JsonSerializer.Serialize(transition.ToPayload());
 <!-- /sample -->
 
 ## Which API for Which Task
-
-This section is a reference. Use it to select the entry point.
 
 | Need | API | Result |
 | --- | --- | --- |

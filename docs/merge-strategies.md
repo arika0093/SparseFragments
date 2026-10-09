@@ -1,12 +1,8 @@
 # Merge Strategies
 
-This page is a how-to and reference for layer combination. It defines the built-in modes first, then custom strategies.
-
 `Merge` combines a lower-priority Fragment with a higher-priority Fragment. Missing members in the higher layer fall through to the lower layer. Most members need no configuration: leave the member without `[SparseMerge]` and `MergeMode.Default` selects shape-aware behavior. Add `[SparseMerge]` only when you want different behavior.
 
 ## Built-in Modes
-
-This section is a reference. It defines each `MergeMode`.
 
 | `MergeMode` | Behavior | Applies to |
 | --- | --- | --- |
@@ -73,8 +69,6 @@ Present collections combine as an insertion-ordered set union: lower-priority en
 
 ## Custom Strategies
 
-This section is a how-to with the validity contract.
-
 A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [ChangeSet rebase](rebase.md)).
 
 ```csharp
@@ -108,8 +102,6 @@ The contract rules:
 A member can carry both a merge strategy and a rebase policy. The strategy keeps owning `Merge`; the policy takes precedence for that member during rebase (see [ChangeSet rebase](rebase.md#rebase-policies)). A policy without any strategy needs no merge configuration at all.
 
 ## Equality and Comparer Semantics
-
-This section is a reference. It defines how set and dictionary equality works.
 
 Set and dictionary members compare order-independently, and the element/key comparer is part of the collection value, so the result never depends on operand order:
 

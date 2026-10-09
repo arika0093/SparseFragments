@@ -1,7 +1,5 @@
 # Keyed Collections
 
-This page explains element identity and the per-key operations built on it.
-
 SparseFragments can patch a structural list element by element only when each element has a stable key. Array positions are not stable identity: inserting an item at the front changes every later index even though those existing items are still the same logical objects.
 
 <!-- sample: keyed-first-models -->
@@ -55,7 +53,7 @@ if (!changes.TryApplyTo(before, out var applied))
 
 ## Atomic vs Keyed Collections
 
-This section is a reference. It defines which patch semantics each collection kind uses.
+The collection kind determines how patches apply to its elements:
 
 | Collection kind | Examples | Patch semantics |
 | --- | --- | --- |
@@ -80,8 +78,6 @@ public partial class Settings
 ```
 
 ## Declaring Identity
-
-This section is a how-to. It shows the three key mechanisms.
 
 Exactly one key-definition mechanism may apply to a structural type. There is no precedence between them: combining two mechanisms is a generator error (`SPF012`). Key equality uses the normal equality semantics of the key type (`EqualityComparer<T>.Default`).
 
@@ -164,8 +160,6 @@ Keys must be stable and comparable. Each rule is enforced at generation time:
 
 ## Add, Remove, Edit, and Reorder
 
-This section is a how-to. It shows how per-key operations derive from before and after states.
-
 `before.CreateChangeSet(after)` derives per-element operations from the before and after key sets; `ToPatch().ApplyTo` replays them to a model. The final key order, not positional moves, determines the resulting order. Replaying reproduces the after-state exactly (a follow-up `applied.CreateChangeSet(after).IsEmpty` holds).
 
 The same `Fleet` / `Server` model shows each operation with ordinary values:
@@ -196,8 +190,6 @@ Concretely:
 Keyed collections compose recursively: a keyed element type may itself hold keyed collections (for example teams holding keyed members), and each level diffs by its own keys. Keyed members rebase element-wise where the keys line up; divergent per-key edits surface as structured conflicts (see [ChangeSet rebase](rebase.md)).
 
 ## Database-assigned keys
-
-This section is a how-to. It shows how to handle client-created elements before the database assigns identity.
 
 For client-created elements whose database identity is assigned later, opt in to one
 property-level sentinel:
@@ -286,8 +278,6 @@ while a save is in flight.
 
 ## Observe Typed Collection Transitions
 
-This section is a reference. It defines the per-key projections.
-
 The same `Fleet` and `Server` model observes the transition through typed projections, without reflection, property descriptors, or `object?` casts:
 
 <!-- sample: keyed-typed -->
@@ -341,8 +331,6 @@ Concretely:
 A collection transition object may be enumerable while the root ChangeSet is not: collection items share one `TKey` and `TElement` type, whereas root model members are heterogeneous. Like the scalar projections, `Added`, `Removed`, `Edited`, enumeration, and the order views are API projections over the before and after state, not duplicate wire fields (see [Fragments and patches](fragments-and-patches.md)).
 
 ## Duplicate Keys and Key Changes
-
-This section is a reference. It defines invalid identity states.
 
 * `Duplicate keys are invalid.` A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`.
 * `Changing an element's identity is remove-old plus add-new.` If an edit changes the key property itself (for example renaming `Id` from `"a"` to `"b"`), the result is the removal of `"a"` plus the addition of `"b"`, never a silent retargeting of the edit onto a different element. State that would require retargeting round-trips as remove plus add through `CreateChangeSet`, `ToPatch`, and `ApplyTo`.

@@ -1,7 +1,5 @@
 # UI Framework Integration
 
-This page is a how-to for editing with a retained baseline. It covers the neutral session first, then framework bindings.
-
 SparseFragments derives semantic changes by comparing a retained baseline with the current model. UI dirty flags and change notifications may drive binding, validation, or UI state, but they do not define the Patch itself.
 
 <!-- sample: ui-session-models -->
@@ -29,12 +27,7 @@ public partial class UiOrderItem
 
 ## Framework-neutral edit sessions
 
-This section is a how-to. It shows baseline comparison without any UI package.
-
-Every generated model has a stable, hashed top-level extension container in its
-namespace. Its `CreateChangeSet` extension compares a baseline to an explicit
-current model, and reference-type models also have a neutral edit-session
-factory:
+Reference-type models provide an edit session via `CreateEditSession()` without depending on any UI package. The session retains a baseline snapshot, tracks changes against the live model, and derives `ChangeSet` transitions on demand:
 
 ```csharp
 var baseline = new UiOrder { Number = "ORD-1" };
@@ -54,9 +47,7 @@ session.AcceptChanges();
 
 The session retains a private fragment snapshot as its baseline and exposes the
 live model as `Model`, alongside a stable typed `Observable` proxy over the same
-instance. The one-model factory captures that model as the baseline and edits
-it; the two-model overload retains the `current` instance and snapshots
-`baseline` separately.
+instance. The single-argument overload `baseline.CreateEditSession()` captures that model as both the baseline and the live instance to edit; the two-argument overload `baseline.CreateEditSession(current)` retains the `current` instance as the live model while snapshotting `baseline` separately. You can also compare models directly without a session via `baseline.CreateChangeSet(current)`.
 
 `HasChanges` and `CreateChangeSet()` always compare that
 baseline with the model's current state, so edit-then-restore is clean even if a
@@ -135,8 +126,6 @@ without adding framework references to its generated code. The same neutral
 referenced.
 
 ## Blazor
-
-This section is a how-to. It shows `EditContext` binding and validation.
 
 The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers
 for the framework-neutral edit session. The session retains a baseline and
@@ -226,8 +215,6 @@ The model type must be a reference type.
 A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.
 
 ## WPF, WinForms, .NET MAUI, WinUI, and Avalonia
-
-This section is a how-to. It shows binding through the generated `Observable` wrapper.
 
 These frameworks bind the generated `T.Observable` wrapper. The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
 

@@ -37,8 +37,6 @@ if (!changes.TryApplyTo(currentModel, out var reconciled))
 
 ## Disconnected Editing
 
-This section is a how-to. It shows the receive-side flow that needs only the current state.
-
 The canonical flow needs only the current state on the receiving side:
 
 ```text
@@ -52,27 +50,9 @@ ChangeSet.RebaseOnto(C)
 
 For ordinary, present non-null DTOs, `before.CreateChangeSet(edited)` and `TryApplyTo(current, out updated)` provide this flow without manual Fragment or Optional conversions. The extensions snapshot the models into Fragments and delegate to the same rebase semantics.
 
-In-place application is a separate local concern. When the destination object is already bound to a UI, apply through the baseline-free Patch API (details in [UI frameworks](ui-frameworks.md)):
+The lower-level `RebaseOnto` method returns a `RebaseResult<ChangeSet>`: a new ChangeSet for the current state in `Rebased` plus structured conflicts for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. The application owns the decision, persistence, and transport: keep persistence atomic and decline to commit when conflicts remain, or resolve per field and retry. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
 
-```csharp
-var changes = baseline.CreateChangeSet(edited);
-changes.ToPatch().ApplyInPlace(boundModel);
-```
-
-`Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)` mutate the existing model instead of returning
-a replacement. ChangeSet has no `ApplyInPlace`; a blind overwrite must spell
-`changes.ToPatch().ApplyInPlace(model)` so conflicting edits cannot slip through
-an unguarded call. `ToPatch()` discards the before-state, so the result is a
-baseline-free operation that can no longer rebase or report conflicts.
-`List<T>` and `Dictionary<TKey,TValue>` properties keep their
-existing collection object and replace its contents; nested model properties
-may be replaced. Get-only or init-only members prevent these in-place APIs
-from being generated, while ordinary immutable patch and rebase APIs
-remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
-
-The presence-aware APIs remain necessary when the root itself may be missing, present null, or present value. `Missing` never equals a present value, not even a present `null` or `default`. Therefore missing to present null, present null to missing, and missing to present default remain observable transitions only through the Fragment and Optional surface.
-
-`RebaseOnto` returns a `RebaseResult<ChangeSet>`: a new ChangeSet for the current state in `Rebased` plus structured conflicts for edits that cannot be reconciled automatically. Conflicting members are excluded from the rebased ChangeSet. The application owns the decision, persistence, and transport: keep persistence atomic and decline to commit when conflicts remain, or resolve per field and retry. Use this lower-level result when continuing to work with ChangeSet algebra; use `TryApplyTo` when the desired outcome is an updated model or conflicts.
+The presence-aware APIs remain necessary when the root itself may be missing, present null, or present value. `Missing` never equals a present value, not even a present `null` or `default`. Therefore missing to present null, present null to missing, and missing to present default remain observable transitions only through the Fragment and Optional surface:
 
 <!-- sample: rebase-presence -->
 ```csharp
@@ -91,9 +71,29 @@ var applied = result.Rebased.ToPatch().Apply(missing);
 ```
 <!-- /sample -->
 
+### In-place application for bound models
+
+When the destination object is already bound to a UI, apply through the baseline-free Patch API (details in [UI frameworks](ui-frameworks.md)):
+
+```csharp
+var changes = baseline.CreateChangeSet(edited);
+changes.ToPatch().ApplyInPlace(boundModel);
+```
+
+`Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)` mutate the existing model instead of returning
+a replacement. ChangeSet has no `ApplyInPlace`; a blind overwrite must spell
+`changes.ToPatch().ApplyInPlace(model)` so conflicting edits cannot slip through
+an unguarded call. `ToPatch()` discards the before-state, so the result is a
+baseline-free operation that can no longer rebase or report conflicts.
+`List<T>` and `Dictionary<TKey,TValue>` properties keep their
+existing collection object and replace its contents; nested model properties
+may be replaced. Get-only or init-only members prevent these in-place APIs
+from being generated, while ordinary immutable patch and rebase APIs
+remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+
 ## The Three Outcomes
 
-This section is an explanation. It defines how rebase classifies each member.
+Rebase classifies each member into one of three outcomes:
 
 ### 1. Current matches Before: replay
 
@@ -154,8 +154,6 @@ var conflict = conflicts.Single();
 
 ## Structured Conflicts
 
-This section is a reference. It defines the conflict shape.
-
 Each `SparseConflict` reports where the conflict occurred and the base/local/current values involved.
 
 | Member | Meaning |
@@ -183,8 +181,6 @@ Clean paths may remain in the rebased ChangeSet while conflicts are reported sep
 
 ## Collection and Structural Behavior
 
-This section is a reference. It lists per-shape rebase rules.
-
 * `Nested structural members` rebase member by member; only the colliding leaf conflicts while disjoint nested edits replay.
 * `Append-merged collections` treat an already-applied addition as a no-op (replaying `["a", "b"]` onto a current state that already contains `["a", "b"]` stays put) and report concurrent divergent growth as `CollectionAppend`.
 * `Set-union members` rebase against comparer-aware equality: same entries under the same comparer replay cleanly; entries that differ under the member's comparer conflict as `CollectionSetUnion`.
@@ -194,8 +190,6 @@ This section is a reference. It lists per-shape rebase rules.
 
 ## Custom Strategies
 
-This section is a reference. It defines the `TryRebase` contract.
-
 A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own three-way reconciliation for the member:
 
 * it receives `Optional<T>` for the edit base, the desired state, and the current state, with the missing and present distinction preserved end to end;
@@ -204,8 +198,6 @@ A custom `FragmentMergeStrategy<T>` can override `TryRebase` to define its own t
 * returning `false` surfaces a `CustomStrategy` conflict carrying the member path and the three values.
 
 ## Rebase Policies
-
-This section is a reference. It defines policy selection without merge coupling.
 
 A member-level policy selects rebase behavior without requiring a custom merge strategy. The policy below merges divergent labels instead of conflicting:
 
@@ -288,8 +280,6 @@ Policies apply to scalar and whole-replace members only. Nested models, keyed se
 
 ## Redacted Before-States
 
-This section is a how-to. It shows the strict opt-in for write-only members.
-
 A redacted-before member carries its desired value but withholds its before-state, as with a write-only secret. By default it passes through as its explicit patch operation: no historical comparison, no invented baseline, and no automatic undo. Pass `RejectChangesWithRedactedBeforeValuesDuringRebase = true` to fail instead:
 
 <!-- sample: rebase-redacted -->
@@ -318,14 +308,11 @@ var redactedConflict = redactedConflicts.Single();
 ```
 <!-- /sample -->
 
-This section is a reference. It defines strict behavior.
-
 Strict failure is atomic for a mixed request: the redacted member is excluded from the rebased change and `TryApplyTo` returns `false` without a partially applied model. Reports carry path and kind but no secret plaintext: the `RedactedBefore` conflict attaches missing base, local, and current values. Redacted is not `Missing`: the desired value is present and only its history is withheld. Unconditional `Patch` application is a baseline-free overwrite rather than a historical rebase, so it never consults these options.
 
 Downstream generators formalize the same redaction as a transport policy: the in-memory `ChangeSet` stays complete and baseline-aware, while the payload omits the before-state and keeps the required after-state. A redacted payload cannot convert to a complete `ChangeSet`; project it with the payload `ToPatch()` instead, which applies the requested after-state without historical comparison, as for an explicit patch set. A strict rebase policy is available to downstream generators to refuse such projections. The wire version token stays `"0.1"`.
 
 ## No Revision History Required
-This section is an explanation. It separates ChangeSet state from persistence concerns.
 
 Semantic rebase does not require SparseFragments to retain a Git-like revision history. Three things stay distinct:
 
@@ -343,8 +330,6 @@ historical snapshots
 The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection (a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id). Those tokens are application and envelope metadata, not members of the ChangeSet itself. SparseFragments prescribes neither the token type nor the persistence technology.
 
 ## Mixed Requests With Redacted Members
-
-This section is a how-to. It shows the receive-side flow when a request mixes ordinary transitions with write-only operations.
 
 A member whose before-state arrives redacted is an explicit write-only operation: the sender could not disclose the previous value, often because the value is secret. The request still carries the requested after-state. Ordinary members in the same request keep ordinary baseline-aware validation and rebase.
 
@@ -370,8 +355,6 @@ Use `ChangePayload.ToPatch()` when the destination only needs the desired operat
 
 ## Mixed-Operation Rules
 
-This section is a reference. It defines how mixed operations compose, roll back, and project.
-
 | First operation | Second operation | Merged operation | Value-level check still required |
 | --- | --- | --- | --- |
 | Transition | Transition | Transition from the first before-state to the second after-state | Yes, first after-state must equal second before-state |
@@ -391,8 +374,6 @@ Strict rejection of redacted members is separate opt-in work and does not change
 
 ## Why Write-Only Operations Pass Through
 
-This section is an explanation. It gives the reason for the pass-through default.
-
 Three-way rebase compares the recorded before-state with the current state. A redacted before-state supplies nothing to compare, so the default applies the requested after-state directly, the same way an explicit patch set does. Passing a value through is not the same as reconciling concurrent edits to that member: revision checks, ETags, and authorization stay with the application, as described in No Revision History Required above. Atomicity holds at the request boundary, so a conflict in any ordinary member fails the whole request instead of persisting the write-only subset.
 
 An application request therefore wraps the ChangeSet in its own envelope:
@@ -409,9 +390,7 @@ The handler converts the payload with `ToChangeSet()`, loads only the current da
 
 ## End-to-End Example
 
-This section is a how-to. It follows one pass through client edit, serialization, rebase, and save-or-conflict.
-
-One complete pass through client edit, serialization, current-state rebase, and save-or-conflict:
+Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict:
 
 <!-- sample: rebase-e2e -->
 ```csharp

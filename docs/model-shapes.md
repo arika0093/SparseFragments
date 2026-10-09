@@ -1,7 +1,5 @@
 # Model Shapes
 
-This page is a how-to and reference for supported model declarations.
-
 For the common case, add `[SparseFragmentModel]` to a top-level `partial` class or struct. Nested models should also be `partial` when you want SparseFragments to merge and patch their members independently.
 
 ```csharp
@@ -16,8 +14,6 @@ public partial class Settings
 ```
 
 ## Root Model Requirements
-
-This section is a reference. It lists the generation requirements.
 
 The root model must be:
 
@@ -56,8 +52,6 @@ public partial class Settings
 ```
 
 ## Nested Models
-
-This section is a how-to. It shows promotion and atomic opt-in.
 
 To patch a nested model's members independently, declare the nested type `partial`. To treat a nested value atomically instead, mark the member with `[SparseMerge(MergeMode.Replace)]`.
 
@@ -105,16 +99,12 @@ Element identity for element-patched collections is declared with `[SparseKey]` 
 
 ## Constructors, Members, and Cycles
 
-This section is a reference. It lists member and construction rules.
-
 * Prefer a parameterless constructor; constructor-bound properties (including `init` and `required`) resolve by name-and-type matching.
 * Members marked `[JsonIgnore]` never participate in JSON conversion; members that would collide on the same JSON wire name fail during analysis ([`SPF021`](analyzer.md#spf021-duplicate-json-property-name)) rather than at runtime.
 * Members named `JsonConverter` or `FragmentJsonConverter` collide with the generated JSON converter ([`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api)): rename the member.
 * `From` and `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them (see [Clone & ownership](cloning-and-ownership.md)).
 
 ## Language Version
-
-This section is a reference. It states the C# version the generated code needs.
 
 Generated consumer code requires C# 9.0 or later. The floor comes from `init` accessors and target-typed `new()`. Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project. The default for `netstandard2.0` and .NET Framework targets is C# 7.3, so those consumers must opt in explicitly; runtime target support does not imply the default language version compiles the generated API. Using a language version newer than a target framework's default is not an officially supported combination per [C# language versioning](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-versioning).
 
