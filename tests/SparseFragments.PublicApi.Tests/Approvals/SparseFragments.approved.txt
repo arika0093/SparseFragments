@@ -13,6 +13,7 @@ namespace SparseFragments
         [System.Text.Json.Serialization.JsonPropertyOrder(1)]
         public T Value { get; set; }
         public SparseFragments.Optional<T> ToOptional() { }
+        public void Validate() { }
         public static SparseFragments.ChangePayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
         public static SparseFragments.ChangePayloadEndpoint<T> Redacted() { }
     }
@@ -130,6 +131,7 @@ namespace SparseFragments
         public static SparseFragments.MixedSequenceComposition ComposeSequences(System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> first, System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> second) { }
         public static SparseFragments.MixedRollbackPlan CreateRollbackPlan(System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> operations) { }
         public static void EnsurePassthrough(SparseFragments.RedactedBeforePolicy policy, string? parameterName = null) { }
+        public static bool IsAncestorOrDescendant(string first, string second) { }
     }
     public readonly struct MixedComposeResult : System.IEquatable<SparseFragments.MixedComposeResult>
     {
@@ -166,8 +168,11 @@ namespace SparseFragments
     public sealed class MixedSequenceComposition
     {
         public MixedSequenceComposition(bool succeeded, System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> composed, System.Collections.Generic.IEnumerable<SparseFragments.MixedComposeResult> failures) { }
+        public MixedSequenceComposition(bool succeeded, System.Collections.Generic.IEnumerable<SparseFragments.MixedMemberOperation> composed, System.Collections.Generic.IEnumerable<SparseFragments.MixedComposeResult> failures, System.Collections.Generic.IEnumerable<SparseFragments.MixedComposeResult> pendingContinuityChecks) { }
         public System.Collections.Generic.IReadOnlyList<SparseFragments.MixedMemberOperation> Composed { get; }
         public System.Collections.Generic.IReadOnlyList<SparseFragments.MixedComposeResult> Failures { get; }
+        public bool IsFullyComposable { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.MixedComposeResult> PendingContinuityChecks { get; }
         public bool Succeeded { get; }
     }
     public static class OptionalExtensions
