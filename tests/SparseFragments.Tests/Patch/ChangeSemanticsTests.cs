@@ -107,6 +107,48 @@ public partial class SetTransitionModel
     public ISet<string> Values { get; set; } = new HashSet<string>();
 }
 
+[SparseFragmentModel]
+public partial class ReadOnlySetTransitionModel
+{
+    public IReadOnlySet<string> Values { get; set; } = new HashSet<string>();
+}
+
+/// <summary>Pure <see cref="IReadOnlySet{T}"/> with comparer-aware membership (issue #166).</summary>
+/// <remarks>Implements only <c>IReadOnlySet&lt;string&gt;</c>, never <c>ISet&lt;string&gt;</c>.</remarks>
+public sealed class CaseInsensitiveReadOnlySet : IReadOnlySet<string>
+{
+    private readonly HashSet<string> _inner = new(StringComparer.OrdinalIgnoreCase);
+
+    public CaseInsensitiveReadOnlySet(IEnumerable<string> values)
+    {
+        foreach (var value in values)
+        {
+            _inner.Add(value);
+        }
+    }
+
+    public int Count => _inner.Count;
+
+    public bool Contains(string item) => _inner.Contains(item);
+
+    public bool IsProperSubsetOf(IEnumerable<string> other) => _inner.IsProperSubsetOf(other);
+
+    public bool IsProperSupersetOf(IEnumerable<string> other) => _inner.IsProperSupersetOf(other);
+
+    public bool IsSubsetOf(IEnumerable<string> other) => _inner.IsSubsetOf(other);
+
+    public bool IsSupersetOf(IEnumerable<string> other) => _inner.IsSupersetOf(other);
+
+    public bool Overlaps(IEnumerable<string> other) => _inner.Overlaps(other);
+
+    public bool SetEquals(IEnumerable<string> other) => _inner.SetEquals(other);
+
+    public IEnumerator<string> GetEnumerator() => _inner.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
 public sealed class ChangeSemanticsTests
 {
     [Test]
@@ -243,5 +285,42 @@ public sealed class ChangeSemanticsTests
         transition.After.IsPresent.ShouldBeTrue();
         transition.Added.ShouldBe(["add"]);
         transition.Removed.ShouldBe(["remove"]);
+    }
+
+    [Test]
+    public void PureReadOnlySetHonorsCustomMembership()
+    {
+        // Same letters under a case-insensitive set: no semantic change.
+        var before = new ReadOnlySetTransitionModel
+        {
+            Values = new CaseInsensitiveReadOnlySet(["ABC"]),
+        };
+        var after = new ReadOnlySetTransitionModel
+        {
+            Values = new CaseInsensitiveReadOnlySet(["abc"]),
+        };
+        var same = ReadOnlySetTransitionModel.ChangeSet.Between(before, after).Values;
+        same.Added.ShouldBeEmpty();
+        same.Removed.ShouldBeEmpty();
+
+        // A genuine addition is still reported.
+        var added = ReadOnlySetTransitionModel
+            .ChangeSet.Between(
+                before,
+                new ReadOnlySetTransitionModel
+                {
+                    Values = new CaseInsensitiveReadOnlySet(["ABC", "new"]),
+                }
+            )
+            .Values;
+        added.Added.ShouldBe(["new"]);
+        added.Removed.ShouldBeEmpty();
+
+        // Null and empty sets stay consistent.
+        var empty = ReadOnlySetTransitionModel.ChangeSet.Between(
+            new ReadOnlySetTransitionModel { Values = new HashSet<string>() },
+            new ReadOnlySetTransitionModel { Values = new HashSet<string>() }
+        );
+        empty.IsEmpty.ShouldBeTrue();
     }
 }

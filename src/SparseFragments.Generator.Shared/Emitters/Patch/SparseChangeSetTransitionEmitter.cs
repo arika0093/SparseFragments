@@ -289,7 +289,9 @@ internal static class SparseChangeSetTransitionEmitter
                 + elementType
                 + " value) => values.IsPresent && (object?)values.Value is not null && ((object?)values.Value is global::System.Collections.Generic.ISet<"
                 + elementType
-                + "> set ? set.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value));"
+                + "> set ? set.Contains(value) : (object?)values.Value is global::System.Collections.Generic.IReadOnlySet<"
+                + elementType
+                + "> readOnly ? readOnly.Contains(value) : global::System.Linq.Enumerable.Contains(values.Value!, value));"
         );
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
