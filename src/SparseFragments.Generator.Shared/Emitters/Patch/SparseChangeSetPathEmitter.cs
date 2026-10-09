@@ -153,14 +153,7 @@ internal static class SparseChangeSetPathEmitter
         var itemPath = "__sparse_item_path_" + member.Id;
         code.AppendLineAt(3, "foreach (var " + item + " in " + property + ")");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "var "
-                + key
-                + " = global::System.Convert.ToString("
-                + item
-                + ".Key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
-        );
+        code.AppendLineAt(4, "var " + key + " = __SparseKeyText(" + item + ".Key);");
         code.AppendLineAt(
             4,
             "var "

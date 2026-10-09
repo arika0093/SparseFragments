@@ -3,6 +3,30 @@ using SparseFragments;
 
 namespace SparseFragments.Tests;
 
+/// <summary>Composite dictionary key with a colliding display string (issue #138).</summary>
+/// <remarks>Distinct keys share one <c>ToString()</c>; paths must still differ.</remarks>
+public sealed class CollidingCompositeKey : IEquatable<CollidingCompositeKey>
+{
+    public int Zone { get; init; }
+
+    public int Rack { get; init; }
+
+    public override string ToString() => "same";
+
+    public bool Equals(CollidingCompositeKey? other) =>
+        other is not null && Zone == other.Zone && Rack == other.Rack;
+
+    public override bool Equals(object? obj) => Equals(obj as CollidingCompositeKey);
+
+    public override int GetHashCode() => HashCode.Combine(Zone, Rack);
+}
+
+[SparseFragmentModel]
+public partial class CollidingKeyDictHolder
+{
+    public Dictionary<CollidingCompositeKey, int> Scores { get; set; } = new();
+}
+
 /// <summary>Truly sparse keyed/dictionary ChangeSet storage and algebra (issue #103).</summary>
 /// <remarks>
 /// Canonical keyed/dict transitions retain only added(-&gt;after), removed(-&gt;before),
@@ -169,6 +193,46 @@ public sealed class SparseKeyedDictChangeSetTests
         var segment = enumerated[0].Path.Substring("Scores[".Length);
         segment = segment.Substring(0, segment.Length - 1);
         JsonSerializer.Deserialize<string>(segment)!.ShouldBe(tricky);
+    }
+
+    [Test]
+    public void CompositeKeysWithEqualDisplayStringsKeepDistinctPaths()
+    {
+        var first = new CollidingCompositeKey { Zone = 1, Rack = 2 };
+        var second = new CollidingCompositeKey { Zone = 3, Rack = 4 };
+        first.ToString().ShouldBe(second.ToString());
+        first.Equals(second).ShouldBeFalse();
+
+        var before = Optional<CollidingKeyDictHolder.Fragment?>.Present(
+            CollidingKeyDictHolder.Fragment.From(
+                new CollidingKeyDictHolder { Scores = new() { [first] = 1 } }
+            )
+        );
+        var after = Optional<CollidingKeyDictHolder.Fragment?>.Present(
+            CollidingKeyDictHolder.Fragment.From(
+                new CollidingKeyDictHolder
+                {
+                    Scores = new() { [first] = 1, [second] = 2 },
+                }
+            )
+        );
+        var changes = CollidingKeyDictHolder.ChangeSet.Between(before, after);
+        changes.IsEmpty.ShouldBeFalse();
+
+        var enumerated = changes.EnumerateChanges().ToList();
+        enumerated.ShouldHaveSingleItem();
+        // The JSON-serialized key distinguishes the entries; the raw display
+        // string never identifies a change on its own.
+        enumerated[0].Path.ShouldContain("Zone");
+        enumerated[0].Kind.ShouldBe(CollidingKeyDictHolder.ChangeSet.ChangeKind.Added);
+        changes.EnumerateChangedPaths().ShouldBe([enumerated[0].Path]);
+
+        // Simple string keys keep their backwards-compatible form.
+        var simple = ScalarDictHolder.ChangeSet.Between(
+            DState(new Dictionary<string, int>()),
+            DState(new Dictionary<string, int> { ["plain"] = 1 })
+        );
+        simple.EnumerateChanges().Single().Path.ShouldBe("Scores[\"plain\"]");
     }
 
     [Test]

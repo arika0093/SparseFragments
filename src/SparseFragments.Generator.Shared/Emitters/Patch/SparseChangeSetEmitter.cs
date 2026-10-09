@@ -156,6 +156,7 @@ internal static class SparseChangeSetEmitter
             "__SparseBox",
             "__SparseCreateChangeInfo",
             "__SparseKeyPath",
+            "__SparseKeyText",
             "__SparseEscapeKey",
         };
         var usedProps = new HashSet<string>(reserved, System.StringComparer.Ordinal);

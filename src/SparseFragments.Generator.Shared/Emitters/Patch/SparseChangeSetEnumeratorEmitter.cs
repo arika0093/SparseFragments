@@ -113,9 +113,26 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "var value = global::System.Convert.ToString(key, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
+            "return path + \"[\\\"\" + __SparseEscapeKey(__SparseKeyText(key)) + \"\\\"]\";"
         );
-        code.AppendLineAt(3, "return path + \"[\\\"\" + __SparseEscapeKey(value) + \"\\\"]\";");
+        code.AppendLineAt(2, "}");
+        // Stable, collision-resistant key text for supported key shapes
+        // (issue #138). String representation alone is not injective: two
+        // unequal composite keys may share a ToString(). Strings pass
+        // through; common primitives keep invariant-culture text; anything
+        // else serializes as JSON so distinct keys keep distinct paths.
+        code.AppendLineAt(2, "private static string __SparseKeyText<T>(T key)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "if (key is null) return string.Empty;");
+        code.AppendLineAt(3, "if (key is string text) return text;");
+        code.AppendLineAt(
+            3,
+            "if (key is global::System.IFormattable formattable) return formattable.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;"
+        );
+        code.AppendLineAt(
+            3,
+            "return global::System.Text.Json.JsonSerializer.Serialize(key, key.GetType());"
+        );
         code.AppendLineAt(2, "}");
         // One canonical JSON-compatible escaping helper for keyed and
         // dictionary paths (issue #137). Only backslash and quote were
@@ -182,7 +199,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings.</remarks>"
+            "/// <remarks>A whole-root presence transition emits a single <c>$root</c> entry that replaces member entries; nested whole-child presence transitions appear as <c>Parent.$root</c> alongside other member entries. Presence-derived kinds apply: missing to present-null reads as <c>Added</c>, present-null to missing as <c>Removed</c>, and present-null to present-value as <c>Changed</c>. Path grammar: member segments joined by <c>.</c>; keyed and dictionary entries as <c>Name[\"key\"]</c> with the key JSON-escaped, so quoted segments always parse as JSON strings. Key text is collision-resistant: strings, invariant primitives and Guids keep their simple form, while composite keys serialize as JSON so distinct keys never share a path.</remarks>"
         );
         code.AppendLineAt(
             2,
