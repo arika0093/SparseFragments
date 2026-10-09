@@ -204,3 +204,26 @@ request. After-states must stay concrete; a redacted after-state is malformed.
 The wire version stays `"0.1"`. No configuration is needed: the mixed surface
 uses only sibling generated names, the configured runtime namespace, and the
 configured conflict types.
+
+## ChangeSet history and transport guarantees
+
+`ChangeSet.Between` snapshots its inputs: whole-root fragments are
+deep-cloned and member collection containers are copied at capture with
+comparers preserved, so later caller-side mutation cannot alter retained
+history. Element values are shared by reference. Typed `Before`/`After`
+endpoints return fresh container snapshots for collection members.
+
+`EnumerateChanges` reports a single `$root` entry for whole-root presence
+transitions and per-element `Added`/`Removed` entries for set members when
+both sides are present. Keyed, dictionary, and set element paths quote the
+key with JSON escaping; key text keeps simple forms for strings and
+invariant primitives and qualifies other keys by runtime type name, with
+per-enumeration disambiguation on residual collisions.
+
+`ChangePayload` transport is lossless and version-gated: the `"0.1"`
+envelope version is validated on `ToChangeSet`, `ToPatch`,
+`InvertReversibleChanges`, and `TryApplyMixedTo` before any model work.
+`ToPayloadCore` and patch-side cores throw naming the omitted paths when a
+`JsonIgnore` member changed instead of exporting an empty change list.
+Redacted endpoints must be value-free; an endpoint carrying a value is
+rejected on every interpretation path.
