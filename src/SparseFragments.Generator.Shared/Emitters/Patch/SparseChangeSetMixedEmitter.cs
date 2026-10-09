@@ -81,7 +81,7 @@ internal static class SparseChangeSetMixedEmitter
             3,
             "if (payload.Changes is null) throw new global::System.ArgumentException(\"Payload changes must not be null.\", nameof(payload));"
         );
-        AppendWholePartition(code, members, modelType, rootChange);
+        AppendWholePartition(code, members, dialect, modelType, rootChange);
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
         {
             AppendPartitionLocals(code, member, dialect, members);
@@ -230,6 +230,22 @@ internal static class SparseChangeSetMixedEmitter
         var path = "pathPrefix + " + propLit;
         var variant = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change") + id;
         var esc = SparseNaming.EscapeIdentifier(prop);
+        if (
+            SparseDownstreamPolicy.IsScalarMember(member)
+            && dialect.GetTransport(prop) != SparseMemberTransport.Full
+        )
+        {
+            // Member transport policy: an undisclosed before-state can never
+            // rebuild a complete ChangeSet. Route through the policy restore
+            // case so the explicit baseline-free projection stays the only path.
+            SparseChangeSetPayloadRestoreEmitter.AppendFromPayloadCase(
+                code,
+                member,
+                dialect,
+                modelType
+            );
+            return;
+        }
         code.AppendLineAt(5, "case " + variant + " item:");
         code.AppendLineAt(
             6,
@@ -335,6 +351,7 @@ internal static class SparseChangeSetMixedEmitter
     private static void AppendWholePartition(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
         string? modelType,
         string rootChange
     )
@@ -348,6 +365,14 @@ internal static class SparseChangeSetMixedEmitter
             4,
             "if (whole.Before is null || whole.After is null) throw new global::System.ArgumentException(\"A whole-root payload must contain both endpoints.\", nameof(payload));"
         );
+        if (SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            // A whole-root snapshot cannot prove redacted paths complete.
+            code.AppendLineAt(
+                4,
+                "throw new global::System.ArgumentException(\"A redacted payload cannot be converted to a complete ChangeSet. Use ToPatch() for the baseline-free projection.\", nameof(payload));"
+            );
+        }
         code.AppendLineAt(
             4,
             "if (whole.After.IsRedacted) throw new global::System.ArgumentException(\"The payload contains a redacted after-state for '\" + pathPrefix + \"$root\" + \"'. After-states must stay concrete (value, null, or missing).\", nameof(payload));"

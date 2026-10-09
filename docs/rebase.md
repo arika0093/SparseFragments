@@ -322,8 +322,9 @@ This section is a reference. It defines strict behavior.
 
 Strict failure is atomic for a mixed request: the redacted member is excluded from the rebased change and `TryApplyTo` returns `false` without a partially applied model. Reports carry path and kind but no secret plaintext: the `RedactedBefore` conflict attaches missing base, local, and current values. Redacted is not `Missing`: the desired value is present and only its history is withheld. Unconditional `Patch` application is a baseline-free overwrite rather than a historical rebase, so it never consults these options.
 
-## No Revision History Required
+Downstream generators formalize the same redaction as a transport policy: the in-memory `ChangeSet` stays complete and baseline-aware, while the payload omits the before-state and keeps the required after-state. A redacted payload cannot convert to a complete `ChangeSet`; project it with the payload `ToPatch()` instead, which applies the requested after-state without historical comparison, as for an explicit patch set. A strict rebase policy is available to downstream generators to refuse such projections. The wire version token stays `"0.1"`.
 
+## No Revision History Required
 This section is an explanation. It separates ChangeSet state from persistence concerns.
 
 Semantic rebase does not require SparseFragments to retain a Git-like revision history. Three things stay distinct:

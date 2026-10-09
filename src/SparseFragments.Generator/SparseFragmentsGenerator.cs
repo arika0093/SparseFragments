@@ -84,7 +84,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.DuplicateJsonPropertyName,
             SparseFragmentsDiagnosticIds.SparseIgnoreOnKey,
             SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty,
-            SparseFragmentsDiagnosticIds.InvalidRebasePolicy
+            SparseFragmentsDiagnosticIds.InvalidRebasePolicy,
+            SparseFragmentsDiagnosticIds.InvalidEmissionPlan,
+            SparseFragmentsDiagnosticIds.UnknownProductMember
         ),
         HintNameSuffix: ".SparseFragments.g.cs",
         PromotedHintNameSuffix: ".SparsePromoted.g.cs",
@@ -402,6 +404,24 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf026-in-place-submit-is-unavailable"
     );
+    private static readonly DiagnosticDescriptor InvalidEmissionPlan = new(
+        SparseFragmentsDiagnosticIds.InvalidEmissionPlan,
+        "Invalid downstream emission plan",
+        "Invalid emission plan: {0}",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf028-invalid-downstream-emission-plan"
+    );
+    private static readonly DiagnosticDescriptor UnknownProductMember = new(
+        SparseFragmentsDiagnosticIds.UnknownProductMember,
+        "Unknown product member",
+        "Product policy references unknown member '{0}'",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf029-unknown-product-member"
+    );
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -663,6 +683,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.InvalidUnassignedKey => InvalidUnassignedKey,
             SparseFragmentsDiagnosticIds.UnsupportedUnassignedKey => UnsupportedUnassignedKey,
             SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable => InPlaceWriteUnavailable,
+            SparseFragmentsDiagnosticIds.InvalidEmissionPlan => InvalidEmissionPlan,
+            SparseFragmentsDiagnosticIds.UnknownProductMember => UnknownProductMember,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

@@ -750,6 +750,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
             ["SPF026"] = "#spf026-in-place-submit-is-unavailable",
             ["SPF027"] = "#spf027-invalid-custom-rebase-policy",
+            ["SPF028"] = "#spf028-invalid-downstream-emission-plan",
+            ["SPF029"] = "#spf029-unknown-product-member",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)

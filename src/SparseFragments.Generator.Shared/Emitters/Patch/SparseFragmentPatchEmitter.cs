@@ -31,26 +31,34 @@ internal static class SparseFragmentPatchEmitter
         string modelType,
         string runtimeNamespace,
         ImmutableArray<SparseMemberModel> members,
-        bool canWriteInPlace
+        bool canWriteInPlace,
+        SparseWriteContract? writeContract = null,
+        SparseEmissionFeatures? features = null
     )
     {
-        code.AppendLineAt(2, "public Patch ToPatch() => new(this);");
-        code.AppendLineAt(2, "public Fragment Apply(Patch patch)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
-        );
-        code.AppendLineAt(
-            3,
-            "var result = patch.Apply(" + runtimeNamespace + "Optional<Fragment?>.Present(this));"
-        );
-        code.AppendLineAt(
-            3,
-            "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or remove operation through Patch.Apply to preserve its optional state.\");"
-        );
-        code.AppendLineAt(3, "return result.Value;");
-        code.AppendLineAt(2, "}");
+        var plan = features ?? SparseEmissionFeatures.Standalone;
+        if (plan.EmitPatch)
+        {
+            code.AppendLineAt(2, "public Patch ToPatch() => new(this);");
+            code.AppendLineAt(2, "public Fragment Apply(Patch patch)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
+            );
+            code.AppendLineAt(
+                3,
+                "var result = patch.Apply("
+                    + runtimeNamespace
+                    + "Optional<Fragment?>.Present(this));"
+            );
+            code.AppendLineAt(
+                3,
+                "if (!result.IsPresent || result.Value is null) throw new global::System.InvalidOperationException(\"Apply a whole-contribution null or remove operation through Patch.Apply to preserve its optional state.\");"
+            );
+            code.AppendLineAt(3, "return result.Value;");
+            code.AppendLineAt(2, "}");
+        }
         if (canWriteInPlace)
         {
             code.AppendLineAt(
@@ -156,9 +164,139 @@ internal static class SparseFragmentPatchEmitter
             }
             code.AppendLineAt(2, "}");
         }
+        AppendWriteToContract(code, modelType, members, writeContract);
+    }
+
+    /// <summary>Writes this fragment into a separately owned write command.</summary>
+    /// <remarks>
+    /// The write model is never assumed to be the read model: only the
+    /// contract's type and mapped member names are used. Assignability stays
+    /// downstream and is checked by the consuming compilation.
+    /// </remarks>
+    internal static void AppendWriteToContract(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        SparseWriteContract? writeContract
+    )
+    {
+        if (writeContract is null)
+            return;
+        if (string.Equals(writeContract.WriteModelType, modelType, StringComparison.Ordinal))
+            return;
+        code.AppendLineAt(
+            2,
+            "/// <summary>Writes this fragment into an existing write-command instance.</summary>"
+        );
+        code.AppendLineAt(2, "public void WriteTo(" + writeContract.WriteModelType + " model)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (model is null) throw new global::System.ArgumentNullException(nameof(model));"
+        );
+        code.AppendLineAt(3, "var __sparse_updated = ToModel();");
+        foreach (var member in members)
+        {
+            var readProperty = SparseNaming.EscapeIdentifier(member.Property.Name);
+            var writeProperty = SparseNaming.EscapeIdentifier(
+                writeContract.GetWriteMemberName(member.Property.Name)
+            );
+            if (
+                member.Collection.Kind == SparseCollectionKind.List
+                && member.Collection.CloneKind == SparseCloneCollectionKind.List
+            )
+            {
+                var listType =
+                    "global::System.Collections.Generic.List<"
+                    + member.Collection.ElementType.Name
+                    + ">";
+                code.AppendLineAt(
+                    3,
+                    "if (model."
+                        + writeProperty
+                        + " is "
+                        + listType
+                        + " __sparse_write_list"
+                        + member.Id
+                        + " && __sparse_updated."
+                        + readProperty
+                        + " is not null)"
+                );
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(4, "__sparse_write_list" + member.Id + ".Clear();");
+                code.AppendLineAt(
+                    4,
+                    "__sparse_write_list"
+                        + member.Id
+                        + ".AddRange(__sparse_updated."
+                        + readProperty
+                        + ");"
+                );
+                code.AppendLineAt(3, "}");
+                code.AppendLineAt(
+                    3,
+                    "else model." + writeProperty + " = __sparse_updated." + readProperty + "!;"
+                );
+            }
+            else if (member.Collection.IsDictionary)
+            {
+                var dictionaryType =
+                    "global::System.Collections.Generic.Dictionary<"
+                    + member.Collection.ElementType.Name
+                    + ", "
+                    + member.Collection.ValueType!.Value.Name
+                    + ">";
+                code.AppendLineAt(
+                    3,
+                    "if (model."
+                        + writeProperty
+                        + " is "
+                        + dictionaryType
+                        + " __sparse_write_dict"
+                        + member.Id
+                        + " && __sparse_updated."
+                        + readProperty
+                        + " is not null)"
+                );
+                code.AppendLineAt(3, "{");
+                code.AppendLineAt(4, "__sparse_write_dict" + member.Id + ".Clear();");
+                code.AppendLineAt(
+                    4,
+                    "foreach (var __sparse_write_pair"
+                        + member.Id
+                        + " in __sparse_updated."
+                        + readProperty
+                        + ") __sparse_write_dict"
+                        + member.Id
+                        + ".Add(__sparse_write_pair"
+                        + member.Id
+                        + ".Key, __sparse_write_pair"
+                        + member.Id
+                        + ".Value);"
+                );
+                code.AppendLineAt(3, "}");
+                code.AppendLineAt(
+                    3,
+                    "else model." + writeProperty + " = __sparse_updated." + readProperty + "!;"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    3,
+                    "model." + writeProperty + " = __sparse_updated." + readProperty + "!;"
+                );
+            }
+        }
+        code.AppendLineAt(2, "}");
     }
 
     /// <summary>Small dialect for shared patch-core emission (whole, empty, ctor, apply).</summary>
+    /// <remarks>
+    /// Product generators configure member transport, rebase behavior and the
+    /// write contract here; standalone defaults keep full disclosure with no
+    /// write model. Anything product-specific stays in this configuration.
+    /// </remarks>
     internal readonly record struct SparsePatchDialect(
         string RuntimeNamespace,
         string WholeFieldName,
@@ -181,8 +319,24 @@ internal static class SparseFragmentPatchEmitter
         string? RebaseOptionsType = null,
         string? RebaseModeType = null,
         string? RebasePolicyType = null,
-        Func<SparseMemberModel, string>? RebasePolicyField = null
-    );
+        Func<SparseMemberModel, string>? RebasePolicyField = null,
+        ImmutableArray<SparseMemberPolicy> MemberPolicies = default,
+        SparseRebasePolicy? RebasePolicy = null,
+        SparseWriteContract? WriteContract = null
+    )
+    {
+        /// <summary>Configured member policies, or empty for full disclosure.</summary>
+        public ImmutableArray<SparseMemberPolicy> EffectiveMemberPolicies =>
+            MemberPolicies.IsDefault ? ImmutableArray<SparseMemberPolicy>.Empty : MemberPolicies;
+
+        /// <summary>Effective rebase behavior, defaulting to passthrough.</summary>
+        public SparseRebasePolicy EffectiveRebasePolicy =>
+            RebasePolicy ?? SparseRebasePolicy.Passthrough;
+
+        /// <summary>Transport configured for one member name.</summary>
+        public SparseMemberTransport GetTransport(string memberName) =>
+            SparseDownstreamPolicy.GetTransport(EffectiveMemberPolicies, memberName);
+    }
 
     internal static string DefaultChildChangeSet(SparseMemberModel member) =>
         member.ChildFragmentType!.Substring(0, member.ChildFragmentType.Length - "Fragment".Length)
@@ -271,9 +425,13 @@ internal static class SparseFragmentPatchEmitter
         ImmutableArray<SparseMemberModel> members,
         SparsePatchDialect dialect,
         ImmutableArray<string> ignoredSettablePropertyNames = default,
-        bool canWriteInPlace = false
+        bool canWriteInPlace = false,
+        SparseEmissionFeatures? features = null
     )
     {
+        var plan = features ?? SparseEmissionFeatures.Standalone;
+        if (!plan.EmitPatch)
+            return;
         var optional = dialect.RuntimeNamespace + "Optional<Fragment?>";
         code.AppendLineAt(1, "public sealed class Patch");
         code.AppendLineAt(1, "{");
@@ -330,19 +488,26 @@ internal static class SparseFragmentPatchEmitter
         }
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(code, modelType, members, dialect);
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(code, modelType, members, dialect);
-        SparseChangePayloadPatchSyncEmitter.AppendPatchToPayloadCore(
-            code,
-            members,
-            dialect,
-            modelType
-        );
+        if (plan.EmitChangePayload)
+        {
+            SparseChangePayloadPatchSyncEmitter.AppendPatchToPayloadCore(
+                code,
+                members,
+                dialect,
+                modelType
+            );
+        }
         code.AppendLineAt(1, "}");
-        SparseChangeSetEmitter.AppendChangeSet(
-            code,
-            members,
-            dialect,
-            modelType,
-            ignoredSettablePropertyNames
-        );
+        if (plan.EmitChangeSet)
+        {
+            SparseChangeSetEmitter.AppendChangeSet(
+                code,
+                members,
+                dialect,
+                modelType,
+                ignoredSettablePropertyNames,
+                plan
+            );
+        }
     }
 }

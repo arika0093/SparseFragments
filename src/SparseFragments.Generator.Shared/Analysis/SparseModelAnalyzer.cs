@@ -132,6 +132,16 @@ internal static class SparseModelAnalyzer
             );
         }
 
+        // Downstream emission plan: feature dependencies, product policy
+        // names and generated-name collisions covering emitted families and
+        // declared product names. Standalone defaults pass unconfigured.
+        SparseDownstreamPolicy.ValidateEmissionPlan(
+            memberModels,
+            config,
+            diagnostics,
+            cancellationToken
+        );
+
         if (diagnostics.Count > 0)
         {
             return new SparseGenerationAnalysis(

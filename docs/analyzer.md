@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF027)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF029)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -32,6 +32,8 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
 | [SPF026](#spf026-in-place-submit-is-unavailable) | In-place submit is unavailable | Info |
 | [SPF027](#spf027-invalid-custom-rebase-policy) | Invalid custom rebase policy | Error |
+| [SPF028](#spf028-invalid-downstream-emission-plan) | Invalid downstream emission plan | Error |
+| [SPF029](#spf029-unknown-product-member) | Unknown product member | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -367,3 +369,21 @@ public partial class PolicySettings
     public string? Label { get; set; } = "";
 }
 ```
+## SPF028: Invalid downstream emission plan
+
+* Message: `Invalid emission plan: {0}`
+* Cause: The owning generator selected an incoherent feature set (for example a
+  change set without its patch), or applied a redacted or write-only transport
+  policy to a member that cannot carry one. Only scalar members accept
+  non-full transports; nested members recurse through the child model's own
+  member names, and keyed or dictionary members keep full disclosure.
+* Fix: Enable the required feature families together, or move the transport
+  policy to a scalar member.
+
+## SPF029: Unknown product member
+
+* Message: `Product policy references unknown member '{0}'`
+* Cause: A member transport policy or write-contract mapping names a member
+  that the analyzed model does not declare.
+* Fix: Correct the member name in the product generator configuration so it
+  matches the source member name exactly.

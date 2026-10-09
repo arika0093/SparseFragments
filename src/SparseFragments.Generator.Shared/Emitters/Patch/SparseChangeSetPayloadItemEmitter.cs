@@ -32,9 +32,11 @@ internal static class SparseChangeSetPayloadItemEmitter
         var isModelValue = isKeyed
             ? member.Collection.ElementType.IsFragmentModel
             : member.Collection.ValueType?.IsFragmentModel == true;
+        // Internal so the payload baseline-free projection reuses the same
+        // validation and conversion instead of duplicating it.
         code.AppendLineAt(
             2,
-            "private static "
+            "internal static "
                 + trans
                 + ".Item __SparsePayloadItem"
                 + id

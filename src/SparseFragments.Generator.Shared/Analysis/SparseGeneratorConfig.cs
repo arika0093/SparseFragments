@@ -24,7 +24,9 @@ internal sealed record SparseGeneratorConfig
         SparseRuntimeDialect? RuntimeDialect = null,
         SparseFragmentPatchEmitter.SparsePatchDialect? PatchDialect = null,
         string? RebasePolicyAttributeMetadataName = null,
-        string? RebasePolicyBaseMetadataName = null
+        string? RebasePolicyBaseMetadataName = null,
+        SparseEmissionFeatures? EmissionFeatures = null,
+        ImmutableArray<string> ProductExtensionNames = default
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -47,6 +49,8 @@ internal sealed record SparseGeneratorConfig
         this.PatchDialect = PatchDialect;
         this.RebasePolicyAttributeMetadataName = RebasePolicyAttributeMetadataName;
         this.RebasePolicyBaseMetadataName = RebasePolicyBaseMetadataName;
+        this.EmissionFeatures = EmissionFeatures;
+        this.ProductExtensionNames = ProductExtensionNames;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -91,12 +95,26 @@ internal sealed record SparseGeneratorConfig
     /// <summary>Rebase policy base type for validation, or null when the product has none.</summary>
     public string? RebasePolicyBaseMetadataName { get; init; }
 
+    /// <summary>Feature families the owning generator opts into.</summary>
+    public SparseEmissionFeatures? EmissionFeatures { get; init; }
+
+    /// <summary>Product-declared type names appended through product extensions.</summary>
+    public ImmutableArray<string> ProductExtensionNames { get; init; }
+
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
     public SparseDiagnosticIdMap EffectiveDiagnosticIds => DiagnosticIds;
 
     public ImmutableArray<string> EffectiveReservedGeneratedNames =>
         ReservedGeneratedNames.IsDefault ? ImmutableArray<string>.Empty : ReservedGeneratedNames;
+
+    /// <summary>Effective feature selection, defaulting to the standalone set.</summary>
+    public SparseEmissionFeatures EffectiveEmissionFeatures =>
+        EmissionFeatures ?? SparseEmissionFeatures.Standalone;
+
+    /// <summary>Effective product-declared type names, or empty when none are appended.</summary>
+    public ImmutableArray<string> EffectiveProductExtensionNames =>
+        ProductExtensionNames.IsDefault ? ImmutableArray<string>.Empty : ProductExtensionNames;
 }
 
 internal sealed record SparseDiagnosticIdMap
@@ -125,7 +143,9 @@ internal sealed record SparseDiagnosticIdMap
         string DuplicateJsonPropertyName,
         string SparseIgnoreOnKey,
         string SparseIgnoreUnsupportedProperty,
-        string InvalidRebasePolicy = "SPF027"
+        string InvalidRebasePolicy = "SPF027",
+        string InvalidEmissionPlan = "SPF028",
+        string UnknownProductMember = "SPF029"
     )
     {
         this.MustBePartial = MustBePartial;
@@ -152,6 +172,8 @@ internal sealed record SparseDiagnosticIdMap
         this.SparseIgnoreOnKey = SparseIgnoreOnKey;
         this.SparseIgnoreUnsupportedProperty = SparseIgnoreUnsupportedProperty;
         this.InvalidRebasePolicy = InvalidRebasePolicy;
+        this.InvalidEmissionPlan = InvalidEmissionPlan;
+        this.UnknownProductMember = UnknownProductMember;
     }
 
     public string MustBePartial { get; init; }
@@ -200,7 +222,14 @@ internal sealed record SparseDiagnosticIdMap
 
     public string SparseIgnoreUnsupportedProperty { get; init; }
 
+    /// <summary>Diagnostic ID for an invalid custom rebase policy.</summary>
     public string InvalidRebasePolicy { get; init; }
+
+    /// <summary>Diagnostic ID for an incoherent downstream emission plan.</summary>
+    public string InvalidEmissionPlan { get; init; }
+
+    /// <summary>Diagnostic ID for a product policy referencing an unknown member.</summary>
+    public string UnknownProductMember { get; init; }
 }
 
 internal sealed record SparseRuntimeDialect

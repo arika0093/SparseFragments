@@ -119,6 +119,11 @@ internal static class SparseFragmentEmitter
                         ) + member.Id
                 ),
         };
+        var features = config.EffectiveEmissionFeatures;
+        var planErrors = features.ValidateDependencies();
+        if (!planErrors.IsDefaultOrEmpty && planErrors.Length > 0)
+            throw new ArgumentException(planErrors[0], nameof(config));
+        SparseDownstreamPolicy.ThrowOnInvalidTransport(members, patchDialect);
         var expressions = new SparseFragmentExpressions(
             "__sparse_clone_context",
             runtime.ValueComparer,
@@ -195,20 +200,24 @@ internal static class SparseFragmentEmitter
             portableSetView,
             bclHashSetSupportsCapacity
         );
-        AppendFragment(
-            code,
-            modelType,
-            members,
-            !model.IsStruct,
-            !pocoCloneModels.IsEmpty,
-            core,
-            expressions,
-            runtime,
-            patchDialect,
-            constructor: model.Constructor,
-            ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
-        );
-        if (!model.IsStruct)
+        if (features.EmitFragment)
+        {
+            AppendFragment(
+                code,
+                modelType,
+                members,
+                !model.IsStruct,
+                !pocoCloneModels.IsEmpty,
+                core,
+                expressions,
+                runtime,
+                patchDialect,
+                features,
+                constructor: model.Constructor,
+                ignoredSettablePropertyNames: model.IgnoredSettablePropertyNames
+            );
+        }
+        if (!model.IsStruct && features.EmitFragment && features.EmitObservable)
         {
             SparseObservableEmitter.AppendObservable(code, modelType, members, runtime.Namespace);
         }
@@ -249,6 +258,7 @@ internal static class SparseFragmentEmitter
         SparseFragmentExpressions expressions,
         SparseRuntimeDialect runtime,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
+        SparseEmissionFeatures features,
         bool isRootModel = true,
         ModelConstructorBinding? constructor = null,
         ImmutableArray<string> ignoredSettablePropertyNames = default
@@ -282,10 +292,19 @@ internal static class SparseFragmentEmitter
             modelType,
             runtime.Namespace,
             members,
-            canWriteInPlace
+            canWriteInPlace,
+            patchDialect.WriteContract,
+            features
         );
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(code, members, runtime.OptionalType);
+        if (features.EmitJsonConverters)
+        {
+            SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(
+                code,
+                members,
+                runtime.OptionalType
+            );
+        }
         code.AppendLineAt(1, "}");
         core.AppendBuilder(code, members);
         SparseFragmentPatchEmitter.AppendPatch(
@@ -294,7 +313,8 @@ internal static class SparseFragmentEmitter
             members,
             patchDialect,
             ignoredSettablePropertyNames,
-            canWriteInPlace
+            canWriteInPlace,
+            features
         );
     }
 

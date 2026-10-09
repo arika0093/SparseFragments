@@ -21,6 +21,13 @@ internal static class SparseChangeSetPayloadEmitter
         var payloadRoot = PayloadName(modelType, "Root");
         var payloadChange = PayloadName(modelType, "Change");
         var variants = members.Where(static member => !member.Property.IsJsonIgnored).ToArray();
+        // Write-only members never appear in the read projection; their
+        // transport variants below still carry the command after-state.
+        var readable = variants
+            .Where(member =>
+                dialect.GetTransport(member.Property.Name) != SparseMemberTransport.WriteOnly
+            )
+            .ToArray();
 
         code.AppendLineAt(
             1,
@@ -48,7 +55,7 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayloadCore(this);"
             );
-        if (modelType is not null)
+        if (modelType is not null && !SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
             code.AppendLineAt(
                 2,
                 "internal "
@@ -73,6 +80,15 @@ internal static class SparseChangeSetPayloadEmitter
             modelType,
             ignoredSettablePropertyNames
         );
+        if (modelType is not null && SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            SparseChangeSetPayloadProjectionEmitter.AppendCoreToPatch(
+                code,
+                members,
+                dialect,
+                modelType
+            );
+        }
         code.AppendLineAt(1, "}");
         code.AppendLine();
         code.AppendLineAt(
@@ -112,16 +128,25 @@ internal static class SparseChangeSetPayloadEmitter
             // Baseline-discarding projection is owned by the payload core (mixed
             // partition) so ordinary transitions and redacted-before blind sets
             // route identically; the envelope re-declares it to keep the
-            // conversion discoverable on the validated envelope type.
-            code.AppendLineAt(
-                2,
-                "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
-            );
-            code.AppendLineAt(2, "public new " + modelType + ".Patch ToPatch() => base.ToPatch();");
+            // conversion discoverable on the validated envelope type. When member
+            // transport policies apply the downstream projection owns ToPatch
+            // instead (strict-aware), so the mixed re-declaration is skipped to
+            // keep a single seam with no duplicate member.
+            if (!SparseDownstreamPolicy.HasOwnNonFullPolicy(members, dialect))
+            {
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "public new " + modelType + ".Patch ToPatch() => base.ToPatch();"
+                );
+            }
             code.AppendLineAt(
                 2,
                 "/// <summary>Builds a baseline-free command envelope from a patch.</summary>"
@@ -148,6 +173,12 @@ internal static class SparseChangeSetPayloadEmitter
                     + ".FromPatchCore(patch).Changes };"
             );
             code.AppendLineAt(2, "}");
+            SparseChangeSetPayloadProjectionEmitter.AppendRootToPatch(
+                code,
+                members,
+                dialect,
+                modelType
+            );
         }
         code.AppendLineAt(1, "}");
         code.AppendLine();
@@ -168,7 +199,14 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(2, "public static " + payloadRoot + " FromFragment(Fragment value)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(code, members, endpoint, runtime, payloadChange, false);
+        AppendFromFragmentMembers(
+            code,
+            System.Collections.Immutable.ImmutableArray.CreateRange(readable),
+            endpoint,
+            runtime,
+            payloadChange,
+            false
+        );
         code.AppendLineAt(3, "return result;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -177,7 +215,14 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        AppendFromFragmentMembers(code, members, endpoint, runtime, payloadChange, true);
+        AppendFromFragmentMembers(
+            code,
+            System.Collections.Immutable.ImmutableArray.CreateRange(readable),
+            endpoint,
+            runtime,
+            payloadChange,
+            true
+        );
         code.AppendLineAt(3, "return result;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(2, "public Fragment ToFragment()");
@@ -186,7 +231,7 @@ internal static class SparseChangeSetPayloadEmitter
             3,
             "if (Members is null) throw new global::System.ArgumentException(\"Root members must not be null.\", nameof(Members));"
         );
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
         {
             var valueType = SparseChangeSetBasicsEmitter.IsNested(member)
                 ? member.ChildFragmentType + "?"
@@ -205,13 +250,13 @@ internal static class SparseChangeSetPayloadEmitter
                     + ">.Missing;"
             );
         }
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
             code.AppendLineAt(3, "bool seen" + member.Id + " = false;");
         code.AppendLineAt(3, "foreach (var member in Members)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "switch (member)");
         code.AppendLineAt(4, "{");
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
         {
             code.AppendLineAt(5, "case " + payloadChange + member.Id + " item:");
             code.AppendLineAt(
@@ -270,7 +315,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return new Fragment");
         code.AppendLineAt(3, "{");
-        foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
+        foreach (var member in readable)
             code.AppendLineAt(
                 4,
                 SparseNaming.EscapeIdentifier(member.Property.Name)
@@ -380,15 +425,28 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "changes.Add(new "
-                + rootChange
-                + " { Before = __SparsePayloadRoot(__sparse_wholeBefore, redactBefores), After = __SparsePayloadRootAfter(__sparse_wholeAfter) });"
-        );
-        code.AppendLineAt(4, "return new " + payloadCore + " { Changes = changes };");
+        if (SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
+        {
+            // Whole-root snapshots would leak undisclosed before-state through
+            // a different path, so they are refused while policies apply.
+            code.AppendLineAt(
+                4,
+                "throw new global::System.InvalidOperationException(\"A whole-root transition cannot be serialized while member transport policies apply.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                4,
+                "changes.Add(new "
+                    + rootChange
+                    + " { Before = __SparsePayloadRoot(__sparse_wholeBefore, redactBefores), After = __SparsePayloadRootAfter(__sparse_wholeAfter) });"
+            );
+            code.AppendLineAt(4, "return new " + payloadCore + " { Changes = changes };");
+        }
         code.AppendLineAt(3, "}");
 
+        SparseDownstreamPolicy.ThrowOnInvalidTransport(members, dialect);
         foreach (var member in members.Where(static member => !member.Property.IsJsonIgnored))
         {
             var id = member.Id;
@@ -558,32 +616,52 @@ internal static class SparseChangeSetPayloadEmitter
                 code.AppendLineAt(3, "{");
                 var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
                 var scalarRedact = member.RedactBefore ? "true" : "redactBefores";
-                code.AppendLineAt(
-                    4,
-                    "changes.Add(new "
-                        + variant
-                        + " { Before = ("
-                        + SparseChangeSetBasicsEmitter.BeforeField(member)
-                        + ".IsPresent && ("
-                        + scalarRedact
-                        + ")) ? "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.Redacted() : "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional("
-                        + SparseChangeSetBasicsEmitter.BeforeField(member)
-                        + "), After = "
-                        + endpoint
-                        + "<"
-                        + valueType
-                        + ">.FromOptional("
-                        + SparseChangeSetBasicsEmitter.AfterField(member)
-                        + ") });"
-                );
+                if (dialect.GetTransport(member.Property.Name) == SparseMemberTransport.Full)
+                {
+                    code.AppendLineAt(
+                        4,
+                        "changes.Add(new "
+                            + variant
+                            + " { Before = ("
+                            + SparseChangeSetBasicsEmitter.BeforeField(member)
+                            + ".IsPresent && ("
+                            + scalarRedact
+                            + ")) ? "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.Redacted() : "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.BeforeField(member)
+                            + "), After = "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.AfterField(member)
+                            + ") });"
+                    );
+                }
+                else
+                {
+                    // Transport policy: the before-state stays undisclosed and
+                    // the after-state travels alone. Never fabricate a missing.
+                    code.AppendLineAt(
+                        4,
+                        "changes.Add(new "
+                            + variant
+                            + " { After = "
+                            + endpoint
+                            + "<"
+                            + valueType
+                            + ">.FromOptional("
+                            + SparseChangeSetBasicsEmitter.AfterField(member)
+                            + ") });"
+                    );
+                }
                 code.AppendLineAt(3, "}");
             }
         }
