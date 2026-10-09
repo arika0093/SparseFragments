@@ -1,73 +1,139 @@
+@using System.Text.Json
 @using SparseFragments
 @using SparseFragments.Playground.Models
-@implements IDisposable
+<div class="pg-grid pg-edit-session">
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Edit</h3>
+            <div class="pg-actions pg-edit-history">
+            <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Undo"
+                    Disabled="@(_undo.Count == 0)" @onclick="Undo">
+                    <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1.03-6.8 2.7L2 7v9h9l-3.65-3.65c1.32-1.25 3.12-2.02 5.15-2.02 3.23 0 5.96 2.07 6.94 4.95l2.4-.8C20.5 10.6 16.82 8 12.5 8Z" /></svg>
+                    Undo (@_undo.Count)
+            </FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Redo"
+                    Disabled="@(_redo.Count == 0)" @onclick="Redo">
+                    <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c2.65 0 5.05 1.03 6.8 2.7L23 7v9h-9l3.65-3.65c-1.32-1.25-3.12-2.02-5.15-2.02-3.23 0-5.96 2.07-6.94 4.95l-2.4-.8C4.5 10.6 8.18 8 12.5 8Z" /></svg>
+                    Redo (@_redo.Count)
+            </FluentButton>
+            </div>
+        </div>
 
-<FluentCard Class="pg-fluent-card pg-section-card">
-    <div class="pg-card-head">
-        <h3>EditSession: Observable changes with Undo/Redo</h3>
-        <div class="pg-actions">
-            <FluentButton Appearance="Appearance.Neutral" Size="Size.Small"
-                Disabled="@(_undo.Count == 0)" @onclick="Undo">
-                Undo (@_undo.Count)
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral" Size="Size.Small"
-                Disabled="@(_redo.Count == 0)" @onclick="Redo">
-                Redo (@_redo.Count)
-            </FluentButton>
+        <div class="pg-stack pg-edit-fields">
+            <div class="pg-row pg-session-field @(IsChanged(nameof(PlaygroundSettings.Enabled)) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(nameof(PlaygroundSettings.Enabled)))Enabled <small>bool</small></span>
+                <FluentCheckbox Value="@_session.Observable.Enabled"
+                    ValueChanged="@(value => Edit(() => _session.Observable.Enabled = value))" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(nameof(PlaygroundSettings.RetryCount)) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(nameof(PlaygroundSettings.RetryCount)))RetryCount <small>int</small></span>
+                <FluentNumberInput TValue="int" Style="width: 10rem;"
+                    Value="@_retryDraft" ValueChanged="UpdateRetryCount" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(nameof(PlaygroundSettings.Label)) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(nameof(PlaygroundSettings.Label)))Label <small>string</small></span>
+                <FluentTextInput Placeholder="label" Style="flex: 1 1 12rem;"
+                    Value="@_session.Observable.Label"
+                    ValueChanged="@(value => Edit(() => _session.Observable.Label = value ?? string.Empty))" />
+            </div>
+            <div class="pg-row pg-session-field @(IsNestedChanged(nameof(PlaygroundNested.Host)) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsNestedChanged(nameof(PlaygroundNested.Host)))Nested.Host <small>string</small></span>
+                <FluentTextInput Placeholder="host" Style="flex: 1 1 12rem;"
+                    Value="@_session.Observable.Nested!.Host"
+                    ValueChanged="@(value => Edit(() => _session.Observable.Nested!.Host = value ?? string.Empty))" />
+            </div>
+            <div class="pg-row pg-session-field @(IsNestedChanged(nameof(PlaygroundNested.Port)) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsNestedChanged(nameof(PlaygroundNested.Port)))Nested.Port <small>int</small></span>
+                <FluentNumberInput TValue="int" Style="width: 10rem;"
+                    Value="@_portDraft" ValueChanged="UpdatePort" />
+            </div>
         </div>
-    </div>
-    <p class="pg-hint">
-        Each edit through <code>Observable</code> raises a leaf ChangeSet. Undo applies that
-        operation's inverse; Redo applies the original ChangeSet.
-    </p>
-    <div class="pg-grid">
-        <div class="pg-row">
-            <span class="pg-name notranslate" translate="no">Enabled <small>bool</small></span>
-            <FluentCheckbox Value="@_session.Observable.Enabled" ValueChanged="@OnEnabledChanged" />
+
+        <div class="pg-row pg-session-field pg-task-field">
+            <span class="pg-name notranslate" translate="no">Tasks <small>List&lt;Task&gt;</small></span>
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTask">Add task</FluentButton>
         </div>
-        <div class="pg-row">
-            <span class="pg-name notranslate" translate="no">RetryCount <small>int</small></span>
-            <FluentNumberField TValue="int" Style="width: 10rem;"
-                Value="@_session.Observable.RetryCount" ValueChanged="@OnRetryCountChanged" />
+        <SortableList Items="_session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
+            OnUpdate="OnSortableUpdate" Context="task">
+            <SortableItemTemplate>
+                @TaskRow((task, _session.Observable.Tasks.IndexOf(task)))
+            </SortableItemTemplate>
+        </SortableList>
+        <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+            <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+            <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+            <span class="pg-lg"><span class="pg-dot"></span>edited</span>
         </div>
-        <div class="pg-row">
-            <span class="pg-name notranslate" translate="no">Label <small>string?</small></span>
-            <FluentTextField Placeholder="label" Style="flex: 1 1 12rem;"
-                Value="@_session.Observable.Label" ValueChanged="@OnLabelChanged" />
-        </div>
-        <div class="pg-row">
-            <span class="pg-name notranslate" translate="no">Nested.Host <small>string</small></span>
-            <FluentTextField Placeholder="host" Style="flex: 1 1 12rem;"
-                Value="@_session.Observable.Nested?.Host" ValueChanged="@OnHostChanged" />
-        </div>
-        <div class="pg-row">
-            <span class="pg-name notranslate" translate="no">Nested.Port <small>int</small></span>
-            <FluentNumberField TValue="int" Style="width: 10rem;"
-                Value="@(_session.Observable.Nested?.Port ?? 0)" ValueChanged="@OnPortChanged" />
-        </div>
-    </div>
-    <div class="pg-row">
-        <span class="pg-name">HasChanges</span>
-        <code>@_session.HasChanges</code>
-        @if (_lastPaths.Count > 0)
+        @if (_editError is not null)
         {
-            <span class="pg-hint">Last ChangeSet: @string.Join(", ", _lastPaths)</span>
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_editError</FluentMessageBar>
         }
+        <div class="pg-actions pg-session-actions">
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_session.HasChanges)"
+                @onclick="Reset">Reset</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                Disabled="@(!_session.HasChanges)" @onclick="Submit">Submit</FluentButton>
+        </div>
+    </FluentCard>
+
+    <div class="pg-stack">
+        <FluentCard Class="pg-fluent-card pg-session-result">
+            <div class="pg-card-head">
+                <h3>Result</h3>
+                <span class="pg-has-changes-badge @(_session.HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(_session.HasChanges ? "Changes" : "No changes")
+                </span>
+            </div>
+            <FluentTabs ActiveTabId="@_activeTab" ActiveTabIdChanged="@(id => _activeTab = id ?? "current")">
+                <FluentTab Label="Current" Id="current">
+                    <MonacoView Content="@CurrentJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Label="Baseline" Id="baseline">
+                    <MonacoView Content="@_baselineJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Label="Diff" Id="diff">
+                    <MonacoDiffView Original="@_baselineJson" Modified="@CurrentJson" Language="json" Height="320px" />
+                </FluentTab>
+            </FluentTabs>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Changelog</h3></div>
+            <ol class="pg-edit-log">
+                @foreach (var entry in _log)
+                {
+                    <li><time>@entry.Time</time><code>@entry.Change</code></li>
+                }
+                @if (_log.Count == 0)
+                {
+                    <li class="pg-edit-log-empty pg-hint">No changes yet</li>
+                }
+            </ol>
+        </FluentCard>
     </div>
-    <div class="pg-row">
-        <span class="pg-name">Current</span>
-        <span>
-            @_session.Current.Enabled · @_session.Current.RetryCount ·
-            @(_session.Current.Label ?? "(null)") ·
-            @(_session.Current.Nested?.Host ?? "(null)"):@(_session.Current.Nested?.Port.ToString() ?? "(null)")
-        </span>
+</div>
+
+<FluentDialog @ref="_completionDialog" Hidden="@_completionHidden" Modal="true" TrapFocus="true"
+    AriaLabel="Edit session action completed">
+    <div class="pg-dialog-heading">
+        <h3>@_completionTitle</h3>
     </div>
-</FluentCard>
+    <div class="pg-dialog-body">
+        <p>@_completionMessage</p>
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CloseCompletion">Close</FluentButton>
+    </div>
+</FluentDialog>
 
 @code {
+    private const int MaximumLogEntries = 20;
+    private static readonly string[] TaskTitles =
+        ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
     private readonly Stack<PlaygroundSettings.ChangeSet> _undo = new();
     private readonly Stack<PlaygroundSettings.ChangeSet> _redo = new();
-    private readonly List<string> _lastPaths = [];
+    private readonly List<LogEntry> _log = [];
+    private readonly Dictionary<PlaygroundTask.Observable, int> _pointsDrafts = [];
+    private readonly Dictionary<PlaygroundTask.Observable, string> _idDrafts = [];
     private readonly PlaygroundSettings _model = new()
     {
         Enabled = true,
@@ -75,6 +141,13 @@
         Label = "Draft",
         Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
         Plugins = ["base-plugin"],
+        Tasks =
+        [
+            new PlaygroundTask { Id = "t1", Title = "Find the key", Points = 10 },
+            new PlaygroundTask { Id = "t2", Title = "Open the gate", Points = 25 },
+            new PlaygroundTask { Id = "t3", Title = "Clear the trial", Points = 40 },
+            new PlaygroundTask { Id = "t4", Title = "Return to camp", Points = 5 },
+        ],
     };
 
     private SparseEditSession<
@@ -85,113 +158,477 @@
         PlaygroundSettings.Observable,
         PlaygroundSettings.ReadOnlyView
     > _session = null!;
-    private bool _replayingHistory;
+    private List<PlaygroundTask> _baselineTasks = [];
+    private string _baselineJson = string.Empty;
+    private string _activeTab = "diff";
+    private string? _editError;
+    private int _retryDraft;
+    private int _portDraft;
+    private bool _completionHidden = true;
+    private string _completionTitle = string.Empty;
+    private string _completionMessage = string.Empty;
+    private FluentDialog? _completionDialog;
+
+    private string CurrentJson => PlaygroundJson.WriteModel(_session.Model);
+
+    private RenderFragment<(PlaygroundTask.Observable Task, int Index)> TaskRow => item =>
+        @<div class="@TaskRowClass(item.Task, item.Index) pg-task-row">
+            <div class="pg-task-line">
+                <div class="pg-roster-field @(IsTaskIdChanged(item.Task) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskIdChanged(item.Task))Id</span>
+                    <FluentTextInput Value="@GetIdDraft(item.Task)"
+                        ValueChanged="@(value => _idDrafts[item.Task] = value ?? string.Empty)"
+                        @onblur="() => CommitTaskId(item.Task)" />
+                </div>
+                <div class="pg-roster-field @(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)))Title</span>
+                    <FluentTextInput Value="@item.Task.Title"
+                        ValueChanged="@(value => Edit(() => item.Task.Title = value ?? string.Empty))" />
+                </div>
+                <div class="pg-roster-field @(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Points)) ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Points)))Points</span>
+                    <FluentNumberInput TValue="int" Style="width: 100%;" Value="@GetPointsDraft(item.Task)"
+                        ValueChanged="@(value => UpdatePoints(item.Task, value))" />
+                </div>
+                <div class="pg-roster-actions pg-task-actions">
+                    <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                        Disabled="@(item.Index == 0)" @onclick="() => MoveTask(item.Index, -1)">↑</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                        Disabled="@(item.Index == _session.Observable.Tasks.Count - 1)"
+                        @onclick="() => MoveTask(item.Index, 1)">↓</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
+                        @onclick="() => RemoveTask(item.Index)">✕</FluentButton>
+                </div>
+            </div>
+        </div>;
 
     protected override void OnInitialized()
     {
         _session = _model.CreateEditSession();
-        _session.ChangeSetChanged += OnChangeSetChanged;
+        _retryDraft = _model.RetryCount;
+        _portDraft = _model.Nested!.Port;
+        CaptureBaseline();
     }
 
-    private void OnChangeSetChanged(PlaygroundSettings.ChangeSet changes)
+    private void Edit(Action edit)
     {
-        if (_replayingHistory)
+        var before = CloneModel();
+        _editError = null;
+        edit();
+        var after = CloneModel();
+        var changes = Between(before, after);
+        if (changes.IsEmpty)
         {
             return;
         }
 
         _undo.Push(changes);
         _redo.Clear();
-        _lastPaths.Clear();
-        _lastPaths.AddRange(changes.EnumerateChangedPaths());
+        AppendChanges(before, after);
     }
 
-    private Task OnEnabledChanged(bool value)
+    private void UpdateRetryCount(int value)
     {
-        _session.Observable.Enabled = value;
-        return Task.CompletedTask;
+        _retryDraft = value;
+        if (value != _session.Model.RetryCount) Edit(() => _session.Observable.RetryCount = value);
     }
 
-    private Task OnRetryCountChanged(int value)
+    private void UpdatePort(int value)
     {
-        _session.Observable.RetryCount = value;
-        return Task.CompletedTask;
+        _portDraft = value;
+        if (value != _session.Model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
     }
 
-    private Task OnLabelChanged(string? value)
+    private void UpdatePoints(PlaygroundTask.Observable task, int value)
     {
-        _session.Observable.Label = value;
-        return Task.CompletedTask;
+        _pointsDrafts[task] = value;
+        if (value != task.Points) Edit(() => task.Points = value);
     }
 
-    private Task OnHostChanged(string? value)
+    private void CommitTaskId(PlaygroundTask.Observable task)
     {
-        var nested = _session.Observable.Nested;
-        if (nested is not null)
+        var value = GetIdDraft(task).Trim();
+        if (string.IsNullOrWhiteSpace(value)
+            || _session.Model.Tasks.Any(item => !ReferenceEquals(item, task.Model) && item.Id == value))
         {
-            nested.Host = value ?? string.Empty;
+            _editError = "Task IDs must be non-empty and unique.";
+            _idDrafts[task] = task.Id;
+            return;
         }
 
+        if (value != task.Id)
+        {
+            Edit(() => task.Id = value);
+        }
+    }
+
+    private string GetIdDraft(PlaygroundTask.Observable task) =>
+        _idDrafts.TryGetValue(task, out var value) ? value : task.Id;
+
+    private int GetPointsDraft(PlaygroundTask.Observable task) =>
+        _pointsDrafts.TryGetValue(task, out var value) ? value : task.Points;
+
+    private void AddTask()
+    {
+        var existing = _session.Model.Tasks.Select(task => task.Id)
+            .Concat(_baselineTasks.Select(task => task.Id))
+            .ToHashSet(StringComparer.Ordinal);
+        string id;
+        do
+        {
+            id = $"t{Random.Shared.Next(1, 1000)}";
+        }
+        while (!existing.Add(id));
+
+        var task = new PlaygroundTask.Observable(new PlaygroundTask
+        {
+            Id = id,
+            Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
+            Points = Random.Shared.Next(1, 100),
+        });
+        Edit(() => _session.Observable.Tasks.Add(task));
+    }
+
+    private void RemoveTask(int index) => Edit(() => _session.Observable.Tasks.RemoveAt(index));
+
+    private void MoveTask(int index, int delta)
+    {
+        var tasks = _session.Observable.Tasks;
+        var target = index + delta;
+        if (target < 0 || target >= tasks.Count) return;
+
+        Edit(() =>
+        {
+            var task = tasks[index];
+            tasks.RemoveAt(index);
+            tasks.Insert(target, task);
+        });
+    }
+
+    private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
+    {
+        var (oldIndex, newIndex) = indices;
+        var tasks = _session.Observable.Tasks;
+        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= tasks.Count || newIndex < 0 || newIndex > tasks.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        Edit(() =>
+        {
+            var task = tasks[oldIndex];
+            tasks.RemoveAt(oldIndex);
+            tasks.Insert(Math.Min(newIndex, tasks.Count), task);
+        });
         return Task.CompletedTask;
     }
 
-    private Task OnPortChanged(int value)
+    private bool IsChanged(string property) => property switch
     {
-        var nested = _session.Observable.Nested;
-        if (nested is not null)
+        nameof(PlaygroundSettings.Enabled) => _session.Model.Enabled != _baselineModel.Enabled,
+        nameof(PlaygroundSettings.RetryCount) => _session.Model.RetryCount != _baselineModel.RetryCount,
+        nameof(PlaygroundSettings.Label) => _session.Model.Label != _baselineModel.Label,
+        _ => false,
+    };
+
+    private bool IsNestedChanged(string property) => property switch
+    {
+        nameof(PlaygroundNested.Host) => _session.Model.Nested?.Host != _baselineModel.Nested?.Host,
+        nameof(PlaygroundNested.Port) => _session.Model.Nested?.Port != _baselineModel.Nested?.Port,
+        _ => false,
+    };
+
+    private static RenderFragment ChangedDot(bool changed) => builder =>
+    {
+        if (changed)
         {
-            nested.Port = value;
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "pg-dot");
+            builder.AddAttribute(2, "title", "edited");
+            builder.CloseElement();
+        }
+    };
+
+    private bool IsTaskIdChanged(PlaygroundTask.Observable task) =>
+        IsTaskFieldChanged(task, nameof(PlaygroundTask.Id));
+
+    private bool IsTaskFieldChanged(PlaygroundTask.Observable task, string property)
+    {
+        var baseline = GetTaskBaseline(task);
+        if (baseline is null)
+        {
+            return false;
         }
 
-        return Task.CompletedTask;
+        return property switch
+        {
+            nameof(PlaygroundTask.Id) => task.Id != baseline.Id,
+            nameof(PlaygroundTask.Title) => task.Title != baseline.Title,
+            nameof(PlaygroundTask.Points) => task.Points != baseline.Points,
+            _ => false,
+        };
+    }
+
+    private string TaskRowClass(PlaygroundTask.Observable task, int index)
+    {
+        var baseline = GetTaskBaseline(task);
+        if (baseline is null)
+        {
+            return "pg-roster-row pg-added";
+        }
+
+        return IsTaskMoved(baseline, index) ? "pg-roster-row pg-moved" : "pg-roster-row";
+    }
+
+    private PlaygroundTask? GetTaskBaseline(PlaygroundTask.Observable task)
+    {
+        var baseline = _taskBaselines.GetValueOrDefault(task);
+        if (baseline is not null)
+        {
+            return baseline;
+        }
+
+        baseline = _baselineTasks.FirstOrDefault(item => item.Id == task.Id);
+        if (baseline is not null)
+        {
+            _taskBaselines[task] = baseline;
+        }
+
+        return baseline;
+    }
+
+    private bool IsTaskMoved(PlaygroundTask baseline, int index)
+    {
+        var baselineIndex = _baselineTasks.IndexOf(baseline);
+        if (baselineIndex < 0)
+        {
+            return false;
+        }
+
+        var currentRank = 0;
+        for (var i = 0; i < index; i++)
+        {
+            if (GetTaskBaseline(_session.Observable.Tasks[i]) is not null)
+            {
+                currentRank++;
+            }
+        }
+
+        var baselineRank = 0;
+        for (var i = 0; i < baselineIndex; i++)
+        {
+            foreach (var currentTask in _session.Observable.Tasks)
+            {
+                if (ReferenceEquals(GetTaskBaseline(currentTask), _baselineTasks[i]))
+                {
+                    baselineRank++;
+                    break;
+                }
+            }
+        }
+
+        return currentRank != baselineRank;
+    }
+
+    private PlaygroundSettings _baselineModel = null!;
+    private readonly Dictionary<PlaygroundTask.Observable, PlaygroundTask> _taskBaselines = [];
+
+    private PlaygroundSettings CloneModel() =>
+        JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)
+        ?? throw new JsonException("The current model JSON deserialized to null.");
+
+    private static PlaygroundSettings.ChangeSet Between(PlaygroundSettings before, PlaygroundSettings after) =>
+        PlaygroundSettings.ChangeSet.Between(
+            Optional<PlaygroundSettings.Fragment?>.Present(PlaygroundSettings.Fragment.From(before)),
+            Optional<PlaygroundSettings.Fragment?>.Present(PlaygroundSettings.Fragment.From(after)));
+
+    private void CaptureBaseline()
+    {
+        _baselineModel = CloneModel();
+        _baselineTasks = _baselineModel.Tasks;
+        _taskBaselines.Clear();
+        foreach (var task in _session.Observable.Tasks)
+        {
+            var baselineTask = _baselineTasks.FirstOrDefault(item => item.Id == task.Id);
+            if (baselineTask is not null)
+            {
+                _taskBaselines[task] = baselineTask;
+            }
+        }
+
+        _baselineJson = PlaygroundJson.WriteModel(_baselineModel);
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            _session.AcceptChanges();
+            CaptureBaseline();
+            ClearHistory();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+            return;
+        }
+
+        await ShowCompletion("Changes submitted", "The current state is now the baseline. The change history was cleared.");
+    }
+
+    private async Task ShowCompletion(string title, string message)
+    {
+        if (_completionDialog is null)
+        {
+            throw new InvalidOperationException("The completion dialog is not initialized.");
+        }
+
+        _completionTitle = title;
+        _completionMessage = message;
+        _completionHidden = false;
+        await _completionDialog.ShowAsync();
+    }
+
+    private async Task CloseCompletion()
+    {
+        _completionHidden = true;
+        if (_completionDialog is null)
+        {
+            throw new InvalidOperationException("The completion dialog is not initialized.");
+        }
+
+        await _completionDialog.HideAsync();
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            _session.RevertChanges();
+            _retryDraft = _session.Model.RetryCount;
+            _portDraft = _session.Model.Nested!.Port;
+            _pointsDrafts.Clear();
+            _idDrafts.Clear();
+            ClearHistory();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+            return;
+        }
+
+        await ShowCompletion("Changes reset", "All unsubmitted changes were reverted to the current baseline.");
+    }
+
+    private void ClearHistory()
+    {
+        _undo.Clear();
+        _redo.Clear();
+        _log.Clear();
     }
 
     private void Undo()
     {
-        if (_undo.TryPop(out var changes))
+        if (!_undo.TryPop(out var changes))
         {
-            var inverse = changes.Invert();
-            _replayingHistory = true;
-            try
-            {
-                _session.ApplyInPlace(inverse);
-                _redo.Push(changes);
-            }
-            finally
-            {
-                _replayingHistory = false;
-            }
-
-            _lastPaths.Clear();
-            _lastPaths.AddRange(inverse.EnumerateChangedPaths());
+            return;
         }
+
+        var before = CloneModel();
+        _session.ApplyInPlace(changes.Invert());
+        _redo.Push(changes);
+        SyncNumericDrafts();
+        AppendChanges(before, CloneModel());
     }
 
     private void Redo()
     {
-        if (_redo.TryPop(out var changes))
+        if (!_redo.TryPop(out var changes))
         {
-            _replayingHistory = true;
-            try
-            {
-                _session.ApplyInPlace(changes);
-                _undo.Push(changes);
-            }
-            finally
-            {
-                _replayingHistory = false;
-            }
-
-            _lastPaths.Clear();
-            _lastPaths.AddRange(changes.EnumerateChangedPaths());
+            return;
         }
+
+        var before = CloneModel();
+        _session.ApplyInPlace(changes);
+        _undo.Push(changes);
+        SyncNumericDrafts();
+        AppendChanges(before, CloneModel());
     }
 
-    public void Dispose()
+    private void SyncNumericDrafts()
     {
-        if (_session is not null)
-        {
-            _session.ChangeSetChanged -= OnChangeSetChanged;
-        }
+        _retryDraft = _session.Model.RetryCount;
+        _portDraft = _session.Model.Nested!.Port;
+        _pointsDrafts.Clear();
+        _idDrafts.Clear();
     }
+
+    private void AppendChanges(PlaygroundSettings before, PlaygroundSettings after)
+    {
+        var changes = Between(before, after);
+        var paths = changes.EnumerateChangedPaths();
+        if (paths.Count == 0) return;
+
+        var change = string.Join("; ", paths.Select(path => FormatChange(before, after, path)));
+        _log.Insert(0, new LogEntry(DateTimeOffset.Now.ToString("HH:mm:ss"), change));
+        if (_log.Count > MaximumLogEntries) _log.RemoveRange(MaximumLogEntries, _log.Count - MaximumLogEntries);
+    }
+
+    private static string FormatChange(PlaygroundSettings before, PlaygroundSettings after, string path)
+    {
+        var beforeValue = GetChangeValue(before, path);
+        var afterValue = GetChangeValue(after, path);
+        return $"{path}: {OneLine(beforeValue)} → {OneLine(afterValue)}";
+    }
+
+    private static string OneLine(string value) =>
+        value.Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\t", "\\t", StringComparison.Ordinal);
+
+    private static string GetChangeValue(PlaygroundSettings model, string path)
+    {
+        var json = PlaygroundJson.WriteModel(model);
+        using var document = JsonDocument.Parse(json);
+        var current = document.RootElement;
+        foreach (var segment in path.Split('.'))
+        {
+            var arrayStart = segment.IndexOf('[');
+            var propertyName = arrayStart < 0 ? segment : segment[..arrayStart];
+            if (!string.IsNullOrEmpty(propertyName))
+            {
+                if (!current.TryGetProperty(propertyName, out current))
+                {
+                    return "(missing)";
+                }
+            }
+
+            while (arrayStart >= 0)
+            {
+                var arrayEnd = segment.IndexOf(']', arrayStart);
+                if (arrayEnd < 0 || !int.TryParse(segment.AsSpan(arrayStart + 1, arrayEnd - arrayStart - 1), out var index)
+                    || current.ValueKind != JsonValueKind.Array || index >= current.GetArrayLength())
+                {
+                    return "(missing)";
+                }
+
+                current = current[index];
+                arrayStart = segment.IndexOf('[', arrayEnd + 1);
+            }
+        }
+
+        if (current.ValueKind == JsonValueKind.Object
+            && path.StartsWith("Tasks[", StringComparison.Ordinal)
+            && current.TryGetProperty(nameof(PlaygroundTask.Id), out var id))
+        {
+            return $"id={JsonSerializer.Serialize(id)}";
+        }
+
+        return JsonSerializer.Serialize(current);
+    }
+
+    private sealed record LogEntry(string Time, string Change);
 }

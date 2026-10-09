@@ -327,6 +327,20 @@ public sealed class PatchEditState
 /// <summary>Trim-safe JSON helpers for the playground.</summary>
 public static class PlaygroundJson
 {
+    private static readonly string[] SettingsFragmentOrder =
+    [
+        "Enabled",
+        "RetryCount",
+        "Label",
+        "Nested",
+        "Plugins",
+        "Tasks",
+    ];
+    private static readonly string[] NestedFragmentOrder = ["Host", "Port"];
+    private static readonly string[] RosterFragmentOrder = ["Quests"];
+    private static readonly string[] QuestFragmentOrder = ["Id", "Title", "Points", "Scores"];
+    private static readonly string[] TaskFragmentOrder = ["Id", "Title", "Points"];
+
     /// <summary>Creates options carrying the generated fragment converters.</summary>
     public static JsonSerializerOptions FragmentOptions()
     {
@@ -370,7 +384,8 @@ public static class PlaygroundJson
             json,
             ChangeSetOptions()
         );
-        return payload?.ToChangeSet() ?? throw new JsonException("The ChangeSet JSON deserialized to null.");
+        return payload?.ToChangeSet()
+            ?? throw new JsonException("The ChangeSet JSON deserialized to null.");
     }
 
     /// <summary>Serializes a fragment to its canonical (present-members-only) JSON.</summary>
@@ -387,7 +402,7 @@ public static class PlaygroundJson
             );
         }
 
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "settings");
     }
 
     /// <summary>Serializes a roster fragment to its canonical (present-members-only) JSON.</summary>
@@ -397,23 +412,110 @@ public static class PlaygroundJson
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
-            new PlaygroundRoster.Fragment.FragmentJsonConverter().Write(
-                writer,
-                fragment,
-                options
-            );
+            new PlaygroundRoster.Fragment.FragmentJsonConverter().Write(writer, fragment, options);
+        }
+
+        return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "roster");
+    }
+
+    private static string OrderFragmentJson(string json, string context)
+    {
+        using var document = JsonDocument.Parse(json);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            WriteOrderedFragmentValue(writer, document.RootElement, context);
         }
 
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
+    private static void WriteOrderedFragmentValue(
+        Utf8JsonWriter writer,
+        JsonElement value,
+        string context
+    )
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            writer.WriteStartObject();
+            var order = FragmentPropertyOrder(context);
+            foreach (var name in order)
+            {
+                if (value.TryGetProperty(name, out var property))
+                {
+                    writer.WritePropertyName(name);
+                    WriteOrderedFragmentValue(
+                        writer,
+                        property,
+                        FragmentChildContext(context, name)
+                    );
+                }
+            }
+
+            foreach (var property in value.EnumerateObject())
+            {
+                if (Array.IndexOf(order, property.Name) < 0)
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteOrderedFragmentValue(
+                        writer,
+                        property.Value,
+                        FragmentChildContext(context, property.Name)
+                    );
+                }
+            }
+
+            writer.WriteEndObject();
+            return;
+        }
+
+        if (value.ValueKind == JsonValueKind.Array)
+        {
+            writer.WriteStartArray();
+            var itemContext = context switch
+            {
+                "quests" => "quest",
+                "tasks" => "task",
+                _ => string.Empty,
+            };
+            foreach (var item in value.EnumerateArray())
+            {
+                WriteOrderedFragmentValue(writer, item, itemContext);
+            }
+
+            writer.WriteEndArray();
+            return;
+        }
+
+        value.WriteTo(writer);
+    }
+
+    private static string[] FragmentPropertyOrder(string context) =>
+        context switch
+        {
+            "settings" => SettingsFragmentOrder,
+            "nested" => NestedFragmentOrder,
+            "roster" => RosterFragmentOrder,
+            "quest" => QuestFragmentOrder,
+            "task" => TaskFragmentOrder,
+            _ => [],
+        };
+
+    private static string FragmentChildContext(string context, string propertyName) =>
+        (context, propertyName) switch
+        {
+            ("settings", "Nested") => "nested",
+            ("settings", "Quests") => "quests",
+            ("settings", "Tasks") => "tasks",
+            ("roster", "Quests") => "quests",
+            _ => string.Empty,
+        };
+
     /// <summary>Serializes a roster model to indented JSON.</summary>
     public static string WriteRosterModel(PlaygroundRoster model)
     {
-        var json = JsonSerializer.Serialize(
-            model,
-            PlaygroundJsonContext.Default.PlaygroundRoster
-        );
+        var json = JsonSerializer.Serialize(model, PlaygroundJsonContext.Default.PlaygroundRoster);
         return Pretty(json);
     }
 

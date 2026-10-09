@@ -4,7 +4,6 @@
     @if (AllowReorder)
     {
         <SortableList Items="Model.Quests" Handle=".pg-drag" Class="pg-roster-list"
-            GhostClass="pg-sort-ghost" ChosenClass="pg-sort-chosen"
             OnUpdate="OnSortableUpdate" Context="quest">
             <SortableItemTemplate>
                 @RowFragment((quest, Model.Quests.IndexOf(quest)))
@@ -21,7 +20,7 @@
         </div>
     }
     <div>
-        <FluentButton Appearance="Appearance.Accent" Size="Size.Small" @onclick="AddAsync">Add quest</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddAsync">Add quest</FluentButton>
     </div>
 </FluentStack>
 
@@ -59,19 +58,19 @@
             <div class="pg-rline1">
                 <div class="pg-roster-field">
                     <span class="pg-mini notranslate" translate="no">Id <small>key</small></span>
-                    <FluentTextField Placeholder="id" Style="width: 100%;"
+                    <FluentTextInput Placeholder="id" Style="width: 100%;"
                         Value="@item.Quest.Id"
                         ValueChanged="@(async v => { item.Quest.Id = v; await NotifyAsync(); })" />
                 </div>
                 <div class="pg-roster-field @(IsTitleChanged(GetRowChange(item.Quest)) ? "pg-changed" : "")">
                     <span class="pg-mini notranslate" translate="no">@TitleDot(IsTitleChanged(GetRowChange(item.Quest)))Title</span>
-                    <FluentTextField Placeholder="title" Style="width: 100%;"
+                    <FluentTextInput Placeholder="title" Style="width: 100%;"
                         Value="@item.Quest.Title"
                         ValueChanged="@(async v => { item.Quest.Title = v; await NotifyAsync(); })" />
                 </div>
                 <div class="pg-roster-field @(IsPointsChanged(GetRowChange(item.Quest)) ? "pg-changed" : "")">
                     <span class="pg-mini notranslate" translate="no">@TitleDot(IsPointsChanged(GetRowChange(item.Quest)))Points</span>
-                    <FluentNumberField TValue="int" Style="width: 100%;"
+                    <FluentNumberInput TValue="int" Style="width: 100%;"
                         Value="@item.Quest.Points"
                         ValueChanged="@(async v => { item.Quest.Points = v; await NotifyAsync(); })" />
                 </div>
@@ -90,11 +89,11 @@
                 <div class="pg-roster-actions">
                     @if (AllowReorder)
                     {
-                        <span class="pg-drag" title="Drag to reorder">⠿</span>
-                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move up" Disabled="@(item.Index == 0)" @onclick="@(async () => await MoveAsync(item.Index, -1))">↑</FluentButton>
-                        <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Move down" Disabled="@(item.Index == Model.Quests.Count - 1)" @onclick="@(async () => await MoveAsync(item.Index, 1))">↓</FluentButton>
+                        <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+                        <FluentButton Appearance="ButtonAppearance.Default" Title="Move up" Disabled="@(item.Index == 0)" @onclick="@(async () => await MoveAsync(item.Index, -1))">↑</FluentButton>
+                        <FluentButton Appearance="ButtonAppearance.Default" Title="Move down" Disabled="@(item.Index == Model.Quests.Count - 1)" @onclick="@(async () => await MoveAsync(item.Index, 1))">↓</FluentButton>
                     }
-                    <FluentButton Appearance="Appearance.Neutral" Size="Size.Small" Title="Remove" @onclick="@(async () => await RemoveAsync(item.Index))">✕</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" Title="Remove" @onclick="@(async () => await RemoveAsync(item.Index))">✕</FluentButton>
                 </div>
             </div>
         </div>;

@@ -2,32 +2,62 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 @using SparseFragments.Playground.Models
 @inject PlaygroundThemeState ThemeState
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
-<FluentDesignTheme Mode="@ThemeState.Mode"
-    ModeChanged="@OnModeChanged"
-    StorageName="pg-theme"
-    OnLoaded="@OnThemeLoaded"
-    OnLuminanceChanged="@OnLuminanceChanged" />
 <div class="pg-shell">
     @Body
 </div>
 <FluentToastProvider />
 <FluentDialogProvider />
 <FluentTooltipProvider />
-<FluentMessageBarProvider />
-<FluentMenuProvider />
 
 @code {
     protected override void OnInitialized() => ThemeState.Changed += OnThemeStateChanged;
 
-    private void OnThemeStateChanged() => InvokeAsync(StateHasChanged);
+    private IJSObjectReference? _themeModule;
+    private DotNetObjectReference<MainLayout>? _selfReference;
 
-    private void OnModeChanged(DesignThemeModes mode) => ThemeState.SetMode(mode);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
 
-    private void OnThemeLoaded(LoadedEventArgs args) => ThemeState.SetLuminance(args.IsDark);
+        _themeModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playgroundTheme.js");
+        _selfReference = DotNetObjectReference.Create(this);
+        var storedMode = await _themeModule.InvokeAsync<string>("initialize", _selfReference);
+        if (Enum.TryParse<PlaygroundThemeMode>(storedMode, out var mode))
+        {
+            ThemeState.SetMode(mode);
+        }
 
-    private void OnLuminanceChanged(LuminanceChangedEventArgs args) => ThemeState.SetLuminance(args.IsDark);
+        ThemeState.SetSystemTheme(await _themeModule.InvokeAsync<bool>("apply", ThemeState.Mode.ToString()));
+    }
 
-    public void Dispose() => ThemeState.Changed -= OnThemeStateChanged;
+    private void OnThemeStateChanged() => _ = InvokeAsync(async () =>
+    {
+        StateHasChanged();
+        if (_themeModule is not null)
+        {
+            ThemeState.SetSystemTheme(
+                await _themeModule.InvokeAsync<bool>("apply", ThemeState.Mode.ToString()));
+        }
+    });
+
+    [JSInvokable]
+    public void OnSystemThemeChanged(bool isDark) => ThemeState.SetSystemTheme(isDark);
+
+    public async ValueTask DisposeAsync()
+    {
+        ThemeState.Changed -= OnThemeStateChanged;
+        if (_themeModule is not null)
+        {
+            await _themeModule.InvokeVoidAsync("dispose");
+            await _themeModule.DisposeAsync();
+        }
+
+        _selfReference?.Dispose();
+    }
 }

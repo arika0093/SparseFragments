@@ -1,7 +1,17 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     max-width: 100%;
+}
+
+html {
     overflow-x: clip;
+}
+
+body {
+    height: auto !important;
+    min-height: 100vh;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
 }
 
 #app {
@@ -235,6 +245,10 @@ code {
     min-width: 0;
 }
 
+.pg-editor-stack > .pg-row {
+    margin-bottom: 0;
+}
+
 .pg-nested .pg-row {
     grid-template-columns: 10rem 12rem auto;
 }
@@ -408,6 +422,23 @@ code {
     gap: 8px;
 }
 
+.pg-roster-list.fluent-sortable-list {
+    border: 0;
+    padding: 0;
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-item {
+    display: block;
+    height: auto !important;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+}
+
 .pg-roster-row {
     padding: 0.4rem 0.5rem 0.5rem 0.6rem;
     border-left: 3px solid var(--neutral-stroke-rest, #e9ecef);
@@ -431,12 +462,12 @@ code {
     border-left-color: #0969da;
 }
 
-.pg-sort-ghost {
+.pg-roster-list.fluent-sortable-list .sortable-ghost {
     opacity: 0.4;
     background: rgba(9, 105, 218, 0.08);
 }
 
-.pg-sort-chosen {
+.pg-roster-list.fluent-sortable-list .sortable-chosen {
     outline: 2px solid #0969da;
     outline-offset: 2px;
 }
@@ -476,12 +507,29 @@ code {
     min-width: 0;
 }
 
+.pg-roster-actions fluent-button {
+    width: 2.25rem;
+    min-width: 2.25rem;
+}
+
 .pg-drag {
     cursor: grab;
     padding: 0.2rem 0.35rem;
     border: 1px solid var(--neutral-stroke-rest, #dee2e6);
     border-radius: 0.375rem;
     user-select: none;
+}
+
+.pg-roster-actions .pg-drag {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem !important;
+    min-height: 2rem;
+    padding: 0;
+    line-height: 1;
 }
 
 .pg-drag:active {
@@ -528,6 +576,191 @@ code {
     color: var(--neutral-foreground-hint, #495057);
 }
 
+.pg-edit-session {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+}
+
+.pg-edit-history {
+    justify-content: flex-end;
+}
+
+.pg-edit-history .pg-history-button {
+    min-width: 8.5rem;
+    --neutral-fill-rest: #e8f0fe;
+    --neutral-fill-hover: #d2e3fc;
+    --neutral-fill-active: #c6dafc;
+    --neutral-foreground-rest: #174ea6;
+}
+
+.pg-edit-fields {
+    gap: 0.35rem;
+}
+
+.pg-action-icon {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.25rem;
+    fill: currentColor;
+    vertical-align: -0.15rem;
+}
+
+.pg-task-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 1rem;
+}
+
+.pg-task-field fluent-button {
+    justify-self: end;
+    width: max-content;
+    max-width: 100%;
+}
+
+.pg-session-legend {
+    justify-content: flex-start;
+    margin: 0.75rem 0 0;
+}
+
+.pg-task-line {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.8fr) minmax(8rem, 1.8fr) minmax(5rem, 0.7fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-task-line > * {
+    min-width: 0;
+}
+
+.pg-task-line .pg-roster-field > fluent-text-input,
+.pg-task-line .pg-roster-field > fluent-number-input,
+.pg-task-line .pg-roster-field > input {
+    width: 100%;
+}
+
+.pg-task-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.pg-session-field {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+}
+
+.pg-session-field.pg-changed,
+.pg-roster-field.pg-changed {
+    background: rgba(130, 80, 223, 0.12);
+}
+
+.pg-session-actions {
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.pg-submit-button {
+    --colorBrandBackground: #218739;
+    --colorBrandBackgroundHover: #1b7430;
+    --colorBrandBackgroundPressed: #155f27;
+    --colorNeutralForegroundOnBrand: #fff;
+}
+
+.pg-session-result {
+    min-height: 100%;
+}
+
+.pg-has-changes-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--neutral-stroke-rest, #dee2e6);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pg-has-changes-badge > span {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.pg-has-changes {
+    background: #fff4ce;
+    color: #6b4f00;
+}
+
+.pg-has-changes > span {
+    background: #b78103;
+}
+
+.pg-no-changes {
+    background: #f1f3f5;
+    color: #6c757d;
+}
+
+.pg-no-changes > span {
+    background: #adb5bd;
+}
+
+.pg-session-result fluent-tabs,
+.pg-session-result .fluent-tabs {
+    display: block;
+    min-height: 23rem;
+}
+
+.pg-edit-log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 12rem;
+    overflow-y: auto;
+}
+
+.pg-edit-log li {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--neutral-stroke-rest, #e9ecef);
+}
+
+.pg-edit-log li.pg-edit-log-empty {
+    display: block;
+    white-space: nowrap;
+}
+
+.pg-edit-log time {
+    color: var(--neutral-foreground-hint, #6c757d);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.pg-edit-log code {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1200px) {
+    .pg-edit-session {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 48rem) {
+    .pg-task-line {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .pg-task-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+}
+
 .pg-monaco {
     width: 100%;
     max-width: 100%;
@@ -546,7 +779,7 @@ code {
 
 /* Fluent tabs: keep the tab strip scroll inside the card, never the page.
    (Fluent renders the strip in shadow DOM; these light-DOM guards constrain
-   the host elements while body overflow-x: clip guarantees no page scroll.) */
+   the host elements while html overflow-x: clip prevents horizontal overflow.) */
 .pg-fluent-card fluent-tabs,
 .pg-fluent-card .fluent-tabs {
     min-width: 0;
@@ -574,6 +807,25 @@ code {
    wrap on narrow screens (flex-wrap only, no display change). */
 fluent-dialog [role="dialog"] {
     max-width: calc(100vw - 2rem);
+}
+
+fluent-dialog::part(dialog) {
+    padding: 1.25rem;
+}
+
+.pg-dialog-heading h3 {
+    margin: 0 0 0.75rem;
+}
+
+.pg-dialog-body p {
+    margin: 0 0 0.75rem;
+}
+
+.pg-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
 }
 
 .pg-grid > .pg-fluent-card {

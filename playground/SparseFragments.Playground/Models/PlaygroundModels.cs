@@ -22,6 +22,9 @@ public partial class PlaygroundSettings
     /// <summary>Gets or sets plugins. Lower and higher layers are concatenated.</summary>
     [SparseMerge(MergeMode.Append)]
     public IReadOnlyList<string> Plugins { get; set; } = [];
+
+    /// <summary>Gets or sets the tasks.</summary>
+    public List<PlaygroundTask> Tasks { get; set; } = [];
 }
 
 /// <summary>Demo nested model edited in the playground.</summary>
@@ -53,6 +56,21 @@ public partial class PlaygroundQuest
     public List<int> Scores { get; set; } = new();
 }
 
+/// <summary>Item edited in section 4.</summary>
+[SparseFragmentModel]
+public partial class PlaygroundTask
+{
+    /// <summary>Gets or sets the stable identity.</summary>
+    [SparseKey]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the title.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the points.</summary>
+    public int Points { get; set; }
+}
+
 /// <summary>Holder for the keyed quest list edited in section 3.</summary>
 [SparseFragmentModel]
 public partial class PlaygroundRoster
@@ -65,8 +83,10 @@ public partial class PlaygroundRoster
 [JsonSerializable(typeof(PlaygroundSettings))]
 [JsonSerializable(typeof(PlaygroundNested))]
 [JsonSerializable(typeof(PlaygroundQuest))]
+[JsonSerializable(typeof(PlaygroundTask))]
 [JsonSerializable(typeof(PlaygroundRoster))]
 [JsonSerializable(typeof(List<PlaygroundQuest>))]
+[JsonSerializable(typeof(List<PlaygroundTask>))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(string))]
