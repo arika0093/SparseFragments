@@ -291,27 +291,42 @@ public sealed class ChangeSemanticsTests
     [Test]
     public void PureReadOnlySetHonorsCustomMembership()
     {
-        // Same letters under a case-insensitive set: no semantic change.
-        var before = new ReadOnlySetTransitionModel
-        {
-            Values = new CaseInsensitiveReadOnlySet(["ABC"]),
-        };
-        var after = new ReadOnlySetTransitionModel
-        {
-            Values = new CaseInsensitiveReadOnlySet(["abc"]),
-        };
-        var same = ReadOnlySetTransitionModel.ChangeSet.Between(before, after).Values;
-        same.Added.ShouldBeEmpty();
-        same.Removed.ShouldBeEmpty();
+        // Manually built fragments retain the original comparer-aware sets.
+        // (Fragment.From normalizes exotic sets to ordinal HashSets, so the
+        // model-level Between cannot preserve a custom comparer.)
+        static Optional<ReadOnlySetTransitionModel.Fragment?> State(IReadOnlySet<string> values) =>
+            Optional<ReadOnlySetTransitionModel.Fragment?>.Present(
+                new ReadOnlySetTransitionModel.Fragment
+                {
+                    Values = Optional<IReadOnlySet<string>>.Present(values),
+                }
+            );
+
+        // Mixed representations of the same logical set: empty changeset and
+        // no deltas. Without the IReadOnlySet membership check this reports a
+        // false removal against its own IsChanged.
+        var mixed = ReadOnlySetTransitionModel.ChangeSet.Between(
+            State(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ABC" }),
+            State(new CaseInsensitiveReadOnlySet(["abc"]))
+        );
+        mixed.IsEmpty.ShouldBeTrue();
+        mixed.Values.Added.ShouldBeEmpty();
+        mixed.Values.Removed.ShouldBeEmpty();
+        mixed.EnumerateChanges().ShouldBeEmpty();
+
+        // Pure custom comparer: deltas follow the collection's own membership.
+        var custom = ReadOnlySetTransitionModel.ChangeSet.Between(
+            State(new CaseInsensitiveReadOnlySet(["ABC"])),
+            State(new CaseInsensitiveReadOnlySet(["abc"]))
+        );
+        custom.Values.Added.ShouldBeEmpty();
+        custom.Values.Removed.ShouldBeEmpty();
 
         // A genuine addition is still reported.
         var added = ReadOnlySetTransitionModel
             .ChangeSet.Between(
-                before,
-                new ReadOnlySetTransitionModel
-                {
-                    Values = new CaseInsensitiveReadOnlySet(["ABC", "new"]),
-                }
+                State(new CaseInsensitiveReadOnlySet(["ABC"])),
+                State(new CaseInsensitiveReadOnlySet(["ABC", "new"]))
             )
             .Values;
         added.Added.ShouldBe(["new"]);
