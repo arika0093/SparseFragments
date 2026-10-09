@@ -326,11 +326,12 @@ internal static class SparseObservableDescriptorEmitter
                 + itemAccessor
                 + "("
                 + path
-                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }"
+                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + "GetItemModel = index => (uint)index >= (uint)items.Count ? null : (object?)items[index]"
             : string.Empty;
         return "() => { var current = this."
             + property
-            + "; if ((object?)current is null) return null; "
+            + "; if ((object?)current is null) return null; var __sparse_captured = current; "
             + "var source = (global::System.Collections.Generic.IEnumerable<"
             + element.Name
             + ">)current; "
@@ -342,7 +343,9 @@ internal static class SparseObservableDescriptorEmitter
             + "> items = live ?? (global::System.Collections.Generic.IReadOnlyList<"
             + element.Name
             + ">)global::System.Linq.Enumerable.ToArray(source); "
-            + "return new "
+            + "return "
+            + dialect.ArrayDescriptorType
+            + ".Guarded(new "
             + dialect.ArrayDescriptorType
             + "(typeof("
             + itemType
@@ -356,7 +359,9 @@ internal static class SparseObservableDescriptorEmitter
             + descriptors
             + " }, typeof("
             + viewType
-            + ")); }";
+            + ")), () => global::System.Object.ReferenceEquals(this."
+            + property
+            + ", __sparse_captured)); }";
     }
 
     private static string ListAccessor(
@@ -369,6 +374,9 @@ internal static class SparseObservableDescriptorEmitter
         var names = SparseObservableEmitter.CollectionNames(member);
         var modelItemType = member.Collection.ElementType.Name;
         var itemAccessorName = AccessorName(member.Collection.ElementType.NonNullableName);
+        var itemViewType = names.HasElementProxy
+            ? names.ViewType.TrimEnd('?')
+            : member.Collection.ElementType.NonNullableName;
         var descriptorChildAccessor = names.HasElementProxy
             ? "GetItemDescriptors = index => { var item = this."
                 + property
@@ -378,6 +386,21 @@ internal static class SparseObservableDescriptorEmitter
                 + path
                 + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
             : string.Empty;
+        // Identity resolver for retained item descriptors: the unwrapped model at
+        // an index, or null when out of range. Guards compare it by reference.
+        var modelResolver = names.HasElementProxy
+            ? "GetItemModel = index => { if ((uint)index >= (uint)this."
+                + property
+                + "!.Count) return null; var view = this."
+                + property
+                + "![index]; return view is null ? null : (object?)(view is "
+                + itemViewType
+                + " proxy ? proxy.__SparseTarget : view); }"
+            : "GetItemModel = index => (uint)index >= (uint)this."
+                + property
+                + "!.Count ? null : (object?)this."
+                + property
+                + "![index]";
         var conversion = ValueConversion(
             "value",
             modelItemType,
@@ -441,7 +464,9 @@ internal static class SparseObservableDescriptorEmitter
             + "!.Move(oldIndex, newIndex); return true; }";
         return "() => this."
             + property
-            + " is null ? null : new "
+            + " is null ? null : "
+            + dialect.ArrayDescriptorType
+            + ".Guarded(new "
             + dialect.ArrayDescriptorType
             + "(typeof("
             + member.Collection.ElementType.NonNullableName
@@ -470,13 +495,15 @@ internal static class SparseObservableDescriptorEmitter
             + insert
             + remove
             + move
+            + ", "
+            + modelResolver
             + " }, typeof("
             + (
                 names.HasElementProxy
                     ? names.ViewType.TrimEnd('?')
                     : member.Collection.ElementType.NonNullableName
             )
-            + "))";
+            + ")), static () => true)";
     }
 
     /// <summary>Emits a read-only dictionary descriptor for sorted/read-only shapes.</summary>
