@@ -105,6 +105,26 @@ The contract rules:
 
 A member can carry both a merge strategy and a rebase policy. The strategy keeps owning `Merge`; the policy takes precedence for that member during rebase (see [ChangeSet rebase](rebase.md#rebase-policies)). A policy without any strategy needs no merge configuration at all.
 
+## Inspecting Value Origins
+
+A fragment can carry an optional origin label for inspection, for example to show which configuration layer supplied each effective value. Pass it at construction; the parameterless constructor keeps working and means Unknown:
+
+```csharp
+var defaults = new Settings.Fragment("defaults") { Label = "base" };
+var tenant = new Settings.Fragment("tenant") { Label = "custom" };
+
+var effective = defaults.Merge(tenant);
+var labelOrigin = effective.GetOrigin(Settings.SparsePath.Label); // "tenant"
+```
+
+`Merge` propagates attribution with the same rules as values. Replacement members take the winning side, deep merges attribute each leaf, `Append` tracks element ranges, and `SetUnion` attributes each surviving element to its first contributor under the member comparer. A present `null` counts as an attributed reset from the side that set it. Members with a custom strategy report Unknown. Nested fragments inherit the enclosing default unless they name their own origin, which then wins for their subtree.
+
+Read the effective state with `GetOrigin` (null for Unknown or absent paths), `TryGetOrigin` (separate the two cases), `EnumerateOrigins` (one entry per attributable value, with element entries such as `Plugins[0]` for tracked collections), `GetByOrigin` (read-only projection for one origin), and `SplitByOrigin` (per-origin projections in first-seen order). Member-level reads over mixed collections or deep-merged children report Unknown; read their elements or leaves for precise attribution.
+
+Grouping is lossy by design. Overwritten lower-priority values survive in no group, and regrouping never reconstructs the original layers. Origins stay out of the semantic state: equality, `Diff`, `ChangeSet` creation, Patch operations, and the wire format ignore them. Applying a `Patch` resets attribution to Unknown because patch operations carry no origin metadata.
+
+Paths are the canonical `SparsePath` values: use the typed per-model navigation (`Settings.SparsePath.Theme`, `Settings.SparsePath.Nested.Host`) or parse the wire text (`SparsePath.Parse<Settings>("Child.Host")`, `SparsePath.Parse<Settings>("Tags[0]")`). The query signatures take `SparsePath`, so typed paths bind without further changes.
+
 ## Semantic Equality with [SparseCompare]
 
 `MergeMode` decides how present values combine; `[SparseCompare]` decides when two values count as equal. Place it on a fragment model or once per assembly:

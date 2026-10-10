@@ -16,7 +16,8 @@ internal sealed class SparseFragmentMergeEmitter
         string mergeStrategyFieldPrefix,
         string referenceComparer,
         SparseFragmentExpressions expressions,
-        string fieldQualifier = ""
+        string fieldQualifier = "",
+        SparseFragmentOriginEmitter? originEmitter = null
     )
     {
         Optional = optional;
@@ -24,9 +25,12 @@ internal sealed class SparseFragmentMergeEmitter
         ReferenceComparer = referenceComparer;
         Expressions = expressions;
         FieldQualifier = fieldQualifier;
+        Origins = originEmitter;
     }
 
     private string FieldQualifier { get; }
+
+    private SparseFragmentOriginEmitter? Origins { get; }
 
     private string MergeStrategyField(SparseMemberModel member) =>
         FieldQualifier
@@ -41,7 +45,8 @@ internal sealed class SparseFragmentMergeEmitter
     {
         // Stage 4 (#193): with an operations target the surface keeps a
         // one-line facade; the algorithm body moves to the operations class
-        // with an explicit receiver.
+        // with an explicit receiver. Origin fallbacks follow separately via
+        // AppendOriginFallbackFacades so public facades precede internals.
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -59,6 +64,7 @@ internal sealed class SparseFragmentMergeEmitter
                     + operationsType
                     + ".Merge(this, higherPriority);"
             );
+
             return;
         }
         var hasCustomMergeStrategy = false;
@@ -81,29 +87,152 @@ internal sealed class SparseFragmentMergeEmitter
             }
         }
 
+        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
+        if (Origins is null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Merges a higher-priority fragment over this fragment.</summary>"
+            );
+            if (isOperationsBody)
+            {
+                code.AppendLineAt(
+                    2,
+                    "/// <param name=\"self\">The lower-priority fragment.</param>"
+                );
+            }
+
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"higherPriority\">The higher-priority contribution.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The merged fragment.</returns>");
+            if (isOperationsBody)
+                code.AppendLineAt(
+                    2,
+                    "public static Fragment Merge(Fragment self, Fragment higherPriority)"
+                );
+            else
+                code.AppendLineAt(2, "public Fragment Merge(Fragment higherPriority)");
+            code.AppendLineAt(2, "{");
+            if (isOperationsBody)
+                SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "higherPriority");
+            AppendMergeFastPaths(code, members, receiver, hasCustomMergeStrategy, replaceOnly);
+            code.AppendLineAt(3, "return new Fragment");
+            code.AppendLineAt(3, "{");
+            for (var index = 0; index < members.Length; index++)
+            {
+                var name = SparseNaming.EscapeIdentifier(members[index].Property.Name);
+                code.AppendIndent(4)
+                    .Append(name)
+                    .Append(" = ")
+                    .Append(BuildMergeValueExpression(members[index], receiver, index))
+                    .AppendLine(",");
+            }
+
+            code.AppendLineAt(3, "};");
+            code.AppendLineAt(2, "}");
+            code.AppendLine();
+            return;
+        }
+
+        if (isOperationsBody)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Merges a higher-priority fragment over this fragment.</summary>"
+            );
+            code.AppendLineAt(2, "/// <param name=\"self\">The lower-priority fragment.</param>");
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"higherPriority\">The higher-priority contribution.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"selfFallback\">The fallback origin for the lower contribution.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"higherFallback\">The fallback origin for the higher contribution.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The merged fragment.</returns>");
+            code.AppendLineAt(
+                2,
+                "public static Fragment Merge(Fragment self, Fragment higherPriority, string? selfFallback = null, string? higherFallback = null)"
+            );
+            code.AppendLineAt(2, "{");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "higherPriority");
+            AppendMergeFastPaths(code, members, receiver, hasCustomMergeStrategy, replaceOnly);
+            SparseFragmentMergeOriginEmitter.AppendMergeWithOrigins(
+                code,
+                members,
+                receiver,
+                BuildMergeValueExpression,
+                Origins
+            );
+            code.AppendLineAt(2, "}");
+            code.AppendLine();
+            return;
+        }
+
         code.AppendLineAt(
             2,
             "/// <summary>Merges a higher-priority fragment over this fragment.</summary>"
         );
-        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
-        if (isOperationsBody)
-            code.AppendLineAt(2, "/// <param name=\"self\">The lower-priority fragment.</param>");
         code.AppendLineAt(
             2,
             "/// <param name=\"higherPriority\">The higher-priority contribution.</param>"
         );
         code.AppendLineAt(2, "/// <returns>The merged fragment.</returns>");
-        if (isOperationsBody)
-            code.AppendLineAt(
-                2,
-                "public static Fragment Merge(Fragment self, Fragment higherPriority)"
-            );
-        else
-            code.AppendLineAt(2, "public Fragment Merge(Fragment higherPriority)");
+        code.AppendLineAt(
+            2,
+            "public Fragment Merge(Fragment higherPriority) => __SparseMergeWithFallback(higherPriority, null, null);"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Merges with explicit fallback origins for nested attribution.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"higherPriority\">The higher-priority contribution.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"selfFallback\">The fallback origin for this contribution.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"higherFallback\">The fallback origin for the higher contribution.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The merged fragment.</returns>");
+        code.AppendLineAt(
+            2,
+            "internal Fragment __SparseMergeWithFallback(Fragment higherPriority, string? selfFallback, string? higherFallback)"
+        );
         code.AppendLineAt(2, "{");
-        if (isOperationsBody)
-            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
         SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "higherPriority");
+        AppendMergeFastPaths(code, members, receiver, hasCustomMergeStrategy, replaceOnly);
+        SparseFragmentMergeOriginEmitter.AppendMergeWithOrigins(
+            code,
+            members,
+            receiver,
+            BuildMergeValueExpression,
+            Origins
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+    }
+
+    private static void AppendMergeFastPaths(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string receiver,
+        bool hasCustomMergeStrategy,
+        bool replaceOnly
+    )
+    {
         if (!hasCustomMergeStrategy)
         {
             code.AppendLineAt(3, "if (higherPriority.IsEmpty)");
@@ -136,48 +265,47 @@ internal sealed class SparseFragmentMergeEmitter
             code.AppendLineAt(4, "return higherPriority;");
             code.AppendLineAt(3, "}");
         }
+    }
 
-        code.AppendLineAt(3, "return new Fragment");
-        code.AppendLineAt(3, "{");
-        foreach (var member in members)
+    private string BuildMergeValueExpression(
+        SparseMemberModel member,
+        string receiver,
+        int position
+    )
+    {
+        var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+        var lower = receiver + name;
+        var higher = "higherPriority." + name;
+        if (member.MergeStrategyType is not null)
         {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var lower = receiver + name;
-            var higher = "higherPriority." + name;
-            string expression;
-            if (member.MergeStrategyType is not null)
-            {
-                expression = $"{MergeStrategyField(member)}.Merge({lower}, {higher})";
-            }
-            else if (SparseMergeModes.IsDeepMerge(member.MergeMode, member.ChildModel is not null))
-            {
-                // Default resolves shape-aware: nested models deep-merge,
-                // otherwise whole-value replacement below. Missing high
-                // preserves low; present null replaces; non-null merges.
-                expression =
-                    $"{higher}.IsPresent ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present(({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null) ? {lower}.Value!.Merge({higher}.Value!) : {higher}.Value) : {lower}";
-            }
-            else if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
-            {
-                var merged = Expressions.BuildCollectionMerge(
-                    member,
-                    lower + ".Value!",
-                    higher + ".Value!"
-                );
-                expression =
-                    $"{higher}.IsPresent ? ({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present({merged}) : {higher}) : {lower}";
-            }
-            else
-            {
-                expression = $"{higher}.IsPresent ? {higher} : {lower}";
-            }
-
-            code.AppendIndent(4).Append(name).Append(" = ").Append(expression).AppendLine(",");
+            return $"{MergeStrategyField(member)}.Merge({lower}, {higher})";
         }
 
-        code.AppendLineAt(3, "};");
-        code.AppendLineAt(2, "}");
-        code.AppendLine();
+        if (SparseMergeModes.IsDeepMerge(member.MergeMode, member.ChildModel is not null))
+        {
+            // Default resolves shape-aware: nested models deep-merge,
+            // otherwise whole-value replacement below. Missing high
+            // preserves low; present null replaces; non-null merges.
+            // With origins, nested fragments inherit the enclosing default
+            // through the fallback seam unless explicitly originated.
+            var merge =
+                Origins is not null && SparseFragmentOriginEmitter.IsFragmentDeep(member)
+                    ? $"{lower}.Value!.__SparseMergeWithFallback({higher}.Value!, {SparseFragmentOriginEmitter.MemberAttribution(receiver, position, "selfFallback")}, {SparseFragmentOriginEmitter.MemberAttribution("higherPriority.", position, "higherFallback")})"
+                    : $"{lower}.Value!.Merge({higher}.Value!)";
+            return $"{higher}.IsPresent ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present(({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null) ? {merge} : {higher}.Value) : {lower}";
+        }
+
+        if (member.MergeMode is SparseMergeModes.Append or SparseMergeModes.SetUnion)
+        {
+            var merged = Expressions.BuildCollectionMerge(
+                member,
+                lower + ".Value!",
+                higher + ".Value!"
+            );
+            return $"{higher}.IsPresent ? ({lower}.IsPresent && (object?){lower}.Value is not null && (object?){higher}.Value is not null ? {Optional}<{SparseFragmentEmitHelpers.FragmentValueType(member)}>.Present({merged}) : {higher}) : {lower}";
+        }
+
+        return $"{higher}.IsPresent ? {higher} : {lower}";
     }
 
     public void AppendApplyChanges(
@@ -201,44 +329,174 @@ internal sealed class SparseFragmentMergeEmitter
                     + operationsType
                     + ".ApplyChanges(this, changes);"
             );
+
             return;
         }
+
+        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
+        if (Origins is null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies a sparse semantic diff to this contribution.</summary>"
+            );
+            if (isOperationsBody)
+            {
+                code.AppendLineAt(2, "/// <param name=\"self\">The fragment to update.</param>");
+            }
+
+            code.AppendLineAt(2, "/// <param name=\"changes\">The diff to apply.</param>");
+            code.AppendLineAt(2, "/// <returns>The fragment with the diff applied.</returns>");
+            if (isOperationsBody)
+                code.AppendLineAt(
+                    2,
+                    "public static Fragment ApplyChanges(Fragment self, Fragment changes)"
+                );
+            else
+                code.AppendLineAt(2, "public Fragment ApplyChanges(Fragment changes)");
+            code.AppendLineAt(2, "{");
+            if (isOperationsBody)
+                SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "changes");
+            code.AppendLineAt(3, "return new Fragment");
+            code.AppendLineAt(3, "{");
+            for (var index = 0; index < members.Length; index++)
+            {
+                var name = SparseNaming.EscapeIdentifier(members[index].Property.Name);
+                code.AppendIndent(4)
+                    .Append(name)
+                    .Append(" = ")
+                    .Append(BuildApplyValueExpression(members[index], receiver, index))
+                    .AppendLine(",");
+            }
+
+            code.AppendLineAt(3, "};");
+            code.AppendLineAt(2, "}");
+            code.AppendLine();
+            return;
+        }
+
+        if (isOperationsBody)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Applies a sparse semantic diff to this contribution.</summary>"
+            );
+            code.AppendLineAt(2, "/// <param name=\"self\">The fragment to update.</param>");
+            code.AppendLineAt(2, "/// <param name=\"changes\">The diff to apply.</param>");
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"selfFallback\">The fallback origin for the updated fragment.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"changesFallback\">The fallback origin for the diff.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The fragment with the diff applied.</returns>");
+            code.AppendLineAt(
+                2,
+                "public static Fragment ApplyChanges(Fragment self, Fragment changes, string? selfFallback = null, string? changesFallback = null)"
+            );
+            code.AppendLineAt(2, "{");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "changes");
+            SparseFragmentMergeOriginEmitter.AppendApplyChangesWithOrigins(
+                code,
+                members,
+                receiver,
+                BuildApplyValueExpression
+            );
+            code.AppendLineAt(2, "}");
+            code.AppendLine();
+            return;
+        }
+
         code.AppendLineAt(
             2,
             "/// <summary>Applies a sparse semantic diff to this contribution.</summary>"
         );
-        var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
-        if (isOperationsBody)
-            code.AppendLineAt(2, "/// <param name=\"self\">The fragment to update.</param>");
         code.AppendLineAt(2, "/// <param name=\"changes\">The diff to apply.</param>");
         code.AppendLineAt(2, "/// <returns>The fragment with the diff applied.</returns>");
-        if (isOperationsBody)
-            code.AppendLineAt(
-                2,
-                "public static Fragment ApplyChanges(Fragment self, Fragment changes)"
-            );
-        else
-            code.AppendLineAt(2, "public Fragment ApplyChanges(Fragment changes)");
+        code.AppendLineAt(
+            2,
+            "public Fragment ApplyChanges(Fragment changes) => __SparseApplyChangesWithFallback(changes, null, null);"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies a diff with explicit fallback origins for nested attribution.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"changes\">The diff to apply.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"selfFallback\">The fallback origin for the updated fragment.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"changesFallback\">The fallback origin for the diff.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The fragment with the diff applied.</returns>");
+        code.AppendLineAt(
+            2,
+            "internal Fragment __SparseApplyChangesWithFallback(Fragment changes, string? selfFallback, string? changesFallback)"
+        );
         code.AppendLineAt(2, "{");
-        if (isOperationsBody)
-            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "self");
         SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "changes");
-        code.AppendLineAt(3, "return new Fragment");
-        code.AppendLineAt(3, "{");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            var type = SparseFragmentEmitHelpers.FragmentValueType(member);
-            var self = receiver + name;
-            var expression = member.ChildModel is null
-                ? $"changes.{name}.IsPresent ? changes.{name} : {self}"
-                : $"changes.{name}.IsPresent ? {Optional}<{type}>.Present(({self}.IsPresent && (object?){self}.Value is not null && (object?)changes.{name}.Value is not null) ? {self}.Value!.ApplyChanges(changes.{name}.Value!) : changes.{name}.Value) : {self}";
-            code.AppendIndent(4).Append(name).Append(" = ").Append(expression).AppendLine(",");
-        }
-
-        code.AppendLineAt(3, "};");
+        SparseFragmentMergeOriginEmitter.AppendApplyChangesWithOrigins(
+            code,
+            members,
+            receiver,
+            BuildApplyValueExpression
+        );
         code.AppendLineAt(2, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Emits the internal origin-fallback facades for split emission.</summary>
+    /// <remarks>Called with the internal caches so public facades precede them.</remarks>
+    /// <param name="code">Surface target builder.</param>
+    /// <param name="operationsType">Operations class qualifier.</param>
+    public void AppendOriginFallbackFacades(SharedIndentedBuilder code, string operationsType)
+    {
+        if (Origins is null)
+        {
+            return;
+        }
+
+        code.AppendLineAt(
+            2,
+            "internal Fragment __SparseMergeWithFallback(Fragment higherPriority, string? selfFallback, string? higherFallback) => "
+                + operationsType
+                + ".Merge(this, higherPriority, selfFallback, higherFallback);"
+        );
+        code.AppendLineAt(
+            2,
+            "internal Fragment __SparseApplyChangesWithFallback(Fragment changes, string? selfFallback, string? changesFallback) => "
+                + operationsType
+                + ".ApplyChanges(this, changes, selfFallback, changesFallback);"
+        );
+    }
+
+    private string BuildApplyValueExpression(
+        SparseMemberModel member,
+        string receiver,
+        int position
+    )
+    {
+        var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+        var type = SparseFragmentEmitHelpers.FragmentValueType(member);
+        var self = receiver + name;
+        if (member.ChildModel is null)
+        {
+            return $"changes.{name}.IsPresent ? changes.{name} : {self}";
+        }
+
+        // With origins, nested fragments inherit the enclosing default
+        // through the fallback seam unless explicitly originated.
+        var apply =
+            Origins is not null && SparseFragmentOriginEmitter.IsFragmentDeep(member)
+                ? $"{self}.Value!.__SparseApplyChangesWithFallback(changes.{name}.Value!, {SparseFragmentOriginEmitter.MemberAttribution(receiver, position, "selfFallback")}, {SparseFragmentOriginEmitter.MemberAttribution("changes.", position, "changesFallback")})"
+                : $"{self}.Value!.ApplyChanges(changes.{name}.Value!)";
+        return $"changes.{name}.IsPresent ? {Optional}<{type}>.Present(({self}.IsPresent && (object?){self}.Value is not null && (object?)changes.{name}.Value is not null) ? {apply} : changes.{name}.Value) : {self}";
     }
 
     public void AppendDiff(

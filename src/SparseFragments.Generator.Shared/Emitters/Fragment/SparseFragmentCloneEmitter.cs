@@ -11,18 +11,21 @@ internal sealed class SparseFragmentCloneEmitter
     private string CloneContext { get; }
     private string ReferenceComparer { get; }
     private SparseFragmentExpressions Expressions { get; }
+    private SparseFragmentOriginEmitter? Origins { get; }
 
     public SparseFragmentCloneEmitter(
         string optional,
         string cloneContext,
         string referenceComparer,
-        SparseFragmentExpressions expressions
+        SparseFragmentExpressions expressions,
+        SparseFragmentOriginEmitter? originEmitter = null
     )
     {
         Optional = optional;
         CloneContext = cloneContext;
         ReferenceComparer = referenceComparer;
         Expressions = expressions;
+        Origins = originEmitter;
     }
 
     public void AppendDeepClone(
@@ -571,12 +574,21 @@ internal sealed class SparseFragmentCloneEmitter
         }
         else
         {
-            code.AppendLineAt(3, "return new Fragment");
+            code.AppendLineAt(
+                3,
+                Origins is null ? "return new Fragment" : "return new Fragment(this.Origin)"
+            );
             code.AppendLineAt(3, "{");
             foreach (var member in members)
             {
                 var name = SparseNaming.EscapeIdentifier(member.Property.Name);
                 code.AppendLineAt(4, name + " = this." + name + ",");
+            }
+
+            if (Origins is not null)
+            {
+                code.AppendLineAt(4, "__SparseMemberOrigins = this.__SparseMemberOrigins,");
+                code.AppendLineAt(4, "__SparseElementOrigins = this.__SparseElementOrigins,");
             }
 
             code.AppendLineAt(3, "};");
@@ -639,6 +651,13 @@ internal sealed class SparseFragmentCloneEmitter
             .AppendLine(")");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, CloneContext + ".Add(source, this);");
+        if (Origins is not null)
+        {
+            code.AppendLineAt(3, "this.Origin = source.Origin;");
+            code.AppendLineAt(3, "this.__SparseMemberOrigins = source.__SparseMemberOrigins;");
+            code.AppendLineAt(3, "this.__SparseElementOrigins = source.__SparseElementOrigins;");
+        }
+
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);

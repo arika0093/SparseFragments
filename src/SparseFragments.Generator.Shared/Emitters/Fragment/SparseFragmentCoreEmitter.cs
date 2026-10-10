@@ -15,6 +15,7 @@ internal sealed class SparseFragmentCoreEmitter
     private readonly SparseFragmentConversionEmitter _conversion;
     private readonly SparseFragmentMergeEmitter _merge;
     private readonly SparseFragmentCloneEmitter _clone;
+    private readonly SparseFragmentOriginEmitter? _origins;
 
     public SparseFragmentCoreEmitter(
         string optional,
@@ -23,19 +24,27 @@ internal sealed class SparseFragmentCoreEmitter
         string referenceComparer,
         SparseFragmentExpressions expressions,
         string? rebasePolicyFieldPrefix = null,
-        string fieldQualifier = ""
+        string fieldQualifier = "",
+        SparseFragmentOriginEmitter? originEmitter = null
     )
     {
-        _declaration = new(optional, mergeStrategyFieldPrefix, rebasePolicyFieldPrefix);
+        _declaration = new(
+            optional,
+            mergeStrategyFieldPrefix,
+            rebasePolicyFieldPrefix,
+            originEmitter
+        );
         _conversion = new(optional, cloneContext, referenceComparer, expressions);
         _merge = new(
             optional,
             mergeStrategyFieldPrefix,
             referenceComparer,
             expressions,
-            fieldQualifier
+            fieldQualifier,
+            originEmitter
         );
-        _clone = new(optional, cloneContext, referenceComparer, expressions);
+        _clone = new(optional, cloneContext, referenceComparer, expressions, originEmitter);
+        _origins = originEmitter;
     }
 
     public static bool RequiresPortableSetView(
@@ -354,4 +363,21 @@ internal sealed class SparseFragmentCoreEmitter
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
     ) => _clone.AppendFragmentClonePrivateCtor(code, members);
+
+    public void AppendOriginOperations(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string modelType
+    ) => _origins?.AppendOriginOperations(code, members, modelType);
+
+    public void AppendOriginStorage(SharedIndentedBuilder code)
+    {
+        if (_origins is not null)
+        {
+            SparseFragmentOriginEmitter.AppendOriginStorage(code);
+        }
+    }
+
+    public void AppendOriginFallbackFacades(SharedIndentedBuilder code, string operationsType) =>
+        _merge.AppendOriginFallbackFacades(code, operationsType);
 }

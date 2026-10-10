@@ -82,6 +82,17 @@ namespace SparseFragments
         public static SparseFragments.FragmentOperation<T> Set(T? value) { }
         public static SparseFragments.FragmentOperation<T> op_Implicit(T? value) { }
     }
+    public readonly struct FragmentOriginEntry : System.IEquatable<SparseFragments.FragmentOriginEntry>
+    {
+        public string? Origin { get; init; }
+        public SparseFragments.SparsePath Path { get; init; }
+    }
+    public readonly struct FragmentOriginGroup<TFragment> : System.IEquatable<SparseFragments.FragmentOriginGroup<TFragment>>
+    {
+        public FragmentOriginGroup(string? origin, TFragment fragment) { }
+        public TFragment Fragment { get; init; }
+        public string? Origin { get; init; }
+    }
     public abstract class FragmentRebasePolicy<T>
     {
         protected FragmentRebasePolicy() { }
@@ -521,9 +532,12 @@ namespace SparseFragments.CompilerServices
         public static void EnsureUniqueKeys<TKey>(System.Collections.Generic.IEnumerable<TKey> keys, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static bool KeyOrderEquals<TKey>(System.Collections.Generic.IReadOnlyList<TKey> left, System.Collections.Generic.IReadOnlyList<TKey> right, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static System.Collections.Generic.List<T> MergeAppendList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static string?[] MergeAppendOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback) { }
         public static T[] MergeDistinctArray<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static System.Collections.Generic.List<T> MergeDistinctList<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
+        public static string?[] MergeSetOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEnumerable<T> effective) { }
+        public static string?[] MergeSetUnionOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEqualityComparer<T>? comparer) { }
         public static bool TryExplainCollectionProvenance<T>(SparseFragments.MergeMode mode, System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?> effective, System.Collections.Generic.IEqualityComparer<T>? comparer, out int[] origins, out string? reason) { }
         public static bool TryExplainSetProvenance<T>(System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?> effective, out int[] origins, out string? reason) { }
         public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }

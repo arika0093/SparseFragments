@@ -68,6 +68,10 @@ internal static class SparseFragmentOperationsEmitter
         );
         operationsCore.AppendMerge(code, members, receiver: "self.");
         operationsCore.AppendApplyChanges(code, members, receiver: "self.");
+        // Origin queries are public surface; they precede Diff so the
+        // public-first order (public ops, internal bridges, private Diff
+        // helpers) holds when origins are enabled.
+        operationsCore.AppendOriginOperations(code, members, modelType);
         operationsCore.AppendDiffPublicBody(code, modelType, members, modelIsReferenceType);
         operationsCore.AppendDeepCloneOperationsPublic(
             code,

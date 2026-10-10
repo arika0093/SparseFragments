@@ -175,6 +175,8 @@ internal static class SparseFragmentSurfaceOrderingEmitter
             SparseFragmentPatchEmitter.GetRebasePolicyType(patchDialect),
             patchDialect.RebasePolicyField
         );
+        core.AppendOriginStorage(code);
+        core.AppendOriginFallbackFacades(code, operationsType);
         SparseFragmentCoreEmitter.AppendFromModelInternalFacade(code, modelType, operationsType);
         SparseFragmentCoreEmitter.AppendDiffInternalFacade(code, modelType, operationsType);
         core.AppendFragmentCloneInternalMethod(code);

@@ -667,7 +667,11 @@ internal static class SparseCollectionProvenance
         return null;
     }
 
-    private static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)
+    /// <summary>Discovers the comparer carried by a set-shaped value, if any.</summary>
+    /// <remarks>Shared with live origin attribution so set-union membership and
+    /// set-union attribution agree on equality.</remarks>
+    /// <param name="value">The set-shaped value.</param>
+    internal static IEqualityComparer<T>? TryGetSetComparer<T>(IEnumerable<T> value)
     {
         if (value is HashSet<T> hashSet)
         {

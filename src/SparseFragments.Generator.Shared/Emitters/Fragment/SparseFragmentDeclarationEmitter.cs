@@ -7,11 +7,14 @@ namespace SparseFragments.Generator.Shared;
 internal sealed class SparseFragmentDeclarationEmitter(
     string optional,
     string mergeStrategyFieldPrefix,
-    string? rebasePolicyFieldPrefix = null
+    string? rebasePolicyFieldPrefix = null,
+    SparseFragmentOriginEmitter? originEmitter = null
 )
 {
     private string Optional { get; } = optional;
     private string MergeStrategyFieldPrefix { get; } = mergeStrategyFieldPrefix;
+
+    private SparseFragmentOriginEmitter? OriginEmitter { get; } = originEmitter;
 
     public string MergeStrategyField(SparseMemberModel member) =>
         SparseFragmentEmitHelpers.MergeStrategyField(MergeStrategyFieldPrefix, member);
@@ -197,12 +200,26 @@ internal sealed class SparseFragmentDeclarationEmitter(
         code.AppendLineAt(2, "public FragmentBuilder() { }");
         code.AppendLineAt(2, "/// <summary>Builds the staged fragment.</summary>");
         code.AppendLineAt(2, "/// <returns>The built fragment.</returns>");
-        code.AppendLineAt(2, "public Fragment Build() => new()");
+        if (OriginEmitter is null)
+        {
+            code.AppendLineAt(2, "public Fragment Build() => new()");
+        }
+        else
+        {
+            code.AppendLineAt(2, "public Fragment Build() => new(__sparse_origin)");
+        }
+
         code.AppendLineAt(2, "{");
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             code.AppendIndent(3).Append(name).Append(" = ").Append(name).AppendLine(",");
+        }
+
+        if (OriginEmitter is not null)
+        {
+            code.AppendLineAt(3, "__SparseMemberOrigins = __sparse_member_origins,");
+            code.AppendLineAt(3, "__SparseElementOrigins = __sparse_element_origins,");
         }
 
         code.AppendLineAt(2, "};");
@@ -212,6 +229,11 @@ internal sealed class SparseFragmentDeclarationEmitter(
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             code.AppendIndent(3).Append(name).Append(" = fragment.").Append(name).AppendLine(";");
+        }
+
+        if (OriginEmitter is not null)
+        {
+            SparseFragmentOriginEmitter.AppendBuilderCapture(code);
         }
 
         code.AppendLineAt(2, "}");
@@ -226,6 +248,11 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .Append("> ")
                 .Append(field)
                 .AppendLine(";");
+        }
+
+        if (OriginEmitter is not null)
+        {
+            SparseFragmentOriginEmitter.AppendBuilderFields(code);
         }
         code.AppendLineAt(1, "}");
     }

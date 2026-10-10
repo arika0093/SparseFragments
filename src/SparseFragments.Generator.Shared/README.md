@@ -140,11 +140,26 @@ path and resolve through the desired key list.
 `SparseEmissionFeatures` selects which generated families appear for a model:
 `Fragment`, `Patch`, `ChangeSet`, `ChangePayload`, `Observable`, and JSON
 converters. Set it on `SparseGeneratorConfig.EmissionFeatures`. The standalone
-default emits every family; downstream products opt out explicitly so unused
-public APIs are not generated. Selections are validated before emission:
+default emits every family except fragment origins; downstream products opt out
+explicitly so unused public APIs are not generated. Selections are validated before emission:
 a patch requires its fragment, a change set requires its patch, and a payload
 requires its change set. `GetEmittedTypeNames` lists the family root names used
 for collision checks.
+
+`EmitFragmentOrigins` stays opt-in because it names runtime contracts a
+downstream product may not carry. When enabled, fragments gain an optional
+origin (`new Fragment(origin)`, null means Unknown), ordinary `Merge` and
+`ApplyChanges` propagate attribution by the existing merge rules, and the
+effective values can be read back with `GetOrigin`/`TryGetOrigin`,
+`EnumerateOrigins`, `GetByOrigin`, and `SplitByOrigin` over the caller-owned
+path type (the same `SparsePath` contract used by `ChangeSet`, so typed
+per-model navigation binds without extra holders). Nested fragments inherit
+the enclosing default unless explicitly originated; custom strategies report
+Unknown. Origins never affect equality, `Diff`, Patch/ChangeSet creation, or
+the wire format. A downstream runtime that enables this family provides
+`FragmentOriginEntry`, `FragmentOriginGroup<TFragment>`, and the
+`MergeAppendOrigins`/`MergeSetUnionOrigins`/`MergeSetOrigins` helpers on its
+collection-merger facade.
 
 When a model emits a `ChangeSet`, it also exposes `EnumerateChanges()`, which
 flattens nested, keyed, and dictionary transitions into `ChangeInfo` entries

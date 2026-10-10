@@ -82,6 +82,7 @@ Provenance (behind `SparseCollectionProvenance`):
 | Member | Generated call sites | Decision |
 | --- | --- | --- |
 | `TryExplainCollectionProvenance`, `TryExplainSetProvenance` | Merge/provenance paths | Runtime: generic over contribution lists (C3); largest relocation candidate by size if #178 scopes it compilation-local |
+| `MergeAppendOrigins`, `MergeSetUnionOrigins`, `MergeSetOrigins` | Fragment merge paths with origin tracking (issue #204) | Runtime: single-pass live counterpart to the post-hoc explanation; set comparer discovery is shared with `SparseCollectionProvenance` so membership and attribution agree |
 
 ## Family review
 

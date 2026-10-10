@@ -1300,19 +1300,26 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>> Details { get; init; }
             public bool IsEmpty { get; }
+            public string? Origin { get; }
             public SparseFragments.Optional<System.Collections.Generic.Dictionary<string, int>> Scores { get; init; }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries ToModel(SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogDictionaries before, SparseFragments.GeneratedApiFixtures.CatalogDictionaries after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogDictionaries value) { }
@@ -1505,20 +1512,27 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<int> Count { get; init; }
             public bool IsEmpty { get; }
             public SparseFragments.Optional<string> Name { get; init; }
+            public string? Origin { get; }
             public SparseFragments.Optional<int[]?> Tags { get; init; }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable ToModel(SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogImmutable before, SparseFragments.GeneratedApiFixtures.CatalogImmutable after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogImmutable value) { }
         }
@@ -1670,20 +1684,27 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<int> Count { get; init; }
             public SparseFragments.Optional<string> Id { get; init; }
             public bool IsEmpty { get; }
+            public string? Origin { get; }
             public SparseFragments.Optional<string> Title { get; init; }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem ToModel(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem before, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem value) { }
@@ -1842,18 +1863,25 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public bool IsEmpty { get; }
             public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>> Items { get; init; }
+            public string? Origin { get; }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster ToModel(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster before, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster value) { }
@@ -2042,6 +2070,7 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> Child { get; init; }
             public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> Children { get; init; }
             public bool IsEmpty { get; }
@@ -2049,16 +2078,22 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogPoco?> Metadata { get; init; }
             public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> MetadataByKey { get; init; }
             public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>> MetadataItems { get; init; }
+            public string? Origin { get; }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogNested.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested ToModel(SparseFragments.GeneratedApiFixtures.CatalogNested baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogNested model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogNested before, SparseFragments.GeneratedApiFixtures.CatalogNested after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogNested value) { }
@@ -2234,21 +2269,28 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<string> ChangeInfo { get; init; }
             public SparseFragments.Optional<string> ChangeKind { get; init; }
             public SparseFragments.Optional<string> EnumerateChangedPaths { get; init; }
             public SparseFragments.Optional<string> EnumerateChanges { get; init; }
             public bool IsEmpty { get; }
+            public string? Origin { get; }
             public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration ToModel(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration before, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration value) { }
@@ -2424,22 +2466,29 @@ namespace SparseFragments.GeneratedApiFixtures
         public sealed class Fragment
         {
             public Fragment() { }
+            public Fragment(string? origin) { }
             public SparseFragments.Optional<int> Count { get; init; }
             public bool IsEmpty { get; }
             public SparseFragments.Optional<System.Collections.Generic.ISet<string>> Labels { get; init; }
             public SparseFragments.Optional<string> Name { get; init; }
             public SparseFragments.Optional<string?> Note { get; init; }
+            public string? Origin { get; }
             public SparseFragments.Optional<int?> Retry { get; init; }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Empty { get; }
             public static System.Text.Json.Serialization.JsonConverter<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment> JsonConverter { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Apply(SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment ApplyChanges(SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment changes) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment DeepClone() { }
+            public System.Collections.Generic.IEnumerable<SparseFragments.FragmentOriginEntry> EnumerateOrigins() { }
+            public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment GetByOrigin(string? origin) { }
+            public string? GetOrigin(SparseFragments.SparsePath path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Merge(SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment higherPriority) { }
+            public System.Collections.Generic.IReadOnlyList<SparseFragments.FragmentOriginGroup<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment>> SplitByOrigin() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.FragmentBuilder ToBuilder() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar ToModel() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar ToModel(SparseFragments.GeneratedApiFixtures.CatalogScalar baseline) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
+            public bool TryGetOrigin(SparseFragments.SparsePath path, out string? origin) { }
             public void WriteTo(SparseFragments.GeneratedApiFixtures.CatalogScalar model) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment Diff(SparseFragments.GeneratedApiFixtures.CatalogScalar before, SparseFragments.GeneratedApiFixtures.CatalogScalar after) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment From(SparseFragments.GeneratedApiFixtures.CatalogScalar value) { }

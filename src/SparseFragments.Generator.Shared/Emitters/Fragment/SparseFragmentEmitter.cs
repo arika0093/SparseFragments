@@ -310,13 +310,15 @@ internal static class SparseFragmentEmitter
             memberFieldQualifier: "",
             pocoHelperQualifier: operationsType is null ? "" : operationsType + "."
         );
+        var originEmitter = SparseFragmentOriginEmitter.TryCreate(features, runtime, patchDialect);
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
             runtime.MergeStrategyFieldPrefix,
             "__sparse_clone_context",
             runtime.ReferenceComparer,
             expressions,
-            runtime.RebasePolicyFieldPrefix
+            runtime.RebasePolicyFieldPrefix,
+            originEmitter: originEmitter
         );
         SparseFragmentCoreEmitter? operationsCore = null;
         if (splitOperations)
@@ -337,7 +339,8 @@ internal static class SparseFragmentEmitter
                 runtime.ReferenceComparer,
                 operationsExpressions,
                 runtime.RebasePolicyFieldPrefix,
-                fieldQualifier: "Fragment."
+                fieldQualifier: "Fragment.",
+                originEmitter: originEmitter
             );
         }
         _ = structuralModels;
@@ -609,7 +612,8 @@ internal static class SparseFragmentEmitter
                 operationsType: operationsType,
                 operationTarget: operationTarget,
                 canApplyPatchInPlace: canApplyPatchInPlace,
-                canApplyChangeSetInPlace: canApplyChangeSetInPlace
+                canApplyChangeSetInPlace: canApplyChangeSetInPlace,
+                originEmitter: originEmitter
             );
             // Stage 4 (#193): moved algorithms live in the operations class in
             // the same implementation file (hints stay per-model via the shared
@@ -790,7 +794,8 @@ internal static class SparseFragmentEmitter
         string? operationsType = null,
         SparseOperationTarget? operationTarget = null,
         bool canApplyPatchInPlace = false,
-        bool canApplyChangeSetInPlace = false
+        bool canApplyChangeSetInPlace = false,
+        SparseFragmentOriginEmitter? originEmitter = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -811,6 +816,11 @@ internal static class SparseFragmentEmitter
             rebasePolicyBase: SparseFragmentPatchEmitter.GetRebasePolicyType(patchDialect),
             rebasePolicyField: patchDialect.RebasePolicyField
         );
+        if (originEmitter is not null)
+        {
+            SparseFragmentOriginEmitter.AppendOriginState(code);
+        }
+
         core.AppendFromModel(
             code,
             modelType,
@@ -829,6 +839,9 @@ internal static class SparseFragmentEmitter
         );
         core.AppendMerge(code, members, operationsType: operationsType);
         core.AppendApplyChanges(code, members, operationsType: operationsType);
+        // Origin queries are public surface; facades precede Diff so the
+        // public-first order holds when origins are enabled.
+        originEmitter?.AppendOriginSurface(code, members, modelType, operationsType);
         if (operationsType is not null)
         {
             SparseFragmentSurfaceOrderingEmitter.AppendFragmentSplitSurface(
@@ -868,6 +881,9 @@ internal static class SparseFragmentEmitter
                 generatedAccessibility
             );
             // Internal helpers trail the public surface (ToBuilder/JsonConverter).
+            // Origin storage joins the internal caches here; single-file
+            // fallback bodies stay inline as a follow-up (probe covers split).
+            core.AppendOriginStorage(code);
             SparseFragmentSurfaceOrderingEmitter.AppendFragmentEquality(
                 code,
                 members,

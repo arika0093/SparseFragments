@@ -146,6 +146,87 @@ public static class SparseFragmentRuntime
     public static HashSet<T> MergeSet<T>(IEnumerable<T> lower, IEnumerable<T> higher) =>
         SparseCollectionMerger.MergeSet(lower, higher);
 
+    /// <summary>Tracks per-element origins for an append merge of two attributed contributions.</summary>
+    /// <param name="lower">The lower-priority elements.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
+    /// <param name="higher">The higher-priority elements.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
+    /// <returns>One origin per concatenated effective element; null means Unknown.</returns>
+    public static string?[] MergeAppendOrigins<T>(
+        IEnumerable<T> lower,
+        string?[]? lowerOrigins,
+        string? lowerFallback,
+        IEnumerable<T> higher,
+        string?[]? higherOrigins,
+        string? higherFallback
+    ) =>
+        SparseOriginMerger.MergeAppendOrigins(
+            lower,
+            lowerOrigins,
+            lowerFallback,
+            higher,
+            higherOrigins,
+            higherFallback
+        );
+
+    /// <summary>Tracks first-accepted per-element origins for a sequence set-union merge.</summary>
+    /// <param name="lower">The lower-priority elements.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
+    /// <param name="higher">The higher-priority elements.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
+    /// <param name="comparer">Element equality, or null for the default comparer.</param>
+    /// <returns>One origin per effective element in union order; null means Unknown.</returns>
+    public static string?[] MergeSetUnionOrigins<T>(
+        IEnumerable<T> lower,
+        string?[]? lowerOrigins,
+        string? lowerFallback,
+        IEnumerable<T> higher,
+        string?[]? higherOrigins,
+        string? higherFallback,
+        IEqualityComparer<T>? comparer
+    ) =>
+        SparseOriginMerger.MergeSetUnionOrigins(
+            lower,
+            lowerOrigins,
+            lowerFallback,
+            higher,
+            higherOrigins,
+            higherFallback,
+            comparer
+        );
+
+    /// <summary>Tracks first-accepted per-element origins for a set-union merge in effective order.</summary>
+    /// <param name="lower">The lower-priority elements.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
+    /// <param name="higher">The higher-priority elements.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
+    /// <param name="effective">The merged effective elements whose order the result follows.</param>
+    /// <returns>One origin per effective element in enumeration order; null means Unknown.</returns>
+    public static string?[] MergeSetOrigins<T>(
+        IEnumerable<T> lower,
+        string?[]? lowerOrigins,
+        string? lowerFallback,
+        IEnumerable<T> higher,
+        string?[]? higherOrigins,
+        string? higherFallback,
+        IEnumerable<T> effective
+    ) =>
+        SparseOriginMerger.MergeSetOrigins(
+            lower,
+            lowerOrigins,
+            lowerFallback,
+            higher,
+            higherOrigins,
+            higherFallback,
+            effective
+        );
+
     /// <summary>Reapplies an append edit onto a newer collection.</summary>
     public static bool TryRebaseAppend(
         IReadOnlyList<object?> before,

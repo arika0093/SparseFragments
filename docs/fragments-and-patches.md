@@ -428,6 +428,7 @@ var wire = JsonSerializer.Serialize(transition.ToPayload());
 | Edit a sparse fragment | `fragment.ToBuilder()` ... `Build()` | Fragment |
 | Snapshot an ordinary model | `T.Fragment.From(model)` | Fragment |
 | Combine lower/higher layers | `lower.Merge(higher)` | Fragment |
+| Inspect which layer supplied a value | `effective.GetOrigin(path)` / `effective.EnumerateOrigins()` | Origin or entries |
 | Compare two ordinary models | `T.Fragment.Diff(before, after)` | Fragment diff |
 | Replay a Fragment diff | `fragment.ApplyChanges(changes)` | Fragment |
 | Express explicit set/null/remove edits | `new T.Patch { ... }` | Patch |

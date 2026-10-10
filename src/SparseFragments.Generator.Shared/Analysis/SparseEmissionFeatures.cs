@@ -6,8 +6,9 @@ namespace SparseFragments.Generator.Shared;
 /// <remarks>
 /// Shared owns the emission; the owning generator selects which families appear
 /// so downstream products avoid unused public APIs. The standalone defaults
-/// emit every family. Selections are validated with
-/// <see cref="ValidateDependencies"/> before emission.
+/// emit every family except fragment origins, which stay opt-in so downstream
+/// runtimes without provenance support keep compiling. Selections are validated
+/// with <see cref="ValidateDependencies"/> before emission.
 /// </remarks>
 internal sealed record SparseEmissionFeatures
 {
@@ -17,7 +18,8 @@ internal sealed record SparseEmissionFeatures
         bool EmitChangeSet = true,
         bool EmitChangePayload = true,
         bool EmitObservable = true,
-        bool EmitJsonConverters = true
+        bool EmitJsonConverters = true,
+        bool EmitFragmentOrigins = false
     )
     {
         this.EmitFragment = EmitFragment;
@@ -26,6 +28,7 @@ internal sealed record SparseEmissionFeatures
         this.EmitChangePayload = EmitChangePayload;
         this.EmitObservable = EmitObservable;
         this.EmitJsonConverters = EmitJsonConverters;
+        this.EmitFragmentOrigins = EmitFragmentOrigins;
     }
 
     /// <summary>Whether the sparse <c>Fragment</c> state type is emitted.</summary>
@@ -46,7 +49,10 @@ internal sealed record SparseEmissionFeatures
     /// <summary>Whether the <c>FragmentJsonConverter</c> helpers are emitted.</summary>
     public bool EmitJsonConverters { get; init; }
 
-    /// <summary>Standalone defaults: every family is emitted.</summary>
+    /// <summary>Whether fragments carry optional origin attribution through merge with origin query APIs.</summary>
+    public bool EmitFragmentOrigins { get; init; }
+
+    /// <summary>Standalone defaults: every family is emitted except fragment origins.</summary>
     public static SparseEmissionFeatures Standalone { get; } = new SparseEmissionFeatures();
 
     /// <summary>Dependency violations in this selection, if any.</summary>
@@ -70,6 +76,8 @@ internal sealed record SparseEmissionFeatures
                 errors.Add("EmitObservable requires EmitFragment.");
             if (EmitJsonConverters)
                 errors.Add("EmitJsonConverters requires EmitFragment.");
+            if (EmitFragmentOrigins)
+                errors.Add("EmitFragmentOrigins requires EmitFragment.");
         }
         if (EmitChangeSet && !EmitPatch)
             errors.Add("EmitChangeSet requires EmitPatch.");
