@@ -127,6 +127,10 @@ internal static class SparseChangeSetMixedKeyedEmitter
         var isModelValue = isKeyed
             ? member.Collection.ElementType.IsFragmentModel
             : member.Collection.ValueType?.IsFragmentModel == true;
+        if (!isModelValue && !member.RedactBefore)
+        {
+            code.AppendLineAt(7, "__payloadItems" + id + ".Capacity = item.Items.Count;");
+        }
         var needItemPath = isModelValue || member.RedactBefore;
         code.AppendLineAt(7, "var __blindColl" + id + " = new " + collectionPatch + "();");
         code.AppendLineAt(7, "bool __hasBlindColl" + id + " = false;");
