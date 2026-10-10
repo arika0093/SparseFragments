@@ -390,7 +390,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
         );
         code.AppendLineAt(
             1,
-            "/// <remarks>Replays recorded post-submit edits onto persisted elements; unmapped temporary identities stay pending. Returns an error without partial writes when the live state is incompatible.</remarks>"
+            "/// <remarks>Replays recorded post-submit edits onto persisted elements; rows without their own edits adopt the persisted element, and unmapped temporary identities stay pending. Returns an error without partial writes when the live state is incompatible.</remarks>"
         );
         code.AppendLineAt(
             1,
@@ -535,15 +535,16 @@ internal static class SparseTemporaryKeyReconcileEmitter
                         "var __edit = __transition?.GetTemporaryChange(__t.Value)?.Edit;"
                     );
                     code.AppendLineAt(5, elementType + " __merged;");
+                    // Rows without their own edits adopt the persisted element:
+                    // the live row carries no divergent local state, so the
+                    // server state (identity plus values it computed) decides.
                     code.AppendLineAt(
                         5,
-                        "if (__edit is null || __edit.IsEmpty) __merged = __clean ? "
+                        "if (__edit is null || __edit.IsEmpty) __merged = "
                             + elementType
                             + ".Fragment.From(("
                             + elementType
-                            + ")__persisted!).ToModel() : "
-                            + eUse
-                            + ";"
+                            + ")__persisted!).ToModel();"
                     );
                     code.AppendLineAt(5, "else");
                     code.AppendLineAt(5, "{");

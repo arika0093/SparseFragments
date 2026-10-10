@@ -305,4 +305,60 @@ public sealed class TemporaryKeyReconcileTests
         baseline.Customer.Orders.Single().Id.ShouldBe(21);
         baseline.Lines.Single(item => item.TemporaryId == orderTemp).Id.ShouldBe(22);
     }
+
+    [Test]
+    public void ReconcileRetargetsUneditedSubmittedRowsInDirtyMember()
+    {
+        // Issue #215: when a keyed member carries other pending changes, rows
+        // without their own edit must still adopt the server-assigned identity.
+        var baseline = new TempOrderHolder { Lines = [Assigned(7, "existing")] };
+        var session = baseline.CreateEditSession();
+        var first = Pending("first");
+        var second = Pending("second");
+        baseline.Lines.Add(first);
+        baseline.Lines.Add(second);
+
+        var submitted = session.CreateChangeSet();
+
+        // A post-submit edit touches only the first row, so the member is
+        // dirty while the second submitted row has no edit of its own.
+        baseline.Lines.Single(item => item.TemporaryId == first.TemporaryId).Name = "first v2";
+
+        // The response echoes the submitted values (no server normalization),
+        // so adopting the persisted row keeps the live values by construction.
+        var persisted = Persisted(
+            Assigned(7, "existing"),
+            new TempOrderLine
+            {
+                Id = 11,
+                Name = "first",
+                TemporaryId = first.TemporaryId,
+            },
+            new TempOrderLine
+            {
+                Id = 12,
+                Name = "second",
+                TemporaryId = second.TemporaryId,
+            }
+        );
+
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+
+        // The edited row replays its post-submit value onto the assigned identity.
+        var edited = baseline.Lines.Single(item => item.TemporaryId == first.TemporaryId);
+        edited.Id.ShouldBe(11);
+        edited.Name.ShouldBe("first v2");
+
+        // The unedited submitted row adopts the server-assigned identity while
+        // keeping its live values instead of staying at Id=0.
+        var unedited = baseline.Lines.Single(item => item.TemporaryId == second.TemporaryId);
+        unedited.Id.ShouldBe(12);
+        unedited.Name.ShouldBe("second");
+
+        // Only the post-submit edit remains pending.
+        var pending = session.CreateChangeSet();
+        pending.Lines.GetChange(11).IsEdited.ShouldBeTrue();
+        pending.Lines.GetChange(12).IsEmpty.ShouldBeTrue();
+    }
 }
