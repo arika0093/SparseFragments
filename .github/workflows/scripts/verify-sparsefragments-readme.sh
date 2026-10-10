@@ -15,8 +15,13 @@
 #
 # Runnable README blocks carry `<!-- sample: <id> -->` markers and must match
 # their fixture regions exactly (check-docs-samples.py, same normalization as
-# the docs guides). Snippets that must not compile carry
+# the docs guides). The checked ids come from docs-samples-registry.tsv, the
+# same central file verify-docs-samples.sh uses, so they are never duplicated
+# here. Snippets that must not compile carry
 # `<!-- illustrative: reason -->` instead and stay outside exact verification.
+#
+# Adding a README sample follows the same procedure as a docs sample: add the
+# fixture region, then add one registry row for README.md (see AGENTS.md).
 #
 # Usage: verify-sparsefragments-readme.sh <package-directory> [readme-path]
 set -euo pipefail
@@ -89,17 +94,13 @@ for token in "${required_tokens[@]}"; do
     fi
 done
 
-# 2b. Exact sample verification (#201). The runnable Quick Start and presence
-# blocks must match their canonical fixture regions exactly (after
+# 2b. Exact sample verification (#201, #213). The runnable Quick Start and
+# presence blocks must match their canonical fixture regions exactly (after
 # normalization), so token presence alone cannot hide statement-level drift.
-if ! python3 "$(dirname "$0")/check-docs-samples.py" "${readme_path}" "${fixture_program}" \
-    readme-quickstart readme-optional-states; then
+# Ids resolve through the central registry; README coverage here is the same
+# verdict verify-docs-samples.sh reaches by discovery.
+if ! python3 "$(dirname "$0")/check-docs-samples.py" --registry "$(dirname "$0")/docs-samples-registry.tsv" --only "${readme_path}"; then
     echo "README sample drift: see mismatches above." >&2
-    exit 1
-fi
-if ! python3 "$(dirname "$0")/check-docs-samples.py" --coverage "${readme_path}" \
-    readme-quickstart readme-optional-states; then
-    echo "README sample drift: see unguarded markers above." >&2
     exit 1
 fi
 

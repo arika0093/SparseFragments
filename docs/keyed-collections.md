@@ -70,6 +70,7 @@ Choose keyed patching when clients edit, add, remove, or reorder individual item
 
 When no key is available and per-element patching is not needed, select whole-collection semantics explicitly:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -87,6 +88,7 @@ Exactly one key-definition mechanism may apply to a structural type. There is no
 
 Mark one property with parameterless `[SparseKey]`:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public partial class Server
 {
@@ -106,6 +108,7 @@ public partial class Inventory
 
 The property type is the key type. Computed/read-only properties are valid keys as long as they are publicly readable instance properties:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public readonly record struct ServerKey(string TenantId, int Id);
 
@@ -123,6 +126,7 @@ public partial class Server
 
 Declare an ordered composite on the type with explicit, order-significant components:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseKey(nameof(TenantId), nameof(Id))]
 public partial class Server
@@ -139,6 +143,7 @@ The generated composite key is a strongly typed tuple of the component values in
 
 When identity cannot be expressed as a key property or an ordered composite (for example a normalized or case-folded key), implement `ISparseKeyed<TKey>`:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public partial class Server : ISparseKeyed<ServerKey>
 {
@@ -166,6 +171,7 @@ Keys must be stable and comparable. Each rule is enforced at generation time:
 
 The same `Fleet` / `Server` model shows each operation with ordinary values:
 
+<!-- illustrative: excerpt; uses guide-local model names and does not compile as written -->
 ```csharp
 var before = new Fleet
 {
@@ -198,6 +204,7 @@ When UI sorting should not be recorded as a persisted data change, use either of
 1. **Sort in the view layer:** Keep the underlying model collection in its storage order and sort only during presentation (for example via LINQ `.OrderBy(...)` or a UI collection view).
 2. **Normalize before diffing:** When models hold an explicit sequence property (such as `Order` or `SortIndex`), sort the model collection by that property before diffing or creating a change set:
 
+<!-- illustrative: excerpt; uses names from the surrounding prose and does not compile as written -->
 ```csharp
 items.Sort((a, b) => a.Order.CompareTo(b.Order));
 var changes = session.CreateChangeSet();

@@ -33,6 +33,7 @@ Reference-type models provide an edit session via `CreateEditSession()` without 
 
 For callers that need an explicit type name, the session type is the per-model `EditSession` in the `SparseFragments.Generated` namespace: `global::SparseFragments.Generated.<Container>.EditSession`, where `<Container>` is the stable per-model container. Prefer `var` and the `CreateEditSession()` extension; name the container only when a declaration requires it (see [Relocated generated types](#relocated-generated-types)). The session composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
 
+<!-- illustrative: excerpt; continues the UiOrder flow in prose and does not compile as written -->
 ```csharp
 var baseline = new UiOrder { Number = "ORD-1" };
 var current = new UiOrder { Number = "ORD-2" };
@@ -61,6 +62,7 @@ The caller owns the live model instance. The session keeps a private fragment sn
 
 Bind controls to `session.Observable` and read display state from `session.Current`. The observable proxy edits the live model with notifications; the read-only view exposes the same live state without setters, so display code cannot change it by accident. `Current` is a live view over the same instance, not a snapshot: it shows reverted, reloaded, and accepted values immediately.
 
+<!-- illustrative: excerpt; continues the UiOrder flow in prose and does not compile as written -->
 ```csharp
 var line = new UiOrder { Number = "ORD-1" };
 var editSession = line.CreateEditSession();
@@ -111,6 +113,7 @@ Writable reference-type models also generate `Fragment.WriteTo(model)` and `Patc
 
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()` maps `Optional<Model?>` to the generated, model-specific observable proxy while preserving missing, present-null, and present-value states. The proxy type lives in the per-model `SparseFragments.Generated` container (see [Relocated generated types](#relocated-generated-types)), so keep the call inferred with `var`:
 
+<!-- illustrative: excerpt; uses a session from the surrounding prose and does not compile as written -->
 ```csharp
 var proxy = Optional<UiOrder?>.Present(session.GetModelForFrameworkAccess()).ToObservable();
 ```
@@ -140,6 +143,7 @@ The standard and recommended workflow is:
 3. Receive the authoritative persisted state returned by the server (including any database-assigned IDs, normalization, or timestamps).
 4. Create a fresh edit session from the persisted state, and recreate UI-bound objects such as Blazor's `EditContext`:
 
+<!-- illustrative: excerpt; uses names from the surrounding workflow and does not compile as written -->
 ```csharp
 // 1. Disable editing in UI
 isSaving = true;
@@ -344,6 +348,7 @@ Rows the client adds carry an unassigned sentinel key such as `0` until the data
 
 `<Container>` is the sanitized fully qualified model identity plus a stable hash, so same-short-name models in different namespaces get distinct containers. The playground names one directly:
 
+<!-- illustrative: playground-specific alias; resolves only inside the playground assembly -->
 ```csharp
 using TaskObservable = global::SparseFragments.Generated.SparseFragments_Playground_Models_PlaygroundTask_E6C8F7DB.Observable;
 ```
@@ -372,6 +377,7 @@ uiSession.AcceptChanges();
 
 Create an `EditContext` with the Blazor extensions and pass it to the form:
 
+<!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
 ```csharp
 var editContext = uiSession.CreateEditContext();
 // After persisting the current model:
@@ -421,6 +427,7 @@ The neutral session members such as `Observable`, `Current`, `HasChanges`, `Crea
 
 Edit-then-restore yields no semantic change even though fields were touched:
 
+<!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
 ```csharp
 uiSession.Observable.Number = "changed";
 uiSession.Observable.Number = "ORD-1";   // restored
@@ -431,6 +438,7 @@ uiSession.Observable.Number = "ORD-1";   // restored
 
 Validation flows through the ordinary `EditContext` pipeline. Continuing with the session above:
 
+<!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
 ```csharp
 var store = uiSession.CreateValidationStore(editContext);
 editContext.OnValidationRequested += (sender, _) =>
@@ -497,6 +505,7 @@ var stockChanges = stockSession.CreateChangeSet();
 </ItemsControl>
 ```
 
+<!-- illustrative: excerpt; 'model' comes from the host application and the fence does not compile as written -->
 ```csharp
 var session = model.CreateEditSession(
     onChanged: () => SaveCommand.NotifyCanExecuteChanged());

@@ -13,6 +13,7 @@
 | `SetUnion` | Combine as an insertion-ordered set union | Collections and sets (not scalars) |
 | `Custom` | Delegate to your own `FragmentMergeStrategy<T>` implementation | Any member via `[SparseMerge(typeof(Strategy))]` |
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -31,6 +32,7 @@ public partial class Settings
 
 With that shape, layering behaves member by member:
 
+<!-- illustrative: excerpt; uses guide-local model names and does not compile as written -->
 ```csharp
 var lower = new Settings.Fragment
 {
@@ -75,6 +77,7 @@ Present collections combine as an insertion-ordered set union: lower-priority en
 
 A custom strategy derives from `FragmentMergeStrategy<T>` and implements `Merge` and `AreEqual`. `TryRebase` is an optional override for members that need their own three-way reconciliation (see [ChangeSet rebase](rebase.md)).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>
 {
@@ -87,6 +90,7 @@ public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>
 }
 ```
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Policy
@@ -109,6 +113,7 @@ A member can carry both a merge strategy and a rebase policy. The strategy keeps
 
 A fragment can carry an optional origin label for inspection, for example to show which configuration layer supplied each effective value. Pass it at construction; the parameterless constructor keeps working and means Unknown:
 
+<!-- illustrative: excerpt; uses guide-local model names and does not compile as written -->
 ```csharp
 var defaults = new Settings.Fragment("defaults") { Label = "base" };
 var tenant = new Settings.Fragment("tenant") { Label = "custom" };

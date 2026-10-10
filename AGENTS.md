@@ -49,9 +49,11 @@ It is a **source-only package** compiled into the consuming generator, and downs
   - Do not paraphrase it into this file; follow the original.
 - Apply it to every documentation, apply the same principles.
 - Existing docs are English. Keep the language of the file you edit.
-- Code samples in `docs/*.md` are guarded by `verify-docs-samples.sh` against compile-checked fixtures in `package-sparse-docs/*.cs`; the README Quick Start and presence blocks are guarded the same way by `verify-sparsefragments-readme.sh` against `package-sparse-readme/Program.cs`.
-  - When changing a sample, update the matching fixture too (`<!-- sample: name -->` markers in Markdown, `// sample: name` regions in fixtures). Every marker must be registered in the verify scripts; unregistered markers fail the build.
-  - Snippets that must not compile (error illustrations, ellipsized shapes) carry `<!-- illustrative: reason -->` instead of sample markers and stay outside exact verification.
+- Code samples in `README.md` and `docs/*.md` are guarded by `verify-docs-samples.sh` and `verify-sparsefragments-readme.sh` against compile-checked fixtures in `tests/fixtures/consumers/package-sparse-*/`. The single mapping lives in `.github/workflows/scripts/docs-samples-registry.tsv`; discovery covers `README.md` and every `docs/**/*.md`, so a new guide needs no shell edit.
+  - To add a checked sample: 1. wrap the fenced block in `<!-- sample: name -->` ... `<!-- /sample -->`; 2. add the matching `// sample: name` ... `// /sample` region to the canonical fixture and execute it from `Run()` with a `DocsCheck.Require` assertion, so the documented result runs instead of only compiling; 3. add one registry row (`<markdown> TAB <name> TAB <fixture>`). Ids ending in `-model`/`-models` declare shapes and are exercised through the constructing samples; every other region needs its own assertion body.
+  - When changing a sample, update the matching fixture too. Unregistered markers, missing fixture regions, unused registry rows, duplicate ids in one file, and changed code all fail the build.
+  - Every ```csharp fence needs a guard: a registered sample marker, or a preceding `<!-- illustrative: reason -->` with a non-empty reason (one marker covers the next runnable fence only). Use the illustrative marker for snippets that must not compile: error illustrations, ellipsized shapes, and excerpts using names defined elsewhere.
+  - `test-check-docs-samples.sh` holds the maintained negative probes for this enforcement; run it after changing the checker or the registry.
 
 ## Contributing
 ### Commit Rules

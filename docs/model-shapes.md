@@ -2,6 +2,7 @@
 
 For the common case, add `[SparseFragmentModel]` to a top-level `partial` class or struct. Nested models should also be `partial` when you want SparseFragments to merge and patch their members independently.
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 using SparseFragments;
 
@@ -25,6 +26,7 @@ Members may be readable/writable or init-only as applicable. A `required` member
 
 Mark a property with `[SparseIgnore]` to remove it from the generated surface entirely. Ignored properties are omitted from `Fragment`, `Patch`, `ChangeSet`, `Observable`, clone/diff, and generated JSON. `ToModel()` leaves them at their model default; model-level `ApplyTo` and `TryApplyTo` carry their current values forward when the property has a public setter:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -40,6 +42,7 @@ public partial class Settings
 
 Most members need no merge configuration: `MergeMode.Default` resolves to `Deep` for nested generated models and to `Replace` for scalars and ordinary collections. Add `[SparseMerge]` only when you want different behavior (see [Merge strategies](merge-strategies.md)):
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -57,6 +60,7 @@ To patch a nested model's members independently, declare the nested type `partia
 
 Reachable `partial` nested types automatically receive generated Fragment/Patch support without their own `[SparseFragmentModel]` annotation; the generator refers to this as promotion:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public partial class Child   // no annotation needed: promoted automatically
 {
@@ -70,6 +74,7 @@ The rules:
 * `Make the nested type partial` when it needs independent member-level behavior (per-member merge, nested diff and patch, keyed identity).
 * `Non-partial nested types stay atomic, and only with explicit opt-in.` A nested type that is not `partial` cannot carry generated member-level APIs, so the member cannot diff inside the value. Declare the nested type `partial` to enable member-level behavior, or explicitly mark the member with `[SparseMerge(MergeMode.Replace)]` to treat it as an atomic value. Otherwise the generator reports [`SPF007`](analyzer.md#spf007-unsupported-structural-member-construction). Atomic replacement is always an explicit opt-in, never a silent fallback:
 
+<!-- illustrative: error illustration; the shape does not compile by design -->
 ```csharp
 public class Child
 {
@@ -83,10 +88,12 @@ public partial class Parent
 }
 ```
 
+<!-- illustrative: shape illustration; ellipsized and shown without surrounding file context -->
 ```csharp
 public partial class Child { ... } // promoted nested model
 ```
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseMerge(MergeMode.Replace)]
 public Child Child { get; set; } = new(); // explicit atomic replacement

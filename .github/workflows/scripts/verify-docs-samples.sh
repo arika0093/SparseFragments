@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies docs/*.md samples (#45, #68, #201).
+# Verifies docs/*.md samples (#45, #68, #201, #213).
 #
 # The canonical compile-checked sources are
 # tests/fixtures/consumers/package-sparse-docs/*.cs (one topic file per guide
@@ -12,12 +12,14 @@
 # Adding a verified sample: wrap the fenced block in `<!-- sample: <id> -->`
 # ... `<!-- /sample -->`, add the matching `// sample: <id>` ...
 # `// /sample` region to the canonical fixture (and execute it from Run() so
-# the documented result is verified, not just compiled), then register the id
-# in the check_block list for its guide. The coverage check below fails when a
-# guide contains a marker with no registration. Snippets that must not
-# compile (error illustrations, ellipsized shapes) carry
+# the documented result is verified, not just compiled), then add one row to
+# docs-samples-registry.tsv (`<markdown> TAB <id> TAB <fixture>`). No shell
+# edit is needed: the registry check discovers README.md and every
+# docs/**/*.md from the filesystem, so an unregistered marker fails the
+# build. Snippets that must not compile (error illustrations, ellipsized
+# shapes, excerpts using names defined elsewhere) carry
 # `<!-- illustrative: reason -->` instead of a sample marker and stay outside
-# exact verification.
+# exact verification; every runnable fence needs one of the two guards.
 #
 # Tests consume the packed release-candidate packages via a local feed (no
 # ProjectReference fallback, no second pack). The Blazor fixture resolves both
@@ -126,122 +128,17 @@ check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFram
     'PropertyChanged' \
     'CreateChangeSet'
 
-# 1b. Exact sample verification (#68). Annotated fenced blocks in the guides
-# must match their canonical fixture regions exactly (after normalization),
-# so the documented code compiles and produces the documented result.
-check_block() {
-    local topic="$1"
-    local guide="$2"
-    local fixture_source="$3"
-    shift 3
-    if ! python3 "$(dirname "$0")/check-docs-samples.py" "${guide}" "${fixture_source}" "$@"; then
-        echo "Docs sample drift [${topic}]: see mismatches above." >&2
-        exit 1
-    fi
-}
-
-check_block "core" "docs/fragments-and-patches.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    core-models core-create core-layering core-diff core-builder core-patch core-between \
-    core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
-    core-change-payload-models core-change-payload
-check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    keyed-first-models keyed-first keyed-unassigned-model keyed-unassigned-flow keyed-typed
-check_block "merge-compare" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
-    merge-compare-models merge-compare
-check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
-check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
-    mixed-apply rebase-in-place rebase-server-store rebase-server-save
-check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
-    payload-models payload-scalar-set payload-explicit-null payload-remove \
-    payload-nested payload-keyed payload-command payload-conversions payload-mixed \
-    payload-invert payload-version
-check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
-    ui-session-models ui-session ui-wpf-session
-check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
-    ui-accept-flow ui-reload ui-reload-conflict ui-revert ui-fork-merge ui-fork-conflict
-check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
-    ui-descriptor-models ui-descriptor-first ui-descriptor-changes
-check_block "tutorial" "docs/tutorial/first-sparse-edit.md" "${docs_fixture_dir}/TutorialFirstEdit.cs" \
-    tutorial-models tutorial-baseline tutorial-override tutorial-merge tutorial-patch \
-    tutorial-changeset tutorial-invert
-check_block "layered" "docs/how-to/layered-settings.md" "${docs_fixture_dir}/LayeredSettings.cs" \
-    layered-models layered-precedence layered-remove layered-materialize layered-diff
-check_block "partial" "docs/how-to/partial-updates.md" "${docs_fixture_dir}/PartialUpdates.cs" \
-    partial-models partial-patch partial-changeset partial-payload partial-audit partial-redacted
-check_block "blazor-form" "docs/how-to/blazor-edit-form.md" "${blazor_fixture_dir}/Program.cs" \
-    blazor-form-models blazor-form-input blazor-form-save blazor-form-conflict blazor-form-transport
-
-# 1b2. JSON specimen verification (#212). Valid ```json fences in the
-# ChangePayload wire reference carry `<!-- json-sample: <id> -->` markers and
-# must match their fixture-generated specimens deeply (array order
-# significant), so a one-field corruption in Markdown fails the build. The
-# fixture separately asserts byte equality against live serializer output.
-check_json() {
-    local topic="$1"
-    local guide="$2"
-    local fixture_source="$3"
-    shift 3
-    if ! python3 "$(dirname "$0")/check-docs-json.py" "${guide}" "${fixture_source}" "$@"; then
-        echo "Docs JSON drift [${topic}]: see mismatches above." >&2
-        exit 1
-    fi
-}
-
-check_json "payload-json" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
-    payload-envelope payload-scalar-add payload-nested-json payload-keyed-json \
-    payload-reorder payload-dict payload-root
-
-# 1c. Marker coverage (#201). Every `<!-- sample: -->` id in a guide must be
-# registered for exact verification above, so a newly added marker without a
-# fixture guard fails the build. Keep each list identical to the ids checked
-# for its guide.
-check_coverage() {
-    local topic="$1"
-    local guide="$2"
-    shift 2
-    if ! python3 "$(dirname "$0")/check-docs-samples.py" --coverage "${guide}" "$@"; then
-        echo "Docs sample drift [${topic}]: see unguarded markers above." >&2
-        exit 1
-    fi
-}
-
-check_coverage "core" "docs/fragments-and-patches.md" \
-    core-models core-create core-layering core-diff core-builder core-patch core-between \
-    core-changeset core-typed core-nested-models core-nested core-algebra core-serialization \
-    core-change-payload-models core-change-payload
-check_coverage "keyed" "docs/keyed-collections.md" \
-    keyed-first-models keyed-first keyed-unassigned-model keyed-unassigned-flow keyed-typed
-check_coverage "merge-compare" "docs/merge-strategies.md" \
-    merge-compare-models merge-compare
-check_coverage "rebase" "docs/rebase.md" \
-    rebase-first-models rebase-first rebase-presence rebase-in-place rebase-applied \
-    rebase-conflict rebase-policy-models rebase-policy rebase-redacted mixed-apply \
-    rebase-e2e rebase-server-store rebase-server-save
-check_coverage "payload" "docs/change-payload.md" \
-    payload-models payload-scalar-set payload-explicit-null payload-remove \
-    payload-nested payload-keyed payload-command payload-conversions payload-mixed \
-    payload-invert payload-version
-if ! python3 "$(dirname "$0")/check-docs-json.py" --coverage-json "docs/change-payload.md" \
-    payload-envelope payload-scalar-add payload-nested-json payload-keyed-json \
-    payload-reorder payload-dict payload-root; then
-    echo "Docs JSON drift [payload-json]: see unguarded markers above." >&2
+# 1b. Registry-driven verification (#213). The central registry maps every
+# Markdown file plus sample id to its canonical fixture; discovery covers
+# README.md and all docs/**/*.md, so a new guide with an unregistered marker
+# fails here without a shell edit. The check additionally enforces the
+# fenced-snippet rule (every runnable fence is sampled or illustrative),
+# requires assertion bodies in fixture regions, and validates JSON specimens
+# through the same discovery once #212 registers them.
+if ! python3 "$(dirname "$0")/check-docs-samples.py" --registry "$(dirname "$0")/docs-samples-registry.tsv"; then
+    echo "Docs sample drift: see mismatches above." >&2
     exit 1
 fi
-check_coverage "ui" "docs/ui-frameworks.md" \
-    ui-session-models ui-accept-flow ui-reload ui-reload-conflict ui-revert \
-    ui-fork-merge ui-fork-conflict ui-session ui-wpf-session
-check_coverage "descriptors" "docs/descriptors.md" \
-    ui-descriptor-models ui-descriptor-first ui-descriptor-changes
-check_coverage "tutorial" "docs/tutorial/first-sparse-edit.md" \
-    tutorial-models tutorial-baseline tutorial-override tutorial-merge tutorial-patch \
-    tutorial-changeset tutorial-invert
-check_coverage "layered" "docs/how-to/layered-settings.md" \
-    layered-models layered-precedence layered-remove layered-materialize layered-diff
-check_coverage "partial" "docs/how-to/partial-updates.md" \
-    partial-models partial-patch partial-changeset partial-payload partial-audit partial-redacted
-check_coverage "blazor-form" "docs/how-to/blazor-edit-form.md" \
-    blazor-form-models blazor-form-input blazor-form-save blazor-form-conflict blazor-form-transport
 
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
@@ -254,7 +151,7 @@ check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs"
     'session.Field(' \
     'AddValidationError'
 
-# 1d. Internal link and anchor validation (#68, #201). Files are discovered
+# 1c. Internal link and anchor validation (#68, #201). Files are discovered
 # rather than enumerated, so new guides (including Descriptor, architecture,
 # and benchmark pages) are covered automatically.
 mapfile -t docs_files < <(find docs -name '*.md' | sort)

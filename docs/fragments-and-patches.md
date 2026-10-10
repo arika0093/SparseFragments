@@ -190,6 +190,7 @@ For consumers that need rows or logs instead of typed traversal, `EnumerateChang
 
 When a baseline-free operation is needed instead, cross the explicit boundary:
 
+<!-- illustrative: excerpt; 'changes' comes from the preceding registered sample -->
 ```csharp
 var patch = changes.ToPatch();
 ```

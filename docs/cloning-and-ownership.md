@@ -6,6 +6,7 @@ For mutable objects such as lists, mutating a shared value after assignment also
 
 Concretely, assigning a mutable value to a patch shares it by reference. Nothing is cloned on assignment or on `Apply`:
 
+<!-- illustrative: excerpt; uses guide-local names and does not compile as written -->
 ```csharp
 var tags = new List<string> { "a" };
 var patch = new Settings.Patch { Plugins = tags };
@@ -50,6 +51,7 @@ members disable in-place APIs; see
 
 `DeepClone` structurally clones supported models and fragments. Members marked `[SparseCloneReferenceSafe]` are carried over by reference; everything else becomes independent:
 
+<!-- illustrative: excerpt; uses names from the surrounding prose and does not compile as written -->
 ```csharp
 var clone = original.ToModel().DeepClone();  // or fragment.DeepClone()
 clone.Child!.Count = 42;                     // the original is untouched
@@ -59,6 +61,7 @@ clone.Child!.Count = 42;                     // the original is untouched
 * `Cycles are supported.` Object cycles in the source become equivalent cycles in the clone rather than infinite recursion.
 * `[SparseCloneReferenceSafe].` Members that intentionally share references (services, caches, other out-of-graph singletons) should be marked so the cloner carries the reference over instead of requiring a deep-cloneable shape:
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings

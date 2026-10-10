@@ -112,6 +112,7 @@ A settings layer often needs to distinguish "not specified" from "explicitly set
 
 A generated `Fragment` keeps that distinction:
 
+<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
 ```csharp
 var user = new Settings.Fragment { Label = (string?)null };
 var effective = defaults.Merge(user);
@@ -127,6 +128,7 @@ A full edited object does not say which values the user intended to change. Trea
 
 A generated `Patch` contains only the requested operations:
 
+<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
 ```csharp
 var patch = new Settings.Patch();
 patch.Database.Port = 6432;
@@ -144,6 +146,7 @@ Undo, audit output, conflict detection, and synchronization need more than the f
 
 A generated `ChangeSet` records that transition:
 
+<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
 ```csharp
 var changes = Settings.ChangeSet.Between(before, after);
 
@@ -158,6 +161,7 @@ See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions
 
 A `ChangeSet` crosses a process boundary through its generated payload, using the transport the application already owns:
 
+<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
 ```csharp
 var json = JsonSerializer.Serialize(changes.ToPayload());
 var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
@@ -175,6 +179,7 @@ Change notification and "there is still something to save" are different questio
 
 An edit session (the per-model `EditSession` in `SparseFragments.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
 
+<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
 ```csharp
 var session = order.CreateEditSession();
 session.Observable.Name = "Updated";
@@ -191,6 +196,7 @@ if (response.IsSuccess)
 
 Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. A raw `session.Model` reference edits the same instance without notifications and disables the session's observable-change cache, so prefer the proxy while the session tracks edits. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
 
+<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
 ```csharp
 session.Observable.Name = "Updated";
 string shown = session.Current.Name;
@@ -208,6 +214,7 @@ The recommended workflow disables editing in the UI while a save is in flight, t
 
 For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
 
+<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
 ```csharp
 var pending = baseline.CreateChangeSet(edited);
 if (!pending.TryApplyInPlace(boundModel, out var conflicts))
@@ -228,6 +235,7 @@ Collection edits need stable identity. Array positions are not enough when items
 
 With a `[SparseKey]` on the element model, changes are exposed by key:
 
+<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
 ```csharp
 var changes = Roster.ChangeSet.Between(before, after);
 

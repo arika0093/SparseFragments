@@ -112,6 +112,7 @@ Rebase classifies each member into one of three outcomes:
 
 Local and concurrent edits touch different members: the local transition is replayed onto the current state, and the concurrent edit is preserved.
 
+<!-- illustrative: state sketch; comments only, not code -->
 ```csharp
 // before:  { RetryCount = 1, Label = "a" }
 // edited:  { RetryCount = 2, Label = "a" }
@@ -433,6 +434,7 @@ Three-way rebase compares the recorded before-state with the current state. A re
 
 An application request therefore wraps the ChangeSet in its own envelope:
 
+<!-- illustrative: schematic envelope; uses undefined member names and does not compile as written -->
 ```csharp
 // Application envelope: IDs and concurrency tokens live outside ChangeSet.
 sealed record UpdateOrderRequest(

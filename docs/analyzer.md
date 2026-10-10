@@ -45,6 +45,7 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
   The generator appends members such as `Fragment` / `Patch` to the same type, so `partial` is required.
 * Fix: Add `partial` to the type declaration.
 
+<!-- illustrative: error illustration; the first shape does not compile by design -->
 ```csharp
 // Does not compile
 [SparseFragmentModel]
@@ -70,6 +71,7 @@ public partial class Settings { ... }
   constructor nor one whose parameters match the public readable properties by name and type.
 * Fix: Add a parameterless constructor, or provide a constructor that corresponds to the properties.
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -89,6 +91,7 @@ public partial class Settings
   the member type, and make the strategy a concrete class with an accessible
   parameterless constructor. See [Merge strategies](merge-strategies.md).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public sealed class SumMergeStrategy : FragmentMergeStrategy<List<int>>
 {
@@ -113,6 +116,7 @@ public partial class StrategySettings
   `SetUnion` needs a collection, and numeric values outside `MergeMode` 0–5 are rejected.
 * Fix: Select a mode that matches the member kind. See [Merge strategies](merge-strategies.md).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -152,6 +156,7 @@ public partial class Settings
 * Fix: Switch to a supported structural type or collection, or mark the property
   `[SparseCloneReferenceSafe]`. See [Cloning and ownership](cloning-and-ownership.md).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 [SparseFragmentModel]
 public partial class Settings
@@ -203,6 +208,7 @@ public partial class Settings
   and never prefers one over another.
 * Fix: Keep exactly one mechanism and remove the others.
 
+<!-- illustrative: error illustration; the first shape does not compile by design -->
 ```csharp
 // Does not compile: property-level key + type-level composite conflict (SPF012)
 [SparseKey(nameof(TenantId), nameof(Id))]
@@ -279,6 +285,7 @@ public partial class Server
 * Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey`
   getter and a valid key type. See [Keyed collections](keyed-collections.md).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 // OK
 public partial class Server : ISparseKeyed<ServerKey>
@@ -311,9 +318,10 @@ public partial class Server : ISparseKeyed<ServerKey>
 * Cause: The generated `ApplyTo`/`TryApplyTo` APIs cannot preserve the ignored
   value while constructing a new model.
 * Fix: Make the property optional and settable, or keep it in the generated
-  surface. Required, init-only, and non-defaulted constructor-bound properties
-  cannot be excluded.
+surface. Required, init-only, and non-defaulted constructor-bound properties
+cannot be excluded.
 
+<!-- illustrative: error illustration; the shape does not compile by design -->
 ```csharp
 // Does not compile: both members serialize as "dup"
 [SparseFragmentModel]
@@ -362,6 +370,7 @@ public partial class Widget
   parameterless constructor, and apply it to a scalar or whole-replace member.
   See [ChangeSet rebase](rebase.md).
 
+<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
 public sealed class LabelPolicy : FragmentRebasePolicy<string?>
 {
