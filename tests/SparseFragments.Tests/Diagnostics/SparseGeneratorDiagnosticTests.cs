@@ -794,20 +794,14 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF009"] = "#spf009-member-conflicts-with-generated-api",
             ["SPF010"] = "#spf010-incompatible-promoted-fragment-model",
             ["SPF011"] = "#spf011-structural-sequence-without-usable-key",
-            ["SPF012"] = "#spf012-conflicting-sparsekey-mechanisms",
             ["SPF013"] = "#spf013-multiple-sparsekey-properties",
             ["SPF014"] = "#spf014-invalid-sparsekey-declaration",
-            ["SPF015"] = "#spf015-missing-sparsekey-component",
-            ["SPF016"] = "#spf016-duplicate-sparsekey-component",
             ["SPF017"] = "#spf017-inaccessible-sparsekey-property",
-            ["SPF018"] = "#spf018-nullable-sparsekey",
             ["SPF019"] = "#spf019-unsupported-sparsekey-shape",
-            ["SPF020"] = "#spf020-invalid-isparsekeyed-implementation",
             ["SPF021"] = "#spf021-duplicate-json-property-name",
             ["SPF022"] = "#spf022-sparseignore-on-key",
             ["SPF023"] = "#spf023-sparseignore-on-unsupported-property",
             ["SPF024"] = "#spf024-invalid-unassigned-key-sentinel",
-            ["SPF025"] = "#spf025-unsupported-unassigned-key-sentinel",
             ["SPF026"] = "#spf026-in-place-submit-is-unavailable",
             ["SPF027"] = "#spf027-invalid-custom-rebase-policy",
             ["SPF028"] = "#spf028-invalid-downstream-emission-plan",
@@ -1040,29 +1034,30 @@ public sealed class SparseGeneratorDiagnosticTests
     }
 
     [Test]
-    public void Spf022_SparseIgnoreOnCompositeKeyComponentIsRejected()
+    public void Spf022_SparseIgnoreOnTupleKeyPropertyIsRejected()
     {
         const string source = """
             using SparseFragments;
             using System.Collections.Generic;
-            [SparseKey(nameof(Tenant), nameof(Id))]
-            public partial class IgnoredCompositeItem
+            public partial class IgnoredTupleItem
             {
-                [SparseIgnore]
                 public string Tenant { get; set; } = "";
                 public string Id { get; set; } = "";
+                [SparseKey]
+                [SparseIgnore]
+                public (string Tenant, string Id) Key => (Tenant, Id);
             }
             [SparseFragmentModel]
-            public partial class IgnoredCompositeHolder
+            public partial class IgnoredTupleHolder
             {
-                public List<IgnoredCompositeItem> Items { get; set; } = new();
+                public List<IgnoredTupleItem> Items { get; set; } = new();
             }
             """;
         var (diagnostics, sources) = Run(source);
         AssertSingleSpf(
             diagnostics,
             "SPF022",
-            "Tenant",
+            "Key",
             "#spf022-sparseignore-on-key",
             expectInSource: true
         );

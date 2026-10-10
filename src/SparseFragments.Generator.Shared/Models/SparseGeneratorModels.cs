@@ -78,9 +78,6 @@ internal readonly record struct SparseCollectionInfo(
 
     /// <summary>Dictionary keyed by <c>TKey</c> (<see cref="ElementType"/>).</summary>
     public bool IsDictionary => Semantic == SparseCollectionSemantic.Dictionary;
-
-    /// <summary>More than one key property (tuple key).</summary>
-    public bool IsCompositeKey => KeyKind == SparseKeyKind.Composite;
 }
 
 internal sealed class SparseSymbolMemberModel(

@@ -11,15 +11,29 @@ public sealed class KeyedGetChangeTests
         );
 
     private static KeyedServer S(string id, string? name = null, int count = 1) =>
-        new() { Id = id, Name = name ?? id, Count = count };
+        new()
+        {
+            Id = id,
+            Name = name ?? id,
+            Count = count,
+        };
 
-    private static Optional<CompositeServerHolder.Fragment?> Composite(params CompositeServer[] items) =>
+    private static Optional<CompositeServerHolder.Fragment?> Composite(
+        params CompositeServer[] items
+    ) =>
         Optional<CompositeServerHolder.Fragment?>.Present(
-            CompositeServerHolder.Fragment.From(new CompositeServerHolder { Items = items.ToList() })
+            CompositeServerHolder.Fragment.From(
+                new CompositeServerHolder { Items = items.ToList() }
+            )
         );
 
     private static CompositeServer C(string tenant, string id, string? name = null) =>
-        new() { TenantId = tenant, Id = id, Name = name ?? tenant + id };
+        new()
+        {
+            TenantId = tenant,
+            Id = id,
+            Name = name ?? tenant + id,
+        };
 
     private static void AssertEmpty(KeyedServerHolder.ChangeSet.ItemsTransition.Item item)
     {
@@ -50,10 +64,7 @@ public sealed class KeyedGetChangeTests
     [Test]
     public void UnknownKeyReturnsEmptyWithoutBaselineRetention()
     {
-        var changes = KeyedServerHolder.ChangeSet.Between(
-            Keyed(S("a")),
-            Keyed(S("a", "a2"))
-        );
+        var changes = KeyedServerHolder.ChangeSet.Between(Keyed(S("a")), Keyed(S("a", "a2")));
         var item = changes.Items.GetChange("absent");
         AssertEmpty(item);
     }
@@ -97,7 +108,7 @@ public sealed class KeyedGetChangeTests
     }
 
     [Test]
-    public void CompositeKeyLookupUsesTupleKey()
+    public void TupleKeyLookupUsesTupleKey()
     {
         var changes = CompositeServerHolder.ChangeSet.Between(
             Composite(C("t1", "a")),
@@ -121,17 +132,43 @@ public sealed class KeyedGetChangeTests
     }
 
     [Test]
-    public void InterfaceKeyLookupUsesComparerSemantics()
+    public void ComputedKeyLookupUsesComparerSemantics()
     {
         Optional<SkApiCluster.Fragment?> State(SkApiCluster m) =>
             Optional<SkApiCluster.Fragment?>.Present(SkApiCluster.Fragment.From(m));
         var changes = SkApiCluster.ChangeSet.Between(
-            State(new SkApiCluster { Ifaces = [new() { Tenant = "acme", Id = 1, Name = "A" }] }),
-            State(new SkApiCluster { Ifaces = [new() { Tenant = "acme", Id = 1, Name = "A2" }] })
+            State(
+                new SkApiCluster
+                {
+                    Ifaces =
+                    [
+                        new()
+                        {
+                            Tenant = "acme",
+                            Id = 1,
+                            Name = "A",
+                        },
+                    ],
+                }
+            ),
+            State(
+                new SkApiCluster
+                {
+                    Ifaces =
+                    [
+                        new()
+                        {
+                            Tenant = "acme",
+                            Id = 1,
+                            Name = "A2",
+                        },
+                    ],
+                }
+            )
         );
         var transition = changes.Ifaces;
 
-        // Keys are normalized (case-folded) by the element's SparseKey getter.
+        // Keys are normalized (case-folded) by the element's Key getter.
         var edited = transition.GetChange(new SkApiIfaceKey("ACME", 1));
         edited.IsEmpty.ShouldBeFalse();
         edited.IsEdited.ShouldBeTrue();
@@ -148,10 +185,7 @@ public sealed class KeyedGetChangeTests
     [Test]
     public void RepeatedEmptyLookupReturnsSharedSingleton()
     {
-        var changes = KeyedServerHolder.ChangeSet.Between(
-            Keyed(S("a")),
-            Keyed(S("a", "a2"))
-        );
+        var changes = KeyedServerHolder.ChangeSet.Between(Keyed(S("a")), Keyed(S("a", "a2")));
         var transition = changes.Items;
 
         var first = transition.GetChange("unknown");
@@ -186,9 +220,8 @@ public sealed class KeyedGetChangeTests
         foreach (var item in enumerated)
         {
             item.IsEmpty.ShouldBeFalse();
-            ReferenceEquals(item, transition.GetChange(item.Key)).ShouldBeTrue(
-                $"lookup must return the enumerated instance for key {item.Key}"
-            );
+            ReferenceEquals(item, transition.GetChange(item.Key))
+                .ShouldBeTrue($"lookup must return the enumerated instance for key {item.Key}");
         }
 
         // Removed keys are non-empty changes and appear in enumeration.
@@ -308,10 +341,7 @@ public sealed class KeyedGetChangeTests
     [Test]
     public void AddedRemovedItemsAreNeverReordered()
     {
-        var changes = KeyedServerHolder.ChangeSet.Between(
-            Keyed(S("a")),
-            Keyed(S("b"))
-        );
+        var changes = KeyedServerHolder.ChangeSet.Between(Keyed(S("a")), Keyed(S("b")));
         changes.Items.GetChange("b").IsReordered.ShouldBeFalse();
         changes.Items.GetChange("a").IsReordered.ShouldBeFalse();
     }
@@ -322,8 +352,18 @@ public sealed class KeyedGetChangeTests
         Optional<ScalarDictHolder.Fragment?> State(ScalarDictHolder m) =>
             Optional<ScalarDictHolder.Fragment?>.Present(ScalarDictHolder.Fragment.From(m));
         var changes = ScalarDictHolder.ChangeSet.Between(
-            State(new ScalarDictHolder { Scores = new() { ["a"] = 1, ["b"] = 2 } }),
-            State(new ScalarDictHolder { Scores = new() { ["b"] = 3, ["c"] = 4 } })
+            State(
+                new ScalarDictHolder
+                {
+                    Scores = new() { ["a"] = 1, ["b"] = 2 },
+                }
+            ),
+            State(
+                new ScalarDictHolder
+                {
+                    Scores = new() { ["b"] = 3, ["c"] = 4 },
+                }
+            )
         );
         var scores = changes.Scores;
 
@@ -358,8 +398,25 @@ public sealed class KeyedGetChangeTests
         Optional<StructuralDictHolder.Fragment?> State(StructuralDictHolder m) =>
             Optional<StructuralDictHolder.Fragment?>.Present(StructuralDictHolder.Fragment.From(m));
         var changes = StructuralDictHolder.ChangeSet.Between(
-            State(new StructuralDictHolder { Servers = new() { ["web"] = new KeyedServer { Id = "s1", Name = "Old" } } }),
-            State(new StructuralDictHolder { Servers = new() { ["web"] = new KeyedServer { Id = "s1", Name = "New" }, ["db"] = new KeyedServer { Id = "s2", Name = "Db" } } })
+            State(
+                new StructuralDictHolder
+                {
+                    Servers = new()
+                    {
+                        ["web"] = new KeyedServer { Id = "s1", Name = "Old" },
+                    },
+                }
+            ),
+            State(
+                new StructuralDictHolder
+                {
+                    Servers = new()
+                    {
+                        ["web"] = new KeyedServer { Id = "s1", Name = "New" },
+                        ["db"] = new KeyedServer { Id = "s2", Name = "Db" },
+                    },
+                }
+            )
         );
 
         var edited = changes.Servers.GetChange("web");
@@ -382,8 +439,8 @@ public sealed class KeyedGetChangeTests
         var changes = KeyedServerHolder.ChangeSet.Between(before, after);
 
         var json = System.Text.Json.JsonSerializer.Serialize(changes.ToPayload());
-        var back = System.Text.Json.JsonSerializer
-            .Deserialize<KeyedServerHolder.ChangePayload>(json)!
+        var back = System
+            .Text.Json.JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(json)!
             .ToChangeSet();
 
         back.Items.GetChange("a").IsEdited.ShouldBeTrue();

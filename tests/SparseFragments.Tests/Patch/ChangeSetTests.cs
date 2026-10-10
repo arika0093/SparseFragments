@@ -1303,7 +1303,7 @@ public sealed class ChangeSetTests
     }
 
     [Test]
-    public void TypedCompositeKeyTransition()
+    public void TypedTupleKeyTransition()
     {
         CompositeServer S(string tenant, string id) =>
             new()

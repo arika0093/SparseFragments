@@ -53,7 +53,7 @@ public sealed class DescriptorKeyedIdentityTests
     }
 
     [Test]
-    public void CompositeKeysExposeOrderedNamesAndTupleLookup()
+    public void TupleKeysExposeSingleNameAndTupleLookup()
     {
         var model = new CompositeServerHolder
         {
@@ -75,7 +75,7 @@ public sealed class DescriptorKeyedIdentityTests
         var array = items.Array.ShouldNotBeNull();
         array!.IsKeyed.ShouldBeTrue();
         array.KeyType.ShouldBe(typeof(ValueTuple<string, string>));
-        array.KeyPropertyNames.ShouldBe(["TenantId", "Id"]);
+        array.KeyPropertyNames.ShouldBe(["Key"]);
         array.GetItemKey(0).ShouldBe(("t", "i"));
         array.IndexOfKey(("t", "i")).ShouldBe(0);
         array.IndexOfKey(("t", "missing")).ShouldBe(-1);

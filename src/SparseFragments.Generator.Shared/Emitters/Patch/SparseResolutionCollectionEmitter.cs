@@ -22,15 +22,10 @@ internal static class SparseResolutionCollectionEmitter
             var keyType = KeyTypeOf(member);
             var elementType = ElementTypeOf(member);
             var keys = member.Collection.KeyPropertyNames;
+            // Single-property keys only: the key type is the declared property
+            // type, which may itself be a tuple or value object.
             string extraction;
-            if (member.Collection.KeyKind == SparseKeyKind.Interface)
-            {
-                extraction =
-                    "element.SparseKey"
-                    + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : string.Empty)
-                    + ";";
-            }
-            else if (!keys.IsDefault && keys.Length == 1)
+            if (!keys.IsDefault && keys.Length == 1)
             {
                 extraction =
                     "element."
@@ -40,16 +35,8 @@ internal static class SparseResolutionCollectionEmitter
             }
             else
             {
-                var components = keys.IsDefault ? ImmutableArray<string>.Empty : keys;
                 extraction =
-                    "("
-                    + string.Join(
-                        ", ",
-                        components.Select(static key =>
-                            "element." + SparseNaming.EscapeIdentifier(key)
-                        )
-                    )
-                    + ");";
+                    "throw new global::System.InvalidOperationException(\"Keyed collection has no usable key property.\");";
             }
 
             body.AppendLineAt(
@@ -133,7 +120,6 @@ internal static class SparseResolutionCollectionEmitter
             keyOf,
             elementIsRef,
             id,
-            member.Collection.IsCompositeKey,
             useDesiredVariable: true
         );
         body.AppendLineAt(4, "}");
@@ -506,23 +492,11 @@ internal static class SparseResolutionCollectionEmitter
         string keyOf,
         bool elementIsRef,
         int id,
-        bool compositeKey,
         bool useDesiredVariable = false
     )
     {
         _ = runtime;
         _ = valueType;
-        if (compositeKey)
-        {
-            body.AppendLineAt(
-                5,
-                "error = \"Member '"
-                    + name
-                    + "' has composite keys; order resolves at the member level.\";"
-            );
-            body.AppendLineAt(5, "return false;");
-            return;
-        }
 
         // Order resolutions carry the desired key list. When reached through the
         // member-level branch the list is already matched as orderDesired; the

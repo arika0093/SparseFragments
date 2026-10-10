@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -50,9 +49,9 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                     continue;
                 }
 
-                // Computed key metadata ([SparseKey] or ISparseKeyed<>.SparseKey) is
+                // Computed key metadata (a getter-only [SparseKey] property) is
                 // identity, not construction state: it is extracted, never overlaid.
-                if (IsComputedKeyMetadata(property, pocoType, config, cancellationToken))
+                if (IsComputedKeyMetadata(property, config, cancellationToken))
                 {
                     continue;
                 }
@@ -115,15 +114,14 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
     /// </summary>
     /// <remarks>
     /// A getter-only <c>[SparseKey]</c> property (e.g.
-    /// <c>public ServerKey Key => new(TenantId, Id)</c>) or the <c>SparseKey</c> getter
-    /// of an <c>ISparseKeyed&lt;TKey&gt;</c> implementation is extracted for keyed
-    /// collection identity and never constructed or overlaid, so it must not mark the
-    /// containing type as structurally unsupported. Properties with any setter remain
-    /// construction state and keep the existing rules.
+    /// <c>public (string TenantId, int Id) Key => (TenantId, Id)</c>) is
+    /// extracted for keyed collection identity and never constructed or
+    /// overlaid, so it must not mark the containing type as structurally
+    /// unsupported. Properties with any setter remain construction state and
+    /// keep the existing rules.
     /// </remarks>
     private static bool IsComputedKeyMetadata(
         IPropertySymbol property,
-        INamedTypeSymbol pocoType,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
     )
@@ -140,24 +138,6 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
             if (attribute.AttributeClass?.ToDisplayString() == config.KeyAttributeMetadataName)
             {
                 return true;
-            }
-        }
-
-        if (
-            string.Equals(property.Name, config.KeyPropertyName, StringComparison.Ordinal)
-            && property.GetMethod?.DeclaredAccessibility == Accessibility.Public
-        )
-        {
-            foreach (var implemented in pocoType.AllInterfaces)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (
-                    implemented.OriginalDefinition?.ToDisplayString()
-                    == config.KeyedInterfaceMetadataName
-                )
-                {
-                    return true;
-                }
             }
         }
 

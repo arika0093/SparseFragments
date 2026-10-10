@@ -189,8 +189,8 @@ public interface IArrayDescriptor
     /// <summary>Gets the key type, or null for unkeyed sequences.</summary>
     Type? KeyType { get; }
 
-    /// <summary>Gets the key property names in key order.</summary>
-    /// <remarks>Empty for unkeyed sequences and interface-computed keys.</remarks>
+    /// <summary>Gets the single key property name.</summary>
+    /// <remarks>Empty for unkeyed sequences.</remarks>
     IReadOnlyList<string> KeyPropertyNames { get; }
 
     /// <summary>Gets the assigned key of the item at an index.</summary>

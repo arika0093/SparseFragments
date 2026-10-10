@@ -874,24 +874,14 @@ internal static class SparseChangeSetKeyedTransitionEmitter
 
     internal static string KeyOfBody(SparseMemberModel member)
     {
-        if (member.Collection.KeyKind == SparseKeyKind.Interface)
-            return "return element.SparseKey"
-                + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : "")
-                + ";";
+        // Single-property keys only: the key type is the declared property type,
+        // which may itself be a tuple or value object for composite identity.
         var keys = member.Collection.KeyPropertyNames;
         if (keys.Length == 1)
             return "return element."
                 + SparseNaming.EscapeIdentifier(keys[0])
                 + (SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : "")
                 + ";";
-        var builder = new System.Text.StringBuilder("(");
-        for (var i = 0; i < keys.Length; i++)
-        {
-            if (i > 0)
-                builder.Append(", ");
-            builder.Append("element.").Append(SparseNaming.EscapeIdentifier(keys[i]));
-        }
-        builder.Append(")");
-        return "return " + builder.ToString() + ";";
+        return "throw new global::System.InvalidOperationException(\"Keyed collection has no usable key property.\");";
     }
 }

@@ -224,7 +224,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Discovers the structural key of an element type.</summary>
-    /// <remarks>Exactly one key mechanism may apply; conflicts yield no key and diagnostics.</remarks>
+    /// <remarks>Exactly one [SparseKey] property may apply; invalid declarations yield no key and diagnostics.</remarks>
     public static bool TryDiscoverKeys(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -248,7 +248,7 @@ internal static class SparseCollectionAnalyzer
         return false;
     }
 
-    /// <summary>Discovers full key metadata (including the defining mechanism).</summary>
+    /// <summary>Discovers full key metadata for an element type.</summary>
     public static bool TryDiscoverKeyInfo(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,

@@ -408,20 +408,15 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var modelType = member.Collection.ElementType.NonNullableName;
         var cast = "((" + modelType + ")" + modeller + ")";
         var bang = SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : string.Empty;
-        if (member.Collection.KeyKind == SparseKeyKind.Interface)
-        {
-            return cast + ".SparseKey" + bang;
-        }
-
+        // Single-property keys only: the key type is the declared property type,
+        // which may itself be a tuple or value object for composite identity.
         var keys = member.Collection.KeyPropertyNames;
         if (keys.Length == 1)
         {
             return cast + "." + SparseNaming.EscapeIdentifier(keys[0]) + bang;
         }
 
-        return "("
-            + string.Join(", ", keys.Select(key => cast + "." + SparseNaming.EscapeIdentifier(key)))
-            + ")";
+        return "throw new global::System.InvalidOperationException(\"Keyed collection has no usable key property.\")";
     }
 
     /// <summary>Builds a model expression unwrapping an element view.</summary>

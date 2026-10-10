@@ -12,8 +12,6 @@ internal sealed record SparseGeneratorConfig
         string MergeStrategyBaseMetadataName,
         string CloneReferenceSafeAttributeMetadataName,
         string KeyAttributeMetadataName,
-        string KeyedInterfaceMetadataName,
-        string KeyPropertyName,
         SparseMergeModeMap MergeModeMap,
         SparseDiagnosticIdMap DiagnosticIds,
         string HintNameSuffix,
@@ -45,8 +43,6 @@ internal sealed record SparseGeneratorConfig
         this.CloneReferenceSafeAttributeMetadataName = CloneReferenceSafeAttributeMetadataName;
         this.StructuralPolicy = StructuralPolicy;
         this.KeyAttributeMetadataName = KeyAttributeMetadataName;
-        this.KeyedInterfaceMetadataName = KeyedInterfaceMetadataName;
-        this.KeyPropertyName = KeyPropertyName;
         this.MergeModeMap = MergeModeMap;
         this.ReservedGeneratedNames = ReservedGeneratedNames;
         this.DiagnosticIds = DiagnosticIds;
@@ -85,10 +81,6 @@ internal sealed record SparseGeneratorConfig
     public SparseStructuralPolicy StructuralPolicy { get; init; }
 
     public string KeyAttributeMetadataName { get; init; }
-
-    public string KeyedInterfaceMetadataName { get; init; }
-
-    public string KeyPropertyName { get; init; }
 
     public SparseMergeModeMap MergeModeMap { get; init; }
 
@@ -200,15 +192,10 @@ internal sealed record SparseDiagnosticIdMap
         string GeneratedNameCollision,
         string IncompatiblePromotedModel,
         string UnkeyedStructuralSequence,
-        string ConflictingKeyMechanisms,
         string MultiplePropertyKeys,
         string InvalidKeyAttributeShape,
-        string MissingKeyComponent,
-        string DuplicateKeyComponent,
         string InaccessibleKeyProperty,
-        string NullableKey,
         string UnsupportedKeyShape,
-        string InvalidKeyedInterface,
         string DuplicateJsonPropertyName,
         string SparseIgnoreOnKey,
         string SparseIgnoreUnsupportedProperty,
@@ -229,15 +216,10 @@ internal sealed record SparseDiagnosticIdMap
         this.GeneratedNameCollision = GeneratedNameCollision;
         this.IncompatiblePromotedModel = IncompatiblePromotedModel;
         this.UnkeyedStructuralSequence = UnkeyedStructuralSequence;
-        this.ConflictingKeyMechanisms = ConflictingKeyMechanisms;
         this.MultiplePropertyKeys = MultiplePropertyKeys;
         this.InvalidKeyAttributeShape = InvalidKeyAttributeShape;
-        this.MissingKeyComponent = MissingKeyComponent;
-        this.DuplicateKeyComponent = DuplicateKeyComponent;
         this.InaccessibleKeyProperty = InaccessibleKeyProperty;
-        this.NullableKey = NullableKey;
         this.UnsupportedKeyShape = UnsupportedKeyShape;
-        this.InvalidKeyedInterface = InvalidKeyedInterface;
         this.DuplicateJsonPropertyName = DuplicateJsonPropertyName;
         this.SparseIgnoreOnKey = SparseIgnoreOnKey;
         this.SparseIgnoreUnsupportedProperty = SparseIgnoreUnsupportedProperty;
@@ -269,23 +251,13 @@ internal sealed record SparseDiagnosticIdMap
 
     public string UnkeyedStructuralSequence { get; init; }
 
-    public string ConflictingKeyMechanisms { get; init; }
-
     public string MultiplePropertyKeys { get; init; }
 
     public string InvalidKeyAttributeShape { get; init; }
 
-    public string MissingKeyComponent { get; init; }
-
-    public string DuplicateKeyComponent { get; init; }
-
     public string InaccessibleKeyProperty { get; init; }
 
-    public string NullableKey { get; init; }
-
     public string UnsupportedKeyShape { get; init; }
-
-    public string InvalidKeyedInterface { get; init; }
 
     public string DuplicateJsonPropertyName { get; init; }
 

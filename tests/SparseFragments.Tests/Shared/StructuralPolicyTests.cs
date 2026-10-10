@@ -29,8 +29,6 @@ public sealed class StructuralPolicyTests
             MergeStrategyBaseMetadataName: MergeBase,
             CloneReferenceSafeAttributeMetadataName: CloneSafe,
             KeyAttributeMetadataName: "SparseFragments.SparseKeyAttribute",
-            KeyedInterfaceMetadataName: "SparseFragments.ISparseKeyed<TKey>",
-            KeyPropertyName: "SparseKey",
             MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
             DiagnosticIds: new SparseDiagnosticIdMap(
                 "SPF001",
@@ -44,15 +42,10 @@ public sealed class StructuralPolicyTests
                 "SPF009",
                 "SPF010",
                 "SPF011",
-                "SPF012",
                 "SPF013",
                 "SPF014",
-                "SPF015",
-                "SPF016",
                 "SPF017",
-                "SPF018",
                 "SPF019",
-                "SPF020",
                 "SPF021",
                 "SPF022",
                 "SPF023",
@@ -328,10 +321,8 @@ public sealed class StructuralPolicyTests
                     public MergeAttribute(Type strategy) { }
                 }
 
-                [AttributeUsage(AttributeTargets.Property | AttributeTargets.Class)]
+                [AttributeUsage(AttributeTargets.Property)]
                 public sealed class IdentityAttribute : Attribute { }
-
-                public interface IKeyed<TKey> { TKey Identity { get; } }
 
                 public abstract class MergeStrategy<T> { }
                 public sealed class CustomStringStrategy : MergeStrategy<string> { }
@@ -353,8 +344,9 @@ public sealed class StructuralPolicyTests
                 }
 
                 [Model]
-                public partial class InterfaceItem : IKeyed<int>
+                public partial class InterfaceItem
                 {
+                    [Identity]
                     public int Identity { get; set; }
                 }
 
@@ -391,8 +383,6 @@ public sealed class StructuralPolicyTests
             MergeStrategyBaseMetadataName: "Downstream.MergeStrategy<T>",
             CloneReferenceSafeAttributeMetadataName: "Downstream.CloneSafeAttribute",
             KeyAttributeMetadataName: "Downstream.IdentityAttribute",
-            KeyedInterfaceMetadataName: "Downstream.IKeyed<TKey>",
-            KeyPropertyName: "Identity",
             MergeModeMap: new SparseMergeModeMap(10, 20, 30, 40, 50, 60),
             DiagnosticIds: new SparseDiagnosticIdMap(
                 "DWN001",
@@ -406,15 +396,10 @@ public sealed class StructuralPolicyTests
                 "DWN009",
                 "DWN010",
                 "DWN011",
-                "DWN012",
                 "DWN013",
                 "DWN014",
-                "DWN015",
-                "DWN016",
                 "DWN017",
-                "DWN018",
                 "DWN019",
-                "DWN020",
                 "DWN021",
                 "DWN022",
                 "DWN023",

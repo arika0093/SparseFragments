@@ -359,58 +359,6 @@ internal static class SparseFieldPathResolver
             }
         }
 
-        var keyAttribute = elementType.GetCustomAttribute<SparseKeyAttribute>(inherit: true);
-        if (keyAttribute is not null)
-        {
-            if (keyAttribute.PropertyNames.Length != 1)
-            {
-                // Composite keys have no single-segment field spelling.
-                reader = null!;
-                return false;
-            }
-
-            var property = elementType.GetProperty(
-                keyAttribute.PropertyNames[0],
-                BindingFlags.Instance | BindingFlags.Public
-            );
-            if (
-                property is not null
-                && property.CanRead
-                && property.GetIndexParameters().Length == 0
-            )
-            {
-                reader = new KeyReader
-                {
-                    GetKey = property.GetValue,
-                    KeyType = property.PropertyType,
-                };
-                return true;
-            }
-
-            reader = null!;
-            return false;
-        }
-
-        foreach (var candidate in elementType.GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(ISparseKeyed<>)
-            )
-            {
-                var sparseKey = candidate.GetProperty("SparseKey");
-                if (sparseKey is not null)
-                {
-                    reader = new KeyReader
-                    {
-                        GetKey = sparseKey.GetValue,
-                        KeyType = candidate.GetGenericArguments()[0],
-                    };
-                    return true;
-                }
-            }
-        }
-
         reader = null!;
         return false;
     }

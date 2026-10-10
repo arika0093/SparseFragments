@@ -120,10 +120,6 @@ namespace SparseFragments
     {
         void AcceptChanges(TChangeSet changes);
     }
-    public interface ISparseKeyed<out TKey>
-    {
-        TKey SparseKey { get; }
-    }
     public enum MergeMode
     {
         Default = 0,
@@ -289,12 +285,10 @@ namespace SparseFragments
     {
         public SparseIgnoreAttribute() { }
     }
-    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct | System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class SparseKeyAttribute : System.Attribute
     {
         public SparseKeyAttribute() { }
-        public SparseKeyAttribute(string propertyName, params string[] additionalPropertyNames) { }
-        public string[] PropertyNames { get; }
         public object? Unassigned { get; set; }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]

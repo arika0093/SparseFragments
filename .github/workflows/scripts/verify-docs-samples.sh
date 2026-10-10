@@ -80,9 +80,7 @@ check_sample() {
 
 check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir}/KeyedCollections.cs" \
     '[SparseKey]' \
-    '[SparseKey(' \
-    'ISparseKeyed' \
-    'SparseKey =>' \
+    'Key => ' \
     'CreateChangeSet' \
     'ToPatch().ApplyTo' \
     'IsEmpty' \

@@ -31,7 +31,6 @@ public partial class SkApiTenantServer
     public string Name { get; set; } = string.Empty;
 }
 
-[SparseKey(nameof(TenantId), nameof(Id))]
 public partial class SkApiCompositeServer
 {
     public string TenantId { get; set; } = string.Empty;
@@ -40,12 +39,10 @@ public partial class SkApiCompositeServer
 
     public string Name { get; set; } = string.Empty;
 
-    public string Key { get; set; } = string.Empty;
-
-    public string Item1 { get; set; } = string.Empty;
+    [SparseKey]
+    public (string TenantId, int Id) Key => (TenantId, Id);
 }
 
-[SparseKey(nameof(A), nameof(B), nameof(C))]
 public partial class SkApiTripleServer
 {
     public int A { get; set; }
@@ -55,19 +52,24 @@ public partial class SkApiTripleServer
     public Guid C { get; set; }
 
     public string Name { get; set; } = string.Empty;
+
+    [SparseKey]
+    public (int A, string B, Guid C) Key => (A, B, C);
 }
 
-[SparseKey(nameof(B), nameof(A))]
 public partial class SkApiSwappedServer
 {
     public string A { get; set; } = string.Empty;
 
     public string B { get; set; } = string.Empty;
+
+    [SparseKey]
+    public (string B, string A) Key => (B, A);
 }
 
 public readonly record struct SkApiIfaceKey(string Tenant, int Id);
 
-public partial class SkApiIfaceServer : ISparseKeyed<SkApiIfaceKey>
+public partial class SkApiIfaceServer
 {
     public string Tenant { get; set; } = string.Empty;
 
@@ -75,7 +77,8 @@ public partial class SkApiIfaceServer : ISparseKeyed<SkApiIfaceKey>
 
     public string Name { get; set; } = string.Empty;
 
-    public SkApiIfaceKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
+    [SparseKey]
+    public SkApiIfaceKey Key => new(Tenant.ToUpperInvariant(), Id);
 }
 
 public partial class SkApiEndpoint
@@ -129,9 +132,7 @@ public sealed class SparseKeyApiTests
     [Test]
     public void ScalarSinglePropertyKeyRoundTrip()
     {
-        var before = StateOf(
-            new SkApiServerHolder { Items = [new() { Id = "a", Name = "A" }] }
-        );
+        var before = StateOf(new SkApiServerHolder { Items = [new() { Id = "a", Name = "A" }] });
         var after = StateOf(
             new SkApiServerHolder
             {
@@ -153,8 +154,18 @@ public sealed class SparseKeyApiTests
             {
                 Tenants =
                 [
-                    new() { Tenant = "t1", Id = 1, Name = "One" },
-                    new() { Tenant = "t2", Id = 1, Name = "Two" },
+                    new()
+                    {
+                        Tenant = "t1",
+                        Id = 1,
+                        Name = "One",
+                    },
+                    new()
+                    {
+                        Tenant = "t2",
+                        Id = 1,
+                        Name = "Two",
+                    },
                 ],
             }
         );
@@ -163,9 +174,24 @@ public sealed class SparseKeyApiTests
             {
                 Tenants =
                 [
-                    new() { Tenant = "t1", Id = 1, Name = "One*" },
-                    new() { Tenant = "t2", Id = 1, Name = "Two" },
-                    new() { Tenant = "t1", Id = 2, Name = "Three" },
+                    new()
+                    {
+                        Tenant = "t1",
+                        Id = 1,
+                        Name = "One*",
+                    },
+                    new()
+                    {
+                        Tenant = "t2",
+                        Id = 1,
+                        Name = "Two",
+                    },
+                    new()
+                    {
+                        Tenant = "t1",
+                        Id = 2,
+                        Name = "Three",
+                    },
                 ],
             }
         );
@@ -174,15 +200,21 @@ public sealed class SparseKeyApiTests
         var applied = patch.Apply(before);
         SkApiCluster.Patch.Between(applied, after).IsEmpty.ShouldBeTrue();
         applied.Value!.Tenants.Value!.Count.ShouldBe(3);
-        applied.Value!.Tenants.Value!.Single(t => t.Tenant == "t1" && t.Id == 1)
+        applied
+            .Value!.Tenants.Value!.Single(t => t.Tenant == "t1" && t.Id == 1)
             .Name.ShouldBe("One*");
     }
 
     [Test]
-    public void TwoComponentCompositeKeyRoundTrip()
+    public void TwoComponentTupleKeyRoundTrip()
     {
         SkApiCompositeServer S(string tenant, int id, string name = "") =>
-            new() { TenantId = tenant, Id = id, Name = name };
+            new()
+            {
+                TenantId = tenant,
+                Id = id,
+                Name = name,
+            };
 
         var before = StateOf(new SkApiCluster { Composites = [S("t1", 1, "A")] });
         var after = StateOf(
@@ -201,13 +233,10 @@ public sealed class SparseKeyApiTests
     }
 
     [Test]
-    public void CompositeComponentOrderIsSignificant()
+    public void TupleComponentOrderIsSignificant()
     {
-        // SkApiSwappedServer declares (B, A): key ("b", "a") for A="a", B="b".
-        var holder = new SkApiSwappedHolder
-        {
-            Items = [new() { A = "a", B = "b" }],
-        };
+        // SkApiSwappedServer declares Key as (B, A): key ("b", "a") for A="a", B="b".
+        var holder = new SkApiSwappedHolder { Items = [new() { A = "a", B = "b" }] };
         var present = Optional<SkApiSwappedHolder.Fragment?>.Present(
             SkApiSwappedHolder.Fragment.From(holder)
         );
@@ -224,7 +253,7 @@ public sealed class SparseKeyApiTests
     }
 
     [Test]
-    public void ThreeComponentCompositeKeyRoundTripWithReorder()
+    public void ThreeComponentTupleKeyRoundTripWithReorder()
     {
         var c1 = Guid.NewGuid();
         var c2 = Guid.NewGuid();
@@ -233,8 +262,18 @@ public sealed class SparseKeyApiTests
             {
                 Triples =
                 [
-                    new() { A = 1, B = "x", C = c1 },
-                    new() { A = 2, B = "y", C = c2 },
+                    new()
+                    {
+                        A = 1,
+                        B = "x",
+                        C = c1,
+                    },
+                    new()
+                    {
+                        A = 2,
+                        B = "y",
+                        C = c2,
+                    },
                 ],
             }
         );
@@ -243,8 +282,18 @@ public sealed class SparseKeyApiTests
             {
                 Triples =
                 [
-                    new() { A = 2, B = "y", C = c2 },
-                    new() { A = 1, B = "x", C = c1 },
+                    new()
+                    {
+                        A = 2,
+                        B = "y",
+                        C = c2,
+                    },
+                    new()
+                    {
+                        A = 1,
+                        B = "x",
+                        C = c1,
+                    },
                 ],
             }
         );
@@ -257,20 +306,38 @@ public sealed class SparseKeyApiTests
     }
 
     [Test]
-    public void InterfaceKeyNormalizesComputedIdentity()
+    public void ComputedKeyNormalizesIdentity()
     {
         var basis = StateOf(
-            new SkApiCluster { Ifaces = [new() { Tenant = "acme", Id = 1, Name = "A" }] }
+            new SkApiCluster
+            {
+                Ifaces =
+                [
+                    new()
+                    {
+                        Tenant = "acme",
+                        Id = 1,
+                        Name = "A",
+                    },
+                ],
+            }
         );
 
         // Same normalized identity with different casing is a duplicate.
         var duplicate = new SkApiCluster.Patch();
-        duplicate.Ifaces.Add(new() { Tenant = "ACME", Id = 1, Name = "Dup" });
+        duplicate.Ifaces.Add(
+            new()
+            {
+                Tenant = "ACME",
+                Id = 1,
+                Name = "Dup",
+            }
+        );
         Should.Throw<InvalidOperationException>(() => duplicate.Apply(basis));
 
         // Manual edit + remove/add flow works through the normalized key.
         // Note: manually constructed keys must already be normalized, exactly as
-        // the SparseKey getter produces them; extraction normalizes model values.
+        // the Key getter produces them; extraction normalizes model values.
         var patch = new SkApiCluster.Patch();
         patch.Ifaces.Edit(new SkApiIfaceKey("ACME", 1)).Name = "A2";
         var applied = patch.Apply(basis);
@@ -295,11 +362,7 @@ public sealed class SparseKeyApiTests
                         Servers = [new() { Id = "a", Name = "A" }],
                         Nested =
                         [
-                            new()
-                            {
-                                Id = "n1",
-                                Endpoints = [new() { Path = "/x", Port = 80 }],
-                            },
+                            new() { Id = "n1", Endpoints = [new() { Path = "/x", Port = 80 }] },
                         ],
                     },
                 ],

@@ -5,7 +5,12 @@ using SparseFragments.Generator;
 
 namespace SparseFragments.Tests.Diagnostics;
 
-/// <summary>Generator diagnostic tests for the SparseKey API (SPF012–SPF020).</summary>
+/// <summary>Generator diagnostic tests for the single-property SparseKey API.</summary>
+/// <remarks>
+/// Identity is declared with exactly one property marked with parameterless
+/// <c>[SparseKey]</c>. Tuple and value-object keys use a computed key property
+/// whose declared type is the key type.
+/// </remarks>
 public sealed class SparseKeyDiagnosticTests
 {
     private static (
@@ -80,48 +85,6 @@ public sealed class SparseKeyDiagnosticTests
         + HolderTail;
 
     [Test]
-    [Arguments("propertyAndType")]
-    [Arguments("propertyAndInterface")]
-    [Arguments("typeAndInterface")]
-    public void Spf012_ConflictingMechanismsReportError(string kind)
-    {
-        var element = kind switch
-        {
-            "propertyAndType" => """
-                [SparseKey(nameof(TenantId), nameof(Id))]
-                public partial class Keyed
-                {
-                    [SparseKey]
-                    public string Id { get; set; } = "";
-                    public string TenantId { get; set; } = "";
-                }
-                """,
-            "propertyAndInterface" => """
-                public partial class Keyed : ISparseKeyed<string>
-                {
-                    [SparseKey]
-                    public string Id { get; set; } = "";
-                    public string SparseKey => Id;
-                }
-                """,
-            "typeAndInterface" => """
-                [SparseKey(nameof(TenantId), nameof(Id))]
-                public partial class Keyed : ISparseKeyed<string>
-                {
-                    public string TenantId { get; set; } = "";
-                    public string Id { get; set; } = "";
-                    public string SparseKey => TenantId + Id;
-                }
-                """,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF012"]);
-        diagnostics.Single(d => d.Id == "SPF012").GetMessage().ShouldContain("Keyed");
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
     public void Spf013_MultiplePropertyKeysReportError()
     {
         const string element = """
@@ -140,31 +103,18 @@ public sealed class SparseKeyDiagnosticTests
     }
 
     [Test]
-    [Arguments("parameterlessOnType")]
-    [Arguments("argsOnProperty")]
-    public void Spf014_InvalidShapesReportError(string kind)
+    public void Spf014_TypeLevelAttributeReportsError()
     {
-        var element = kind switch
-        {
-            "parameterlessOnType" => """
-                [SparseKey]
-                public partial class Keyed
-                {
-                    public string Id { get; set; } = "";
-                }
-                """,
-            "argsOnProperty" => """
-                public partial class Keyed
-                {
-                    [SparseKey("Id")]
-                    public string Id { get; set; } = "";
-                }
-                """,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
+        // The attribute only targets properties, so the compilation also errors;
+        // the generator reports the declaration shape specifically.
+        const string element = """
+            [SparseKey]
+            public partial class Keyed
+            {
+                public string Id { get; set; } = "";
+            }
+            """;
         var (diagnostics, sources) = Run(WithHolder(element));
-        // Parameterless-on-type also leaves the sequence unkeyed, but the specific
-        // shape error takes precedence over SPF011.
         AssertSpfIds(diagnostics, ["SPF014"]);
         sources.ShouldBeEmpty();
     }
@@ -186,59 +136,9 @@ public sealed class SparseKeyDiagnosticTests
     }
 
     [Test]
-    public void Spf025_CompositeSentinelIsRejected()
-    {
-        const string element = """
-            [SparseKey(nameof(Tenant), nameof(Id), Unassigned = 0)]
-            public partial class Keyed
-            {
-                public int Tenant { get; set; }
-                public int Id { get; set; }
-            }
-            """;
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF025"]);
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
-    public void Spf015_MissingComponentReportsError()
-    {
-        const string element = """
-            [SparseKey("TenantId", "Nope")]
-            public partial class Keyed
-            {
-                public string TenantId { get; set; } = "";
-                public string Id { get; set; } = "";
-            }
-            """;
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF015"]);
-        diagnostics.Single(d => d.Id == "SPF015").GetMessage().ShouldContain("Keyed.Nope");
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
-    public void Spf016_DuplicateComponentReportsError()
-    {
-        const string element = """
-            [SparseKey("Id", "Id")]
-            public partial class Keyed
-            {
-                public string Id { get; set; } = "";
-            }
-            """;
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF016"]);
-        diagnostics.Single(d => d.Id == "SPF016").GetMessage().ShouldContain("Keyed.Id");
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
     [Arguments("staticProperty")]
     [Arguments("indexer")]
     [Arguments("privateGetter")]
-    [Arguments("staticComponent")]
     public void Spf017_InaccessibleKeyReportsError(string kind)
     {
         // Each element keeps an ordinary instance property so it stays a
@@ -269,14 +169,6 @@ public sealed class SparseKeyDiagnosticTests
                     public string Name { get; set; } = "";
                 }
                 """,
-            "staticComponent" => """
-                [SparseKey("Id")]
-                public partial class Keyed
-                {
-                    public static string Id { get; set; } = "";
-                    public string Name { get; set; } = "";
-                }
-                """,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var (diagnostics, sources) = Run(WithHolder(element));
@@ -285,27 +177,11 @@ public sealed class SparseKeyDiagnosticTests
     }
 
     [Test]
-    public void Spf018_NullableCompositeComponentReportsError()
-    {
-        const string element = """
-            [SparseKey("TenantId", "Id")]
-            public partial class Keyed
-            {
-                public string TenantId { get; set; } = "";
-                public string? Id { get; set; }
-            }
-            """;
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF018"]);
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
     [Arguments("nullableProperty")]
     [Arguments("nullableValueProperty")]
-    [Arguments("nullableInterfaceKey")]
     [Arguments("explicitNull")]
     [Arguments("override")]
+    [Arguments("nullableTupleProperty")]
     public void NullableScalarKeysGenerateWithoutDiagnostics(string kind)
     {
         var element = kind switch
@@ -324,13 +200,6 @@ public sealed class SparseKeyDiagnosticTests
                     public int? Id { get; set; }
                 }
                 """,
-            "nullableInterfaceKey" => """
-                public partial class Keyed : ISparseKeyed<string?>
-                {
-                    public string? Id { get; set; }
-                    public string? SparseKey => Id;
-                }
-                """,
             "explicitNull" => """
                 public partial class Keyed
                 {
@@ -345,6 +214,16 @@ public sealed class SparseKeyDiagnosticTests
                     public string? Id { get; set; }
                 }
                 """,
+            // Computed nullable tuple keys may use null to denote unassigned.
+            "nullableTupleProperty" => """
+                public partial class Keyed
+                {
+                    public string TenantId { get; set; } = "";
+                    public string? Id { get; set; }
+                    [SparseKey]
+                    public (string TenantId, string? Id)? Key => Id is null ? null : (TenantId, Id);
+                }
+                """,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var (diagnostics, sources) = Run(WithHolder(element));
@@ -355,8 +234,6 @@ public sealed class SparseKeyDiagnosticTests
     [Test]
     [Arguments("listProperty")]
     [Arguments("nullableListProperty")]
-    [Arguments("arrayComponent")]
-    [Arguments("dictionaryInterfaceKey")]
     public void Spf019_CollectionShapedKeyReportsError(string kind)
     {
         var element = kind switch
@@ -375,54 +252,10 @@ public sealed class SparseKeyDiagnosticTests
                     public List<string>? Ids { get; set; }
                 }
                 """,
-            "arrayComponent" => """
-                [SparseKey("Tags", "Id")]
-                public partial class Keyed
-                {
-                    public string[] Tags { get; set; } = [];
-                    public string Id { get; set; } = "";
-                }
-                """,
-            "dictionaryInterfaceKey" => """
-                public partial class Keyed : ISparseKeyed<Dictionary<string, int>>
-                {
-                    public string Id { get; set; } = "";
-                    public Dictionary<string, int> SparseKey => new();
-                }
-                """,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var (diagnostics, sources) = Run(WithHolder(element));
         AssertSpfIds(diagnostics, ["SPF019"]);
-        sources.ShouldBeEmpty();
-    }
-
-    [Test]
-    [Arguments("explicitImplementation")]
-    [Arguments("missingAccessor")]
-    public void Spf020_InvalidInterfaceReportsError(string kind)
-    {
-        var element = kind switch
-        {
-            "explicitImplementation" => """
-                public partial class Keyed : ISparseKeyed<string>
-                {
-                    public string Id { get; set; } = "";
-                    string ISparseKeyed<string>.SparseKey => Id;
-                }
-                """,
-            // Declared but unimplemented: the compilation itself errors (CS0535), and
-            // the generator additionally reports the unusable key contract.
-            "missingAccessor" => """
-                public partial class Keyed : ISparseKeyed<string>
-                {
-                    public string Id { get; set; } = "";
-                }
-                """,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
-        var (diagnostics, sources) = Run(WithHolder(element));
-        AssertSpfIds(diagnostics, ["SPF020"]);
         sources.ShouldBeEmpty();
     }
 
@@ -438,11 +271,10 @@ public sealed class SparseKeyDiagnosticTests
                 public string Name { get; set; } = "";
                 public List<NestedLeaf> Items { get; set; } = new();
             }
-            [SparseKey(nameof(Tenant), nameof(Id))]
             public partial class NestedLeaf
             {
-                public string Tenant { get; set; } = "";
-                public string? Id { get; set; }
+                [SparseKey]
+                public List<string> Ids { get; set; } = new();
             }
             [SparseFragmentModel]
             public partial class NestedRoot
@@ -451,15 +283,14 @@ public sealed class SparseKeyDiagnosticTests
             }
             """;
         var (diagnostics, sources) = Run(source);
-        AssertSpfIds(diagnostics, ["SPF018"]);
+        AssertSpfIds(diagnostics, ["SPF019"]);
         sources.ShouldBeEmpty();
     }
 
     [Test]
     [Arguments("computedProperty")]
-    [Arguments("twoComponent")]
-    [Arguments("threeComponent")]
-    [Arguments("interface")]
+    [Arguments("tupleProperty")]
+    [Arguments("normalizedProperty")]
     public void ValidKeyShapesGenerateWithoutDiagnostics(string kind)
     {
         var element = kind switch
@@ -474,63 +305,28 @@ public sealed class SparseKeyDiagnosticTests
                     public ComputedKey Key => new(Tenant, Id);
                 }
                 """,
-            "twoComponent" => """
-                [SparseKey(nameof(TenantId), nameof(Id))]
+            "tupleProperty" => """
                 public partial class Keyed
                 {
                     public string TenantId { get; set; } = "";
                     public int Id { get; set; }
+                    [SparseKey]
+                    public (string TenantId, int Id) Key => (TenantId, Id);
                 }
                 """,
-            "threeComponent" => """
-                [SparseKey(nameof(A), nameof(B), nameof(C))]
+            "normalizedProperty" => """
+                public readonly record struct NormalKey(string Tenant, int Id);
                 public partial class Keyed
-                {
-                    public int A { get; set; }
-                    public string B { get; set; } = "";
-                    public Guid C { get; set; }
-                }
-                """,
-            "interface" => """
-                public readonly record struct IfaceKey(string Tenant, int Id);
-                public partial class Keyed : ISparseKeyed<IfaceKey>
                 {
                     public string Tenant { get; set; } = "";
                     public int Id { get; set; }
-                    public IfaceKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
+                    [SparseKey]
+                    public NormalKey Key => new(Tenant.ToUpperInvariant(), Id);
                 }
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var (diagnostics, sources) = Run(WithHolder(element));
-        diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
-        sources.Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal)).ShouldBeTrue();
-    }
-
-    [Test]
-    public void CompositeKeyMemberNamesDoNotCollide()
-    {
-        // The tuple representation introduces no generated identifiers, so user
-        // members named like tuple machinery must not break generation.
-        const string source = """
-            using SparseFragments;
-            using System.Collections.Generic;
-            [SparseKey(nameof(TenantId), nameof(Id))]
-            public partial class Keyed
-            {
-                public string TenantId { get; set; } = "";
-                public int Id { get; set; }
-                public string Key { get; set; } = "";
-                public string Item1 { get; set; } = "";
-                public string Rest { get; set; } = "";
-            }
-            [SparseFragmentModel]
-            public partial class KeyHolder
-            {
-                public List<Keyed> Items { get; set; } = new();
-            }
-            """;
-        var (diagnostics, sources) = Run(source);
         diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
         sources.Any(s => s.HintName.Contains("KeyHolder", StringComparison.Ordinal)).ShouldBeTrue();
     }

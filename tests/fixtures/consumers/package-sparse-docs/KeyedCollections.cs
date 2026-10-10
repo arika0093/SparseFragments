@@ -2,9 +2,9 @@ using SparseFragments;
 
 // Canonical compile-checked mirror of docs/keyed-collections.md (#45).
 // Covers the representative element-identity mechanisms users are expected to
-// copy: single-property [SparseKey], ordered composite keys, and the
-// ISparseKeyed<TKey> escape hatch, plus keyed Between/Apply add/remove/edit
-// semantics and reorder-by-final-key-order.
+// copy: single-property [SparseKey], computed tuple keys, and normalized
+// value-object keys, plus keyed Between/Apply add/remove/edit semantics and
+// reorder-by-final-key-order.
 public static class KeyedCollectionsSamples
 {
     public static void Run()
@@ -12,8 +12,8 @@ public static class KeyedCollectionsSamples
         SinglePropertyKeyAddRemoveEdit();
         TypedCollectionTransitions();
         ReorderByFinalKeyOrder();
-        CompositeKey();
-        InterfaceKey();
+        TupleKey();
+        NormalizedKey();
     }
 
     private static void SinglePropertyKeyAddRemoveEdit()
@@ -22,16 +22,36 @@ public static class KeyedCollectionsSamples
         {
             Servers = new List<DocsServer>
             {
-                new() { Id = "a", Host = "A", Port = 1 },
-                new() { Id = "b", Host = "B", Port = 2 },
+                new()
+                {
+                    Id = "a",
+                    Host = "A",
+                    Port = 1,
+                },
+                new()
+                {
+                    Id = "b",
+                    Host = "B",
+                    Port = 2,
+                },
             },
         };
         var after = new DocsInventory
         {
             Servers = new List<DocsServer>
             {
-                new() { Id = "b", Host = "B2", Port = 2 },
-                new() { Id = "c", Host = "C", Port = 3 },
+                new()
+                {
+                    Id = "b",
+                    Host = "B2",
+                    Port = 2,
+                },
+                new()
+                {
+                    Id = "c",
+                    Host = "C",
+                    Port = 3,
+                },
             },
         };
 
@@ -44,13 +64,16 @@ public static class KeyedCollectionsSamples
         var servers = applied.Servers;
         DocsCheck.Require(
             servers.Select(server => server.Id).SequenceEqual(new[] { "b", "c" }),
-            "keyed apply holds [b, c]: b edited in place, a removed, c added");
+            "keyed apply holds [b, c]: b edited in place, a removed, c added"
+        );
         DocsCheck.Require(
             servers.Single(server => server.Id == "b").Host == "B2",
-            "keyed edit patches only changed members");
+            "keyed edit patches only changed members"
+        );
         DocsCheck.Require(
             servers.Single(server => server.Id == "b").Port == 2,
-            "keyed edit keeps unchanged members");
+            "keyed edit keeps unchanged members"
+        );
     }
 
     private static void TypedCollectionTransitions()
@@ -59,16 +82,36 @@ public static class KeyedCollectionsSamples
         {
             Servers = new List<DocsServer>
             {
-                new() { Id = "a", Host = "A", Port = 1 },
-                new() { Id = "b", Host = "B", Port = 2 },
+                new()
+                {
+                    Id = "a",
+                    Host = "A",
+                    Port = 1,
+                },
+                new()
+                {
+                    Id = "b",
+                    Host = "B",
+                    Port = 2,
+                },
             },
         };
         var after = new DocsInventory
         {
             Servers = new List<DocsServer>
             {
-                new() { Id = "b", Host = "B2", Port = 2 },
-                new() { Id = "c", Host = "C", Port = 3 },
+                new()
+                {
+                    Id = "b",
+                    Host = "B2",
+                    Port = 2,
+                },
+                new()
+                {
+                    Id = "c",
+                    Host = "C",
+                    Port = 3,
+                },
             },
         };
 
@@ -80,20 +123,27 @@ public static class KeyedCollectionsSamples
         DocsCheck.Require(servers.IsChanged, "collection transition is non-empty");
         DocsCheck.Require(
             servers.Added.Count == 1 && servers.Added.Single().Id == "c",
-            "Added carries the new element");
+            "Added carries the new element"
+        );
         DocsCheck.Require(
             servers.Removed.Count == 1 && servers.Removed.Single().Id == "a",
-            "Removed carries the old element");
+            "Removed carries the old element"
+        );
         DocsCheck.Require(
             servers.Edited.Count == 1
                 && servers.Edited["b"].Host.IsChanged
                 && servers.Edited["b"].Host.Before.Value == "B"
                 && servers.Edited["b"].Host.After.Value == "B2",
-            "Edited carries the nested member transition");
+            "Edited carries the nested member transition"
+        );
         DocsCheck.Require(
-            servers.BeforeOrder.SequenceEqual(new[] { "a", "b" }), "BeforeOrder preserved");
+            servers.BeforeOrder.SequenceEqual(new[] { "a", "b" }),
+            "BeforeOrder preserved"
+        );
         DocsCheck.Require(
-            servers.AfterOrder.SequenceEqual(new[] { "b", "c" }), "AfterOrder preserved");
+            servers.AfterOrder.SequenceEqual(new[] { "b", "c" }),
+            "AfterOrder preserved"
+        );
         DocsCheck.Require(servers.OrderChanged, "membership change flips OrderChanged");
 
         var editedKeys = new List<string>();
@@ -109,7 +159,9 @@ public static class KeyedCollectionsSamples
         var edited = servers.GetChange("b");
         DocsCheck.Require(edited.IsEdited, "GetChange observes the edited key");
         DocsCheck.Require(
-            edited.Edit.Host.After.Value == "B2", "GetChange carries the nested change");
+            edited.Edit.Host.After.Value == "B2",
+            "GetChange carries the nested change"
+        );
         DocsCheck.Require(!edited.IsAdded && !edited.IsRemoved, "edit is neither add nor remove");
         DocsCheck.Require(servers.GetChange("absent").IsEmpty, "unknown key is empty");
     }
@@ -140,58 +192,83 @@ public static class KeyedCollectionsSamples
         var applied = changes.ToPatch().ApplyTo(first);
         DocsCheck.Require(
             applied.Servers.Select(server => server.Id).SequenceEqual(new[] { "b", "a" }),
-            "keyed reorder replay reproduces the new order");
+            "keyed reorder replay reproduces the new order"
+        );
     }
 
-    private static void CompositeKey()
+    private static void TupleKey()
     {
         var before = new DocsTenantInventory
         {
             Servers = new List<DocsTenantServer>
             {
-                new() { TenantId = "t1", Id = "a", Host = "A" },
+                new()
+                {
+                    TenantId = "t1",
+                    Id = "a",
+                    Host = "A",
+                },
             },
         };
         var after = new DocsTenantInventory
         {
             Servers = new List<DocsTenantServer>
             {
-                new() { TenantId = "t1", Id = "a", Host = "A2" },
+                new()
+                {
+                    TenantId = "t1",
+                    Id = "a",
+                    Host = "A2",
+                },
             },
         };
 
-        // Ordered type-level composite: declaration order is significant.
+        // Computed tuple key: the property type is the key type, compared whole.
         var applied = before.CreateChangeSet(after).ToPatch().ApplyTo(before);
-        DocsCheck.Require(
-            applied.Servers.Single().Host == "A2",
-            "composite key element edit");
+        DocsCheck.Require(applied.Servers.Single().Host == "A2", "tuple key element edit");
     }
 
-    private static void InterfaceKey()
+    private static void NormalizedKey()
     {
         var before = new DocsNormalizedInventory
         {
             Servers = new List<DocsNormalizedServer>
             {
-                new() { Tenant = "acme", Id = 1, Host = "A" },
+                new()
+                {
+                    Tenant = "acme",
+                    Id = 1,
+                    Host = "A",
+                },
             },
         };
         var after = new DocsNormalizedInventory
         {
             Servers = new List<DocsNormalizedServer>
             {
-                new() { Tenant = "acme", Id = 1, Host = "A2" },
-                new() { Tenant = "acme", Id = 2, Host = "B" },
+                new()
+                {
+                    Tenant = "acme",
+                    Id = 1,
+                    Host = "A2",
+                },
+                new()
+                {
+                    Tenant = "acme",
+                    Id = 2,
+                    Host = "B",
+                },
             },
         };
 
-        // ISparseKeyed<TKey> escape hatch: normalized (case-folded) identity.
+        // Computed value-object key: normalized (case-folded) identity.
         var applied = before.CreateChangeSet(after).ToPatch().ApplyTo(before);
         var servers = applied.Servers;
-        DocsCheck.Require(servers.Count == 2, "interface key add");
+        DocsCheck.Require(servers.Count == 2, "computed key add");
         DocsCheck.Require(
             servers.Single(server => server.Id == 1).Host == "A2",
-            "interface key edit");
+            "computed key edit"
+        );
     }
 }
 
@@ -212,8 +289,7 @@ public partial class DocsInventory
     public List<DocsServer> Servers { get; set; } = new();
 }
 
-// Composite key: ordered, order-significant components on the type.
-[SparseKey(nameof(DocsTenantServer.TenantId), nameof(DocsTenantServer.Id))]
+// Tuple key: the computed property type is the key type.
 public partial class DocsTenantServer
 {
     public string TenantId { get; set; } = string.Empty;
@@ -221,6 +297,9 @@ public partial class DocsTenantServer
     public string Id { get; set; } = string.Empty;
 
     public string Host { get; set; } = string.Empty;
+
+    [SparseKey]
+    public (string TenantId, string Id) Key => (TenantId, Id);
 }
 
 [SparseFragmentModel]
@@ -231,9 +310,9 @@ public partial class DocsTenantInventory
 
 public readonly record struct DocsNormalizedKey(string Tenant, int Id);
 
-// ISparseKeyed<TKey> escape hatch for identity that cannot be expressed as a
-// key property or an ordered composite.
-public partial class DocsNormalizedServer : ISparseKeyed<DocsNormalizedKey>
+// Computed value-object key for identity that cannot be expressed as a
+// plain key property, such as normalized (case-folded) identity.
+public partial class DocsNormalizedServer
 {
     public string Tenant { get; set; } = string.Empty;
 
@@ -241,7 +320,8 @@ public partial class DocsNormalizedServer : ISparseKeyed<DocsNormalizedKey>
 
     public string Host { get; set; } = string.Empty;
 
-    public DocsNormalizedKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
+    [SparseKey]
+    public DocsNormalizedKey Key => new(Tenant.ToUpperInvariant(), Id);
 }
 
 [SparseFragmentModel]

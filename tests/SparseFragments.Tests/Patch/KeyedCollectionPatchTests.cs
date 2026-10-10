@@ -19,7 +19,6 @@ public partial class KeyedServerHolder
     public List<KeyedServer> Items { get; set; } = new();
 }
 
-[SparseKey("TenantId", "Id")]
 [SparseFragmentModel]
 public partial class CompositeServer
 {
@@ -28,6 +27,9 @@ public partial class CompositeServer
     public string Id { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
+
+    [SparseKey]
+    public (string TenantId, string Id) Key => (TenantId, Id);
 }
 
 [SparseFragmentModel]
@@ -116,19 +118,24 @@ public partial class NullableValueKeyServerHolder
     public List<NullableValueKeyServer> Items { get; set; } = new();
 }
 
-public partial class NullableInterfaceKeyServer : ISparseKeyed<string?>
+[SparseFragmentModel]
+public partial class NullableTupleKeyServer
 {
+    public string TenantId { get; set; } = string.Empty;
+
     public string? Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
-    public string? SparseKey => Id;
+    // Computed nullable tuple key: null denotes an unassigned element.
+    [SparseKey]
+    public (string TenantId, string? Id)? Key => Id is null ? null : (TenantId, Id);
 }
 
 [SparseFragmentModel]
-public partial class NullableInterfaceKeyServerHolder
+public partial class NullableTupleKeyServerHolder
 {
-    public List<NullableInterfaceKeyServer> Items { get; set; } = new();
+    public List<NullableTupleKeyServer> Items { get; set; } = new();
 }
 
 [SparseFragmentModel]
@@ -434,30 +441,43 @@ public sealed class KeyedCollectionPatchTests
     }
 
     [Test]
-    public void NullableInterfaceKeysDefaultToNullAsUnassigned()
+    public void NullableTupleKeysDefaultToNullAsUnassigned()
     {
-        var before = Optional<NullableInterfaceKeyServerHolder.Fragment?>.Present(
-            NullableInterfaceKeyServerHolder.Fragment.From(
-                new NullableInterfaceKeyServerHolder
-                {
-                    Items = [new NullableInterfaceKeyServer { Id = "existing", Name = "existing" }],
-                }
-            )
-        );
-        var after = Optional<NullableInterfaceKeyServerHolder.Fragment?>.Present(
-            NullableInterfaceKeyServerHolder.Fragment.From(
-                new NullableInterfaceKeyServerHolder
+        var before = Optional<NullableTupleKeyServerHolder.Fragment?>.Present(
+            NullableTupleKeyServerHolder.Fragment.From(
+                new NullableTupleKeyServerHolder
                 {
                     Items =
                     [
-                        new NullableInterfaceKeyServer { Id = null, Name = "new" },
-                        new NullableInterfaceKeyServer { Id = "existing", Name = "existing" },
+                        new NullableTupleKeyServer
+                        {
+                            TenantId = "t",
+                            Id = "existing",
+                            Name = "existing",
+                        },
+                    ],
+                }
+            )
+        );
+        var after = Optional<NullableTupleKeyServerHolder.Fragment?>.Present(
+            NullableTupleKeyServerHolder.Fragment.From(
+                new NullableTupleKeyServerHolder
+                {
+                    Items =
+                    [
+                        new NullableTupleKeyServer { TenantId = "t", Name = "new" },
+                        new NullableTupleKeyServer
+                        {
+                            TenantId = "t",
+                            Id = "existing",
+                            Name = "existing",
+                        },
                     ],
                 }
             )
         );
 
-        NullableInterfaceKeyServerHolder
+        NullableTupleKeyServerHolder
             .ChangeSet.Between(before, after)
             .ToPatch()
             .Apply(before)

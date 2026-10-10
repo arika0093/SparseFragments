@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -207,15 +206,9 @@ internal static class SparseKeyedCollectionEmitter
             indent + 1,
             "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
         );
-        if (member.Collection.KeyKind == SparseKeyKind.Interface)
-        {
-            // ISparseKeyed<TKey>: computed/custom identity without reflection.
-            code.AppendLineAt(
-                indent + 1,
-                "return element.SparseKey" + (HasUnassignedKey(member) ? "!" : "") + ";"
-            );
-        }
-        else if (keys.Length == 1)
+        // Single-property keys only: the key type is the declared property type,
+        // which may itself be a tuple or value object for composite identity.
+        if (keys.Length == 1)
         {
             code.AppendLineAt(
                 indent + 1,
@@ -227,17 +220,10 @@ internal static class SparseKeyedCollectionEmitter
         }
         else
         {
-            // Composite keys preserve type-level declaration order; the ValueTuple
-            // representation is strongly typed and collision-safe by construction,
-            // with component-wise EqualityComparer<T>.Default semantics.
-            var tuple =
-                "("
-                + string.Join(
-                    ", ",
-                    keys.Select(static key => "element." + SparseNaming.EscapeIdentifier(key))
-                )
-                + ")";
-            code.AppendLineAt(indent + 1, "return " + tuple + ";");
+            code.AppendLineAt(
+                indent + 1,
+                "throw new global::System.InvalidOperationException(\"Keyed collection has no usable key property.\");"
+            );
         }
 
         code.AppendLineAt(indent, "}");
