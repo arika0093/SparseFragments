@@ -396,7 +396,7 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
             code.AppendLineAt(5, "var __tupdated = __tapplied.Value!.ToModel();");
             code.AppendLineAt(
                 5,
-                "if ("
+                "if (!"
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(
                         member,
                         keyOf + "(__tupdated)"
@@ -411,7 +411,7 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
         {
             code.AppendLineAt(
                 5,
-                "if ("
+                "if (!"
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(
                         member,
                         keyOf + "(__tkv.Value)"

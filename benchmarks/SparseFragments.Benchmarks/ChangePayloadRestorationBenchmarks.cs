@@ -26,6 +26,11 @@ public class ChangePayloadRestorationBenchmarks
         )!;
         for (var repeat = 0; repeat < 3; repeat++)
         {
+            foreach (var item in Keyed().Items)
+                if (item.TemporaryKey.HasValue)
+                    throw new InvalidOperationException(
+                        "Models without temporary identity must expose a null TemporaryKey."
+                    );
             if (
                 !keyedJson
                     .AsSpan()
