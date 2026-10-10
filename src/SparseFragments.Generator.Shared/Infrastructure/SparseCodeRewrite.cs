@@ -33,30 +33,33 @@ internal static class SparseCodeRewrite
             return source;
         }
 
-        if (!source.Contains(oldValue, StringComparison.Ordinal))
+        var match = source.IndexOf(oldValue, StringComparison.Ordinal);
+        if (match < 0)
         {
             return source;
         }
 
         var code = ComputeCodeMask(source, cancellationToken);
-        var builder = new StringBuilder(source.Length);
-        var index = 0;
-        while (index < source.Length)
+        StringBuilder? builder = null;
+        var copied = 0;
+        while (match >= 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (code[index] && MatchAt(source, index, oldValue))
+            var searchFrom = match + 1;
+            if (code[match])
             {
+                builder ??= new StringBuilder(source.Length);
+                builder.Append(source, copied, match - copied);
                 builder.Append(newValue);
-                index += oldValue.Length;
+                copied = match + oldValue.Length;
+                searchFrom = copied;
             }
-            else
-            {
-                builder.Append(source[index]);
-                index++;
-            }
+            match = source.IndexOf(oldValue, searchFrom, StringComparison.Ordinal);
         }
 
-        return builder.ToString();
+        return builder is null
+            ? source
+            : builder.Append(source, copied, source.Length - copied).ToString();
     }
 
     private enum ScanKind
@@ -317,7 +320,4 @@ internal static class SparseCodeRewrite
         var end = source.IndexOf(closer, index + quotes, StringComparison.Ordinal);
         return end < 0 ? source.Length : end + quotes;
     }
-
-    private static bool MatchAt(string source, int index, string oldValue) =>
-        source.AsSpan(index).StartsWith(oldValue.AsSpan(), StringComparison.Ordinal);
 }
