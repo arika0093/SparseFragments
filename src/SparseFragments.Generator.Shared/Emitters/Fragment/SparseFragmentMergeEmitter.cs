@@ -250,7 +250,9 @@ internal sealed class SparseFragmentMergeEmitter
     )
     {
         // Stage 4 (#193): facades delegate both Diff overloads; the core and
-        // per-member helpers move with no surface counterpart.
+        // per-member helpers move with no surface counterpart. Public-first
+        // order keeps the public facade with the public surface; the internal
+        // overload moves via AppendDiffInternalFacade.
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -271,16 +273,6 @@ internal sealed class SparseFragmentMergeEmitter
                 .Append(" after) => ")
                 .Append(operationsType)
                 .AppendLine(".Diff(before, after);");
-            code.AppendIndent(2)
-                .Append("internal static Fragment Diff(")
-                .Append(modelType)
-                .Append(" before, ")
-                .Append(modelType)
-                .Append(
-                    " after, global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>> __sparse_diff_context, string __sparse_diff_path) => "
-                )
-                .Append(operationsType)
-                .AppendLine(".Diff(before, after, __sparse_diff_context, __sparse_diff_path);");
             return;
         }
         const string diffContextType =
@@ -473,6 +465,228 @@ internal sealed class SparseFragmentMergeEmitter
         code.AppendLine();
     }
 
+    /// <summary>Emits the public Diff body preceding internal helpers.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public void AppendDiffPublicBody(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        bool modelIsReferenceType
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Creates a sparse semantic diff between two ordinary model values.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"before\">The baseline value.</param>");
+        code.AppendLineAt(2, "/// <param name=\"after\">The updated value.</param>");
+        code.AppendLineAt(2, "/// <returns>The sparse diff from baseline to updated.</returns>");
+        code.AppendIndent(2)
+            .Append("public static Fragment Diff(")
+            .Append(modelType)
+            .Append(" before, ")
+            .Append(modelType)
+            .AppendLine(" after)");
+        code.AppendLineAt(2, "{");
+        if (modelIsReferenceType)
+        {
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "before");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "after");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(before, after)) { return new Fragment(); }"
+            );
+        }
+
+        var requiresDiffContext = members.Any(static member =>
+            member.ChildModel is not null && member.MergeStrategyType is null
+        );
+        if (requiresDiffContext)
+        {
+            code.AppendLineAt(
+                3,
+                "var __sparse_diff_context = " + ReferenceComparer + ".CreateDiffCycleContext();"
+            );
+            code.AppendLineAt(
+                3,
+                "return __SparseDiffCore(before, after, __sparse_diff_context, \"\");"
+            );
+        }
+        else
+        {
+            AppendDiffBody(code, members, 3);
+        }
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+    }
+
+    /// <summary>Emits the internal Diff body trailing public operations.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public static void AppendDiffInternalBody(
+        SharedIndentedBuilder code,
+        string modelType,
+        bool modelIsReferenceType
+    )
+    {
+        const string diffContextType =
+            "global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>>";
+        code.AppendIndent(2)
+            .Append("internal static Fragment Diff(")
+            .Append(modelType)
+            .Append(" before, ")
+            .Append(modelType)
+            .Append(" after, ")
+            .Append(diffContextType)
+            .AppendLine(" __sparse_diff_context, string __sparse_diff_path)");
+        code.AppendLineAt(2, "{");
+        if (modelIsReferenceType)
+        {
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "before");
+            SparseFragmentEmitHelpers.AppendNullGuard(code, 3, "after");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(before, after)) { return new Fragment(); }"
+            );
+        }
+
+        code.AppendLineAt(
+            3,
+            "return __SparseDiffCore(before, after, __sparse_diff_context, __sparse_diff_path);"
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+    }
+
+    /// <summary>Emits private Diff helpers trailing internal operations.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public void AppendDiffPrivateBodies(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        bool modelIsReferenceType
+    )
+    {
+        const string diffContextType =
+            "global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>>";
+        foreach (var member in members.Where(static member => member.ChildModel is not null))
+        {
+            var type = member.ChildModel!.Value.NonNullableName;
+            var fragment = member.ChildFragmentType!;
+            code.AppendIndent(2)
+                .Append("private static ")
+                .Append(Optional)
+                .Append("<")
+                .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
+                .Append("> __Diff_")
+                .Append(member.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                .Append('(');
+            if (!member.ChildIsReferenceType)
+            {
+                code.Append(type)
+                    .Append(" before, ")
+                    .Append(type)
+                    .Append(" after, ")
+                    .Append(diffContextType)
+                    .AppendLine(" __sparse_diff_context, string __sparse_diff_path)");
+                code.AppendLineAt(2, "{");
+                code.AppendIndent(3)
+                    .Append("if (global::System.Collections.Generic.EqualityComparer<")
+                    .Append(type)
+                    .AppendLine(">.Default.Equals(before!, after!)) { return default; }");
+                code.AppendIndent(3)
+                    .Append("return ")
+                    .Append(Optional)
+                    .Append("<")
+                    .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
+                    .Append(">.Present(")
+                    .Append(fragment)
+                    .AppendLine(
+                        ".Diff(before, after, __sparse_diff_context, __sparse_diff_path));"
+                    );
+                code.AppendLineAt(2, "}");
+                continue;
+            }
+
+            code.Append(type)
+                .Append("? before, ")
+                .Append(type)
+                .Append("? after, ")
+                .Append(diffContextType)
+                .AppendLine(" __sparse_diff_context, string __sparse_diff_path)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (global::System.Object.ReferenceEquals(before, after)) { return default; }"
+            );
+            code.AppendIndent(3)
+                .Append("if (before is null || after is null) { return ")
+                .Append(Optional)
+                .Append("<")
+                .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
+                .Append(">.Present(after is null ? null : ")
+                .Append(fragment)
+                .AppendLine(".From(after)); }");
+            code.AppendIndent(3)
+                .Append("var difference = ")
+                .Append(fragment)
+                .AppendLine(".Diff(before, after, __sparse_diff_context, __sparse_diff_path);");
+            code.AppendIndent(3)
+                .Append("return difference.IsEmpty ? default : ")
+                .Append(Optional)
+                .Append("<")
+                .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
+                .AppendLine(">.Present(difference);");
+            code.AppendLineAt(2, "}");
+        }
+
+        code.AppendLine();
+        code.AppendIndent(2)
+            .Append("private static Fragment __SparseDiffCore(")
+            .Append(modelType)
+            .Append(" before, ")
+            .Append(modelType)
+            .Append(" after, ")
+            .Append(diffContextType)
+            .AppendLine(" __sparse_diff_context, string __sparse_diff_path)");
+        code.AppendLineAt(2, "{");
+        if (modelIsReferenceType)
+        {
+            code.AppendLineAt(
+                3,
+                "var __sparse_diff_pair = new global::System.Collections.Generic.KeyValuePair<object, object>((object)before, (object)after);"
+            );
+            code.AppendLineAt(3, "if (!__sparse_diff_context.Add(__sparse_diff_pair))");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(
+                4,
+                "throw new global::System.NotSupportedException(\"Cyclic reference detected during Diff at '\" + __sparse_diff_path + \"'. Fragment.Diff does not support cyclic object graphs; DeepClone preserves cycles.\");"
+            );
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "try");
+            code.AppendLineAt(3, "{");
+            AppendDiffBody(code, members, 4);
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(3, "finally");
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "__sparse_diff_context.Remove(__sparse_diff_pair);");
+            code.AppendLineAt(3, "}");
+        }
+        else
+        {
+            AppendDiffBody(code, members, 3);
+        }
+        code.AppendLineAt(2, "}");
+        code.AppendLine();
+    }
+
     private void AppendDiffBody(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -522,5 +736,27 @@ internal sealed class SparseFragmentMergeEmitter
             + "\" : __sparse_diff_path + \"."
             + escaped
             + "\")";
+    }
+
+    /// <summary>Emits the internal Diff facade trailing the public fragment surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="operationsType">Operations class qualifying the delegate.</param>
+    public static void AppendDiffInternalFacade(
+        SharedIndentedBuilder code,
+        string modelType,
+        string operationsType
+    )
+    {
+        code.AppendIndent(2)
+            .Append("internal static Fragment Diff(")
+            .Append(modelType)
+            .Append(" before, ")
+            .Append(modelType)
+            .Append(
+                " after, global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>> __sparse_diff_context, string __sparse_diff_path) => "
+            )
+            .Append(operationsType)
+            .AppendLine(".Diff(before, after, __sparse_diff_context, __sparse_diff_path);");
     }
 }

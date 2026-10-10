@@ -35,6 +35,8 @@ internal sealed class SparseFragmentConversionEmitter
     {
         // Stage 4 (#193): facades delegate both From overloads; bodies move
         // verbatim (static, explicit receivers, Fragment aliases in scope).
+        // Public-first order: the public facade stays with the public surface;
+        // the internal overload moves via AppendFromModelInternalFacade.
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -49,16 +51,6 @@ internal sealed class SparseFragmentConversionEmitter
                 .Append(" value) => ")
                 .Append(operationsType)
                 .AppendLine(".From(value);");
-            code.AppendIndent(2)
-                .Append("internal static Fragment From(")
-                .Append(modelType)
-                .Append(
-                    " value, global::System.Collections.Generic.Dictionary<object, object> __sparse_clone_context, global::System.Collections.Generic.HashSet<object> __sparse_from_context, string __sparse_from_path) => "
-                )
-                .Append(operationsType)
-                .AppendLine(
-                    ".From(value, __sparse_clone_context, __sparse_from_context, __sparse_from_path);"
-                );
             return;
         }
         var requiresContext = members.Any(static member =>
@@ -66,6 +58,24 @@ internal sealed class SparseFragmentConversionEmitter
             || member.Property.Type.PocoCloneHelperName is not null
             || member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
         );
+        AppendFromModelPublicBody(code, modelType, members, modelIsReferenceType, requiresContext);
+        AppendFromModelInternalBody(code, modelType, members, modelIsReferenceType);
+    }
+
+    /// <summary>Emits the public From body preceding internal helpers.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    /// <param name="requiresContext">Whether cycle context is required.</param>
+    public void AppendFromModelPublicBody(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        bool modelIsReferenceType,
+        bool requiresContext
+    )
+    {
         code.AppendLineAt(
             2,
             "/// <summary>Creates a fragment with every member present from a model value.</summary>"
@@ -100,6 +110,20 @@ internal sealed class SparseFragmentConversionEmitter
         }
         code.AppendLineAt(2, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Emits the internal From body trailing public operations.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public void AppendFromModelInternalBody(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        bool modelIsReferenceType
+    )
+    {
         code.AppendIndent(2)
             .Append("internal static Fragment From(")
             .Append(modelType)
@@ -138,6 +162,28 @@ internal sealed class SparseFragmentConversionEmitter
         }
         code.AppendLineAt(2, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Emits the internal From facade trailing the public fragment surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="operationsType">Operations class qualifying the delegate.</param>
+    public static void AppendFromModelInternalFacade(
+        SharedIndentedBuilder code,
+        string modelType,
+        string operationsType
+    )
+    {
+        code.AppendIndent(2)
+            .Append("internal static Fragment From(")
+            .Append(modelType)
+            .Append(
+                " value, global::System.Collections.Generic.Dictionary<object, object> __sparse_clone_context, global::System.Collections.Generic.HashSet<object> __sparse_from_context, string __sparse_from_path) => "
+            )
+            .Append(operationsType)
+            .AppendLine(
+                ".From(value, __sparse_clone_context, __sparse_from_context, __sparse_from_path);"
+            );
     }
 
     private void AppendFromModelBody(

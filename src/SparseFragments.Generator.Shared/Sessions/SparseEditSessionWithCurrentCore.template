@@ -121,69 +121,7 @@ namespace __SESSION_NAMESPACE__
         where TObservable : class
         where TCurrent : class
     {
-        private readonly TCurrent _current;
-
-        /// <summary>Initializes a generated edit-session specialization.</summary>
-        /// <param name="baseline">The model state to retain as the baseline.</param>
-        /// <param name="current">The live editable model.</param>
-        /// <param name="configuration">Generated operations for the model.</param>
-        /// <param name="onChanged">An optional callback raised after observable edits.</param>
-        protected EditSessionCore(
-            TModel baseline,
-            TModel current,
-            EditSessionCoreConfiguration<
-                TModel,
-                TFragment,
-                TPatch,
-                TChangeSet,
-                TObservable,
-                TCurrent
-            > configuration,
-            Action? onChanged
-        )
-            : this(
-                current,
-                CaptureBaseline(baseline, current, configuration),
-                configuration,
-                onChanged
-            ) { }
-
-        private EditSessionCore(
-            TModel model,
-            TFragment baseline,
-            EditSessionCoreConfiguration<
-                TModel,
-                TFragment,
-                TPatch,
-                TChangeSet,
-                TObservable,
-                TCurrent
-            > configuration,
-            Action? onChanged
-        )
-            : base(
-                model,
-                baseline,
-                configuration.FromModel,
-                configuration.Between,
-                configuration.ToPatch,
-                configuration.IsEmpty,
-                configuration.AdvanceBaseline,
-                configuration.ToObservable,
-                onChanged,
-                configuration.TryApplyTo,
-                configuration.WriteModel,
-                configuration.Invert,
-                configuration.Rebase,
-                configuration.EnumerateChangedPaths,
-                configuration.RefreshObservable,
-                cacheObservableChanges: true,
-                baselineToModel: configuration.BaselineToModel
-            )
-        {
-            _current = configuration.ToCurrent(model);
-        }
-
+        // Public surface first; protected/internal constructors follow, private state last.
         /// <summary>Creates a session using one model as the baseline and live editable value.</summary>
         public static EditSessionCore<
             TModel,
@@ -257,6 +195,70 @@ namespace __SESSION_NAMESPACE__
 
         /// <summary>The live model through a recursive read-only view.</summary>
         public TCurrent Current => _current;
+
+        /// <summary>Initializes a generated edit-session specialization.</summary>
+        /// <param name="baseline">The model state to retain as the baseline.</param>
+        /// <param name="current">The live editable model.</param>
+        /// <param name="configuration">Generated operations for the model.</param>
+        /// <param name="onChanged">An optional callback raised after observable edits.</param>
+        protected EditSessionCore(
+            TModel baseline,
+            TModel current,
+            EditSessionCoreConfiguration<
+                TModel,
+                TFragment,
+                TPatch,
+                TChangeSet,
+                TObservable,
+                TCurrent
+            > configuration,
+            Action? onChanged
+        )
+            : this(
+                current,
+                CaptureBaseline(baseline, current, configuration),
+                configuration,
+                onChanged
+            ) { }
+
+        // Private state and helpers trail the protected surface.
+        private readonly TCurrent _current;
+
+        private EditSessionCore(
+            TModel model,
+            TFragment baseline,
+            EditSessionCoreConfiguration<
+                TModel,
+                TFragment,
+                TPatch,
+                TChangeSet,
+                TObservable,
+                TCurrent
+            > configuration,
+            Action? onChanged
+        )
+            : base(
+                model,
+                baseline,
+                configuration.FromModel,
+                configuration.Between,
+                configuration.ToPatch,
+                configuration.IsEmpty,
+                configuration.AdvanceBaseline,
+                configuration.ToObservable,
+                onChanged,
+                configuration.TryApplyTo,
+                configuration.WriteModel,
+                configuration.Invert,
+                configuration.Rebase,
+                configuration.EnumerateChangedPaths,
+                configuration.RefreshObservable,
+                cacheObservableChanges: true,
+                baselineToModel: configuration.BaselineToModel
+            )
+        {
+            _current = configuration.ToCurrent(model);
+        }
 
         private static TFragment CaptureBaseline(
             TModel baseline,

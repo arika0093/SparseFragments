@@ -23,111 +23,7 @@ namespace __SESSION_NAMESPACE__
         where TChangeSet : class
         where TObservable : class
     {
-        private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
-        private const string UnassignedBaselineErrorMessage =
-            "An unassigned key cannot appear in the baseline of a keyed collection transition.";
-        private const string UnassignedChangeSetBaselineErrorMessage =
-            "An unassigned key cannot appear in the current baseline of a keyed ChangeSet.";
-        private readonly Func<TModel, TFragment> _fromModel;
-        private readonly Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> _between;
-        private readonly Func<TChangeSet, TPatch> _toPatch;
-        private readonly Func<TChangeSet, bool> _isEmpty;
-        private readonly Func<
-            TChangeSet,
-            __OPTIONAL_TYPE__<TFragment?>,
-            __OPTIONAL_TYPE__<TFragment?>
-        > _advanceBaseline;
-        private readonly TObservable _observable;
-        private readonly Func<
-            TChangeSet,
-            TModel,
-            (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts)
-        >? _tryApplyTo;
-        private readonly Action<TModel, TModel>? _writeModel;
-        private readonly Func<TChangeSet, TChangeSet>? _invert;
-        private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
-        private readonly Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? _enumerateChangedPaths;
-        private readonly Func<TFragment, TModel>? _baselineToModel;
-        private readonly Action<TObservable>? _refreshObservable;
-        private readonly Action? _onChanged;
-        private bool _cacheObservableChanges;
-        private bool _hasChangesCacheValid;
-        private bool _cachedHasChanges;
-        private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
-        private __OPTIONAL_TYPE__<TFragment?> _baseline;
-        private __OPTIONAL_TYPE__<TFragment?> _batchStart;
-        private int _batchDepth;
-        private bool _batchDirty;
-        private bool _batchPropertyChanged;
-        private bool _batchOnChanged;
-
-        internal EditSessionCore(
-            TModel model,
-            TFragment baseline,
-            Func<TModel, TFragment> fromModel,
-            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
-            Func<TChangeSet, TPatch> toPatch,
-            Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
-            Func<TModel, Action?, TObservable> toObservable,
-            Action? onChanged = null
-        )
-            : this(
-                model,
-                baseline,
-                fromModel,
-                between,
-                toPatch,
-                isEmpty,
-                advanceBaseline,
-                (value, changed, _) => toObservable(value, changed),
-                onChanged
-            ) { }
-
-        internal EditSessionCore(
-            TModel model,
-            TFragment baseline,
-            Func<TModel, TFragment> fromModel,
-            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
-            Func<TChangeSet, TPatch> toPatch,
-            Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
-            Func<TModel, Action?, Action?, TObservable> toObservable,
-            Action? onChanged,
-            Func<
-                TChangeSet,
-                TModel,
-                (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts)
-            >? tryApplyTo = null,
-            Action<TModel, TModel>? writeModel = null,
-            Func<TChangeSet, TChangeSet>? invert = null,
-            Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? rebase = null,
-            Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? enumerateChangedPaths = null,
-            Action<TObservable>? refreshObservable = null,
-            bool cacheObservableChanges = false,
-            Func<TFragment, TModel>? baselineToModel = null
-        )
-        {
-            Model = model;
-            _fromModel = fromModel;
-            _between = between;
-            _toPatch = toPatch;
-            _isEmpty = isEmpty;
-            _advanceBaseline = advanceBaseline;
-            _tryApplyTo = tryApplyTo;
-            _writeModel = writeModel;
-            _invert = invert;
-            _rebase = rebase;
-            _enumerateChangedPaths = enumerateChangedPaths;
-            _refreshObservable = refreshObservable;
-            _onChanged = onChanged;
-            _cacheObservableChanges = cacheObservableChanges;
-            _baselineToModel = baselineToModel;
-            _baseline = __OPTIONAL_TYPE__<TFragment?>.Present(baseline);
-            _lastObserved = __OPTIONAL_TYPE__<TFragment?>.Present(fromModel(model));
-            _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
-        }
-
+        // Public surface first; internal constructors and private state follow.
         /// <summary>Creates a session capturing the current model state as its baseline.</summary>
         public static EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(
             TModel model,
@@ -256,52 +152,6 @@ namespace __SESSION_NAMESPACE__
                 toObservable,
                 onChanged
             );
-        }
-
-        private static void ValidateNotificationDelegates(
-            Func<TModel, TFragment> fromModel,
-            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
-            Func<TChangeSet, TPatch> toPatch,
-            Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
-            Func<TModel, Action?, TObservable> toObservable
-        )
-        {
-            if (fromModel is null)
-                throw new ArgumentNullException(nameof(fromModel));
-            if (between is null)
-                throw new ArgumentNullException(nameof(between));
-            if (toPatch is null)
-                throw new ArgumentNullException(nameof(toPatch));
-            if (isEmpty is null)
-                throw new ArgumentNullException(nameof(isEmpty));
-            if (advanceBaseline is null)
-                throw new ArgumentNullException(nameof(advanceBaseline));
-            if (toObservable is null)
-                throw new ArgumentNullException(nameof(toObservable));
-        }
-
-        private static void ValidateDelegates(
-            Func<TModel, TFragment> fromModel,
-            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
-            Func<TChangeSet, TPatch> toPatch,
-            Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
-            Func<TModel, TObservable> toObservable
-        )
-        {
-            if (fromModel is null)
-                throw new ArgumentNullException(nameof(fromModel));
-            if (between is null)
-                throw new ArgumentNullException(nameof(between));
-            if (toPatch is null)
-                throw new ArgumentNullException(nameof(toPatch));
-            if (isEmpty is null)
-                throw new ArgumentNullException(nameof(isEmpty));
-            if (advanceBaseline is null)
-                throw new ArgumentNullException(nameof(advanceBaseline));
-            if (toObservable is null)
-                throw new ArgumentNullException(nameof(toObservable));
         }
 
         /// <summary>The live editable model. The UI or application mutates this instance directly.</summary>
@@ -728,6 +578,140 @@ namespace __SESSION_NAMESPACE__
             OnPropertyChanged(nameof(HasChanges));
         }
 
+        /// <summary>Initializes a session with observable notifications.</summary>
+        /// <param name="model">The live editable model.</param>
+        /// <param name="baseline">The retained baseline fragment.</param>
+        /// <param name="fromModel">Captures a model as a fragment.</param>
+        /// <param name="between">Derives a change set between fragment states.</param>
+        /// <param name="toPatch">Projects a change set to a patch.</param>
+        /// <param name="isEmpty">Tests whether a change set is empty.</param>
+        /// <param name="advanceBaseline">Advances a baseline by a change set.</param>
+        /// <param name="toObservable">Creates an observable proxy.</param>
+        /// <param name="onChanged">Callback raised after observable edits.</param>
+        internal EditSessionCore(
+            TModel model,
+            TFragment baseline,
+            Func<TModel, TFragment> fromModel,
+            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
+            Func<TChangeSet, TPatch> toPatch,
+            Func<TChangeSet, bool> isEmpty,
+            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<TModel, Action?, TObservable> toObservable,
+            Action? onChanged = null
+        )
+            : this(
+                model,
+                baseline,
+                fromModel,
+                between,
+                toPatch,
+                isEmpty,
+                advanceBaseline,
+                (value, changed, _) => toObservable(value, changed),
+                onChanged
+            ) { }
+
+        /// <summary>Initializes a session with full in-place support.</summary>
+        /// <param name="model">The live editable model.</param>
+        /// <param name="baseline">The retained baseline fragment.</param>
+        /// <param name="fromModel">Captures a model as a fragment.</param>
+        /// <param name="between">Derives a change set between fragment states.</param>
+        /// <param name="toPatch">Projects a change set to a patch.</param>
+        /// <param name="isEmpty">Tests whether a change set is empty.</param>
+        /// <param name="advanceBaseline">Advances a baseline by a change set.</param>
+        /// <param name="toObservable">Creates an observable proxy with raw-model access.</param>
+        /// <param name="onChanged">Callback raised after observable edits.</param>
+        /// <param name="tryApplyTo">Applies a change set to a model.</param>
+        /// <param name="writeModel">Writes an updated model into the live instance.</param>
+        /// <param name="invert">Inverts a change set.</param>
+        /// <param name="rebase">Rebases a change set onto newer state.</param>
+        /// <param name="enumerateChangedPaths">Enumerates changed paths.</param>
+        /// <param name="refreshObservable">Refreshes observable notifications.</param>
+        /// <param name="cacheObservableChanges">Whether to cache observable changes.</param>
+        /// <param name="baselineToModel">Materializes a fragment as a model.</param>
+        internal EditSessionCore(
+            TModel model,
+            TFragment baseline,
+            Func<TModel, TFragment> fromModel,
+            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
+            Func<TChangeSet, TPatch> toPatch,
+            Func<TChangeSet, bool> isEmpty,
+            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<TModel, Action?, Action?, TObservable> toObservable,
+            Action? onChanged,
+            Func<
+                TChangeSet,
+                TModel,
+                (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts)
+            >? tryApplyTo = null,
+            Action<TModel, TModel>? writeModel = null,
+            Func<TChangeSet, TChangeSet>? invert = null,
+            Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? rebase = null,
+            Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? enumerateChangedPaths = null,
+            Action<TObservable>? refreshObservable = null,
+            bool cacheObservableChanges = false,
+            Func<TFragment, TModel>? baselineToModel = null
+        )
+        {
+            Model = model;
+            _fromModel = fromModel;
+            _between = between;
+            _toPatch = toPatch;
+            _isEmpty = isEmpty;
+            _advanceBaseline = advanceBaseline;
+            _tryApplyTo = tryApplyTo;
+            _writeModel = writeModel;
+            _invert = invert;
+            _rebase = rebase;
+            _enumerateChangedPaths = enumerateChangedPaths;
+            _refreshObservable = refreshObservable;
+            _onChanged = onChanged;
+            _cacheObservableChanges = cacheObservableChanges;
+            _baselineToModel = baselineToModel;
+            _baseline = __OPTIONAL_TYPE__<TFragment?>.Present(baseline);
+            _lastObserved = __OPTIONAL_TYPE__<TFragment?>.Present(fromModel(model));
+            _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
+        }
+
+        // Private state and helpers trail the internal surface.
+        private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
+        private const string UnassignedBaselineErrorMessage =
+            "An unassigned key cannot appear in the baseline of a keyed collection transition.";
+        private const string UnassignedChangeSetBaselineErrorMessage =
+            "An unassigned key cannot appear in the current baseline of a keyed ChangeSet.";
+        private readonly Func<TModel, TFragment> _fromModel;
+        private readonly Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> _between;
+        private readonly Func<TChangeSet, TPatch> _toPatch;
+        private readonly Func<TChangeSet, bool> _isEmpty;
+        private readonly Func<
+            TChangeSet,
+            __OPTIONAL_TYPE__<TFragment?>,
+            __OPTIONAL_TYPE__<TFragment?>
+        > _advanceBaseline;
+        private readonly TObservable _observable;
+        private readonly Func<
+            TChangeSet,
+            TModel,
+            (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts)
+        >? _tryApplyTo;
+        private readonly Action<TModel, TModel>? _writeModel;
+        private readonly Func<TChangeSet, TChangeSet>? _invert;
+        private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
+        private readonly Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? _enumerateChangedPaths;
+        private readonly Func<TFragment, TModel>? _baselineToModel;
+        private readonly Action<TObservable>? _refreshObservable;
+        private readonly Action? _onChanged;
+        private bool _cacheObservableChanges;
+        private bool _hasChangesCacheValid;
+        private bool _cachedHasChanges;
+        private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
+        private __OPTIONAL_TYPE__<TFragment?> _baseline;
+        private __OPTIONAL_TYPE__<TFragment?> _batchStart;
+        private int _batchDepth;
+        private bool _batchDirty;
+        private bool _batchPropertyChanged;
+        private bool _batchOnChanged;
+
         private TModel _model = null!;
 
         private void OnObservableChanged()
@@ -926,5 +910,51 @@ namespace __SESSION_NAMESPACE__
 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+        private static void ValidateNotificationDelegates(
+            Func<TModel, TFragment> fromModel,
+            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
+            Func<TChangeSet, TPatch> toPatch,
+            Func<TChangeSet, bool> isEmpty,
+            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<TModel, Action?, TObservable> toObservable
+        )
+        {
+            if (fromModel is null)
+                throw new ArgumentNullException(nameof(fromModel));
+            if (between is null)
+                throw new ArgumentNullException(nameof(between));
+            if (toPatch is null)
+                throw new ArgumentNullException(nameof(toPatch));
+            if (isEmpty is null)
+                throw new ArgumentNullException(nameof(isEmpty));
+            if (advanceBaseline is null)
+                throw new ArgumentNullException(nameof(advanceBaseline));
+            if (toObservable is null)
+                throw new ArgumentNullException(nameof(toObservable));
+        }
+
+        private static void ValidateDelegates(
+            Func<TModel, TFragment> fromModel,
+            Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
+            Func<TChangeSet, TPatch> toPatch,
+            Func<TChangeSet, bool> isEmpty,
+            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<TModel, TObservable> toObservable
+        )
+        {
+            if (fromModel is null)
+                throw new ArgumentNullException(nameof(fromModel));
+            if (between is null)
+                throw new ArgumentNullException(nameof(between));
+            if (toPatch is null)
+                throw new ArgumentNullException(nameof(toPatch));
+            if (isEmpty is null)
+                throw new ArgumentNullException(nameof(isEmpty));
+            if (advanceBaseline is null)
+                throw new ArgumentNullException(nameof(advanceBaseline));
+            if (toObservable is null)
+                throw new ArgumentNullException(nameof(toObservable));
+        }
+
     }
 }

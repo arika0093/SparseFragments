@@ -48,6 +48,14 @@ internal static class SparseFragmentJsonEmitter
         string jsonConverterQualifiedName
     )
     {
+        AppendStandaloneFragmentJsonAccessor(code);
+        AppendStandaloneFragmentJsonShell(code, jsonConverterQualifiedName);
+    }
+
+    /// <summary>Emits the public JSON converter accessor preceding internal helpers.</summary>
+    /// <param name="code">Surface target builder.</param>
+    public static void AppendStandaloneFragmentJsonAccessor(SharedIndentedBuilder code)
+    {
         code.CancellationToken.ThrowIfCancellationRequested();
         code.AppendLineAt(
             2,
@@ -58,6 +66,17 @@ internal static class SparseFragmentJsonEmitter
             "public static global::System.Text.Json.Serialization.JsonConverter<Fragment> JsonConverter { get; } = new FragmentJsonConverter();"
         );
         code.AppendLine();
+    }
+
+    /// <summary>Emits the private nested converter shell trailing the public surface.</summary>
+    /// <param name="code">Surface target builder.</param>
+    /// <param name="jsonConverterQualifiedName">Qualified implementation converter type.</param>
+    public static void AppendStandaloneFragmentJsonShell(
+        SharedIndentedBuilder code,
+        string jsonConverterQualifiedName
+    )
+    {
+        code.CancellationToken.ThrowIfCancellationRequested();
         code.AppendLineAt(
             2,
             "/// <summary>Reads and writes sparse fragment properties without materializing absent values.</summary>"

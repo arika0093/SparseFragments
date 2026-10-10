@@ -15,6 +15,40 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparseChangeSetPayloadTransferEmitter
 {
+    internal static void AppendToPayloadCoreBridge(
+        SharedIndentedBuilder code,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType,
+        SparseOperationTarget target
+    )
+    {
+        var payloadCore = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
+        // The internal core projection stays callable in value form:
+        // nested change-set values project through the facade bridge.
+        // Public-first order keeps it trailing public converters.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Builds the transport core for this change set.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"redactBefores\">Whether to redact before-states.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The transport core.</returns>");
+        code.AppendLineAt(
+            2,
+            "internal "
+                + payloadCore
+                + " ToPayloadCore(bool redactBefores) => "
+                + target.ChangeSetOperationsType
+                + ".ToPayloadCore(this, redactBefores);"
+        );
+    }
+
     internal static void AppendToPayload(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -50,29 +84,6 @@ internal static class SparseChangeSetPayloadTransferEmitter
                 "public ChangePayload ToPayload() => "
                     + target.ChangeSetOperationsType
                     + ".ToPayload(this);"
-            );
-            // The internal core projection stays callable in value form:
-            // nested change-set values project through the facade bridge.
-            code.AppendLineAt(
-                2,
-                "/// <summary>Builds the transport core for this change set.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <param name=\"redactBefores\">Whether to redact before-states.</param>"
-            );
-            code.AppendLineAt(2, "/// <returns>The transport core.</returns>");
-            code.AppendLineAt(
-                2,
-                "internal "
-                    + payloadCore
-                    + " ToPayloadCore(bool redactBefores) => "
-                    + target.ChangeSetOperationsType
-                    + ".ToPayloadCore(this, redactBefores);"
             );
             code = target.ChangeSetOperations;
             code.AppendLineAt(

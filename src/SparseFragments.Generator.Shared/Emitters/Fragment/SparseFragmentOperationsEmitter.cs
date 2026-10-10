@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -33,7 +34,6 @@ internal static class SparseFragmentOperationsEmitter
     {
         var modelType = model.ModelTypeName;
         var modelIsReferenceType = !model.IsStruct;
-        var usesPocoCloning = !pocoCloneModels.IsEmpty;
         var operationsName = SparseGeneratedPlacement.GetFragmentOperationsSimpleName(
             model,
             code.CancellationToken
@@ -44,12 +44,19 @@ internal static class SparseFragmentOperationsEmitter
         );
         code.AppendLineAt(1, "internal static class " + operationsName);
         code.AppendLineAt(1, "{");
-        operationsCore.AppendFromModel(
+        // Public-first order: public operations precede internal bridges,
+        // with private Diff helpers last.
+        var requiresFromContext = members.Any(static member =>
+            member.ChildModel is not null
+            || member.Property.Type.PocoCloneHelperName is not null
+            || member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
+        );
+        operationsCore.AppendFromModelPublicBody(
             code,
             modelType,
             members,
             modelIsReferenceType,
-            usesPocoCloning
+            requiresFromContext
         );
         SparseFragmentCoreEmitter.AppendToModel(
             code,
@@ -61,15 +68,22 @@ internal static class SparseFragmentOperationsEmitter
         );
         operationsCore.AppendMerge(code, members, receiver: "self.");
         operationsCore.AppendApplyChanges(code, members, receiver: "self.");
-        operationsCore.AppendDiff(code, modelType, members, modelIsReferenceType);
-        operationsCore.AppendDeepClone(
+        operationsCore.AppendDiffPublicBody(code, modelType, members, modelIsReferenceType);
+        operationsCore.AppendDeepCloneOperationsPublic(
             code,
             modelType,
             members,
-            usesPocoCloning,
             model.Constructor,
-            modelIsReferenceType,
-            receiver: "value."
+            modelIsReferenceType
+        );
+        operationsCore.AppendFromModelInternalBody(code, modelType, members, modelIsReferenceType);
+        SparseFragmentCoreEmitter.AppendDiffInternalBody(code, modelType, modelIsReferenceType);
+        operationsCore.AppendDeepCloneOperationsInternal(
+            code,
+            modelType,
+            members,
+            model.Constructor,
+            modelIsReferenceType
         );
         foreach (var poco in pocoCloneModels)
             operationsCore.AppendPocoCloneHelper(
@@ -80,6 +94,7 @@ internal static class SparseFragmentOperationsEmitter
                 poco.Model.Constructor,
                 helperAccessibility: "internal"
             );
+        operationsCore.AppendDiffPrivateBodies(code, modelType, members, modelIsReferenceType);
         code.AppendLineAt(1, "}");
     }
 }

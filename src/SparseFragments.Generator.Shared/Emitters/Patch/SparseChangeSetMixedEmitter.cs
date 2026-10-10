@@ -659,28 +659,7 @@ internal static class SparseChangeSetMixedEmitter
         );
         code.AppendLineAt(2, "public sealed class MixedApplyResult");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "internal MixedApplyResult(global::System.Collections.Generic.IReadOnlyList<"
-                + conflict
-                + "> conflicts, global::System.Collections.Generic.IReadOnlyList<string> writeOnlyPaths)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "Conflicts = conflicts;");
-        code.AppendLineAt(4, "WriteOnlyPaths = writeOnlyPaths;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "internal static MixedApplyResult Applied(global::System.Collections.Generic.List<string> writeOnlyPaths) => new(global::System.Array.Empty<"
-                + conflict
-                + ">(), writeOnlyPaths.ToArray());"
-        );
-        code.AppendLineAt(
-            3,
-            "internal static MixedApplyResult Conflicted(global::System.Collections.Generic.IReadOnlyList<"
-                + conflict
-                + "> conflicts, global::System.Collections.Generic.List<string> writeOnlyPaths) => new(conflicts, writeOnlyPaths.ToArray());"
-        );
+        // Public-first order: public properties precede internal construction helpers.
         code.AppendLineAt(
             3,
             "/// <summary>Whether rebasing the baseline-aware members produced conflicts.</summary>"
@@ -703,6 +682,28 @@ internal static class SparseChangeSetMixedEmitter
         code.AppendLineAt(
             3,
             "public global::System.Collections.Generic.IReadOnlyList<string> WriteOnlyPaths { get; }"
+        );
+        code.AppendLineAt(
+            3,
+            "internal MixedApplyResult(global::System.Collections.Generic.IReadOnlyList<"
+                + conflict
+                + "> conflicts, global::System.Collections.Generic.IReadOnlyList<string> writeOnlyPaths)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "Conflicts = conflicts;");
+        code.AppendLineAt(4, "WriteOnlyPaths = writeOnlyPaths;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "internal static MixedApplyResult Applied(global::System.Collections.Generic.List<string> writeOnlyPaths) => new(global::System.Array.Empty<"
+                + conflict
+                + ">(), writeOnlyPaths.ToArray());"
+        );
+        code.AppendLineAt(
+            3,
+            "internal static MixedApplyResult Conflicted(global::System.Collections.Generic.IReadOnlyList<"
+                + conflict
+                + "> conflicts, global::System.Collections.Generic.List<string> writeOnlyPaths) => new(conflicts, writeOnlyPaths.ToArray());"
         );
         code.AppendLineAt(2, "}");
     }

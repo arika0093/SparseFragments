@@ -60,7 +60,8 @@ internal static class SparseReadOnlyViewEmitter
         );
         code.AppendLineAt(1, "public sealed class " + typeName);
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(2, "private readonly " + modelType + " " + modelFieldName + ";");
+        // Public-first ordering: the constructor and public properties precede
+        // the private backing field and nested adapter helpers.
         code.AppendLineAt(2, "/// <summary>Creates a read-only view over a live model.</summary>");
         code.AppendLineAt(2, "/// <param name=\"model\">The model to expose.</param>");
         code.AppendLineAt(2, "public " + typeName + "(" + modelType + " model)");
@@ -104,6 +105,8 @@ internal static class SparseReadOnlyViewEmitter
 
         // Shared adapters (#181) are emitted once per compilation; only the
         // legacy single-file path redefines the generic adapters per model.
+        // The private backing field trails the public surface.
+        code.AppendLineAt(2, "private readonly " + modelType + " " + modelFieldName + ";");
         if (!useShared)
         {
             SparseReadOnlyAdapterEmitter.AppendCollectionAdapter(code, collectionName);
@@ -415,28 +418,8 @@ internal static class SparseReadOnlyViewEmitter
         );
         code.AppendLineAt(2, "public readonly struct " + viewTypeName);
         code.AppendLineAt(2, "{");
-        if (viewModel.StoresValue)
-        {
-            code.AppendLineAt(
-                3,
-                "private readonly " + viewModel.SourceTypeName + " " + modelFieldName + ";"
-            );
-        }
-        code.AppendLineAt(
-            3,
-            "internal " + viewTypeName + "(" + viewModel.SourceTypeName + " model)"
-        );
-        code.AppendLineAt(3, "{");
-        if (!viewModel.IsOpaque)
-        {
-            code.AppendLineAt(
-                4,
-                "if ((object?)model is null) throw new global::System.ArgumentNullException(nameof(model));"
-            );
-        }
-        code.AppendLineAt(4, viewModel.StoresValue ? modelFieldName + " = model;" : "_ = model;");
-        code.AppendLineAt(3, "}");
-
+        // Public-first ordering: public properties precede the internal
+        // constructor, which precedes the private backing field.
         if (viewModel.IsOpaque)
         {
             code.AppendLineAt(
@@ -462,6 +445,36 @@ internal static class SparseReadOnlyViewEmitter
                 dictionaryName,
                 dictionaryEntriesName,
                 pocoViewNames
+            );
+        }
+
+        code.AppendLineAt(
+            3,
+            "/// <summary>Creates a read-only view over a live "
+                + viewModel.Name
+                + " value.</summary>"
+        );
+        code.AppendLineAt(3, "/// <param name=\"model\">The value to expose.</param>");
+        code.AppendLineAt(
+            3,
+            "internal " + viewTypeName + "(" + viewModel.SourceTypeName + " model)"
+        );
+        code.AppendLineAt(3, "{");
+        if (!viewModel.IsOpaque)
+        {
+            code.AppendLineAt(
+                4,
+                "if ((object?)model is null) throw new global::System.ArgumentNullException(nameof(model));"
+            );
+        }
+        code.AppendLineAt(4, viewModel.StoresValue ? modelFieldName + " = model;" : "_ = model;");
+        code.AppendLineAt(3, "}");
+
+        if (viewModel.StoresValue)
+        {
+            code.AppendLineAt(
+                3,
+                "private readonly " + viewModel.SourceTypeName + " " + modelFieldName + ";"
             );
         }
 

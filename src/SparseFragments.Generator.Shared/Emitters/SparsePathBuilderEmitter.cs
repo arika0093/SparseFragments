@@ -49,8 +49,8 @@ internal static class SparsePathBuilderEmitter
         );
         code.AppendLineAt(1, "public sealed class SparsePaths<TRoot>");
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(2, "private readonly " + pathType + " _path;");
-        code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _path = path;");
+        // Public-first order: conversion and member navigation precede the
+        // internal constructor, and the private backing field trails both.
         code.AppendLineAt(
             2,
             "/// <summary>Converts this builder to its model-agnostic path.</summary>"
@@ -61,11 +61,18 @@ internal static class SparsePathBuilderEmitter
                 + pathType
                 + "(SparsePaths<TRoot> paths) => paths._path;"
         );
+        var navigations = new SharedIndentedBuilder(code.CancellationToken)
+        {
+            IndentOffset = code.IndentOffset,
+        };
         foreach (var member in members)
         {
-            AppendMemberNavigation(code, member, pathType, dialect);
+            AppendMemberNavigation(navigations, member, pathType, dialect);
         }
 
+        code.Append(navigations.ToString());
+        code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _path = path;");
+        code.AppendLineAt(2, "private readonly " + pathType + " _path;");
         code.AppendLineAt(1, "}");
     }
 
@@ -161,11 +168,7 @@ internal static class SparsePathBuilderEmitter
         code.AppendLineAt(2, "/// <summary>Collection path builder for '" + name + "'.</summary>");
         code.AppendLineAt(2, "public sealed class " + builderName);
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "private readonly " + pathType + " _path;");
-        code.AppendLineAt(
-            3,
-            "internal " + builderName + "(" + pathType + " path) => _path = path;"
-        );
+        // Public-first order, matching the root builder above.
         code.AppendLineAt(
             3,
             "/// <summary>Converts this builder to its model-agnostic path.</summary>"
@@ -178,12 +181,16 @@ internal static class SparsePathBuilderEmitter
                 + builderName
                 + " paths) => paths._path;"
         );
+        var entries = new SharedIndentedBuilder(code.CancellationToken)
+        {
+            IndentOffset = code.IndentOffset,
+        };
         if (SparseChangeSetBasicsEmitter.IsSet(member))
         {
             var element = member.Collection.ElementType.Name;
             var typed = SparseFragmentPatchEmitter.GetTypedPathType(dialect, "TRoot", element);
-            code.AppendLineAt(3, "/// <summary>Gets the path to a set element.</summary>");
-            code.AppendLineAt(
+            entries.AppendLineAt(3, "/// <summary>Gets the path to a set element.</summary>");
+            entries.AppendLineAt(
                 3,
                 "public "
                     + typed
@@ -197,7 +204,7 @@ internal static class SparsePathBuilderEmitter
         else if (SparseChangeSetBasicsEmitter.IsDict(member))
         {
             AppendKeyMethod(
-                code,
+                entries,
                 member.Collection.ElementType.Name,
                 ElementNavigation(member.Collection.ValueType!.Value, dialect)
             );
@@ -207,10 +214,16 @@ internal static class SparsePathBuilderEmitter
             // Only keyed sequences reach here: dictionaries and sets return
             // above, and other shapes stay scalar leaves.
             var navigation = ElementNavigation(member.Collection.ElementType, dialect);
-            AppendKeyMethod(code, member.Collection.KeyTypeName ?? "object?", navigation);
-            AppendAtMethod(code, navigation);
+            AppendKeyMethod(entries, member.Collection.KeyTypeName ?? "object?", navigation);
+            AppendAtMethod(entries, navigation);
         }
 
+        code.Append(entries.ToString());
+        code.AppendLineAt(
+            3,
+            "internal " + builderName + "(" + pathType + " path) => _path = path;"
+        );
+        code.AppendLineAt(3, "private readonly " + pathType + " _path;");
         code.AppendLineAt(2, "}");
     }
 
