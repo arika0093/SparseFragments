@@ -127,13 +127,16 @@ internal static class SparseChangeSetMixedKeyedEmitter
         var isModelValue = isKeyed
             ? member.Collection.ElementType.IsFragmentModel
             : member.Collection.ValueType?.IsFragmentModel == true;
-        if (!isModelValue && !member.RedactBefore)
+        var canContainBlindItems = isModelValue || member.RedactBefore;
+        if (!canContainBlindItems)
         {
             code.AppendLineAt(7, "__payloadItems" + id + ".Capacity = item.Items.Count;");
         }
-        var needItemPath = isModelValue || member.RedactBefore;
-        code.AppendLineAt(7, "var __blindColl" + id + " = new " + collectionPatch + "();");
-        code.AppendLineAt(7, "bool __hasBlindColl" + id + " = false;");
+        if (canContainBlindItems)
+        {
+            code.AppendLineAt(7, "var __blindColl" + id + " = new " + collectionPatch + "();");
+            code.AppendLineAt(7, "bool __hasBlindColl" + id + " = false;");
+        }
         code.AppendLineAt(7, "foreach (var changeItem in item.Items)");
         code.AppendLineAt(7, "{");
         code.AppendLineAt(
@@ -161,7 +164,7 @@ internal static class SparseChangeSetMixedKeyedEmitter
                     + ".Add(changeItem.Key!)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
             );
         }
-        if (needItemPath)
+        if (canContainBlindItems)
         {
             code.AppendLineAt(
                 8,
@@ -346,10 +349,13 @@ internal static class SparseChangeSetMixedKeyedEmitter
                 + "));"
         );
         code.AppendLineAt(7, "}");
-        code.AppendLineAt(
-            7,
-            "if (__hasBlindColl" + id + ") blindSets." + esc + " = __blindColl" + id + ";"
-        );
+        if (canContainBlindItems)
+        {
+            code.AppendLineAt(
+                7,
+                "if (__hasBlindColl" + id + ") blindSets." + esc + " = __blindColl" + id + ";"
+            );
+        }
         if (isKeyed)
         {
             code.AppendLineAt(7, "__payloadBeforeOrder" + id + " = item.BeforeOrder;");
