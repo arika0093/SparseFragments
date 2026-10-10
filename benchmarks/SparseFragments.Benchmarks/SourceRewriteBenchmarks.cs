@@ -85,6 +85,12 @@ public class SourceRewriteBenchmarks
         AssertRewrite("$\"text {a + (a)}\"", "a", "b", "$\"text {b + (b)}\"");
         AssertRewrite("$\"{{a}} {a}\"", "a", "b", "$\"{{a}} {b}\"");
         AssertRewrite("\"\"\"a\"\"\" a", "a", "b", "\"\"\"a\"\"\" b");
+        AssertRewrite("a\"x\" a", "a\"", "b", "bx\" a");
+        AssertRewrite("a/* a */ a", "a/*", "b", "b a */ a");
+        AssertRewrite("\"aaa\"aa", "aa", "b", "\"aaa\"b");
+        AssertRewrite("aa'aa'aa", "aa", "\"", "\"'aa'\"");
+        AssertRewrite("$\"{a}\"", "{", "X", "$\"Xa}\"");
+        AssertRewrite("$\"{\"a\" + a}\"", "a", "b", "$\"{\"a\" + b}\"");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         try

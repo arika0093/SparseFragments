@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 
 namespace SparseFragments.Generator.Shared;
@@ -39,27 +38,10 @@ internal static class SparseCodeRewrite
             return source;
         }
 
-        var code = ComputeCodeMask(source, cancellationToken);
-        StringBuilder? builder = null;
-        var copied = 0;
-        while (match >= 0)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var searchFrom = match + 1;
-            if (code[match])
-            {
-                builder ??= new StringBuilder(source.Length);
-                builder.Append(source, copied, match - copied);
-                builder.Append(newValue);
-                copied = match + oldValue.Length;
-                searchFrom = copied;
-            }
-            match = source.IndexOf(oldValue, searchFrom, StringComparison.Ordinal);
-        }
-
-        return builder is null
-            ? source
-            : builder.Append(source, copied, source.Length - copied).ToString();
+        var code = new SparseRewriteBuffer(source, oldValue, newValue, match);
+        RewriteCode(source, code, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return code.BuildResult();
     }
 
     private enum ScanKind
@@ -75,15 +57,17 @@ internal static class SparseCodeRewrite
         InterpolatedVerbatim,
     }
 
-    // True entries are code; string literals, chars, comments and directive
-    // lines stay false so anchored matches there are skipped.
-    private static bool[] ComputeCodeMask(string source, CancellationToken cancellationToken)
+    // Replace at code positions during scanning to avoid retaining a character mask.
+    private static void RewriteCode(
+        string source,
+        SparseRewriteBuffer code,
+        CancellationToken cancellationToken
+    )
     {
-        var code = new bool[source.Length];
         var frames = new Stack<ScanKind>();
         frames.Push(ScanKind.Code);
         var index = 0;
-        while (index < source.Length)
+        while (index < source.Length && code.HasCandidate)
         {
             cancellationToken.ThrowIfCancellationRequested();
             index = frames.Peek() switch
@@ -105,11 +89,14 @@ internal static class SparseCodeRewrite
                 _ => ScanCode(source, code, frames, index),
             };
         }
-
-        return code;
     }
 
-    private static int ScanCode(string source, bool[] code, Stack<ScanKind> frames, int index)
+    private static int ScanCode(
+        string source,
+        SparseRewriteBuffer code,
+        Stack<ScanKind> frames,
+        int index
+    )
     {
         var c = source[index];
         if (c == '/' && index + 1 < source.Length && source[index + 1] == '/')
@@ -148,25 +135,30 @@ internal static class SparseCodeRewrite
             return index + 1;
         }
 
-        code[index] = true;
+        code.MarkCode(index);
         return index + 1;
     }
 
     // Interpolation holes are code: braces balance against HoleCode frames so
     // the closing brace returns to the gap instead of ending the string.
-    private static int ScanHoleCode(string source, bool[] code, Stack<ScanKind> frames, int index)
+    private static int ScanHoleCode(
+        string source,
+        SparseRewriteBuffer code,
+        Stack<ScanKind> frames,
+        int index
+    )
     {
         var c = source[index];
         if (c == '{')
         {
-            code[index] = true;
+            code.MarkCode(index);
             frames.Push(ScanKind.HoleCode);
             return index + 1;
         }
 
         if (c == '}')
         {
-            code[index] = true;
+            code.MarkCode(index);
             frames.Pop();
             return index + 1;
         }
@@ -176,14 +168,14 @@ internal static class SparseCodeRewrite
 
     private static int ScanLineComment(
         string source,
-        bool[] code,
+        SparseRewriteBuffer code,
         Stack<ScanKind> frames,
         int index
     )
     {
         if (source[index] == '\n')
         {
-            code[index] = true;
+            code.MarkCode(index);
             frames.Pop();
             return index + 1;
         }
@@ -250,7 +242,7 @@ internal static class SparseCodeRewrite
 
     private static int ScanInterpolated(
         string source,
-        bool[] code,
+        SparseRewriteBuffer code,
         Stack<ScanKind> frames,
         int index,
         bool verbatim
@@ -269,7 +261,7 @@ internal static class SparseCodeRewrite
 
         if (c == '{')
         {
-            code[index] = true;
+            code.MarkCode(index);
             frames.Push(ScanKind.HoleCode);
             return index + 1;
         }
