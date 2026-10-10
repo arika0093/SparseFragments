@@ -111,7 +111,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "/// <summary>Gets the entry key.</summary>");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
-        SparseChangeSetKeyedTempTransitionEmitter.AppendItemTemporaryKeyProperty(code);
+        SparseChangeSetKeyedTempTransitionEmitter.AppendItemTemporaryKeyProperty(code, member);
         code.AppendLineAt(4, "/// <summary>Gets the value before the transition.</summary>");
         code.AppendLineAt(4, "public " + optElement + " Before { get; }");
         code.AppendLineAt(4, "/// <summary>Gets the value after the transition.</summary>");
@@ -168,7 +168,8 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "Key = key;");
-        code.AppendLineAt(5, "TemporaryKey = temporaryKey;");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            code.AppendLineAt(5, "TemporaryKey = temporaryKey;");
         code.AppendLineAt(5, "Before = before;");
         code.AppendLineAt(5, "After = after;");
         code.AppendLineAt(5, "BeforeIndex = beforeIndex;");

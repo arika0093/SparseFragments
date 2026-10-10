@@ -10,7 +10,10 @@ namespace SparseFragments.Generator.Shared;
 internal static class SparseChangeSetKeyedTempTransitionEmitter
 {
     /// <summary>Emits the TemporaryKey property of a keyed transition item.</summary>
-    internal static void AppendItemTemporaryKeyProperty(SharedIndentedBuilder code)
+    internal static void AppendItemTemporaryKeyProperty(
+        SharedIndentedBuilder code,
+        SparseMemberModel member
+    )
     {
         code.AppendLineAt(
             4,
@@ -20,7 +23,12 @@ internal static class SparseChangeSetKeyedTempTransitionEmitter
             4,
             "/// <remarks>Non-null only when the entry key is unassigned and the element type opts into temporary identity; assigned keys always take precedence.</remarks>"
         );
-        code.AppendLineAt(4, "public global::System.Guid? TemporaryKey { get; }");
+        code.AppendLineAt(
+            4,
+            SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                ? "public global::System.Guid? TemporaryKey { get; }"
+                : "public global::System.Guid? TemporaryKey => null;"
+        );
     }
 
     /// <summary>Emits the temporary-identity lookup of a keyed transition.</summary>
