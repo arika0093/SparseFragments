@@ -215,9 +215,10 @@
             <div class="pg-task-line">
                 <div class="pg-roster-field @(IsTaskIdChanged(item.Task) ? "pg-changed" : "")">
                     <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskIdChanged(item.Task))Id</span>
+                    @* focusout (not blur): blur doesn't bubble out of Fluent's inner input, so blur never commits. *@
                     <FluentTextInput Value="@GetIdDraft(item.Task)"
                         ValueChanged="@(value => _idDrafts[item.Task] = value ?? string.Empty)"
-                        @onblur="() => CommitTaskId(item.Task)" />
+                        @onfocusout="() => CommitTaskId(item.Task)" />
                 </div>
                 <div class="pg-roster-field @(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)) ? "pg-changed" : "")">
                     <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)))Title</span>
@@ -299,6 +300,15 @@
     private void CommitTaskId(TaskObservable task)
     {
         var value = GetIdDraft(task).Trim();
+        var index = _session.Observable.Tasks.IndexOf(task);
+        if (index < 0)
+        {
+            _idDrafts.Remove(task);
+            _pointsDrafts.Remove(task);
+            _taskBaselines.Remove(task);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(value)
             || _model.Tasks.Any(item => !ReferenceEquals(item, task.Model) && item.Id == value))
         {
@@ -309,7 +319,24 @@
 
         if (value != task.Id)
         {
-            Edit(() => task.Id = value);
+            // The Id is the stable key, so a rename is remove-old plus add-new
+            // (never an in-place key mutation): drop the old element and insert
+            // its successor with the same values at the same position.
+            var title = task.Title;
+            var points = task.Points;
+            Edit(() =>
+            {
+                _session.Observable.Tasks.RemoveAt(index);
+                _session.Observable.Tasks.InsertModel(index, new PlaygroundTask
+                {
+                    Id = value,
+                    Title = title,
+                    Points = points,
+                });
+            });
+            _idDrafts.Remove(task);
+            _pointsDrafts.Remove(task);
+            _taskBaselines.Remove(task);
         }
     }
 
@@ -771,7 +798,7 @@
         if (entries.Length == 0) return;
 
         var change = string.Join(
-            "; ",
+            "\n",
             entries.Select(static entry => $"{entry.Path}: {entry.Before} → {entry.After}")
         );
         _log.Insert(0, new LogEntry(DateTimeOffset.Now.ToString("HH:mm:ss"), change));

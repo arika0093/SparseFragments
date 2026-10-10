@@ -253,22 +253,23 @@
 </section>
 
 <FluentDialog @ref="_importDialog" Hidden="@_importHidden" Modal="true" TrapFocus="true"
-    AriaLabel="Import ChangePayload">
+    Class="pg-import-dialog" AriaLabel="Import ChangePayload">
     <div class="pg-dialog-heading">
         <h3>Import ChangePayload</h3>
     </div>
     <div class="pg-dialog-body">
         <p class="pg-hint">Paste a ChangePayload JSON document exported from the merged baseline and preview its applied result.</p>
-        <FluentTextArea Rows="8" Placeholder='{"version":"0.1","changes":[{"member":"Label","before":{"state":"value","value":"..."},"after":{"state":"value","value":"..."}}]}'
-            translate="no"
-            Value="@_importText"
-            ValueChanged="@(v => _importText = v ?? string.Empty)"
-            Style="width: 100%;" />
+        @if (!_importHidden)
+        {
+            <MonacoEditor Value="@_importText"
+                ValueChanged="@(v => _importText = v)"
+                Language="json" Height="380px" />
+        }
         @if (_importError is not null)
         {
             <FluentMessageBar Intent="MessageBarIntent.Error" Style="margin-top: 0.5rem;">@_importError</FluentMessageBar>
         }
-        @if (_importResult is not null)
+        @if (_importResult is not null && !_importHidden)
         {
             <div style="margin-top: 0.5rem;">
                 <MonacoView Content="@_importResult" Language="json" Height="270px" />
