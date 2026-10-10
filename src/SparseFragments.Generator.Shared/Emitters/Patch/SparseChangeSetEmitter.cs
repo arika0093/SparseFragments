@@ -160,6 +160,34 @@ internal static class SparseChangeSetEmitter
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect, target);
         SparseChangeSetEnumeratorEmitter.Append(code, members, dialect, target, modelType);
         SparseChangeSetPathEmitter.Append(code, dialect, target);
+        // Resolution infrastructure is internal-only: it trails the public
+        // surface (including payload facades below) to keep public-first order.
+        var resolutionInfra = target is null
+            ? new SharedIndentedBuilder(code.CancellationToken)
+            : null;
+        if (modelType is not null)
+        {
+            SparseRebaseResolutionEmitter.AppendResolution(
+                code,
+                members,
+                dialect,
+                modelType,
+                target,
+                resolutionInfra,
+                surfaceDeferred
+            );
+        }
+        else
+        {
+            SparseRebaseResolutionEmitter.AppendForwarderOnly(
+                code,
+                members,
+                dialect,
+                target,
+                resolutionInfra,
+                surfaceDeferred
+            );
+        }
         if (plan.EmitChangePayload)
         {
             SparseChangeSetPayloadTransferEmitter.AppendToPayload(
@@ -203,6 +231,10 @@ internal static class SparseChangeSetEmitter
         if (surfaceDeferred is not null)
         {
             code.Append(surfaceDeferred.ToString());
+        }
+        if (resolutionInfra is not null)
+        {
+            code.Append(resolutionInfra.ToString());
         }
         code.AppendLineAt(1, "}");
         code.AppendLine();

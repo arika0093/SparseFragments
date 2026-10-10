@@ -126,6 +126,15 @@ a `SparseRebaseMode` enum (`Default`, `FailOnConflict`, `PreferIncoming`,
 `TryRebase`/`AreEqual`; and a `RedactedBefore` member on its conflict-kind
 enum. Generated code calls only those members.
 
+Path-based conflict resolution needs no new dialect entries. Every model with a
+`ChangeSet` gains `BeginResolution` factories plus a nested `Resolution` state
+backed by the runtime `SparseRebaseResolution<TChange>` base. The generated
+fragment applier writes chosen values through `FragmentBuilder` copies and
+cloned collection containers, so shared rebase inputs are never mutated. Keyed
+and dictionary element leaves report `[Member, key, ...]` conflict paths, which
+keeps per-element decisions unambiguous; keyed order conflicts share the member
+path and resolve through the desired key list.
+
 ## Emission features
 
 `SparseEmissionFeatures` selects which generated families appear for a model:

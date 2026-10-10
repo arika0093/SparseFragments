@@ -198,6 +198,12 @@ namespace SparseFragments
         public static SparseFragments.Optional<T> Present(T? value) { }
         public static SparseFragments.Optional<T> op_Implicit(T? value) { }
     }
+    public sealed class RebaseResolutionFailure
+    {
+        public RebaseResolutionFailure(System.Collections.Generic.IEnumerable<SparseFragments.SparseConflict> unresolvedConflicts, string reason) { }
+        public string Reason { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> UnresolvedConflicts { get; }
+    }
     public sealed class RebaseResult<TChange>
     {
         public RebaseResult(TChange rebased, System.Collections.Generic.IEnumerable<SparseFragments.SparseConflict> conflicts) { }
@@ -209,6 +215,12 @@ namespace SparseFragments
     public enum RedactedBeforePolicy
     {
         Passthrough = 0,
+    }
+    public sealed class ResolvedChoice
+    {
+        public ResolvedChoice(SparseFragments.SparseConflict conflict, SparseFragments.Optional<object?> desired) { }
+        public SparseFragments.SparseConflict Conflict { get; }
+        public SparseFragments.Optional<object?> Desired { get; }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
@@ -247,6 +259,14 @@ namespace SparseFragments
         CustomStrategy = 5,
         RedactedBefore = 6,
         InPlaceWriteUnavailable = 7,
+    }
+    public enum SparseConflictState
+    {
+        NoConflict = 0,
+        Unresolved = 1,
+        ResolvedUseIncoming = 2,
+        ResolvedUseCurrent = 3,
+        ResolvedCustom = 4,
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute
@@ -431,6 +451,40 @@ namespace SparseFragments
     {
         public SparseRebasePolicyAttribute(System.Type policyType) { }
         public System.Type? PolicyType { get; }
+    }
+    public abstract class SparseRebaseResolution<TChange>
+    {
+        protected SparseRebaseResolution(SparseFragments.RebaseResult<TChange> rebase) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> Conflicts { get; }
+        public int DecidedCount { get; }
+        public bool HasConflicts { get; }
+        public SparseFragments.RebaseResult<TChange> Rebase { get; }
+        public bool ClearDecision(SparseFragments.SparsePath path) { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> EnumerateConflicts() { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateDecidedPaths() { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict> EnumerateUnresolvedConflicts() { }
+        public SparseFragments.SparseConflict? FindConflict(SparseFragments.SparsePath path) { }
+        public SparseFragments.SparseConflict? FindConflict<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public SparseFragments.SparseConflictState GetState(SparseFragments.SparsePath path) { }
+        public SparseFragments.SparseConflictState GetState<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public bool HasConflict(SparseFragments.SparsePath path) { }
+        public bool HasConflict<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public bool HasConflictsAffecting(SparseFragments.SparsePath path) { }
+        public bool HasConflictsAffecting<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public bool HasConflictsUnder(SparseFragments.SparsePath path) { }
+        public bool HasConflictsUnder<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public void Remove(SparseFragments.SparsePath path) { }
+        protected void SetBoxedValue(SparseFragments.SparsePath path, SparseFragments.Optional<object?> value) { }
+        public void SetValue<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path, SparseFragments.Optional<TValue> value) { }
+        public void SetValue<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path, TValue? value) { }
+        public bool TryBuild(out TChange? resolved, out SparseFragments.RebaseResolutionFailure? failure) { }
+        protected abstract bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out TChange? resolved, out string? failureReason);
+        public void UseCurrent(SparseFragments.SparsePath path) { }
+        public void UseCurrent<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public void UseIncoming(SparseFragments.SparsePath path) { }
+        public void UseIncoming<TModel, TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        protected static SparseFragments.Optional<object?> BoxValue<T>(SparseFragments.Optional<T> value) { }
+        protected static SparseFragments.Optional<object?> BoxValue<T>(T? value) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class SparseRedactBeforeAttribute : System.Attribute

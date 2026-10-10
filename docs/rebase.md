@@ -194,6 +194,46 @@ Nested conflicts expose the full member path: a local `Nested.Host = "b"` agains
 
 Clean paths may remain in the rebased ChangeSet while conflicts are reported separately. Applications commonly keep persistence atomic and decline to commit when any conflict remains. The detailed `TryApplyTo` overload returns `false` and exposes structured conflicts without returning a partially applied model.
 
+## Resolving conflicts by path
+
+`ChangeSet.BeginResolution` opens mutable, framework-neutral resolution state over one `RebaseResult`. The state owns the original result (including the clean `Rebased` contributions), the authoritative current-state snapshot, and one decision per canonical path. `TryBuild` then produces a baseline-aware `ChangeSet` holding the clean edits plus the chosen resolutions. The call never mutates the original `ChangeSet`, the input models, or the session, and it fails instead of dropping a conflict silently.
+
+<!-- illustrative: resolution flow; compile-checked coverage lives in RebaseResolutionTests -->
+```csharp
+var currentState = Optional<RebaseSettings.Fragment?>.Present(
+    RebaseSettings.Fragment.From(currentModel)
+);
+var rebase = before.CreateChangeSet(edited).RebaseOnto(currentState);
+var resolution = RebaseSettings.ChangeSet.BeginResolution(rebase, currentModel);
+
+var retry = RebaseSettings.SparsePath.RetryCount;
+
+var conflict = resolution.FindConflict(retry);
+bool exact = resolution.HasConflict(retry);
+bool below = resolution.HasConflictsUnder(SparsePath.Root<RebaseSettings>());
+bool around = resolution.HasConflictsAffecting(retry);
+
+resolution.UseIncoming(retry); // take the local value
+resolution.UseCurrent(retry); // keep the current value
+resolution.SetValue(retry, 4); // take a custom typed value
+resolution.SetValue(retry, Optional<int>.Missing); // removal stays distinct from null
+
+if (resolution.TryBuild(out var resolved, out var failure))
+{
+    // resolved is based on currentState and reapplies onto newer states.
+}
+else
+{
+    // failure.UnresolvedConflicts names what still needs a decision.
+}
+```
+
+`EnumerateConflicts` returns every conflict in reported order; `EnumerateUnresolvedConflicts` returns the live-filtered subset. `FindConflict` matches exact paths only, while `HasConflictsUnder` reports descendants and `HasConflictsAffecting` covers the path itself plus its ancestors and descendants. `GetState` exposes the same status per path for generic consumers, so no per-model conflict members are generated.
+
+Decisions fan out deterministically. `UseIncoming` or `UseCurrent` at an ancestor path covers every conflict below it, and an exact decision always wins over an ancestor. Custom values require an exact conflict path, and paths with no conflict at or under them are rejected when decided. Keyed entries resolve at the member path (whole collection or order) or below a typed key (element replacement, removal, or element-leaf recursion), dictionary entries resolve at the member path or below a typed key, nested leaves resolve below their member, and set or append members resolve as a whole. A `RedactedBefore` conflict carries no plaintext, so only `UseCurrent` (keep) is accepted for it.
+
+Pass the same current snapshot used for `RebaseOnto`. When the state moved under the resolution, `TryBuild` fails instead of replaying clean edits against stale values; rebase onto the latest state and resolve again. The built `ChangeSet` stays baseline-aware, so it reapplies and rebases like any other change.
+
 ## Collection and Structural Behavior
 
 * `Nested structural members` rebase member by member; only the colliding leaf conflicts while disjoint nested edits replay.
