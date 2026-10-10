@@ -2,6 +2,8 @@
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
+IDs `SPF012`, `SPF015`, `SPF016`, `SPF018`, `SPF020`, and `SPF025` were retired
+when keys became property-only (#206) and are not reused.
 
 | ID | Title | Severity |
 | --- | --- | --- |
@@ -16,27 +18,21 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF009](#spf009-member-conflicts-with-generated-api) | Member conflicts with generated API | Error |
 | [SPF010](#spf010-incompatible-promoted-fragment-model) | Incompatible promoted fragment model | Error |
 | [SPF011](#spf011-structural-sequence-without-usable-key) | Structural sequence without usable key | Error |
-| [SPF012](#spf012-conflicting-sparsekey-mechanisms) | Conflicting SparseKey mechanisms | Error |
 | [SPF013](#spf013-multiple-sparsekey-properties) | Multiple SparseKey properties | Error |
 | [SPF014](#spf014-invalid-sparsekey-declaration) | Invalid SparseKey declaration | Error |
-| [SPF015](#spf015-missing-sparsekey-component) | Missing SparseKey component | Error |
-| [SPF016](#spf016-duplicate-sparsekey-component) | Duplicate SparseKey component | Error |
 | [SPF017](#spf017-inaccessible-sparsekey-property) | Inaccessible SparseKey property | Error |
-| [SPF018](#spf018-nullable-sparsekey) | Nullable SparseKey | Error |
 | [SPF019](#spf019-unsupported-sparsekey-shape) | Unsupported SparseKey shape | Error |
-| [SPF020](#spf020-invalid-isparsekeyed-implementation) | Invalid ISparseKeyed implementation | Error |
 | [SPF021](#spf021-duplicate-json-property-name) | Duplicate JSON property name | Error |
-| [SPF022](#spf022-sparseignore-on-key) | SparseIgnore on key | Error |
+| [SPF022](#spf022-sparseignore-on-key) | SparseIgnore cannot exclude a key | Error |
 | [SPF023](#spf023-sparseignore-on-unsupported-property) | SparseIgnore on unsupported property | Error |
 | [SPF024](#spf024-invalid-unassigned-key-sentinel) | Invalid unassigned key sentinel | Error |
-| [SPF025](#spf025-unsupported-unassigned-key-sentinel) | Unsupported unassigned key sentinel | Error |
 | [SPF026](#spf026-in-place-submit-is-unavailable) | In-place submit is unavailable | Info |
 | [SPF027](#spf027-invalid-custom-rebase-policy) | Invalid custom rebase policy | Error |
 | [SPF028](#spf028-invalid-downstream-emission-plan) | Invalid downstream emission plan | Error |
 | [SPF029](#spf029-unknown-product-member) | Unknown product member | Error |
 | [SPF030](#spf030-invalid-comparison-strategy) | Invalid comparison strategy | Error |
 | [SPF031](#spf031-invalid-sparsetemporarykey-declaration) | Invalid SparseTemporaryKey declaration | Error |
-| [SPF032](#spf032-temporary-key-property-initializer) | Temporary key property initializer | Warning |
+| [SPF032](#spf032-temporary-key-property-initializer) | Temporary key property has an initializer | Warning |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -192,68 +188,31 @@ public partial class Settings
 
 ## SPF011: Structural sequence without usable key
 
-* Message: `Member '{0}' is a structural sequence without a usable key; declare exactly one key on the element type (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)] composite, or one ISparseKeyed<TKey> implementation), or explicitly select MergeMode.Replace, MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
+* Message: `Member '{0}' is a structural sequence without a usable key; mark exactly one property of the element type with [SparseKey], or explicitly select MergeMode.Replace, MergeMode.Append, MergeMode.SetUnion, or a custom merge strategy`
 * Cause: The generator found no stable key on the element type, so it cannot
   derive per-element patch behavior for the sequence.
-* Fix: Declare exactly one key on the element type, or explicitly select
+* Fix: Mark exactly one property of the element type with `[SparseKey]`, or explicitly select
   `MergeMode.Replace`, `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
   strategy for whole-collection semantics. The implicit default `Replace` does
   not exempt unkeyed structural sequences.
   See [Keyed collections](keyed-collections.md).
 
-## SPF012: Conflicting SparseKey mechanisms
-
-* Message: `Type '{0}' declares more than one SparseKey mechanism; exactly one key definition may apply (one [SparseKey] property, one type-level [SparseKey(nameof(...), ...)], or one ISparseKeyed<TKey> implementation) and there is no precedence between them`
-* Cause: The generator observed two or more key-definition mechanisms on the type
-  and never prefers one over another.
-* Fix: Keep exactly one mechanism and remove the others.
-
-<!-- illustrative: error illustration; the first shape does not compile by design -->
-```csharp
-// Does not compile: property-level key + type-level composite conflict (SPF012)
-[SparseKey(nameof(TenantId), nameof(Id))]
-public partial class Server
-{
-    [SparseKey]
-    public Guid Id { get; set; }
-    public Guid TenantId { get; set; }
-}
-
-// OK: one mechanism
-[SparseKey(nameof(TenantId), nameof(Id))]
-public partial class Server
-{
-    public Guid TenantId { get; set; }
-    public Guid Id { get; set; }
-}
-```
-
 ## SPF013: Multiple SparseKey properties
 
-* Message: `Type '{0}' marks more than one property with [SparseKey]; multiple property-level keys are not a composite key, use a single type-level [SparseKey(nameof(...), ...)] declaration instead`
-* Cause: The generator found parameterless `[SparseKey]` on several properties,
-  which it never reads as a composite key.
-* Fix: Keep one `[SparseKey]` property or use a single type-level composite.
+* Message: `Type '{0}' marks more than one property with [SparseKey]; declare exactly one [SparseKey] property per keyed element type`
+* Cause: The generator found `[SparseKey]` on several properties of one
+  element type. Multiple marks never form a composite key.
+* Fix: Keep one `[SparseKey]` property. Composite identity uses a single
+  computed property whose type holds every component (see
+  [Keyed collections](keyed-collections.md#composite-identity-in-one-computed-property)).
 
 ## SPF014: Invalid SparseKey declaration
 
-* Message: `SparseKey declaration on '{0}' is invalid; property-level [SparseKey] takes no arguments and type-level [SparseKey] requires at least one property name`
-* Cause: The declaration matches none of the supported shapes: parameterless on a
-  type, arguments on a property-level marker, or an empty type-level component list.
-* Fix: Use parameterless `[SparseKey]` on one property, or pass at least one
-  property name to a type-level `[SparseKey("TenantId", "Id")]`.
-
-## SPF015: Missing SparseKey component
-
-* Message: `Key component '{0}' does not resolve to a property of the model`
-* Cause: The named component resolves to no usable instance property on the model.
-* Fix: Correct the name (component order is significant) or add the missing property.
-
-## SPF016: Duplicate SparseKey component
-
-* Message: `Duplicate key component '{0}'; type-level key components must resolve to distinct properties`
-* Cause: The same property appears twice in one type-level component list.
-* Fix: List each component once, in key order.
+* Message: `SparseKey declaration on '{0}' is invalid; [SparseKey] targets a single property and takes no arguments`
+* Cause: The declaration carries constructor arguments, or the attribute
+  appears on the type itself. The attribute targets properties only.
+* Fix: Use parameterless `[SparseKey]` on exactly one property per keyed
+  element type.
 
 ## SPF017: Inaccessible SparseKey property
 
@@ -262,39 +221,12 @@ public partial class Server
   generated code cannot reach it. Computed read-only properties are valid when public.
 * Fix: Expose the key through a publicly readable instance property.
 
-## SPF018: Nullable SparseKey
-
-* Message: `Key '{0}' must not be nullable; nullable key values/types are not supported for keyed collection identity`
-* Cause: The generator found a nullable key (`string?`, `int?`, …), which cannot
-  serve as stable collection identity.
-* Fix: Use a non-nullable key type.
-
 ## SPF019: Unsupported SparseKey shape
 
-* Message: `Key '{0}' has a collection-shaped type; collection-shaped keys/components are not supported for keyed collection identity`
+* Message: `Key '{0}' has a collection-shaped type; collection-shaped keys are not supported for keyed collection identity`
 * Cause: The generator found a collection-shaped key (array, `List<T>`,
   dictionary, set, …).
-* Fix: Use a scalar/value-object key type.
-
-## SPF020: Invalid ISparseKeyed implementation
-
-* Message: `Type '{0}' has an invalid or ambiguous ISparseKeyed<TKey> implementation; implement exactly one ISparseKeyed<TKey> with a publicly readable instance SparseKey property and a non-nullable, non-collection key type`
-* Cause: The generator cannot use the implementation: ambiguous `TKey`s, a
-  nullable or collection-shaped key type, or no reachable instance `SparseKey`
-  getter (explicit interface implementations are invisible to generated code).
-* Fix: Implement exactly one `ISparseKeyed<TKey>` with an accessible `SparseKey`
-  getter and a valid key type. See [Keyed collections](keyed-collections.md).
-
-<!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
-```csharp
-// OK
-public partial class Server : ISparseKeyed<ServerKey>
-{
-    public string Tenant { get; set; } = "";
-    public int Id { get; set; }
-    public ServerKey SparseKey => new(Tenant.ToUpperInvariant(), Id);
-}
-```
+* Fix: Use a scalar, tuple, or value-object key type.
 
 ## SPF021: Duplicate JSON property name
 
@@ -306,11 +238,13 @@ public partial class Server : ISparseKeyed<ServerKey>
 
 ## SPF022: SparseIgnore on key
 
-* Message: `Property '{0}' is a SparseKey or a component of a composite SparseKey and cannot be ignored`
-* Cause: The ignored property supplies stable collection identity, either through
-  `[SparseKey]`, a type-level composite declaration, or `ISparseKeyed<TKey>`.
-* Fix: Remove `[SparseIgnore]` from the key property/component. Keys must remain
-  available to generated collection operations.
+* Message: `Property '{0}' is a SparseKey and cannot be ignored`
+* Cause: The ignored property supplies stable collection identity through
+  `[SparseKey]`.
+* Fix: Remove `[SparseIgnore]` from the key property. Keys must remain
+  available to generated collection operations. A `[SparseTemporaryKey]`
+  property with `[SparseIgnore]` is likewise rejected, as an invalid
+  temporary-identity declaration (see [SPF031](#spf031-invalid-sparsetemporarykey-declaration)).
 
 ## SPF023: SparseIgnore on unsupported property
 
@@ -337,19 +271,13 @@ public partial class Widget
 ## SPF024: Invalid unassigned key sentinel
 
 * Message: `Invalid unassigned key sentinel: {0}`
-* Cause: A property-level `[SparseKey(Unassigned = ...)]` value is null, is not a
-  compile-time constant, or is not compatible with the key property's type.
+* Cause: A property-level `[SparseKey(Unassigned = ...)]` value is null for a
+  non-nullable key type, is not a compile-time constant, or is not compatible
+  with the key property's type.
 * Fix: Use a non-null sentinel constant convertible to the marked key property type.
-  Unassigned sentinels are opt-in and are supported only for property-level keys.
-  See [database-assigned keys](keyed-collections.md#database-assigned-keys).
-
-## SPF025: Unsupported unassigned key sentinel
-
-* Message: `Unassigned key sentinels are not supported for composite or interface keys on '{0}'`
-* Cause: `Unassigned` was specified on a type-level composite key declaration.
-  `ISparseKeyed<TKey>` likewise does not support unassigned sentinels.
-* Fix: Use one property-level `[SparseKey(Unassigned = ...)]` key, or omit the
-  sentinel and retain the existing unique-key requirement.
+  A null sentinel needs a nullable key type; a nullable key type without
+  `Unassigned` already uses `null` as its sentinel.
+  See [unassigned keys](keyed-collections.md#unassigned-keys).
 
 ## SPF026: In-place submit is unavailable
 

@@ -127,6 +127,7 @@ A save ends in exactly one of these. Pick by what the server returned.
 | Server result | Session call | Live model | Baseline |
 | --- | --- | --- | --- |
 | Persisted, state returned (IDs, timestamps, normalization) | New session from the persisted state | Replaced | Persisted state |
+| Persisted with assigned keys for pending rows, keep editing | `TryReconcile(submitted, persisted)` | Assigned keys written in place, later edits kept | Persisted state |
 | Persisted, submitted transition unchanged | `AcceptChanges(submitted)` | Untouched, later edits stay pending | Advanced by the transition |
 | Persisted, current state is authoritative | `AcceptChanges()` | Untouched | Current state |
 | Fresh state arrived, keep editing | `Reload(serverState)` | Merged in place | Server state |
@@ -167,7 +168,19 @@ finally
 }
 ```
 
-This pattern cleanly absorbs server-assigned keys, modified timestamps, and value normalization without requiring partial-state reconciliation.
+This pattern cleanly absorbs server-assigned keys, modified timestamps, and value normalization without requiring partial-state reconciliation. When pending keyed rows carry `[SparseTemporaryKey]` Guids and editing continues during the save, reconcile instead so assigned keys land in the live model and later edits stay pending:
+
+<!-- illustrative: excerpt; uses names from the surrounding workflow and does not compile as written -->
+```csharp
+var submitted = session.CreateChangeSet();
+var persisted = await api.UpdateAsync(submitted.ToPayload());
+if (!session.TryReconcile(submitted, persisted, out var reconcileError))
+{
+    // Surface reconcileError; the session is unchanged.
+}
+```
+
+See [Saving pending additions with Reconcile](keyed-collections.md#saving-pending-additions-with-reconcile) for the full workflow, including failure behavior and the server mapping.
 
 For forms that keep editing enabled during submission when the server makes no schema changes, key assignments, or normalization, `session.AcceptChanges(submitted)` advances the retained baseline without touching the live model:
 
@@ -330,7 +343,9 @@ Neither in-place form is a transaction. Conflicts are detected atomically and le
 
 ### Keyed forms and database-assigned IDs
 
-Rows the client adds carry an unassigned sentinel key such as `0` until the database assigns persistent IDs. That sentinel transition cannot simply be accepted as the new baseline: `AcceptChanges` rejects transitions that would retain unassigned sentinels, because future diffs could not tell the new rows apart. Send the change set, let the server insert the rows and assign IDs, then replace the form state with the authoritative persisted state and start a fresh session. See [Database-assigned keys](keyed-collections.md#database-assigned-keys) for the full lifecycle and the reason the unassigned Add must never be acknowledged.
+Rows the client adds carry an unassigned sentinel key such as `0` until the database assigns persistent IDs. That sentinel transition cannot simply be accepted as the new baseline: `AcceptChanges` rejects transitions that would retain unassigned sentinels, because future diffs could not tell the new rows apart. Send the change set, let the server insert the rows and assign IDs, then replace the form state with the authoritative persisted state and start a fresh session. See [Unassigned keys](keyed-collections.md#unassigned-keys) for the full lifecycle and the reason the unassigned Add must never be acknowledged.
+
+When added rows carry `[SparseTemporaryKey]` Guids, the form has a second option that keeps later edits: `TryReconcile(submitted, persisted)` writes the assigned IDs into the live model in place and adopts the persisted state as the baseline, so typing that continued during the save stays pending. This is the only acknowledgement path that correlates temporary Guids with assigned keys; `AcceptChanges(submitted)` still rejects sentinel-retaining transitions, and matching by position or value is never attempted. See [Temporary identity](keyed-collections.md#temporary-identity-for-pending-additions) and [Saving pending additions with Reconcile](keyed-collections.md#saving-pending-additions-with-reconcile).
 
 ## Relocated generated types
 

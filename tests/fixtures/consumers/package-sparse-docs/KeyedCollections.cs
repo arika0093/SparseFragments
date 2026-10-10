@@ -4,7 +4,9 @@ using SparseFragments;
 // Covers the representative element-identity mechanisms users are expected to
 // copy: single-property [SparseKey], computed tuple keys, and normalized
 // value-object keys, plus keyed Between/Apply add/remove/edit semantics and
-// reorder-by-final-key-order.
+// reorder-by-final-key-order. Temporary Guid identity ([SparseTemporaryKey])
+// and the DTO reconcile flow mirror the pending-addition sections of the same
+// guide.
 public static class KeyedCollectionsSamples
 {
     public static void Run()
@@ -14,6 +16,9 @@ public static class KeyedCollectionsSamples
         ReorderByFinalKeyOrder();
         TupleKey();
         NormalizedKey();
+        TemporaryIdentityStaysEditable();
+        TemporaryAssignedKeyWins();
+        TemporaryReconcileAssignsKeys();
     }
 
     private static void SinglePropertyKeyAddRemoveEdit()
@@ -270,6 +275,99 @@ public static class KeyedCollectionsSamples
             "computed key edit"
         );
     }
+
+    private static void TemporaryIdentityStaysEditable()
+    {
+        var book = new DocsTempOrder { Lines = [new DocsTempLine { Id = 7, Name = "saved" }] };
+        var session = book.CreateEditSession();
+        var added = new DocsTempLine { Name = "new", TemporaryId = Guid.NewGuid() };
+        book.Lines.Add(added);
+
+        var pending = session.CreateChangeSet();
+        DocsCheck.Require(
+            pending.Lines.GetTemporaryChange(added.TemporaryId!.Value).IsAdded,
+            "pending addition identified by temporary Guid"
+        );
+        session.AcceptChanges(pending);
+
+        book.Lines.Single(item => item.TemporaryId == added.TemporaryId).Name = "new v2";
+        DocsCheck.Require(
+            session.CreateChangeSet().Lines.GetTemporaryChange(added.TemporaryId!.Value).IsEdited,
+            "pending addition stays editable by temporary Guid"
+        );
+
+        var path = DocsTempOrder.SparsePath.Lines.TemporaryKey(added.TemporaryId!.Value).Name;
+        DocsCheck.Require(
+            path.ToString().StartsWith("Lines[temp:", StringComparison.Ordinal),
+            "typed path carries a temporary segment"
+        );
+    }
+
+    private static void TemporaryAssignedKeyWins()
+    {
+        var before = Optional<DocsTempOrder.Fragment?>.Present(
+            DocsTempOrder.Fragment.From(
+                new DocsTempOrder { Lines = [new DocsTempLine { Id = 7, Name = "a" }] }
+            )
+        );
+        var after = Optional<DocsTempOrder.Fragment?>.Present(
+            DocsTempOrder.Fragment.From(
+                new DocsTempOrder
+                {
+                    Lines =
+                    [
+                        new DocsTempLine
+                        {
+                            Id = 7,
+                            Name = "b",
+                            TemporaryId = Guid.NewGuid(),
+                        },
+                    ],
+                }
+            )
+        );
+
+        // Same permanent identity: a plain edit, not a new identity.
+        var item = DocsTempOrder.ChangeSet.Between(before, after).Lines.GetChange(7);
+        DocsCheck.Require(item.IsEdited, "assigned key keeps element identity");
+        DocsCheck.Require(
+            item.TemporaryKey is null,
+            "temporary value is not identity when assigned"
+        );
+    }
+
+    private static void TemporaryReconcileAssignsKeys()
+    {
+        var draft = new DocsTempOrder { Lines = [new DocsTempLine { Id = 7, Name = "saved" }] };
+        var session = draft.CreateEditSession();
+        var added = new DocsTempLine { Name = "new", TemporaryId = Guid.NewGuid() };
+        draft.Lines.Add(added);
+        var submitted = session.CreateChangeSet();
+
+        var persisted = new DocsTempOrder
+        {
+            Lines =
+            [
+                new DocsTempLine { Id = 7, Name = "saved" },
+                new DocsTempLine
+                {
+                    Id = 11,
+                    Name = "new",
+                    TemporaryId = added.TemporaryId,
+                },
+            ],
+        };
+
+        DocsCheck.Require(
+            session.TryReconcile(submitted, persisted, out var error),
+            "reconcile correlates temporary Guids: " + error
+        );
+        DocsCheck.Require(!session.HasChanges, "reconciled session adopts the persisted baseline");
+        DocsCheck.Require(
+            draft.Lines.Single(item => item.TemporaryId == added.TemporaryId).Id == 11,
+            "authoritative key lands in the live model"
+        );
+    }
 }
 
 // Single-property key: one parameterless [SparseKey] property.
@@ -328,4 +426,26 @@ public partial class DocsNormalizedServer
 public partial class DocsNormalizedInventory
 {
     public List<DocsNormalizedServer> Servers { get; set; } = new();
+}
+
+// Temporary identity: an opt-in Guid? property beside a property-level
+// [SparseKey] with unassigned semantics. New rows are built with object
+// initializers; the property itself carries no initializer.
+[SparseFragmentModel]
+public partial class DocsTempOrder
+{
+    public List<DocsTempLine> Lines { get; set; } = new();
+}
+
+public partial class DocsTempLine
+{
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id;
+
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
 }

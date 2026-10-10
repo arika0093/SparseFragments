@@ -267,6 +267,13 @@ Scalar dictionary members use the same item vocabulary without positions. The ex
 
 Per-item redacted endpoints in keyed and dictionary members are rejected with a typed error. Send a whole-member blind set for those members. Blind whole-collection removal has no patch projection.
 
+Additions of unassigned elements with `[SparseTemporaryKey]` travel as keyed
+add items carrying the temporary Guid, so each pending addition keeps its own
+identity through serialization instead of sharing the sentinel plus a position.
+`ToChangeSet()` restores the additions under their Guids, and later edits,
+removals, and reorders address them the same way. The conversion round-trip is
+shown in [Keyed collections](keyed-collections.md#temporary-identity-for-pending-additions).
+
 ## Whole-root transitions
 
 Whole-contribution transitions, including root missing, present-null, and present-value states, encode under the `"$root"` member with a `members` array:

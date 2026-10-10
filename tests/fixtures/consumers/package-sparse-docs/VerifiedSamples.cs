@@ -25,6 +25,9 @@ public static class VerifiedSamples
         KeyedFirst();
         KeyedTyped();
         KeyedUnassignedFlow();
+        KeyedTemporaryFlow();
+        KeyedReconcileFlow();
+        KeyedServerMapping();
         RebaseFirst();
         RebaseApplied();
         RebaseConflict();
@@ -471,6 +474,190 @@ public static class VerifiedSamples
         // /sample
     }
 
+    private static void KeyedTemporaryFlow()
+    {
+        // sample: keyed-temporary-flow
+        var book = new KeyedOrderBook
+        {
+            Lines = new()
+            {
+                new KeyedOrderLineDto { Id = 7, Name = "saved" },
+            },
+        };
+        var session = book.CreateEditSession();
+
+        var first = new KeyedOrderLineDto { Name = "first", TemporaryId = Guid.NewGuid() };
+        var second = new KeyedOrderLineDto { Name = "second", TemporaryId = Guid.NewGuid() };
+        book.Lines.Add(first);
+        book.Lines.Add(second);
+
+        var pending = session.CreateChangeSet();
+        // pending.Lines.GetTemporaryChange(first.TemporaryId!.Value).IsAdded == true
+        // pending.Lines.GetTemporaryChange(second.TemporaryId!.Value).IsAdded == true
+
+        session.AcceptChanges(pending);
+
+        book.Lines.Single(item => item.TemporaryId == second.TemporaryId).Name = "second v2";
+        var edited = session.CreateChangeSet();
+        // edited.Lines.GetTemporaryChange(second.TemporaryId!.Value).IsEdited == true
+
+        var path = KeyedOrderBook.SparsePath.Lines.TemporaryKey(first.TemporaryId!.Value).Name;
+        // path addresses the pending row by its temporary Guid, never by position
+
+        var wire = JsonSerializer.Serialize(pending.ToPayload());
+        var restored = JsonSerializer
+            .Deserialize<KeyedOrderBook.ChangePayload>(wire)!
+            .ToChangeSet();
+        // restored.Lines.GetTemporaryChange(first.TemporaryId!.Value).IsAdded == true
+        DocsCheck.Require(
+            pending.Lines.GetTemporaryChange(first.TemporaryId!.Value).IsAdded
+                && pending.Lines.GetTemporaryChange(second.TemporaryId!.Value).IsAdded,
+            "pending additions are identified by temporary Guid"
+        );
+        DocsCheck.Require(
+            edited.Lines.GetTemporaryChange(second.TemporaryId!.Value).IsEdited,
+            "pending additions stay editable by temporary Guid"
+        );
+        DocsCheck.Require(
+            restored.Lines.GetTemporaryChange(first.TemporaryId!.Value).IsAdded,
+            "temporary identity survives payload conversion"
+        );
+        DocsCheck.Require(
+            path.ToString().StartsWith("Lines[temp:", StringComparison.Ordinal),
+            "typed path carries a temporary segment"
+        );
+        // /sample
+    }
+
+    private static void KeyedReconcileFlow()
+    {
+        // sample: keyed-reconcile-flow
+        var draft = new KeyedOrderBook
+        {
+            Lines = new()
+            {
+                new KeyedOrderLineDto { Id = 7, Name = "saved" },
+            },
+        };
+        var edit = draft.CreateEditSession();
+
+        var added = new KeyedOrderLineDto { Name = "new", TemporaryId = Guid.NewGuid() };
+        draft.Lines.Add(added);
+        var submitted = edit.CreateChangeSet();
+
+        // Editing continues while the save is in flight: rename the pending
+        // row and add one more row.
+        draft.Lines.Single(item => item.TemporaryId == added.TemporaryId).Name = "new v2";
+        var late = new KeyedOrderLineDto { Name = "late", TemporaryId = Guid.NewGuid() };
+        draft.Lines.Add(late);
+
+        // The server inserts the submitted row, assigns Id 11, and echoes the
+        // temporary Guid on the ordinary response DTO.
+        var persisted = new KeyedOrderBook
+        {
+            Lines = new()
+            {
+                new KeyedOrderLineDto { Id = 7, Name = "SAVED" },
+                new KeyedOrderLineDto
+                {
+                    Id = 11,
+                    Name = "NEW",
+                    TemporaryId = added.TemporaryId,
+                },
+            },
+        };
+
+        if (!edit.TryReconcile(submitted, persisted, out var reconcileError))
+        {
+            throw new InvalidOperationException(reconcileError);
+        }
+
+        // The post-submit rename replays onto the assigned row: local field
+        // values win while the server contributes the identity.
+        // draft.Lines.Single(item => item.TemporaryId == added.TemporaryId).Id == 11
+        // edit.HasChanges == true: the late row stays pending with its own Guid
+        DocsCheck.Require(
+            draft.Lines.Single(item => item.TemporaryId == added.TemporaryId).Id == 11,
+            "reconcile assigns the authoritative key into the live model"
+        );
+        DocsCheck.Require(
+            draft.Lines.Single(item => item.TemporaryId == added.TemporaryId).Name == "new v2",
+            "post-submit edits replay onto the assigned row"
+        );
+        DocsCheck.Require(edit.HasChanges, "post-submit edits stay pending");
+        DocsCheck.Require(
+            edit.CreateChangeSet().Lines.GetTemporaryChange(late.TemporaryId!.Value).IsAdded,
+            "late addition keeps its temporary identity"
+        );
+        // /sample
+    }
+
+    private static void KeyedServerMapping()
+    {
+        // sample: keyed-server-mapping
+        var requested = new KeyedOrderBook
+        {
+            Lines = new()
+            {
+                new KeyedOrderLineDto { Id = 7, Name = "saved" },
+                new KeyedOrderLineDto { Name = "new", TemporaryId = Guid.NewGuid() },
+            },
+        };
+
+        // The server maps each DTO line onto a tracked entity. The entity
+        // carries no TemporaryId; the pair list holds the correlation.
+        var tracked = new List<(Guid TemporaryId, KeyedLineEntity Entity)>();
+        var entities = requested
+            .Lines.Select(dto =>
+            {
+                var entity = new KeyedLineEntity { Id = dto.Id, Name = dto.Name };
+                if (entity.Id == 0 && dto.TemporaryId.HasValue)
+                {
+                    tracked.Add((dto.TemporaryId.Value, entity));
+                }
+                return entity;
+            })
+            .ToList();
+
+        // SaveChanges assigns the permanent keys.
+        var nextId = 11;
+        foreach (var entity in entities)
+        {
+            if (entity.Id == 0)
+            {
+                entity.Id = nextId++;
+            }
+        }
+
+        // The response maps entities back onto the ordinary DTO shape and
+        // restores each new row's temporary Guid by its assigned key. The
+        // lookup is keyed by assigned permanent key, so the server may
+        // re-query before building the response.
+        var savedById = tracked.ToDictionary(pair => pair.Entity.Id, pair => pair.TemporaryId);
+        var response = new KeyedOrderBook
+        {
+            Lines = entities
+                .Select(entity => new KeyedOrderLineDto
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    TemporaryId = savedById.TryGetValue(entity.Id, out var temp) ? temp : null,
+                })
+                .ToList(),
+        };
+        // response.Lines.Single(line => line.Id == 11).TemporaryId == requested.Lines[1].TemporaryId
+        DocsCheck.Require(
+            response.Lines.Single(line => line.Id == 11).TemporaryId
+                == requested.Lines[1].TemporaryId,
+            "response restores the temporary Guid by assigned key"
+        );
+        DocsCheck.Require(
+            response.Lines.Single(line => line.Id == 7).TemporaryId is null,
+            "existing rows carry no temporary Guid"
+        );
+        // /sample
+    }
+
     private static void RebaseFirst()
     {
         // sample: rebase-first
@@ -699,6 +886,80 @@ public partial class PendingServer
     public int Id { get; set; }
 
     public string Host { get; set; } = string.Empty;
+}
+
+// /sample
+
+// sample: keyed-composite-model
+[SparseFragmentModel]
+public partial class KeyedOrder
+{
+    public List<KeyedOrderLine> Lines { get; set; } = new();
+}
+
+public partial class KeyedOrderLine
+{
+    public string TenantId { get; set; } = string.Empty;
+
+    public int LineNumber { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    [SparseKey]
+    public (string TenantId, int LineNumber) Key => (TenantId, LineNumber);
+}
+
+public readonly record struct KeyedSku
+{
+    public string Code { get; init; }
+}
+
+public partial class KeyedProduct
+{
+    public string RawCode { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    [SparseKey]
+    public KeyedSku Key => new() { Code = RawCode.ToUpperInvariant() };
+}
+
+[SparseFragmentModel]
+public partial class KeyedCatalog
+{
+    public List<KeyedProduct> Products { get; set; } = new();
+}
+
+// /sample
+
+// sample: keyed-temporary-model
+[SparseFragmentModel]
+public partial class KeyedOrderBook
+{
+    public List<KeyedOrderLineDto> Lines { get; set; } = new();
+}
+
+public partial class KeyedOrderLineDto
+{
+    public int Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id;
+
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+}
+
+// /sample
+
+// sample: keyed-server-models
+public sealed class KeyedLineEntity
+{
+    public int Id;
+
+    public string Name = string.Empty;
 }
 
 // /sample

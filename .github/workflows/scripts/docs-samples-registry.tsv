@@ -31,8 +31,14 @@ docs/fragments-and-patches.md	core-change-payload-models	tests/fixtures/consumer
 docs/fragments-and-patches.md	core-change-payload	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-first	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-composite-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-unassigned-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-unassigned-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-temporary-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-temporary-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-reconcile-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-server-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-server-mapping	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/merge-strategies.md	merge-compare-models	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
 docs/merge-strategies.md	merge-compare	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs

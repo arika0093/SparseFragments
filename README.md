@@ -245,7 +245,7 @@ changes.Quests.Edited;
 changes.Quests.OrderChanged;
 ```
 
-See [Keyed collections](docs/keyed-collections.md) for key rules and per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
+See [Keyed collections](docs/keyed-collections.md) for key rules, per-item transitions, and the temporary-key save workflow. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
 
 ## Generated API
 

@@ -445,6 +445,21 @@ sealed record UpdateOrderRequest(
 
 The handler converts the payload with `ToChangeSet()`, loads only the current database state, calls `TryApplyTo(current, out updated, out conflicts)`, and, when there are no conflicts, saves under the normal concurrency token. When conflicts remain, it returns them instead of saving.
 
+## Reconciling database-assigned keys
+
+`TryApplyTo` rebases a change onto current state, but it cannot invent
+database-assigned keys for pending additions: the authoritative persisted DTO
+arrives from the server after the save. For keyed collections whose pending rows
+carry `[SparseTemporaryKey]` Guids, acknowledge the submission with
+`TryReconcile(submitted, persisted)` instead. The call correlates each submitted
+unassigned element with its assigned persisted element through the shared
+temporary Guid, adopts the persisted model as the new baseline, and preserves
+edits made while the save was in flight. Responses that omit, duplicate, or
+leave unassigned a needed Guid fail without mutating the session. The full
+client workflow and the server DTO-to-entity mapping live in
+[Keyed collections](keyed-collections.md#saving-pending-additions-with-reconcile);
+persistence race protection still uses the concurrency token below.
+
 ## End-to-End Example
 
 Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict. The payload shapes in this flow are specified in the [ChangePayload wire reference](change-payload.md).

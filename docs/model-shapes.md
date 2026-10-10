@@ -102,7 +102,7 @@ public Child Child { get; set; } = new(); // explicit atomic replacement
 * `Shared nested types must agree.` A nested type without its own explicit `[SparseFragmentModel]` root that is referenced from multiple roots with different member sets or merge settings is an error ([`SPF010`](analyzer.md#spf010-incompatible-promoted-fragment-model)): unify the definitions and settings, or annotate the nested type itself with `[SparseFragmentModel]` to promote it to an explicit root.
 * `Collection element types are discovered the same way.` A `List<T>` member whose `T` is a fragment model (or a reachable `partial` type) is patched element by element and needs key identity (see [Keyed collections](keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
 
-Element identity for element-patched collections is declared with `[SparseKey]` (single property or ordered type-level composite) or `ISparseKeyed<TKey>`, exactly one mechanism per element type. Declaration problems surface as `SPF011` to `SPF020` (see [the analyzer reference](analyzer.md#spf011-structural-sequence-without-usable-key)).
+Element identity for element-patched collections is declared with exactly one property-level `[SparseKey]` per element type, including tuple and value-object keys through a single computed property. Declaration problems surface as `SPF011`, `SPF013`, `SPF014`, `SPF017`, `SPF019`, `SPF022`, or `SPF024`, and temporary-identity problems as `SPF031` or `SPF032` (see [the analyzer reference](analyzer.md#spf011-structural-sequence-without-usable-key) and [Keyed collections](keyed-collections.md)).
 
 ## Constructors, Members, and Cycles
 
