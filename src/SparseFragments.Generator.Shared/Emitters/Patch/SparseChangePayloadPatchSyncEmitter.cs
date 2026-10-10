@@ -685,6 +685,32 @@ internal static class SparseChangePayloadPatchSyncEmitter
                     + id
                     + ".AfterOrder);"
             );
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                // Temporary order restores parallel to the key order; absent
+                // orders with temporary items are malformed, and slot counts
+                // must align exactly instead of guessing positions.
+                code.AppendLineAt(
+                    7,
+                    "if (entry"
+                        + id
+                        + ".TempAfterOrder is not null && entry"
+                        + id
+                        + ".AfterOrder is not null) { var __restoredOrderTemp = new global::System.Collections.Generic.List<global::System.Guid?>(); var __rti = 0; foreach (var __rok in entry"
+                        + id
+                        + ".AfterOrder) { if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__rok")
+                        + ") { if (__rti >= entry"
+                        + id
+                        + ".TempAfterOrder.Count) throw new global::System.ArgumentException(\"A temporary-keyed payload has mismatched orders.\", nameof(payload)); __restoredOrderTemp.Add(entry"
+                        + id
+                        + ".TempAfterOrder[__rti++]); } else __restoredOrderTemp.Add(null); } if (__rti != entry"
+                        + id
+                        + ".TempAfterOrder.Count) throw new global::System.ArgumentException(\"A temporary-keyed payload has mismatched orders.\", nameof(payload)); collection"
+                        + id
+                        + ".__orderTemp = __restoredOrderTemp; }"
+                );
+            }
         }
         code.AppendLineAt(7, "patch." + esc + " = collection" + id + ";");
         code.AppendLineAt(6, "}");
@@ -780,7 +806,25 @@ internal static class SparseChangePayloadPatchSyncEmitter
                 + id
                 + ".After is not null) throw new global::System.ArgumentException(\"A removed payload item must omit 'after'.\", nameof(payload));"
         );
-        if (isKeyed)
+        if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary removals route by Guid; sentinel keys would collide.
+            code.AppendLineAt(
+                9,
+                "if (changeItem"
+                    + id
+                    + ".TemporaryKey.HasValue) collection"
+                    + id
+                    + ".RemoveByTemporaryKey(changeItem"
+                    + id
+                    + ".TemporaryKey.Value); else collection"
+                    + id
+                    + ".Remove(changeItem"
+                    + id
+                    + ".Key);"
+            );
+        }
+        else if (isKeyed)
             code.AppendLineAt(9, "collection" + id + ".Remove(changeItem" + id + ".Key);");
         else
             code.AppendLineAt(9, "collection" + id + ".RemoveEntry(changeItem" + id + ".Key);");
@@ -803,16 +847,40 @@ internal static class SparseChangePayloadPatchSyncEmitter
                     + id
                     + ".Edit is null) throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\", nameof(payload));"
             );
-            code.AppendLineAt(
-                9,
-                "collection"
-                    + id
-                    + ".__SparseSetEdited(changeItem"
-                    + id
-                    + ".Key, changeItem"
-                    + id
-                    + ".Edit.ToPatchCore());"
-            );
+            if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                code.AppendLineAt(
+                    9,
+                    "if (changeItem"
+                        + id
+                        + ".TemporaryKey.HasValue) collection"
+                        + id
+                        + ".__SparseSetEditedByTemporaryKey(changeItem"
+                        + id
+                        + ".TemporaryKey.Value, changeItem"
+                        + id
+                        + ".Edit.ToPatchCore()); else collection"
+                        + id
+                        + ".__SparseSetEdited(changeItem"
+                        + id
+                        + ".Key, changeItem"
+                        + id
+                        + ".Edit.ToPatchCore());"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    9,
+                    "collection"
+                        + id
+                        + ".__SparseSetEdited(changeItem"
+                        + id
+                        + ".Key, changeItem"
+                        + id
+                        + ".Edit.ToPatchCore());"
+                );
+            }
         }
         else
         {

@@ -270,17 +270,22 @@ internal static class SparseChangeSetComposeEmitter
             if (IsNested(member))
                 args.Add("__c" + member.Id);
             else if (IsKeyed(member))
-                args.AddRange(
-                    new[]
-                    {
-                        "__cb" + member.Id + "_has",
-                        "__cb" + member.Id + "_whole",
-                        "__cb" + member.Id + "_wb",
-                        "__cb" + member.Id + "_wa",
-                        "__cb" + member.Id + "_items",
-                        "__cb" + member.Id + "_bO",
-                        "__cb" + member.Id + "_aO",
-                    }
+                AddKeyedChangeSetArgs(
+                    args,
+                    member,
+                    "__cb" + member.Id + "_has",
+                    "__cb" + member.Id + "_whole",
+                    "__cb" + member.Id + "_wb",
+                    "__cb" + member.Id + "_wa",
+                    "__cb" + member.Id + "_items",
+                    "__cb" + member.Id + "_bO",
+                    "__cb" + member.Id + "_aO",
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__cb" + member.Id + "_tbO"
+                        : null,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__cb" + member.Id + "_taO"
+                        : null
                 );
             else if (IsDict(member))
                 args.AddRange(

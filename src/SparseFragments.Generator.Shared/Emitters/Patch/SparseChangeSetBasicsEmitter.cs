@@ -69,6 +69,16 @@ internal static class SparseChangeSetBasicsEmitter
 
     internal static string KeyedAfterOrder(SparseMemberModel m) => "__sparse_kafterOrder_" + m.Id;
 
+    // Temporary-identity orders for tempkey members: complete Guid sequences
+    // parallel to the sentinel slots of the key orders above. Stored (not
+    // derived from items) so composition continuity stays exact even when
+    // unchanged temp elements leave no items behind.
+    internal static string KeyedTempBeforeOrder(SparseMemberModel m) =>
+        "__sparse_ktempbeforeOrder_" + m.Id;
+
+    internal static string KeyedTempAfterOrder(SparseMemberModel m) =>
+        "__sparse_ktempafterOrder_" + m.Id;
+
     internal static void AppendFields(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -138,6 +148,21 @@ internal static class SparseChangeSetBasicsEmitter
                             + KeyedAfterOrder(member)
                             + ";"
                     );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(
+                            2,
+                            "internal readonly global::System.Collections.Generic.List<global::System.Guid>? "
+                                + KeyedTempBeforeOrder(member)
+                                + ";"
+                        );
+                        code.AppendLineAt(
+                            2,
+                            "internal readonly global::System.Collections.Generic.List<global::System.Guid>? "
+                                + KeyedTempAfterOrder(member)
+                                + ";"
+                        );
+                    }
                 }
             }
             else
@@ -197,6 +222,17 @@ internal static class SparseChangeSetBasicsEmitter
                             + ">? afterOrder"
                             + member.Id
                     );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        parts.Add(
+                            "global::System.Collections.Generic.List<global::System.Guid>? tempBeforeOrder"
+                                + member.Id
+                        );
+                        parts.Add(
+                            "global::System.Collections.Generic.List<global::System.Guid>? tempAfterOrder"
+                                + member.Id
+                        );
+                    }
                 }
             }
             else
@@ -237,6 +273,17 @@ internal static class SparseChangeSetBasicsEmitter
                         3,
                         KeyedAfterOrder(member) + " = afterOrder" + member.Id + ";"
                     );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(
+                            3,
+                            KeyedTempBeforeOrder(member) + " = tempBeforeOrder" + member.Id + ";"
+                        );
+                        code.AppendLineAt(
+                            3,
+                            KeyedTempAfterOrder(member) + " = tempAfterOrder" + member.Id + ";"
+                        );
+                    }
                 }
             }
             else
@@ -304,6 +351,25 @@ internal static class SparseChangeSetBasicsEmitter
                     indent,
                     "var " + KeyedAfterOrder(member) + " = self." + KeyedAfterOrder(member) + ";"
                 );
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                {
+                    code.AppendLineAt(
+                        indent,
+                        "var "
+                            + KeyedTempBeforeOrder(member)
+                            + " = self."
+                            + KeyedTempBeforeOrder(member)
+                            + ";"
+                    );
+                    code.AppendLineAt(
+                        indent,
+                        "var "
+                            + KeyedTempAfterOrder(member)
+                            + " = self."
+                            + KeyedTempAfterOrder(member)
+                            + ";"
+                    );
+                }
             }
             else if (IsDict(member))
             {
@@ -401,6 +467,25 @@ internal static class SparseChangeSetBasicsEmitter
                     indent,
                     "var " + KeyedAfterOrder(member) + " = self." + KeyedAfterOrder(member) + ";"
                 );
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                {
+                    code.AppendLineAt(
+                        indent,
+                        "var "
+                            + KeyedTempBeforeOrder(member)
+                            + " = self."
+                            + KeyedTempBeforeOrder(member)
+                            + ";"
+                    );
+                    code.AppendLineAt(
+                        indent,
+                        "var "
+                            + KeyedTempAfterOrder(member)
+                            + " = self."
+                            + KeyedTempAfterOrder(member)
+                            + ";"
+                    );
+                }
             }
         }
         else
@@ -434,9 +519,24 @@ internal static class SparseChangeSetBasicsEmitter
             return ["null"];
         if (IsKeyed(member) || IsDict(member))
         {
-            return IsKeyed(member)
-                ? ["false", "false", "default", "default", "null", "null", "null"]
-                : ["false", "false", "default", "default", "null"];
+            if (IsKeyed(member))
+            {
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    return
+                    [
+                        "false",
+                        "false",
+                        "default",
+                        "default",
+                        "null",
+                        "null",
+                        "null",
+                        "null",
+                        "null",
+                    ];
+                return ["false", "false", "default", "default", "null", "null", "null"];
+            }
+            return ["false", "false", "default", "default", "null"];
         }
         return ["default", "default", "false"];
     }
@@ -476,7 +576,11 @@ internal static class SparseChangeSetBasicsEmitter
             {
                 parts.AddRange(new[] { "false", "false", "default", "default", "null" });
                 if (IsKeyed(member))
+                {
                     parts.AddRange(new[] { "null", "null" });
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                        parts.AddRange(new[] { "null", "null" });
+                }
             }
             else
                 parts.AddRange(new[] { "default", "default", "false" });
@@ -491,6 +595,35 @@ internal static class SparseChangeSetBasicsEmitter
     {
         ComputePublicNames(members, out _, out var transNames);
         return transNames[member.Id];
+    }
+
+    /// <summary>Appends canonical keyed ChangeSet constructor arguments for one member.</summary>
+    /// <remarks>
+    /// Centralizes the temp-order tail so every ChangeSet construction site
+    /// stays consistent: temporary orders travel only for tempkey members.
+    /// </remarks>
+    internal static void AddKeyedChangeSetArgs(
+        List<string> args,
+        SparseMemberModel member,
+        string has,
+        string whole,
+        string wholeBefore,
+        string wholeAfter,
+        string items,
+        string beforeOrder,
+        string afterOrder,
+        string? tempBeforeOrder = null,
+        string? tempAfterOrder = null
+    )
+    {
+        args.AddRange(
+            new[] { has, whole, wholeBefore, wholeAfter, items, beforeOrder, afterOrder }
+        );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            args.Add(tempBeforeOrder ?? "null");
+            args.Add(tempAfterOrder ?? "null");
+        }
     }
 
     internal static string KeyTypeOf(SparseMemberModel m)

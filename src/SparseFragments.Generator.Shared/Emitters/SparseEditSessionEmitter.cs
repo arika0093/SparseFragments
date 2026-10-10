@@ -416,6 +416,42 @@ internal static class SparseEditSessionEmitter
                 + modelType
                 + ".ChangeSet changes) => _session.AcceptChanges(changes);"
         );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Reconciles a submitted change set with the authoritative persisted model.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"submitted\">The submitted transition to acknowledge.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"persisted\">The authoritative persisted model.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"error\">The failure reason, or null on success.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> on success; otherwise <see langword=\"false\"/>.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryReconcile("
+                + modelType
+                + ".ChangeSet submitted, "
+                + modelType
+                + " persisted, out string? error) => _session.TryReconcile(submitted, persisted, static (s, p) => "
+                + modelType
+                + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
+                + modelType
+                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending), out error);"
+        );
         // Raw model access bypasses the change cache, so it is exposed only
         // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
         code.AppendLineAt(

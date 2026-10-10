@@ -23,6 +23,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogDictionaries persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -71,6 +72,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogImmutable persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -119,6 +121,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -167,6 +170,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -212,6 +216,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogNested persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -274,6 +279,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -324,6 +330,7 @@ namespace SparseFragments.Generated
             public void RevertChanges() { }
             public bool TryApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC.EditSession fork, out SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogScalar persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
         }
         public sealed class Observable : System.ComponentModel.INotifyPropertyChanged
@@ -1849,6 +1856,7 @@ namespace SparseFragments.GeneratedApiFixtures
                     public bool IsRemoved { get; }
                     public bool IsReordered { get; }
                     public string Key { get; }
+                    public System.Guid? TemporaryKey { get; }
                     public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item Empty { get; }
                 }
             }

@@ -22,12 +22,15 @@ internal enum SparseKeyKind
 /// <see cref="KeyTypeName"/> is the declared property type. The key type may
 /// itself be a tuple or value object for composite identity; comparison uses
 /// <c>EqualityComparer&lt;TKey&gt;.Default</c> on the whole key value.
+/// <see cref="TemporaryKeyProperty"/> holds the <c>Guid?</c> temporary-identity
+/// property when the element opts in, or null otherwise.
 /// </remarks>
 internal sealed record SparseKeyInfo(
     SparseKeyKind Kind,
     ImmutableArray<string> PropertyNames,
     string KeyTypeName,
-    string? UnassignedKeyExpression = null
+    string? UnassignedKeyExpression = null,
+    string? TemporaryKeyProperty = null
 );
 
 /// <summary>Discovers and validates SparseFragments key metadata on element types.</summary>
@@ -106,7 +109,8 @@ internal static class SparseKeyAnalyzer
             SparseKeyKind.Property,
             ImmutableArray.Create(property.Name),
             NonNullableTypeName(property.Type),
-            sentinel
+            sentinel,
+            TemporaryKeyProperty(element, config, cancellationToken)
         );
         return true;
     }
@@ -302,6 +306,29 @@ internal static class SparseKeyAnalyzer
                 diagnostics.Add(diagnostic);
             }
         }
+
+        // Temporary-identity declarations on the same element validate together
+        // with the key so promoted nested models fail the root precisely.
+        foreach (
+            var diagnostic in SparseTemporaryKeyAnalyzer.CollectDiagnostics(
+                element,
+                config,
+                cancellationToken
+            )
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var key =
+                diagnostic.DescriptorId
+                + "|"
+                + diagnostic.Argument1
+                + "|"
+                + diagnostic.Location?.SourceSpan.ToString();
+            if (seen.Add(key))
+            {
+                diagnostics.Add(diagnostic);
+            }
+        }
     }
 
     /// <summary>Determines whether a member is a keyed-sequence candidate needing a key.</summary>
@@ -332,6 +359,44 @@ internal static class SparseKeyAnalyzer
                 config,
                 cancellationToken
             ) == SparseCollectionSemantic.KeyedSequence;
+    }
+
+    /// <summary>Discovers the unassigned sentinel of a single key declaration, if any.</summary>
+    /// <remarks>
+    /// Returns <c>false</c> when the element lacks exactly one key mark or when
+    /// its sentinel is invalid (key-shape diagnostics cover those cases).
+    /// A <c>true</c> result carries the sentinel expression, or null when the
+    /// key has no unassigned semantics. Temporary-identity validation uses this
+    /// without recursing into full key analysis.
+    /// </remarks>
+    internal static bool TryGetSingleKeyUnassignedExpression(
+        INamedTypeSymbol element,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken,
+        out string? expression
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        expression = null;
+        var marks = FindKeyProperties(element, config, cancellationToken);
+        if (marks.Count != 1)
+        {
+            return false;
+        }
+
+        var (property, attribute) = marks[0];
+        if (attribute.ConstructorArguments.Length > 0)
+        {
+            return false;
+        }
+
+        if (!TryGetUnassignedExpression(attribute, property.Type, out expression, out _))
+        {
+            expression = null;
+            return false;
+        }
+
+        return true;
     }
 
     private static List<(IPropertySymbol Property, AttributeData Attribute)> FindKeyProperties(
@@ -586,6 +651,30 @@ internal static class SparseKeyAnalyzer
         && !property.IsIndexer
         && property.DeclaredAccessibility == Accessibility.Public
         && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
+
+    private static string? TemporaryKeyProperty(
+        INamedTypeSymbol element,
+        SparseGeneratorConfig config,
+        CancellationToken cancellationToken
+    )
+    {
+        // Temporary identity is advisory here: shape diagnostics belong to
+        // SparseTemporaryKeyAnalyzer. Only a fully valid declaration flows
+        // into keyed emission; anything else behaves as if absent.
+        if (
+            SparseTemporaryKeyAnalyzer.TryGetTemporaryKeyProperty(
+                element,
+                config,
+                cancellationToken,
+                out var propertyName
+            )
+        )
+        {
+            return propertyName;
+        }
+
+        return null;
+    }
 
     private static Location? AttributeLocation(
         AttributeData attribute,

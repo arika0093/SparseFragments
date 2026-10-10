@@ -71,10 +71,20 @@ internal static class SparseChangeSetPayloadRestoreEmitter
                     + keyType
                     + ">();"
             );
+            var hasTempRestore = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+            if (hasTempRestore)
+            {
+                code.AppendLineAt(
+                    7,
+                    "var __payloadSeenTemps"
+                        + id
+                        + " = new global::System.Collections.Generic.HashSet<global::System.Guid>();"
+                );
+            }
             code.AppendLineAt(7, "foreach (var changeItem in item.Items)");
             code.AppendLineAt(7, "{");
             code.AppendLineAt(
-                8,
+                7,
                 "if (changeItem is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
             );
             if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
@@ -104,11 +114,60 @@ internal static class SparseChangeSetPayloadRestoreEmitter
                 8,
                 "__payloadItems" + id + ".Add(__SparsePayloadItem" + id + "(changeItem));"
             );
+            if (hasTempRestore)
+            {
+                // Temporary identities must be unique per collection; assigned
+                // entries never carry them after restore enforcement, so any
+                // duplicate here is malformed transport.
+                code.AppendLineAt(
+                    8,
+                    "if (changeItem.TemporaryKey.HasValue && !__payloadSeenTemps"
+                        + id
+                        + ".Add(changeItem.TemporaryKey.Value)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate temporary keyed changes.\", nameof(payload));"
+                );
+            }
             code.AppendLineAt(7, "}");
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
                 code.AppendLineAt(7, "__payloadBeforeOrder" + id + " = item.BeforeOrder;");
                 code.AppendLineAt(7, "__payloadAfterOrder" + id + " = item.AfterOrder;");
+                if (hasTempRestore)
+                {
+                    // Temporary orders are explicit transport: temp-carrying
+                    // items without them are malformed, never position-guessed.
+                    code.AppendLineAt(
+                        7,
+                        "var __hasTempItems"
+                            + id
+                            + " = false; foreach (var __ci in item.Items) if (__ci.TemporaryKey.HasValue) { __hasTempItems"
+                            + id
+                            + " = true; break; }"
+                    );
+                    code.AppendLineAt(
+                        7,
+                        "if (item.TempBeforeOrder is null && __hasTempItems"
+                            + id
+                            + ") throw new global::System.ArgumentException(\"A temporary-keyed payload must contain temporary orders.\", nameof(payload));"
+                    );
+                    code.AppendLineAt(
+                        7,
+                        "__payloadTempBeforeOrder"
+                            + id
+                            + " = item.TempBeforeOrder ?? new global::System.Collections.Generic.List<global::System.Guid>();"
+                    );
+                    code.AppendLineAt(
+                        7,
+                        "if (item.TempAfterOrder is null && __hasTempItems"
+                            + id
+                            + ") throw new global::System.ArgumentException(\"A temporary-keyed payload must contain temporary orders.\", nameof(payload));"
+                    );
+                    code.AppendLineAt(
+                        7,
+                        "__payloadTempAfterOrder"
+                            + id
+                            + " = item.TempAfterOrder ?? new global::System.Collections.Generic.List<global::System.Guid>();"
+                    );
+                }
             }
             code.AppendLineAt(6, "}");
             code.AppendLineAt(6, "break;");

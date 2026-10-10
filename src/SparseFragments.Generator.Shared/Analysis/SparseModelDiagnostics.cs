@@ -48,20 +48,37 @@ internal static class SparseModelDiagnostics
             );
 
         // Members whose element declares key metadata but whose key is invalid fail
-        // with the precise key-shape cause. Precompute them so downstream
+        // with the precise key-shape cause. The same holds for invalid
+        // temporary-identity declarations (warnings still generate, so only
+        // error diagnostics suppress). Precompute them so downstream
         // artifact diagnostics from clone analysis stay silent:
         // the invalid declaration itself is the actionable failure.
-        var keyErrorProperties = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        var elementErrorProperties = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         foreach (var member in members)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (
-                member.Collection.ElementType is INamedTypeSymbol element
-                && SparseKeyAnalyzer.HasKeyDeclaration(element, config, cancellationToken)
-                && !SparseKeyAnalyzer.CollectDiagnostics(element, config, cancellationToken).IsEmpty
-            )
+            if (member.Collection.ElementType is not INamedTypeSymbol element)
             {
-                keyErrorProperties.Add(member.Property);
+                continue;
+            }
+
+            var elementDeclaresKey =
+                SparseKeyAnalyzer.HasKeyDeclaration(element, config, cancellationToken)
+                && !SparseKeyAnalyzer
+                    .CollectDiagnostics(element, config, cancellationToken)
+                    .IsEmpty;
+            var elementDeclaresTemp =
+                SparseTemporaryKeyAnalyzer.HasTemporaryKeyDeclaration(
+                    element,
+                    config,
+                    cancellationToken
+                )
+                && SparseTemporaryKeyAnalyzer
+                    .CollectDiagnostics(element, config, cancellationToken)
+                    .Any(static diagnostic => !diagnostic.IsWarning);
+            if (elementDeclaresKey || elementDeclaresTemp)
+            {
+                elementErrorProperties.Add(member.Property);
             }
         }
 
@@ -75,7 +92,7 @@ internal static class SparseModelDiagnostics
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (keyErrorProperties.Contains(property))
+            if (elementErrorProperties.Contains(property))
             {
                 continue;
             }
@@ -98,7 +115,7 @@ internal static class SparseModelDiagnostics
         var unsupportedShapeProperties = members
             .Select(static member => member.Property)
             .Where(property =>
-                !keyErrorProperties.Contains(property)
+                !elementErrorProperties.Contains(property)
                 && !cloneReported.Contains(property)
                 && SparseShapeValidation.GetUnsupportedMemberReason(property.Type) is not null
             )
@@ -199,6 +216,32 @@ internal static class SparseModelDiagnostics
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     diagnostics.Add(keyDiagnostic);
+                    reportedKeyError = true;
+                }
+            }
+
+            // Temporary-identity validation follows the same rule: any declared
+            // [SparseTemporaryKey] must be well-shaped even when the member
+            // takes whole-collection semantics and never uses it.
+            if (
+                member.Collection.ElementType is INamedTypeSymbol tempElement
+                && SparseTemporaryKeyAnalyzer.HasTemporaryKeyDeclaration(
+                    tempElement,
+                    config,
+                    cancellationToken
+                )
+            )
+            {
+                foreach (
+                    var tempDiagnostic in SparseTemporaryKeyAnalyzer.CollectDiagnostics(
+                        tempElement,
+                        config,
+                        cancellationToken
+                    )
+                )
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    diagnostics.Add(tempDiagnostic);
                     reportedKeyError = true;
                 }
             }

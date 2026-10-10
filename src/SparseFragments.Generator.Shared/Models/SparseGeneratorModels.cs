@@ -32,7 +32,8 @@ internal readonly record struct SparsePropertyModel(
     int JsonIgnoreCondition = 0,
     bool IsNullable = false,
     string? AttributeExpressions = null,
-    bool IsNullableOblivious = false
+    bool IsNullableOblivious = false,
+    bool IsTemporaryKey = false
 )
 {
     public bool IsJsonIgnored => JsonIgnoreCondition == 1;
@@ -52,7 +53,8 @@ internal readonly record struct SparseCollectionInfo(
     ImmutableArray<string> KeyPropertyNames = default,
     string? KeyTypeName = null,
     SparseKeyKind KeyKind = default,
-    string? UnassignedKeyExpression = null
+    string? UnassignedKeyExpression = null,
+    string? TemporaryKeyPropertyName = null
 )
 {
     public static SparseCollectionInfo Unsupported { get; } =
@@ -359,6 +361,13 @@ internal readonly record struct SparseGeneratorDiagnostic(
                 ? ImmutableArray<string?>.Empty
                 : ImmutableArray.Create<string?>(argument)
         ) { }
+
+    /// <summary>Whether this diagnostic is advisory and never suppresses generation.</summary>
+    /// <remarks>
+    /// Only error diagnostics fail the analyzed model; warnings report
+    /// through the normal channel while sources still emit.
+    /// </remarks>
+    public bool IsWarning { get; init; }
 
     public string? Argument1 => Arguments.Length > 0 ? Arguments[0] : null;
 

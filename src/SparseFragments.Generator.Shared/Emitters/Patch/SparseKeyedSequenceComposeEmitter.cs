@@ -74,7 +74,7 @@ internal static class SparseKeyedSequenceComposeEmitter
         code.AppendLineAt(3, "{");
         if (split is not null)
         {
-            SparseKeyedSequenceApplyEmitter.AppendKeyedFieldAliases(code);
+            SparseKeyedSequenceApplyEmitter.AppendKeyedFieldAliases(code, member);
         }
         code.AppendLineAt(
             4,
@@ -107,6 +107,22 @@ internal static class SparseKeyedSequenceComposeEmitter
         code.AppendLineAt(4, "}");
         // Granular + granular: merge key operation logs preserving sequential semantics.
         // Added keys.
+        var hasTempPatchCompose = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+        if (hasTempPatchCompose)
+        {
+            SparseKeyedSequenceTempPatchMergeEmitter.AppendThisTempPartition(
+                code,
+                member,
+                elementType,
+                member.Id
+            );
+            SparseKeyedSequenceTempPatchMergeEmitter.AppendNextTempPartition(
+                code,
+                member,
+                elementType,
+                member.Id
+            );
+        }
         code.AppendLineAt(
             4,
             "var thisAdded = new global::System.Collections.Generic.Dictionary<"
@@ -125,13 +141,23 @@ internal static class SparseKeyedSequenceComposeEmitter
         );
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
+            // Temporary adds merge by Guid below; legacy temp-less adds keep positional flow.
+            var partitionFilter = hasTempPatchCompose
+                ? "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") { if (!"
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(item).HasValue) thisUnassignedAdded.Add(item); }"
+                    + " else thisAdded[k] = item; }"
+                : "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") thisUnassignedAdded.Add(item); else thisAdded[k] = item; }";
             code.AppendLineAt(
                 4,
                 "if (__added is not null) foreach (var item in __added) { var k = "
                     + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                    + "(item); if ("
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                    + ") thisUnassignedAdded.Add(item); else thisAdded[k] = item; }"
+                    + "(item); "
+                    + partitionFilter
             );
         }
         else
@@ -341,6 +367,16 @@ internal static class SparseKeyedSequenceComposeEmitter
                     + "))[kv.Key] = kv.Value;"
             );
             code.AppendLineAt(4, "}");
+            if (hasTempPatchCompose)
+            {
+                SparseKeyedSequenceTempPatchMergeEmitter.AppendPatchTempMerge(
+                    code,
+                    member,
+                    elementType,
+                    hasPatch,
+                    runtime
+                );
+            }
             code.AppendLineAt(4, "if (netRemoved.Count > 0) result.__removed = netRemoved;");
             code.AppendLineAt(4, "if (netAdded.Count > 0) result.__added = netAdded;");
             code.AppendLineAt(
@@ -380,49 +416,73 @@ internal static class SparseKeyedSequenceComposeEmitter
                 4,
                 "if (next.__edited is not null) foreach (var kv in next.__edited) { if (thisAdded.ContainsKey(kv.Key) || thisRemoved.Contains(kv.Key)) continue; netEdited[kv.Key] = kv.Value; }"
             );
+            if (hasTempPatchCompose)
+            {
+                SparseKeyedSequenceTempPatchMergeEmitter.AppendPatchTempMerge(
+                    code,
+                    member,
+                    elementType,
+                    hasPatch,
+                    runtime
+                );
+            }
             code.AppendLineAt(4, "if (netRemoved.Count > 0) result.__removed = netRemoved;");
             code.AppendLineAt(4, "if (netAdded.Count > 0) result.__added = netAdded;");
             code.AppendLineAt(4, "if (netEdited.Count > 0) result.__edited = netEdited;");
         }
 
         // Order: next order wins when present (filtered to net keys), else this order filtered.
-        code.AppendLineAt(4, "if (next.__order is not null && next.__order.Count > 0)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var __nextOrder = new global::System.Collections.Generic.List<"
-                + keyType
-                + ">(); foreach (var k in next.__order) if (!netRemoved.Contains(k)) __nextOrder.Add(k);"
-        );
-        code.AppendLineAt(
-            5,
-            "if (next.__added is not null) foreach (var item in next.__added) { var __ak = "
-                + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                // Static Enumerable call: generated code cannot assume "using System.Linq".
-                + "(item); if (!global::System.Linq.Enumerable.Contains(__nextOrder, __ak, "
-                + comparer
-                + ")) __nextOrder.Add(__ak); }"
-        );
-        code.AppendLineAt(5, "if (__nextOrder.Count > 0) result.__order = __nextOrder;");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "else if (__order is not null && __order.Count > 0)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var order = new global::System.Collections.Generic.List<" + keyType + ">();"
-        );
-        code.AppendLineAt(
-            5,
-            "foreach (var k in __order) if (!nextRemoved.Contains(k)) order.Add(k);"
-        );
-        code.AppendLineAt(
-            5,
-            "if (next.__added is not null) foreach (var item in next.__added) order.Add("
-                + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                + "(item));"
-        );
-        code.AppendLineAt(5, "if (order.Count > 0) result.__order = order;");
-        code.AppendLineAt(4, "}");
+        // Temporary members rebuild both orders in lockstep instead.
+        if (hasTempPatchCompose)
+        {
+            SparseKeyedSequenceTempPatchMergeEmitter.AppendPatchOrderTempMerge(
+                code,
+                member,
+                keyType,
+                comparer,
+                member.Id
+            );
+        }
+        else
+        {
+            code.AppendLineAt(4, "if (next.__order is not null && next.__order.Count > 0)");
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(
+                5,
+                "var __nextOrder = new global::System.Collections.Generic.List<"
+                    + keyType
+                    + ">(); foreach (var k in next.__order) if (!netRemoved.Contains(k)) __nextOrder.Add(k);"
+            );
+            code.AppendLineAt(
+                5,
+                "if (next.__added is not null) foreach (var item in next.__added) { var __ak = "
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    // Static Enumerable call: generated code cannot assume "using System.Linq".
+                    + "(item); if (!global::System.Linq.Enumerable.Contains(__nextOrder, __ak, "
+                    + comparer
+                    + ")) __nextOrder.Add(__ak); }"
+            );
+            code.AppendLineAt(5, "if (__nextOrder.Count > 0) result.__order = __nextOrder;");
+            code.AppendLineAt(4, "}");
+            code.AppendLineAt(4, "else if (__order is not null && __order.Count > 0)");
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(
+                5,
+                "var order = new global::System.Collections.Generic.List<" + keyType + ">();"
+            );
+            code.AppendLineAt(
+                5,
+                "foreach (var k in __order) if (!nextRemoved.Contains(k)) order.Add(k);"
+            );
+            code.AppendLineAt(
+                5,
+                "if (next.__added is not null) foreach (var item in next.__added) order.Add("
+                    + SparseKeyedCollectionEmitter.KeyOfMethod(member)
+                    + "(item));"
+            );
+            code.AppendLineAt(5, "if (order.Count > 0) result.__order = order;");
+            code.AppendLineAt(4, "}");
+        }
         code.AppendLineAt(4, "return result;");
         code.AppendLineAt(3, "}");
         if (split is null)

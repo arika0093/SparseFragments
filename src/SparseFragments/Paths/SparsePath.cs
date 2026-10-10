@@ -87,6 +87,11 @@ public sealed class SparsePath : IEquatable<SparsePath>
     /// <typeparam name="TKey">The key type.</typeparam>
     public SparsePath Key<TKey>(TKey key) => Append(SparsePathSegment.KeyOf(key));
 
+    /// <summary>Appends a temporary-identity segment for an unassigned keyed entry.</summary>
+    /// <param name="temporaryKey">The stable temporary identity.</param>
+    public SparsePath TemporaryKey(Guid temporaryKey) =>
+        Append(SparsePathSegment.TemporaryKeyOf(temporaryKey));
+
     /// <summary>Appends a positional index segment.</summary>
     /// <param name="index">The zero-based position.</param>
     public SparsePath At(int index) => Append(SparsePathSegment.At(index));
@@ -281,6 +286,17 @@ public sealed class SparsePath : IEquatable<SparsePath>
                     builder.Append('[');
                     builder.Append(segment.Index.ToString(CultureInfo.InvariantCulture));
                     builder.Append(']');
+                    break;
+                case SparsePathSegmentKind.TemporaryKey:
+                    builder.Append("[temp:\"");
+                    builder.Append(
+                        EscapeKey(
+                            KeyText(
+                                segment.TemporaryKey?.ToString("D", CultureInfo.InvariantCulture)
+                            )
+                        )
+                    );
+                    builder.Append("\"]");
                     break;
                 default:
                     builder.Append("[\"");
@@ -493,6 +509,19 @@ public sealed class SparsePath : IEquatable<SparsePath>
         if (int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var position))
         {
             segment = SparsePathSegment.At(position);
+            return true;
+        }
+
+        // Temporary-identity segments round-trip explicitly so wire text never
+        // degrades into a plain string key.
+        if (
+            raw.Length > 7
+            && raw.StartsWith("temp:\"", StringComparison.Ordinal)
+            && raw.EndsWith("\"", StringComparison.Ordinal)
+            && Guid.TryParse(raw.Substring(6, raw.Length - 7), out var temporaryKey)
+        )
+        {
+            segment = SparsePathSegment.TemporaryKeyOf(temporaryKey);
             return true;
         }
 

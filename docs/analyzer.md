@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF029)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF032)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -34,6 +34,9 @@ Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file
 | [SPF027](#spf027-invalid-custom-rebase-policy) | Invalid custom rebase policy | Error |
 | [SPF028](#spf028-invalid-downstream-emission-plan) | Invalid downstream emission plan | Error |
 | [SPF029](#spf029-unknown-product-member) | Unknown product member | Error |
+| [SPF030](#spf030-invalid-comparison-strategy) | Invalid comparison strategy | Error |
+| [SPF031](#spf031-invalid-sparsetemporarykey-declaration) | Invalid SparseTemporaryKey declaration | Error |
+| [SPF032](#spf032-temporary-key-property-initializer) | Temporary key property initializer | Warning |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -396,3 +399,34 @@ public partial class PolicySettings
   that the analyzed model does not declare.
 * Fix: Correct the member name in the product generator configuration so it
   matches the source member name exactly.
+
+## SPF030: Invalid comparison strategy
+
+* Message: `Comparison rule for member '{0}' must use a concrete accessible type implementing IEqualityComparer<TMember> with an accessible parameterless constructor`
+* Cause: A `[SparseCompare]` attribute names a type that does not implement
+  `IEqualityComparer<TMember>` for the member type, or the type is abstract,
+  generic, or not accessibly constructible.
+* Fix: Point the attribute at a concrete comparer class with an accessible
+  parameterless constructor.
+
+## SPF031: Invalid SparseTemporaryKey declaration
+
+* Message: `Invalid temporary-identity declaration: {0}; mark exactly one Guid? property per keyed element type with parameterless [SparseTemporaryKey]`
+* Cause: The `[SparseTemporaryKey]` declaration is not exactly one parameterless
+  property of type `Guid?` with a public getter and setter on a keyed element
+  type, it shares its property with `[SparseKey]` or `[SparseIgnore]`, or the
+  element's key lacks unassigned semantics (an explicit `Unassigned` sentinel
+  or a nullable key type).
+* Fix: Mark one `Guid?` property with parameterless `[SparseTemporaryKey]`,
+  keep it readable and settable, and give the element's `[SparseKey]` an
+  unassigned state. Assign temporary values in constructors or object
+  initializers instead of a property initializer (see SPF032).
+
+## SPF032: Temporary key property initializer
+
+* Message: `Temporary-identity property '{0}' has an explicit initializer; assign temporary values in constructors or object initializers instead`
+* Cause: The `[SparseTemporaryKey]` property declares an explicit initializer.
+  The check is syntactic: any `= ...` clause warns, including `= null` and
+  `= default`. Assignments in constructors or object initializers are unaffected.
+* Fix: Remove the initializer from the property declaration. This is a warning;
+  generation continues.

@@ -49,7 +49,9 @@ public static class SparseEditSessionExtensions
         ValidateEditContext(session, editContext);
         session.AcceptChanges(changes);
         if (!session.HasChanges)
+        {
             editContext.MarkAsUnmodified();
+        }
     }
 
     /// <summary>Creates a validation store bound to the supplied session edit context.</summary>

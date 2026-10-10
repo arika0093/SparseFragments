@@ -66,7 +66,8 @@ internal static class SparseModelAnalyzer
         var memberModels = SparseModelDiscovery.CreateMemberModels(
             members,
             config,
-            cancellationToken
+            cancellationToken,
+            model
         );
 
         // Member-level rebase policies validate against the generated member
@@ -162,7 +163,8 @@ internal static class SparseModelAnalyzer
             cancellationToken
         );
 
-        if (diagnostics.Count > 0)
+        // Only errors fail the model; advisory warnings still generate.
+        if (diagnostics.Any(static diagnostic => !diagnostic.IsWarning))
         {
             return new SparseGenerationAnalysis(
                 null,
@@ -225,7 +227,9 @@ internal static class SparseModelAnalyzer
             memberModels,
             pocoCloneModels,
             structuralModels,
-            capabilityDiagnostics,
+            // The gate above guarantees no errors remain, so every carried
+            // diagnostic is advisory: warnings still report while generating.
+            diagnostics.ToImmutable().AddRange(capabilityDiagnostics),
             promotedModels,
             readOnlyViewModels
         );

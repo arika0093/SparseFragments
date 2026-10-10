@@ -24,6 +24,7 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.SparseIgnoreAttribute",
         "SparseFragments.SparseRedactBeforeAttribute",
         "SparseFragments.SparseKeyAttribute",
+        "SparseFragments.SparseTemporaryKeyAttribute",
         "SparseFragments.SparseMergeAttribute",
         "SparseFragments.SparseCompareAttribute",
         "SparseFragments.SparseRebasePolicyAttribute",

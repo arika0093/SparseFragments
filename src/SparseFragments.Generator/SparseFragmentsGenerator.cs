@@ -57,6 +57,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         MergeStrategyBaseMetadataName: MergeStrategyBaseName,
         CloneReferenceSafeAttributeMetadataName: "SparseFragments.SparseCloneReferenceSafeAttribute",
         KeyAttributeMetadataName: "SparseFragments.SparseKeyAttribute",
+        TemporaryKeyAttributeMetadataName: "SparseFragments.SparseTemporaryKeyAttribute",
         MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
         DiagnosticIds: new SparseDiagnosticIdMap(
             SparseFragmentsDiagnosticIds.MustBePartial,
@@ -384,6 +385,24 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         true,
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf024-invalid-unassigned-key-sentinel"
+    );
+    private static readonly DiagnosticDescriptor InvalidTemporaryKeyShape = new(
+        SparseFragmentsDiagnosticIds.InvalidTemporaryKeyShape,
+        "Invalid SparseTemporaryKey declaration",
+        "Invalid temporary-identity declaration: {0}; mark exactly one Guid? property per keyed element type with parameterless [SparseTemporaryKey]",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf031-invalid-sparsetemporarykey-declaration"
+    );
+    private static readonly DiagnosticDescriptor TemporaryKeyInitializer = new(
+        SparseFragmentsDiagnosticIds.TemporaryKeyInitializer,
+        "Temporary key property has an initializer",
+        "Temporary-identity property '{0}' has an explicit initializer; assign temporary values in constructors or object initializers instead",
+        "SparseFragments",
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf032-temporary-key-property-initializer"
     );
     private static readonly DiagnosticDescriptor InPlaceWriteUnavailable = new(
         SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable,
@@ -851,6 +870,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.SparseIgnoreUnsupportedProperty =>
                 SparseIgnoreUnsupportedProperty,
             SparseFragmentsDiagnosticIds.InvalidUnassignedKey => InvalidUnassignedKey,
+            SparseFragmentsDiagnosticIds.InvalidTemporaryKeyShape => InvalidTemporaryKeyShape,
+            SparseFragmentsDiagnosticIds.TemporaryKeyInitializer => TemporaryKeyInitializer,
             SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable => InPlaceWriteUnavailable,
             SparseFragmentsDiagnosticIds.InvalidEmissionPlan => InvalidEmissionPlan,
             SparseFragmentsDiagnosticIds.UnknownProductMember => UnknownProductMember,

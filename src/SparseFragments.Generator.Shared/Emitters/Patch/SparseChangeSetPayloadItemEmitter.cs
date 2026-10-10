@@ -267,7 +267,18 @@ internal static class SparseChangeSetPayloadItemEmitter
                 3,
                 "return new "
                     + trans
-                    + ".Item(item.Key, before, after, item.BeforeIndex, item.AfterIndex, "
+                    + ".Item(item.Key, "
+                    + (
+                        SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                            ? "("
+                                + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                                    member,
+                                    "item.Key"
+                                )
+                                + " ? item.TemporaryKey : null)"
+                            : "null"
+                    )
+                    + ", before, after, item.BeforeIndex, item.AfterIndex, "
                     + added
                     + ", "
                     + removed
@@ -451,6 +462,29 @@ internal static class SparseChangeSetPayloadItemEmitter
                         + keyType
                         + ">? AfterOrder { get; set; }"
                 );
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                {
+                    code.AppendLineAt(
+                        2,
+                        "/// <summary>Gets or sets the before temporary order.</summary>"
+                    );
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TempBeforeOrder", 8);
+                    code.AppendLineAt(
+                        2,
+                        "public global::System.Collections.Generic.List<global::System.Guid>? TempBeforeOrder { get; set; }"
+                    );
+                    code.AppendLineAt(
+                        2,
+                        "/// <summary>Gets or sets the after temporary order.</summary>"
+                    );
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TempAfterOrder", 9);
+                    code.AppendLineAt(
+                        2,
+                        "public global::System.Collections.Generic.List<global::System.Guid>? TempAfterOrder { get; set; }"
+                    );
+                }
             }
         }
         else
@@ -541,6 +575,16 @@ internal static class SparseChangeSetPayloadItemEmitter
                 SparseChangeSetPayloadEmitter.AppendIgnoreDefault(code, 2);
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "IsReordered", 6);
                 code.AppendLineAt(2, "public bool IsReordered { get; set; }");
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                {
+                    code.AppendLineAt(
+                        2,
+                        "/// <summary>Gets or sets the temporary identity for unassigned items.</summary>"
+                    );
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TemporaryKey", 8);
+                    code.AppendLineAt(2, "public global::System.Guid? TemporaryKey { get; set; }");
+                }
             }
             if (isModelValue)
             {

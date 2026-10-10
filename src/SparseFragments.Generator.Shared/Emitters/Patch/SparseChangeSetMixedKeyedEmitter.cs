@@ -119,6 +119,15 @@ internal static class SparseChangeSetMixedKeyedEmitter
                 + keyType
                 + ">();"
         );
+        if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            code.AppendLineAt(
+                7,
+                "var __payloadSeenTemps"
+                    + id
+                    + " = new global::System.Collections.Generic.HashSet<global::System.Guid>();"
+            );
+        }
         // Blind per-item sets for undisclosed befores. A redacted-before member
         // legitimately emits granular items without observable befores; those
         // pass their requested after-state through without comparison, while
@@ -164,6 +173,16 @@ internal static class SparseChangeSetMixedKeyedEmitter
                     + ".Add(changeItem.Key!)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate keyed changes.\", nameof(payload));"
             );
         }
+        if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary identities must be unique per collection, like keys.
+            code.AppendLineAt(
+                8,
+                "if (changeItem.TemporaryKey.HasValue && !__payloadSeenTemps"
+                    + id
+                    + ".Add(changeItem.TemporaryKey.Value)) throw new global::System.ArgumentException(\"A payload cannot contain duplicate temporary keyed changes.\", nameof(payload));"
+            );
+        }
         if (canContainBlindItems)
         {
             code.AppendLineAt(
@@ -202,12 +221,26 @@ internal static class SparseChangeSetMixedKeyedEmitter
             );
             code.AppendLineAt(9, "if (!__editBlind" + id + ".__SparseIsEmpty())");
             code.AppendLineAt(9, "{");
-            code.AppendLineAt(
-                10,
-                "__blindColl"
-                    + id
-                    + ".__SparseSetEdited(changeItem.Key!, changeItem.Edit.ToPatchCore());"
-            );
+            if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                code.AppendLineAt(
+                    10,
+                    "if (changeItem.TemporaryKey.HasValue) __blindColl"
+                        + id
+                        + ".__SparseSetEditedByTemporaryKey(changeItem.TemporaryKey.Value, changeItem.Edit.ToPatchCore()); else __blindColl"
+                        + id
+                        + ".__SparseSetEdited(changeItem.Key!, changeItem.Edit.ToPatchCore());"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    10,
+                    "__blindColl"
+                        + id
+                        + ".__SparseSetEdited(changeItem.Key!, changeItem.Edit.ToPatchCore());"
+                );
+            }
             code.AppendLineAt(10, "blindPaths.AddRange(__editPaths" + id + ");");
             code.AppendLineAt(10, "__hasBlindColl" + id + " = true;");
             code.AppendLineAt(10, "continue;");
@@ -304,18 +337,38 @@ internal static class SparseChangeSetMixedKeyedEmitter
                 );
                 if (isKeyed)
                 {
-                    code.AppendLineAt(
-                        9,
-                        "if (changeItem.Kind == "
-                            + itemKind
-                            + ".Edit) __blindColl"
-                            + id
-                            + ".Update(__blindAfter"
-                            + id
-                            + ".Value!); else __blindColl"
-                            + id
-                            + ".Remove(changeItem.Key!);"
-                    );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(
+                            9,
+                            "if (changeItem.Kind == "
+                                + itemKind
+                                + ".Edit) __blindColl"
+                                + id
+                                + ".Update(__blindAfter"
+                                + id
+                                + ".Value!); else if (changeItem.TemporaryKey.HasValue) __blindColl"
+                                + id
+                                + ".RemoveByTemporaryKey(changeItem.TemporaryKey.Value); else __blindColl"
+                                + id
+                                + ".Remove(changeItem.Key!);"
+                        );
+                    }
+                    else
+                    {
+                        code.AppendLineAt(
+                            9,
+                            "if (changeItem.Kind == "
+                                + itemKind
+                                + ".Edit) __blindColl"
+                                + id
+                                + ".Update(__blindAfter"
+                                + id
+                                + ".Value!); else __blindColl"
+                                + id
+                                + ".Remove(changeItem.Key!);"
+                        );
+                    }
                 }
                 else
                 {
@@ -360,6 +413,43 @@ internal static class SparseChangeSetMixedKeyedEmitter
         {
             code.AppendLineAt(7, "__payloadBeforeOrder" + id + " = item.BeforeOrder;");
             code.AppendLineAt(7, "__payloadAfterOrder" + id + " = item.AfterOrder;");
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                // Temporary orders restore parallel to the key orders; items
+                // without them are malformed, never position-guessed.
+                code.AppendLineAt(
+                    7,
+                    "var __hasTempItems"
+                        + id
+                        + " = false; foreach (var __ci in item.Items) if (__ci.TemporaryKey.HasValue) { __hasTempItems"
+                        + id
+                        + " = true; break; }"
+                );
+                code.AppendLineAt(
+                    7,
+                    "if (item.TempBeforeOrder is null && __hasTempItems"
+                        + id
+                        + ") throw new global::System.ArgumentException(\"A temporary-keyed payload must contain temporary orders.\", nameof(payload));"
+                );
+                code.AppendLineAt(
+                    7,
+                    "__payloadTempBeforeOrder"
+                        + id
+                        + " = item.TempBeforeOrder ?? new global::System.Collections.Generic.List<global::System.Guid>();"
+                );
+                code.AppendLineAt(
+                    7,
+                    "if (item.TempAfterOrder is null && __hasTempItems"
+                        + id
+                        + ") throw new global::System.ArgumentException(\"A temporary-keyed payload must contain temporary orders.\", nameof(payload));"
+                );
+                code.AppendLineAt(
+                    7,
+                    "__payloadTempAfterOrder"
+                        + id
+                        + " = item.TempAfterOrder ?? new global::System.Collections.Generic.List<global::System.Guid>();"
+                );
+            }
         }
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "break;");

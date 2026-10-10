@@ -534,7 +534,8 @@ internal static class SparseModelDiscovery
             CreateMemberModels(
                 GetMembers(type, config, cancellationToken).ToImmutableArray(),
                 config,
-                cancellationToken
+                cancellationToken,
+                type
             ),
             ModelConstructorBinding.AnalyzeStructural(type, config, cancellationToken)
         );
@@ -542,14 +543,28 @@ internal static class SparseModelDiscovery
     internal static ImmutableArray<SparseMemberModel> CreateMemberModels(
         ImmutableArray<SparseSymbolMemberModel> members,
         SparseGeneratorConfig config,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        INamedTypeSymbol? containingModel = null
     )
     {
+        string? temporaryKeyProperty = null;
+        if (containingModel is not null)
+        {
+            // The model's own temporary-identity property (if any) is flagged
+            // on its member so element diffs skip it while snapshots retain it.
+            SparseTemporaryKeyAnalyzer.TryGetTemporaryKeyProperty(
+                containingModel,
+                config,
+                cancellationToken,
+                out temporaryKeyProperty
+            );
+        }
+
         var result = ImmutableArray.CreateBuilder<SparseMemberModel>(members.Length);
         foreach (var member in members)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            result.Add(CreateMemberModel(member, config, cancellationToken));
+            result.Add(CreateMemberModel(member, config, cancellationToken, temporaryKeyProperty));
         }
 
         return result.ToImmutable();
@@ -558,7 +573,8 @@ internal static class SparseModelDiscovery
     private static SparseMemberModel CreateMemberModel(
         SparseSymbolMemberModel member,
         SparseGeneratorConfig config,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        string? temporaryKeyProperty = null
     )
     {
         var jsonPropertyName = SparseJsonNaming.GetJsonPropertyName(
@@ -577,7 +593,8 @@ internal static class SparseModelDiscovery
             SparseJsonNaming.GetJsonIgnoreCondition(member.Property, cancellationToken),
             IsNullableType(member.Property.Type),
             SparseAttributeSource.FormatPropertyAttributes(member.Property),
-            IsNullableObliviousType(member.Property.Type)
+            IsNullableObliviousType(member.Property.Type),
+            string.Equals(member.Property.Name, temporaryKeyProperty, StringComparison.Ordinal)
         );
         SparseTypeModel? childModel = null;
         string? childFragmentType = null;
@@ -686,6 +703,7 @@ internal static class SparseModelDiscovery
             valueType = CreateTypeModel(collection.ValueType, config, cancellationToken);
         }
 
+        var elementType = CreateTypeModel(collection.ElementType, config, cancellationToken);
         var semantic = SparseCollectionAnalyzer.ClassifySemantic(
             collection,
             config,
@@ -695,6 +713,7 @@ internal static class SparseModelDiscovery
         string? keyTypeName = null;
         var keyKind = SparseKeyKind.None;
         string? unassignedKeyExpression = null;
+        string? temporaryKeyPropertyName = null;
         if (
             semantic == SparseCollectionSemantic.KeyedSequence
             && collection.ElementType is INamedTypeSymbol namedElement
@@ -711,19 +730,27 @@ internal static class SparseModelDiscovery
             keyTypeName = discovered.KeyTypeName;
             keyKind = discovered.Kind;
             unassignedKeyExpression = discovered.UnassignedKeyExpression;
+            // Temporary identity needs generated per-model helpers, so it only
+            // flows for fragment-model elements; other elements keep the
+            // property as ordinary data. Shape diagnostics still apply.
+            if (elementType.IsFragmentModel)
+            {
+                temporaryKeyPropertyName = discovered.TemporaryKeyProperty;
+            }
         }
 
         return new SparseCollectionInfo(
             collection.Kind,
             collection.CloneKind,
-            CreateTypeModel(collection.ElementType, config, cancellationToken),
+            elementType,
             valueType,
             collection.NamedType?.ConstructedFrom.ToDisplayString(),
             semantic,
             keyPropertyNames,
             keyTypeName,
             keyKind,
-            unassignedKeyExpression
+            unassignedKeyExpression,
+            temporaryKeyPropertyName
         );
     }
 
@@ -889,7 +916,8 @@ internal static class SparseModelDiscovery
             CreateMemberModels(
                 GetMembers(pocoType, config, cancellationToken).ToImmutableArray(),
                 config,
-                cancellationToken
+                cancellationToken,
+                pocoType
             )
         );
     }
@@ -945,7 +973,12 @@ internal static class SparseModelDiscovery
             cancellationToken.ThrowIfCancellationRequested();
             var promotedMembers = GetMembers(promoted, config, cancellationToken)
                 .ToImmutableArray();
-            var memberModels = CreateMemberModels(promotedMembers, config, cancellationToken);
+            var memberModels = CreateMemberModels(
+                promotedMembers,
+                config,
+                cancellationToken,
+                promoted
+            );
             var pocoCloneModels = GetPocoCloneTypes(promotedMembers, config, cancellationToken)
                 .Select(pocoType => CreatePocoCloneModel(pocoType, config, cancellationToken))
                 .ToImmutableArray();

@@ -250,6 +250,21 @@ internal static class SparseChangeSetRebaseEmitter
                             + member.Id
                             + " = null;"
                     );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(
+                            3,
+                            "global::System.Collections.Generic.List<global::System.Guid>? __rtbO"
+                                + member.Id
+                                + " = null;"
+                        );
+                        code.AppendLineAt(
+                            3,
+                            "global::System.Collections.Generic.List<global::System.Guid>? __rtaO"
+                                + member.Id
+                                + " = null;"
+                        );
+                    }
                 }
             }
             else
@@ -469,17 +484,22 @@ internal static class SparseChangeSetRebaseEmitter
             if (IsNested(member))
                 rargs.Add("__r" + member.Id);
             else if (IsKeyed(member))
-                rargs.AddRange(
-                    new[]
-                    {
-                        "__rh" + member.Id,
-                        "__rwhole" + member.Id,
-                        "__rwb" + member.Id,
-                        "__rwa" + member.Id,
-                        "__ritems" + member.Id,
-                        "__rbO" + member.Id,
-                        "__raO" + member.Id,
-                    }
+                AddKeyedChangeSetArgs(
+                    rargs,
+                    member,
+                    "__rh" + member.Id,
+                    "__rwhole" + member.Id,
+                    "__rwb" + member.Id,
+                    "__rwa" + member.Id,
+                    "__ritems" + member.Id,
+                    "__rbO" + member.Id,
+                    "__raO" + member.Id,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__rtbO" + member.Id
+                        : null,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__rtaO" + member.Id
+                        : null
                 );
             else if (IsDict(member))
                 rargs.AddRange(

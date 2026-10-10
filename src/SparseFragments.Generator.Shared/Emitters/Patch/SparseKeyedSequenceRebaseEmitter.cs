@@ -155,6 +155,17 @@ internal static class SparseKeyedSequenceRebaseEmitter
         code.AppendLineAt(4, "}");
         // Granular: if base == current keep local; if desired == current drop; else per-key merge with nested rebase where possible.
         // NOTE: desired is computed defensively below (missing/duplicate base yields a conflict, not a throw).
+        var editedTempCopyFragment = string.Empty;
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            var tempEditedValueType = hasPatch
+                ? SparseKeyedCollectionEmitter.ElementPatchType(member)
+                : elementType;
+            editedTempCopyFragment =
+                " result.__removedTemp = local.__removedTemp is null ? null : new global::System.Collections.Generic.List<global::System.Guid>(local.__removedTemp); result.__editedTemp = local.__editedTemp is null ? null : new global::System.Collections.Generic.Dictionary<global::System.Guid, "
+                + tempEditedValueType
+                + ">(local.__editedTemp);";
+        }
         code.AppendLineAt(
             4,
             "if ("
@@ -171,7 +182,9 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + "); result.__order = local.__order is null ? null : new global::System.Collections.Generic.List<"
                 + keyType
-                + ">(local.__order); return new "
+                + ">(local.__order);"
+                + editedTempCopyFragment
+                + " return new "
                 + resultType
                 + "(result, conflicts); }"
         );
@@ -213,6 +226,16 @@ internal static class SparseKeyedSequenceRebaseEmitter
         var runtime = dialect.RuntimeNamespace;
         var conflictType = dialect.ConflictType;
         var conflictKindType = dialect.ConflictKindType;
+        var hasTempPatchRebase = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+        if (hasTempPatchRebase)
+        {
+            SparseKeyedSequenceTempRebaseEmitter.AppendTempStateMaps(
+                code,
+                member,
+                elementType,
+                member.Id
+            );
+        }
         // Build maps. Capacity hints use a netstandard2.0-safe
         // ICollection/IReadOnlyCollection probe (0 when the member shape
         // exposes no Count); duplicate-key validation is unchanged.
@@ -234,18 +257,33 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + ");"
         );
+        string baseUnassignedFragment;
+        if (hasTempPatchRebase)
+        {
+            baseUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") { var __btt = "
+                + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                + "(item); if (!__btt.HasValue || __btt.Value == global::System.Guid.Empty) throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); continue; } ";
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            baseUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); ";
+        }
+        else
+        {
+            baseUnassignedFragment = string.Empty;
+        }
         code.AppendLineAt(
             4,
             "if (baseState.IsPresent && (object?)baseState.Value is not null) foreach (var item in baseState.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (
-                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "if ("
-                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                            + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
-                        : ""
-                )
+                + baseUnassignedFragment
                 + SparseKeyedCollectionEmitter.AddUniqueEntry("baseMap", "k", "item")
                 + " }"
         );
@@ -267,18 +305,33 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + ");"
         );
+        string currentUnassignedFragment;
+        if (hasTempPatchRebase)
+        {
+            currentUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") { var __ctt = "
+                + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                + "(item); if (!__ctt.HasValue || __ctt.Value == global::System.Guid.Empty) throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); continue; } ";
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            currentUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); ";
+        }
+        else
+        {
+            currentUnassignedFragment = string.Empty;
+        }
         code.AppendLineAt(
             4,
             "if (currentState.IsPresent && (object?)currentState.Value is not null) foreach (var item in currentState.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (
-                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "if ("
-                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                            + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); "
-                        : ""
-                )
+                + currentUnassignedFragment
                 + SparseKeyedCollectionEmitter.AddUniqueEntry("currentMap", "k", "item")
                 + " }"
         );
@@ -300,25 +353,40 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + ");"
         );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member) || hasTempPatchRebase)
             code.AppendLineAt(
                 4,
                 "var __desiredUnassigned = new global::System.Collections.Generic.List<"
                     + elementType
                     + ">();"
             );
+        string desiredUnassignedFragment;
+        if (hasTempPatchRebase)
+        {
+            desiredUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") { var __dtt = "
+                + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                + "(item); if (!__dtt.HasValue || __dtt.Value == global::System.Guid.Empty) { __desiredUnassigned.Add(item); } continue; } ";
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            desiredUnassignedFragment =
+                "if ("
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                + ") { __desiredUnassigned.Add(item); continue; } ";
+        }
+        else
+        {
+            desiredUnassignedFragment = string.Empty;
+        }
         code.AppendLineAt(
             4,
             "if (desired.IsPresent && (object?)desired.Value is not null) foreach (var item in desired.Value!) { var k = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(item); "
-                + (
-                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "if ("
-                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                            + ") { __desiredUnassigned.Add(item); continue; } "
-                        : ""
-                )
+                + desiredUnassignedFragment
                 + SparseKeyedCollectionEmitter.AddUniqueEntry("desiredMap", "k", "item")
                 + " }"
         );
@@ -346,21 +414,20 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + ");"
         );
+        // Locally added unassigned entries merge positionally below; only
+        // assigned touches join the keyed three-way.
+        var touchedUnassignedFragment =
+            hasTempPatchRebase || SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                ? "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__touchedKey")
+                    + ") continue; "
+                : string.Empty;
         code.AppendLineAt(
             4,
             "if (local.__added is not null) foreach (var __touchedItem in local.__added) { var __touchedKey = "
                 + SparseKeyedCollectionEmitter.KeyOfMethod(member)
                 + "(__touchedItem); "
-                + (
-                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
-                        ? "if ("
-                            + SparseKeyedCollectionEmitter.IsUnassignedExpression(
-                                member,
-                                "__touchedKey"
-                            )
-                            + ") continue; "
-                        : ""
-                )
+                + touchedUnassignedFragment
                 + "__touchedAdded.Add(__touchedKey); __addedByKey[__touchedKey] = __touchedItem; }"
         );
         code.AppendLineAt(
@@ -499,6 +566,18 @@ internal static class SparseKeyedSequenceRebaseEmitter
             );
             code.AppendLineAt(5, "}");
             SparseKeyedCollectionEmitter.AppendPendingKeyLoopEnd(code);
+            if (hasTempPatchRebase)
+            {
+                SparseKeyedSequenceTempRebaseEmitter.AppendTempThreeWay(
+                    code,
+                    member,
+                    elementType,
+                    hasPatch,
+                    facade,
+                    dialect,
+                    member.Id
+                );
+            }
             // Order: keep local order only when current order unchanged and no order conflict.
             code.AppendLineAt(4, "if (local.__order is not null && local.__order.Count > 0)");
             code.AppendLineAt(4, "{");
@@ -556,6 +635,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + keyType
                     + ">(local.__order);"
             );
+            if (hasTempPatchRebase)
+            {
+                code.AppendLineAt(
+                    5,
+                    "if (local.__orderTemp is not null && result.__order is not null) result.__orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>(local.__orderTemp);"
+                );
+            }
             code.AppendLineAt(
                 5,
                 "else if (!"
@@ -694,6 +780,13 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + keyType
                     + ">(local.__order);"
             );
+            if (hasTempPatchRebase)
+            {
+                code.AppendLineAt(
+                    5,
+                    "if (local.__orderTemp is not null && result.__order is not null) result.__orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>(local.__orderTemp);"
+                );
+            }
             code.AppendLineAt(
                 5,
                 "else if (!"

@@ -457,7 +457,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             "global::System.Collections.Generic.EqualityComparer<" + keyTypeName + ">.Default";
         // Copy through a fresh local so the null test cannot disturb the
         // converted item's narrowing at the later mutation call.
-        return "var __duplicateItem = "
+        var guard =
+            "var __duplicateItem = "
             + modelVariable
             + "; if ((object?)__duplicateItem is not null) { var __duplicateKey = "
             + KeyOfObjectExpression(member, "__duplicateItem")
@@ -477,6 +478,40 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + comparer
             + ".Equals("
             + KeyOfObjectExpression(member, "__duplicateModel")
-            + ", __duplicateKey)) return false; } } } ";
+            + ", __duplicateKey)) return false; } }";
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary identities duplicate-check like assigned keys; elements
+            // without a usable identity stay exempt.
+            guard +=
+                " else { var __duplicateTemp = "
+                + TempOfObjectExpression(member, "__duplicateItem")
+                + "; if (__duplicateTemp.HasValue && __duplicateTemp.Value != global::System.Guid.Empty) { var __duplicateTempList = this."
+                + property
+                + "!; for (var __duplicateTempIndex = 0; __duplicateTempIndex < __duplicateTempList.Count; __duplicateTempIndex++) { "
+                + (
+                    excludeIndex is null
+                        ? string.Empty
+                        : "if (__duplicateTempIndex == " + excludeIndex + ") continue; "
+                )
+                + "var __duplicateTempModel = "
+                + UnwrapModelExpression(names, "__duplicateTempList[__duplicateTempIndex]")
+                + "; if (__duplicateTempModel is null) continue; if ("
+                + TempOfObjectExpression(member, "__duplicateTempModel")
+                + " == __duplicateTemp.Value) return false; } } } } ";
+        }
+        else
+        {
+            guard += " } ";
+        }
+        return guard;
+    }
+
+    /// <summary>Builds a temporary-identity expression reading an object-typed model.</summary>
+    private static string TempOfObjectExpression(SparseMemberModel member, string modeller)
+    {
+        var modelType = member.Collection.ElementType.NonNullableName;
+        var cast = "((" + modelType + ")" + modeller + ")";
+        return cast + "." + SparseKeyedCollectionEmitter.TemporaryKeyProperty(member);
     }
 }

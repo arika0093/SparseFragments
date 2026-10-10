@@ -45,6 +45,13 @@ internal static class SparseFragmentPatchAlgebraEmitter
                 member => SparseFragmentPatchEmitter.GetMemberValueType(dialect, member),
                 (member, beforeValue, afterValue) =>
                 {
+                    // Temporary identity never diffs as a scalar: it is
+                    // correlation metadata kept out of business edits.
+                    if (member.Property.IsTemporaryKey)
+                    {
+                        return "true";
+                    }
+
                     if (member.MergeStrategyType is not null)
                     {
                         return "Fragment."

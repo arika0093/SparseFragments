@@ -32,7 +32,8 @@ internal sealed record SparseGeneratorConfig
         SparseDescriptorDialect? DescriptorDialect = null,
         string? GeneratedImplementationNamespace = null,
         SparseFamilyNames? FamilyNames = null,
-        string? GeneratedImplementationSuffix = null
+        string? GeneratedImplementationSuffix = null,
+        string? TemporaryKeyAttributeMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -64,6 +65,7 @@ internal sealed record SparseGeneratorConfig
         this.GeneratedImplementationNamespace = GeneratedImplementationNamespace;
         this.FamilyNames = FamilyNames;
         this.GeneratedImplementationSuffix = GeneratedImplementationSuffix;
+        this.TemporaryKeyAttributeMetadataName = TemporaryKeyAttributeMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -153,6 +155,13 @@ internal sealed record SparseGeneratorConfig
     /// </remarks>
     public string? GeneratedImplementationSuffix { get; init; }
 
+    /// <summary>Attribute marking the temporary-identity property, or null when the product has none.</summary>
+    /// <remarks>
+    /// Null disables temporary-key analysis so downstream products without
+    /// the attribute keep byte-identical output.
+    /// </remarks>
+    public string? TemporaryKeyAttributeMetadataName { get; init; }
+
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 
     public SparseDiagnosticIdMap EffectiveDiagnosticIds => DiagnosticIds;
@@ -202,7 +211,9 @@ internal sealed record SparseDiagnosticIdMap
         string InvalidRebasePolicy = "SPF027",
         string InvalidEmissionPlan = "SPF028",
         string UnknownProductMember = "SPF029",
-        string InvalidComparisonStrategy = "SPF030"
+        string InvalidComparisonStrategy = "SPF030",
+        string InvalidTemporaryKeyShape = "SPF031",
+        string TemporaryKeyInitializer = "SPF032"
     )
     {
         this.MustBePartial = MustBePartial;
@@ -227,6 +238,8 @@ internal sealed record SparseDiagnosticIdMap
         this.InvalidEmissionPlan = InvalidEmissionPlan;
         this.UnknownProductMember = UnknownProductMember;
         this.InvalidComparisonStrategy = InvalidComparisonStrategy;
+        this.InvalidTemporaryKeyShape = InvalidTemporaryKeyShape;
+        this.TemporaryKeyInitializer = TemporaryKeyInitializer;
     }
 
     public string MustBePartial { get; init; }
@@ -276,6 +289,12 @@ internal sealed record SparseDiagnosticIdMap
 
     /// <summary>Diagnostic ID for an invalid configured equality comparer.</summary>
     public string InvalidComparisonStrategy { get; init; }
+
+    /// <summary>Diagnostic ID for an invalid temporary-identity declaration.</summary>
+    public string InvalidTemporaryKeyShape { get; init; }
+
+    /// <summary>Diagnostic ID for an explicit initializer on a temporary-identity property.</summary>
+    public string TemporaryKeyInitializer { get; init; }
 }
 
 internal sealed record SparseRuntimeDialect

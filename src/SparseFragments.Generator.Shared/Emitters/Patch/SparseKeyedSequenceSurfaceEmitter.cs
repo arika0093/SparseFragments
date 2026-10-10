@@ -66,6 +66,10 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 + editedValueType
                 + ">? __edited;"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseKeyedSequenceTempSurfaceEmitter.AppendTempFields(internalCode, editedValueType);
+        }
         internalCode.AppendLineAt(
             3,
             "internal global::System.Collections.Generic.List<" + keyType + ">? __order;"
@@ -104,7 +108,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         );
         code.AppendLineAt(
             4,
-            "&& (__edited is null || __edited.Count == 0) && (__order is null || __order.Count == 0);"
+            "&& (__edited is null || __edited.Count == 0) && (__order is null || __order.Count == 0)"
+                + (
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? SparseKeyedSequenceTempSurfaceEmitter.TempIsEmptyFragment(string.Empty)
+                        : ""
+                )
+                + ";"
         );
         internalCode.AppendLineAt(3, "internal bool __SparseIsEmpty() => IsEmpty;");
         // Whole operations (public group).
@@ -176,6 +186,17 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             implementationNamespace,
             split
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseKeyedSequenceTempSurfaceEmitter.AppendTempMutators(
+                code,
+                member,
+                patchName,
+                elementType,
+                hasPatch,
+                split
+            );
+        }
         if (hasPatch)
         {
             internalCode.AppendLineAt(
@@ -204,6 +225,33 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             );
             internalCode.AppendLineAt(4, "__edited[key] = patch;");
             internalCode.AppendLineAt(3, "}");
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                internalCode.AppendLineAt(
+                    3,
+                    "internal void __SparseSetEditedByTemporaryKey(global::System.Guid temporaryKey, "
+                        + SparseKeyedCollectionEmitter.ElementPatchType(member)
+                        + " patch)"
+                );
+                internalCode.AppendLineAt(3, "{");
+                internalCode.AppendLineAt(4, "EnsureGranular(\"SetEditedByTemporaryKey\");");
+                internalCode.AppendLineAt(
+                    4,
+                    "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
+                );
+                internalCode.AppendLineAt(
+                    4,
+                    "if (temporaryKey == global::System.Guid.Empty) throw new global::System.ArgumentException(\"Temporary identity must not be empty.\", nameof(temporaryKey));"
+                );
+                internalCode.AppendLineAt(
+                    4,
+                    "__editedTemp ??= new global::System.Collections.Generic.Dictionary<global::System.Guid, "
+                        + SparseKeyedCollectionEmitter.ElementPatchType(member)
+                        + ">();"
+                );
+                internalCode.AppendLineAt(4, "__editedTemp[temporaryKey] = patch;");
+                internalCode.AppendLineAt(3, "}");
+            }
         }
         SparseKeyedSequenceApplyEmitter.EmitKeyedApply(
             operations,
@@ -377,7 +425,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 "internal static void Add(" + patchName + " self, " + elementType + " element)"
             );
             code.AppendLineAt(3, "{");
-            AppendFieldAliases(code);
+            AppendFieldAliases(code, member);
         }
         else
         {
@@ -429,6 +477,21 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 )
                 + " && __edited.ContainsKey(key!)) throw new global::System.InvalidOperationException(\"Key is already edited in this patch.\");"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary adds stay separately addressable: duplicate
+            // identities fail at record time instead of colliding at apply.
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + ") { var __addTemp = "
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(element); if (__addTemp.HasValue && __addTemp.Value != global::System.Guid.Empty && __added is not null) foreach (var existing in __added) if ("
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(existing) == __addTemp.Value) throw new global::System.InvalidOperationException(\"Duplicate temporary key in keyed collection patch.\"); }"
+            );
+        }
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
@@ -485,7 +548,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 "internal static void Remove(" + patchName + " self, " + keyType + " key)"
             );
             code.AppendLineAt(3, "{");
-            AppendFieldAliases(code);
+            AppendFieldAliases(code, member);
         }
         else
         {
@@ -557,7 +620,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                         + " key)"
                 );
                 code.AppendLineAt(3, "{");
-                AppendFieldAliases(code);
+                AppendFieldAliases(code, member);
             }
             else
             {
@@ -639,7 +702,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                         + " element)"
                 );
                 code.AppendLineAt(3, "{");
-                AppendFieldAliases(code);
+                AppendFieldAliases(code, member);
             }
             else
             {
@@ -656,6 +719,24 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 4,
                 "var key = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(element);"
             );
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                // Unassigned elements with an identity update by Guid; the
+                // dedicated mutator owns that path so identity never collides.
+                var updateByTemp = split is not null
+                    ? split.OperationsType + ".UpdateByTemporaryKey(self, element)"
+                    : "UpdateByTemporaryKey(element)";
+                code.AppendLineAt(
+                    4,
+                    "if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                        + " && "
+                        + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                        + "(element).HasValue) { "
+                        + updateByTemp
+                        + "; return; }"
+                );
+            }
             if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
                 code.AppendLineAt(
                     4,
@@ -717,7 +798,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + "> keys)"
             );
             code.AppendLineAt(3, "{");
-            AppendFieldAliases(code);
+            AppendFieldAliases(code, member);
         }
         else
         {
@@ -756,6 +837,12 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         else
             code.AppendLineAt(4, facade + ".EnsureUniqueKeys<" + keyType + ">(list);");
         code.AppendLineAt(4, "__order = list;");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Explicit key orders carry no temporary fidelity; later applies
+            // fall back to positional legacy flow for bare sentinel slots.
+            code.AppendLineAt(4, "__orderTemp = null;");
+        }
         code.AppendLineAt(3, "}");
     }
 
@@ -765,7 +852,10 @@ internal static class SparseKeyedSequenceSurfaceEmitter
     /// through these aliases, so element identity, lazy nested state and
     /// in-place mutation semantics match the legacy instance methods exactly.
     /// </remarks>
-    private static void AppendFieldAliases(SharedIndentedBuilder code)
+    internal static void AppendFieldAliases(
+        SharedIndentedBuilder code,
+        SparseMemberModel? member = null
+    )
     {
         code.AppendLineAt(4, "ref var __whole = ref self.__whole;");
         code.AppendLineAt(4, "ref var __added = ref self.__added;");
@@ -773,5 +863,9 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         code.AppendLineAt(4, "ref var __removedLookup = ref self.__removedLookup;");
         code.AppendLineAt(4, "ref var __edited = ref self.__edited;");
         code.AppendLineAt(4, "ref var __order = ref self.__order;");
+        if (member.HasValue && SparseKeyedCollectionEmitter.HasTemporaryKey(member.Value))
+        {
+            SparseKeyedSequenceTempSurfaceEmitter.AppendTempFieldAliases(code);
+        }
     }
 }

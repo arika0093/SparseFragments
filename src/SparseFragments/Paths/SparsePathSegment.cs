@@ -45,6 +45,9 @@ public readonly struct SparsePathSegment : IEquatable<SparsePathSegment>
     /// <summary>Gets the key type for <see cref="SparsePathSegmentKind.Key"/> segments.</summary>
     public Type? KeyType => Kind == SparsePathSegmentKind.Key ? _keyType : null;
 
+    /// <summary>Gets the temporary identity for <see cref="SparsePathSegmentKind.TemporaryKey"/> segments.</summary>
+    public Guid? TemporaryKey => Kind == SparsePathSegmentKind.TemporaryKey ? (Guid?)_key : null;
+
     /// <summary>Gets the position for <see cref="SparsePathSegmentKind.Index"/> segments.</summary>
     public int Index => Kind == SparsePathSegmentKind.Index ? _index : -1;
 
@@ -61,6 +64,11 @@ public readonly struct SparsePathSegment : IEquatable<SparsePathSegment>
     /// <typeparam name="TKey">The key type.</typeparam>
     public static SparsePathSegment KeyOf<TKey>(TKey key) =>
         new(SparsePathSegmentKind.Key, string.Empty, key, typeof(TKey), -1);
+
+    /// <summary>Creates a temporary-identity segment for an unassigned keyed entry.</summary>
+    /// <param name="temporaryKey">The stable temporary identity.</param>
+    public static SparsePathSegment TemporaryKeyOf(Guid temporaryKey) =>
+        new(SparsePathSegmentKind.TemporaryKey, string.Empty, temporaryKey, typeof(Guid), -1);
 
     /// <summary>Creates a positional index segment.</summary>
     /// <param name="index">The zero-based position.</param>

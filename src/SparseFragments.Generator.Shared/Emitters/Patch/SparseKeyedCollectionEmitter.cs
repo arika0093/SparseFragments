@@ -172,6 +172,37 @@ internal static class SparseKeyedCollectionEmitter
     internal static bool HasUnassignedKey(SparseMemberModel member) =>
         member.Collection.UnassignedKeyExpression is not null;
 
+    /// <summary>Whether keyed elements carry an opt-in Guid temporary identity.</summary>
+    internal static bool HasTemporaryKey(SparseMemberModel member) =>
+        member.Collection.TemporaryKeyPropertyName is not null;
+
+    internal static string TemporaryKeyProperty(SparseMemberModel member) =>
+        SparseNaming.EscapeIdentifier(member.Collection.TemporaryKeyPropertyName ?? "TemporaryKey");
+
+    internal static string TemporaryKeyOfMethod(SparseMemberModel member) =>
+        "__SparseTemporaryKeyOf_" + member.Id;
+
+    internal static string TemporaryKeyOfChangeSetMethod(SparseMemberModel member) =>
+        "__SparseTemporaryKeyOf_ChangeSet_" + member.Id;
+
+    /// <summary>Builds a duplicate-temporary-key guard plus add for temp map construction.</summary>
+    internal static string AddUniqueTempEntry(string map, string temp, string value) =>
+        "if ("
+        + map
+        + ".ContainsKey("
+        + temp
+        + ")) throw new global::System.InvalidOperationException(\"Duplicate temporary key in keyed collection.\"); "
+        + map
+        + ".Add("
+        + temp
+        + ", "
+        + value
+        + ");";
+
+    /// <summary>Whether a temporary-key variable holds a usable identity.</summary>
+    internal static string IsValidTemporaryKeyExpression(string temp) =>
+        temp + ".HasValue && " + temp + ".Value != global::System.Guid.Empty";
+
     internal static string IsUnassignedExpression(SparseMemberModel member, string key) =>
         HasUnassignedKey(member)
             ? "global::System.Collections.Generic.EqualityComparer<"
@@ -240,6 +271,32 @@ internal static class SparseKeyedCollectionEmitter
                     + ";"
             );
         }
+        if (HasTemporaryKey(member))
+        {
+            EmitTemporaryKeyOf(code, member, elementType, indent, TemporaryKeyOfMethod(member));
+        }
+    }
+
+    /// <summary>Emits the Guid? temporary-identity extractor for a keyed member.</summary>
+    internal static void EmitTemporaryKeyOf(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string elementType,
+        int indent,
+        string methodName
+    )
+    {
+        code.AppendLineAt(
+            indent,
+            "private static global::System.Guid? " + methodName + "(" + elementType + " element)"
+        );
+        code.AppendLineAt(indent, "{");
+        code.AppendLineAt(
+            indent + 1,
+            "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no temporary identity.\");"
+        );
+        code.AppendLineAt(indent + 1, "return element." + TemporaryKeyProperty(member) + ";");
+        code.AppendLineAt(indent, "}");
     }
 
     internal static string MaterializeSequence(

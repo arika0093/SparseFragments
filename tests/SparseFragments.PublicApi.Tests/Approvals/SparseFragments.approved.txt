@@ -391,6 +391,7 @@ namespace SparseFragments
         public SparseFragments.SparsePath Prepend(SparseFragments.SparsePath prefix) { }
         public SparseFragments.SparsePath PrependMember(string name) { }
         public bool StartsWith(SparseFragments.SparsePath? other) { }
+        public SparseFragments.SparsePath TemporaryKey(System.Guid temporaryKey) { }
         public override string ToString() { }
         public static SparseFragments.SparsePath Parse(System.Type rootType, string text) { }
         public static SparseFragments.SparsePath Parse<TModel>(string text) { }
@@ -413,6 +414,7 @@ namespace SparseFragments
         public System.Type? KeyType { get; }
         public SparseFragments.SparsePathSegmentKind Kind { get; }
         public string Name { get; }
+        public System.Guid? TemporaryKey { get; }
         public bool Equals(SparseFragments.SparsePathSegment other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
@@ -420,6 +422,7 @@ namespace SparseFragments
         public static SparseFragments.SparsePathSegment At(int index) { }
         public static SparseFragments.SparsePathSegment KeyOf<TKey>(TKey key) { }
         public static SparseFragments.SparsePathSegment Member(string name) { }
+        public static SparseFragments.SparsePathSegment TemporaryKeyOf(System.Guid temporaryKey) { }
         public static bool operator !=(SparseFragments.SparsePathSegment left, SparseFragments.SparsePathSegment right) { }
         public static bool operator ==(SparseFragments.SparsePathSegment left, SparseFragments.SparsePathSegment right) { }
     }
@@ -428,6 +431,7 @@ namespace SparseFragments
         Member = 0,
         Key = 1,
         Index = 2,
+        TemporaryKey = 3,
     }
     public sealed class SparsePath<TModel, TValue> : System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
     {
@@ -495,6 +499,11 @@ namespace SparseFragments
     public sealed class SparseRedactBeforeAttribute : System.Attribute
     {
         public SparseRedactBeforeAttribute() { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    public sealed class SparseTemporaryKeyAttribute : System.Attribute
+    {
+        public SparseTemporaryKeyAttribute() { }
     }
 }
 namespace SparseFragments.CompilerServices

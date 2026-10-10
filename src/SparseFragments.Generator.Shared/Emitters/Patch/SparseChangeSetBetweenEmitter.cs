@@ -239,17 +239,22 @@ internal static class SparseChangeSetBetweenEmitter
             if (IsNested(member))
                 args.Add("__nn" + member.Id);
             else if (IsKeyed(member))
-                args.AddRange(
-                    new[]
-                    {
-                        "__h" + member.Id,
-                        "__whole" + member.Id,
-                        "__wb" + member.Id,
-                        "__wa" + member.Id,
-                        "__items" + member.Id,
-                        "__bO" + member.Id,
-                        "__aO" + member.Id,
-                    }
+                AddKeyedChangeSetArgs(
+                    args,
+                    member,
+                    "__h" + member.Id,
+                    "__whole" + member.Id,
+                    "__wb" + member.Id,
+                    "__wa" + member.Id,
+                    "__items" + member.Id,
+                    "__bO" + member.Id,
+                    "__aO" + member.Id,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__bTO" + member.Id
+                        : null,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? "__aTO" + member.Id
+                        : null
                 );
             else if (IsDict(member))
                 args.AddRange(

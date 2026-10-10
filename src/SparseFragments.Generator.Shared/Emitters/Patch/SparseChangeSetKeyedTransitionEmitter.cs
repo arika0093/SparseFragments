@@ -111,6 +111,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "/// <summary>Gets the entry key.</summary>");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
+        SparseChangeSetKeyedTempTransitionEmitter.AppendItemTemporaryKeyProperty(code);
         code.AppendLineAt(4, "/// <summary>Gets the value before the transition.</summary>");
         code.AppendLineAt(4, "public " + optElement + " Before { get; }");
         code.AppendLineAt(4, "/// <summary>Gets the value after the transition.</summary>");
@@ -145,7 +146,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         );
         code.AppendLineAt(
             4,
-            "public static Item Empty { get; } = new Item(default!, default, default, -1, -1, false, false, false, false, "
+            "public static Item Empty { get; } = new Item(default!, null, default, default, -1, -1, false, false, false, false, "
                 + elementCs
                 + ".Between("
                 + optionalElementFragment
@@ -157,7 +158,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             4,
             "internal Item("
                 + keyType
-                + " key, "
+                + " key, global::System.Guid? temporaryKey, "
                 + optElement
                 + " before, "
                 + optElement
@@ -167,6 +168,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         );
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "Key = key;");
+        code.AppendLineAt(5, "TemporaryKey = temporaryKey;");
         code.AppendLineAt(5, "Before = before;");
         code.AppendLineAt(5, "After = after;");
         code.AppendLineAt(5, "BeforeIndex = beforeIndex;");
@@ -229,6 +231,10 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
         );
         code.AppendLineAt(3, "}");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendGetTemporaryChange(code, member);
+        }
         code.AppendLineAt(
             3,
             "internal "
@@ -278,6 +284,10 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             3,
             "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendTemporaryLookupField(code);
+        }
         code.AppendLineAt(2, "}");
         // Key helper: stays on the facade for single-file emission; it moves
         // into the operation container (below) when relocating.
@@ -300,6 +310,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             );
             code.AppendLineAt(3, KeyOfBody(member));
             code.AppendLineAt(2, "}");
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                SparseChangeSetKeyedTempTransitionEmitter.AppendTemporaryKeyExtractor(
+                    code,
+                    member,
+                    elementType,
+                    documented: false
+                );
+            }
         }
         if (target is not null)
         {
@@ -328,6 +347,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             );
             code.AppendLineAt(3, KeyOfBody(member));
             code.AppendLineAt(2, "}");
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                SparseChangeSetKeyedTempTransitionEmitter.AppendTemporaryKeyExtractor(
+                    code,
+                    member,
+                    elementType,
+                    documented: true
+                );
+            }
         }
         // Build helper (semantic before/after projection over sparse storage; never reads patch ops).
         code.AppendLineAt(
@@ -391,10 +419,22 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + elementType
                 + ">(__comparer);"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendBuildTempDeclarations(
+                code,
+                elementType
+            );
+        }
         code.AppendLineAt(3, "if (__beforeHas) foreach (var __item in before.Value!)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __k = __SparseKeyOf_ChangeSet_" + member.Id + "(__item);");
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        var hasTempBuild = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+        if (hasTempBuild)
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendBuildTempBeforeBranch(code, member);
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
             code.AppendLineAt(
                 4,
                 "if ("
@@ -428,7 +468,11 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "if (__afterHas) foreach (var __item in after.Value!)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __k = __SparseKeyOf_ChangeSet_" + member.Id + "(__item);");
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendBuildTempAfterBranch(code, member);
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
             code.AppendLineAt(
                 4,
                 "if ("
@@ -463,10 +507,28 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             3,
             "var __removed = new global::System.Collections.Generic.List<" + elementType + ">();"
         );
-        code.AppendLineAt(
-            3,
-            "foreach (var __k in __beforeOrder) if (!__afterMap.ContainsKey(__k)) __removed.Add(__beforeMap[__k]);"
-        );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            code.AppendLineAt(
+                3,
+                "foreach (var __k in __beforeOrder) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + " && !__afterMap.ContainsKey(__k)) __removed.Add(__beforeMap[__k]);"
+            );
+            code.AppendLineAt(
+                3,
+                "var __afterTempSet = new global::System.Collections.Generic.HashSet<global::System.Guid>(__unassignedTempAfter);"
+            );
+            code.AppendLineAt(
+                3,
+                "for (var __tbi = 0; __tbi < __unassignedBefore.Count; __tbi++) if (!__afterTempSet.Contains(__unassignedTempBefore[__tbi])) __removed.Add(__unassignedBefore[__tbi]);"
+            );
+        }
+        else
+            code.AppendLineAt(
+                3,
+                "foreach (var __k in __beforeOrder) if (!__afterMap.ContainsKey(__k)) __removed.Add(__beforeMap[__k]);"
+            );
         code.AppendLineAt(
             3,
             "var __edited = new global::System.Collections.Generic.Dictionary<"
@@ -589,7 +651,19 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             code.AppendLineAt(3, "var __afterPosition = 0; var __unassignedPosition = 0;");
         code.AppendLineAt(3, "foreach (var __k in __afterOrder)");
         code.AppendLineAt(3, "{");
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendBuildTempAddBranch(
+                code,
+                member,
+                trans,
+                runtime,
+                elementCs,
+                elementFrag,
+                elementType
+            );
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 4,
@@ -603,7 +677,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                     + elementFrag
                     + ".From(__ua))); __items.Add(new "
                     + trans
-                    + ".Item(__k!, default, "
+                    + ".Item(__k!, null, default, "
                     + runtime
                     + "Optional<"
                     + elementType
@@ -666,7 +740,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             5,
             "__items.Add(new "
                 + trans
-                + ".Item(__k!, __ib, "
+                + ".Item(__k!, null, __ib, "
                 + runtime
                 + "Optional<"
                 + elementType
@@ -676,6 +750,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "foreach (var __k in __beforeOrder)");
         code.AppendLineAt(3, "{");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__k")
+                    + ") continue;"
+            );
+        }
         code.AppendLineAt(4, "if (__afterMap.ContainsKey(__k)) continue;");
         code.AppendLineAt(4, "var __b = __beforeMap[__k];");
         code.AppendLineAt(
@@ -700,13 +783,25 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             4,
             "__items.Add(new "
                 + trans
-                + ".Item(__k!, "
+                + ".Item(__k!, null, "
                 + runtime
                 + "Optional<"
                 + elementType
                 + ">.Present(__b), default, __bi, -1, false, true, false, false, __fullEdit, false));"
         );
         code.AppendLineAt(3, "}");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            SparseChangeSetKeyedTempTransitionEmitter.AppendBuildTempRemovedLoop(
+                code,
+                member,
+                trans,
+                runtime,
+                elementCs,
+                elementFrag,
+                elementType
+            );
+        }
         code.AppendLineAt(
             3,
             "return new "

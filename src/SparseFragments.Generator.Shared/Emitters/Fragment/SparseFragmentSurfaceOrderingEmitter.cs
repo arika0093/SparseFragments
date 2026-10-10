@@ -385,7 +385,14 @@ internal static class SparseFragmentSurfaceOrderingEmitter
             code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
             code.AppendLineAt(3, "if (!right.IsPresent) return false;");
             string equality;
-            if (member.ChildModel is not null)
+            if (member.Property.IsTemporaryKey)
+            {
+                // Temporary identity is correlation metadata, not business value:
+                // assigned-key precedence already scopes it out of identity, so
+                // differing remnants (or a later null) never compare as edits.
+                equality = "true";
+            }
+            else if (member.ChildModel is not null)
             {
                 equality = member.ChildFragmentType + ".__SparseAreEqual(left, right)";
             }

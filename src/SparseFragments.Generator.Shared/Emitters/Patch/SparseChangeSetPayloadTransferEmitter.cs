@@ -328,6 +328,10 @@ internal static class SparseChangeSetPayloadTransferEmitter
                     code.AppendLineAt(6, "mapped.BeforeIndex = item.BeforeIndex;");
                     code.AppendLineAt(6, "mapped.AfterIndex = item.AfterIndex;");
                     code.AppendLineAt(6, "mapped.IsReordered = item.IsReordered;");
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(6, "mapped.TemporaryKey = item.TemporaryKey;");
+                    }
                 }
                 if (isModelValue)
                     code.AppendLineAt(
@@ -352,6 +356,21 @@ internal static class SparseChangeSetPayloadTransferEmitter
                             + SparseChangeSetBasicsEmitter.KeyedAfterOrder(member)
                             + ";"
                     );
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        code.AppendLineAt(
+                            5,
+                            "entry.TempBeforeOrder = "
+                                + SparseChangeSetBasicsEmitter.KeyedTempBeforeOrder(member)
+                                + ";"
+                        );
+                        code.AppendLineAt(
+                            5,
+                            "entry.TempAfterOrder = "
+                                + SparseChangeSetBasicsEmitter.KeyedTempAfterOrder(member)
+                                + ";"
+                        );
+                    }
                 }
                 code.AppendLineAt(4, "}");
                 code.AppendLineAt(4, "changes.Add(entry);");

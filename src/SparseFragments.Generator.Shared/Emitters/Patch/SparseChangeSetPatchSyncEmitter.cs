@@ -354,17 +354,22 @@ internal static class SparseChangeSetPatchSyncEmitter
                 );
             else if (IsKeyed(member))
             {
-                args.AddRange(
-                    new[]
-                    {
-                        HasField(member),
-                        KeyedWholeFlag(member),
-                        KeyedWholeAfter(member),
-                        KeyedWholeBefore(member),
-                        "__SparseInvertItems_" + member.Id + "(" + KeyedItems(member) + ")",
-                        KeyedAfterOrder(member),
-                        KeyedBeforeOrder(member),
-                    }
+                AddKeyedChangeSetArgs(
+                    args,
+                    member,
+                    HasField(member),
+                    KeyedWholeFlag(member),
+                    KeyedWholeAfter(member),
+                    KeyedWholeBefore(member),
+                    "__SparseInvertItems_" + member.Id + "(" + KeyedItems(member) + ")",
+                    KeyedAfterOrder(member),
+                    KeyedBeforeOrder(member),
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? KeyedTempAfterOrder(member)
+                        : null,
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? KeyedTempBeforeOrder(member)
+                        : null
                 );
             }
             else if (IsDict(member))
@@ -526,7 +531,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                 4,
                 "__out.Add(new "
                     + trans
-                    + ".Item(__it.Key, __it.After, __it.Before, __it.AfterIndex, __it.BeforeIndex, __it.IsRemoved, __it.IsAdded, __it.IsEdited, __it.IsReordered, __it.Edit.Invert(), false));"
+                    + ".Item(__it.Key, __it.TemporaryKey, __it.After, __it.Before, __it.AfterIndex, __it.BeforeIndex, __it.IsRemoved, __it.IsAdded, __it.IsEdited, __it.IsReordered, __it.Edit.Invert(), false));"
             );
         }
         else
@@ -612,7 +617,19 @@ internal static class SparseChangeSetPatchSyncEmitter
                 "if (__it.IsAdded) __coll" + id + ".SetEntry(__it.Key!, __it.After.Value!);"
             );
         code.AppendLineAt(6, "else if (__it.IsRemoved)");
-        if (isKeyed)
+        if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary removals address by Guid; assigned removals keep key addressing.
+            code.AppendLineAt(
+                6,
+                "{ if (__it.TemporaryKey.HasValue) __coll"
+                    + id
+                    + ".RemoveByTemporaryKey(__it.TemporaryKey.Value); else __coll"
+                    + id
+                    + ".Remove(__it.Key); }"
+            );
+        }
+        else if (isKeyed)
             code.AppendLineAt(6, "{ __coll" + id + ".Remove(__it.Key); }");
         else
         {
@@ -637,16 +654,49 @@ internal static class SparseChangeSetPatchSyncEmitter
         }
         code.AppendLineAt(6, "else if (__it.IsEdited)");
         code.AppendLineAt(6, "{");
+        if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary edits address by Guid; assigned edits keep key addressing.
+            code.AppendLineAt(7, "var __isTempEdit = __it.TemporaryKey.HasValue;");
+        }
         if (hasValuePatch)
         {
-            code.AppendLineAt(
-                7,
-                "__coll" + id + ".__SparseSetEdited(__it.Key, __it.Edit.ToPatch());"
-            );
+            if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                code.AppendLineAt(
+                    7,
+                    "if (__isTempEdit) __coll"
+                        + id
+                        + ".__SparseSetEditedByTemporaryKey(__it.TemporaryKey!.Value, __it.Edit.ToPatch()); else __coll"
+                        + id
+                        + ".__SparseSetEdited(__it.Key, __it.Edit.ToPatch());"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(
+                    7,
+                    "__coll" + id + ".__SparseSetEdited(__it.Key, __it.Edit.ToPatch());"
+                );
+            }
         }
         else if (isKeyed)
         {
-            code.AppendLineAt(7, "__coll" + id + ".Update(__it.After.Value!);");
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                code.AppendLineAt(
+                    7,
+                    "if (__isTempEdit) __coll"
+                        + id
+                        + ".UpdateByTemporaryKey(__it.After.Value!); else __coll"
+                        + id
+                        + ".Update(__it.After.Value!);"
+                );
+            }
+            else
+            {
+                code.AppendLineAt(7, "__coll" + id + ".Update(__it.After.Value!);");
+            }
         }
         else
         {
@@ -679,6 +729,45 @@ internal static class SparseChangeSetPatchSyncEmitter
                     + KeyedAfterOrder(member)
                     + ");"
             );
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                // Temporary order travels parallel to the key order so apply
+                // resolves surviving identities exactly instead of positionally.
+                code.AppendLineAt(
+                    5,
+                    "if ("
+                        + KeyedBeforeOrder(member)
+                        + " is not null && "
+                        + KeyedAfterOrder(member)
+                        + " is not null && "
+                        + KeyedTempBeforeOrder(member)
+                        + " is not null && "
+                        + KeyedTempAfterOrder(member)
+                        + " is not null && !"
+                        + __facade
+                        + ".KeyOrderEquals<"
+                        + __keyType
+                        + ">("
+                        + KeyedBeforeOrder(member)
+                        + ", "
+                        + KeyedAfterOrder(member)
+                        + ")) { __coll"
+                        + id
+                        + ".__orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>(); { var __ti = 0; foreach (var __ok in "
+                        + KeyedAfterOrder(member)
+                        + ") { if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ok")
+                        + ") __coll"
+                        + id
+                        + ".__orderTemp.Add(__ti < "
+                        + KeyedTempAfterOrder(member)
+                        + ".Count ? (global::System.Guid?)"
+                        + KeyedTempAfterOrder(member)
+                        + "[__ti++] : null); else __coll"
+                        + id
+                        + ".__orderTemp.Add(null); } } }"
+                );
+            }
         }
         code.AppendLineAt(5, "patch." + escName + " = __coll" + id + ";");
         code.AppendLineAt(4, "}");

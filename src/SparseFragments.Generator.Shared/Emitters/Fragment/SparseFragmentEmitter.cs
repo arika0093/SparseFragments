@@ -924,6 +924,13 @@ internal static class SparseFragmentEmitter
         if (features.EmitChangeSet)
         {
             SparsePathBuilderEmitter.Append(code, modelType, members, patchDialect);
+            SparseTemporaryKeyReconcileEmitter.AppendReconcileHelpers(
+                code,
+                modelType,
+                patchDialect.RuntimeNamespace,
+                members,
+                modelIsReferenceType
+            );
         }
     }
 

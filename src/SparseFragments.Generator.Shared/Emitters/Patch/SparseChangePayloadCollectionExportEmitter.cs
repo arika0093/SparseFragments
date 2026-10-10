@@ -180,7 +180,15 @@ internal static class SparseChangePayloadCollectionExportEmitter
                 + itemValueType
                 + ">.Present(element)), Kind = "
                 + itemKind
-                + ".Add, BeforeIndex = -1, AfterIndex = -1 });"
+                + ".Add, BeforeIndex = -1, AfterIndex = -1"
+                + (
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? ", TemporaryKey = "
+                            + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                            + "(element)"
+                        : ""
+                )
+                + " });"
         );
         code.AppendLineAt(
             5,
@@ -204,6 +212,31 @@ internal static class SparseChangePayloadCollectionExportEmitter
                 + itemKind
                 + ".Remove, BeforeIndex = -1, AfterIndex = -1 });"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary removals and edits travel with their Guid identity;
+            // unassigned permanent keys alone would collide on restore.
+            code.AppendLineAt(
+                5,
+                "if (collection"
+                    + id
+                    + ".__removedTemp is not null) foreach (var removedTemp in collection"
+                    + id
+                    + ".__removedTemp)"
+            );
+            code.AppendLineAt(
+                6,
+                "entry"
+                    + id
+                    + ".Items.Add(new "
+                    + item
+                    + " { Key = "
+                    + (member.Collection.UnassignedKeyExpression ?? "default!")
+                    + ", TemporaryKey = removedTemp, Kind = "
+                    + itemKind
+                    + ".Remove, BeforeIndex = -1, AfterIndex = -1 });"
+            );
+        }
         code.AppendLineAt(
             5,
             "if (collection"
@@ -250,6 +283,59 @@ internal static class SparseChangePayloadCollectionExportEmitter
                     + ".Edit, BeforeIndex = -1, AfterIndex = -1 });"
             );
         code.AppendLineAt(5, "}");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            code.AppendLineAt(
+                5,
+                "if (collection"
+                    + id
+                    + ".__editedTemp is not null) foreach (var editedTempPair in collection"
+                    + id
+                    + ".__editedTemp)"
+            );
+            code.AppendLineAt(5, "{");
+            if (isModelValue)
+                code.AppendLineAt(
+                    6,
+                    "entry"
+                        + id
+                        + ".Items.Add(new "
+                        + item
+                        + " { Key = "
+                        + (member.Collection.UnassignedKeyExpression ?? "default!")
+                        + ", TemporaryKey = editedTempPair.Key, Kind = "
+                        + itemKind
+                        + ".Edit, Edit = "
+                        + childCore
+                        + ".FromPatchCore(editedTempPair.Value), BeforeIndex = -1, AfterIndex = -1 });"
+                );
+            else
+                code.AppendLineAt(
+                    6,
+                    "entry"
+                        + id
+                        + ".Items.Add(new "
+                        + item
+                        + " { Key = "
+                        + (member.Collection.UnassignedKeyExpression ?? "default!")
+                        + ", TemporaryKey = editedTempPair.Key, Before = "
+                        + endpoint
+                        + "<"
+                        + itemValueType
+                        + ">.Redacted(), After = "
+                        + endpoint
+                        + "<"
+                        + itemValueType
+                        + ">.FromOptional("
+                        + runtime
+                        + "Optional<"
+                        + itemValueType
+                        + ">.Present(editedTempPair.Value)), Kind = "
+                        + itemKind
+                        + ".Edit, BeforeIndex = -1, AfterIndex = -1 });"
+                );
+            code.AppendLineAt(5, "}");
+        }
         code.AppendLineAt(
             5,
             "if (collection"
@@ -262,6 +348,23 @@ internal static class SparseChangePayloadCollectionExportEmitter
                 + id
                 + ".__order);"
         );
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Parallel temporary order exports as the entry temporary order
+            // (assigned slots contribute nothing to the Guid sequence).
+            code.AppendLineAt(
+                5,
+                "if (collection"
+                    + id
+                    + ".__orderTemp is not null) { entry"
+                    + id
+                    + ".TempAfterOrder = new global::System.Collections.Generic.List<global::System.Guid>(); foreach (var __ot in collection"
+                    + id
+                    + ".__orderTemp) if (__ot.HasValue) entry"
+                    + id
+                    + ".TempAfterOrder.Add(__ot.Value); }"
+            );
+        }
     }
 
     private static void AppendExportDictItems(

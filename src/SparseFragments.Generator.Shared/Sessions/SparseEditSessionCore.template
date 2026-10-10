@@ -508,6 +508,182 @@ namespace __SESSION_NAMESPACE__
             return rebased;
         }
 
+        /// <summary>
+        /// Reconciles a submitted change set with the authoritative persisted model.
+        /// </summary>
+        /// <remarks>
+        /// Correlates submitted unassigned elements with assigned persisted elements
+        /// through their shared temporary identities, assigns the authoritative keys
+        /// into the live model, and retains the persisted model as the new baseline
+        /// with post-submit local edits preserved. The submitted transition must
+        /// still apply to the retained baseline; correlation mismatches (omitted,
+        /// duplicated, or inconsistent temporary identities) fail without mutating
+        /// either the live model or the retained baseline. Only one unacknowledged
+        /// submission should be reconciled at a time.
+        /// </remarks>
+        /// <param name="submitted">The submitted transition to acknowledge.</param>
+        /// <param name="persisted">The authoritative persisted model.</param>
+        /// <param name="buildMap">Correlates submitted and persisted models into an opaque map or reports the first mismatch.</param>
+        /// <param name="retarget">Assigns mapped keys into the live model from the submitted, persisted, and current states; returns an error without partial writes when the live state is incompatible.</param>
+        /// <param name="error">The failure reason, or null on success.</param>
+        /// <typeparam name="TMap">The opaque temporary-to-permanent correlation.</typeparam>
+        /// <returns><see langword="true"/> on success; otherwise <see langword="false"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="submitted"/>, <paramref name="persisted"/>, <paramref name="buildMap"/>, or <paramref name="retarget"/> is null.
+        /// </exception>
+        /// <exception cref="NotSupportedException">
+        /// The session was built without baseline materialization or in-place write support.
+        /// </exception>
+        public bool TryReconcile<TMap>(
+            TChangeSet submitted,
+            TModel persisted,
+            Func<TModel, TModel, (TMap? Map, string? Error)> buildMap,
+            Func<TModel, TModel, TModel, TMap?, TChangeSet, string?> retarget,
+            out string? error
+        )
+            where TMap : class
+        {
+            if (submitted is null)
+                throw new ArgumentNullException(nameof(submitted));
+            if (persisted is null)
+                throw new ArgumentNullException(nameof(persisted));
+            if (buildMap is null)
+                throw new ArgumentNullException(nameof(buildMap));
+            if (retarget is null)
+                throw new ArgumentNullException(nameof(retarget));
+            if (_baselineToModel is null || _writeModel is null)
+            {
+                throw new NotSupportedException(
+                    "This edit session cannot reconcile submissions because it was built without baseline materialization or in-place write support."
+                );
+            }
+
+            error = null;
+            var persistedBaseline = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(persisted));
+
+            // Re-acknowledging an already-reconciled state is a no-op success:
+            // the live model already matches the authority, so adopting it
+            // as the baseline changes nothing observable. A live model that
+            // cannot even diff falls through to the normal path instead.
+            // This check precedes the stale-submission guard: an acknowledged
+            // submission stays acknowledged even after the baseline moved on.
+            try
+            {
+                var reconcileCurrent = _between(
+                    persistedBaseline,
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                );
+                if (_isEmpty(reconcileCurrent))
+                {
+                    _baseline = persistedBaseline;
+                    _lastObserved = persistedBaseline;
+                    RefreshAfterModelMutation();
+                    error = null;
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            // Reconstruct the submitted-after state; a stale or incompatible
+            // submission fails here before anything is mutated.
+            TModel submittedAfter;
+            try
+            {
+                var advanced = _advanceBaseline(submitted, _baseline);
+                if (!advanced.IsPresent || advanced.Value is null)
+                {
+                    error = "Advancing the baseline did not produce a valid model state.";
+                    return false;
+                }
+
+                submittedAfter = _baselineToModel(advanced.Value);
+            }
+            catch (InvalidOperationException exception)
+            {
+                error =
+                    "The submitted change set is stale or incompatible with the retained baseline: "
+                    + exception.Message;
+                return false;
+            }
+
+            // The persisted model must diff cleanly; duplicates or otherwise
+            // invalid keyed state fail before the live model is touched.
+            try
+            {
+                _ = _between(_baseline, persistedBaseline);
+            }
+            catch (InvalidOperationException exception)
+            {
+                error =
+                    "The persisted model cannot serve as a keyed baseline: "
+                    + exception.Message;
+                return false;
+            }
+
+            // Post-submit local changes, diffed while temporary identities still align.
+            TChangeSet pending;
+            try
+            {
+                pending = _between(
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(submittedAfter)),
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                );
+            }
+            catch (InvalidOperationException exception)
+            {
+                error =
+                    "The current model cannot be diffed against the submitted state: "
+                    + exception.Message;
+                return false;
+            }
+
+            // Correlate before mutating; mismatches leave all state untouched.
+            var (map, mapError) = buildMap(submittedAfter, persisted);
+            if (mapError is not null || map is null)
+            {
+                error = mapError ?? "Temporary correlation did not produce a mapping.";
+                return false;
+            }
+
+            var backup = CloneLiveModel(_model);
+            var retargetError = retarget(_model, submittedAfter, persisted, map, pending);
+            if (retargetError is not null)
+            {
+                _writeModel(_model, backup);
+                RefreshAfterModelMutation();
+                error = retargetError;
+                return false;
+            }
+
+            // The rewritten live model must diff cleanly against the persisted
+            // baseline; anything else rolls back instead of retaining damage.
+            try
+            {
+                _ = _between(
+                    persistedBaseline,
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                );
+            }
+            catch (InvalidOperationException exception)
+            {
+                _writeModel(_model, backup);
+                RefreshAfterModelMutation();
+                error =
+                    "Reconciling produced a model that cannot serve as a keyed baseline: "
+                    + exception.Message;
+                return false;
+            }
+
+            _baseline = persistedBaseline;
+            // Observe post-submit edits from the persisted baseline so the
+            // published transition spans exactly what remains pending.
+            _lastObserved = persistedBaseline;
+            RefreshAfterModelMutation();
+            return true;
+        }
+
         /// <summary>Accepts the current model state as the new baseline.</summary>
         /// <remarks>
         /// The candidate baseline is validated before it is retained: a live model

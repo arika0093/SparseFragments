@@ -549,7 +549,31 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "foreach (var " + item + " in " + transition + ")");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "var " + itemPath + " = " + memberPath + ".Key(" + item + ".Key);");
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+        {
+            // Temporary entries address by Guid; assigned entries keep key paths.
+            code.AppendLineAt(
+                5,
+                "var "
+                    + itemPath
+                    + " = "
+                    + item
+                    + ".TemporaryKey.HasValue ? "
+                    + memberPath
+                    + ".TemporaryKey("
+                    + item
+                    + ".TemporaryKey.Value) : "
+                    + memberPath
+                    + ".Key("
+                    + item
+                    + ".Key);"
+            );
+        }
+        else
+            code.AppendLineAt(
+                5,
+                "var " + itemPath + " = " + memberPath + ".Key(" + item + ".Key);"
+            );
         code.AppendLineAt(
             5,
             "if ("

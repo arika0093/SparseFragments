@@ -199,9 +199,15 @@ internal static class SparseChangeSetMixedEmitter
                     }
                 );
                 if (SparseChangeSetBasicsEmitter.IsKeyed(member))
-                    args.AddRange(
-                        new[] { "__payloadBeforeOrder" + id, "__payloadAfterOrder" + id }
-                    );
+                {
+                    args.Add("__payloadBeforeOrder" + id);
+                    args.Add("__payloadAfterOrder" + id);
+                    if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                    {
+                        args.Add("__payloadTempBeforeOrder" + id);
+                        args.Add("__payloadTempAfterOrder" + id);
+                    }
+                }
             }
             else
                 args.AddRange(
@@ -274,6 +280,21 @@ internal static class SparseChangeSetMixedEmitter
                         + id
                         + " = null;"
                 );
+                if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+                {
+                    code.AppendLineAt(
+                        3,
+                        "global::System.Collections.Generic.List<global::System.Guid>? __payloadTempBeforeOrder"
+                            + id
+                            + " = null;"
+                    );
+                    code.AppendLineAt(
+                        3,
+                        "global::System.Collections.Generic.List<global::System.Guid>? __payloadTempAfterOrder"
+                            + id
+                            + " = null;"
+                    );
+                }
             }
             return;
         }

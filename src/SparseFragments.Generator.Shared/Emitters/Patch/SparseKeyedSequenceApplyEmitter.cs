@@ -4,7 +4,10 @@ namespace SparseFragments.Generator.Shared;
 internal static class SparseKeyedSequenceApplyEmitter
 {
     /// <summary>Aliases nested keyed-patch fields by reference for relocated bodies.</summary>
-    internal static void AppendKeyedFieldAliases(SharedIndentedBuilder code)
+    internal static void AppendKeyedFieldAliases(
+        SharedIndentedBuilder code,
+        SparseMemberModel? member = null
+    )
     {
         code.AppendLineAt(4, "ref var __whole = ref self.__whole;");
         code.AppendLineAt(4, "ref var __added = ref self.__added;");
@@ -12,6 +15,10 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(4, "ref var __removedLookup = ref self.__removedLookup;");
         code.AppendLineAt(4, "ref var __edited = ref self.__edited;");
         code.AppendLineAt(4, "ref var __order = ref self.__order;");
+        if (member.HasValue && SparseKeyedCollectionEmitter.HasTemporaryKey(member.Value))
+        {
+            SparseKeyedSequenceTempSurfaceEmitter.AppendTempFieldAliases(code);
+        }
     }
 
     internal static void EmitKeyedApply(
@@ -64,9 +71,19 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(3, "{");
         if (split is not null)
         {
-            AppendKeyedFieldAliases(code);
+            AppendKeyedFieldAliases(code, member);
         }
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        var hasTempApply = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+        var keyOfApply = SparseKeyedCollectionEmitter.KeyOfMethod(member);
+        if (hasTempApply)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyBaselineValidation(
+                code,
+                member,
+                keyOfApply
+            );
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 4,
@@ -103,26 +120,37 @@ internal static class SparseKeyedSequenceApplyEmitter
         );
         code.AppendLineAt(4, "foreach (var item in source)");
         code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
-        );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (hasTempApply)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyBaselineMap(code, member, keyOfApply);
+        }
+        else
         {
             code.AppendLineAt(
                 5,
-                "if ("
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                    + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\");"
+                "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
             );
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            {
+                code.AppendLineAt(
+                    5,
+                    "if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                        + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\");"
+                );
+            }
+            code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("map", "k", "item"));
         }
-        code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("map", "k", "item"));
         code.AppendLineAt(4, "}");
         // Removals.
         code.AppendLineAt(
             4,
             "if (__removed is not null) foreach (var k in __removed) map.Remove(k);"
         );
+        if (hasTempApply)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyTempRemovals(code, member.Id);
+        }
         // Edits.
         if (hasPatch)
         {
@@ -178,9 +206,21 @@ internal static class SparseKeyedSequenceApplyEmitter
             code.AppendLineAt(5, "map[kv.Key] = kv.Value;");
             code.AppendLineAt(4, "}");
         }
+        if (hasTempApply)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyTempEdits(
+                code,
+                member,
+                hasPatch,
+                runtime
+            );
+        }
 
         // Adds.
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (
+            SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+            || SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+        )
             code.AppendLineAt(
                 4,
                 "var __unassignedAdded = new global::System.Collections.Generic.List<"
@@ -193,7 +233,24 @@ internal static class SparseKeyedSequenceApplyEmitter
             5,
             "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
         );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (hasTempApply)
+        {
+            // Temporary adds validate against the baseline identities;
+            // temporary-less unassigned adds keep positional legacy flow.
+            code.AppendLineAt(
+                5,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") { var __addTemp = "
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(item); if (__addTemp.HasValue && __addTemp.Value != global::System.Guid.Empty) { if (__baselineTemp"
+                    + member.Id
+                    + ".ContainsKey(__addTemp.Value)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); foreach (var __pending in __unassignedAdded) if ("
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(__pending) == __addTemp.Value) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\"); } __unassignedAdded.Add(item); continue; }"
+            );
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 5,
@@ -222,31 +279,47 @@ internal static class SparseKeyedSequenceApplyEmitter
                         ? " + __unassignedAdded.Count"
                         : ""
                 )
+                + (
+                    SparseKeyedCollectionEmitter.HasTemporaryKey(member)
+                        ? " + __baselineTemp" + member.Id + ".Count"
+                        : ""
+                )
                 + ") throw new global::System.InvalidOperationException(\"Order must list exactly the final keys.\");"
         );
         code.AppendLineAt(
             5,
             "result = new global::System.Collections.Generic.List<" + elementType + ">(map.Count);"
         );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
-            code.AppendLineAt(5, "var __unassignedIndex = 0;");
-        code.AppendLineAt(5, "foreach (var k in __order)");
-        code.AppendLineAt(5, "{");
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (hasTempApply)
         {
-            code.AppendLineAt(
-                6,
-                "if ("
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
-                    + ") { if (__unassignedIndex >= __unassignedAdded.Count) throw new global::System.InvalidOperationException(\"Order contains too many unassigned-key entries.\"); result.Add(__unassignedAdded[__unassignedIndex++]); continue; }"
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyOrderConsumption(
+                code,
+                member,
+                elementType
             );
         }
-        code.AppendLineAt(
-            6,
-            "if (!map.TryGetValue(k, out var item)) throw new global::System.InvalidOperationException(\"Order lists an unknown key.\");"
-        );
-        code.AppendLineAt(6, "result.Add(item);");
-        code.AppendLineAt(5, "}");
+        else
+        {
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+                code.AppendLineAt(5, "var __unassignedIndex = 0;");
+            code.AppendLineAt(5, "foreach (var k in __order)");
+            code.AppendLineAt(5, "{");
+            if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+            {
+                code.AppendLineAt(
+                    6,
+                    "if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                        + ") { if (__unassignedIndex >= __unassignedAdded.Count) throw new global::System.InvalidOperationException(\"Order contains too many unassigned-key entries.\"); result.Add(__unassignedAdded[__unassignedIndex++]); continue; }"
+                );
+            }
+            code.AppendLineAt(
+                6,
+                "if (!map.TryGetValue(k, out var item)) throw new global::System.InvalidOperationException(\"Order lists an unknown key.\");"
+            );
+            code.AppendLineAt(6, "result.Add(item);");
+            code.AppendLineAt(5, "}");
+        }
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
@@ -268,7 +341,27 @@ internal static class SparseKeyedSequenceApplyEmitter
             6,
             "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
         );
-        code.AppendLineAt(6, "if (map.TryGetValue(k, out var current2)) result.Add(current2);");
+        if (hasTempApply)
+        {
+            // Temporary baselines survive through their own map; assigned
+            // entries keep the key-map walk.
+            code.AppendLineAt(
+                6,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") { var __st = "
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(item); if (__st.HasValue && __baselineTemp"
+                    + member.Id
+                    + ".TryGetValue(__st.Value, out var __scurrent)) result.Add(__scurrent); }"
+            );
+            code.AppendLineAt(
+                6,
+                "else if (map.TryGetValue(k, out var current2)) result.Add(current2);"
+            );
+        }
+        else
+            code.AppendLineAt(6, "if (map.TryGetValue(k, out var current2)) result.Add(current2);");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "if (__added is not null)");
         code.AppendLineAt(5, "{");
@@ -364,7 +457,12 @@ internal static class SparseKeyedSequenceApplyEmitter
         );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var patch = new " + patchName + "();");
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        var hasTempBetween = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
+        if (hasTempBetween)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendBetweenBaselineValidation(code, member);
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 4,
@@ -448,7 +546,17 @@ internal static class SparseKeyedSequenceApplyEmitter
             5,
             "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
         );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (hasTempBetween)
+        {
+            // Temporary baselines correlate by Guid; assigned entries keep the key map.
+            code.AppendLineAt(
+                5,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
+                    + ") continue;"
+            );
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 5,
@@ -490,13 +598,32 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + elementType
                 + ">();"
         );
+        if (hasTempBetween)
+        {
+            code.AppendLineAt(
+                4,
+                "var __afterTemp"
+                    + member.Id
+                    + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, "
+                    + elementType
+                    + ">();"
+            );
+            code.AppendLineAt(
+                4,
+                "var __orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>();"
+            );
+        }
         code.AppendLineAt(4, "foreach (var item in after.Value!)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
             5,
             "var k = " + SparseKeyedCollectionEmitter.KeyOfMethod(member) + "(item);"
         );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        if (hasTempBetween)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendBetweenAfterPartition(code, member);
+        }
+        else if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             code.AppendLineAt(
                 5,
@@ -507,6 +634,10 @@ internal static class SparseKeyedSequenceApplyEmitter
         }
         code.AppendLineAt(5, SparseKeyedCollectionEmitter.AddUniqueEntry("afterMap", "k", "item"));
         code.AppendLineAt(5, "afterOrder.Add(k);");
+        if (hasTempBetween)
+        {
+            code.AppendLineAt(5, "__orderTemp.Add(null);");
+        }
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
@@ -619,9 +750,27 @@ internal static class SparseKeyedSequenceApplyEmitter
             code.AppendLineAt(4, "}");
         }
 
+        if (hasTempBetween)
+        {
+            SparseKeyedSequenceTempBetweenEmitter.AppendBetweenTempChanges(
+                code,
+                member,
+                elementType,
+                hasPatch,
+                facade,
+                runtime
+            );
+        }
+
         code.AppendLineAt(
             4,
-            "if (removed.Count == 0 && added.Count == 0 && (edited is null || edited.Count == 0))"
+            "if (removed.Count == 0 && added.Count == 0 && (edited is null || edited.Count == 0)"
+                + (
+                    hasTempBetween
+                        ? " && patch.__removedTemp is null && patch.__editedTemp is null"
+                        : ""
+                )
+                + ")"
         );
         code.AppendLineAt(4, "{");
         // Order-only change? Before/after equal as sets but order differs -> still need order patch.
@@ -635,6 +784,10 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + ">(beforeOrder, afterOrder)) return patch;"
         );
         code.AppendLineAt(5, "patch.__order = afterOrder;");
+        if (hasTempBetween)
+        {
+            code.AppendLineAt(5, "patch.__orderTemp = __orderTemp;");
+        }
         code.AppendLineAt(5, "return patch;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (removed.Count > 0) patch.__removed = removed;");
@@ -651,6 +804,17 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + keyType
                 + ">(beforeOrder, afterOrder)) patch.__order = afterOrder;"
         );
+        if (hasTempBetween)
+        {
+            code.AppendLineAt(
+                4,
+                "if (!"
+                    + facade
+                    + ".KeyOrderEquals<"
+                    + keyType
+                    + ">(beforeOrder, afterOrder)) patch.__orderTemp = __orderTemp;"
+            );
+        }
         code.AppendLineAt(4, "return patch;");
         code.AppendLineAt(3, "}");
     }

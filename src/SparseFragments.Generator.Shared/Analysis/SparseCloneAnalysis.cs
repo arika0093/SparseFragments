@@ -186,7 +186,8 @@ internal static class SparseCloneAnalysis
             var generatedMembers = SparseModelDiscovery.CreateMemberModels(
                 members,
                 config,
-                cancellationToken
+                cancellationToken,
+                model
             );
             if (
                 constructor.Parameters.IsEmpty

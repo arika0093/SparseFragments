@@ -26,4 +26,6 @@ internal static class SparseFragmentsDiagnosticIds
     public const string InvalidEmissionPlan = "SPF028";
     public const string UnknownProductMember = "SPF029";
     public const string InvalidComparisonStrategy = "SPF030";
+    public const string InvalidTemporaryKeyShape = "SPF031";
+    public const string TemporaryKeyInitializer = "SPF032";
 }

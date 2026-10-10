@@ -807,6 +807,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF028"] = "#spf028-invalid-downstream-emission-plan",
             ["SPF029"] = "#spf029-unknown-product-member",
             ["SPF030"] = "#spf030-invalid-comparison-strategy",
+            ["SPF031"] = "#spf031-invalid-sparsetemporarykey-declaration",
+            ["SPF032"] = "#spf032-temporary-key-property-initializer",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
@@ -818,7 +820,11 @@ public sealed class SparseGeneratorDiagnosticTests
         {
             var descriptor = descriptors[id];
             descriptor.DefaultSeverity.ShouldBe(
-                id == "SPF026" ? DiagnosticSeverity.Info : DiagnosticSeverity.Error
+                id == "SPF026"
+                    ? DiagnosticSeverity.Info
+                    : id == "SPF032"
+                        ? DiagnosticSeverity.Warning
+                        : DiagnosticSeverity.Error
             );
             descriptor.Category.ShouldBe("SparseFragments");
             descriptor.HelpLinkUri.ShouldBe(

@@ -215,6 +215,10 @@ internal static class SparsePathBuilderEmitter
             // above, and other shapes stay scalar leaves.
             var navigation = ElementNavigation(member.Collection.ElementType, dialect);
             AppendKeyMethod(entries, member.Collection.KeyTypeName ?? "object?", navigation);
+            if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            {
+                AppendTemporaryKeyMethod(entries, navigation);
+            }
             AppendAtMethod(entries, navigation);
         }
 
@@ -246,6 +250,26 @@ internal static class SparsePathBuilderEmitter
                 + " key) => new "
                 + navigation
                 + "(_path.Key(key));"
+        );
+    }
+
+    private static void AppendTemporaryKeyMethod(SharedIndentedBuilder code, string navigation)
+    {
+        code.AppendLineAt(
+            3,
+            "/// <summary>Gets the path to the unassigned entry with the given temporary identity.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Temporary segments never equal key segments, even when the permanent key type is <c>Guid</c>.</remarks>"
+        );
+        code.AppendLineAt(
+            3,
+            "public "
+                + navigation
+                + " TemporaryKey(global::System.Guid temporaryKey) => new "
+                + navigation
+                + "(_path.TemporaryKey(temporaryKey));"
         );
     }
 
