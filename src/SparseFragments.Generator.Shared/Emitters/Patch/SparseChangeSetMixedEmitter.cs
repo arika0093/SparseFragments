@@ -255,11 +255,11 @@ internal static class SparseChangeSetMixedEmitter
             code.AppendLineAt(3, opt + " __payloadAfter" + id + " = default;");
             code.AppendLineAt(
                 3,
-                "var __payloadItems"
-                    + id
-                    + " = new global::System.Collections.Generic.List<"
+                "global::System.Collections.Generic.List<"
                     + trans
-                    + ".Item>();"
+                    + ".Item>? __payloadItems"
+                    + id
+                    + " = null;"
             );
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
