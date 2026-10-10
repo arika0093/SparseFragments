@@ -50,8 +50,8 @@ internal sealed class SparseFragmentDeclarationEmitter(
         System.Func<SparseMemberModel, string>? rebasePolicyField = null
     )
     {
-        // Public surface first: member slots, then IsEmpty; per-member
-        // strategy caches stay last as internal implementation details.
+        // Public surface first: member slots, then IsEmpty. Internal strategy
+        // caches move to AppendMemberCaches so no public member trails them.
         foreach (var member in members)
         {
             code.CancellationToken.ThrowIfCancellationRequested();
@@ -88,6 +88,24 @@ internal sealed class SparseFragmentDeclarationEmitter(
             )
             .AppendLine(";");
         code.AppendLine();
+        // Internal caches are emitted separately via AppendMemberCaches so the
+        // public fragment surface stays ahead of them.
+    }
+
+    /// <summary>Emits internal strategy caches trailing the public fragment surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="mergeStrategy">Merge strategy base type.</param>
+    /// <param name="rebasePolicyBase">Rebase policy base type.</param>
+    /// <param name="rebasePolicyField">Rebase policy field resolver.</param>
+    public void AppendMemberCaches(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        string mergeStrategy,
+        string? rebasePolicyBase = null,
+        System.Func<SparseMemberModel, string>? rebasePolicyField = null
+    )
+    {
         foreach (var member in members.Where(static member => member.MergeStrategyType is not null))
         {
             code.AppendIndent(2)

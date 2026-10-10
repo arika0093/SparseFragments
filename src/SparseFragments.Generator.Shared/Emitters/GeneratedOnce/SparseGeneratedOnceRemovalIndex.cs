@@ -39,6 +39,7 @@ internal static class SparseGeneratedOnceRemovalIndex
             "internal static class " + SparseGeneratedOnceNames.RemovalIndex + "<TKey>"
         );
         code.AppendLineAt(1, "{");
+        // Internal-first ordering: public-equivalent kernels precede private helpers.
         code.AppendLineAt(
             2,
             "internal static void CancelRemoval(global::System.Collections.Generic.List<TKey> removed, ref int[]? lookup, TKey key)"
@@ -50,22 +51,6 @@ internal static class SparseGeneratedOnceRemovalIndex
         code.AppendLineAt(4, "removed.RemoveAt(index);");
         code.AppendLineAt(4, "lookup = null;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "private static int RemovedSlot(global::System.Collections.Generic.List<TKey> removed, TKey key, int[] slots)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "int mask = slots.Length - 1;");
-        code.AppendLineAt(3, "int slot = " + comparer + ".GetHashCode(key!) & mask;");
-        code.AppendLineAt(
-            3,
-            "while (slots[slot] != 0 && !" + comparer + ".Equals(removed[slots[slot] - 1], key))"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "slot = (slot + 1) & mask;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "return slot;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
@@ -82,18 +67,6 @@ internal static class SparseGeneratedOnceRemovalIndex
         code.AppendLineAt(4, "if (" + comparer + ".Equals(existing, key)) return true;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return false;");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "private static void RebuildIndex(global::System.Collections.Generic.List<TKey> removed, ref int[]? lookup, int capacity)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var slots = new int[capacity];");
-        code.AppendLineAt(3, "for (int index = 0; index < removed.Count; index++)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "slots[RemovedSlot(removed, removed[index], slots)] = index + 1;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "lookup = slots;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
@@ -132,6 +105,34 @@ internal static class SparseGeneratedOnceRemovalIndex
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "lookup = null;");
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "private static int RemovedSlot(global::System.Collections.Generic.List<TKey> removed, TKey key, int[] slots)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "int mask = slots.Length - 1;");
+        code.AppendLineAt(3, "int slot = " + comparer + ".GetHashCode(key!) & mask;");
+        code.AppendLineAt(
+            3,
+            "while (slots[slot] != 0 && !" + comparer + ".Equals(removed[slots[slot] - 1], key))"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "slot = (slot + 1) & mask;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "return slot;");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "private static void RebuildIndex(global::System.Collections.Generic.List<TKey> removed, ref int[]? lookup, int capacity)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var slots = new int[capacity];");
+        code.AppendLineAt(3, "for (int index = 0; index < removed.Count; index++)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "slots[RemovedSlot(removed, removed[index], slots)] = index + 1;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "lookup = slots;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,

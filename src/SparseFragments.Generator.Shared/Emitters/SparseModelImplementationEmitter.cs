@@ -55,6 +55,8 @@ internal static class SparseModelImplementationEmitter
         {
             // Thin bridge keeps child "$proxy.__SparseGet_X(path)" call sites
             // working after the graph moves to DescriptorFactory.
+            // Internal-first ordering: the bridge joins the internal group
+            // before the private backing fields.
             var accessor = SparseObservableDescriptorEmitter.AccessorName(model.ModelTypeName);
             var bridge =
                 "        internal "
@@ -62,11 +64,23 @@ internal static class SparseModelImplementationEmitter
                 + " "
                 + accessor
                 + "(string pathPrefix) => DescriptorFactory.Create(this, pathPrefix);\n";
-            var closing = "\n    }\n";
-            var index = inner.LastIndexOf(closing, System.StringComparison.Ordinal);
-            if (index >= 0)
+            var privateMarker = "\n        private ";
+            var privateIndex = inner.IndexOf(privateMarker, System.StringComparison.Ordinal);
+            if (privateIndex >= 0)
             {
-                inner = inner.Substring(0, index) + "\n" + bridge + inner.Substring(index + 1);
+                inner =
+                    inner.Substring(0, privateIndex + 1)
+                    + bridge
+                    + inner.Substring(privateIndex + 1);
+            }
+            else
+            {
+                var closing = "\n    }\n";
+                var index = inner.LastIndexOf(closing, System.StringComparison.Ordinal);
+                if (index >= 0)
+                {
+                    inner = inner.Substring(0, index) + "\n" + bridge + inner.Substring(index + 1);
+                }
             }
         }
 

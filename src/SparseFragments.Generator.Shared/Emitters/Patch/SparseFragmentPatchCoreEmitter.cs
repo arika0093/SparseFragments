@@ -13,6 +13,8 @@ internal static class SparseFragmentPatchCoreEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        // Public-first order: property surface precedes backing fields, which
+        // move to AppendPatchMemberFields trailing the public patch surface.
         var runtime = dialect.RuntimeNamespace;
         foreach (var member in members)
         {
@@ -91,7 +93,19 @@ internal static class SparseFragmentPatchCoreEmitter
                 );
             }
         }
+    }
 
+    /// <summary>Emits internal patch backing fields trailing the public surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="dialect">Patch dialect.</param>
+    public static void AppendPatchMemberFields(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        var runtime = dialect.RuntimeNamespace;
         foreach (var member in members)
         {
             var field = dialect.MemberField(member);
@@ -208,6 +222,24 @@ internal static class SparseFragmentPatchCoreEmitter
                 + "<Fragment?> operation) => new Patch { "
                 + dialect.WholeFieldName
                 + " = operation };"
+        );
+    }
+
+    /// <summary>Emits internal whole-operation storage trailing the public surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="dialect">Patch dialect.</param>
+    public static void AppendPatchWholeStorage(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        var operation = SparseFragmentPatchEmitter.Operation(dialect);
+        var wholePrefix = SparseNaming.WholeApiPrefix(
+            members.Select(static member => member.Property.Name)
         );
         // Internal storage follows the public surface.
         code.AppendLineAt(

@@ -403,7 +403,6 @@ internal static class SparseFragmentPatchEmitter
             target
         );
         AppendApplyTo(code, modelType, ignoredSettablePropertyNames, target);
-        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, target);
         if (canApplyInPlace)
         {
             AppendApplyInPlaceResult(code);
@@ -434,6 +433,11 @@ internal static class SparseFragmentPatchEmitter
                 target
             );
         }
+        // Internal group trails the public surface: backing fields, whole
+        // storage, then internal bridges.
+        SparseFragmentPatchCoreEmitter.AppendPatchMemberFields(code, members, dialect);
+        SparseFragmentPatchCoreEmitter.AppendPatchWholeStorage(code, modelType, members, dialect);
+        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, target);
         code.AppendLineAt(1, "}");
         if (plan.EmitChangeSet)
         {

@@ -50,15 +50,21 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(1, accessibility + " sealed class ChangeSet");
         code.AppendLineAt(1, "{");
+        // Public-first order: canonical storage and match probes trail the
+        // public surface so no internal member precedes a public one.
+        var surfaceDeferred = target is null
+            ? null
+            : new SharedIndentedBuilder(code.CancellationToken);
+        var internalCode = surfaceDeferred ?? code;
         SparseChangeSetBasicsEmitter.AppendFields(
-            code,
+            internalCode,
             members,
             runtime,
             optionalFragment,
             dialect
         );
         SparseChangeSetBasicsEmitter.AppendConstructor(
-            code,
+            internalCode,
             members,
             runtime,
             optionalFragment,
@@ -113,14 +119,28 @@ internal static class SparseChangeSetEmitter
             dialect,
             target
         );
-        SparseChangeSetMatchEmitter.AppendMatchHelpers(
-            code,
-            members,
-            runtime,
-            optionalFragment,
-            dialect,
-            target
-        );
+        if (surfaceDeferred is not null)
+        {
+            SparseChangeSetMatchEmitter.AppendMatchHelpers(
+                surfaceDeferred,
+                members,
+                runtime,
+                optionalFragment,
+                dialect,
+                target
+            );
+        }
+        else
+        {
+            SparseChangeSetMatchEmitter.AppendMatchHelpers(
+                code,
+                members,
+                runtime,
+                optionalFragment,
+                dialect,
+                target
+            );
+        }
         SparseChangeSetRebaseEmitter.AppendRebase(
             code,
             members,
@@ -170,6 +190,19 @@ internal static class SparseChangeSetEmitter
                 modelType,
                 target
             );
+            if (surfaceDeferred is not null && target is not null && modelType is not null)
+            {
+                SparseChangeSetPayloadTransferEmitter.AppendToPayloadCoreBridge(
+                    surfaceDeferred,
+                    dialect,
+                    modelType,
+                    target
+                );
+            }
+        }
+        if (surfaceDeferred is not null)
+        {
+            code.Append(surfaceDeferred.ToString());
         }
         code.AppendLineAt(1, "}");
         code.AppendLine();

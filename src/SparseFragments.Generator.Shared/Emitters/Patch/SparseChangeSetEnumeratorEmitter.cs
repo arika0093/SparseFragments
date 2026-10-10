@@ -69,20 +69,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(2, "public sealed class ChangeInfo");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "internal ChangeInfo(string path, "
-                + optionalObject
-                + " before, "
-                + optionalObject
-                + " after, ChangeKind kind)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "Path = path;");
-        code.AppendLineAt(4, "Before = before;");
-        code.AppendLineAt(4, "After = after;");
-        code.AppendLineAt(4, "Kind = kind;");
-        code.AppendLineAt(3, "}");
+        // Public-first order: public properties precede the internal constructor.
         code.AppendLineAt(3, "/// <summary>Gets the changed member path.</summary>");
         code.AppendLineAt(3, "public string Path { get; }");
         code.AppendLineAt(
@@ -97,6 +84,20 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(3, "public " + optionalObject + " After { get; }");
         code.AppendLineAt(3, "/// <summary>Gets the kind of change.</summary>");
         code.AppendLineAt(3, "public ChangeKind Kind { get; }");
+        code.AppendLineAt(
+            3,
+            "internal ChangeInfo(string path, "
+                + optionalObject
+                + " before, "
+                + optionalObject
+                + " after, ChangeKind kind)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "Path = path;");
+        code.AppendLineAt(4, "Before = before;");
+        code.AppendLineAt(4, "After = after;");
+        code.AppendLineAt(4, "Kind = kind;");
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }
 

@@ -38,26 +38,11 @@ internal sealed class SparseFragmentCloneEmitter
     {
         // Stage 4 (#193): facades delegate both DeepClone overloads; bodies
         // move with an explicit receiver (surface construction is `this`).
+        // Public-first order keeps the public facade with the public surface;
+        // the internal overload moves via AppendDeepCloneInternalFacade.
         if (operationsType is not null)
         {
-            code.AppendLineAt(1, "/// <summary>Creates a deep copy of this model value.</summary>");
-            code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
-            code.AppendIndent(1)
-                .Append("public ")
-                .Append(modelType)
-                .AppendLine(" DeepClone() => " + operationsType + ".DeepClone(this);");
-            code.AppendLineAt(
-                1,
-                "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
-            );
-            code.AppendIndent(1)
-                .Append("internal ")
-                .Append(modelType)
-                .AppendLine(
-                    " DeepClone(global::System.Collections.Generic.Dictionary<object, object> __sparse_clone_context) => "
-                        + operationsType
-                        + ".DeepClone(this, __sparse_clone_context);"
-                );
+            AppendDeepClonePublicFacade(code, modelType, operationsType);
             return;
         }
         code.CancellationToken.ThrowIfCancellationRequested();
@@ -311,6 +296,146 @@ internal sealed class SparseFragmentCloneEmitter
             || member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
         );
 
+    /// <summary>Emits the public model DeepClone facade preceding nested types.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="operationsType">Operations class qualifying the delegate.</param>
+    public static void AppendDeepClonePublicFacade(
+        SharedIndentedBuilder code,
+        string modelType,
+        string operationsType
+    )
+    {
+        code.AppendLineAt(1, "/// <summary>Creates a deep copy of this model value.</summary>");
+        code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
+        code.AppendIndent(1)
+            .Append("public ")
+            .Append(modelType)
+            .AppendLine(" DeepClone() => " + operationsType + ".DeepClone(this);");
+    }
+
+    /// <summary>Emits the internal model DeepClone facade trailing public nested types.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="operationsType">Operations class qualifying the delegate.</param>
+    public static void AppendDeepCloneInternalFacade(
+        SharedIndentedBuilder code,
+        string modelType,
+        string operationsType
+    )
+    {
+        code.AppendLineAt(
+            1,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+        );
+        code.AppendIndent(1)
+            .Append("internal ")
+            .Append(modelType)
+            .AppendLine(
+                " DeepClone(global::System.Collections.Generic.Dictionary<object, object> __sparse_clone_context) => "
+                    + operationsType
+                    + ".DeepClone(this, __sparse_clone_context);"
+            );
+    }
+
+    /// <summary>Emits the public operations DeepClone preceding internal helpers.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="constructor">Construction binding.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public void AppendDeepCloneOperationsPublic(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        ModelConstructorBinding? constructor = null,
+        bool modelIsReferenceType = true
+    )
+    {
+        code.AppendLineAt(
+            1,
+            "/// <summary>Creates a deep copy of the specified model value.</summary>"
+        );
+        code.AppendLineAt(1, "/// <param name=\"value\">The model value to copy.</param>");
+        code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
+        code.AppendIndent(1)
+            .Append("public static ")
+            .Append(modelType)
+            .Append(" DeepClone(")
+            .Append(modelType)
+            .AppendLine(" value)");
+        code.AppendLineAt(1, "{");
+        if (RequiresCloneContext(members))
+        {
+            SparseFragmentEmitHelpers.AppendCloneContext(code, 2, CloneContext, ReferenceComparer);
+            code.AppendLineAt(2, "return DeepClone(value, " + CloneContext + ");");
+        }
+        else
+        {
+            AppendModelCloneBody(
+                code,
+                modelType,
+                members,
+                constructor,
+                modelIsReferenceType,
+                registerClone: false,
+                receiver: "value."
+            );
+        }
+        code.AppendLineAt(1, "}");
+    }
+
+    /// <summary>Emits the internal operations DeepClone trailing public operations.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="modelType">Model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="constructor">Construction binding.</param>
+    /// <param name="modelIsReferenceType">Whether the model is a reference type.</param>
+    public void AppendDeepCloneOperationsInternal(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        ModelConstructorBinding? constructor = null,
+        bool modelIsReferenceType = true
+    )
+    {
+        code.AppendLineAt(
+            1,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+        );
+        code.AppendIndent(1)
+            .Append("internal static ")
+            .Append(modelType)
+            .Append(" DeepClone(")
+            .Append(modelType)
+            .Append(" value, global::System.Collections.Generic.Dictionary<object, object> ")
+            .Append(CloneContext)
+            .AppendLine(")");
+        code.AppendLineAt(1, "{");
+        if (modelIsReferenceType)
+        {
+            code.AppendLineAt(
+                2,
+                "if ("
+                    + CloneContext
+                    + ".TryGetValue(value, out var existing)) return ("
+                    + modelType
+                    + ")existing;"
+            );
+        }
+
+        AppendModelCloneBody(
+            code,
+            modelType,
+            members,
+            constructor,
+            modelIsReferenceType,
+            registerClone: modelIsReferenceType,
+            receiver: "value."
+        );
+        code.AppendLineAt(1, "}");
+    }
+
     public void AppendPocoCloneHelper(
         SharedIndentedBuilder code,
         string typeName,
@@ -417,6 +542,21 @@ internal sealed class SparseFragmentCloneEmitter
         bool usesPocoCloning
     )
     {
+        AppendFragmentClonePublic(code, members, usesPocoCloning);
+        AppendFragmentCloneInternal(code, members);
+    }
+
+    /// <summary>Emits the public fragment DeepClone preceding internal helpers.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="usesPocoCloning">Whether POCO cloning applies.</param>
+    public void AppendFragmentClonePublic(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
+        bool usesPocoCloning
+    )
+    {
+        _ = usesPocoCloning;
         code.AppendLineAt(
             2,
             "/// <summary>Copies the fragment and its generated nested values.</summary>"
@@ -443,6 +583,24 @@ internal sealed class SparseFragmentCloneEmitter
         }
         code.AppendLineAt(2, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Emits internal and private fragment clone helpers trailing the public surface.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="members">Analyzed members.</param>
+    public void AppendFragmentCloneInternal(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        AppendFragmentCloneInternalMethod(code);
+        AppendFragmentClonePrivateCtor(code, members);
+    }
+
+    /// <summary>Emits the internal fragment DeepClone trailing public methods.</summary>
+    /// <param name="code">Target builder.</param>
+    public void AppendFragmentCloneInternalMethod(SharedIndentedBuilder code)
+    {
         code.AppendLineAt(
             2,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
@@ -463,6 +621,16 @@ internal sealed class SparseFragmentCloneEmitter
         code.AppendLineAt(3, "return new Fragment(this, " + CloneContext + ");");
         code.AppendLineAt(2, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Emits the private projection constructor trailing internal helpers.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="members">Analyzed members.</param>
+    public void AppendFragmentClonePrivateCtor(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
         code.AppendIndent(2)
             .Append(
                 "private Fragment(Fragment source, global::System.Collections.Generic.Dictionary<object, object> "

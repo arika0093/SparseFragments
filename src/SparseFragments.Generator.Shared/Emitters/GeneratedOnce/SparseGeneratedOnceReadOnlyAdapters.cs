@@ -73,11 +73,8 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
                 + "<TSource, TView> : global::System.Collections.Generic.IReadOnlyList<TView>"
         );
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(
-            2,
-            "private readonly global::System.Collections.Generic.IEnumerable<TSource> _source;"
-        );
-        code.AppendLineAt(2, "private readonly global::System.Func<TSource, TView> _map;");
+        // Public-first ordering: constructor and public members precede
+        // private state and helpers.
         code.AppendLineAt(
             2,
             "public "
@@ -96,6 +93,19 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
             2,
             "public TView this[int index] => _source is global::System.Collections.Generic.IList<TSource> list ? _map(list[index]) : _source is global::System.Collections.Generic.IReadOnlyList<TSource> readOnly ? _map(readOnly[index]) : __SparseGet(index);"
         );
+        code.AppendLineAt(
+            2,
+            "public global::System.Collections.Generic.IEnumerator<TView> GetEnumerator() => global::System.Linq.Enumerable.Select(_source, _map).GetEnumerator();"
+        );
+        code.AppendLineAt(
+            2,
+            "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
+        );
+        code.AppendLineAt(
+            2,
+            "private readonly global::System.Collections.Generic.IEnumerable<TSource> _source;"
+        );
+        code.AppendLineAt(2, "private readonly global::System.Func<TSource, TView> _map;");
         code.AppendLineAt(2, "private TView __SparseGet(int index)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -112,14 +122,6 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
             "throw new global::System.ArgumentOutOfRangeException(nameof(index));"
         );
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "public global::System.Collections.Generic.IEnumerator<TView> GetEnumerator() => global::System.Linq.Enumerable.Select(_source, _map).GetEnumerator();"
-        );
-        code.AppendLineAt(
-            2,
-            "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
-        );
         code.AppendLineAt(1, "}");
         _ = implementationNamespace;
     }
@@ -137,11 +139,7 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
                 + "<TKey, TSource, TView> : global::System.Collections.Generic.IReadOnlyDictionary<TKey, TView> where TKey : notnull"
         );
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(
-            2,
-            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
-        );
-        code.AppendLineAt(2, "private readonly global::System.Func<TSource, TView> _map;");
+        // Public-first ordering: constructor and public members precede private state.
         code.AppendLineAt(
             2,
             "public "
@@ -188,6 +186,11 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
             2,
             "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
         );
+        code.AppendLineAt(
+            2,
+            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
+        );
+        code.AppendLineAt(2, "private readonly global::System.Func<TSource, TView> _map;");
         code.AppendLineAt(1, "}");
     }
 
@@ -200,15 +203,7 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
                 + "<TKey, TSource, TKeyView, TValueView> : global::System.Collections.Generic.IReadOnlyCollection<global::System.Collections.Generic.KeyValuePair<TKeyView, TValueView>> where TKey : notnull"
         );
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(
-            2,
-            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
-        );
-        code.AppendLineAt(2, "private readonly global::System.Func<TKey, TKeyView> _mapKey;");
-        code.AppendLineAt(
-            2,
-            "private readonly global::System.Func<TSource, TValueView> _mapValue;"
-        );
+        // Public-first ordering: constructor and public members precede private state.
         code.AppendLineAt(
             2,
             "public "
@@ -234,6 +229,15 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
         code.AppendLineAt(
             2,
             "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
+        );
+        code.AppendLineAt(
+            2,
+            "private readonly global::System.Collections.Generic.IReadOnlyDictionary<TKey, TSource> _source;"
+        );
+        code.AppendLineAt(2, "private readonly global::System.Func<TKey, TKeyView> _mapKey;");
+        code.AppendLineAt(
+            2,
+            "private readonly global::System.Func<TSource, TValueView> _mapValue;"
         );
         code.AppendLineAt(1, "}");
     }

@@ -545,13 +545,16 @@ internal static class SparseFragmentEmitter
 
         code.Append(generatedType).Append(name).AppendLine();
         code.AppendLine("{");
-        SparseFragmentCoreEmitter.AppendRootProjectionConstructor(
-            code,
-            name,
-            members,
-            model.Constructor,
-            bridgeAccessibility: splitOperations ? "internal" : "private"
-        );
+        if (!splitOperations)
+        {
+            SparseFragmentCoreEmitter.AppendRootProjectionConstructor(
+                code,
+                name,
+                members,
+                model.Constructor,
+                bridgeAccessibility: "private"
+            );
+        }
         core.AppendDeepClone(
             code,
             modelType,
@@ -561,15 +564,18 @@ internal static class SparseFragmentEmitter
             !model.IsStruct,
             operationsType: operationsType
         );
-        foreach (var poco in pocoCloneModels)
-            core.AppendPocoCloneHelper(
-                code,
-                poco.Model.ModelTypeName,
-                poco.CloneHelperName,
-                poco.Members,
-                poco.Model.Constructor,
-                operationsType: operationsType
-            );
+        if (!splitOperations)
+        {
+            foreach (var poco in pocoCloneModels)
+                core.AppendPocoCloneHelper(
+                    code,
+                    poco.Model.ModelTypeName,
+                    poco.CloneHelperName,
+                    poco.Members,
+                    poco.Model.Constructor,
+                    operationsType: operationsType
+                );
+        }
         // Shared kernels (#182) are emitted once per compilation; only the
         // legacy single-file path redefines them per model.
         if (implementationNamespace is null)
@@ -616,6 +622,23 @@ internal static class SparseFragmentEmitter
                     pocoCloneModels,
                     operationsCore
                 );
+            // Public-first order: model internal bridges trail public nested
+            // types, so no internal member precedes the Fragment facade.
+            if (splitOperations && operationsType is not null)
+            {
+                SparseFragmentCoreEmitter.AppendRootProjectionConstructor(
+                    code,
+                    name,
+                    members,
+                    model.Constructor,
+                    bridgeAccessibility: "internal"
+                );
+                SparseFragmentCoreEmitter.AppendDeepCloneInternalFacade(
+                    code,
+                    modelType,
+                    operationsType
+                );
+            }
         }
         if (features.EmitFragment && features.EmitObservable && implementationNamespace is null)
         {
@@ -704,7 +727,11 @@ internal static class SparseFragmentEmitter
                 SparseGeneratedPlacement.PatchOperationsSimpleName,
                 "Patch"
             );
-            implementationBuilder.Append(patchOperations.ToString());
+            // Internal-first ordering: many emitters interleave helpers, so the
+            // container body is reordered here with bodies untouched.
+            implementationBuilder.Append(
+                SparseOperationOrdering.ReorderInternalFirst(patchOperations.ToString())
+            );
             SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
             if (features.EmitChangeSet && changeSetOperations is not null)
             {
@@ -713,7 +740,9 @@ internal static class SparseFragmentEmitter
                     SparseGeneratedPlacement.ChangeSetOperationsSimpleName,
                     "ChangeSet"
                 );
-                implementationBuilder.Append(changeSetOperations.ToString());
+                implementationBuilder.Append(
+                    SparseOperationOrdering.ReorderInternalFirst(changeSetOperations.ToString())
+                );
                 SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
             }
             implementationBuilder.AppendLineAt(1, "}");
@@ -800,66 +829,65 @@ internal static class SparseFragmentEmitter
         );
         core.AppendMerge(code, members, operationsType: operationsType);
         core.AppendApplyChanges(code, members, operationsType: operationsType);
-        core.AppendDiff(code, modelType, members, modelIsReferenceType, operationsType);
-        core.AppendFragmentClone(code, members, usesPocoCloning);
-        var writableMembers = members
-            .Where(static member => !member.Property.IsReadOnly && !member.Property.IsInitOnly)
-            .ToImmutableArray();
-        var canWriteInPlace = modelIsReferenceType && writableMembers.Length == members.Length;
-        SparseFragmentPatchEmitter.AppendFragmentMethods(
-            code,
-            modelType,
-            runtime.Namespace,
-            members,
-            canWriteInPlace,
-            patchDialect.WriteContract,
-            features
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Creates a mutable builder seeded from this fragment.</summary>"
-        );
-        code.AppendLineAt(2, "/// <returns>The seeded builder.</returns>");
-        code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        if (features.EmitJsonConverters)
+        if (operationsType is not null)
         {
-            if (
-                implementationBuilder is not null
-                && jsonConverterQualifiedName is not null
-                && jsonConverterSimpleName is not null
-            )
-            {
-                // Stage 3 (#192): converter bodies live in the implementation
-                // source; the model keeps the accessor plus a thin shell.
-                SparseFragmentJsonEmitter.AppendStandaloneFragmentJsonFacade(
-                    code,
-                    jsonConverterQualifiedName
-                );
-                SparseFragmentJsonEmitter.AppendConverter(
-                    implementationBuilder,
-                    members,
-                    runtime.OptionalType,
-                    isStandalone: true,
-                    converterClassName: jsonConverterSimpleName,
-                    converterAccessibility: generatedAccessibility,
-                    sealedConverter: false
-                );
-                implementationBuilder.AppendLine();
-            }
-            else
-            {
-                SparseFragmentJsonEmitter.AppendStandaloneFragmentJson(
-                    code,
-                    members,
-                    runtime.OptionalType
-                );
-            }
+            SparseFragmentSurfaceOrderingEmitter.AppendFragmentSplitSurface(
+                code,
+                modelType,
+                members,
+                modelIsReferenceType,
+                usesPocoCloning,
+                core,
+                expressions,
+                runtime,
+                patchDialect,
+                features,
+                implementationBuilder,
+                jsonConverterQualifiedName,
+                jsonConverterSimpleName,
+                generatedAccessibility,
+                operationsType,
+                canApplyPatchInPlace
+            );
         }
-        // Internal helpers trail the public surface (ToBuilder/JsonConverter).
-        AppendFragmentEquality(code, members, runtime.OptionalType, expressions, core);
-        if (canWriteInPlace || (features.EmitPatch && canApplyPatchInPlace))
+        else
         {
-            AppendWritableMemberWriter(code, modelType, writableMembers);
+            core.AppendDiff(code, modelType, members, modelIsReferenceType, operationsType);
+            core.AppendFragmentClone(code, members, usesPocoCloning);
+            SparseFragmentSurfaceOrderingEmitter.AppendFragmentPublicTail(
+                code,
+                modelType,
+                members,
+                modelIsReferenceType,
+                runtime,
+                patchDialect,
+                features,
+                implementationBuilder,
+                jsonConverterQualifiedName,
+                jsonConverterSimpleName,
+                generatedAccessibility
+            );
+            // Internal helpers trail the public surface (ToBuilder/JsonConverter).
+            SparseFragmentSurfaceOrderingEmitter.AppendFragmentEquality(
+                code,
+                members,
+                runtime.OptionalType,
+                expressions,
+                core
+            );
+            var writableMembersLegacy = members
+                .Where(static member => !member.Property.IsReadOnly && !member.Property.IsInitOnly)
+                .ToImmutableArray();
+            var canWriteInPlaceLegacy =
+                modelIsReferenceType && writableMembersLegacy.Length == members.Length;
+            if (canWriteInPlaceLegacy || (features.EmitPatch && canApplyPatchInPlace))
+            {
+                SparseFragmentSurfaceOrderingEmitter.AppendWritableMemberWriter(
+                    code,
+                    modelType,
+                    writableMembersLegacy
+                );
+            }
         }
         code.AppendLineAt(1, "}");
         core.AppendBuilder(code, members, generatedAccessibility);
@@ -877,205 +905,6 @@ internal static class SparseFragmentEmitter
             operationTarget,
             canApplyChangeSetInPlace
         );
-    }
-
-    private static void AppendWritableMemberWriter(
-        SharedIndentedBuilder code,
-        string modelType,
-        ImmutableArray<SparseMemberModel> members
-    )
-    {
-        code.AppendLineAt(2, "internal void __SparseWriteWritableTo(" + modelType + " model)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (model is null) throw new global::System.ArgumentNullException(nameof(model));"
-        );
-        if (!members.IsEmpty)
-        {
-            code.AppendLineAt(3, "var __sparse_updated = ToModel();");
-        }
-        foreach (var member in members)
-        {
-            var property = SparseNaming.EscapeIdentifier(member.Property.Name);
-            if (
-                member.Collection.Kind == SparseCollectionKind.List
-                && member.Collection.CloneKind == SparseCloneCollectionKind.List
-            )
-            {
-                var listType =
-                    "global::System.Collections.Generic.List<"
-                    + member.Collection.ElementType.Name
-                    + ">";
-                code.AppendLineAt(
-                    3,
-                    "if (model."
-                        + property
-                        + " is "
-                        + listType
-                        + " __sparse_list"
-                        + member.Id
-                        + " && __sparse_updated."
-                        + property
-                        + " is not null)"
-                );
-                code.AppendLineAt(3, "{");
-                code.AppendLineAt(4, "__sparse_list" + member.Id + ".Clear();");
-                code.AppendLineAt(
-                    4,
-                    "__sparse_list" + member.Id + ".AddRange(__sparse_updated." + property + ");"
-                );
-                code.AppendLineAt(3, "}");
-                code.AppendLineAt(
-                    3,
-                    "else model." + property + " = __sparse_updated." + property + "!;"
-                );
-            }
-            else if (member.Collection.IsDictionary)
-            {
-                var dictionaryType =
-                    "global::System.Collections.Generic.Dictionary<"
-                    + member.Collection.ElementType.Name
-                    + ", "
-                    + member.Collection.ValueType!.Value.Name
-                    + ">";
-                code.AppendLineAt(
-                    3,
-                    "if (model."
-                        + property
-                        + " is "
-                        + dictionaryType
-                        + " __sparse_dict"
-                        + member.Id
-                        + " && __sparse_updated."
-                        + property
-                        + " is not null)"
-                );
-                code.AppendLineAt(3, "{");
-                code.AppendLineAt(4, "__sparse_dict" + member.Id + ".Clear();");
-                code.AppendLineAt(
-                    4,
-                    "foreach (var __sparse_pair"
-                        + member.Id
-                        + " in __sparse_updated."
-                        + property
-                        + ") __sparse_dict"
-                        + member.Id
-                        + ".Add(__sparse_pair"
-                        + member.Id
-                        + ".Key, __sparse_pair"
-                        + member.Id
-                        + ".Value);"
-                );
-                code.AppendLineAt(3, "}");
-                code.AppendLineAt(
-                    3,
-                    "else model." + property + " = __sparse_updated." + property + "!;"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    3,
-                    "model." + property + " = __sparse_updated." + property + "!;"
-                );
-            }
-        }
-        code.AppendLineAt(2, "}");
-    }
-
-    private static void AppendFragmentEquality(
-        SharedIndentedBuilder code,
-        ImmutableArray<SparseMemberModel> members,
-        string optionalType,
-        SparseFragmentExpressions expressions,
-        SparseFragmentCoreEmitter core
-    )
-    {
-        code.CancellationToken.ThrowIfCancellationRequested();
-        code.AppendLineAt(
-            2,
-            "internal static bool __SparseAreEqual("
-                + optionalType
-                + "<Fragment?> left, "
-                + optionalType
-                + "<Fragment?> right)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
-        code.AppendLineAt(3, "if (!right.IsPresent) return false;");
-        code.AppendLineAt(
-            3,
-            "if (global::System.Object.ReferenceEquals(left.Value, right.Value)) return true;"
-        );
-        code.AppendLineAt(3, "if (left.Value is null || right.Value is null) return false;");
-        if (members.IsEmpty)
-        {
-            code.AppendLineAt(3, "return true;");
-        }
-        else
-        {
-            code.AppendIndent(3).Append("return ");
-            for (var index = 0; index < members.Length; index++)
-            {
-                if (index > 0)
-                {
-                    code.Append(" && ");
-                }
-
-                var name = SparseNaming.EscapeIdentifier(members[index].Property.Name);
-                code.Append("__SparseEqual_")
-                    .Append(members[index].Id)
-                    .Append("(left.Value.")
-                    .Append(name)
-                    .Append(", right.Value.")
-                    .Append(name)
-                    .Append(")");
-            }
-            code.AppendLine(";");
-        }
-        code.AppendLineAt(2, "}");
-        foreach (var member in members)
-        {
-            var valueType = SparseFragmentEmitHelpers.FragmentValueType(member);
-            code.AppendIndent(2)
-                .Append("internal static bool __SparseEqual_")
-                .Append(member.Id)
-                .Append("(")
-                .Append(optionalType)
-                .Append("<")
-                .Append(valueType)
-                .Append("> left, ")
-                .Append(optionalType)
-                .Append("<")
-                .Append(valueType)
-                .AppendLine("> right)");
-            code.AppendLineAt(2, "{");
-            code.AppendLineAt(3, "if (!left.IsPresent) return !right.IsPresent;");
-            code.AppendLineAt(3, "if (!right.IsPresent) return false;");
-            string equality;
-            if (member.ChildModel is not null)
-            {
-                equality = member.ChildFragmentType + ".__SparseAreEqual(left, right)";
-            }
-            else if (member.MergeStrategyType is not null)
-            {
-                equality = core.MergeStrategyField(member) + ".AreEqual(left.Value, right.Value)";
-            }
-            else if (member.ComparisonComparerType is not null)
-            {
-                equality =
-                    SparseFragmentEmitHelpers.ComparisonComparerField(member)
-                    + ".Equals(left.Value, right.Value)";
-            }
-            else
-            {
-                equality = expressions.ValueEqualityExpression(member, "left.Value", "right.Value");
-            }
-            code.AppendLineAt(3, "return " + equality + ";");
-            code.AppendLineAt(2, "}");
-        }
-        code.AppendLine();
     }
 
     private static string TrimImplPrefix(string qualified) =>

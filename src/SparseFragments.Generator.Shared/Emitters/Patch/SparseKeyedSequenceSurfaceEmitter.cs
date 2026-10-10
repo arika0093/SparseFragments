@@ -40,19 +40,25 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         );
         code.AppendLineAt(2, "public sealed class " + patchName);
         code.AppendLineAt(2, "{");
+        // Public-first order for relocated patches: internal backing fields
+        // and helpers trail public mutators and algebra stubs.
+        var surfaceDeferred = target is null
+            ? null
+            : new SharedIndentedBuilder(code.CancellationToken);
+        var internalCode = surfaceDeferred ?? code;
         // Relocated operation bodies reach state through these fields, so
         // they are internal rather than private. The mutating surface below
         // stays on the facade as thin delegating stubs.
-        code.AppendLineAt(3, "internal " + operation + " __whole;");
-        code.AppendLineAt(
+        internalCode.AppendLineAt(3, "internal " + operation + " __whole;");
+        internalCode.AppendLineAt(
             3,
             "internal global::System.Collections.Generic.List<" + elementType + ">? __added;"
         );
-        code.AppendLineAt(
+        internalCode.AppendLineAt(
             3,
             "internal global::System.Collections.Generic.List<" + keyType + ">? __removed;"
         );
-        code.AppendLineAt(
+        internalCode.AppendLineAt(
             3,
             "internal global::System.Collections.Generic.Dictionary<"
                 + keyType
@@ -60,12 +66,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 + editedValueType
                 + ">? __edited;"
         );
-        code.AppendLineAt(
+        internalCode.AppendLineAt(
             3,
             "internal global::System.Collections.Generic.List<" + keyType + ">? __order;"
         );
         SparseMemberOperationSplit? split = null;
         SharedIndentedBuilder operations = code;
+        SharedIndentedBuilder? deferredKeyOf = null;
         if (target is not null)
         {
             var operationsType = SparseOperationTarget.MemberOperationsType(
@@ -77,7 +84,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 SparseNaming.EscapeIdentifier(member.Property.Name) + "PatchOperations"
             );
             split = new SparseMemberOperationSplit(code, operations, operationsType, "self.");
-            SparseKeyedCollectionEmitter.EmitKeyOf(operations, member, elementType, 3);
+            // Private key helper trails the internal operation bodies so the
+            // member operation class stays public/internal-first ordered.
+            deferredKeyOf = new SharedIndentedBuilder(code.CancellationToken)
+            {
+                IndentOffset = operations.IndentOffset,
+            };
+            SparseKeyedCollectionEmitter.EmitKeyOf(deferredKeyOf, member, elementType, 3);
         }
         else
         {
@@ -93,7 +106,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             4,
             "&& (__edited is null || __edited.Count == 0) && (__order is null || __order.Count == 0);"
         );
-        code.AppendLineAt(3, "internal bool __SparseIsEmpty() => IsEmpty;");
+        internalCode.AppendLineAt(3, "internal bool __SparseIsEmpty() => IsEmpty;");
         // Whole operations (public group).
         code.AppendLineAt(3, "/// <summary>Replaces the whole collection.</summary>");
         code.AppendLineAt(3, "/// <param name=\"value\">Replacement values.</param>");
@@ -126,17 +139,29 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + ".Set(value) };"
             );
         }
-        SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer, implementationNamespace);
+        if (surfaceDeferred is not null)
+        {
+            SparseKeyedRemovalIndexEmitter.Emit(
+                surfaceDeferred,
+                keyType,
+                comparer,
+                implementationNamespace
+            );
+        }
+        else
+        {
+            SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer, implementationNamespace);
+        }
         // Relocated mutator bodies reuse this guard through the facade instance.
-        code.AppendLineAt(3, "internal void EnsureGranular(string operation)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
+        internalCode.AppendLineAt(3, "internal void EnsureGranular(string operation)");
+        internalCode.AppendLineAt(3, "{");
+        internalCode.AppendLineAt(
             4,
             "if (__whole.Kind != "
                 + kind
                 + ".Keep) throw new global::System.InvalidOperationException(\"Cannot apply '\" + operation + \"' when the whole collection is set. Clear the whole operation first.\");"
         );
-        code.AppendLineAt(3, "}");
+        internalCode.AppendLineAt(3, "}");
         EmitKeyedMutators(
             operations,
             member,
@@ -153,7 +178,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         );
         if (hasPatch)
         {
-            code.AppendLineAt(
+            internalCode.AppendLineAt(
                 3,
                 "internal void __SparseSetEdited("
                     + keyType
@@ -161,13 +186,13 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + SparseKeyedCollectionEmitter.ElementPatchType(member)
                     + " patch)"
             );
-            code.AppendLineAt(3, "{");
-            code.AppendLineAt(4, "EnsureGranular(\"SetEdited\");");
-            code.AppendLineAt(
+            internalCode.AppendLineAt(3, "{");
+            internalCode.AppendLineAt(4, "EnsureGranular(\"SetEdited\");");
+            internalCode.AppendLineAt(
                 4,
                 "if (patch is null) throw new global::System.ArgumentNullException(nameof(patch));"
             );
-            code.AppendLineAt(
+            internalCode.AppendLineAt(
                 4,
                 "__edited ??= new global::System.Collections.Generic.Dictionary<"
                     + keyType
@@ -177,8 +202,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                     + comparer
                     + ");"
             );
-            code.AppendLineAt(4, "__edited[key] = patch;");
-            code.AppendLineAt(3, "}");
+            internalCode.AppendLineAt(4, "__edited[key] = patch;");
+            internalCode.AppendLineAt(3, "}");
         }
         SparseKeyedSequenceApplyEmitter.EmitKeyedApply(
             operations,
@@ -288,8 +313,17 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 implementationNamespace,
                 split
             );
+        if (surfaceDeferred is not null)
+        {
+            code.Append(surfaceDeferred.ToString());
+        }
         if (target is not null)
         {
+            if (deferredKeyOf is not null)
+            {
+                operations.Append(deferredKeyOf.ToString());
+            }
+
             target.CloseMemberOperations(
                 SparseNaming.EscapeIdentifier(member.Property.Name) + "PatchOperations"
             );
