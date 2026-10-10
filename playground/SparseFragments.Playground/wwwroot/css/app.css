@@ -807,6 +807,7 @@ a, .btn-link {
 
 .pg-edit-log code {
     overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 @media (max-width: 1200px) {
@@ -899,6 +900,10 @@ fluent-dialog::part(dialog) {
 
 .pg-submit-preview-dialog::part(dialog) {
     width: min(88rem, calc(100vw - 2rem));
+}
+
+.pg-import-dialog::part(dialog) {
+    width: min(72rem, calc(100vw - 2rem));
 }
 
 .pg-change-table-wrap {

@@ -1,0 +1,124 @@
+@using BlazorMonaco.Editor
+@using Microsoft.JSInterop
+@using SparseFragments.Playground.Models
+@inject PlaygroundThemeState ThemeState
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="pg-monaco notranslate" translate="no" style="@WrapperStyle">
+    <StandaloneCodeEditor @ref="_editor"
+        Id="@EditorId"
+        ConstructionOptions="GetOptions"
+        OnDidInit="HandleInit"
+        OnDidChangeModelContent="HandleContentChanged"
+        CssClass="pg-monaco-editor" />
+</div>
+
+@code {
+    private StandaloneCodeEditor? _editor;
+    private string? _lastValue;
+    private bool _initialized;
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public string Language { get; set; } = "json";
+
+    [Parameter]
+    public string Height { get; set; } = "360px";
+
+    /// <summary>Gets or sets whether the editor fills the available card height.</summary>
+    [Parameter]
+    public bool Fill { get; set; }
+
+    private string EditorId { get; } = $"monaco-edit-{Guid.NewGuid():N}";
+
+    private string CurrentTheme => ThemeState.IsDark ? "pg-dark" : "pg-light";
+
+    private string MonacoLanguage => Language == "csharp" ? "playground-csharp" : Language;
+
+    private string WrapperStyle => Fill ? "height: 100%; min-height: 220px;" : $"height: {Height};";
+
+    protected override void OnInitialized() => ThemeState.Changed += OnThemeChanged;
+
+    private StandaloneEditorConstructionOptions GetOptions(StandaloneCodeEditor editor)
+    {
+        _lastValue = Value;
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = MonacoLanguage,
+            Value = Value,
+            ReadOnly = false,
+            Minimap = new EditorMinimapOptions { Enabled = false },
+            StickyScroll = new EditorStickyScrollOptions { Enabled = false },
+            ScrollBeyondLastLine = false,
+            RenderLineHighlight = "all",
+            Theme = CurrentTheme,
+        };
+    }
+
+    private async Task HandleInit()
+    {
+        _initialized = true;
+        await SyncValueAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await SyncValueAsync();
+    }
+
+    private async Task HandleContentChanged(ModelContentChangedEvent _)
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+
+        var newValue = await _editor.GetValue();
+        _lastValue = newValue;
+        if (!string.Equals(newValue, Value, StringComparison.Ordinal))
+        {
+            await ValueChanged.InvokeAsync(newValue);
+        }
+    }
+
+    private void OnThemeChanged()
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("blazorMonaco.editor.setTheme", CurrentTheme);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        });
+    }
+
+    private async Task SyncValueAsync()
+    {
+        if (!_initialized || _editor is null)
+        {
+            return;
+        }
+        if (_lastValue == Value)
+        {
+            return;
+        }
+        _lastValue = Value;
+        await _editor.SetValue(Value);
+    }
+
+    public void Dispose() => ThemeState.Changed -= OnThemeChanged;
+}
