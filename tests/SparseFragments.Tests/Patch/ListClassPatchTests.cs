@@ -422,7 +422,7 @@ public sealed class ListClassPatchTests
         // Concurrent divergent edit: scalar conflict on Items.
         var conflicted = ClassListHolder.Patch.Rebase(baseState, local, State(Model(Item("c"))));
         conflicted.HasConflicts.ShouldBeTrue();
-        conflicted.Conflicts.Single().Path.ShouldBe(["Items"]);
+        conflicted.Conflicts.Single().PathText.ShouldBe("Items");
         conflicted.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.Scalar);
     }
 

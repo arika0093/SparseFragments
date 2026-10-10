@@ -81,8 +81,8 @@ public class DictionaryDenseRebaseBenchmarks
                 || (
                     conflicting
                     && (
-                        scalar.Conflicts[index / 2].Path[1] != key
-                        || value.Conflicts[index / 2].Path[1] != key
+                        !Equals(scalar.Conflicts[index / 2].Path.Segments[1].Key, key)
+                        || !Equals(value.Conflicts[index / 2].Path.Segments[1].Key, key)
                     )
                 )
             )

@@ -87,16 +87,17 @@ public sealed class ChangeSetTests
             .EnumerateChanges()
             .ToDictionary(static change => change.Path);
 
-        entries["Label"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
-        entries["Label"].Before.Value.ShouldBe("before");
-        entries["Label"].After.IsPresent.ShouldBeTrue();
-        entries["Label"].After.Value.ShouldBeNull();
-        entries["RetryCount"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Added);
-        entries["RetryCount"].Before.IsPresent.ShouldBeFalse();
-        entries["RetryCount"].After.Value.ShouldBe(3);
-        entries["Nested.Host"].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
-        entries["Nested.Host"].Before.Value.ShouldBe("host-before");
-        entries["Nested.Host"].After.Value.ShouldBe("host-after");
+        entries[Settings.SparsePath.Label].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
+        entries[Settings.SparsePath.Label].Before.Value.ShouldBe("before");
+        entries[Settings.SparsePath.Label].After.IsPresent.ShouldBeTrue();
+        entries[Settings.SparsePath.Label].After.Value.ShouldBeNull();
+        entries[Settings.SparsePath.RetryCount].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Added);
+        entries[Settings.SparsePath.RetryCount].Before.IsPresent.ShouldBeFalse();
+        entries[Settings.SparsePath.RetryCount].After.Value.ShouldBe(3);
+        entries[Settings.SparsePath.Nested.Host]
+            .Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
+        entries[Settings.SparsePath.Nested.Host].Before.Value.ShouldBe("host-before");
+        entries[Settings.SparsePath.Nested.Host].After.Value.ShouldBe("host-after");
     }
 
     [Test]
@@ -140,13 +141,21 @@ public sealed class ChangeSetTests
             .EnumerateChanges()
             .ToDictionary(static change => change.Path);
 
-        entries["Items[\"a\"]"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Added);
-        entries["Items[\"c\"]"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Removed);
-        entries["Items[\"b\"].Name"].Before.Value.ShouldBe("before");
-        entries["Items[\"b\"].Name"].After.Value.ShouldBe("after");
-        entries["Items"].Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Order);
-        ((IReadOnlyList<string>)entries["Items"].Before.Value!).ShouldBe(["b", "c"]);
-        ((IReadOnlyList<string>)entries["Items"].After.Value!).ShouldBe(["a", "b"]);
+        entries[KeyedServerHolder.SparsePath.Items.Key("a")]
+            .Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Added);
+        entries[KeyedServerHolder.SparsePath.Items.Key("c")]
+            .Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Removed);
+        entries[KeyedServerHolder.SparsePath.Items.Key("b").Name].Before.Value.ShouldBe("before");
+        entries[KeyedServerHolder.SparsePath.Items.Key("b").Name].After.Value.ShouldBe("after");
+        entries[KeyedServerHolder.SparsePath.Items]
+            .Kind.ShouldBe(KeyedServerHolder.ChangeSet.ChangeKind.Order);
+        (
+            (IReadOnlyList<string>)entries[KeyedServerHolder.SparsePath.Items].Before.Value!
+        ).ShouldBe(["b", "c"]);
+        ((IReadOnlyList<string>)entries[KeyedServerHolder.SparsePath.Items].After.Value!).ShouldBe([
+            "a",
+            "b",
+        ]);
     }
 
     [Test]
@@ -177,9 +186,9 @@ public sealed class ChangeSetTests
         added.IsEmpty.ShouldBeFalse();
         var addedEntries = added.EnumerateChanges().ToList();
         addedEntries.ShouldHaveSingleItem();
-        addedEntries[0].Path.ShouldBe("$root");
+        addedEntries[0].PathText.ShouldBe("$root");
         addedEntries[0].Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Added);
-        added.EnumerateChangedPaths().ShouldBe(["$root"]);
+        added.EnumerateChangedPaths().Select(static path => path.ToString()).ShouldBe(["$root"]);
 
         // Present-null -> missing reads as Removed.
         var removed = Settings.ChangeSet.Between(nullState, missing);
@@ -191,7 +200,8 @@ public sealed class ChangeSetTests
         valued.IsEmpty.ShouldBeFalse();
         valued.EnumerateChanges().Single().Kind.ShouldBe(Settings.ChangeSet.ChangeKind.Changed);
 
-        // Nested whole-child presence transitions are not dropped.
+        // Nested whole-child presence transitions are not dropped: the child
+        // root entry appears under the parent member path.
         var nestedMissing = Optional<Settings.Fragment?>.Present(
             new Settings.Fragment { Nested = Optional<Nested.Fragment?>.Missing }
         );
@@ -200,10 +210,7 @@ public sealed class ChangeSetTests
         );
         var nested = Settings.ChangeSet.Between(nestedMissing, nestedPresent);
         nested.IsEmpty.ShouldBeFalse();
-        nested
-            .EnumerateChanges()
-            .Select(static change => change.Path)
-            .ShouldContain("Nested.$root");
+        nested.EnumerateChanges().Select(static change => change.PathText).ShouldContain("Nested");
     }
 
     [Test]

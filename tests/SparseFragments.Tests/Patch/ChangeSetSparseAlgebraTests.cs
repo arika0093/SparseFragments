@@ -334,7 +334,7 @@ public sealed class ChangeSetSparseAlgebraTests
 
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Count.ShouldBe(1);
-        result.Conflicts[0].Path.ShouldBe(["Label"]);
+        result.Conflicts.Find(Settings.SparsePath.Label).ShouldNotBeNull();
         result.Conflicts[0].Kind.ShouldBe(SparseConflictKind.Scalar);
         // The non-conflicting path stays available relative to current.
         result.Rebased.Label.IsChanged.ShouldBeFalse();
@@ -363,7 +363,7 @@ public sealed class ChangeSetSparseAlgebraTests
 
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Count.ShouldBe(1);
-        result.Conflicts[0].Path.ShouldBe(["Nested", "Host"]);
+        result.Conflicts.Find(Settings.SparsePath.Nested.Host).ShouldNotBeNull();
         result.Rebased.Label.IsChanged.ShouldBeTrue();
         result.Rebased.Label.After.Value.ShouldBe("L1");
         AssertSameSettings(result.Rebased.ToPatch().Apply(current), Both("L1", "c"));
@@ -445,7 +445,7 @@ public sealed class ChangeSetSparseAlgebraTests
         var diverged = changes.RebaseOnto(PluginsOf("other"));
         diverged.HasConflicts.ShouldBeTrue();
         diverged.Conflicts[0].Kind.ShouldBe(SparseConflictKind.CollectionAppend);
-        diverged.Conflicts[0].Path.ShouldBe(["Plugins"]);
+        diverged.Conflicts.Find(Settings.SparsePath.Plugins).ShouldNotBeNull();
     }
 
     [Test]

@@ -59,7 +59,7 @@ logSession.Observable.Number = "b";
 
 var rows = logSession.CreateChangeSet().EnumerateChanges().ToList();
 // rows.Count == 1
-// rows[0].Path == "Number"
+// rows[0].PathText == "Number"
 // rows[0].Kind reports an edited value
 // logSession.EnumerateChangedPaths() lists "Number"
 ```
@@ -102,13 +102,13 @@ Nullability has three states. `IsNullable` reports explicitly annotated nullabil
 
 ## Change inspection
 
-`ISparseChangeInspector` enumerates flattened `SparseChangeRecord` entries (path, presence-aware before/after, `SparseChangeKind`) in deterministic order without naming generated CLR types, so diff inspection tools work across models and assemblies. Per-model `ChangeSet.EnumerateChanges()` results project into this contract: flattened enumeration and `EnumerateChangedPaths()` are the model-bound seams, and ordinary editing reads the typed member transitions instead.
+`ISparseChangeInspector` enumerates flattened `SparseChangeRecord` entries (`SparsePath` path, presence-aware before/after, `SparseChangeKind`) in deterministic order without naming generated CLR types, so diff inspection tools work across models and assemblies. Per-model `ChangeSet.EnumerateChanges()` results project into this contract: flattened enumeration and `EnumerateChangedPaths()` are the model-bound seams, and ordinary editing reads the typed member transitions instead.
 
 `Added`, `Removed`, and `Changed` classify value transitions, while `Order` uses the collection path and carries the before and after key sequences. Nested values use dotted paths; keyed entries use their key in brackets.
 
 ## Identity and lifetime
 
-Descriptors are instance-bound, not path-bound. `IDescriptor.Path` records the creation-time location. A retained accessor does not follow replacement, and a write through it fails instead of editing a detached object. Re-resolve from the session or parent to obtain live accessors.
+Descriptors are instance-bound, not path-bound. `IDescriptor.Path` records the creation-time location as a `SparsePath` (`PathText` renders the wire-compatible text). A retained accessor does not follow replacement, and a write through it fails instead of editing a detached object. Re-resolve from the session or parent to obtain live accessors. `IDescriptorSet.Find(path)` locates the descriptor at exactly a path, or null when absent.
 
 | Change | Retained accessor behavior |
 | --- | --- |

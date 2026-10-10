@@ -47,7 +47,7 @@ public sealed class RebaseRenamedApiTests
 
         rebased.HasConflicts.ShouldBeTrue();
         var conflict = rebased.Conflicts.Single();
-        conflict.Path.ShouldBe(["Nested", "Host"]);
+        conflict.PathText.ShouldBe("Nested.Host");
         conflict.Kind.ShouldBe(SparseConflictKind.Scalar);
         conflict.BaseValue.IsPresent.ShouldBeTrue();
         conflict.LocalValue.IsPresent.ShouldBeTrue();
@@ -88,7 +88,7 @@ public sealed class RebaseRenamedApiTests
         var rebased = baseModel.CreateChangeSet(editedModel).RebaseOnto(currentModel);
 
         rebased.HasConflicts.ShouldBeTrue();
-        rebased.Conflicts.Single().Path[0].ShouldBe("Items");
+        rebased.Conflicts.Single().Path.Segments[0].ShouldBe(SparsePathSegment.Member("Items"));
         rebased.Rebased.IsEmpty.ShouldBeTrue();
     }
 
@@ -162,7 +162,7 @@ public sealed class RebaseRenamedApiTests
 
         rebased.HasConflicts.ShouldBeTrue();
         var conflict = rebased.Conflicts.Single();
-        conflict.Path[0].ShouldBe("Groups");
+        conflict.Path.Segments[0].ShouldBe(SparsePathSegment.Member("Groups"));
         conflict.PathText.ShouldContain("Servers");
     }
 

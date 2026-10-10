@@ -381,7 +381,7 @@
         return _rosterChanges.EnumerateChanges()
             .Select(static change => (
                 Operation: ChangeOperation(change.Kind),
-                change.Path,
+                Path: change.PathText,
                 Before: FormatRosterValue(change.Before),
                 After: FormatRosterValue(change.After)
             ))

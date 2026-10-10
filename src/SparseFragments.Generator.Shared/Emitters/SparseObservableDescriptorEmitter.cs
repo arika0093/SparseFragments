@@ -17,13 +17,16 @@ internal static class SparseObservableDescriptorEmitter
     )
     {
         var accessorName = AccessorName(modelType);
+        var pathType = dialect.EffectivePathType(runtimeNamespace);
         code.AppendLineAt(
             2,
             "internal "
                 + dialect.DescriptorSetInterface
                 + " "
                 + accessorName
-                + "(string pathPrefix)"
+                + "("
+                + pathType
+                + " pathPrefix)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -52,8 +55,7 @@ internal static class SparseObservableDescriptorEmitter
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
         var type = member.Property.Type.NonNullableName;
         var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
-        var path =
-            "(pathPrefix.Length == 0 ? " + literal + " : pathPrefix + \".\" + " + literal + ")";
+        var path = "pathPrefix.Member(" + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         var viewType = ViewTypeName(member, runtimeNamespace);
         // The INotifyPropertyChanged event occupies the PropertyChanged name, so its

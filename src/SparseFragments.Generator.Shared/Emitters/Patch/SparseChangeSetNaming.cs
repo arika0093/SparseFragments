@@ -30,11 +30,10 @@ internal static class SparseChangeSetNaming
             "ChangeKind",
             "EnumerateChanges",
             "EnumerateChangedPaths",
+            "Find",
             "__SparseBox",
             "__SparseCreateChangeInfo",
-            "__SparseKeyPath",
-            "__SparseKeyText",
-            "__SparseEscapeKey",
+            "__SparseRootPath",
         };
 
     /// <summary>Computes stable public property and transition type names.</summary>

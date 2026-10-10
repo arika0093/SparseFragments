@@ -184,7 +184,7 @@ public sealed class BlazorFieldResolutionTests
         var itemPath = session
             .CreateChangeSet()
             .EnumerateChanges()
-            .Select(change => change.Path)
+            .Select(static change => change.PathText)
             .Single(path => path.StartsWith("Lines[", StringComparison.Ordinal));
         itemPath.ShouldBe("Lines[\"b\"].Quantity");
 
@@ -205,6 +205,27 @@ public sealed class BlazorFieldResolutionTests
         var field = session.Field("Lines[\"b\"].Quantity");
         ReferenceEquals(field.Model, Raw(session).Lines.Single(line => line.Sku == "b"))
             .ShouldBeTrue();
+    }
+
+    [Test]
+    public void TypedPathsResolveToFields()
+    {
+        var session = KeyedOrder().CreateEditSession();
+
+        SparsePath<OrderDto, decimal> price = OrderDto.SparsePath.Lines.Key("b").Price;
+        var priceField = session.Field(price);
+        ReferenceEquals(priceField.Model, Raw(session).Lines.Single(line => line.Sku == "b"))
+            .ShouldBeTrue();
+        priceField.FieldName.ShouldBe(nameof(OrderLine.Price));
+
+        SparsePath<OrderDto, string> number = OrderDto.SparsePath.Number;
+        var numberField = session.Field(number);
+        ReferenceEquals(numberField.Model, Raw(session)).ShouldBeTrue();
+        numberField.FieldName.ShouldBe(nameof(OrderDto.Number));
+
+        SparsePath untyped = price;
+        var untypedField = session.Field(untyped);
+        ReferenceEquals(untypedField.Model, priceField.Model).ShouldBeTrue();
     }
 
     [Test]

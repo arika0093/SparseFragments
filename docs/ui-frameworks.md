@@ -103,7 +103,7 @@ Use `session.BatchEdit(() => { ... })` when one user action needs several observ
 Ordinary editing needs only `Observable`, `Current`, and `CreateChangeSet()`. Two further seams exist for generic UI and diagnostics code:
 
 * `session.Descriptors` exposes per-member metadata (path, type, nullability, editability), live get/set accessors, and the property attributes from the source model. It backs generic form builders and validation; handwritten per-member code should use the typed surface instead.
-* `ChangeSet.EnumerateChanges()` flattens a transition into `ChangeInfo` rows (path, presence-aware before/after, `ChangeKind`), and `EnumerateChangedPaths()` lists the changed member paths. They feed logs, lists, and tests; ordinary editing reads the typed member transitions instead (see [Observe typed member transitions](fragments-and-patches.md#observe-typed-member-transitions)).
+* `ChangeSet.EnumerateChanges()` flattens a transition into `ChangeInfo` rows (`SparsePath` path, presence-aware before/after, `ChangeKind`), and `EnumerateChangedPaths()` lists the changed member paths. `ChangeSet.Find(path)` and `session.Descriptors.Find(path)` locate single rows and descriptors by exact path. They feed logs, lists, and tests; ordinary editing reads the typed member transitions instead (see [Observe typed member transitions](fragments-and-patches.md#observe-typed-member-transitions)).
 
 Limitations: descriptors track the live model, so values read through them change as the model changes. Flattened enumeration describes one computed transition; it does not update when the model is edited further. See the [Descriptors reference](descriptors.md) for the full contract.
 
@@ -396,6 +396,7 @@ Blazor extension methods:
 | `session.AcceptChanges(editContext, changes)` | Advances the baseline by the submitted change set; clears the context only when the session is clean, so later edits stay marked modified |
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
 | `session.Field(name)` | Resolves a Blazor `FieldIdentifier` for a model member name |
+| `session.Field(path)` | Resolves a `FieldIdentifier` from a canonical `SparsePath` or typed path |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
 | `session.AddValidationError(store, fieldPath, message)` | Resolves `fieldPath` with `session.Field` and surfaces a message |
 
@@ -403,7 +404,7 @@ Dictionary members resolve through bracketed keys such as `Contacts["billing"].N
 
 List members resolve through numeric indexes such as `Lines[1].Quantity`, for mutable lists and read-only `IReadOnlyList<T>` models alike, including implementations without the legacy non-generic `IList`. Indexes resolve positionally through the indexer; out-of-range and non-numeric indexes fail as invalid paths.
 
-Keyed collections (members whose element type declares a stable key) also resolve quoted stable keys such as `Lines["b"].Quantity`. These are the paths `EnumerateChanges()` emits, so a changed item's path can be passed to `session.Field` directly and keeps resolving after reorders. Quoted keys never act as positions, even when numeric: `Items["7"]` looks up key `7` while `Items[7]` is the eighth position. Index spellings from `EnumerateChangedPaths()` (such as `Lines[1].Quantity`) resolve positionally. Removed keys no longer resolve and fail as invalid paths.
+Keyed collections (members whose element type declares a stable key) also resolve quoted stable keys such as `Lines["b"].Quantity`. These are the paths `EnumerateChanges()` emits, so a changed item's path can be passed to `session.Field` directly and keeps resolving after reorders. Quoted keys never act as positions, even when numeric: `Items["7"]` looks up key `7` while `Items[7]` is the eighth position. `session.Field` also accepts a canonical `SparsePath` (for example `OrderDto.SparsePath.Lines.Key("b").Price`); typed keys compare by value, so equal display text never merges distinct keys. Removed keys no longer resolve and fail as invalid paths.
 
 The neutral session members such as `Observable`, `Current`, `HasChanges`, `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain available independently of Blazor. Context-taking helpers require an `EditContext` whose `Model` is the same live-model instance the session edits.
 

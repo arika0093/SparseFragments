@@ -529,12 +529,9 @@ public static class VerifiedSamples
 
         var conflict = conflicts.Single();
         // conflict.Kind == SparseConflictKind.Scalar
-        // conflict.Path == ["RetryCount"]
+        // conflict.PathText == "RetryCount"
         DocsCheck.Require(conflict.Kind == SparseConflictKind.Scalar, "conflict kind is Scalar");
-        DocsCheck.Require(
-            conflict.Path.SequenceEqual(new[] { "RetryCount" }),
-            "conflict path names the member"
-        );
+        DocsCheck.Require(conflict.PathText == "RetryCount", "conflict path names the member");
         DocsCheck.Require(
             Equals(conflict.BaseValue.Value, 1)
                 && Equals(conflict.LocalValue.Value, 2)
@@ -683,7 +680,7 @@ public static class VerifiedSamples
 
         var redactedConflict = redactedConflicts.Single();
         // redactedConflict.Kind == SparseConflictKind.RedactedBefore
-        // redactedConflict.Path == ["Label"]
+        // redactedConflict.PathText == "Label"
         DocsCheck.Require(
             redactedConflict.Kind == SparseConflictKind.RedactedBefore,
             "redacted-before failure is typed"

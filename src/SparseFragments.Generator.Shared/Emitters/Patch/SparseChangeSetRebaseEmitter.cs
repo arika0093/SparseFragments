@@ -143,7 +143,7 @@ internal static class SparseChangeSetRebaseEmitter
             4,
             "        __rconf.Add(new "
                 + conflict
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKind
                 + ".RedactedBefore, "
                 + missingValue
@@ -196,7 +196,7 @@ internal static class SparseChangeSetRebaseEmitter
             4,
             "__conf.Add(new "
                 + conflict
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKind
                 + ".WholeContribution, __SparseState(__sparse_hasWhole ? __sparse_wholeBefore : default), __SparseState(__sparse_hasWhole ? __sparse_wholeAfter : default), __SparseState(current), \"The contribution conflicts with a concurrent change.\"));"
         );
@@ -282,7 +282,7 @@ internal static class SparseChangeSetRebaseEmitter
                     runtime,
                     conflict,
                     dialect,
-                    "new string[] { " + lit + " }",
+                    "__SparseRootPath.Member(" + lit + ")",
                     "__conflicts"
                 );
                 code.AppendLineAt(4, "        }");
@@ -307,7 +307,10 @@ internal static class SparseChangeSetRebaseEmitter
                 );
                 code.AppendLineAt(5, "foreach (var __c in __nr" + member.Id + ".Conflicts)");
                 code.AppendLineAt(5, "{");
-                code.AppendLineAt(6, "__conflicts.Add(__c.WithPathPrefix(" + lit + "));");
+                code.AppendLineAt(
+                    6,
+                    "__conflicts.Add(__c.WithPathPrefix(__SparseRootPath.Member(" + lit + ")));"
+                );
                 code.AppendLineAt(5, "}");
                 code.AppendLineAt(
                     5,
@@ -917,9 +920,9 @@ internal static class SparseChangeSetRebaseEmitter
                 5,
                 "__sparse_inPlaceConflicts.Add(new "
                     + conflictType
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + property
-                    + " }, "
+                    + "), "
                     + conflictKindType
                     + "."
                     + inPlaceWriteUnavailableKindMemberName

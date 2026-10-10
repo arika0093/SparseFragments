@@ -104,7 +104,11 @@ public class KeyedRebaseOrderBenchmarks
         for (var index = 0; index < expectedConflicts.Length; index++)
         {
             var path = result.Conflicts[index].Path;
-            if (path.Count < 2 || path[0] != "Items" || path[1] != expectedConflicts[index])
+            if (
+                path.Depth < 2
+                || path.Segments[0].Name != "Items"
+                || !Equals(path.Segments[1].Key, expectedConflicts[index])
+            )
             {
                 throw new InvalidOperationException(
                     "Keyed Rebase must preserve conflict order and key paths."

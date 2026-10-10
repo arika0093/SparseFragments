@@ -734,7 +734,10 @@ public sealed class NeutralEditSessionTests
         notifications[0].Child.IsEmpty.ShouldBeTrue();
         notifications[1].Name.IsChanged.ShouldBeFalse();
         notifications[1].Child.Value.IsChanged.ShouldBeTrue();
-        session.EnumerateChangedPaths().ShouldBe(["Child.Value", "Name"]);
+        session
+            .EnumerateChangedPaths()
+            .Select(static path => path.ToString())
+            .ShouldBe(["Child.Value", "Name"]);
         session.Current.Name.ShouldBe("updated");
         session.Current.Child.Value.ShouldBe("nested");
     }

@@ -47,9 +47,7 @@ Require(inverted.Value!.Label.Value == "original", "invert round-trip");
 
 var changes = NetFxSettings.ChangeSet.Between(before, edits.Apply(before));
 var changesJson = JsonSerializer.Serialize(changes.ToPayload());
-var imported = JsonSerializer
-    .Deserialize<NetFxSettings.ChangePayload>(changesJson)
-    ?.ToChangeSet();
+var imported = JsonSerializer.Deserialize<NetFxSettings.ChangePayload>(changesJson)?.ToChangeSet();
 if (imported is null)
 {
     throw new InvalidOperationException("Failed: ChangeSet payload JSON deserialize");
@@ -105,8 +103,7 @@ Require(conflicted.HasConflicts, "rebase conflict detection");
 Require(
     conflicted.Conflicts.Count == 1
         && conflicted.Conflicts[0].Kind == SparseConflictKind.Scalar
-        && conflicted.Conflicts[0].Path.Count == 1
-        && conflicted.Conflicts[0].Path[0] == "Label",
+        && conflicted.Conflicts[0].PathText == "Label",
     "rebase structured conflict"
 );
 

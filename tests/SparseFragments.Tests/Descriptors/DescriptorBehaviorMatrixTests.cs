@@ -405,7 +405,7 @@ public sealed class DescriptorBehaviorMatrixTests
         {
             var descriptor = row.Resolve();
             descriptor.Name.ShouldNotBeNullOrEmpty(row.Case);
-            descriptor.Path.ShouldNotBeNullOrEmpty(row.Case);
+            descriptor.PathText.ShouldNotBeNullOrEmpty(row.Case);
             descriptor.Type.ShouldNotBeNull(row.Case);
             descriptor.ViewType.ShouldNotBeNull(row.Case);
             descriptor.Attributes.ShouldNotBeNull(row.Case);

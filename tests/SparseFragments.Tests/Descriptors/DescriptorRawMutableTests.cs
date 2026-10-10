@@ -109,7 +109,8 @@ public sealed class DescriptorRawMutableTests
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance
             )
             .Single(m => m.Name.StartsWith("__SparseGetDescriptors_", StringComparison.Ordinal));
-        var sets = (IDescriptorSet)accessor.Invoke(session.Observable, [string.Empty])!;
+        var sets = (IDescriptorSet)
+            accessor.Invoke(session.Observable, [SparsePath.Root(typeof(RawMutableHolder))])!;
 
         // Primitive reads stay cheap: no cache invalidation.
         sets.TryGet(nameof(RawMutableHolder.Title), out var title).ShouldBeTrue();

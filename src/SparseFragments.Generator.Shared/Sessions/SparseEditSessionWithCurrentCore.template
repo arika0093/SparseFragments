@@ -80,7 +80,7 @@ namespace __SESSION_NAMESPACE__
         public Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? Rebase { get; init; }
 
         /// <summary>Enumerates changed paths from a generated change set.</summary>
-        public Func<TChangeSet, IReadOnlyList<string>>? EnumerateChangedPaths { get; init; }
+        public Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? EnumerateChangedPaths { get; init; }
 
         /// <summary>Refreshes notifications on an observable proxy after an in-place update.</summary>
         public Action<TObservable>? RefreshObservable { get; init; }

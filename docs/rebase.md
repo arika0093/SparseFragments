@@ -161,7 +161,7 @@ if (
 
 var conflict = conflicts.Single();
 // conflict.Kind == SparseConflictKind.Scalar
-// conflict.Path == ["RetryCount"]
+// conflict.PathText == "RetryCount"
 ```
 <!-- /sample -->
 
@@ -171,11 +171,13 @@ Each `SparseConflict` reports where the conflict occurred and the base/local/cur
 
 | Member | Meaning |
 | --- | --- |
-| `Path` | Member path from the root contribution (e.g. `["Nested", "Host"]`) |
-| `PathText` | Dotted form of `Path` (`"Nested.Host"`; empty for the root contribution) |
+| `Path` | Typed path from the root contribution as `SparsePath` (e.g. `Nested.Host`) |
+| `PathText` | Wire-compatible rendering of `Path` (`"Nested.Host"`; `"$root"` for the root contribution) |
 | `Kind` | What kind of member collided (see below) |
 | `BaseValue` / `LocalValue` / `CurrentValue` | The three presence-aware values as `Optional<object?>` |
 | `Reason` | Optional human-readable explanation |
+
+`Path` carries member, typed-key, and index segments with stable identity: distinct roots, key types, and escaping-sensitive keys never share a path. `conflicts.Find(path)` locates the first conflict at exactly the given path (typed paths such as `Order.SparsePath.Items.Key(id).Price` are checked at compile time); ancestors and descendants never match. Keyed entries report key identity rather than positions, and order clashes report the collection path.
 
 Conflict kinds:
 
@@ -188,7 +190,7 @@ Conflict kinds:
 | `CollectionSetUnion` | A set-union member was changed concurrently |
 | `CustomStrategy` | A custom merge strategy reported a conflict |
 
-Nested conflicts expose the full member path: a local `Nested.Host = "b"` against a concurrent `Nested.Host = "c"` (from base `"a"`) reports `Path == ["Nested", "Host"]` with the three values attached, so UI code can offer per-field resolution.
+Nested conflicts expose the full member path: a local `Nested.Host = "b"` against a concurrent `Nested.Host = "c"` (from base `"a"`) reports `PathText == "Nested.Host"` with the three values attached, so UI code can offer per-field resolution.
 
 Clean paths may remain in the rebased ChangeSet while conflicts are reported separately. Applications commonly keep persistence atomic and decline to commit when any conflict remains. The detailed `TryApplyTo` overload returns `false` and exposes structured conflicts without returning a partially applied model.
 
@@ -317,7 +319,7 @@ if (
 
 var redactedConflict = redactedConflicts.Single();
 // redactedConflict.Kind == SparseConflictKind.RedactedBefore
-// redactedConflict.Path == ["Label"]
+// redactedConflict.PathText == "Label"
 ```
 <!-- /sample -->
 

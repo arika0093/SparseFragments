@@ -10,13 +10,21 @@ namespace SparseFragments.Blazor
             where TChangeSet :  class { }
         public static void AddValidationError<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.FieldIdentifier field, string message)
             where TModel :  class { }
+        public static void AddValidationError<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, SparseFragments.SparsePath fieldPath, string message)
+            where TModel :  class { }
         public static void AddValidationError<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, string fieldPath, string message)
+            where TModel :  class { }
+        public static void AddValidationError<TModel, TValue>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, SparseFragments.SparsePath<TModel, TValue> fieldPath, string message)
             where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.EditContext CreateEditContext<TModel>(this SparseFragments.ISparseEditSession<TModel> session)
             where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.ValidationMessageStore CreateValidationStore<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
             where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel>(this SparseFragments.ISparseEditSession<TModel> session, SparseFragments.SparsePath path)
+            where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel>(this SparseFragments.ISparseEditSession<TModel> session, string fieldName)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel, TValue>(this SparseFragments.ISparseEditSession<TModel> session, SparseFragments.SparsePath<TModel, TValue> path)
             where TModel :  class { }
     }
 }

@@ -114,7 +114,10 @@ the feature. `SparseRuntimeDialect` accepts an optional
 `RebasePolicyType`, and `RebasePolicyField` values. Each null entry derives
 from the dialect's own runtime namespace (`ChangePayloadRebaseOptions`,
 `SparseRebaseMode`, `FragmentRebasePolicy`), so generated rebase signatures
-always name caller-owned types. A downstream runtime that enables the
+always name caller-owned types. The optional `PathType` entry names the
+caller-owned canonical path type used by `ChangeInfo`, `EnumerateChangedPaths`,
+rebase conflicts, and the generated fluent builders (defaulting to the runtime
+namespace plus `SparsePath`). A downstream runtime that enables the
 generated options overloads provides those types itself: an options record
 with `RejectChangesWithRedactedBeforeValuesDuringRebase`,
 `RedactedBeforePaths`, `DefaultRebaseMode`, `IsRedactedBefore`, and `Nest`;
@@ -135,11 +138,22 @@ requires its change set. `GetEmittedTypeNames` lists the family root names used
 for collision checks.
 
 When a model emits a `ChangeSet`, it also exposes `EnumerateChanges()`, which
-flattens nested, keyed, and dictionary transitions into path-based `ChangeInfo`
-entries. `Before` and `After` use the configured runtime's `Optional<object?>`
+flattens nested, keyed, and dictionary transitions into `ChangeInfo` entries
+carrying a canonical path. `Before` and `After` use the configured runtime's `Optional<object?>`
 to preserve missing versus present-null values; `ChangeKind.Order` carries
 keyed collection order as a collection-level entry. Consumers decide how to
 format or display these entries.
+
+Paths use the caller-owned path type from `SparsePatchDialect.PathType`
+(defaulting to the dialect runtime namespace plus `SparsePath`). `ChangeInfo`
+exposes the path in that type plus a wire-compatible text rendering; the
+generated model also gains a thin `T.SparsePath` entrypoint with a fluent
+`SparsePaths<TRoot>` root builder and per-member collection builders, as well
+as exact-match `Find` overloads (untyped and compile-time typed) on the
+`ChangeSet`. Rebase conflicts, descriptor paths, and session
+`EnumerateChangedPaths()` use the same path type. Downstream runtimes provide
+their own path type with member/key/index segments, equality, and text
+rendering; Shared never names a `SparseFragments` runtime type.
 
 ## Edit-session configuration
 
@@ -270,7 +284,10 @@ generated implementations: `IDescriptor`/`IDescriptorSet` plus the
 `IArrayDescriptor`, `IDictDescriptor`, and `ISetDescriptor` shapes with their
 `SparseArrayDescriptorAccess`, `SparseDictionaryDescriptorAccess`, and
 `SparseSetDescriptorAccess` bags, the `SparseDescriptorShape` static metadata,
-and the `SparseDescriptorValue` conversion helper. Set members (`HashSet<T>`,
+and the `SparseDescriptorValue` conversion helper. The optional `PathType`
+entry names the caller-owned descriptor path type (defaulting to the runtime
+namespace plus `SparsePath`); descriptor sets expose exact-match `Find` over
+that type. Set members (`HashSet<T>`,
 `ISet<T>`, `IReadOnlySet<T>`) expose membership over live model values with no
 positional semantics; the `IReadOnlySet<T>` reference is only named for members
 declared with that type, so compilations without the type keep compiling. All
@@ -416,12 +433,13 @@ comparers preserved, so later caller-side mutation cannot alter retained
 history. Element values are shared by reference. Typed `Before`/`After`
 endpoints return fresh container snapshots for collection members.
 
-`EnumerateChanges` reports a single `$root` entry for whole-root presence
+`EnumerateChanges` reports a single root entry for whole-root presence
 transitions and per-element `Added`/`Removed` entries for set members when
-both sides are present. Keyed, dictionary, and set element paths quote the
-key with JSON escaping; key text keeps simple forms for strings and
-invariant primitives and qualifies other keys by runtime type name, with
-per-enumeration disambiguation on residual collisions.
+both sides are present. Keyed, dictionary, and set element paths carry the
+typed key; the wire text quotes the key with JSON escaping. Key text keeps
+simple forms for strings and invariant primitives and qualifies other keys by
+runtime type name. Typed keys compare by value, so distinct keys with identical
+display text stay distinct without disambiguation suffixes.
 
 `ChangePayload` transport is lossless and version-gated: the `"0.1"`
 envelope version is validated on `ToChangeSet`, `ToPatch`,

@@ -75,12 +75,12 @@ public class ChangeSetEnumerationBenchmarks
     }
 
     private void ValidateEntries(
-        IEnumerable<(string Path, Optional<object?> Before, Optional<object?> After)> forward,
-        IEnumerable<(string Path, Optional<object?> Before, Optional<object?> After)> reverse
+        IEnumerable<(SparsePath Path, Optional<object?> Before, Optional<object?> After)> forward,
+        IEnumerable<(SparsePath Path, Optional<object?> Before, Optional<object?> After)> reverse
     )
     {
         var entries = forward.ToArray();
-        var inverse = reverse.ToDictionary(entry => entry.Path, StringComparer.Ordinal);
+        var inverse = reverse.ToDictionary(entry => entry.Path);
         var expected = Shape switch
         {
             ChangeSetEnumerationShape.NoOp => 0,
@@ -93,8 +93,7 @@ public class ChangeSetEnumerationBenchmarks
         if (
             entries.Length != expected
             || inverse.Count != expected
-            || entries.Select(entry => entry.Path).Distinct(StringComparer.Ordinal).Count()
-                != expected
+            || entries.Select(static entry => entry.Path).Distinct().Count() != expected
         )
         {
             throw new InvalidOperationException(
@@ -104,8 +103,7 @@ public class ChangeSetEnumerationBenchmarks
         foreach (var entry in entries)
         {
             if (
-                string.IsNullOrEmpty(entry.Path)
-                || !inverse.TryGetValue(entry.Path, out var opposite)
+                !inverse.TryGetValue(entry.Path, out var opposite)
                 || entry.Before.IsPresent != opposite.After.IsPresent
                 || entry.After.IsPresent != opposite.Before.IsPresent
             )
@@ -208,7 +206,7 @@ public class ChangeSetEnumerationBenchmarks
         foreach (var change in _scalar.EnumerateChanges())
         {
             checksum +=
-                change.Path.Length
+                change.PathText.Length
                 + (int)change.Kind
                 + (change.Before.IsPresent ? 1 : 0)
                 + (change.After.IsPresent ? 1 : 0);
@@ -223,7 +221,7 @@ public class ChangeSetEnumerationBenchmarks
         foreach (var change in _structural.EnumerateChanges())
         {
             checksum +=
-                change.Path.Length
+                change.PathText.Length
                 + (int)change.Kind
                 + (change.Before.IsPresent ? 1 : 0)
                 + (change.After.IsPresent ? 1 : 0);

@@ -41,7 +41,7 @@ public sealed class SparseConflict
 {
     /// <summary>Creates a conflict with the given details.</summary>
     public SparseConflict(
-        IEnumerable<string> path,
+        SparsePath path,
         SparseConflictKind kind,
         Optional<object?> baseValue,
         Optional<object?> localValue,
@@ -50,7 +50,7 @@ public sealed class SparseConflict
     )
     {
         ArgumentNullException.ThrowIfNull(path);
-        Path = Array.AsReadOnly(path.ToArray());
+        Path = path;
         Kind = kind;
         BaseValue = baseValue;
         LocalValue = localValue;
@@ -58,11 +58,11 @@ public sealed class SparseConflict
         Reason = reason;
     }
 
-    /// <summary>The member path from the root contribution.</summary>
-    public IReadOnlyList<string> Path { get; }
+    /// <summary>The typed member path from the root contribution.</summary>
+    public SparsePath Path { get; }
 
-    /// <summary>The dotted member path, or an empty string for the root contribution.</summary>
-    public string PathText => string.Join(".", Path);
+    /// <summary>The dotted member path, or <c>$root</c> for the root contribution.</summary>
+    public string PathText => Path.ToString();
 
     /// <summary>The conflict kind.</summary>
     public SparseConflictKind Kind { get; }
@@ -79,19 +79,56 @@ public sealed class SparseConflict
     /// <summary>An optional human-readable reason.</summary>
     public string? Reason { get; }
 
-    /// <summary>Returns a copy of this conflict with one path segment prepended.</summary>
-    public SparseConflict WithPathPrefix(string segment)
+    /// <summary>Returns a copy of this conflict with one member segment prepended.</summary>
+    public SparseConflict WithPathPrefix(string memberName)
     {
-        ArgumentNullException.ThrowIfNull(segment);
-        var prefix = new string[Path.Count + 1];
-        prefix[0] = segment;
-        for (var index = 0; index < Path.Count; index++)
-        {
-            prefix[index + 1] = Path[index];
-        }
-
-        return new SparseConflict(prefix, Kind, BaseValue, LocalValue, CurrentValue, Reason);
+        ArgumentException.ThrowIfNullOrEmpty(memberName);
+        return new SparseConflict(
+            Path.PrependMember(memberName),
+            Kind,
+            BaseValue,
+            LocalValue,
+            CurrentValue,
+            Reason
+        );
     }
+
+    /// <summary>Returns a copy of this conflict with a path prefix prepended.</summary>
+    /// <remarks>The result adopts the prefix root type, bubbling nested paths to their parent.</remarks>
+    public SparseConflict WithPathPrefix(SparsePath prefix)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        return new SparseConflict(
+            Path.Prepend(prefix),
+            Kind,
+            BaseValue,
+            LocalValue,
+            CurrentValue,
+            Reason
+        );
+    }
+
+    /// <summary>Returns a copy of this conflict with a typed key segment prepended.</summary>
+    public SparseConflict WithKeyPrefix<TKey>(TKey key) =>
+        new(
+            Path.Prepend(new SparsePath(Path.RootType).Key(key)),
+            Kind,
+            BaseValue,
+            LocalValue,
+            CurrentValue,
+            Reason
+        );
+
+    /// <summary>Returns a copy of this conflict with a positional index segment prepended.</summary>
+    public SparseConflict WithIndexPrefix(int index) =>
+        new(
+            Path.Prepend(new SparsePath(Path.RootType).At(index)),
+            Kind,
+            BaseValue,
+            LocalValue,
+            CurrentValue,
+            Reason
+        );
 }
 
 /// <summary>The result of rebasing a change onto a newer sparse state.</summary>

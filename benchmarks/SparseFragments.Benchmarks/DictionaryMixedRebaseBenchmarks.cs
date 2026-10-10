@@ -100,8 +100,8 @@ public class DictionaryMixedRebaseBenchmarks
         for (var index = 0; index < conflictKeys.Length; index++)
         {
             if (
-                scalar.Conflicts[index].Path[1] != conflictKeys[index]
-                || value.Conflicts[index].Path[1] != conflictKeys[index]
+                !Equals(scalar.Conflicts[index].Path.Segments[1].Key, conflictKeys[index])
+                || !Equals(value.Conflicts[index].Path.Segments[1].Key, conflictKeys[index])
             )
             {
                 throw new InvalidOperationException(

@@ -118,7 +118,7 @@ public sealed class SparseChangeRecord
 {
     /// <summary>Creates a change record.</summary>
     public SparseChangeRecord(
-        string path,
+        SparsePath path,
         Optional<object?> before,
         Optional<object?> after,
         SparseChangeKind kind
@@ -131,7 +131,10 @@ public sealed class SparseChangeRecord
     }
 
     /// <summary>Gets the changed member path.</summary>
-    public string Path { get; }
+    public SparsePath Path { get; }
+
+    /// <summary>Gets the wire-compatible path text.</summary>
+    public string PathText => Path.ToString();
 
     /// <summary>Gets the presence-aware value before the change.</summary>
     public Optional<object?> Before { get; }

@@ -99,9 +99,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             5,
             "else { __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Nested, __SparseMember("
                 + KeyedWholeBefore(member)
@@ -121,9 +121,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             5,
             "__conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Nested, "
                 + runtime
@@ -190,9 +190,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             6,
             "{ __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + ", ((object?)__it.Key!)?.ToString() ?? \"<null>\" }, "
+                + ").Key(__it.Key!), "
                 + conflictKind
                 + ".Nested, "
                 + runtime
@@ -220,9 +220,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             6,
             "{ __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + ", ((object?)__it.Key!)?.ToString() ?? \"<null>\" }, "
+                + ").Key(__it.Key!), "
                 + conflictKind
                 + ".Nested, "
                 + runtime
@@ -269,9 +269,9 @@ internal static class SparseChangeSetDictRebaseEmitter
                 6,
                 "{ __conflicts.Add(new "
                     + conflict
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + lit
-                    + ", ((object?)__it.Key!)?.ToString() ?? \"<null>\" }, "
+                    + ").Key(__it.Key!), "
                     + conflictKind
                     + ".Nested, "
                     + runtime
@@ -295,9 +295,9 @@ internal static class SparseChangeSetDictRebaseEmitter
             );
             code.AppendLineAt(
                 7,
-                "foreach (var __cc in __nr.Conflicts) __conflicts.Add(__cc.WithPathPrefix("
+                "foreach (var __cc in __nr.Conflicts) __conflicts.Add(__cc.WithPathPrefix(__SparseRootPath.Member("
                     + lit
-                    + "));"
+                    + ").Key(__it.Key!)));"
             );
             code.AppendLineAt(7, "if (__nr.Conflicts.Count == 0 && !__nr.Rebased.IsEmpty)");
             code.AppendLineAt(7, "{");
@@ -347,9 +347,9 @@ internal static class SparseChangeSetDictRebaseEmitter
                 6,
                 "{ __conflicts.Add(new "
                     + conflict
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + lit
-                    + ", ((object?)__it.Key!)?.ToString() ?? \"<null>\" }, "
+                    + ").Key(__it.Key!), "
                     + conflictKind
                     + ".Nested, "
                     + runtime
@@ -365,9 +365,9 @@ internal static class SparseChangeSetDictRebaseEmitter
                 6,
                 "{ __conflicts.Add(new "
                     + conflict
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + lit
-                    + ", ((object?)__it.Key!)?.ToString() ?? \"<null>\" }, "
+                    + ").Key(__it.Key!), "
                     + conflictKind
                     + ".Nested, "
                     + runtime

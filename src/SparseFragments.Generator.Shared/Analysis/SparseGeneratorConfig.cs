@@ -391,7 +391,8 @@ internal sealed record SparseDescriptorDialect
         string SetDescriptorType,
         string SetDescriptorAccessType,
         string DescriptorShapeType,
-        string DescriptorValueType
+        string DescriptorValueType,
+        string? PathType = null
     )
     {
         this.DescriptorInterface = DescriptorInterface;
@@ -409,6 +410,7 @@ internal sealed record SparseDescriptorDialect
         this.SetDescriptorAccessType = SetDescriptorAccessType;
         this.DescriptorShapeType = DescriptorShapeType;
         this.DescriptorValueType = DescriptorValueType;
+        this.PathType = PathType;
     }
 
     public string DescriptorInterface { get; init; }
@@ -440,6 +442,14 @@ internal sealed record SparseDescriptorDialect
     public string DescriptorShapeType { get; init; }
 
     public string DescriptorValueType { get; init; }
+
+    /// <summary>Product-owned path type for descriptor paths, or null for the runtime-namespace default.</summary>
+    public string? PathType { get; init; }
+
+    /// <summary>Resolves the descriptor path type, defaulting to the runtime namespace.</summary>
+    /// <param name="runtimeNamespace">Runtime helper namespace.</param>
+    public string EffectivePathType(string runtimeNamespace) =>
+        PathType ?? runtimeNamespace + "SparsePath";
 }
 
 internal readonly record struct SparseMergeModeMap

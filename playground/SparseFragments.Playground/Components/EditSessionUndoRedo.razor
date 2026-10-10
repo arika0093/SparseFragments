@@ -789,7 +789,7 @@
     {
         var entries = changes.EnumerateChanges()
             .Select(static entry => (
-                entry.Path,
+                Path: entry.PathText,
                 Before: OneLine(FormatValue(entry.Before)),
                 After: OneLine(FormatValue(entry.After))
             ))

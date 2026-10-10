@@ -46,7 +46,7 @@ namespace __SESSION_NAMESPACE__
         private readonly Action<TModel, TModel>? _writeModel;
         private readonly Func<TChangeSet, TChangeSet>? _invert;
         private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
-        private readonly Func<TChangeSet, IReadOnlyList<string>>? _enumerateChangedPaths;
+        private readonly Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? _enumerateChangedPaths;
         private readonly Func<TFragment, TModel>? _baselineToModel;
         private readonly Action<TObservable>? _refreshObservable;
         private readonly Action? _onChanged;
@@ -102,7 +102,7 @@ namespace __SESSION_NAMESPACE__
             Action<TModel, TModel>? writeModel = null,
             Func<TChangeSet, TChangeSet>? invert = null,
             Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? rebase = null,
-            Func<TChangeSet, IReadOnlyList<string>>? enumerateChangedPaths = null,
+            Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? enumerateChangedPaths = null,
             Action<TObservable>? refreshObservable = null,
             bool cacheObservableChanges = false,
             Func<TFragment, TModel>? baselineToModel = null
@@ -412,7 +412,7 @@ namespace __SESSION_NAMESPACE__
         public TPatch CreatePatch() => _toPatch(CreateChangeSet());
 
         /// <summary>Enumerates changed generated member paths from the current model.</summary>
-        public IReadOnlyList<string> EnumerateChangedPaths()
+        public IReadOnlyList<__PATH_TYPE__> EnumerateChangedPaths()
         {
             if (_enumerateChangedPaths is null)
             {

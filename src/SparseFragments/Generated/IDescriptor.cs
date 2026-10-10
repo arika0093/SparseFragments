@@ -11,8 +11,11 @@ public interface IDescriptor
     /// <summary>Gets the CLR property name.</summary>
     string Name { get; }
 
-    /// <summary>Gets the dotted property path from the descriptor root.</summary>
-    string Path { get; }
+    /// <summary>Gets the typed property path from the descriptor root.</summary>
+    SparsePath Path { get; }
+
+    /// <summary>Gets the wire-compatible text of the descriptor path.</summary>
+    string PathText { get; }
 
     /// <summary>Gets the property's CLR type.</summary>
     /// <remarks>
@@ -109,6 +112,16 @@ public interface IDescriptorSet
 
     /// <summary>Looks up a property descriptor by its CLR name.</summary>
     bool TryGet(string name, out IDescriptor descriptor);
+
+    /// <summary>Finds the descriptor at exactly the given path, or null when absent.</summary>
+    /// <param name="path">The exact path to locate.</param>
+    /// <remarks>
+    /// Exact paths only; ancestors and descendants never match. Member segments
+    /// resolve through <see cref="TryGet"/>, key segments through dictionary
+    /// values (when convertible) or keyed-sequence keys, and index segments
+    /// through sequence positions.
+    /// </remarks>
+    IDescriptor? Find(SparsePath path);
 }
 
 /// <summary>Describes and edits a sequence through its generated observable view.</summary>

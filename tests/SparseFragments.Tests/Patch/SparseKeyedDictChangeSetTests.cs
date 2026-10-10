@@ -161,11 +161,14 @@ public sealed class SparseKeyedDictChangeSetTests
             .EnumerateChanges()
             .ToDictionary(static change => change.Path);
 
-        entries["Scores[\"edit\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Changed);
-        entries["Scores[\"edit\"]"].Before.Value.ShouldBe(1);
-        entries["Scores[\"edit\"]"].After.Value.ShouldBe(3);
-        entries["Scores[\"add\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Added);
-        entries["Scores[\"remove\"]"].Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Removed);
+        entries[ScalarDictHolder.SparsePath.Scores.Key("edit")]
+            .Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Changed);
+        entries[ScalarDictHolder.SparsePath.Scores.Key("edit")].Before.Value.ShouldBe(1);
+        entries[ScalarDictHolder.SparsePath.Scores.Key("edit")].After.Value.ShouldBe(3);
+        entries[ScalarDictHolder.SparsePath.Scores.Key("add")]
+            .Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Added);
+        entries[ScalarDictHolder.SparsePath.Scores.Key("remove")]
+            .Kind.ShouldBe(ScalarDictHolder.ChangeSet.ChangeKind.Removed);
     }
 
     [Test]
@@ -181,15 +184,15 @@ public sealed class SparseKeyedDictChangeSetTests
         var enumerated = changes.EnumerateChanges().ToList();
         enumerated.ShouldHaveSingleItem();
         // Canonical JSON escaping: control characters never appear raw.
-        enumerated[0].Path.ShouldBe("Scores[\"a\\nb\\tc\\\"d\\\\e\\r\\nf\\u0001g\"]");
-        foreach (var c in enumerated[0].Path)
+        enumerated[0].PathText.ShouldBe("Scores[\"a\\nb\\tc\\\"d\\\\e\\r\\nf\\u0001g\"]");
+        foreach (var c in enumerated[0].PathText)
         {
             (c < 0x20).ShouldBeFalse();
         }
 
         // Both enumeration surfaces agree, and simple keys are unchanged.
         changes.EnumerateChangedPaths().ShouldBe([enumerated[0].Path]);
-        var segment = enumerated[0].Path.Substring("Scores[".Length);
+        var segment = enumerated[0].PathText.Substring("Scores[".Length);
         segment = segment.Substring(0, segment.Length - 1);
         JsonSerializer.Deserialize<string>(segment)!.ShouldBe(tricky);
     }
@@ -216,24 +219,32 @@ public sealed class SparseKeyedDictChangeSetTests
         var changes = CollidingKeyDictHolder.ChangeSet.Between(before, after);
         changes.IsEmpty.ShouldBeFalse();
 
-        // Both display strings collide, so the second entry takes a
-        // deterministic disambiguation suffix instead of sharing a path.
+        // Both display strings collide, but typed key identity keeps the
+        // paths distinct without any disambiguation suffix.
         var paths = changes.EnumerateChanges().Select(static change => change.Path).ToList();
         paths.Count.ShouldBe(2);
         paths.Distinct().Count().ShouldBe(2);
-        paths.ShouldContain("Scores[\"SparseFragments.Tests.CollidingCompositeKey:same\"]");
-        paths.ShouldContain("Scores[\"SparseFragments.Tests.CollidingCompositeKey:same#2\"]");
+        paths[0].ShouldNotBe(paths[1]);
+        paths[0].ToString().ShouldBe(paths[1].ToString());
+        paths[0]
+            .ToString()
+            .ShouldBe("Scores[\"SparseFragments.Tests.CollidingCompositeKey:same\"]");
         changes
             .EnumerateChangedPaths()
-            .OrderBy(static path => path)
-            .ShouldBe(paths.OrderBy(static path => path));
+            .Select(static path => path.ToString())
+            .OrderBy(static path => path, StringComparer.Ordinal)
+            .ShouldBe(
+                paths
+                    .Select(static path => path.ToString())
+                    .OrderBy(static path => path, StringComparer.Ordinal)
+            );
 
         // Simple string keys keep their backwards-compatible form.
         var simple = ScalarDictHolder.ChangeSet.Between(
             DState(new Dictionary<string, int>()),
             DState(new Dictionary<string, int> { ["plain"] = 1 })
         );
-        simple.EnumerateChanges().Single().Path.ShouldBe("Scores[\"plain\"]");
+        simple.EnumerateChanges().Single().PathText.ShouldBe("Scores[\"plain\"]");
     }
 
     [Test]
@@ -250,8 +261,10 @@ public sealed class SparseKeyedDictChangeSetTests
             .EnumerateChanges()
             .ToDictionary(static change => change.Path);
 
-        entries["Servers[\"server\"].Name"].Before.Value.ShouldBe("before");
-        entries["Servers[\"server\"].Name"].After.Value.ShouldBe("after");
+        entries[StructuralDictHolder.SparsePath.Servers.Key("server").Name]
+            .Before.Value.ShouldBe("before");
+        entries[StructuralDictHolder.SparsePath.Servers.Key("server").Name]
+            .After.Value.ShouldBe("after");
     }
 
     [Test]

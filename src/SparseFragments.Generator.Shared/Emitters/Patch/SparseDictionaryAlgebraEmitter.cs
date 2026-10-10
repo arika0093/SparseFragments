@@ -330,7 +330,7 @@ internal static class SparseDictionaryAlgebraEmitter
             4,
             "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
                 + conflictType
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKindType
                 + ".Nested, "
                 + runtime
@@ -374,7 +374,7 @@ internal static class SparseDictionaryAlgebraEmitter
             5,
             "conflicts.Add(new "
                 + conflictType
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKindType
                 + ".Nested, "
                 + runtime
@@ -552,14 +552,14 @@ internal static class SparseDictionaryAlgebraEmitter
                     + valuePatch
                     + ">("
                     + comparer
-                    + "))[k] = nested.Rebased; else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithPathPrefix(((object?)k)?.ToString() ?? \"<null>\"));"
+                    + "))[k] = nested.Rebased; else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithKeyPrefix(k));"
             );
             code.AppendLineAt(5, "}");
             code.AppendLineAt(
                 5,
                 "else conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + "(__SparseRootPath.Key(k), "
                     + conflictKindType
                     + ".Nested, "
                     + runtime
@@ -621,7 +621,7 @@ internal static class SparseDictionaryAlgebraEmitter
                 5,
                 "if (!desiredEqCurrent) conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + "(__SparseRootPath.Key(k), "
                     + conflictKindType
                     + ".Nested, "
                     + runtime

@@ -234,7 +234,7 @@ public sealed class SequenceRebaseHelperTests
 
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionSetUnion);
-        result.Conflicts.Single().Path.ShouldBe(["Values"]);
+        result.Conflicts.Single().PathText.ShouldBe("Values");
     }
 
     [Test]

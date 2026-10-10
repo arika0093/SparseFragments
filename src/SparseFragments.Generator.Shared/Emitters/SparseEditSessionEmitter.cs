@@ -255,7 +255,13 @@ internal static class SparseEditSessionEmitter
                     + descriptorDialect.DescriptorSetInterface
                     + " Descriptors => __descriptors ?? (__descriptors = Observable."
                     + SparseObservableDescriptorEmitter.AccessorName(modelType)
-                    + "(global::System.String.Empty));"
+                    + "("
+                    + descriptorDialect.EffectivePathType(
+                        config.RuntimeDialect?.Namespace ?? patchDialect.RuntimeNamespace
+                    )
+                    + ".Root(typeof("
+                    + modelType
+                    + "))));"
             );
         }
         code.AppendLineAt(
@@ -315,7 +321,9 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(2, "/// <returns>The changed paths in generated member order.</returns>");
         code.AppendLineAt(
             2,
-            "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
+            "public global::System.Collections.Generic.IReadOnlyList<"
+                + SparseFragmentPatchEmitter.GetPathType(patchDialect)
+                + "> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
         );
         code.AppendLineAt(
             2,
@@ -501,5 +509,6 @@ internal static class SparseEditSessionEmitter
             .Replace("__OPTIONAL_TYPE__", runtimeDialect.OptionalType)
             .Replace("__CONFLICT_TYPE__", patchDialect.ConflictType)
             .Replace("__REBASE_RESULT_TYPE__", patchDialect.RebaseResult("TChangeSet"))
+            .Replace("__PATH_TYPE__", SparseFragmentPatchEmitter.GetPathType(patchDialect))
             .ToString();
 }

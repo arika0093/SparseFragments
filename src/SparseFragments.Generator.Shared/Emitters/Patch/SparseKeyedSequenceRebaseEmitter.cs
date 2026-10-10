@@ -102,7 +102,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
             4,
             "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
                 + conflictType
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKindType
                 + ".Nested, "
                 + runtime
@@ -141,7 +141,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
             5,
             "conflicts.Add(new "
                 + conflictType
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKindType
                 + ".Nested, "
                 + runtime
@@ -478,7 +478,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
             );
             code.AppendLineAt(
                 6,
-                "else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithPathPrefix(((object?)k)?.ToString() ?? \"<null>\"));"
+                "else foreach (var nc in nested.Conflicts) conflicts.Add(nc.WithKeyPrefix(k));"
             );
             code.AppendLineAt(5, "}");
             code.AppendLineAt(5, "else");
@@ -487,7 +487,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 6,
                 "conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + "(__SparseRootPath.Key(k), "
                     + conflictKindType
                     + ".Nested, "
                     + runtime
@@ -564,7 +564,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + keyType
                     + ">(desiredOrder, currentOrder)) conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { \"order\" }, "
+                    + "(__SparseRootPath, "
                     + conflictKindType
                     + ".Nested, "
                     + runtime
@@ -626,7 +626,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 6,
                 "conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { ((object?)k)?.ToString() ?? \"<null>\" }, "
+                    + "(__SparseRootPath.Key(k), "
                     + conflictKindType
                     + ".Nested, "
                     + runtime
@@ -702,7 +702,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     + keyType
                     + ">(desiredOrder, currentOrder)) conflicts.Add(new "
                     + conflictType
-                    + "(new string[] { \"order\" }, "
+                    + "(__SparseRootPath, "
                     + conflictKindType
                     + ".Nested, "
                     + runtime

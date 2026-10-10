@@ -1,5 +1,7 @@
 namespace SparseFragments.Tests;
 
+using SparseFragments.Generated;
+
 public sealed class DescriptorIndexedStalenessTests
 {
     private static ObservableHolder TwoItemModel() =>
@@ -26,7 +28,7 @@ public sealed class DescriptorIndexedStalenessTests
         var array = children.Array.ShouldNotBeNull();
         var retained0 = array!.GetItemDescriptors(0).ShouldNotBeNull();
         retained0!.TryGet(nameof(ObservableListChild.Name), out var name0).ShouldBeTrue();
-        name0.Path.ShouldBe("Children[0].Name");
+        name0.PathText.ShouldBe("Children[0].Name");
 
         session.Observable.Children!.Move(0, 1);
 
@@ -37,7 +39,7 @@ public sealed class DescriptorIndexedStalenessTests
 
         var fresh0 = array.GetItemDescriptors(0).ShouldNotBeNull();
         fresh0!.TryGet(nameof(ObservableListChild.Name), out var freshName0).ShouldBeTrue();
-        freshName0.Path.ShouldBe("Children[0].Name");
+        freshName0.PathText.ShouldBe("Children[0].Name");
         freshName0.TrySetValue("moved").ShouldBeTrue();
         second.Name.ShouldBe("moved");
     }
@@ -145,7 +147,7 @@ public sealed class DescriptorIndexedStalenessTests
         {
             var set = array.GetItemDescriptors(index).ShouldNotBeNull();
             set!.TryGet(nameof(ObservableListChild.Name), out var name).ShouldBeTrue();
-            name.Path.ShouldBe($"Children[{index}].Name");
+            name.PathText.ShouldBe($"Children[{index}].Name");
             name.GetValue().ShouldBe(model.Children[index].Name);
         }
     }

@@ -249,7 +249,8 @@ internal static class SparseFragmentPatchEmitter
         ImmutableArray<SparseMemberPolicy> MemberPolicies = default,
         SparseRebasePolicy? RebasePolicy = null,
         SparseWriteContract? WriteContract = null,
-        string? InPlaceWriteUnavailableKindMemberName = null
+        string? InPlaceWriteUnavailableKindMemberName = null,
+        string? PathType = null
     )
     {
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
@@ -314,6 +315,22 @@ internal static class SparseFragmentPatchEmitter
 
     internal static string Kind(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "FragmentOperationKind";
+
+    /// <summary>Resolves the caller-owned path type for generated signatures.</summary>
+    /// <remarks>Null falls back to the runtime namespace so downstream products
+    /// keep owning the type; Shared never substitutes a SparseFragments type.</remarks>
+    internal static string GetPathType(SparsePatchDialect dialect) =>
+        dialect.PathType ?? dialect.RuntimeNamespace + "SparsePath";
+
+    /// <summary>Resolves the caller-owned typed path type for generated signatures.</summary>
+    /// <param name="dialect">Product patch dialect.</param>
+    /// <param name="model">Root model type name.</param>
+    /// <param name="value">Addressed value type name.</param>
+    internal static string GetTypedPathType(
+        SparsePatchDialect dialect,
+        string model,
+        string value
+    ) => GetPathType(dialect) + "<" + model + ", " + value + ">";
 
     internal static string OptionalFragment(SparsePatchDialect dialect) =>
         dialect.RuntimeNamespace + "Optional<Fragment?>";

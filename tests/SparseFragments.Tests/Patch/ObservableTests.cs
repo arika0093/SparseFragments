@@ -236,7 +236,7 @@ public sealed class ObservableTests
         session
             .Descriptors.TryGet(nameof(ObservableHolder.Secret), out var descriptor)
             .ShouldBeTrue();
-        descriptor.Path.ShouldBe(nameof(ObservableHolder.Secret));
+        descriptor.PathText.ShouldBe(nameof(ObservableHolder.Secret));
         descriptor.Type.ShouldBe(typeof(string));
         descriptor.IsNullable.ShouldBeFalse();
         descriptor.IsNullableOblivious.ShouldBeFalse();
@@ -295,7 +295,7 @@ public sealed class ObservableTests
         childDescriptors!
             .TryGet(nameof(ObservableChild.Name), out var nameDescriptor)
             .ShouldBeTrue();
-        nameDescriptor.Path.ShouldBe("Child.Name");
+        nameDescriptor.PathText.ShouldBe("Child.Name");
         nameDescriptor.TrySetValue("after").ShouldBeTrue();
 
         model.Child.Name.ShouldBe("after");
@@ -443,7 +443,7 @@ public sealed class ObservableTests
             .GetItemDescriptors(0)!
             .TryGet(nameof(ObservableListChild.Name), out var childName)
             .ShouldBeTrue();
-        childName.Path.ShouldBe("Children[0].Name");
+        childName.PathText.ShouldBe("Children[0].Name");
         childName.TrySetValue("list-updated").ShouldBeTrue();
 
         session
@@ -460,7 +460,7 @@ public sealed class ObservableTests
             .GetValueDescriptors("entry")!
             .TryGet(nameof(ObservableListChild.Name), out var dictionaryChildName)
             .ShouldBeTrue();
-        dictionaryChildName.Path.ShouldBe("ChildrenByName[\"entry\"].Name");
+        dictionaryChildName.PathText.ShouldBe("ChildrenByName[\"entry\"].Name");
         dictionaryChildName.TrySetValue("dictionary-updated").ShouldBeTrue();
         model.Children[0].Name.ShouldBe("list-updated");
         model.ChildrenByName["entry"].Name.ShouldBe("dictionary-updated");
@@ -778,11 +778,16 @@ public sealed class ObservableTests
         var session = model.CreateEditSession();
         var notifications = Events(session.Observable);
 
-        // Every modeled property, including the event-name collision, is described.
+        // Every modeled instance property, including the event-name
+        // collision, is described. Static generated helpers (such as the
+        // SparsePath entrypoint) are not model state.
         var modeled = typeof(ObservableCollision)
             .GetProperties()
-            .Select(property => property.Name)
-            .OrderBy(name => name)
+            .Where(static property =>
+                !property.GetMethod!.IsStatic && property.GetIndexParameters().Length == 0
+            )
+            .Select(static property => property.Name)
+            .OrderBy(static name => name, StringComparer.Ordinal)
             .ToArray();
         session
             .Descriptors.Members.Select(descriptor => descriptor.Name)
@@ -790,7 +795,7 @@ public sealed class ObservableTests
             .ShouldBe(modeled);
 
         session.Descriptors.TryGet("PropertyChanged", out var descriptor).ShouldBeTrue();
-        descriptor.Path.ShouldBe("PropertyChanged");
+        descriptor.PathText.ShouldBe("PropertyChanged");
         descriptor.Type.ShouldBe(typeof(string));
         descriptor.ViewType.ShouldBe(typeof(string));
         descriptor.IsNullable.ShouldBeFalse();

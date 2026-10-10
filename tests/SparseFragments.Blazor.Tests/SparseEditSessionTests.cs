@@ -145,14 +145,15 @@ public sealed class SparseEditSessionTests
         var lineSession = Order().CreateEditSession();
         Raw(lineSession).Lines[1].Quantity = 3;
         var linePath = lineSession.EnumerateChangedPaths().Single();
-        linePath.ShouldBe("Lines[1].Quantity");
+        // Keyed entries report stable key identity, not positions.
+        linePath.ToString().ShouldBe("Lines[\"b\"].Quantity");
         ReferenceEquals(lineSession.Field(linePath).Model, Raw(lineSession).Lines[1])
             .ShouldBeTrue();
 
         var dictionarySession = Order().CreateEditSession();
         Raw(dictionarySession).Contacts["billing"].Name = "Grace";
         var dictionaryPath = dictionarySession.EnumerateChangedPaths().Single();
-        dictionaryPath.ShouldBe("Contacts[\"billing\"].Name");
+        dictionaryPath.ToString().ShouldBe("Contacts[\"billing\"].Name");
         ReferenceEquals(
                 dictionarySession.Field(dictionaryPath).Model,
                 Raw(dictionarySession).Contacts["billing"]
@@ -195,13 +196,13 @@ public sealed class SparseEditSessionTests
 
         Raw(session)
             .Lines.Add(
-            new OrderLine
-            {
-                Sku = "c",
-                Quantity = 3,
-                Price = 30m,
-            }
-        );
+                new OrderLine
+                {
+                    Sku = "c",
+                    Quantity = 3,
+                    Price = 30m,
+                }
+            );
         Raw(session).Lines.RemoveAll(line => line.Sku == "a");
         Raw(session).Lines.Single(line => line.Sku == "b").Quantity = 9;
 
@@ -335,14 +336,15 @@ public sealed class SparseEditSessionTests
 
         // Keyed add/remove/edit.
         var keyed = Order().CreateEditSession();
-        Raw(keyed).Lines.Add(
-            new OrderLine
-            {
-                Sku = "c",
-                Quantity = 3,
-                Price = 30m,
-            }
-        );
+        Raw(keyed)
+            .Lines.Add(
+                new OrderLine
+                {
+                    Sku = "c",
+                    Quantity = 3,
+                    Price = 30m,
+                }
+            );
         Raw(keyed).Lines.RemoveAll(line => line.Sku == "a");
         Raw(keyed).Lines.Single(line => line.Sku == "b").Quantity = 9;
         PatchesShouldBeEquivalent(keyed.CreatePatch(), keyed.CreateChangeSet().ToPatch());
@@ -370,13 +372,13 @@ public sealed class SparseEditSessionTests
         Raw(session).Number = "ORD-2";
         Raw(session)
             .Lines.Add(
-            new OrderLine
-            {
-                Sku = "c",
-                Quantity = 3,
-                Price = 30m,
-            }
-        );
+                new OrderLine
+                {
+                    Sku = "c",
+                    Quantity = 3,
+                    Price = 30m,
+                }
+            );
 
         var firstChanges = session.CreateChangeSet();
         var secondChanges = session.CreateChangeSet();
@@ -669,13 +671,13 @@ public sealed class SparseEditSessionTests
         Raw(session).Number = "ORD-3";
         Raw(session)
             .Lines.Add(
-            new OrderLine
-            {
-                Sku = "c",
-                Quantity = 3,
-                Price = 30m,
-            }
-        );
+                new OrderLine
+                {
+                    Sku = "c",
+                    Quantity = 3,
+                    Price = 30m,
+                }
+            );
         session.AcceptChanges(submitted);
 
         ReferenceEquals(session.Observable, observable).ShouldBeTrue();

@@ -42,6 +42,91 @@ public sealed class SparseDescriptorSet : IDescriptorSet
         return _byName.TryGetValue(name, out descriptor!);
     }
 
+    /// <inheritdoc />
+    public IDescriptor? Find(SparsePath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        IDescriptorSet? scope = this;
+        IDescriptor? current = null;
+        var count = path.Segments.Count;
+        for (var index = 0; index < count; index++)
+        {
+            var segment = path.Segments[index];
+            if (segment.Kind == SparsePathSegmentKind.Member)
+            {
+                if (scope is null || !scope.TryGet(segment.Name, out var member))
+                {
+                    return null;
+                }
+
+                current = member;
+                scope = null;
+            }
+            else
+            {
+                if (current is null)
+                {
+                    return null;
+                }
+
+                scope = ResolveItemScope(current, segment);
+                if (scope is null)
+                {
+                    return null;
+                }
+
+                current = null;
+            }
+
+            if (
+                scope is null
+                && current is not null
+                && index + 1 < count
+                && path.Segments[index + 1].Kind == SparsePathSegmentKind.Member
+            )
+            {
+                scope = current.Child;
+                if (scope is null)
+                {
+                    return null;
+                }
+            }
+        }
+
+        return current;
+    }
+
+    private static IDescriptorSet? ResolveItemScope(
+        IDescriptor descriptor,
+        SparsePathSegment segment
+    )
+    {
+        if (segment.Kind == SparsePathSegmentKind.Index)
+        {
+            var array = descriptor.Array;
+            if (array is null || segment.Index < 0 || segment.Index >= array.Count)
+            {
+                return null;
+            }
+
+            return array.GetItemDescriptors(segment.Index);
+        }
+
+        if (descriptor.Dictionary?.GetValueDescriptors(segment.Key) is { } values)
+        {
+            return values;
+        }
+
+        var sequence = descriptor.Array;
+        if (sequence is null)
+        {
+            return null;
+        }
+
+        var at = sequence.IndexOfKey(segment.Key);
+        return at < 0 || at >= sequence.Count ? null : sequence.GetItemDescriptors(at);
+    }
+
     /// <summary>Creates an instance-bound view that fails safely once stale.</summary>
     /// <param name="inner">The live descriptors to guard.</param>
     /// <param name="isLive">Whether the captured instance is still current.</param>
@@ -81,7 +166,7 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
     /// <summary>Creates a descriptor backed by generated property accessors.</summary>
     public SparseDescriptor(
         string name,
-        string path,
+        SparsePath path,
         Type type,
         bool isNullable,
         bool isEditable,
@@ -125,7 +210,10 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
     public string Name { get; }
 
     /// <inheritdoc />
-    public string Path { get; }
+    public SparsePath Path { get; }
+
+    /// <inheritdoc />
+    public string PathText => Path.ToString();
 
     /// <inheritdoc />
     public Type Type { get; }
@@ -203,7 +291,9 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
 
         public string Name => _inner.Name;
 
-        public string Path => _inner.Path;
+        public SparsePath Path => _inner.Path;
+
+        public string PathText => _inner.PathText;
 
         public Type Type => _inner.Type;
 

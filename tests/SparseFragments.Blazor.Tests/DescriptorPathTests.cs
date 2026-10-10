@@ -1,5 +1,7 @@
 namespace SparseFragments.Blazor.Tests;
 
+using SparseFragments.Generated;
+
 public sealed class DescriptorPathTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.
@@ -22,7 +24,7 @@ public sealed class DescriptorPathTests
         var dict = contacts.Dictionary.ShouldNotBeNull();
         var set = dict!.GetValueDescriptors(trickyKey).ShouldNotBeNull();
         set!.TryGet(nameof(OrderCustomer.Name), out var name).ShouldBeTrue();
-        name.Path.ShouldBe("Contacts[\"we]ird\\\"key\\\\x\"].Name");
+        name.PathText.ShouldBe("Contacts[\"we]ird\\\"key\\\\x\"].Name");
 
         var field = session.Field(name.Path);
         ReferenceEquals(field.Model, Raw(session).Contacts[trickyKey]).ShouldBeTrue();

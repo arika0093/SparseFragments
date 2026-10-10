@@ -65,7 +65,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 + SparseObservableDescriptorEmitter.AccessorName(itemType)
                 + "("
                 + path
-                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + ".At(index)); }, "
                 + "GetItemModel = index => (uint)index >= (uint)__sparse_captured.Length ? null : (object?)__sparse_captured[index]"
             : string.Empty;
         return "() => { var current = this."
@@ -133,7 +133,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 + itemAccessor
                 + "("
                 + path
-                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + ".At(index)); }, "
                 + "GetItemModel = index => (uint)index >= (uint)items.Count ? null : (object?)items[index]"
             : string.Empty;
         return "() => { var current = this."
@@ -193,7 +193,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 + itemAccessorName
                 + "("
                 + path
-                + " + \"[\" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\"); }, "
+                + ".At(index)); }, "
             : string.Empty;
         // Identity resolver for retained item descriptors: the unwrapped model at
         // an index, or null when out of range. Guards compare it by reference.

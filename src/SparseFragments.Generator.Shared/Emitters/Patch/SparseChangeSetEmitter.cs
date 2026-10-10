@@ -138,8 +138,8 @@ internal static class SparseChangeSetEmitter
         );
         // The emitted model-targeted ApplyInPlace checks the before-state first.
         SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect, target);
-        SparseChangeSetEnumeratorEmitter.Append(code, members, dialect, target);
-        SparseChangeSetPathEmitter.Append(code, members, target);
+        SparseChangeSetEnumeratorEmitter.Append(code, members, dialect, target, modelType);
+        SparseChangeSetPathEmitter.Append(code, dialect, target);
         if (plan.EmitChangePayload)
         {
             SparseChangeSetPayloadTransferEmitter.AppendToPayload(

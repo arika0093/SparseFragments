@@ -1,5 +1,7 @@
 namespace SparseFragments.Tests;
 
+using SparseFragments.Generated;
+
 [SparseFragmentModel]
 public partial class TrickyDictHolder
 {
@@ -44,7 +46,7 @@ public sealed class DescriptorDictPathTests
             var set = dict!.GetValueDescriptors(key);
             set.ShouldNotBeNull();
             set!.TryGet(nameof(ObservableChild.Name), out var name).ShouldBeTrue();
-            return name.Path;
+            return name.PathText;
         }
 
         Resolve("plain").ShouldBe("Texts[\"plain\"].Name");
@@ -52,7 +54,9 @@ public sealed class DescriptorDictPathTests
         Resolve("c.d").ShouldBe("Texts[\"c.d\"].Name");
         Resolve("e\"f").ShouldBe("Texts[\"e\\\"f\"].Name");
         Resolve("g\\h").ShouldBe("Texts[\"g\\\\h\"].Name");
-        Resolve("line1\nline2").ShouldBe("Texts[\"line1\nline2\"].Name");
+        // Canonical JSON escaping: control characters never appear raw, so the
+        // quoted text always parses back as JSON.
+        Resolve("line1\nline2").ShouldBe("Texts[\"line1\\nline2\"].Name");
         Resolve("日本語").ShouldBe("Texts[\"日本語\"].Name");
         Resolve(string.Empty).ShouldBe("Texts[\"\"].Name");
     }
@@ -75,7 +79,7 @@ public sealed class DescriptorDictPathTests
         numbers!.KeyType.ShouldBe(typeof(int));
         var numberSet = numbers.GetValueDescriptors(42).ShouldNotBeNull();
         numberSet!.TryGet(nameof(ObservableChild.Name), out var numberName).ShouldBeTrue();
-        numberName.Path.ShouldBe("ByNumber[\"42\"].Name");
+        numberName.PathText.ShouldBe("ByNumber[\"42\"].Name");
         numbers.GetValueDescriptors("42").ShouldBeNull();
 
         session.Descriptors.TryGet(nameof(TrickyDictHolder.ByGuid), out var byGuid).ShouldBeTrue();
@@ -83,7 +87,7 @@ public sealed class DescriptorDictPathTests
         guids!.KeyType.ShouldBe(typeof(Guid));
         var guidSet = guids.GetValueDescriptors(guid).ShouldNotBeNull();
         guidSet!.TryGet(nameof(ObservableChild.Name), out var guidName).ShouldBeTrue();
-        guidName.Path.ShouldBe($"ByGuid[\"{guid:D}\"].Name");
+        guidName.PathText.ShouldBe($"ByGuid[\"{guid:D}\"].Name");
     }
 
     [Test]
@@ -103,6 +107,6 @@ public sealed class DescriptorDictPathTests
         set!.TryGet(nameof(ObservableChild.Name), out var name).ShouldBeTrue();
 
         paths.ShouldContain(name.Path);
-        name.Path.ShouldBe("Texts[\"a]b\"].Name");
+        name.PathText.ShouldBe("Texts[\"a]b\"].Name");
     }
 }

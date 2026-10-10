@@ -1,5 +1,7 @@
 namespace SparseFragments.Tests;
 
+using SparseFragments.Generated;
+
 [SparseFragmentModel]
 public partial class ArrayElementHolder
 {
@@ -41,7 +43,7 @@ public sealed class DescriptorArrayElementTests
 
         var nested = array.GetItemDescriptors(0).ShouldNotBeNull();
         nested!.TryGet(nameof(ObservableChild.Name), out var name).ShouldBeTrue();
-        name.Path.ShouldBe("Kids[0].Name");
+        name.PathText.ShouldBe("Kids[0].Name");
         name.TrySetValue("renamed").ShouldBeTrue();
         model.Kids[0].Name.ShouldBe("renamed");
         session.HasChanges.ShouldBeTrue();

@@ -151,7 +151,7 @@ public sealed class DescriptorReadOnlySequenceTests
 
         var nested = array.GetItemDescriptors(0).ShouldNotBeNull();
         nested!.TryGet(nameof(ObservableChild.Name), out var name).ShouldBeTrue();
-        name.Path.ShouldBe("Children[0].Name");
+        name.PathText.ShouldBe("Children[0].Name");
         name.TrySetValue("renamed").ShouldBeTrue();
         model.Children[0].Name.ShouldBe("renamed");
         session.HasChanges.ShouldBeTrue();

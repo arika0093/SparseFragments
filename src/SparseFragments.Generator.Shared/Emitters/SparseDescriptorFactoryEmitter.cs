@@ -54,16 +54,18 @@ internal static class SparseDescriptorFactoryEmitter
             cancellationToken
         );
         var body = RewriteReceiver(relocated, cancellationToken);
-        // Legacy emits "internal IDescriptorSet __SparseGetDescriptors_<hash>(string pathPrefix) { ... }".
+        // Legacy emits "internal IDescriptorSet __SparseGetDescriptors_<hash>(pathType pathPrefix) { ... }".
         // The factory exposes a stable per-model Create entry instead.
         body = Regex.Replace(
             body,
-            @"internal\s+\S+\s+__SparseGetDescriptors_[0-9A-F]{8}\s*\(\s*string\s+pathPrefix\s*\)",
+            @"internal\s+\S+\s+__SparseGetDescriptors_[0-9A-F]{8}\s*\(\s*\S+\s+pathPrefix\s*\)",
             "internal static "
                 + dialect.DescriptorSetInterface
                 + " Create("
                 + ObservableParam(model, members, config, cancellationToken)
-                + " observable, string pathPrefix)",
+                + " observable, "
+                + dialect.EffectivePathType(runtimeNamespace)
+                + " pathPrefix)",
             RegexOptions.None,
             System.TimeSpan.FromSeconds(1)
         );

@@ -128,11 +128,14 @@ public static class UiFrameworksSamples
         var changes = session.CreateChangeSet();
         var flattened = changes.EnumerateChanges().ToList();
         DocsCheck.Require(
-            flattened.Count == 1 && flattened[0].Path == nameof(UiWidget.Title),
+            flattened.Count == 1 && flattened[0].PathText == nameof(UiWidget.Title),
             "flattened enumeration names the changed path"
         );
         DocsCheck.Require(
-            session.EnumerateChangedPaths().SequenceEqual(new[] { nameof(UiWidget.Title) }),
+            session
+                .EnumerateChangedPaths()
+                .Select(static path => path.ToString())
+                .SequenceEqual(new[] { nameof(UiWidget.Title) }),
             "changed paths list the member"
         );
     }
@@ -295,12 +298,12 @@ public static class UiFrameworksSamples
 
         var rows = logSession.CreateChangeSet().EnumerateChanges().ToList();
         // rows.Count == 1
-        // rows[0].Path == "Number"
+        // rows[0].PathText == "Number"
         // rows[0].Kind reports an edited value
         // logSession.EnumerateChangedPaths() lists "Number"
         // /sample
         DocsCheck.Require(
-            rows.Count == 1 && rows[0].Path == nameof(UiOrder.Number),
+            rows.Count == 1 && rows[0].PathText == nameof(UiOrder.Number),
             "flattened enumeration names the changed path"
         );
         DocsCheck.Require(
@@ -308,7 +311,10 @@ public static class UiFrameworksSamples
             "flattened enumeration classifies the edit"
         );
         DocsCheck.Require(
-            logSession.EnumerateChangedPaths().SequenceEqual(new[] { nameof(UiOrder.Number) }),
+            logSession
+                .EnumerateChangedPaths()
+                .Select(static path => path.ToString())
+                .SequenceEqual(new[] { nameof(UiOrder.Number) }),
             "changed paths list the member"
         );
     }

@@ -61,8 +61,7 @@ internal static class SparseObservableDictionaryDescriptorEmitter
                 + SparseObservableDescriptorEmitter.AccessorName(valueTypeDecl)
                 + "("
                 + path
-                + SparseCanonicalKeyPath.AppendKey("key")
-                + "); }, "
+                + ".Key(typedKey)); }, "
             : string.Empty;
         return "() => { var current = this."
             + property
@@ -143,8 +142,7 @@ internal static class SparseObservableDictionaryDescriptorEmitter
                 )
                 + "("
                 + path
-                + SparseCanonicalKeyPath.AppendKey("key")
-                + "); }, "
+                + ".Key(typedKey)); }, "
             : string.Empty;
         var viewTypeName = names.HasElementProxy
             ? names.ViewType.TrimEnd('?')

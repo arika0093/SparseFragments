@@ -271,7 +271,7 @@ public sealed class ChangePayloadRebaseOptionsTests
         var strict = changes.RebaseOnto(current, Strict(""));
         strict.HasConflicts.ShouldBeTrue();
         strict.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.RedactedBefore);
-        strict.Conflicts.Single().Path.Count.ShouldBe(0);
+        strict.Conflicts.Single().Path.IsRoot.ShouldBeTrue();
     }
 
     [Test]

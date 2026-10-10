@@ -114,7 +114,7 @@ public sealed class FragmentPatchRebaseTests
         result.HasConflicts.ShouldBeTrue();
         var conflict = result.Conflicts.Single();
         conflict.Kind.ShouldBe(SparseConflictKind.Scalar);
-        conflict.Path.ShouldBe(["RetryCount"]);
+        conflict.PathText.ShouldBe("RetryCount");
         conflict.BaseValue.Value.ShouldBe(1);
         conflict.LocalValue.Value.ShouldBe(2);
         conflict.CurrentValue.Value.ShouldBe(3);
@@ -132,7 +132,7 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeTrue();
         var conflict = result.Conflicts.Single();
-        conflict.Path.ShouldBe(["Nested", "Host"]);
+        conflict.PathText.ShouldBe("Nested.Host");
         conflict.BaseValue.Value.ShouldBe("a");
         conflict.LocalValue.Value.ShouldBe("b");
         conflict.CurrentValue.Value.ShouldBe("c");
@@ -212,7 +212,7 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.CollectionAppend);
-        result.Conflicts.Single().Path.ShouldBe(["Plugins"]);
+        result.Conflicts.Single().PathText.ShouldBe("Plugins");
     }
 
     [Test]
@@ -288,7 +288,7 @@ public sealed class FragmentPatchRebaseTests
 
         result.HasConflicts.ShouldBeTrue();
         result.Conflicts.Single().Kind.ShouldBe(SparseConflictKind.WholeContribution);
-        result.Conflicts.Single().Path.ShouldBeEmpty();
+        result.Conflicts.Single().Path.IsRoot.ShouldBeTrue();
     }
 
     [Test]

@@ -18,9 +18,9 @@ internal static class SparseFragmentPatchRebaseEmitter
         SparseOperationTarget? target = null
     )
     {
-        _ = modelType;
         var into = target?.PatchOperations ?? code;
         var runtime = dialect.RuntimeNamespace;
+        var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
         var prefix = SparseNaming.PatchApiPrefix(
             members.Select(static member => member.Property.Name)
         );
@@ -59,6 +59,20 @@ internal static class SparseFragmentPatchRebaseEmitter
             );
         }
         AppendRebaseStateHelpers(into, runtime);
+        into.AppendLineAt(
+            2,
+            "/// <summary>Model-rooted path factory for rebase conflicts.</summary>"
+        );
+        into.AppendLineAt(
+            2,
+            "internal static "
+                + pathType
+                + " __SparseRootPath => "
+                + pathType
+                + ".Root(typeof("
+                + (string.IsNullOrEmpty(modelType) ? "global::System.Object" : modelType)
+                + "));"
+        );
         SparseRebaseOptionEmitter.AppendHelpers(into, dialect);
         AppendRebaseHeader(
             into,
@@ -183,7 +197,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             5,
             "conflicts.Add(new "
                 + conflict
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKind
                 + ".RedactedBefore, "
                 + runtime
@@ -215,7 +229,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             4,
             "    conflicts.Add(new "
                 + conflict
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKind
                 + ".WholeContribution, __SparseState(baseState), __SparseState(desiredState), __SparseState(currentState), \"The whole contribution conflicts with a concurrent change.\"));"
         );
@@ -237,7 +251,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             4,
             "    conflicts.Add(new "
                 + conflict
-                + "(new string[0], "
+                + "(__SparseRootPath, "
                 + conflictKind
                 + ".WholeContribution, __SparseState(baseState), __SparseState(desiredState), __SparseState(currentState), \"The contribution conflicts with a concurrent change.\"));"
         );
@@ -281,7 +295,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             dialect.RuntimeNamespace,
             conflict,
             dialect,
-            "new string[] { " + pathLit + " }",
+            "__SparseRootPath.Member(" + pathLit + ")",
             "conflicts"
         );
         code.AppendLineAt(5, "}");
@@ -313,9 +327,9 @@ internal static class SparseFragmentPatchRebaseEmitter
             5,
             "catch (global::System.InvalidOperationException ex) { conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Nested, __SparseMember("
                 + baseMember
@@ -355,9 +369,9 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(7, "{");
         code.AppendLineAt(
             8,
-            "conflicts.Add(nestedConflict.WithPathPrefix("
+            "conflicts.Add(nestedConflict.WithPathPrefix(__SparseRootPath.Member("
                 + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + "));"
+                + ")));"
         );
         code.AppendLineAt(7, "}");
         code.AppendLineAt(6, "}");
@@ -370,9 +384,9 @@ internal static class SparseFragmentPatchRebaseEmitter
             7,
             "conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Nested, __SparseMember("
                 + baseMember
@@ -422,7 +436,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             dialect.RuntimeNamespace,
             conflict,
             dialect,
-            "new string[] { " + pathLit + " }",
+            "__SparseRootPath.Member(" + pathLit + ")",
             "conflicts"
         );
         code.AppendLineAt(5, "}");
@@ -478,9 +492,9 @@ internal static class SparseFragmentPatchRebaseEmitter
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
             7,
-            "conflicts.Add(nestedConflict.WithPathPrefix("
+            "conflicts.Add(nestedConflict.WithPathPrefix(__SparseRootPath.Member("
                 + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + "));"
+                + ")));"
         );
         code.AppendLineAt(6, "}");
         code.AppendLineAt(5, "}");
@@ -493,9 +507,9 @@ internal static class SparseFragmentPatchRebaseEmitter
             6,
             "conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Nested, __SparseMember("
                 + baseMember
@@ -542,7 +556,7 @@ internal static class SparseFragmentPatchRebaseEmitter
         }
         if (member.MergeStrategyType is not null || member.RebasePolicyType is not null)
         {
-            AppendCustomStrategyMemberRebase(
+            SparseFragmentPatchScalarRebaseEmitter.AppendCustomStrategyMemberRebase(
                 code,
                 member,
                 field,
@@ -578,7 +592,7 @@ internal static class SparseFragmentPatchRebaseEmitter
                 dialect.RuntimeNamespace,
                 conflict,
                 dialect,
-                "new string[] { " + mergePathLit + " }",
+                "__SparseRootPath.Member(" + mergePathLit + ")",
                 "conflicts"
             );
             code.AppendLineAt(5, "}");
@@ -669,9 +683,9 @@ internal static class SparseFragmentPatchRebaseEmitter
                 7,
                 "conflicts.Add(new "
                     + conflict
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                    + " }, "
+                    + "), "
                     + scalarKind
                     + ", __SparseMember("
                     + baseMember
@@ -685,7 +699,7 @@ internal static class SparseFragmentPatchRebaseEmitter
             code.AppendLineAt(5, "}");
             code.AppendLineAt(5, "if (!handled)");
             code.AppendLineAt(5, "{");
-            EmitScalarRebase(
+            SparseFragmentPatchScalarRebaseEmitter.EmitScalarRebase(
                 code,
                 field,
                 member.Property.Name,
@@ -729,7 +743,7 @@ internal static class SparseFragmentPatchRebaseEmitter
                 dialect.RuntimeNamespace,
                 conflict,
                 dialect,
-                "new string[] { " + plainPathLit + " }",
+                "__SparseRootPath.Member(" + plainPathLit + ")",
                 "conflicts"
             );
             code.AppendLineAt(6, "}");
@@ -797,9 +811,9 @@ internal static class SparseFragmentPatchRebaseEmitter
                 6,
                 "conflicts.Add(new "
                     + conflict
-                    + "(new string[] { "
+                    + "(__SparseRootPath.Member("
                     + plainPathLit
-                    + " }, "
+                    + "), "
                     + scalarKind
                     + ", __SparseMember("
                     + baseMember
@@ -812,206 +826,5 @@ internal static class SparseFragmentPatchRebaseEmitter
             code.AppendLineAt(5, "}");
             code.AppendLineAt(4, "}");
         }
-    }
-
-    private static void AppendCustomStrategyMemberRebase(
-        SharedIndentedBuilder code,
-        SparseMemberModel member,
-        string field,
-        string kind,
-        string baseMember,
-        string desiredMember,
-        string currentMember,
-        string conflict,
-        string conflictKind,
-        int indent,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
-    )
-    {
-        var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-        var operationType =
-            SparseFragmentPatchEmitter.Operation(dialect)
-            + "<"
-            + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
-            + ">";
-        // A member-level rebase policy wins over the merge strategy's TryRebase;
-        // the strategy still owns Merge. Redacted members replay or fail whole.
-        var reconcilerField =
-            "Fragment." + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member);
-        var reconcilerFallback = "The custom merge strategy could not rebase the member.";
-        if (member.RebasePolicyType is not null)
-        {
-            reconcilerField =
-                "Fragment." + SparseFragmentPatchEmitter.GetRebasePolicyField(dialect, member);
-            reconcilerFallback = "The custom rebase policy could not rebase the member.";
-        }
-        var reconcilerPathLit = SymbolDisplay.FormatLiteral(member.Property.Name, true);
-        code.AppendLineAt(
-            indent,
-            "if (local."
-                + field
-                + ".Kind != "
-                + kind
-                + ".Keep && __SparseIsRedacted(options, "
-                + reconcilerPathLit
-                + "))"
-        );
-        code.AppendLineAt(indent, "{");
-        code.AppendLineAt(indent + 1, "if (__SparseRejectsRedacted(options))");
-        code.AppendLineAt(indent + 1, "{");
-        SparseRebaseOptionEmitter.AppendRedactedConflict(
-            code,
-            indent + 2,
-            dialect.RuntimeNamespace,
-            conflict,
-            dialect,
-            "new string[] { " + reconcilerPathLit + " }",
-            "conflicts"
-        );
-        code.AppendLineAt(indent + 1, "}");
-        code.AppendLineAt(indent + 1, "else");
-        code.AppendLineAt(indent + 1, "{");
-        code.AppendLineAt(indent + 2, "result." + field + " = local." + field + ";");
-        code.AppendLineAt(indent + 1, "}");
-        code.AppendLineAt(indent, "}");
-        // Custom strategies observe every member edit (Set and Remove): the presence-aware
-        // TryRebase(Optional<T>, ...) SPI can represent a missing rebased state, so unlike the
-        // previous T?-based SPI there is no need to route Remove through the scalar fallback.
-        code.AppendLineAt(
-            indent,
-            "if (local."
-                + field
-                + ".Kind != "
-                + kind
-                + ".Keep && !__SparseIsRedacted(options, "
-                + reconcilerPathLit
-                + "))"
-        );
-        code.AppendLineAt(indent, "{");
-        code.AppendLineAt(indent + 1, "var " + baseMember + " = baseFragment." + name + ";");
-        code.AppendLineAt(indent + 1, "var " + currentMember + " = currentFragment." + name + ";");
-        code.AppendLineAt(
-            indent + 1,
-            "var " + desiredMember + " = local." + field + ".Apply(" + baseMember + ");"
-        );
-        var strategyField = reconcilerField;
-        var strategyFallback = reconcilerFallback;
-        code.AppendLineAt(
-            indent + 1,
-            "if ("
-                + strategyField
-                + ".TryRebase("
-                + baseMember
-                + ", "
-                + desiredMember
-                + ", "
-                + currentMember
-                + ", out var rebasedValue, out var reason))"
-        );
-        code.AppendLineAt(indent + 1, "{");
-        code.AppendLineAt(
-            indent + 2,
-            "if (!((!rebasedValue.IsPresent && !"
-                + currentMember
-                + ".IsPresent) || (rebasedValue.IsPresent && "
-                + currentMember
-                + ".IsPresent && "
-                + strategyField
-                + ".AreEqual("
-                + currentMember
-                + ".Value, rebasedValue.Value))))"
-        );
-        code.AppendLineAt(indent + 2, "{");
-        code.AppendLineAt(indent + 3, "if (rebasedValue.IsPresent)");
-        code.AppendLineAt(indent + 3, "{");
-        code.AppendLineAt(
-            indent + 4,
-            "result." + field + " = " + operationType + ".Set(rebasedValue.Value);"
-        );
-        code.AppendLineAt(indent + 3, "}");
-        code.AppendLineAt(indent + 3, "else");
-        code.AppendLineAt(indent + 3, "{");
-        code.AppendLineAt(indent + 4, "result." + field + " = " + operationType + ".Remove;");
-        code.AppendLineAt(indent + 3, "}");
-        code.AppendLineAt(indent + 2, "}");
-        code.AppendLineAt(indent + 1, "}");
-        code.AppendLineAt(indent + 1, "else");
-        code.AppendLineAt(indent + 1, "{");
-        code.AppendLineAt(
-            indent + 2,
-            "conflicts.Add(new "
-                + conflict
-                + "(new string[] { "
-                + SymbolDisplay.FormatLiteral(member.Property.Name, true)
-                + " }, "
-                + conflictKind
-                + ".CustomStrategy, __SparseMember("
-                + baseMember
-                + "), __SparseMember("
-                + desiredMember
-                + "), __SparseMember("
-                + currentMember
-                + "), reason ?? \""
-                + strategyFallback
-                + "\"));"
-        );
-        code.AppendLineAt(indent + 1, "}");
-        code.AppendLineAt(indent, "}");
-    }
-
-    private static void EmitScalarRebase(
-        SharedIndentedBuilder code,
-        string field,
-        string memberName,
-        string baseMember,
-        string desiredMember,
-        string currentMember,
-        string equality,
-        string conflictKind,
-        string conflict,
-        int indent
-    )
-    {
-        code.AppendLineAt(
-            indent,
-            "if (" + equality + "(" + baseMember + ", " + currentMember + "))"
-        );
-        code.AppendLineAt(indent, "{");
-        code.AppendLineAt(indent + 1, "result." + field + " = local." + field + ";");
-        code.AppendLineAt(indent, "}");
-        code.AppendLineAt(
-            indent,
-            "else if (!"
-                + equality
-                + "("
-                + desiredMember
-                + ", "
-                + currentMember
-                + ") && !"
-                + equality
-                + "("
-                + desiredMember
-                + ", "
-                + baseMember
-                + "))"
-        );
-        code.AppendLineAt(indent, "{");
-        code.AppendLineAt(
-            indent + 1,
-            "conflicts.Add(new "
-                + conflict
-                + "(new string[] { "
-                + SymbolDisplay.FormatLiteral(memberName, true)
-                + " }, "
-                + conflictKind
-                + ", __SparseMember("
-                + baseMember
-                + "), __SparseMember("
-                + desiredMember
-                + "), __SparseMember("
-                + currentMember
-                + "), \"The member conflicts with a concurrent change.\"));"
-        );
-        code.AppendLineAt(indent, "}");
     }
 }

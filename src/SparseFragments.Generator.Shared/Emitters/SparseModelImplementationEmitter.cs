@@ -61,7 +61,9 @@ internal static class SparseModelImplementationEmitter
                 + configured.DescriptorSetInterface
                 + " "
                 + accessor
-                + "(string pathPrefix) => DescriptorFactory.Create(this, pathPrefix);\n";
+                + "("
+                + configured.EffectivePathType(runtimeNamespace)
+                + " pathPrefix) => DescriptorFactory.Create(this, pathPrefix);\n";
             var closing = "\n    }\n";
             var index = inner.LastIndexOf(closing, System.StringComparison.Ordinal);
             if (index >= 0)

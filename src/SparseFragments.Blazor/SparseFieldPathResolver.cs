@@ -3,161 +3,118 @@ using System.Collections;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using Microsoft.AspNetCore.Components.Forms;
 using SparseFragments;
 
 namespace SparseFragments.Blazor;
 
-/// <summary>Resolves dotted field paths against a session model instance.</summary>
+/// <summary>Resolves typed paths against a session model instance.</summary>
 internal static class SparseFieldPathResolver
 {
+    /// <summary>Resolves a wire-compatible field path.</summary>
+    /// <remarks>String paths parse to <see cref="SparsePath"/> once, then resolve through the typed walk.</remarks>
     internal static FieldIdentifier Resolve(object model, string fieldName)
     {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentException.ThrowIfNullOrEmpty(fieldName);
+        if (!SparsePath.TryParse(model.GetType(), fieldName, out var path) || path is null)
+        {
+            throw InvalidFieldPath(fieldName);
+        }
+
+        return Resolve(model, path, fieldName);
+    }
+
+    /// <summary>Resolves a canonical typed path.</summary>
+    internal static FieldIdentifier Resolve(object model, SparsePath path)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(path);
+        return Resolve(model, path, path.ToString());
+    }
+
+    private static FieldIdentifier Resolve(object model, SparsePath path, string errorPath)
+    {
+        if (path.IsRoot)
+        {
+            throw InvalidFieldPath(errorPath);
+        }
+
         object? current = model;
-        object? fieldOwner;
-        string fieldNamePart;
-        var index = 0;
-        while (index < fieldName.Length)
+        object? fieldOwner = null;
+        string? fieldNamePart = null;
+        foreach (var segment in path.Segments)
         {
-            var start = index;
-            while (index < fieldName.Length && fieldName[index] is not '.' and not '[')
+            switch (segment.Kind)
             {
-                index++;
-            }
-
-            if (start == index || current is null)
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            fieldNamePart = fieldName[start..index];
-            fieldOwner = current;
-            var property = current
-                .GetType()
-                .GetProperty(fieldNamePart, BindingFlags.Instance | BindingFlags.Public);
-            if (property is null || property.GetIndexParameters().Length > 0)
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            current = property.GetValue(current);
-            while (index < fieldName.Length && fieldName[index] == '[')
-            {
-                if (current is null)
-                {
-                    throw InvalidFieldPath(fieldName);
-                }
-
-                var keyStart = ++index;
-                var insideQuotes = false;
-                var escaped = false;
-                while (index < fieldName.Length)
-                {
-                    var currentCharacter = fieldName[index];
-                    if (escaped)
+                case SparsePathSegmentKind.Member:
+                    if (current is null)
                     {
-                        escaped = false;
-                    }
-                    else if (insideQuotes && currentCharacter == '\\')
-                    {
-                        escaped = true;
-                    }
-                    else if (currentCharacter == '"')
-                    {
-                        insideQuotes = !insideQuotes;
-                    }
-                    else if (!insideQuotes && currentCharacter == ']')
-                    {
-                        break;
+                        throw InvalidFieldPath(errorPath);
                     }
 
-                    index++;
-                }
+                    fieldNamePart = segment.Name;
+                    fieldOwner = current;
+                    var property = current
+                        .GetType()
+                        .GetProperty(fieldNamePart, BindingFlags.Instance | BindingFlags.Public);
+                    if (property is null || property.GetIndexParameters().Length > 0)
+                    {
+                        throw InvalidFieldPath(errorPath);
+                    }
 
-                if (index == fieldName.Length || keyStart == index)
-                {
-                    throw InvalidFieldPath(fieldName);
-                }
+                    current = property.GetValue(current);
+                    break;
+                case SparsePathSegmentKind.Key:
+                    if (current is null)
+                    {
+                        throw InvalidFieldPath(errorPath);
+                    }
 
-                var rawKey = fieldName[keyStart..index];
-                var quoted = rawKey.Length > 0 && rawKey[0] == '"';
-                var key = ParseFieldKey(rawKey, fieldName);
-                index++;
-                current = ResolveIndexedValue(current, key, quoted, fieldName);
+                    // Trailing entry segments validate resolvability while the
+                    // reported field stays the owning member, matching the
+                    // historical bracket spelling.
+                    current = ResolveKeyedValue(current, segment.Key, errorPath);
+                    break;
+                default:
+                    if (current is null)
+                    {
+                        throw InvalidFieldPath(errorPath);
+                    }
+
+                    current = ResolvePositionalValue(current, segment.Index, errorPath);
+                    break;
             }
-
-            if (index == fieldName.Length)
-            {
-                return new FieldIdentifier(fieldOwner, fieldNamePart);
-            }
-
-            if (fieldName[index] != '.')
-            {
-                throw InvalidFieldPath(fieldName);
-            }
-
-            index++;
         }
 
-        throw InvalidFieldPath(fieldName);
+        if (fieldOwner is null || fieldNamePart is null)
+        {
+            throw InvalidFieldPath(errorPath);
+        }
+
+        return new FieldIdentifier(fieldOwner, fieldNamePart);
     }
 
-    private static string ParseFieldKey(string key, string path)
+    private static object? ResolveKeyedValue(object collection, object? key, string path)
     {
-        if (key[0] != '"')
-        {
-            return key;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<string>(key) ?? string.Empty;
-        }
-        catch (JsonException)
-        {
-            throw InvalidFieldPath(path);
-        }
-    }
-
-    private static object? ResolveIndexedValue(
-        object collection,
-        string key,
-        bool quoted,
-        string path
-    )
-    {
-        if (collection is string)
+        if (collection is string || key is null)
         {
             throw InvalidFieldPath(path);
         }
 
+        // Key segments name stable entry identity (the EnumerateChanges
+        // spelling), never positions: even a numeric string key looks up key
+        // identity, while positions use index segments.
         if (collection is IList list)
         {
-            if (quoted)
-            {
-                return ResolveKeyedElement(list, GetSequenceElementType(collection), key, path);
-            }
-
-            if (
-                !int.TryParse(
-                    key,
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out var listIndex
-                )
-                || (uint)listIndex >= (uint)list.Count
-            )
-            {
-                throw InvalidFieldPath(path);
-            }
-
-            return list[listIndex];
+            return ResolveKeyedElement(list, GetSequenceElementType(collection), key, path);
         }
 
         if (collection is IDictionary dictionary)
         {
-            var dictionaryKey = ConvertDictionaryKey(collection, key, path);
+            var dictionaryKey = key is string text
+                ? ConvertDictionaryKey(collection, text, path)
+                : key;
             if (!dictionary.Contains(dictionaryKey))
             {
                 throw InvalidFieldPath(path);
@@ -169,7 +126,9 @@ internal static class SparseFieldPathResolver
         if (TryGetReadOnlyDictionaryInterface(collection, out var dictionaryInterface))
         {
             var keyType = dictionaryInterface.GetGenericArguments()[0];
-            var dictionaryKey = ConvertKeyTextOrInvalidPath(keyType, key, path);
+            var dictionaryKey = key is string text
+                ? ConvertKeyTextOrInvalidPath(keyType, text, path)
+                : key;
             var containsKey = dictionaryInterface.GetMethod("ContainsKey");
             var indexer = dictionaryInterface.GetProperty("Item");
             if (
@@ -186,24 +145,37 @@ internal static class SparseFieldPathResolver
 
         if (TryGetReadOnlyListInterface(collection, out var listInterface))
         {
-            // Index lookup, not linear enumeration: the position spelling
-            // stays numeric-only here, while quoted stable keys resolve
-            // through the keyed-collection lookup below.
-            if (quoted)
-            {
-                return ResolveKeyedElement(
-                    (IEnumerable)collection,
-                    listInterface.GetGenericArguments()[0],
-                    key,
-                    path
-                );
-            }
+            return ResolveKeyedElement(
+                (IEnumerable)collection,
+                listInterface.GetGenericArguments()[0],
+                key,
+                path
+            );
+        }
 
-            if (!int.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
+        throw InvalidFieldPath(path);
+    }
+
+    private static object? ResolvePositionalValue(object collection, int index, string path)
+    {
+        if (collection is string || index < 0)
+        {
+            throw InvalidFieldPath(path);
+        }
+
+        if (collection is IList list)
+        {
+            if ((uint)index >= (uint)list.Count)
             {
                 throw InvalidFieldPath(path);
             }
 
+            return list[index];
+        }
+
+        if (TryGetReadOnlyListInterface(collection, out var listInterface))
+        {
+            // Index lookup, not linear enumeration.
             var elementType = listInterface.GetGenericArguments()[0];
             var indexer = listInterface.GetProperty("Item");
             if (
@@ -220,6 +192,19 @@ internal static class SparseFieldPathResolver
             }
 
             return indexer.GetValue(collection, [index]);
+        }
+
+        if (collection is IDictionary || TryGetReadOnlyDictionaryInterface(collection, out _))
+        {
+            // Historical spelling accepts unquoted numerics as dictionary
+            // keys, so index segments fall back to invariant key text here.
+            // Positions stay list-only; dictionaries never gain positional
+            // identity from this fallback.
+            return ResolveKeyedValue(
+                collection,
+                index.ToString(CultureInfo.InvariantCulture),
+                path
+            );
         }
 
         throw InvalidFieldPath(path);
@@ -295,19 +280,23 @@ internal static class SparseFieldPathResolver
     private static object ResolveKeyedElement(
         IEnumerable elements,
         Type? elementType,
-        string key,
+        object? key,
         string path
     )
     {
-        // Quoted list segments name stable keys (the EnumerateChanges spelling),
-        // never positions: even a numeric quoted key looks up key identity.
+        // Key segments name stable keys (the EnumerateChanges spelling),
+        // never positions: even a numeric string key looks up key identity.
         elementType ??= FirstElementType(elements);
         if (elementType is null || !TryGetKeyReader(elementType, out var reader))
         {
             throw InvalidFieldPath(path);
         }
 
-        var convertedKey = ConvertKeyTextOrInvalidPath(reader.KeyType, key, path);
+        // Parsed string keys convert to the key type; typed path keys compare
+        // directly so equal display text never merges distinct keys.
+        var convertedKey = key is string text
+            ? ConvertKeyTextOrInvalidPath(reader.KeyType, text, path)
+            : key;
         foreach (var element in elements)
         {
             if (element is not null && Equals(reader.GetKey(element), convertedKey))

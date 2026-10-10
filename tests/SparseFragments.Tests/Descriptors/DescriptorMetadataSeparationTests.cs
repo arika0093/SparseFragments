@@ -154,8 +154,12 @@ public sealed class DescriptorMetadataSeparationTests
         ISparseChangeInspector inspector = new ListChangeInspector(records);
         var projected = inspector.EnumerateChangeRecords();
         projected.Count.ShouldBeGreaterThan(0);
-        projected.Any(record => record.Path == nameof(MetadataSeparationModel.Name)).ShouldBeTrue();
-        var name = projected.Single(record => record.Path == nameof(MetadataSeparationModel.Name));
+        projected
+            .Any(record => record.PathText == nameof(MetadataSeparationModel.Name))
+            .ShouldBeTrue();
+        var name = projected.Single(record =>
+            record.PathText == nameof(MetadataSeparationModel.Name)
+        );
         name.Kind.ShouldBe(SparseChangeKind.Changed);
         name.Before.IsPresent.ShouldBeTrue();
         name.After.IsPresent.ShouldBeTrue();

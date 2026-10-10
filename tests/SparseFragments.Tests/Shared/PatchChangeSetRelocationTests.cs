@@ -288,7 +288,7 @@ namespace SparseFragments.Tests.Shared
             );
             var conflicted = Parent.Patch.Rebase(basis, local, concurrent);
             conflicted.Conflicts.ShouldNotBeEmpty();
-            conflicted.Conflicts[0].Path.ShouldBe(["Title"]);
+            conflicted.Conflicts[0].PathText.ShouldBe("Title");
         }
 
         [Test]
@@ -333,8 +333,11 @@ namespace SparseFragments.Tests.Shared
             // Enumeration and paths observe the same canonical state.
             var changes = composed.EnumerateChanges().ToArray();
             changes.Length.ShouldBe(1);
-            changes[0].Path.ShouldBe("Title");
-            composed.EnumerateChangedPaths().ShouldBe(["Title"]);
+            changes[0].PathText.ShouldBe("Title");
+            composed
+                .EnumerateChangedPaths()
+                .Select(static path => path.ToString())
+                .ShouldBe(["Title"]);
 
             // Rebase onto a matching state succeeds.
             var rebased = composed.RebaseOnto(first);

@@ -49,8 +49,9 @@ public partial class FreedEnumerateModel
 
 public sealed class FreedReservedNameTests
 {
-    private static Optional<FreedChangesModel.Fragment?> Present(FreedChangesModel.Fragment fragment) =>
-        Optional<FreedChangesModel.Fragment?>.Present(fragment);
+    private static Optional<FreedChangesModel.Fragment?> Present(
+        FreedChangesModel.Fragment fragment
+    ) => Optional<FreedChangesModel.Fragment?>.Present(fragment);
 
     [Test]
     public void ChangesMemberGeneratesTypedPatchMember()
@@ -167,7 +168,7 @@ public sealed class FreedReservedNameTests
             changes.EnumerateChanges()
         );
         flattened.Count.ShouldBe(1);
-        flattened[0].Path.ShouldBe("EnumerateChanges");
+        flattened[0].PathText.ShouldBe("EnumerateChanges");
         changes.EnumerateChangedPaths().Count.ShouldBe(1);
     }
 

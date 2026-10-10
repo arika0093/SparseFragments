@@ -357,16 +357,21 @@ public sealed class ChangeSemanticsTests
 
         var entries = changes.EnumerateChanges().ToDictionary(static change => change.Path);
         entries.Count.ShouldBe(2);
-        entries["Values[\"add\"]"].Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
-        entries["Values[\"add\"]"].Before.IsPresent.ShouldBeFalse();
-        entries["Values[\"add\"]"].After.Value.ShouldBe("add");
-        entries["Values[\"remove\"]"]
+        entries[SetTransitionModel.SparsePath.Values.Element("add")]
+            .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
+        entries[SetTransitionModel.SparsePath.Values.Element("add")]
+            .Before.IsPresent.ShouldBeFalse();
+        entries[SetTransitionModel.SparsePath.Values.Element("add")].After.Value.ShouldBe("add");
+        entries[SetTransitionModel.SparsePath.Values.Element("remove")]
             .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Removed);
-        entries["Values[\"remove\"]"].Before.Value.ShouldBe("remove");
-        entries["Values[\"remove\"]"].After.IsPresent.ShouldBeFalse();
+        entries[SetTransitionModel.SparsePath.Values.Element("remove")]
+            .Before.Value.ShouldBe("remove");
+        entries[SetTransitionModel.SparsePath.Values.Element("remove")]
+            .After.IsPresent.ShouldBeFalse();
         changes
             .EnumerateChangedPaths()
-            .OrderBy(static path => path)
+            .Select(static path => path.ToString())
+            .OrderBy(static path => path, StringComparer.Ordinal)
             .ShouldBe(["Values[\"add\"]", "Values[\"remove\"]"]);
 
         // Cancelled add/remove pairs enumerate nothing.
@@ -398,6 +403,6 @@ public sealed class ChangeSemanticsTests
         added.IsEmpty.ShouldBeFalse();
         var aggregate = added.EnumerateChanges().ToList();
         aggregate.ShouldHaveSingleItem();
-        aggregate[0].Path.ShouldBe("Values");
+        aggregate[0].PathText.ShouldBe("Values");
     }
 }

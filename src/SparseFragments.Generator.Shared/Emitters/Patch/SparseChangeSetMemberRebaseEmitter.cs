@@ -45,7 +45,7 @@ internal static class SparseChangeSetMemberRebaseEmitter
             runtime,
             conflict,
             dialect,
-            "new string[] { " + lit + " }",
+            "__SparseRootPath.Member(" + lit + ")",
             "__conflicts"
         );
         code.AppendLineAt(4, "}");
@@ -122,9 +122,9 @@ internal static class SparseChangeSetMemberRebaseEmitter
             5,
             "        __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".CustomStrategy, __SparseMember(__base"
                 + member.Id
@@ -225,9 +225,9 @@ internal static class SparseChangeSetMemberRebaseEmitter
             5,
             "        __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + conflictKind
                 + ".Scalar, __SparseMember(__base"
                 + id
@@ -567,9 +567,9 @@ internal static class SparseChangeSetMemberRebaseEmitter
             6,
             "            __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + kind
                 + ", __SparseMember(__base"
                 + id
@@ -592,9 +592,9 @@ internal static class SparseChangeSetMemberRebaseEmitter
             5,
             "        __conflicts.Add(new "
                 + conflict
-                + "(new string[] { "
+                + "(__SparseRootPath.Member("
                 + lit
-                + " }, "
+                + "), "
                 + kind
                 + ", __SparseMember(__base"
                 + id

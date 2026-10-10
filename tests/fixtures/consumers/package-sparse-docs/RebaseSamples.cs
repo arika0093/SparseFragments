@@ -65,10 +65,7 @@ public static class RebaseSamples
         DocsCheck.Require(conflicts.Count == 1, "one structured conflict");
         var conflict = conflicts.Single();
         DocsCheck.Require(conflict.Kind == SparseConflictKind.Scalar, "conflict kind is Scalar");
-        DocsCheck.Require(
-            conflict.Path.SequenceEqual(new[] { "RetryCount" }),
-            "conflict path names the member"
-        );
+        DocsCheck.Require(conflict.PathText == "RetryCount", "conflict path names the member");
         DocsCheck.Require(
             Equals(conflict.BaseValue.Value, 1)
                 && Equals(conflict.LocalValue.Value, 2)
@@ -132,7 +129,10 @@ public static class RebaseSamples
         // boundModel.RetryCount == 2
         // boundModel.Label == "b"
         // /sample
-        DocsCheck.Require(inPlaceConflicts is null, "conflict-free in-place apply reports no conflicts");
+        DocsCheck.Require(
+            inPlaceConflicts is null,
+            "conflict-free in-place apply reports no conflicts"
+        );
         DocsCheck.Require(
             boundModel.RetryCount == 2 && boundModel.Label == "b",
             "in-place apply replays the edit and keeps the concurrent edit"

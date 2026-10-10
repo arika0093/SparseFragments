@@ -123,7 +123,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             RebasePolicyType: "global::SparseFragments.FragmentRebasePolicy",
             RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
             InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
-            PayloadImplementationContainerPrefix: "__Internal"
+            PayloadImplementationContainerPrefix: "__Internal",
+            PathType: "global::SparseFragments.SparsePath"
         ),
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
@@ -174,6 +175,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "Patch",
             "ChangeSet",
             "ChangePayload",
+            "SparsePath",
+            "SparsePaths",
             "JsonConverter",
             "FragmentJsonConverter",
             "ApplyTo",

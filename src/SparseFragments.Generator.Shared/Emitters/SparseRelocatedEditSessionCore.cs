@@ -146,7 +146,13 @@ internal static class SparseRelocatedEditSessionCore
                 2,
                 "public "
                     + descriptorDialect.DescriptorSetInterface
-                    + " Descriptors => __descriptors ?? (__descriptors = DescriptorFactory.Create(Observable, global::System.String.Empty));"
+                    + " Descriptors => __descriptors ?? (__descriptors = DescriptorFactory.Create(Observable, "
+                    + descriptorDialect.EffectivePathType(
+                        config.RuntimeDialect?.Namespace ?? patchDialect.RuntimeNamespace
+                    )
+                    + ".Root(typeof("
+                    + modelType
+                    + "))));"
             );
         }
         code.AppendLineAt(
@@ -206,7 +212,9 @@ internal static class SparseRelocatedEditSessionCore
         code.AppendLineAt(2, "/// <returns>The changed paths in generated member order.</returns>");
         code.AppendLineAt(
             2,
-            "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
+            "public global::System.Collections.Generic.IReadOnlyList<"
+                + SparseFragmentPatchEmitter.GetPathType(patchDialect)
+                + "> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
         );
         code.AppendLineAt(
             2,

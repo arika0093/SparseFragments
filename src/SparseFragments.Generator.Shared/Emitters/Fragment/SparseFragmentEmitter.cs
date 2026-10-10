@@ -877,6 +877,10 @@ internal static class SparseFragmentEmitter
             operationTarget,
             canApplyChangeSetInPlace
         );
+        if (features.EmitChangeSet)
+        {
+            SparsePathBuilderEmitter.Append(code, modelType, members, patchDialect);
+        }
     }
 
     private static void AppendWritableMemberWriter(

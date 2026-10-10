@@ -82,6 +82,38 @@ public static class SparseEditSessionExtensions
         return SparseFieldPathResolver.Resolve(GetSessionModel(session), fieldName);
     }
 
+    /// <summary>Resolves a Blazor field identifier from a canonical typed path.</summary>
+    /// <remarks>
+    /// The typed walk carries actual key values, so distinct keys with identical
+    /// display text never merge. Missing or removed entries fail as invalid paths.
+    /// </remarks>
+    public static FieldIdentifier Field<TModel>(
+        this ISparseEditSession<TModel> session,
+        SparsePath path
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(path);
+        return SparseFieldPathResolver.Resolve(GetSessionModel(session), path);
+    }
+
+    /// <summary>Resolves a Blazor field identifier from a compile-time typed path.</summary>
+    /// <param name="session">The edit session.</param>
+    /// <param name="path">The typed path, for example <c>Order.SparsePath.Items.Key(id).Price</c>.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    /// <typeparam name="TValue">The addressed value type.</typeparam>
+    public static FieldIdentifier Field<TModel, TValue>(
+        this ISparseEditSession<TModel> session,
+        SparsePath<TModel, TValue> path
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(path);
+        return SparseFieldPathResolver.Resolve(GetSessionModel(session), path.Path);
+    }
+
     /// <summary>Surfaces a validation message for a field belonging to this session's model.</summary>
     /// <remarks>
     /// Fields resolved from this session (root, nested, list-element, and
@@ -112,7 +144,7 @@ public static class SparseEditSessionExtensions
 
     /// <summary>Surfaces a validation message for a session model member path.</summary>
     /// <remarks>
-    /// The path uses the same spelling as <see cref="Field{TModel}"/>, so nested,
+    /// The path uses the same spelling as the string-based field lookup, so nested,
     /// indexed, and keyed members resolve without handing a <c>FieldIdentifier</c>
     /// across model graphs.
     /// </remarks>
@@ -127,6 +159,51 @@ public static class SparseEditSessionExtensions
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
         ArgumentException.ThrowIfNullOrEmpty(fieldPath);
+        ArgumentNullException.ThrowIfNull(message);
+
+        store.Add(session.Field(fieldPath), message);
+    }
+
+    /// <summary>Surfaces a validation message for a canonical typed path.</summary>
+    /// <param name="session">The edit session.</param>
+    /// <param name="store">The validation store.</param>
+    /// <param name="fieldPath">The typed path.</param>
+    /// <param name="message">The message.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    public static void AddValidationError<TModel>(
+        this ISparseEditSession<TModel> session,
+        ValidationMessageStore store,
+        SparsePath fieldPath,
+        string message
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(fieldPath);
+        ArgumentNullException.ThrowIfNull(message);
+
+        store.Add(session.Field(fieldPath), message);
+    }
+
+    /// <summary>Surfaces a validation message for a compile-time typed path.</summary>
+    /// <param name="session">The edit session.</param>
+    /// <param name="store">The validation store.</param>
+    /// <param name="fieldPath">The typed path.</param>
+    /// <param name="message">The message.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    /// <typeparam name="TValue">The addressed value type.</typeparam>
+    public static void AddValidationError<TModel, TValue>(
+        this ISparseEditSession<TModel> session,
+        ValidationMessageStore store,
+        SparsePath<TModel, TValue> fieldPath,
+        string message
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(fieldPath);
         ArgumentNullException.ThrowIfNull(message);
 
         store.Add(session.Field(fieldPath), message);
