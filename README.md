@@ -292,8 +292,16 @@ The code is generated at compile time, uses no reflection for these generated op
 
 ## Documentation
 
+Start with the [first sparse edit](docs/tutorial/first-sparse-edit.md) to
+learn the basics by doing. Each how-to below solves one named task; the rest
+are API references to look things up.
+
 | Task | Guide |
 | --- | --- |
+| Learn the basics end to end | [First sparse edit](docs/tutorial/first-sparse-edit.md) |
+| Layer overrides and remove them | [Layered settings](docs/how-to/layered-settings.md) |
+| Send commands or baseline-aware changes | [Partial updates](docs/how-to/partial-updates.md) |
+| Save a Blazor form without losing edits | [Blazor edit form](docs/how-to/blazor-edit-form.md) |
 | Construct fragments, patches, and transitions | [Fragments and patches](docs/fragments-and-patches.md) |
 | Layer defaults and overrides | [Merge strategies](docs/merge-strategies.md) |
 | Observe and rebase before to after changes | [ChangeSet rebase](docs/rebase.md) |

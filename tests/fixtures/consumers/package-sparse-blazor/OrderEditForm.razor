@@ -1,0 +1,113 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using SparseFragments
+@using SparseFragments.Blazor
+
+@* Compilable counterpart of docs/how-to/blazor-edit-form.md. The C# save
+   lifecycle is verified by the Blazor consumer fixture (Program.cs); this
+   component proves the Razor shape around it compiles: EditForm bound to the
+   session model, an InputText adapter that edits through Observable while
+   validation tracks the original model, and an explicit refresh action for
+   conflicts. The session type names its generator-assigned container because
+   a field declaration requires it; handler code elsewhere prefers var. *@
+<EditForm EditContext="@editContext" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <InputText Value="@session.Current.Number"
+               ValueChanged="@OnNumberChanged"
+               ValueExpression="@(() => live.Number)"
+               disabled="@isSaving" />
+    <ValidationMessage For="@(() => live.Number)" />
+    <button type="submit" disabled="@isSaving">Save</button>
+    @if (latestServer is not null)
+    {
+        <button type="button" disabled="@isSaving" @onclick="RefreshFromServer">Use server value</button>
+    }
+    @if (transportError is not null)
+    {
+        <p>@transportError</p>
+    }
+</EditForm>
+
+@code {
+    private BlazorEditFormOrder live = new() { Number = "ORD-1", Version = 7 };
+
+    // Generator-assigned per-model container; stable for this model identity.
+    private global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession session = null!;
+    private EditContext editContext = null!;
+    private ValidationMessageStore store = null!;
+    private BlazorEditFormOrder? latestServer;
+    private string? transportError;
+    private bool isSaving;
+
+    [Parameter]
+    public FakeOrderSaveService SaveService { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        AdoptSession(live.CreateEditSession());
+    }
+
+    private void OnNumberChanged(string value)
+    {
+        session.Observable.Number = value;
+        editContext.NotifyFieldChanged(session.Field(nameof(BlazorEditFormOrder.Number)));
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSaving = true;
+        transportError = null;
+        try
+        {
+            var submitted = session.CreateChangeSet();
+            var result = await SaveService.SaveAsync(submitted.ToPayload(), CancellationToken.None);
+            if (result is BlazorFormSaved saved)
+            {
+                latestServer = null;
+                AdoptSession(saved.Persisted.CreateEditSession());
+            }
+            else if (result is BlazorFormConflicted conflicted)
+            {
+                latestServer = conflicted.ServerState;
+                if (submitted.TryApplyTo(conflicted.ServerState, out _, out var conflicts))
+                {
+                    return;
+                }
+                foreach (var conflict in conflicts)
+                {
+                    session.AddValidationError(store, conflict.PathText, "Server kept a newer value.");
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            transportError = "Save failed. Retry without losing edits.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void RefreshFromServer()
+    {
+        if (latestServer is null)
+        {
+            return;
+        }
+        var reload = session.Reload(latestServer);
+        if (!reload.HasConflicts)
+        {
+            latestServer = null;
+        }
+    }
+
+    private void AdoptSession(global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession next)
+    {
+        session = next;
+        live = session.GetModelForFrameworkAccess();
+        editContext = session.CreateEditContext();
+        store = session.CreateValidationStore(editContext);
+    }
+}

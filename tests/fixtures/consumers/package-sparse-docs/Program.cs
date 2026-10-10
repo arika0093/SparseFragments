@@ -14,6 +14,9 @@ CloningAndOwnershipSamples.Run();
 ModelShapesSamples.Run();
 UiFrameworksSamples.Run();
 VerifiedSamples.Run();
+TutorialFirstEditSamples.Run();
+LayeredSettingsSamples.Run();
+PartialUpdateSamples.Run();
 
 Console.WriteLine("SparseFragments docs consumer passed.");
 

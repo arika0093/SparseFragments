@@ -157,11 +157,20 @@ check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloa
     payload-nested payload-keyed payload-command payload-conversions payload-mixed \
     payload-invert payload-version
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
-    ui-session-models ui-session ui-blazor-form ui-wpf-session
+    ui-session-models ui-session ui-wpf-session
 check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     ui-accept-flow ui-reload ui-reload-conflict ui-revert ui-fork-merge ui-fork-conflict
 check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
+check_block "tutorial" "docs/tutorial/first-sparse-edit.md" "${docs_fixture_dir}/TutorialFirstEdit.cs" \
+    tutorial-models tutorial-baseline tutorial-override tutorial-merge tutorial-patch \
+    tutorial-changeset tutorial-invert
+check_block "layered" "docs/how-to/layered-settings.md" "${docs_fixture_dir}/LayeredSettings.cs" \
+    layered-models layered-precedence layered-remove layered-materialize layered-diff
+check_block "partial" "docs/how-to/partial-updates.md" "${docs_fixture_dir}/PartialUpdates.cs" \
+    partial-models partial-patch partial-changeset partial-payload partial-audit partial-redacted
+check_block "blazor-form" "docs/how-to/blazor-edit-form.md" "${blazor_fixture_dir}/Program.cs" \
+    blazor-form-models blazor-form-input blazor-form-save blazor-form-conflict blazor-form-transport
 
 # 1b2. JSON specimen verification (#212). Valid ```json fences in the
 # ChangePayload wire reference carry `<!-- json-sample: <id> -->` markers and
@@ -221,9 +230,18 @@ if ! python3 "$(dirname "$0")/check-docs-json.py" --coverage-json "docs/change-p
 fi
 check_coverage "ui" "docs/ui-frameworks.md" \
     ui-session-models ui-accept-flow ui-reload ui-reload-conflict ui-revert \
-    ui-fork-merge ui-fork-conflict ui-session ui-blazor-form ui-wpf-session
+    ui-fork-merge ui-fork-conflict ui-session ui-wpf-session
 check_coverage "descriptors" "docs/descriptors.md" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
+check_coverage "tutorial" "docs/tutorial/first-sparse-edit.md" \
+    tutorial-models tutorial-baseline tutorial-override tutorial-merge tutorial-patch \
+    tutorial-changeset tutorial-invert
+check_coverage "layered" "docs/how-to/layered-settings.md" \
+    layered-models layered-precedence layered-remove layered-materialize layered-diff
+check_coverage "partial" "docs/how-to/partial-updates.md" \
+    partial-models partial-patch partial-changeset partial-payload partial-audit partial-redacted
+check_coverage "blazor-form" "docs/how-to/blazor-edit-form.md" \
+    blazor-form-models blazor-form-input blazor-form-save blazor-form-conflict blazor-form-transport
 
 check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \

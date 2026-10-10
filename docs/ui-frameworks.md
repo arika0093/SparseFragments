@@ -242,7 +242,11 @@ To preview edits without touching the current session, branch it with `Fork()` a
 
 <!-- sample: ui-fork-merge -->
 ```csharp
-var widget = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "m" } };
+var widget = new UiWidget
+{
+    Title = "a",
+    Child = new UiWidgetChild { Name = "m" },
+};
 var widgetSession = widget.CreateEditSession();
 var draft = widgetSession.Fork();
 
@@ -382,66 +386,17 @@ Bind the created `EditContext` to an ordinary `EditForm`:
 
 `CreateEditContext()` binds the original editable model `T` to the `EditContext`. Do not use the generated observable proxy (the per-model `Observable` type in `SparseFragments.Generated`) as `EditContext.Model`. Blazor field tracking and validation run on `EditContext` and `FieldIdentifier` and model metadata, so `DataAnnotations` keep applying to `T`, while the semantic patch still comes from baseline and current `T`.
 
-### Submit, refresh, and conflict display
+### Submit, conflict display, and refresh
 
-One form flow covers binding, validation, submission, authoritative-state refresh, and structured conflict display. Validation runs through the ordinary `EditContext` pipeline; submission sends the session change set through the application transport; conflicts return to the form as validation messages addressed by member path.
-
-<!-- sample: ui-blazor-form -->
-```csharp
-var formOrder = new BlazorDocsOrder { Number = "ORD-1" };
-var formSession = formOrder.CreateEditSession();
-var formContext = formSession.CreateEditContext();
-var formStore = formSession.CreateValidationStore(formContext);
-formContext.OnValidationRequested += (_, _) =>
-{
-    formStore.Clear();
-    if (string.IsNullOrEmpty(formSession.Current.Number))
-    {
-        formStore.Add(
-            formSession.Field(nameof(BlazorDocsOrder.Number)),
-            "Number is required."
-        );
-    }
-};
-
-formSession.Observable.Number = "ORD-2";
-if (!formContext.Validate())
-{
-    throw new InvalidOperationException("The form has validation errors.");
-}
-
-// Send formSession.CreateChangeSet().ToPayload() through the
-// application transport. The server rebases it onto the current row:
-// unchanged here, the server kept a newer Number instead.
-        var submitted = formSession.CreateChangeSet();
-        var serverState = new BlazorDocsOrder { Number = "SERVER" };
-        var surfacedConflicts = 0;
-        var surfacedPath = string.Empty;
-        if (!submitted.TryApplyTo(serverState, out _, out var formConflicts))
-        {
-            foreach (var formConflict in formConflicts)
-            {
-                formSession.AddValidationError(
-                    formStore,
-                    formConflict.PathText,
-                    "Server kept a newer value."
-                );
-                surfacedConflicts++;
-                surfacedPath = formConflict.PathText;
-            }
-        }
-
-        // surfacedConflicts == 1
-        // surfacedPath == "Number"
-        // The next save starts from the authoritative persisted state.
-var persisted = new BlazorDocsOrder { Number = "ORD-2" };
-formSession = persisted.CreateEditSession();
-formContext = formSession.CreateEditContext();
-// formSession.HasChanges == false
-```
-<!-- /sample -->
-
-The conflict loop is the whole display path: each structured conflict already carries its member path, so `AddValidationError` with the `fieldPath` overload addresses the message at the field the server disagrees with. A successful save follows the fresh-session pattern from [Recommended save workflow](#recommended-save-workflow): recreate the session from the persisted model and recreate the `EditContext` with it.
+The completed form flow lives in [Blazor edit form](how-to/blazor-edit-form.md):
+input bound through the `Observable` adapter with `EditContext` field
+tracking, a submit that sends exactly one change-set payload, a fresh
+session from the persisted row on success only, structured conflicts kept as
+field errors with an explicit refresh action, and transport retry without
+data loss. The short stays here: validation runs through the ordinary
+`EditContext` pipeline, submission sends the session change set through the
+application transport, and conflicts return to the form as validation
+messages addressed by member path.
 
 Blazor extension methods:
 
@@ -512,12 +467,10 @@ Create a neutral edit session and bind its observable proxy; the session tracks 
 ```csharp
 var stockModel = new UiOrder { Number = "ORD-1" };
 var saveEnabled = false;
-var stockSession = stockModel.CreateEditSession(
-    onChanged: () =>
-    {
-        saveEnabled = true;
-    }
-);
+var stockSession = stockModel.CreateEditSession(onChanged: () =>
+{
+    saveEnabled = true;
+});
 var stockView = stockSession.Observable;
 
 stockView.Number = "ORD-2";

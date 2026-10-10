@@ -233,7 +233,11 @@ public static class UiFrameworksSamples
     private static void ForkMergesIndependentEdits()
     {
         // sample: ui-fork-merge
-        var widget = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "m" } };
+        var widget = new UiWidget
+        {
+            Title = "a",
+            Child = new UiWidgetChild { Name = "m" },
+        };
         var widgetSession = widget.CreateEditSession();
         var draft = widgetSession.Fork();
 
@@ -257,10 +261,7 @@ public static class UiFrameworksSamples
         // /sample
         DocsCheck.Require(didMerge, "independent edits merge cleanly");
         DocsCheck.Require(mergeConflicts is null, "clean merge reports no conflicts");
-        DocsCheck.Require(
-            widgetSession.Current.Title == "b",
-            "merged model keeps the fork edit"
-        );
+        DocsCheck.Require(widgetSession.Current.Title == "b", "merged model keeps the fork edit");
         DocsCheck.Require(
             widgetSession.Current.Child!.Name == "n",
             "merged model keeps the receiver edit"
