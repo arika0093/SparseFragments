@@ -84,18 +84,9 @@ internal static class SparseComparisonRules
             overwrite: false
         );
 
-        // The per-compilation index is built once and shared by every model.
-        // Without any root-level comparison rules, inheritance cannot apply
-        // and the reference-graph scan is skipped entirely. Even when rules
-        // exist, inheritance is skipped unless some root declares a rule the
-        // model has not already mapped, preserving the pre-index fast path.
-        if (
-            index.HasComparisonRules
-            && index.Roots.Any(root =>
-                !SymbolEqualityComparer.Default.Equals(root, model)
-                && HasUnmappedRule(root, attributeName, comparerTypes, cancellationToken)
-            )
-        )
+        // The index deduplicates candidate types once, avoiding a scan of every
+        // root's attributes when local rules already cover those types.
+        if (index.HasUnmappedComparisonType(comparerTypes, cancellationToken))
         {
             var parentRoots = index
                 .Roots.Select((root, ordinal) => (root, ordinal))
@@ -115,28 +106,6 @@ internal static class SparseComparisonRules
             overwrite: false
         );
         return new SparseComparisonRuleSet(comparerTypes);
-    }
-
-    private static bool HasUnmappedRule(
-        INamedTypeSymbol root,
-        string attributeName,
-        Dictionary<ITypeSymbol, INamedTypeSymbol?> comparerTypes,
-        CancellationToken cancellationToken
-    )
-    {
-        foreach (var attribute in root.GetAttributes())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (
-                MatchesAttribute(attribute.AttributeClass, attributeName)
-                && attribute.ConstructorArguments.FirstOrDefault().Value is ITypeSymbol valueType
-                && !comparerTypes.ContainsKey(valueType)
-            )
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static void AddInheritedRules(

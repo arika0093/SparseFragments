@@ -36,6 +36,7 @@ public class ComparisonRuleBenchmarks
     public ComparisonRuleShape Shape { get; set; }
 
     private INamedTypeSymbol _model = null!;
+    private CSharpCompilation _compilation = null!;
     private ImmutableArray<INamedTypeSymbol> _roots = ImmutableArray<INamedTypeSymbol>.Empty;
     private ITypeSymbol _valueType = null!;
     private SparseGeneratorConfig _config = null!;
@@ -73,6 +74,7 @@ public class ComparisonRuleBenchmarks
         {
             throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
         }
+        _compilation = compilation;
         _model = compilation.GetTypeByMetadataName("RuleTarget")!;
         _roots = compilation
             .Assembly.GlobalNamespace.GetMembers()
@@ -127,6 +129,17 @@ public class ComparisonRuleBenchmarks
         {
             throw new InvalidOperationException(
                 "Comparison analysis must preserve every root's rules on repeated calls."
+            );
+        }
+        var freshCompilation = CreateFreshCompilation();
+        if (
+            ReferenceEquals(freshCompilation.Assembly, compilation.Assembly)
+            || ReferenceEquals(freshCompilation.Assembly, CreateFreshCompilation().Assembly)
+            || AnalyzeFreshModels(freshCompilation) != expectedRootHits
+        )
+        {
+            throw new InvalidOperationException(
+                "Fresh comparison analysis must use distinct symbols and preserve root rules."
             );
         }
         ComparisonRuleMetadataProbe.Validate(_config, references);
@@ -220,6 +233,31 @@ public class ComparisonRuleBenchmarks
         SparseComparisonRules
             .CreateRuleSet(_model, _config, CancellationToken.None)
             .TryGetComparerType(_valueType, out _);
+
+    [Benchmark]
+    public int AnalyzeFreshCompilation() => AnalyzeFreshModels(CreateFreshCompilation());
+
+    private CSharpCompilation CreateFreshCompilation() =>
+        _compilation.WithAssemblyName("ComparisonRuleProbeFresh");
+
+    private int AnalyzeFreshModels(CSharpCompilation compilation)
+    {
+        var valueType = compilation.GetSpecialType(SpecialType.System_String);
+        var hits = 0;
+        foreach (var root in compilation.Assembly.GlobalNamespace.GetTypeMembers())
+        {
+            if (
+                root.Name.StartsWith("RuleRoot", StringComparison.Ordinal)
+                && SparseComparisonRules
+                    .CreateRuleSet(root, _config, CancellationToken.None)
+                    .TryGetComparerType(valueType, out _)
+            )
+            {
+                hits++;
+            }
+        }
+        return hits;
+    }
 
     // Repeated analysis across every root reuses compilation-scoped results.
     // GeneratorInvalidationBenchmarks measures fresh compilation costs separately.

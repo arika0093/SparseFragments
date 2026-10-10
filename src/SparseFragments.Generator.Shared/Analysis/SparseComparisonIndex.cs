@@ -68,11 +68,13 @@ internal sealed class SparseComparisonIndex
     private SparseComparisonIndex(
         ImmutableArray<INamedTypeSymbol> roots,
         ImmutableArray<HashSet<INamedTypeSymbol>> closures,
+        ImmutableArray<ITypeSymbol> comparisonTypes,
         bool hasComparisonRules
     )
     {
         Roots = roots;
         Closures = closures;
+        ComparisonTypes = comparisonTypes;
         HasComparisonRules = hasComparisonRules;
     }
 
@@ -87,6 +89,24 @@ internal sealed class SparseComparisonIndex
     public bool HasComparisonRules { get; }
 
     private ImmutableArray<HashSet<INamedTypeSymbol>> Closures { get; }
+
+    private ImmutableArray<ITypeSymbol> ComparisonTypes { get; }
+
+    internal bool HasUnmappedComparisonType(
+        Dictionary<ITypeSymbol, INamedTypeSymbol?> comparerTypes,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var valueType in ComparisonTypes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!comparerTypes.ContainsKey(valueType))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>Gets or builds the index for the model's containing assembly.</summary>
     public static SparseComparisonIndex ForAssembly(
@@ -135,8 +155,7 @@ internal sealed class SparseComparisonIndex
     )
     {
         var roots = new List<INamedTypeSymbol>();
-        var ruleFlags = new List<bool>();
-        var hasRules = false;
+        HashSet<ITypeSymbol>? comparisonTypes = null;
         foreach (var type in GetTypes(assembly.GlobalNamespace, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -145,14 +164,17 @@ internal sealed class SparseComparisonIndex
                 continue;
             }
 
-            var hasRule = HasComparisonAttribute(type, config.ComparisonAttributeMetadataName);
             roots.Add(type);
-            ruleFlags.Add(hasRule);
-            hasRules |= hasRule;
+            comparisonTypes = CollectComparisonTypes(
+                type,
+                config.ComparisonAttributeMetadataName,
+                comparisonTypes,
+                cancellationToken
+            );
         }
 
         var closures = ImmutableArray<HashSet<INamedTypeSymbol>>.Empty;
-        if (hasRules)
+        if (comparisonTypes is not null)
         {
             var builder = ImmutableArray.CreateBuilder<HashSet<INamedTypeSymbol>>(roots.Count);
             for (var index = 0; index < roots.Count; index++)
@@ -164,7 +186,12 @@ internal sealed class SparseComparisonIndex
             closures = builder.MoveToImmutable();
         }
 
-        return new SparseComparisonIndex(roots.ToImmutableArray(), closures, hasRules);
+        return new SparseComparisonIndex(
+            roots.ToImmutableArray(),
+            closures,
+            comparisonTypes?.ToImmutableArray() ?? ImmutableArray<ITypeSymbol>.Empty,
+            comparisonTypes is not null
+        );
     }
 
     // Transitive reference closure mirroring SparseComparisonRules traversal:
@@ -280,6 +307,33 @@ internal sealed class SparseComparisonIndex
         return attributeType.ToDisplayString() == attributeName;
     }
 
-    private static bool HasComparisonAttribute(INamedTypeSymbol model, string? attributeName) =>
-        attributeName is not null && HasAttribute(model, attributeName);
+    private static HashSet<ITypeSymbol>? CollectComparisonTypes(
+        INamedTypeSymbol model,
+        string? attributeName,
+        HashSet<ITypeSymbol>? comparisonTypes,
+        CancellationToken cancellationToken
+    )
+    {
+        if (attributeName is null)
+        {
+            return comparisonTypes;
+        }
+        foreach (var attribute in model.GetAttributes())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!MatchesAttribute(attribute.AttributeClass, attributeName))
+            {
+                continue;
+            }
+            comparisonTypes ??= new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+            if (
+                attribute.ConstructorArguments.Length > 0
+                && attribute.ConstructorArguments[0].Value is ITypeSymbol valueType
+            )
+            {
+                comparisonTypes.Add(valueType);
+            }
+        }
+        return comparisonTypes;
+    }
 }
