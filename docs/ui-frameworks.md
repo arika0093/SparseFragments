@@ -256,8 +256,8 @@ var didMerge = widgetSession.TryMergeFrom(
 );
 // didMerge == true
 // mergeConflicts is null
-// mergedSession!.Model.Title == "b"
-// mergedSession!.Model.Child!.Name == "n"
+// mergedSession!.Current.Title == "b"
+// mergedSession!.Current.Child!.Name == "n"
 if (didMerge)
 {
     widgetSession = mergedSession!;
@@ -285,8 +285,8 @@ var didClashMerge = clashingSession.TryMergeFrom(
 // didClashMerge == false
 // clashingMerged is null
 // clashConflicts!.Single().PathText == "Title"
-// clashingSession.Model.Title == "local"
-// clashingDraft.Model.Title == "remote"
+// clashingSession.Current.Title == "local"
+// clashingDraft.Current.Title == "remote"
 ```
 <!-- /sample -->
 

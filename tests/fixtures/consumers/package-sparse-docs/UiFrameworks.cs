@@ -247,8 +247,8 @@ public static class UiFrameworksSamples
         );
         // didMerge == true
         // mergeConflicts is null
-        // mergedSession!.Model.Title == "b"
-        // mergedSession!.Model.Child!.Name == "n"
+        // mergedSession!.Current.Title == "b"
+        // mergedSession!.Current.Child!.Name == "n"
         if (didMerge)
         {
             widgetSession = mergedSession!;
@@ -258,11 +258,11 @@ public static class UiFrameworksSamples
         DocsCheck.Require(didMerge, "independent edits merge cleanly");
         DocsCheck.Require(mergeConflicts is null, "clean merge reports no conflicts");
         DocsCheck.Require(
-            widgetSession.Model.Title == "b",
+            widgetSession.Current.Title == "b",
             "merged model keeps the fork edit"
         );
         DocsCheck.Require(
-            widgetSession.Model.Child!.Name == "n",
+            widgetSession.Current.Child!.Name == "n",
             "merged model keeps the receiver edit"
         );
         var combined = widgetSession.CreateChangeSet();
@@ -294,8 +294,8 @@ public static class UiFrameworksSamples
         // didClashMerge == false
         // clashingMerged is null
         // clashConflicts!.Single().PathText == "Title"
-        // clashingSession.Model.Title == "local"
-        // clashingDraft.Model.Title == "remote"
+        // clashingSession.Current.Title == "local"
+        // clashingDraft.Current.Title == "remote"
         // /sample
         DocsCheck.Require(!didClashMerge, "overlapping edits report a conflict");
         DocsCheck.Require(clashingMerged is null, "failed merge returns no session");
@@ -304,7 +304,7 @@ public static class UiFrameworksSamples
             "conflict names the member"
         );
         DocsCheck.Require(
-            clashingSession.Model.Title == "local" && clashingDraft.Model.Title == "remote",
+            clashingSession.Current.Title == "local" && clashingDraft.Current.Title == "remote",
             "failed merge leaves both sessions unchanged"
         );
     }
