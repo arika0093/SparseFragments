@@ -6,7 +6,7 @@
 
 *Source-generated partial state and typed changes for C#.*
 
-SparseFragments generates typed APIs around ordinary C# models for partial values, edits, and before → after changes.
+SparseFragments generates typed APIs around ordinary C# models for partial values, edits, and before to after changes.
 
 Add `[SparseFragmentModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
 
@@ -20,141 +20,6 @@ It helps when:
 
 Try these cases live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/).
 
-## What Problem Does It Solve?
-
-### Partial Values
-
-A settings layer often needs to distinguish “not specified” from “explicitly set to `null`”. A normal nullable property cannot represent both meanings at once.
-
-A generated `Fragment` keeps that distinction:
-
-```csharp
-var user = new Settings.Fragment { Label = (string?)null };
-var effective = defaults.Merge(user);
-```
-
-This is useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
-
-See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and merge rules.
-
-### Partial Edits
-
-A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
-
-A generated `Patch` contains only the requested operations:
-
-```csharp
-var patch = new Settings.Patch();
-patch.Database.Port = 6432;
-
-var updated = current.Apply(patch);
-```
-
-This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseFragments is useful when the edit arrives from elsewhere.
-
-See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
-
-### Before → After Changes
-
-Undo, audit output, conflict detection, and synchronization need more than the final value. They need to know what changed.
-
-A generated `ChangeSet` records that transition:
-
-```csharp
-var changes = Settings.ChangeSet.Between(before, after);
-
-changes.Database.Port.IsChanged;
-changes.Database.Port.Before;
-changes.Database.Port.After;
-```
-
-See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
-
-### Client/Server Edits
-
-A `ChangeSet` can be sent through the transport the application already uses by converting it to its generated payload:
-
-```csharp
-var json = JsonSerializer.Serialize(changes.ToPayload());
-var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
-
-var rebased = incoming.RebaseOnto(current);
-```
-
-Rebasing lets the receiver preserve unrelated newer changes instead of replacing current state with a stale object. Conflicting edits are reported separately.
-
-See [ChangeSet rebase](docs/rebase.md) for serialization, client/server flows, and conflict handling.
-
-### UI Editing
-
-Change notification and “there is still something to save” are different questions. A field can be touched and then restored to its original value.
-
-An edit session (the per-model `EditSession` in `SparseFragments.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
-
-```csharp
-var session = order.CreateEditSession();
-session.Observable.Name = "Updated";
-
-var submitted = session.CreateChangeSet();
-var response = await SendChangesAsync(submitted.ToPayload());
-if (response.IsSuccess)
-{
-    // Advances the baseline only. The live model is untouched,
-    // so edits made after CreateChangeSet stay pending.
-    session.AcceptChanges(submitted);
-}
-```
-
-Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. A raw `session.Model` reference edits the same instance without notifications and disables the session's observable-change cache, so prefer the proxy while the session tracks edits. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
-
-```csharp
-session.Observable.Name = "Updated";
-string shown = session.Current.Name;
-
-session.BatchEdit(() =>
-{
-    session.Observable.Name = "Batched";
-});
-
-session.RevertChanges();
-// session.HasChanges == false
-```
-
-The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
-
-For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
-
-```csharp
-var pending = baseline.CreateChangeSet(edited);
-if (!pending.TryApplyInPlace(boundModel, out var conflicts))
-{
-    ShowConflicts(conflicts);
-    return;
-}
-// boundModel now carries the change; unrelated concurrent edits are preserved.
-```
-
-The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
-
-`ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) is an advanced seam. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration. Per-member metadata for generic form builders lives in the session descriptors described there.
-
-### Keyed Collections
-
-Collection edits need stable identity. Array positions are not enough when items can be inserted, removed, or reordered.
-
-With a `[SparseKey]` on the element model, changes are exposed by key:
-
-```csharp
-var changes = Roster.ChangeSet.Between(before, after);
-
-changes.Quests.Added;
-changes.Quests.Removed;
-changes.Quests.Edited;
-changes.Quests.OrderChanged;
-```
-
-See [Keyed collections](docs/keyed-collections.md) for key rules and per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
-
 ## Install
 
 ```shell
@@ -165,7 +30,7 @@ The package contains the source generator, so no additional generation step is r
 
 ## Quick Start
 
-With .NET 10 or later, the whole example fits in a single file:
+With the .NET 10 SDK or later, the whole example fits in a single file. It layers an environment override over defaults, applies one user edit, and prints the effective values with the typed transition.
 
 <!-- sample: readme-quickstart -->
 ```csharp
@@ -219,11 +84,9 @@ Save it as `quickstart.cs` and run:
 dotnet run --file quickstart.cs
 ```
 
-The example uses the three main generated types. A `Fragment` says which values are provided, a `Patch` says what to change, and a `ChangeSet` records what changed from before to after. The patch edits Label and the nested port while `Database.Host` falls through untouched. When the same transition must survive concurrent edits, send it through `ChangePayload` and reconcile with `RebaseOnto` (see [ChangeSet rebase](docs/rebase.md)).
+A `Fragment` records which values are provided, so the Port-only override leaves Host to fall through from defaults. A `Patch` carries the requested operations, so the edit sets Label and the nested port while Host stays untouched. A `ChangeSet` records the before to after transition, so the output shows Label changed and Port moved from 6432 to 7432. When the same transition must survive concurrent edits, convert it with `ToPayload` and reconcile with `RebaseOnto` (see [ChangeSet rebase](docs/rebase.md)).
 
-The [documentation](#documentation) covers the full APIs and detailed behavior.
-
-## Generated API
+## Choose your workflow
 
 The generated types answer different questions:
 
@@ -235,27 +98,150 @@ The generated types answer different questions:
 | `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON |
 | `EditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
 
-Edit through `session.Observable` and read through `session.Current` rather than mutating `session.Model` directly; the proxy adds notifications and the read-only view cannot change state by accident. `ChangeSet.EnumerateChanges()` stays reserved for diagnostics code. See [UI Editing](#ui-editing) and [UI frameworks](docs/ui-frameworks.md).
+The Quick Start uses the first three rows: `defaults` carries Label `default` with the full database value, `environment` carries only Port 6432, and `effective` merges to Label `default`, Host `db.local`, Port 6432. The patch sets Label to `production` and Port to 7432 while Host stays `db.local`. The change set reports Label `default` to `production` and Port 6432 to 7432, with Host unchanged. The transport row serializes that same change set; see the [ChangePayload wire reference](docs/change-payload.md). The editing row tracks unsaved work in a running UI; see [UI frameworks](docs/ui-frameworks.md).
 
-The distinction is visible in a small example:
+For task guidance, see [Fragments and patches](docs/fragments-and-patches.md) for construction, diffing, and merge rules, [Merge strategies](docs/merge-strategies.md) for layering, [ChangeSet rebase](docs/rebase.md) for reconciling concurrent edits, [Keyed collections](docs/keyed-collections.md) for identity-based collection edits, and [UI frameworks](docs/ui-frameworks.md) for edit sessions in Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia.
 
-* *Fragment*: is presence-aware state and merge. 
-  * Label is "default"
-  * Database.Host is "db.local"
-  * Database.Port is 5432
-* *Patch*: is presence-aware edit.
-  * keep Label as-is
-  * drop the Database.Host contribution with `Remove()`, so a lower layer falls through on the next merge
-  * set Database.Port to 6432
-* *ChangeSet*: is presence-aware before → after transition.
-  * Database.Host changed from "db.local" to default value
-  * Database.Port: 5432 -> 6432
-* *ChangePayload*: is transport format.
-  * Serialized format of *ChangeSet*/*Patch*.
+## What each capability covers
 
-All three follow the source model's nesting and configured collection behavior.
+The sections below expand the Quick Start proof by scenario. Each one links to the guide that defines the behavior.
 
-### Presence Tracking
+### Partial values
+
+A settings layer often needs to distinguish "not specified" from "explicitly set to `null`". A normal nullable property cannot represent both meanings at once.
+
+A generated `Fragment` keeps that distinction:
+
+```csharp
+var user = new Settings.Fragment { Label = (string?)null };
+var effective = defaults.Merge(user);
+```
+
+This is useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
+
+See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and merge rules.
+
+### Partial edits
+
+A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
+
+A generated `Patch` contains only the requested operations:
+
+```csharp
+var patch = new Settings.Patch();
+patch.Database.Port = 6432;
+
+var updated = current.Apply(patch);
+```
+
+This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseFragments is useful when the edit arrives from elsewhere.
+
+See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
+
+### Before to after changes
+
+Undo, audit output, conflict detection, and synchronization need more than the final value. They need to know what changed.
+
+A generated `ChangeSet` records that transition:
+
+```csharp
+var changes = Settings.ChangeSet.Between(before, after);
+
+changes.Database.Port.IsChanged;
+changes.Database.Port.Before;
+changes.Database.Port.After;
+```
+
+See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
+
+### Client and server edits
+
+A `ChangeSet` crosses a process boundary through its generated payload, using the transport the application already owns:
+
+```csharp
+var json = JsonSerializer.Serialize(changes.ToPayload());
+var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
+
+var rebased = incoming.RebaseOnto(current);
+```
+
+Rebasing preserves unrelated newer changes instead of replacing current state with a stale object. Conflicting edits are reported separately.
+
+See [ChangeSet rebase](docs/rebase.md) for the client and server flow and conflict handling, and the [ChangePayload wire reference](docs/change-payload.md) for the exact JSON contract.
+
+### UI editing
+
+Change notification and "there is still something to save" are different questions. A field can be touched and then restored to its original value.
+
+An edit session (the per-model `EditSession` in `SparseFragments.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
+
+```csharp
+var session = order.CreateEditSession();
+session.Observable.Name = "Updated";
+
+var submitted = session.CreateChangeSet();
+var response = await SendChangesAsync(submitted.ToPayload());
+if (response.IsSuccess)
+{
+    // Advances the baseline only. The live model is untouched,
+    // so edits made after CreateChangeSet stay pending.
+    session.AcceptChanges(submitted);
+}
+```
+
+Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. A raw `session.Model` reference edits the same instance without notifications and disables the session's observable-change cache, so prefer the proxy while the session tracks edits. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
+
+```csharp
+session.Observable.Name = "Updated";
+string shown = session.Current.Name;
+
+session.BatchEdit(() =>
+{
+    session.Observable.Name = "Batched";
+});
+
+session.RevertChanges();
+// session.HasChanges == false
+```
+
+The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
+
+For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
+
+```csharp
+var pending = baseline.CreateChangeSet(edited);
+if (!pending.TryApplyInPlace(boundModel, out var conflicts))
+{
+    ShowConflicts(conflicts);
+    return;
+}
+// boundModel now carries the change; unrelated concurrent edits are preserved.
+```
+
+The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
+
+`ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) is an advanced seam. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
+
+### Keyed collections
+
+Collection edits need stable identity. Array positions are not enough when items can be inserted, removed, or reordered.
+
+With a `[SparseKey]` on the element model, changes are exposed by key:
+
+```csharp
+var changes = Roster.ChangeSet.Between(before, after);
+
+changes.Quests.Added;
+changes.Quests.Removed;
+changes.Quests.Edited;
+changes.Quests.OrderChanged;
+```
+
+See [Keyed collections](docs/keyed-collections.md) for key rules and per-item transitions. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
+
+## Generated API
+
+### Presence tracking
 
 `Optional<T>` represents the three states that a normal property cannot distinguish: missing, present `null`, and present value.
 
@@ -267,9 +253,9 @@ Optional<string?> explicitNull = Optional<string?>.Present(null);
 ```
 <!-- /sample -->
 
-Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand. A Patch `Remove()` drops one member contribution back to missing; on the next merge that member falls through to the lower layer. It never assigns the C# default or runs a constructor.
+Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand. A Patch `Remove()` drops one member contribution back to missing; on the next merge that member falls through to the lower layer. It never assigns the C# default or runs a constructor. This removal behavior is independent of the Quick Start values above: it describes what happens to any single member contribution when it becomes Missing.
 
-### Source Generation
+### Source generation
 
 <!-- illustrative: simplified names; does not compile as written -->
 `[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state and
@@ -306,11 +292,12 @@ The code is generated at compile time, uses no reflection for these generated op
 
 ## Documentation
 
-| Capability | Documentation |
+| Task | Guide |
 | --- | --- |
-| Fragments, patch operations, and JSON serialization | [Fragments and patches](docs/fragments-and-patches.md) |
+| Construct fragments, patches, and transitions | [Fragments and patches](docs/fragments-and-patches.md) |
 | Layer defaults and overrides | [Merge strategies](docs/merge-strategies.md) |
-| Observe and rebase before → after changes | [ChangeSet rebase](docs/rebase.md) |
+| Observe and rebase before to after changes | [ChangeSet rebase](docs/rebase.md) |
+| Send a change across a process boundary | [ChangePayload wire reference](docs/change-payload.md) |
 | Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
 | Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
 | Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |

@@ -392,7 +392,7 @@ A member whose before-state arrives redacted is an explicit write-only operation
 ```csharp
 var currentModel = new RebaseDocsSettings { RetryCount = 1, Label = "current" };
 var payload = JsonSerializer.Deserialize<RebaseDocsSettings.ChangePayload>(
-    """{"version":"0.1","changes":[{"member":"Label","before":{"state":"redacted"},"after":{"state":"value","value":"rotated"}},{"member":"RetryCount","before":{"state":"value","value":1},"after":{"state":"value","value":2}}]}"""
+    """{"version":"0.1","changes":[{"member":"Label","before":{"state":"redacted","value":null},"after":{"state":"value","value":"rotated"}},{"member":"RetryCount","before":{"state":"value","value":1},"after":{"state":"value","value":2}}]}"""
 )!;
 if (!payload.TryApplyMixedTo(currentModel, out var updated, out var outcome))
 {
@@ -484,42 +484,145 @@ The transport in the middle can be HTTP, SignalR, or any message bus the applica
 
 ### Save under a concurrency token
 
-Rebase reconciles member edits. It does not replace persistence race protection. The application carries its own concurrency token, such as a row version, ETag, or `UpdatedAt` marker, outside the `ChangeSet`, checks it inside the write transaction, and only then persists the rebased model under that token.
+Rebase reconciles member edits. It does not replace persistence race protection. The application carries its own concurrency token, such as a row version, ETag, or `UpdatedAt` marker, outside the `ChangeSet`. Two tokens stay distinct: the client token records the version the client read (contextual metadata, never a pre-rebase rejection), and the loaded server token guards the conditional write inside the transaction.
+
+Member-level rebase never makes the read, modify, and write sequence atomic. The datastore owns the token increment and the atomic conditional write. A successful `TryApplyTo` alone is never a committed save.
+
+The store below models that contract in memory. `LoadCurrent` returns the row with its token; `TrySave` writes only when the row still carries the expected token, then increments it. A `false` return means another writer moved the row first, the same way a zero affected-row count does for `UPDATE ... WHERE Id = ... AND Version = ...` or an EF Core concurrency-token conflict.
+
+<!-- sample: rebase-server-store -->
+```csharp
+sealed class RebaseVersionedStore
+{
+    private RebaseDocsSettings _row = new() { RetryCount = 1, Label = "a" };
+    private int _version = 7;
+    private bool _seeded;
+
+    public int WriteCount { get; private set; }
+
+    public void Seed(RebaseDocsSettings row, int version)
+    {
+        _row = row;
+        _version = version;
+        _seeded = true;
+    }
+
+    public RebaseDocsSettings LoadCurrent(out int version)
+    {
+        version = _version;
+        return new RebaseDocsSettings { RetryCount = _row.RetryCount, Label = _row.Label };
+    }
+
+    // Compare-and-swap: the write lands only when the row still carries
+    // expectedVersion, and the store owns the increment. A false return
+    // means another writer moved the row first.
+    public bool TrySave(int expectedVersion, RebaseDocsSettings merged)
+    {
+        if (!_seeded || expectedVersion != _version)
+        {
+            return false;
+        }
+
+        _row = new RebaseDocsSettings { RetryCount = merged.RetryCount, Label = merged.Label };
+        _version++;
+        WriteCount++;
+        return true;
+    }
+}
+```
+<!-- /sample -->
+
+The flow below reuses one set of states throughout. The client reads A at v7 and submits A to B (RetryCount 1 to 2, Label untouched). Another writer persists C at v8 (Label "a" to "b"). The server loads only C at v8, rebases onto it, and conditionally writes against v8.
 
 <!-- sample: rebase-server-save -->
 ```csharp
-var saveA = new RebaseSettings { RetryCount = 1, Label = "a" };
-var saveB = new RebaseSettings { RetryCount = 2, Label = "a" };
-var saveOutgoing = saveA.CreateChangeSet(saveB);
+var store = new RebaseVersionedStore();
+store.Seed(new RebaseDocsSettings { RetryCount = 1, Label = "a" }, version: 7);
 
-var saveJson = JsonSerializer.Serialize(saveOutgoing.ToPayload());
-var saveIncoming = JsonSerializer
-    .Deserialize<RebaseSettings.ChangePayload>(saveJson)!
-    .ToChangeSet();
+// The client read A at v7 and edited A -> B. The v7 token travels as request
+// metadata; the server never rejects a disjoint change on the stale client
+// token before reconciliation. Only the loaded server token guards the write.
+var clientBaseline = new RebaseDocsSettings { RetryCount = 1, Label = "a" };
+const int clientVersion = 7;
+var clientEdited = new RebaseDocsSettings { RetryCount = 2, Label = "a" };
+var incoming = JsonSerializer.Deserialize<RebaseDocsSettings.ChangePayload>(
+    JsonSerializer.Serialize(clientBaseline.CreateChangeSet(clientEdited).ToPayload())
+)!.ToChangeSet();
 
-// The client read state A alongside row version 7.
-// The server loads the current row with its token inside the write transaction.
-const int clientRowVersion = 7;
-var stored = new RebaseSettings { RetryCount = 1, Label = "b" };
-const int storedRowVersion = 7;
-
-if (clientRowVersion != storedRowVersion)
+// Another writer persisted C at v8 (Label "a" -> "b") before the save.
+var writerRow = store.LoadCurrent(out var writerVersion);
+if (!store.TrySave(writerVersion, new RebaseDocsSettings { RetryCount = 1, Label = "b" }))
 {
-    throw new InvalidOperationException("The row changed under the client; reload first.");
+    throw new InvalidOperationException("The seed write conflicts.");
 }
 
-if (!saveIncoming.TryApplyTo(stored, out var merged, out var saveConflicts))
+// Disjoint success: the server loads only C at v8, rebases B onto it, and
+// conditionally writes against v8. Rebase alone never commits the row.
+var loaded = store.LoadCurrent(out var loadedVersion);
+// loadedVersion == 8
+if (!incoming.TryApplyTo(loaded, out var merged, out var saveConflicts))
 {
     throw new InvalidOperationException("The change conflicts with the current row.");
 }
 
-// Persist merged only when the row still carries storedRowVersion,
-// then adopt the new token. Rebase never replaces that check.
-const int savedRowVersion = storedRowVersion + 1;
-// savedRowVersion == 8
-// merged.RetryCount == 2
-// merged.Label == "b"
+if (!store.TrySave(loadedVersion, merged))
+{
+    throw new InvalidOperationException("The row moved under the save; reload and retry.");
+}
+
+// The row now holds RetryCount 2 with Label "b" at v9. The client token is
+// still 7: it described the read, never the write guard.
+
+// An overlapping edit reports structured conflicts and writes nothing: with
+// C also moving RetryCount, the same incoming change cannot rebase.
+var overlapCurrent = new RebaseDocsSettings { RetryCount = 3, Label = "b" };
+if (incoming.TryApplyTo(overlapCurrent, out _, out var overlapConflicts))
+{
+    throw new InvalidOperationException("Expected a conflict.");
+}
+
+var overlapConflict = overlapConflicts.Single();
+// overlapConflict.Kind == SparseConflictKind.Scalar
+// overlapConflict.PathText == "RetryCount"
+
+// A race after the read but before the conditional write fails the
+// affected-row check instead of overwriting. The save reloads the newer row,
+// rebases the same incoming change onto it, and retries with a bound instead
+// of reusing the stale merged model.
+var raced = store.LoadCurrent(out var racedVersion);
+// racedVersion == 9
+if (!incoming.TryApplyTo(raced, out var racedMerge, out _))
+{
+    throw new InvalidOperationException("The change conflicts with the current row.");
+}
+
+store.TrySave(racedVersion, new RebaseDocsSettings { RetryCount = 2, Label = "c" });
+var raceHit = store.TrySave(racedVersion, racedMerge);
+// raceHit == false: the row moved under the save, so nothing overwrote it.
+
+var saved = raceHit;
+var attempts = 0;
+while (!saved && attempts < 2)
+{
+    attempts++;
+    var retryLoaded = store.LoadCurrent(out var retryVersion);
+    if (!incoming.TryApplyTo(retryLoaded, out var retryMerged, out _))
+    {
+        throw new InvalidOperationException("The change conflicts with the current row.");
+    }
+
+    saved = store.TrySave(retryVersion, retryMerged);
+}
+
+if (!saved)
+{
+    throw new InvalidOperationException("The save did not converge; report exhaustion.");
+}
+
+// The row holds RetryCount 2 with Label "c" at v11. A stale-token rejection, a
+// semantic conflict, an affected-row race with exhaustion, and a validation
+// failure stay distinct outcomes with distinct handling.
 ```
 <!-- /sample -->
 
-A token mismatch means the row moved under the client: reload the current state and rebase instead of saving. A rebase conflict means the edits overlap: surface the structured conflicts instead of saving. Only a rebased model saved under a still-current token completes the write. The conflict-checked `ChangeSet.TryApplyInPlace` fits bound models; the blind `ToPatch().ApplyInPlace` form skips the before-state check and suits callers that already own conflict handling, as described in [In-place application for bound models](#in-place-application-for-bound-models).
+A stale client token never rejects a disjoint change before reconciliation; the conditional write against the loaded token is the only race guard. A rebase conflict means the edits overlap: surface the structured conflicts instead of saving, and the failed attempt writes nothing. An affected-row failure means the row moved between the load and the write: reload the current state, rebase again, and retry with a bound. Retry exhaustion is its own outcome, reported rather than overwritten. Validation errors stay separate from all three. The conflict-checked `ChangeSet.TryApplyInPlace` fits bound models; the blind `ToPatch().ApplyInPlace` form skips the before-state check and suits callers that already own conflict handling, as described in [In-place application for bound models](#in-place-application-for-bound-models).

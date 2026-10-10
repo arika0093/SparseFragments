@@ -149,9 +149,9 @@ check_block "keyed" "docs/keyed-collections.md" "${docs_fixture_dir}/VerifiedSam
 check_block "merge-compare" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
     merge-compare-models merge-compare
 check_block "rebase" "docs/rebase.md" "${docs_fixture_dir}/VerifiedSamples.cs" \
-    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e rebase-server-save
+    rebase-first-models rebase-first rebase-applied rebase-conflict rebase-presence rebase-policy-models rebase-policy rebase-redacted rebase-e2e
 check_block "rebase-mixed" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
-    mixed-apply rebase-in-place
+    mixed-apply rebase-in-place rebase-server-store rebase-server-save
 check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
     payload-models payload-scalar-set payload-explicit-null payload-remove \
     payload-nested payload-keyed payload-command payload-conversions payload-mixed \
@@ -162,6 +162,26 @@ check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks
     ui-accept-flow ui-reload ui-reload-conflict ui-revert ui-fork-merge ui-fork-conflict
 check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
+
+# 1b2. JSON specimen verification (#212). Valid ```json fences in the
+# ChangePayload wire reference carry `<!-- json-sample: <id> -->` markers and
+# must match their fixture-generated specimens deeply (array order
+# significant), so a one-field corruption in Markdown fails the build. The
+# fixture separately asserts byte equality against live serializer output.
+check_json() {
+    local topic="$1"
+    local guide="$2"
+    local fixture_source="$3"
+    shift 3
+    if ! python3 "$(dirname "$0")/check-docs-json.py" "${guide}" "${fixture_source}" "$@"; then
+        echo "Docs JSON drift [${topic}]: see mismatches above." >&2
+        exit 1
+    fi
+}
+
+check_json "payload-json" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloadDocs.cs" \
+    payload-envelope payload-scalar-add payload-nested-json payload-keyed-json \
+    payload-reorder payload-dict payload-root
 
 # 1c. Marker coverage (#201). Every `<!-- sample: -->` id in a guide must be
 # registered for exact verification above, so a newly added marker without a
@@ -188,11 +208,17 @@ check_coverage "merge-compare" "docs/merge-strategies.md" \
 check_coverage "rebase" "docs/rebase.md" \
     rebase-first-models rebase-first rebase-presence rebase-in-place rebase-applied \
     rebase-conflict rebase-policy-models rebase-policy rebase-redacted mixed-apply \
-    rebase-e2e rebase-server-save
+    rebase-e2e rebase-server-store rebase-server-save
 check_coverage "payload" "docs/change-payload.md" \
     payload-models payload-scalar-set payload-explicit-null payload-remove \
     payload-nested payload-keyed payload-command payload-conversions payload-mixed \
     payload-invert payload-version
+if ! python3 "$(dirname "$0")/check-docs-json.py" --coverage-json "docs/change-payload.md" \
+    payload-envelope payload-scalar-add payload-nested-json payload-keyed-json \
+    payload-reorder payload-dict payload-root; then
+    echo "Docs JSON drift [payload-json]: see unguarded markers above." >&2
+    exit 1
+fi
 check_coverage "ui" "docs/ui-frameworks.md" \
     ui-session-models ui-accept-flow ui-reload ui-reload-conflict ui-revert \
     ui-fork-merge ui-fork-conflict ui-session ui-blazor-form ui-wpf-session
