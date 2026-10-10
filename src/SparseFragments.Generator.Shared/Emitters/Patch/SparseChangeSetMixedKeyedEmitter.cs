@@ -176,11 +176,14 @@ internal static class SparseChangeSetMixedKeyedEmitter
             var valueChangeSet = isKeyed
                 ? SparseChangeSetBasicsEmitter.ElementChangeSetOf(member)
                 : SparseChangeSetBasicsEmitter.ValueChangeSetOf(member);
+            code.AppendLineAt(8, valueChangeSet + "? __restoredEdit" + id + " = null;");
             code.AppendLineAt(8, "if (changeItem.Edit is not null)");
             code.AppendLineAt(8, "{");
             code.AppendLineAt(
                 9,
-                "_ = "
+                "__restoredEdit"
+                    + id
+                    + " = "
                     + valueChangeSet
                     + ".__SparseMixedPartition(changeItem.Edit, __itemPath"
                     + id
@@ -330,7 +333,13 @@ internal static class SparseChangeSetMixedKeyedEmitter
         }
         code.AppendLineAt(
             8,
-            "__payloadItems" + id + ".Add(__SparsePayloadItem" + id + "(changeItem));"
+            "__payloadItems"
+                + id
+                + ".Add(__SparsePayloadItem"
+                + id
+                + "(changeItem"
+                + (isModelValue ? ", __restoredEdit" + id : string.Empty)
+                + "));"
         );
         code.AppendLineAt(7, "}");
         code.AppendLineAt(

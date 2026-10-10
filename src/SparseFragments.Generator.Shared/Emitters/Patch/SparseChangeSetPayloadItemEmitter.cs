@@ -33,6 +33,28 @@ internal static class SparseChangeSetPayloadItemEmitter
         var isModelValue = isKeyed
             ? member.Collection.ElementType.IsFragmentModel
             : member.Collection.ValueType?.IsFragmentModel == true;
+        var itemType = SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
+            payloadContainerName,
+            modelType,
+            "Item",
+            id
+        );
+        var restoredEditPrefix = isModelValue ? "restoredEdit ?? " : string.Empty;
+        if (isModelValue)
+        {
+            code.AppendLineAt(
+                2,
+                "internal static "
+                    + trans
+                    + ".Item __SparsePayloadItem"
+                    + id
+                    + "("
+                    + itemType
+                    + " item) => __SparsePayloadItem"
+                    + id
+                    + "(item, null);"
+            );
+        }
         // Internal so the payload baseline-free projection reuses the same
         // validation and conversion instead of duplicating it.
         code.AppendLineAt(
@@ -42,13 +64,10 @@ internal static class SparseChangeSetPayloadItemEmitter
                 + ".Item __SparsePayloadItem"
                 + id
                 + "("
-                + SparseChangeSetPayloadEmitter.PayloadMemberTypeName(
-                    payloadContainerName,
-                    modelType,
-                    "Item",
-                    id
-                )
-                + " item)"
+                + itemType
+                + " item"
+                + (isModelValue ? ", " + valueCs + "? restoredEdit" : string.Empty)
+                + ")"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -238,7 +257,9 @@ internal static class SparseChangeSetPayloadItemEmitter
             var edit = hasEdit
                 ? "("
                     + edited
-                    + " ? item.Edit?.ToChangeSetCore() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : "
+                    + " ? "
+                    + restoredEditPrefix
+                    + "item.Edit?.ToChangeSetCore() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : "
                     + derivedEdit
                     + ")"
                 : derivedEdit;
@@ -305,7 +326,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                     + ", "
                     + "("
                     + edited
-                    + " ? item.Edit?.ToChangeSetCore() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : "
+                    + " ? restoredEdit ?? item.Edit?.ToChangeSetCore() ?? throw new global::System.ArgumentException(\"Edited payload items require an edit payload.\") : "
                     + derivedEdit
                     + "), false);"
             );
