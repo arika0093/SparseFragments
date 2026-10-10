@@ -1,0 +1,464 @@
+{
+  "schema": 1,
+  "suite": "sparsefragments-v1",
+  "profile": "baseline",
+  "captured_utc": "2026-10-10T04:23:06.455750+00:00",
+  "commit": "3b0d68fed16621e0924e419bff86663764f85e21",
+  "dirty": false,
+  "benchmark_sha256": "fc08bd6c3aefcfe4dc52bc781ddefcaf02194976b82230bbebcf0b86d24e766e",
+  "environment": {
+    "sdk": "10.0.401",
+    "host": {
+      "BenchmarkDotNetCaption": "BenchmarkDotNet",
+      "BenchmarkDotNetVersion": "0.15.8",
+      "OsVersion": "Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValley2)",
+      "ProcessorName": "Intel Core i7-14700F",
+      "PhysicalProcessorCount": 1,
+      "PhysicalCoreCount": 20,
+      "LogicalCoreCount": 28,
+      "RuntimeVersion": ".NET 10.0.12 (10.0.12, 10.0.1226.42308)",
+      "Architecture": "X64",
+      "HasAttachedDebugger": false,
+      "HasRyuJit": true,
+      "Configuration": "RELEASE",
+      "DotNetCliVersion": "10.0.401",
+      "ChronometerFrequency": {
+        "Hertz": 10000000
+      },
+      "HardwareTimerKind": "Unknown"
+    },
+    "runtime_variables": {},
+    "logical_cpu_count": 28,
+    "machine": "AMD64"
+  },
+  "sizes": [
+    {
+      "ModelCount": 1,
+      "GeneratedFiles": 10,
+      "GeneratedSourceBytes": 250517,
+      "GeneratedSourceSha256": "A5C7FA5F957B7CCE0E72C0F90D5C9F76AEB1DFFF75FDB382D4493FD626E0068C",
+      "AssemblyBytes": 81408
+    },
+    {
+      "ModelCount": 4,
+      "GeneratedFiles": 28,
+      "GeneratedSourceBytes": 812615,
+      "GeneratedSourceSha256": "EE0EF8B458F289AC9BA7BB177419FC6CD9BDD31AF1B6B0ADD1ABD11AD354865E",
+      "AssemblyBytes": 191488
+    },
+    {
+      "ModelCount": 16,
+      "GeneratedFiles": 100,
+      "GeneratedSourceBytes": 3062351,
+      "GeneratedSourceSha256": "D82C47B48FAC09290C34404AFB9B6EC98338679F8E4A617FA4F9844FBF75D108",
+      "AssemblyBytes": 686080
+    }
+  ],
+  "cases": {
+    "BaselineGeneratorBenchmarks.FreshGeneration(ModelCount=1)": {
+      "mean_ns": 3900760.8630952383,
+      "standard_error_ns": 119957.70175223425,
+      "confidence_interval": {"N": 28, "Mean": 3900760.8630952383, "StandardError": 119957.70175223425, "Level": 12, "Margin": 442594.94215761864, "Lower": 3458165.9209376196, "Upper": 4343355.805252857},
+      "allocated_bytes": 2361292,
+      "gen0_per_1000_ops": 145.83333333333334,
+      "gen1_per_1000_ops": 83.33333333333333,
+      "gen2_per_1000_ops": 41.666666666666664
+    },
+    "BaselineGeneratorBenchmarks.Compile(ModelCount=1)": {
+      "mean_ns": 199917265,
+      "standard_error_ns": 12541693.577984758,
+      "confidence_interval": {"N": 30, "Mean": 199917265, "StandardError": 12541693.577984758, "Level": 12, "Margin": 45895136.40703552, "Lower": 154022128.59296447, "Upper": 245812401.40703553},
+      "allocated_bytes": 19815760,
+      "gen0_per_1000_ops": 1000.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "BaselineGeneratorBenchmarks.IncrementalUnrelatedEdit(ModelCount=1)": {
+      "mean_ns": 1285028.3680555555,
+      "standard_error_ns": 114461.89957344436,
+      "confidence_interval": {"N": 30, "Mean": 1285028.3680555555, "StandardError": 114461.89957344436, "Level": 12, "Margin": 418862.4496099146, "Lower": 866165.918445641, "Upper": 1703890.81766547},
+      "allocated_bytes": 186892,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "BaselineGeneratorBenchmarks.FreshGeneration(ModelCount=4)": {
+      "mean_ns": 12188517.5,
+      "standard_error_ns": 556016.3305412777,
+      "confidence_interval": {"N": 30, "Mean": 12188517.5, "StandardError": 556016.3305412777, "Level": 12, "Margin": 2034688.949786292, "Lower": 10153828.550213708, "Upper": 14223206.449786292},
+      "allocated_bytes": 7783828,
+      "gen0_per_1000_ops": 500.0,
+      "gen1_per_1000_ops": 312.5,
+      "gen2_per_1000_ops": 187.5
+    },
+    "BaselineGeneratorBenchmarks.Compile(ModelCount=4)": {
+      "mean_ns": 235858103.44827586,
+      "standard_error_ns": 8923729.962250901,
+      "confidence_interval": {"N": 29, "Mean": 235858103.44827586, "StandardError": 8923729.962250901, "Level": 12, "Margin": 32784948.610504083, "Lower": 203073154.83777177, "Upper": 268643052.05877995},
+      "allocated_bytes": 60560344,
+      "gen0_per_1000_ops": 3000.0,
+      "gen1_per_1000_ops": 1000.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "BaselineGeneratorBenchmarks.IncrementalUnrelatedEdit(ModelCount=4)": {
+      "mean_ns": 1154439.9626068377,
+      "standard_error_ns": 70903.96584705645,
+      "confidence_interval": {"N": 30, "Mean": 1154439.9626068377, "StandardError": 70903.96584705645, "Level": 12, "Margin": 259466.32838029607, "Lower": 894973.6342265417, "Upper": 1413906.2909871337},
+      "allocated_bytes": 481983,
+      "gen0_per_1000_ops": 20.833333333333332,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "BaselineGeneratorBenchmarks.FreshGeneration(ModelCount=16)": {
+      "mean_ns": 36150777.5,
+      "standard_error_ns": 1480962.2085522981,
+      "confidence_interval": {"N": 30, "Mean": 36150777.5, "StandardError": 1480962.2085522981, "Level": 12, "Margin": 5419440.536681793, "Lower": 30731336.963318206, "Upper": 41570218.03668179},
+      "allocated_bytes": 29508402,
+      "gen0_per_1000_ops": 2000.0,
+      "gen1_per_1000_ops": 1250.0,
+      "gen2_per_1000_ops": 750.0
+    },
+    "BaselineGeneratorBenchmarks.Compile(ModelCount=16)": {
+      "mean_ns": 596699184.6153846,
+      "standard_error_ns": 19191175.441106897,
+      "confidence_interval": {"N": 26, "Mean": 596699184.6153846, "StandardError": 19191175.441106897, "Level": 12, "Margin": 71489891.0574708, "Lower": 525209293.5579138, "Upper": 668189075.6728554},
+      "allocated_bytes": 226734648,
+      "gen0_per_1000_ops": 13000.0,
+      "gen1_per_1000_ops": 6000.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "BaselineGeneratorBenchmarks.IncrementalUnrelatedEdit(ModelCount=16)": {
+      "mean_ns": 3778757.335306618,
+      "standard_error_ns": 231814.13846513658,
+      "confidence_interval": {"N": 27, "Mean": 3778757.335306618, "StandardError": 231814.13846513658, "Level": 12, "Margin": 859245.007603496, "Lower": 2919512.327703122, "Upper": 4638002.342910114},
+      "allocated_bytes": 1665525,
+      "gen0_per_1000_ops": 81.9672131147541,
+      "gen1_per_1000_ops": 32.78688524590164,
+      "gen2_per_1000_ops": 0.0
+    },
+    "EditWorkflowBenchmarks.ModelToApply(Size=64&Shape=Replay)": {
+      "mean_ns": 325740.70713768987,
+      "standard_error_ns": 8846.613217314976,
+      "confidence_interval": {"N": 29, "Mean": 325740.70713768987, "StandardError": 8846.613217314976, "Level": 12, "Margin": 32501.628907820483, "Lower": 293239.07822986937, "Upper": 358242.33604551037},
+      "allocated_bytes": 480640,
+      "gen0_per_1000_ops": 22.727272727272727,
+      "gen1_per_1000_ops": 5.681818181818182,
+      "gen2_per_1000_ops": 0.0
+    },
+    "EditWorkflowBenchmarks.ModelToApply(Size=64&Shape=Conflict)": {
+      "mean_ns": 358278.1419968921,
+      "standard_error_ns": 14240.525753251988,
+      "confidence_interval": {"N": 27, "Mean": 358278.1419968921, "StandardError": 14240.525753251988, "Level": 12, "Margin": 52784.09996968765, "Lower": 305494.0420272045, "Upper": 411062.24196657975},
+      "allocated_bytes": 480232,
+      "gen0_per_1000_ops": 22.727272727272727,
+      "gen1_per_1000_ops": 5.681818181818182,
+      "gen2_per_1000_ops": 0.0
+    },
+    "EditWorkflowBenchmarks.ModelToApply(Size=1024&Shape=Replay)": {
+      "mean_ns": 1883078.3794162825,
+      "standard_error_ns": 51475.12381004728,
+      "confidence_interval": {"N": 28, "Mean": 1883078.3794162825, "StandardError": 51475.12381004728, "Level": 12, "Margin": 189922.19017600344, "Lower": 1693156.1892402791, "Upper": 2073000.569592286},
+      "allocated_bytes": 4698296,
+      "gen0_per_1000_ops": 266.6666666666667,
+      "gen1_per_1000_ops": 166.66666666666666,
+      "gen2_per_1000_ops": 0.0
+    },
+    "EditWorkflowBenchmarks.ModelToApply(Size=1024&Shape=Conflict)": {
+      "mean_ns": 1910133.1216097984,
+      "standard_error_ns": 54842.14059196653,
+      "confidence_interval": {"N": 27, "Mean": 1910133.1216097984, "StandardError": 54842.14059196653, "Level": 12, "Margin": 203278.52227625562, "Lower": 1706854.5993335429, "Upper": 2113411.643886054},
+      "allocated_bytes": 4697984,
+      "gen0_per_1000_ops": 267.7165354330709,
+      "gen1_per_1000_ops": 220.4724409448819,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.CloneModel(Size=64)": {
+      "mean_ns": 69.57116640106841,
+      "standard_error_ns": 3.123601581784804,
+      "confidence_interval": {"N": 29, "Mean": 69.57116640106841, "StandardError": 3.123601581784804, "Level": 12, "Margin": 11.475819838980552, "Lower": 58.095346562087855, "Upper": 81.04698624004897},
+      "allocated_bytes": 600,
+      "gen0_per_1000_ops": 0.034673727498448166,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.CloneFragment(Size=64)": {
+      "mean_ns": 71.09971083448818,
+      "standard_error_ns": 2.7857905618326706,
+      "confidence_interval": {"N": 30, "Mean": 71.09971083448818, "StandardError": 2.7857905618326706, "Level": 12, "Margin": 10.194335959632543, "Lower": 60.90537487485564, "Upper": 81.29404679412072},
+      "allocated_bytes": 584,
+      "gen0_per_1000_ops": 0.03370439084724799,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonRuntime(Size=64)": {
+      "mean_ns": 1.3509867174395824,
+      "standard_error_ns": 0.03837337726645377,
+      "confidence_interval": {"N": 29, "Mean": 1.3509867174395824, "StandardError": 0.03837337726645377, "Level": 12, "Margin": 0.14098019628720812, "Lower": 1.2100065211523743, "Upper": 1.4919669137267906},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonSequence(Size=64)": {
+      "mean_ns": 52.58607281868701,
+      "standard_error_ns": 0.6020339017692982,
+      "confidence_interval": {"N": 29, "Mean": 52.58607281868701, "StandardError": 0.6020339017692982, "Level": 12, "Margin": 2.2118162040740557, "Lower": 50.37425661461295, "Upper": 54.79788902276106},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonNoopBetween(Size=64)": {
+      "mean_ns": 91.08457249271102,
+      "standard_error_ns": 2.924814705290076,
+      "confidence_interval": {"N": 30, "Mean": 91.08457249271102, "StandardError": 2.924814705290076, "Level": 12, "Margin": 10.703081607752113, "Lower": 80.38149088495891, "Upper": 101.78765410046313},
+      "allocated_bytes": 136,
+      "gen0_per_1000_ops": 0.007636771252802363,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonSequenceSameReference(Size=64)": {
+      "mean_ns": 0.12024836005487377,
+      "standard_error_ns": 0.02543433296749947,
+      "confidence_interval": {"N": 29, "Mean": 0.12024836005487377, "StandardError": 0.02543433296749947, "Level": 12, "Margin": 0.09344335864143385, "Lower": 0.026805001413439916, "Upper": 0.21369171869630763},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonBetweenSameReference(Size=64)": {
+      "mean_ns": 14.862461219461606,
+      "standard_error_ns": 1.0110573177832969,
+      "confidence_interval": {"N": 29, "Mean": 14.862461219461606, "StandardError": 1.0110573177832969, "Level": 12, "Margin": 3.7145299494740027, "Lower": 11.147931269987604, "Upper": 18.57699116893561},
+      "allocated_bytes": 136,
+      "gen0_per_1000_ops": 0.007842828384230508,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.EditSessionIndividual(Size=64)": {
+      "mean_ns": 3395163.679673321,
+      "standard_error_ns": 158713.06460132616,
+      "confidence_interval": {"N": 29, "Mean": 3395163.679673321, "StandardError": 158713.06460132616, "Level": 12, "Margin": 583096.9436302395, "Lower": 2812066.7360430816, "Upper": 3978260.6233035605},
+      "allocated_bytes": 7123152,
+      "gen0_per_1000_ops": 368.42105263157896,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.EditSessionBatched(Size=64)": {
+      "mean_ns": 65367.37400093079,
+      "standard_error_ns": 3277.9982490471334,
+      "confidence_interval": {"N": 30, "Mean": 65367.37400093079, "StandardError": 3277.9982490471334, "Level": 12, "Margin": 11995.523239869784, "Lower": 53371.850761061, "Upper": 77362.89724080058},
+      "allocated_bytes": 175648,
+      "gen0_per_1000_ops": 10.151273885350319,
+      "gen1_per_1000_ops": 1.5923566878980893,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.KeyedBetween(Size=64)": {
+      "mean_ns": 15676.329059959486,
+      "standard_error_ns": 1167.7944640874564,
+      "confidence_interval": {"N": 30, "Mean": 15676.329059959486, "StandardError": 1167.7944640874564, "Level": 12, "Margin": 4273.432921272723, "Lower": 11402.896138686763, "Upper": 19949.76198123221},
+      "allocated_bytes": 48008,
+      "gen0_per_1000_ops": 2.7830788804071247,
+      "gen1_per_1000_ops": 0.07951653944020357,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.KeyedApply(Size=64)": {
+      "mean_ns": 1771.0269958286885,
+      "standard_error_ns": 119.42932403762099,
+      "confidence_interval": {"N": 28, "Mean": 1771.0269958286885, "StandardError": 119.42932403762099, "Level": 12, "Margin": 440.64544412105533, "Lower": 1330.3815517076332, "Upper": 2211.672439949744},
+      "allocated_bytes": 5352,
+      "gen0_per_1000_ops": 0.3035822707953855,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.DictionaryBetween(Size=64)": {
+      "mean_ns": 863.1310026159069,
+      "standard_error_ns": 45.53215449944884,
+      "confidence_interval": {"N": 29, "Mean": 863.1310026159069, "StandardError": 45.53215449944884, "Level": 12, "Margin": 167.28087377191653, "Lower": 695.8501288439904, "Upper": 1030.4118763878234},
+      "allocated_bytes": 1296,
+      "gen0_per_1000_ops": 0.07227522405319456,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.DictionaryApply(Size=64)": {
+      "mean_ns": 573.0375395440517,
+      "standard_error_ns": 22.836480323978368,
+      "confidence_interval": {"N": 30, "Mean": 573.0375395440517, "StandardError": 22.836480323978368, "Level": 12, "Margin": 83.56793067926155, "Lower": 489.46960886479013, "Upper": 656.6054702233132},
+      "allocated_bytes": 2120,
+      "gen0_per_1000_ops": 0.12125546677189175,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.PatchRoundTrip(Size=64)": {
+      "mean_ns": 24.098875751923604,
+      "standard_error_ns": 0.6546166906242735,
+      "confidence_interval": {"N": 28, "Mean": 24.098875751923604, "StandardError": 0.6546166906242735, "Level": 12, "Margin": 2.4152683161660002, "Lower": 21.683607435757605, "Upper": 26.514144068089603},
+      "allocated_bytes": 72,
+      "gen0_per_1000_ops": 0.004062340680076453,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ChangeSetInvert(Size=64)": {
+      "mean_ns": 33.87826593651096,
+      "standard_error_ns": 0.6314947613955589,
+      "confidence_interval": {"N": 30, "Mean": 33.87826593651096, "StandardError": 0.6314947613955589, "Level": 12, "Margin": 2.310895098366336, "Lower": 31.56737083814462, "Upper": 36.189161034877294},
+      "allocated_bytes": 208,
+      "gen0_per_1000_ops": 0.012005125310083603,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ChangeSetCompose(Size=64)": {
+      "mean_ns": 87.14744117722499,
+      "standard_error_ns": 0.9906887360102582,
+      "confidence_interval": {"N": 30, "Mean": 87.14744117722499, "StandardError": 0.9906887360102582, "Level": 12, "Margin": 3.625331331321709, "Lower": 83.52210984590329, "Upper": 90.7727725085467},
+      "allocated_bytes": 208,
+      "gen0_per_1000_ops": 0.011784361889897397,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.CloneModel(Size=1024)": {
+      "mean_ns": 279.2549688327456,
+      "standard_error_ns": 5.175276399990371,
+      "confidence_interval": {"N": 27, "Mean": 279.2549688327456, "StandardError": 5.175276399990371, "Level": 12, "Margin": 19.182740272456225, "Lower": 260.0722285602894, "Upper": 298.4377091052018},
+      "allocated_bytes": 4440,
+      "gen0_per_1000_ops": 0.2575674028499289,
+      "gen1_per_1000_ops": 0.003627709899294773,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.CloneFragment(Size=1024)": {
+      "mean_ns": 209.67053021903948,
+      "standard_error_ns": 9.567935720952839,
+      "confidence_interval": {"N": 29, "Mean": 209.67053021903948, "StandardError": 9.567935720952839, "Level": 12, "Margin": 35.151700269617095, "Lower": 174.51882994942238, "Upper": 244.82223048865657},
+      "allocated_bytes": 4424,
+      "gen0_per_1000_ops": 0.2556426177804061,
+      "gen1_per_1000_ops": 0.004106708719363953,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonRuntime(Size=1024)": {
+      "mean_ns": 2.0913344922900388,
+      "standard_error_ns": 0.1518101412174864,
+      "confidence_interval": {"N": 28, "Mean": 2.0913344922900388, "StandardError": 0.1518101412174864, "Level": 12, "Margin": 0.5601174388108171, "Lower": 1.5312170534792218, "Upper": 2.6514519311008558},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonSequence(Size=1024)": {
+      "mean_ns": 621.5414992929259,
+      "standard_error_ns": 6.0936003756911585,
+      "confidence_interval": {"N": 24, "Mean": 621.5414992929259, "StandardError": 6.0936003756911585, "Level": 12, "Margin": 22.958412103611916, "Lower": 598.583087189314, "Upper": 644.4999113965378},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonNoopBetween(Size=1024)": {
+      "mean_ns": 1040.3868620407409,
+      "standard_error_ns": 73.39922377977031,
+      "confidence_interval": {"N": 29, "Mean": 1040.3868620407409, "StandardError": 73.39922377977031, "Level": 12, "Margin": 269.6618779199003, "Lower": 770.7249841208406, "Upper": 1310.0487399606411},
+      "allocated_bytes": 136,
+      "gen0_per_1000_ops": 0.007836008024072217,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonSequenceSameReference(Size=1024)": {
+      "mean_ns": 0.1534715291311037,
+      "standard_error_ns": 0.0364327376084389,
+      "confidence_interval": {"N": 28, "Mean": 0.1534715291311037, "StandardError": 0.0364327376084389, "Level": 12, "Margin": 0.13442192672010225, "Lower": 0.019049602411001454, "Upper": 0.28789345585120596},
+      "allocated_bytes": 0,
+      "gen0_per_1000_ops": 0.0,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ComparisonBetweenSameReference(Size=1024)": {
+      "mean_ns": 12.412745848355796,
+      "standard_error_ns": 0.6635009319006295,
+      "confidence_interval": {"N": 28, "Mean": 12.412745848355796, "StandardError": 0.6635009319006295, "Level": 12, "Margin": 2.4480475391453194, "Lower": 9.964698309210476, "Upper": 14.860793387501115},
+      "allocated_bytes": 136,
+      "gen0_per_1000_ops": 0.007878434491870466,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.EditSessionIndividual(Size=1024)": {
+      "mean_ns": 43725775.5,
+      "standard_error_ns": 1323637.4192712803,
+      "confidence_interval": {"N": 30, "Mean": 43725775.5, "StandardError": 1323637.4192712803, "Level": 12, "Margin": 4843725.413412082, "Lower": 38882050.08658792, "Upper": 48569500.91341208},
+      "allocated_bytes": 126033216,
+      "gen0_per_1000_ops": 7200.0,
+      "gen1_per_1000_ops": 1600.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.EditSessionBatched(Size=1024)": {
+      "mean_ns": 861895.3703703706,
+      "standard_error_ns": 30011.119480640653,
+      "confidence_interval": {"N": 30, "Mean": 861895.3703703706, "StandardError": 30011.119480640653, "Level": 12, "Margin": 109822.84120779512, "Lower": 752072.5291625755, "Upper": 971718.2115781656},
+      "allocated_bytes": 2361832,
+      "gen0_per_1000_ops": 131.94444444444446,
+      "gen1_per_1000_ops": 90.27777777777777,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.KeyedBetween(Size=1024)": {
+      "mean_ns": 276368.79233188194,
+      "standard_error_ns": 13341.06829823532,
+      "confidence_interval": {"N": 30, "Mean": 276368.79233188194, "StandardError": 13341.06829823532, "Level": 12, "Margin": 48820.37226917101, "Lower": 227548.42006271094, "Upper": 325189.16460105294},
+      "allocated_bytes": 917912,
+      "gen0_per_1000_ops": 53.06603773584906,
+      "gen1_per_1000_ops": 22.40566037735849,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.KeyedApply(Size=1024)": {
+      "mean_ns": 20553.197165363268,
+      "standard_error_ns": 217.54294014542117,
+      "confidence_interval": {"N": 30, "Mean": 20553.197165363268, "StandardError": 217.54294014542117, "Level": 12, "Margin": 796.0777266865707, "Lower": 19757.1194386767, "Upper": 21349.274892049838},
+      "allocated_bytes": 110624,
+      "gen0_per_1000_ops": 6.34765625,
+      "gen1_per_1000_ops": 1.3020833333333333,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.DictionaryBetween(Size=1024)": {
+      "mean_ns": 11194.50584926825,
+      "standard_error_ns": 211.1632553219894,
+      "confidence_interval": {"N": 29, "Mean": 11194.50584926825, "StandardError": 211.1632553219894, "Level": 12, "Margin": 775.7940349432021, "Lower": 10418.711814325046, "Upper": 11970.299884211452},
+      "allocated_bytes": 8976,
+      "gen0_per_1000_ops": 0.5165289256198347,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.DictionaryApply(Size=1024)": {
+      "mean_ns": 5775.897734865947,
+      "standard_error_ns": 53.559338639155015,
+      "confidence_interval": {"N": 29, "Mean": 5775.897734865947, "StandardError": 53.559338639155015, "Level": 12, "Margin": 196.77199694805293, "Lower": 5579.125737917894, "Upper": 5972.669731814},
+      "allocated_bytes": 31016,
+      "gen0_per_1000_ops": 1.7857142857142858,
+      "gen1_per_1000_ops": 0.15756302521008403,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.PatchRoundTrip(Size=1024)": {
+      "mean_ns": 19.06821988962594,
+      "standard_error_ns": 0.2941746750208162,
+      "confidence_interval": {"N": 30, "Mean": 19.06821988962594, "StandardError": 0.2941746750208162, "Level": 12, "Margin": 1.0765042817881636, "Lower": 17.991715607837776, "Upper": 20.144724171414104},
+      "allocated_bytes": 72,
+      "gen0_per_1000_ops": 0.00411659723339333,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ChangeSetInvert(Size=1024)": {
+      "mean_ns": 30.58889018855744,
+      "standard_error_ns": 0.17699783928171098,
+      "confidence_interval": {"N": 27, "Mean": 30.58889018855744, "StandardError": 0.17699783928171098, "Level": 12, "Margin": 0.6560622693955688, "Lower": 29.93282791916187, "Upper": 31.24495245795301},
+      "allocated_bytes": 208,
+      "gen0_per_1000_ops": 0.011987245570712762,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    },
+    "ThreeLayerOpsBenchmarks.ChangeSetCompose(Size=1024)": {
+      "mean_ns": 821.5051340553895,
+      "standard_error_ns": 22.128262178862986,
+      "confidence_interval": {"N": 29, "Mean": 821.5051340553895, "StandardError": 22.128262178862986, "Level": 12, "Margin": 81.29716401579594, "Lower": 740.2079700395935, "Upper": 902.8022980711854},
+      "allocated_bytes": 208,
+      "gen0_per_1000_ops": 0.01203137783338948,
+      "gen1_per_1000_ops": 0.0,
+      "gen2_per_1000_ops": 0.0
+    }
+  }
+}

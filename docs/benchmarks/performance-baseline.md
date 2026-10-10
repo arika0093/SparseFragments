@@ -74,7 +74,7 @@ assembly size deltas, and whether the 99.9% time intervals overlap. Interval
 overlap is descriptive; it is not a significance test. Inspect the raw
 measurements and rerun unexpected changes under the same machine load before
 attributing them to a code change. Hosted CI machines can change CPU or runtime;
-those runs start a new baseline instead of producing misleading ratios.
+those runs start a new baseline.
 
 The Performance baseline workflow runs on relevant main pushes, weekly, and
 manual dispatch. It downloads the previous successful run's artifact, compares
@@ -94,3 +94,10 @@ The [three-layer certification report](three-layer-certification.md) contains
 historical numbers. Its old sequence and no-op comparisons used identical
 references, and its clone methods performed two clones. Those numbers do not
 serve as the baseline for the corrected methods.
+
+## Recorded baseline
+
+The [recorded runs](baselines/README.md) include complete local Windows and CI
+Linux baselines. Pass the matching JSON file as `--previous` when measuring the
+next revision on a compatible machine and SDK. Each run's artifact directory retains
+the raw measurements needed to inspect variance and GC behavior.
