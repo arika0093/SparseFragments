@@ -60,11 +60,11 @@ Serialize and deserialize the generated `T.ChangePayload`, not `T.ChangeSet` or 
 
 The top-level object carries the format token and the member changes. Nested changes omit the token. The smallest valid envelope carries one member transition with both endpoints present:
 
-<!-- json-sample: payload-envelope -->
+<!-- json-specimen: payload-envelope -->
 ```json
 {"version":"0.1","changes":[{"member":"Label","before":{"state":"value","value":"before"},"after":{"state":"value","value":"after"}}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 | Field | Meaning |
 | --- | --- |
@@ -114,11 +114,11 @@ var setRestored = JsonSerializer
 
 The JSON above is actual serializer output. Only the changed member travels. An addition mirrors this shape with a missing before-state:
 
-<!-- json-sample: payload-scalar-add -->
+<!-- json-specimen: payload-scalar-add -->
 ```json
 {"version":"0.1","changes":[{"member":"Label","before":{"state":"missing","value":null},"after":{"state":"value","value":"after"}}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 ## Explicit null
 
@@ -193,11 +193,11 @@ var nestedRestored = JsonSerializer
 ```
 <!-- /sample -->
 
-<!-- json-sample: payload-nested-json -->
+<!-- json-specimen: payload-nested-json -->
 ```json
 {"version":"0.1","changes":[{"member":"Customer","nested":{"changes":[{"member":"Name","before":{"state":"value","value":"Ann"},"after":{"state":"value","value":"Bob"}}]}}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 ## Keyed changes
 
@@ -243,27 +243,27 @@ var keyedRestored = JsonSerializer
 ```
 <!-- /sample -->
 
-<!-- json-sample: payload-keyed-json -->
+<!-- json-specimen: payload-keyed-json -->
 ```json
 {"version":"0.1","changes":[{"member":"Servers","items":[{"key":"b","kind":"edit","beforeIndex":1,"afterIndex":0,"edit":{"changes":[{"member":"Host","before":{"state":"value","value":"B"},"after":{"state":"value","value":"B2"}}]}},{"key":"c","kind":"add","beforeIndex":-1,"afterIndex":1,"after":{"state":"value","value":{"Id":"c","Host":"C"}}},{"key":"a","kind":"remove","beforeIndex":0,"afterIndex":-1,"before":{"state":"value","value":{"Id":"a","Host":"A"}}}],"beforeOrder":["a","b"],"afterOrder":["b","c"]}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 A pure reorder carries `reorder` items with indexes and the before and after key sequences:
 
-<!-- json-sample: payload-reorder -->
+<!-- json-specimen: payload-reorder -->
 ```json
 {"version":"0.1","changes":[{"member":"Servers","items":[{"key":"b","kind":"reorder","beforeIndex":1,"afterIndex":0,"isReordered":true},{"key":"a","kind":"reorder","beforeIndex":0,"afterIndex":1,"isReordered":true}],"beforeOrder":["a","b"],"afterOrder":["b","a"]}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 Scalar dictionary members use the same item vocabulary without positions. The example below edits key `b`, removes key `a`, and adds key `c` on a `Dictionary<string, int>` member:
 
-<!-- json-sample: payload-dict -->
+<!-- json-specimen: payload-dict -->
 ```json
 {"version":"0.1","changes":[{"member":"Scores","items":[{"key":"c","kind":"add","after":{"state":"value","value":4}},{"key":"a","kind":"remove","before":{"state":"value","value":1}},{"key":"b","kind":"edit","before":{"state":"value","value":2},"after":{"state":"value","value":3}}]}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 Per-item redacted endpoints in keyed and dictionary members are rejected with a typed error. Send a whole-member blind set for those members. Blind whole-collection removal has no patch projection.
 
@@ -271,11 +271,11 @@ Per-item redacted endpoints in keyed and dictionary members are rejected with a 
 
 Whole-contribution transitions, including root missing, present-null, and present-value states, encode under the `"$root"` member with a `members` array:
 
-<!-- json-sample: payload-root -->
+<!-- json-specimen: payload-root -->
 ```json
 {"version":"0.1","changes":[{"member":"$root","before":{"state":"missing","value":null},"after":{"state":"value","value":{"members":[{"member":"Label","value":{"state":"value","value":"present"}},{"member":"RetryCount","value":{"state":"value","value":3}}]}}}]}
 ```
-<!-- /json-sample -->
+<!-- /json-specimen -->
 
 Whole-root redacted operations are reported under the same `"$root"` path.
 

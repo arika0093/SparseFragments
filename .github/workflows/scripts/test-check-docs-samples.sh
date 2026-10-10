@@ -12,7 +12,8 @@
 # (e) mutated JSON specimen, (f) illustrative control passes,
 # (g) duplicate sample id, (h) unused registry entry, (i) unguarded runnable
 # fence, (j) fixture region without an assertion body, (k) empty illustrative
-# reason.
+# reason, (l) mutated JSON inside a C# raw-string wrapper, (m) -store shape
+# exemption passes.
 #
 # Usage: test-check-docs-samples.sh
 set -euo pipefail
@@ -225,6 +226,55 @@ var sketchy = 1;
 ```
 EOF
 expect_fail "k/empty illustrative reason" "${root}"
+
+# (l) Mutated JSON inside a C# raw-string wrapper fails deep comparison.
+# This locks the #212 fixture shape: the Markdown fence holds raw JSON while
+# the fixture region wraps the specimen in a `"""..."""` literal.
+root="${tmp_base}/json-wrapper"
+mkdir -p "${root}/docs"
+cat > "${root}/docs/guide.md" <<'EOF'
+# Guide
+
+<!-- json-specimen: payload-wire -->
+```json
+{ "label": { "after": "b" } }
+```
+<!-- /json-specimen -->
+EOF
+cat > "${root}/fixture.cs" <<'EOF'
+// json-specimen: payload-wire
+public const string Wire = """{ "label": { "after": "CHANGED" } }""";
+// /json-specimen
+EOF
+printf 'docs/guide.md\tpayload-wire\tfixture.cs\tjson-specimen\n' > "${root}/registry.tsv"
+expect_fail "l/mutated JSON in raw-string wrapper" "${root}"
+
+# (m) Supporting-store shape passes without an assertion body. Like -model
+# ids, a -store region declares a shape exercised through its consuming
+# sample (rebase-server-store through rebase-server-save), so the assertion
+# rule exempts it.
+root="${tmp_base}/store-shape"
+mkdir -p "${root}/docs"
+cat > "${root}/docs/guide.md" <<'EOF'
+# Guide
+
+<!-- sample: probe-store -->
+```csharp
+sealed class ProbeStore
+{
+}
+```
+<!-- /sample -->
+EOF
+cat > "${root}/fixture.cs" <<'EOF'
+// sample: probe-store
+sealed class ProbeStore
+{
+}
+// /sample
+EOF
+printf 'docs/guide.md\tprobe-store\tfixture.cs\n' > "${root}/registry.tsv"
+expect_pass "m/store shape exemption" "${root}"
 
 echo "Probes: ${passed} passed, ${failed} failed."
 if [[ "${failed}" -ne 0 ]]; then

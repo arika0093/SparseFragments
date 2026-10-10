@@ -30,6 +30,7 @@ in Markdown, `// json-specimen: id` regions in fixtures).
 """
 
 import glob
+import json
 import os
 import re
 import sys
@@ -207,16 +208,25 @@ def main(argv):
 # Assertion rule: every non-model fixture region (or the lines following it)
 # must contain an assertion body (DocsCheck.Require, Require(, ShouldBe, or
 # Assert), so the documented result runs instead of merely compiling. Ids
-# ending in -model/-models declare shapes; their behavior is exercised
-# through the constructing samples. The shell scripts additionally execute
-# the packed-package consumers and require their success markers, which
-# proves the test ran.
+# ending in -model/-models declare shapes and ids ending in -store declare
+# supporting stores; their behavior is exercised through the constructing or
+# consuming samples (e.g. rebase-server-store through rebase-server-save).
+# The shell scripts additionally execute the packed-package consumers and
+# require their success markers, which proves the test ran.
+#
+# JSON-specimen rule (#212 via the registry): a `json-specimen` row compares
+# the fenced ```json block against the fixture's `"""..."""` raw-string
+# specimen as deep JSON (object key order insignificant, array order
+# significant), so the Markdown envelope must match the live serializer
+# output the fixture asserts byte for byte. Byte and field ordering against
+# the actual serializer output is asserted separately at runtime by
+# exact-string DocsCheck assertions in the fixture.
 
 RUNNABLE_FENCE_LANGUAGES = ("csharp", "cs")
 
 ASSERTION_TOKENS = ("DocsCheck.Require", "Require(", "ShouldBe", "Assert.")
 
-MODEL_ID_SUFFIXES = ("-models", "-model")
+MODEL_ID_SUFFIXES = ("-models", "-model", "-store")
 
 ASSERTION_TRAIL_LINES = 40
 
@@ -461,6 +471,40 @@ def compare_blocks(guide, fixture, sample_id, actual, expected):
     return notes
 
 
+def compare_json_specimen(guide, fixture, sample_id, md_lines, fixture_lines):
+    """Deep-compare one JSON specimen: Markdown fence vs fixture literal."""
+    md_text = "\n".join(line for line in md_lines if line.strip())
+    body = "\n".join(fixture_lines)
+    literals = re.findall(r'"""(.*?)"""', body, flags=re.DOTALL)
+    candidates = literals if literals else [body]
+    try:
+        md_parsed = json.loads(md_text)
+    except json.JSONDecodeError as error:
+        return [
+            "Docs JSON drift [json-specimen:%s]: guide '%s' fence is not valid JSON: %s"
+            % (sample_id, guide, error)
+        ]
+    fixture_parsed = []
+    for candidate in candidates:
+        try:
+            fixture_parsed.append(json.loads(candidate))
+        except json.JSONDecodeError as error:
+            return [
+                "Docs JSON drift [json-specimen:%s]: fixture '%s' specimen is not valid JSON: %s"
+                % (sample_id, fixture, error)
+            ]
+    if len(fixture_parsed) != 1 or md_parsed != fixture_parsed[0]:
+        notes = [
+            "Docs JSON drift [json-specimen:%s]: guide '%s' fence differs from "
+            "fixture '%s' specimen (deep JSON, array order significant)."
+            % (sample_id, guide, fixture)
+        ]
+        notes.append("  md     : %r" % (md_text[:280],))
+        notes.append("  fixture: %r" % (candidates[0][:280],))
+        return notes
+    return None
+
+
 def registry_check(argv):
     # check-docs-samples.py --registry <tsv> [--root <dir>] [--only <markdown>]
     registry = None
@@ -590,15 +634,21 @@ def registry_check(argv):
                         "is verified, not just compiled." % (fixture, sample_id, markdown)
                     )
         else:
+            # Deep JSON comparison (#212): the Markdown fence holds raw JSON
+            # while the fixture region wraps the same specimen in a C#
+            # `"""..."""` raw-string literal (plus the `public const string`
+            # declaration). Extract the specimen literals and compare parsed
+            # JSON with array order significant, so a one-field corruption on
+            # either side fails the build.
             flat = []
             for region, _ in regions:
                 flat.extend(region)
-            mismatch = compare_blocks(
+            mismatch = compare_json_specimen(
                 markdown,
                 fixture,
-                "json-specimen:%s" % sample_id,
-                normalize(scan.blocks[kind][sample_id]),
-                normalize(flat),
+                sample_id,
+                scan.blocks[kind][sample_id],
+                flat,
             )
             if mismatch is not None:
                 errors.extend(mismatch)

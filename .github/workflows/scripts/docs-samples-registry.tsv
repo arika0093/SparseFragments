@@ -47,7 +47,8 @@ docs/rebase.md	rebase-policy	tests/fixtures/consumers/package-sparse-docs/Verifi
 docs/rebase.md	rebase-redacted	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/rebase.md	mixed-apply	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
 docs/rebase.md	rebase-e2e	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-server-save	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/rebase.md	rebase-server-store	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
+docs/rebase.md	rebase-server-save	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
 docs/change-payload.md	payload-models	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/change-payload.md	payload-scalar-set	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/change-payload.md	payload-explicit-null	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
@@ -59,9 +60,15 @@ docs/change-payload.md	payload-conversions	tests/fixtures/consumers/package-spar
 docs/change-payload.md	payload-mixed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/change-payload.md	payload-invert	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/change-payload.md	payload-version	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/change-payload.md	payload-envelope	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-scalar-add	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-nested-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-keyed-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-reorder	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-dict	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/change-payload.md	payload-root	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
 docs/ui-frameworks.md	ui-session-models	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
-docs/ui-frameworks.md	ui-blazor-form	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-wpf-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-accept-flow	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-reload	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
@@ -72,3 +79,26 @@ docs/ui-frameworks.md	ui-fork-conflict	tests/fixtures/consumers/package-sparse-d
 docs/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/tutorial/first-sparse-edit.md	tutorial-models	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-baseline	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-override	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-merge	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-patch	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-changeset	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-invert	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/how-to/layered-settings.md	layered-models	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
+docs/how-to/layered-settings.md	layered-precedence	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
+docs/how-to/layered-settings.md	layered-remove	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
+docs/how-to/layered-settings.md	layered-materialize	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
+docs/how-to/layered-settings.md	layered-diff	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
+docs/how-to/partial-updates.md	partial-models	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/partial-updates.md	partial-patch	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/partial-updates.md	partial-changeset	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/partial-updates.md	partial-payload	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/partial-updates.md	partial-audit	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/partial-updates.md	partial-redacted	tests/fixtures/consumers/package-sparse-docs/PartialUpdates.cs
+docs/how-to/blazor-edit-form.md	blazor-form-models	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/blazor-edit-form.md	blazor-form-input	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/blazor-edit-form.md	blazor-form-save	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/blazor-edit-form.md	blazor-form-conflict	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/blazor-edit-form.md	blazor-form-transport	tests/fixtures/consumers/package-sparse-blazor/Program.cs

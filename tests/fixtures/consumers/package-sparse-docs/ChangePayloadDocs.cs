@@ -568,38 +568,38 @@ public partial class WireScores
 }
 
 // Fixture-generated JSON specimens for the wire reference (#212).
-// Each json-sample region below holds the exact serializer output that the
+// Each json-specimen region below holds the exact serializer output that the
 // same-id fenced block in docs/change-payload.md must match deeply (array
 // order significant); the DocsCheck assertions above compare the live
 // serializer output against these constants byte for byte, so a one-field
 // corruption on either side fails.
 public static class ChangePayloadJsonSpecimens
 {
-    // json-sample: payload-envelope
+    // json-specimen: payload-envelope
     public const string Envelope = """{"version":"0.1","changes":[{"member":"Label","before":{"state":"value","value":"before"},"after":{"state":"value","value":"after"}}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-scalar-add
+    // json-specimen: payload-scalar-add
     public const string ScalarAdd = """{"version":"0.1","changes":[{"member":"Label","before":{"state":"missing","value":null},"after":{"state":"value","value":"after"}}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-nested-json
+    // json-specimen: payload-nested-json
     public const string Nested = """{"version":"0.1","changes":[{"member":"Customer","nested":{"changes":[{"member":"Name","before":{"state":"value","value":"Ann"},"after":{"state":"value","value":"Bob"}}]}}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-keyed-json
+    // json-specimen: payload-keyed-json
     public const string Keyed = """{"version":"0.1","changes":[{"member":"Servers","items":[{"key":"b","kind":"edit","beforeIndex":1,"afterIndex":0,"edit":{"changes":[{"member":"Host","before":{"state":"value","value":"B"},"after":{"state":"value","value":"B2"}}]}},{"key":"c","kind":"add","beforeIndex":-1,"afterIndex":1,"after":{"state":"value","value":{"Id":"c","Host":"C"}}},{"key":"a","kind":"remove","beforeIndex":0,"afterIndex":-1,"before":{"state":"value","value":{"Id":"a","Host":"A"}}}],"beforeOrder":["a","b"],"afterOrder":["b","c"]}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-reorder
+    // json-specimen: payload-reorder
     public const string Reorder = """{"version":"0.1","changes":[{"member":"Servers","items":[{"key":"b","kind":"reorder","beforeIndex":1,"afterIndex":0,"isReordered":true},{"key":"a","kind":"reorder","beforeIndex":0,"afterIndex":1,"isReordered":true}],"beforeOrder":["a","b"],"afterOrder":["b","a"]}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-dict
+    // json-specimen: payload-dict
     public const string Dictionary = """{"version":"0.1","changes":[{"member":"Scores","items":[{"key":"c","kind":"add","after":{"state":"value","value":4}},{"key":"a","kind":"remove","before":{"state":"value","value":1}},{"key":"b","kind":"edit","before":{"state":"value","value":2},"after":{"state":"value","value":3}}]}]}""";
-    // /json-sample
+    // /json-specimen
 
-    // json-sample: payload-root
+    // json-specimen: payload-root
     public const string Root = """{"version":"0.1","changes":[{"member":"$root","before":{"state":"missing","value":null},"after":{"state":"value","value":{"members":[{"member":"Label","value":{"state":"value","value":"present"}},{"member":"RetryCount","value":{"state":"value","value":3}}]}}}]}""";
-    // /json-sample
+    // /json-specimen
 }
