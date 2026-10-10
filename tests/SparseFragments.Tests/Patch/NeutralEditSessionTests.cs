@@ -187,6 +187,10 @@ public partial class DuplicateKeySessionModel
 
 public sealed class NeutralEditSessionTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     [Test]
     public void ModelExtensionDerivesBaselineToCurrentChangeSet()
     {
@@ -208,7 +212,7 @@ public sealed class NeutralEditSessionTests
         var model = new NeutralSessionModel { Name = "before", Version = 1 };
         var session = model.CreateEditSession();
 
-        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(Raw(session), model).ShouldBeTrue();
         ReferenceEquals(session.Observable.Model, model).ShouldBeTrue();
         ReferenceEquals(session.Observable, session.Observable).ShouldBeTrue();
         session.HasChanges.ShouldBeFalse();
@@ -244,7 +248,7 @@ public sealed class NeutralEditSessionTests
         var notifications = 0;
         var session = baseline.CreateEditSession(current, () => notifications++);
 
-        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(session), current).ShouldBeTrue();
         ReferenceEquals(session.Observable.Model, current).ShouldBeTrue();
         session.Observable.Name = "proxy edit";
         notifications.ShouldBe(1);
@@ -258,7 +262,7 @@ public sealed class NeutralEditSessionTests
         changes.Name.After.Value.ShouldBe("edited");
         session.AcceptChanges();
         session.HasChanges.ShouldBeFalse();
-        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(session), current).ShouldBeTrue();
     }
 
     [Test]
@@ -449,7 +453,7 @@ public sealed class NeutralEditSessionTests
         session.AcceptChanges(submitted);
 
         // Live model and proxy identities are untouched; only the baseline moves.
-        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(Raw(session), model).ShouldBeTrue();
         ReferenceEquals(session.Observable, observable).ShouldBeTrue();
         ReferenceEquals(model.Tags, tags).ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
@@ -611,7 +615,7 @@ public sealed class NeutralEditSessionTests
 
         for (var i = 1; i <= 3; i++)
         {
-            session.Model.Name = "n" + i;
+            Raw(session).Name = "n" + i;
             var submitted = session.CreateChangeSet();
             submitted.IsEmpty.ShouldBeFalse();
             session.AcceptChanges(submitted);
@@ -927,7 +931,7 @@ public sealed class NeutralEditSessionTests
     {
         var model = new NeutralSessionModel { Name = "before" };
         var session = model.CreateEditSession();
-        var rawModel = session.Model;
+        var rawModel = Raw(session);
 
         session.Observable.Name = "observable edit";
         session.HasChanges.ShouldBeTrue();
@@ -975,9 +979,9 @@ public sealed class NeutralEditSessionTests
         var result = session.Reload(server);
 
         result.HasConflicts.ShouldBeFalse();
-        ReferenceEquals(session.Model, original).ShouldBeTrue();
-        session.Model.Name.ShouldBe("local");
-        session.Model.Version.ShouldBe(2);
+        ReferenceEquals(Raw(session), original).ShouldBeTrue();
+        Raw(session).Name.ShouldBe("local");
+        Raw(session).Version.ShouldBe(2);
         session.HasChanges.ShouldBeTrue();
         var pending = session.CreateChangeSet();
         pending.Name.Before.Value.ShouldBe("base");
@@ -999,9 +1003,9 @@ public sealed class NeutralEditSessionTests
         result.Conflicts.ShouldContain(conflict =>
             conflict.PathText == nameof(NeutralSessionModel.Name)
         );
-        ReferenceEquals(session.Model, original).ShouldBeTrue();
-        session.Model.Name.ShouldBe("local");
-        session.Model.Version.ShouldBe(1);
+        ReferenceEquals(Raw(session), original).ShouldBeTrue();
+        Raw(session).Name.ShouldBe("local");
+        Raw(session).Version.ShouldBe(1);
         var stillPending = session.CreateChangeSet();
         stillPending.Name.Before.Value.ShouldBe("base");
         stillPending.Name.After.Value.ShouldBe("local");
@@ -1022,7 +1026,7 @@ public sealed class NeutralEditSessionTests
         // Snapshot-only sessions advance the retained baseline with no in-place write.
         session.HasChanges.ShouldBeFalse();
         session.CreateChangeSet().IsEmpty.ShouldBeTrue();
-        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(session), current).ShouldBeTrue();
         current.Name.ShouldBe("after");
 
         // Empty transitions stay idempotent on snapshot-only sessions.

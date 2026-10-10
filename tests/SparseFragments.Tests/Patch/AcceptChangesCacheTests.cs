@@ -5,6 +5,10 @@ namespace SparseFragments.Tests;
 /// <summary>Regression tests for AcceptChanges preserving the HasChanges cache (#122).</summary>
 public sealed class AcceptChangesCacheTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     [Test]
     public void AcceptChangesKeepsObservableCacheUntilRawModelIsExposed()
     {

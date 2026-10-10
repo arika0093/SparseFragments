@@ -3,6 +3,10 @@ namespace SparseFragments.Tests;
 /// <summary>RevertChanges on immutable models needs an explicit recovery path (#171).</summary>
 public sealed class RevertImmutableTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     [Test]
     public void TryRevertChangesReportsInitDriftWithoutTouchingTheModel()
     {
@@ -18,7 +22,7 @@ public sealed class RevertImmutableTests
             conflict.PathText == nameof(ReloadImmutableDocument.Version)
             && conflict.Kind == SparseConflictKind.InPlaceWriteUnavailable
         );
-        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(session), current).ShouldBeTrue();
         current.Version.ShouldBe(2);
         session.HasChanges.ShouldBeTrue();
 
@@ -43,7 +47,7 @@ public sealed class RevertImmutableTests
             conflict.PathText == nameof(ReloadCtorDocument.Id)
             && conflict.Kind == SparseConflictKind.InPlaceWriteUnavailable
         );
-        ReferenceEquals(session.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(session), current).ShouldBeTrue();
         current.Id.ShouldBe("two");
     }
 
@@ -74,7 +78,7 @@ public sealed class RevertImmutableTests
         session.TryRevertChanges(out var conflicts).ShouldBeTrue();
 
         conflicts.ShouldBeNull();
-        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(Raw(session), model).ShouldBeTrue();
         model.Name.ShouldBe("before");
         model.Version.ShouldBe(1);
         session.HasChanges.ShouldBeFalse();

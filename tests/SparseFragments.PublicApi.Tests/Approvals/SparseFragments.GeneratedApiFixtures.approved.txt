@@ -7,7 +7,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogDictionaries Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogDictionaries_38F03C80.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? TransitionObserved;
@@ -54,7 +53,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogImmutable Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogImmutable_7AF1A5BC.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? TransitionObserved;
@@ -101,7 +99,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedItem_5652316D.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? TransitionObserved;
@@ -148,7 +145,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogKeyedRoster_4BD3E911.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? TransitionObserved;
@@ -192,7 +188,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogNested Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogNested_1DB5065B.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>? TransitionObserved;
@@ -253,7 +248,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogReservedEnumeration_E6B8A07B.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>? TransitionObserved;
@@ -302,7 +296,6 @@ namespace SparseFragments.Generated
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
-            public SparseFragments.GeneratedApiFixtures.CatalogScalar Model { get; }
             public SparseFragments.Generated.SparseFragments_GeneratedApiFixtures_CatalogScalar_F3A0F2DC.Observable Observable { get; }
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>? TransitionObserved;

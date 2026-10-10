@@ -4,6 +4,10 @@ namespace SparseFragments.Blazor.Tests;
 
 public sealed class BlazorUnassignedLifecycleTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     private static BlazorUnassignedOrder Order() =>
         new()
         {
@@ -55,7 +59,7 @@ public sealed class BlazorUnassignedLifecycleTests
     public void AcceptChangesWithUnassignedAddRejectsWithoutMutatingBaseline()
     {
         var session = Order().CreateEditSession();
-        session.Model.Items.Add(new BlazorUnassignedItem { Id = 0, Name = "first" });
+        Raw(session).Items.Add(new BlazorUnassignedItem { Id = 0, Name = "first" });
         var outgoing = session.CreateChangeSet();
 
         Should.Throw<InvalidOperationException>(() => session.AcceptChanges(outgoing));
@@ -70,8 +74,8 @@ public sealed class BlazorUnassignedLifecycleTests
     {
         var session = Order().CreateEditSession();
         var editContext = session.CreateEditContext();
-        session.Model.Items.Add(new BlazorUnassignedItem { Id = 0, Name = "first" });
-        session.Model.Items.Add(new BlazorUnassignedItem { Id = 0, Name = "second" });
+        Raw(session).Items.Add(new BlazorUnassignedItem { Id = 0, Name = "first" });
+        Raw(session).Items.Add(new BlazorUnassignedItem { Id = 0, Name = "second" });
         var outgoing = session.CreateChangeSet();
         outgoing.IsEmpty.ShouldBeFalse();
 
@@ -92,20 +96,20 @@ public sealed class BlazorUnassignedLifecycleTests
         var freshContext = session.CreateEditContext();
 
         ReferenceEquals(freshContext.Model, persisted).ShouldBeTrue();
-        ReferenceEquals(editContext.Model, session.Model).ShouldBeFalse();
+        ReferenceEquals(editContext.Model, Raw(session)).ShouldBeFalse();
         session.HasChanges.ShouldBeFalse();
         session.CreateChangeSet().IsEmpty.ShouldBeTrue();
         freshContext.IsModified().ShouldBeFalse();
 
         // The next authoritative edit is acknowledged with context sync.
-        session.Model.Number = "ORD-2";
+        Raw(session).Number = "ORD-2";
         var acknowledged = session.CreateChangeSet();
         session.AcceptChanges(freshContext, acknowledged);
         session.HasChanges.ShouldBeFalse();
         freshContext.IsModified().ShouldBeFalse();
 
         // A later edit keeps the context modified.
-        session.Model.Number = "ORD-3";
+        Raw(session).Number = "ORD-3";
         session.HasChanges.ShouldBeTrue();
     }
 }

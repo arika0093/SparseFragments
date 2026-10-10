@@ -257,11 +257,12 @@ internal static class SparseEditSessionEmitter
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
         );
+        // Raw model access bypasses the change cache, so it is exposed only
+        // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
         code.AppendLineAt(
             2,
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
+            modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        code.AppendLineAt(2, "public " + modelType + " Model => _session.Model;");
         if (modelAccessorInterfaceMetadataName is not null)
         {
             code.AppendLineAt(

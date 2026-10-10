@@ -16,6 +16,10 @@ namespace SparseFragments.PublicApi.Tests;
 /// </summary>
 public sealed class GeneratedApiApprovalTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     private const string BlazorApprovalFile = "SparseFragments.Blazor.approved.txt";
 
     private static readonly Type[] FixtureModels =
@@ -142,13 +146,13 @@ public sealed class GeneratedApiApprovalTests
                 typeof(SparseFragments.ISparseEditSession<CatalogScalar, CatalogScalar.ChangeSet>)
             );
         session.Current.Name.ShouldBe(string.Empty);
-        session.Model.Name.ShouldBe(string.Empty);
+        Raw(session).Name.ShouldBe(string.Empty);
 
         var baseline = new CatalogScalar { Name = "baseline" };
         var current = new CatalogScalar { Name = "current" };
         var separateBaselineSession = baseline.CreateEditSession(current);
         separateBaselineSession.GetType().ShouldBe(session.GetType());
-        ReferenceEquals(separateBaselineSession.Model, current).ShouldBeTrue();
+        ReferenceEquals(Raw(separateBaselineSession), current).ShouldBeTrue();
         separateBaselineSession.Current.Name.ShouldBe("current");
     }
 

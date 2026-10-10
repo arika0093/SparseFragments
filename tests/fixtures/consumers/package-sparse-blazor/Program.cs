@@ -22,8 +22,8 @@ var order = new BlazorDocsOrder
 var session = order.CreateEditSession();
 Require(!session.HasChanges, "fresh session has no changes");
 
-session.Model.Number = "ORD-2";
-session.Model.Lines.Add(new BlazorDocsOrderLine { Sku = "c", Quantity = 3, Price = 30m });
+session.Observable.Number = "ORD-2";
+session.Observable.Lines.AddModel(new BlazorDocsOrderLine { Sku = "c", Quantity = 3, Price = 30m });
 Require(session.HasChanges, "scalar and keyed-collection edits detected");
 
 var patch = session.CreatePatch();
@@ -33,8 +33,8 @@ Require(!session.HasChanges, "AcceptChanges re-baselines");
 Require(session.CreatePatch().IsEmpty, "post-accept patch is empty");
 
 // Edit-then-restore yields no semantic change even though fields were touched.
-session.Model.Number = "changed";
-session.Model.Number = "ORD-2";
+session.Observable.Number = "changed";
+session.Observable.Number = "ORD-2";
 Require(!session.HasChanges, "edit-then-restore has no semantic changes");
 Require(session.CreatePatch().IsEmpty, "edit-then-restore patch is empty");
 
@@ -44,14 +44,14 @@ var store = session.CreateValidationStore(editContext);
 editContext.OnValidationRequested += (sender, _) =>
 {
     store.Clear();
-    if (string.IsNullOrEmpty(session.Model.Number))
+    if (string.IsNullOrEmpty(session.Current.Number))
     {
         store.Add(session.Field(nameof(BlazorDocsOrder.Number)), "Number is required.");
     }
 };
 Require(editContext.Model is BlazorDocsOrder, "EditContext uses the raw model");
 Require(editContext.Validate(), "valid model passes validation");
-session.Model.Number = string.Empty;
+session.Observable.Number = string.Empty;
 editContext.NotifyFieldChanged(session.Field(nameof(BlazorDocsOrder.Number)));
 Require(!editContext.Validate(), "empty number fails validation");
 Require(
@@ -72,7 +72,7 @@ Require(
 var uiOrder = new UiOrder { Number = "ORD-1" };
 var uiSession = uiOrder.CreateEditSession();
 
-uiSession.Model.Number = "ORD-2";
+uiSession.Observable.Number = "ORD-2";
 // uiSession.HasChanges == true
 DocsCheck.Require(uiSession.HasChanges, "scalar edit detected");
 
@@ -126,7 +126,7 @@ public static class UiDocSamples
         formContext.OnValidationRequested += (_, _) =>
         {
             formStore.Clear();
-            if (string.IsNullOrEmpty(formSession.Model.Number))
+            if (string.IsNullOrEmpty(formSession.Current.Number))
             {
                 formStore.Add(
                     formSession.Field(nameof(BlazorDocsOrder.Number)),
@@ -135,7 +135,7 @@ public static class UiDocSamples
             }
         };
 
-        formSession.Model.Number = "ORD-2";
+        formSession.Observable.Number = "ORD-2";
         if (!formContext.Validate())
         {
             throw new InvalidOperationException("The form has validation errors.");

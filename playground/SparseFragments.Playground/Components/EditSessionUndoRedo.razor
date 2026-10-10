@@ -208,7 +208,7 @@
     private FluentDialog? _submitDialog;
     private FluentDialog? _completionDialog;
 
-    private string CurrentJson => PlaygroundJson.WriteModel(_session.Model);
+    private string CurrentJson => PlaygroundJson.WriteModel(_model);
 
     private RenderFragment<(TaskObservable Task, int Index)> TaskRow => item =>
         @<div class="@TaskRowClass(item.Task, item.Index) pg-task-row">
@@ -281,13 +281,13 @@
     private void UpdateRetryCount(int value)
     {
         _retryDraft = value;
-        if (value != _session.Model.RetryCount) Edit(() => _session.Observable.RetryCount = value);
+        if (value != _model.RetryCount) Edit(() => _session.Observable.RetryCount = value);
     }
 
     private void UpdatePort(int value)
     {
         _portDraft = value;
-        if (value != _session.Model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
+        if (value != _model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
     }
 
     private void UpdatePoints(TaskObservable task, int value)
@@ -300,7 +300,7 @@
     {
         var value = GetIdDraft(task).Trim();
         if (string.IsNullOrWhiteSpace(value)
-            || _session.Model.Tasks.Any(item => !ReferenceEquals(item, task.Model) && item.Id == value))
+            || _model.Tasks.Any(item => !ReferenceEquals(item, task.Model) && item.Id == value))
         {
             _editError = "Task IDs must be non-empty and unique.";
             _idDrafts[task] = task.Id;
@@ -321,7 +321,7 @@
 
     private void AddTask()
     {
-        var existing = _session.Model.Tasks.Select(task => task.Id)
+        var existing = _model.Tasks.Select(task => task.Id)
             .Concat(_baselineTasks.Select(task => task.Id))
             .ToHashSet(StringComparer.Ordinal);
         string id;
@@ -375,16 +375,16 @@
 
     private bool IsChanged(string property) => property switch
     {
-        nameof(PlaygroundSettings.Enabled) => _session.Model.Enabled != _baselineModel.Enabled,
-        nameof(PlaygroundSettings.RetryCount) => _session.Model.RetryCount != _baselineModel.RetryCount,
-        nameof(PlaygroundSettings.Label) => _session.Model.Label != _baselineModel.Label,
+        nameof(PlaygroundSettings.Enabled) => _model.Enabled != _baselineModel.Enabled,
+        nameof(PlaygroundSettings.RetryCount) => _model.RetryCount != _baselineModel.RetryCount,
+        nameof(PlaygroundSettings.Label) => _model.Label != _baselineModel.Label,
         _ => false,
     };
 
     private bool IsNestedChanged(string property) => property switch
     {
-        nameof(PlaygroundNested.Host) => _session.Model.Nested?.Host != _baselineModel.Nested?.Host,
-        nameof(PlaygroundNested.Port) => _session.Model.Nested?.Port != _baselineModel.Nested?.Port,
+        nameof(PlaygroundNested.Host) => _model.Nested?.Host != _baselineModel.Nested?.Host,
+        nameof(PlaygroundNested.Port) => _model.Nested?.Port != _baselineModel.Nested?.Port,
         _ => false,
     };
 
@@ -544,7 +544,7 @@
     private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
     {
         var changes = new List<(string Target, string Operation, string Before, string After)>();
-        var current = _session.Model;
+        var current = _model;
         AddSubmitChange(changes, nameof(PlaygroundSettings.Enabled), "Edit", _baselineModel.Enabled, current.Enabled);
         AddSubmitChange(changes, nameof(PlaygroundSettings.RetryCount), "Edit", _baselineModel.RetryCount, current.RetryCount);
         AddSubmitChange(changes, nameof(PlaygroundSettings.Label), "Edit", _baselineModel.Label, current.Label);
@@ -693,8 +693,8 @@
         try
         {
             _session.RevertChanges();
-            _retryDraft = _session.Model.RetryCount;
-            _portDraft = _session.Model.Nested!.Port;
+            _retryDraft = _model.RetryCount;
+            _portDraft = _model.Nested!.Port;
             _pointsDrafts.Clear();
             _idDrafts.Clear();
             ClearHistory();
@@ -752,8 +752,8 @@
 
     private void SyncNumericDrafts()
     {
-        _retryDraft = _session.Model.RetryCount;
-        _portDraft = _session.Model.Nested!.Port;
+        _retryDraft = _model.RetryCount;
+        _portDraft = _model.Nested!.Port;
         _pointsDrafts.Clear();
         _idDrafts.Clear();
     }

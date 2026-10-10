@@ -48,6 +48,10 @@ public partial class LifecycleSecret
 // state at every step instead of re-proving pairwise API behavior.
 public sealed class CrossBoundaryLifecycleTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     private static LifecycleOrder Baseline() =>
         new()
         {
@@ -136,7 +140,7 @@ public sealed class CrossBoundaryLifecycleTests
         client.Observable.Note = "local-note";
         client.AcceptChanges(submitted);
         client.HasChanges.ShouldBeTrue();
-        client.Model.Note.ShouldBe("local-note");
+        Raw(client).Note.ShouldBe("local-note");
         client.Current.Note.ShouldBe("local-note");
         transitions.Count.ShouldBe(2);
 
@@ -160,7 +164,7 @@ public sealed class CrossBoundaryLifecycleTests
                     LifecycleOrder.Fragment.From(serverView)
                 ),
                 Optional<LifecycleOrder.Fragment?>.Present(
-                    LifecycleOrder.Fragment.From(client.Model)
+                    LifecycleOrder.Fragment.From(Raw(client))
                 )
             )
             .IsEmpty.ShouldBeTrue();
@@ -206,7 +210,7 @@ public sealed class CrossBoundaryLifecycleTests
         // The client reloads around the conflict; untouched state survives.
         var reload = client.Reload(conflictingServer);
         reload.HasConflicts.ShouldBeTrue();
-        client.Model.Number.ShouldBe("ORD-2");
+        Raw(client).Number.ShouldBe("ORD-2");
         client.HasChanges.ShouldBeTrue();
 
         // Rebasing the pending change drops only the conflicting member: the
@@ -276,8 +280,8 @@ public sealed class CrossBoundaryLifecycleTests
         var client = clientModel.CreateEditSession();
         // Unassigned rows enter through the live model: observable
         // notifications diff eagerly and cannot represent the sentinel.
-        client.Model.Items.Add(new LifecycleItem { Id = 0, Name = "draft" });
-        client.Model.Number = "ORD-2";
+        Raw(client).Items.Add(new LifecycleItem { Id = 0, Name = "draft" });
+        Raw(client).Number = "ORD-2";
         client.HasChanges.ShouldBeTrue();
 
         // The server persists the row and assigns its key.
@@ -288,13 +292,13 @@ public sealed class CrossBoundaryLifecycleTests
         reload.HasConflicts.ShouldBeFalse();
         // The server-assigned row arrives; the local draft stays pending until
         // the client confirms the assignment and drops the sentinel row.
-        client.Model.Items.Select(static item => item.Id).ShouldBe([1, 7, 0]);
-        client.Model.Number.ShouldBe("ORD-2");
+        Raw(client).Items.Select(static item => item.Id).ShouldBe([1, 7, 0]);
+        Raw(client).Number.ShouldBe("ORD-2");
         client.HasChanges.ShouldBeTrue();
 
         // Server confirmation: drop the draft sentinel. Only the scalar edit
         // stays pending against the assigned baseline.
-        client.Model.Items.RemoveAll(static item => item.Id == 0);
+        Raw(client).Items.RemoveAll(static item => item.Id == 0);
         var pending = client.CreateChangeSet();
         pending.Items.IsEmpty.ShouldBeTrue();
         pending.Number.Before.Value.ShouldBe("ORD-1");
@@ -302,8 +306,8 @@ public sealed class CrossBoundaryLifecycleTests
 
         client.AcceptChanges();
         client.HasChanges.ShouldBeFalse();
-        client.Model.Number.ShouldBe("ORD-2");
-        client.Model.Items.Select(static item => item.Id).ShouldBe([1, 7]);
+        Raw(client).Number.ShouldBe("ORD-2");
+        Raw(client).Items.Select(static item => item.Id).ShouldBe([1, 7]);
     }
 
     [Test]
@@ -321,7 +325,7 @@ public sealed class CrossBoundaryLifecycleTests
                 throw new InvalidOperationException("simulated UI failure");
             })
         );
-        client.Model.Number.ShouldBe("ORD-2");
+        Raw(client).Number.ShouldBe("ORD-2");
         client.HasChanges.ShouldBeTrue();
         client.CreateChangeSet().Number.After.Value.ShouldBe("ORD-2");
     }

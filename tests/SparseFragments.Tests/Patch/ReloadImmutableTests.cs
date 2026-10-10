@@ -21,6 +21,10 @@ public partial class ReloadCtorDocument
 /// <summary>Reload must not silently drop server init/getter-only changes (#128).</summary>
 public sealed class ReloadImmutableTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     [Test]
     public void ReloadRejectsServerInitChangeWithoutTouchingModelOrBaseline()
     {
@@ -33,9 +37,9 @@ public sealed class ReloadImmutableTests
         result.Conflicts.ShouldContain(static conflict =>
             conflict.PathText == nameof(ReloadImmutableDocument.Version)
         );
-        ReferenceEquals(session.Model, original).ShouldBeTrue();
-        session.Model.Version.ShouldBe(1);
-        session.Model.Title.ShouldBe("base");
+        ReferenceEquals(Raw(session), original).ShouldBeTrue();
+        Raw(session).Version.ShouldBe(1);
+        Raw(session).Title.ShouldBe("base");
 
         // The baseline is untouched, so nothing is pending.
         session.HasChanges.ShouldBeFalse();
@@ -52,8 +56,8 @@ public sealed class ReloadImmutableTests
         var result = session.Reload(new ReloadImmutableDocument { Version = 2, Title = "base" });
 
         result.HasConflicts.ShouldBeTrue();
-        session.Model.Version.ShouldBe(1);
-        session.Model.Title.ShouldBe("local");
+        Raw(session).Version.ShouldBe(1);
+        Raw(session).Title.ShouldBe("local");
 
         // Failure is atomic: the pending local edit is still intact.
         var pending = session.CreateChangeSet();
@@ -64,8 +68,8 @@ public sealed class ReloadImmutableTests
         // A server state that only touches writable members still reloads afterwards.
         var retry = session.Reload(new ReloadImmutableDocument { Version = 1, Title = "base" });
         retry.HasConflicts.ShouldBeFalse();
-        session.Model.Version.ShouldBe(1);
-        session.Model.Title.ShouldBe("local");
+        Raw(session).Version.ShouldBe(1);
+        Raw(session).Title.ShouldBe("local");
         session.HasChanges.ShouldBeTrue();
     }
 
@@ -81,8 +85,8 @@ public sealed class ReloadImmutableTests
         result.Conflicts.ShouldContain(static conflict =>
             conflict.PathText == nameof(ReloadCtorDocument.Id)
         );
-        ReferenceEquals(session.Model, original).ShouldBeTrue();
-        session.Model.Id.ShouldBe("one");
+        ReferenceEquals(Raw(session), original).ShouldBeTrue();
+        Raw(session).Id.ShouldBe("one");
         session.HasChanges.ShouldBeFalse();
     }
 
@@ -95,8 +99,8 @@ public sealed class ReloadImmutableTests
         var result = session.Reload(new ReloadImmutableDocument { Version = 1, Title = "server" });
 
         result.HasConflicts.ShouldBeFalse();
-        session.Model.Version.ShouldBe(1);
-        session.Model.Title.ShouldBe("server");
+        Raw(session).Version.ShouldBe(1);
+        Raw(session).Title.ShouldBe("server");
         session.HasChanges.ShouldBeFalse();
     }
 }

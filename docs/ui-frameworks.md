@@ -41,7 +41,7 @@ var directChanges = baseline.CreateChangeSet(current);
 var session = baseline.CreateEditSession();
 var separateBaselineSession = baseline.CreateEditSession(current);
 
-session.Model.Number = "ORD-2";
+session.Observable.Number = "ORD-2";
 var changes = session.CreateChangeSet();
 // changes.Number.Before == "ORD-1"; changes.Number.After == "ORD-2"
 
@@ -84,7 +84,7 @@ editSession.RevertChanges();
 
 `HasChanges` and `CreateChangeSet()` always compare the retained baseline with the model's current state, so edit-then-restore is clean even if a UI control reported that a field was touched. While edits stay on the observable proxy, the session caches the `HasChanges` computation and only recomputes when something may have changed.
 
-Reading `session.Model` directly disables that cache permanently, because a retained raw reference can change without observable notifications. Reads that expose raw mutable references through descriptors (arrays, unproxied objects, sets) invalidate the cache through the raw-access callback for the same reason, so a later in-place mutation is still observed. Primitive, string, proxy, and view reads stay cheap and do not invalidate. Framework helpers read the session model through trusted framework access, which keeps the cache intact: creating an `EditContext`, validating it, and resolving field paths do not by themselves disable cached `HasChanges` computation for observable-only edits. Edits made straight to `EditContext.Model` bypass observable notifications. Keep edits on the `Observable` proxy while the cache matters.
+Reading the live model through `ISparseEditSession<TModel>` disables that cache permanently, because a retained raw reference can change without observable notifications. Reads that expose raw mutable references through descriptors (arrays, unproxied objects, sets) invalidate the cache through the raw-access callback for the same reason, so a later in-place mutation is still observed. Primitive, string, proxy, and view reads stay cheap and do not invalidate. Framework helpers read the session model through trusted framework access, which keeps the cache intact: creating an `EditContext`, validating it, and resolving field paths do not by themselves disable cached `HasChanges` computation for observable-only edits. Edits made straight to `EditContext.Model` bypass observable notifications. Keep edits on the `Observable` proxy while the cache matters.
 
 When the live model holds duplicate keyed keys it cannot be diffed, so `HasChanges` reports `true` rather than throwing.
 
@@ -112,7 +112,7 @@ Writable reference-type models also generate `Fragment.WriteTo(model)` and `Patc
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()` maps `Optional<Model?>` to the generated, model-specific observable proxy while preserving missing, present-null, and present-value states. The proxy type lives in the per-model `SparseFragments.Generated` container (see [Relocated generated types](#relocated-generated-types)), so keep the call inferred with `var`:
 
 ```csharp
-var proxy = Optional<UiOrder?>.Present(session.Model).ToObservable();
+var proxy = Optional<UiOrder?>.Present(session.GetModelForFrameworkAccess()).ToObservable();
 ```
 
 The generated extension container is an implementation detail with a deterministic hash-based name; call the extensions rather than naming the container directly. Framework-specific packages can adapt the neutral session without adding framework references to its generated code. The same neutral `CreateEditSession()` extension is used whether or not a framework package is referenced.
@@ -299,7 +299,7 @@ The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers 
 var uiOrder = new UiOrder { Number = "ORD-1" };
 var uiSession = uiOrder.CreateEditSession();
 
-uiSession.Model.Number = "ORD-2";
+uiSession.Observable.Number = "ORD-2";
 // uiSession.HasChanges == true
 
 var uiChanges = uiSession.CreateChangeSet();
@@ -339,7 +339,7 @@ var formStore = formSession.CreateValidationStore(formContext);
 formContext.OnValidationRequested += (_, _) =>
 {
     formStore.Clear();
-    if (string.IsNullOrEmpty(formSession.Model.Number))
+    if (string.IsNullOrEmpty(formSession.Current.Number))
     {
         formStore.Add(
             formSession.Field(nameof(BlazorDocsOrder.Number)),
@@ -348,7 +348,7 @@ formContext.OnValidationRequested += (_, _) =>
     }
 };
 
-formSession.Model.Number = "ORD-2";
+formSession.Observable.Number = "ORD-2";
 if (!formContext.Validate())
 {
     throw new InvalidOperationException("The form has validation errors.");
@@ -391,7 +391,7 @@ Blazor extension methods:
 
 | Member | Purpose |
 | --- | --- |
-| `session.CreateEditContext()` | Creates a Blazor `EditContext` bound to `session.Model` |
+| `session.CreateEditContext()` | Creates a Blazor `EditContext` bound to the session model |
 | `session.AcceptChanges(editContext)` | Calls the framework-neutral `AcceptChanges()` and clears the supplied context's modified flags |
 | `session.AcceptChanges(editContext, changes)` | Advances the baseline by the submitted change set; clears the context only when the session is clean, so later edits stay marked modified |
 | `session.CreateValidationStore(editContext)` | Creates a `ValidationMessageStore` bound to the supplied context |
@@ -405,13 +405,13 @@ List members resolve through numeric indexes such as `Lines[1].Quantity`, for mu
 
 Keyed collections (members whose element type declares a stable key) also resolve quoted stable keys such as `Lines["b"].Quantity`. These are the paths `EnumerateChanges()` emits, so a changed item's path can be passed to `session.Field` directly and keeps resolving after reorders. Quoted keys never act as positions, even when numeric: `Items["7"]` looks up key `7` while `Items[7]` is the eighth position. Index spellings from `EnumerateChangedPaths()` (such as `Lines[1].Quantity`) resolve positionally. Removed keys no longer resolve and fail as invalid paths.
 
-The neutral session members such as `Model`, `HasChanges`, `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain available independently of Blazor. Context-taking helpers require an `EditContext` whose `Model` is the same instance as `session.Model`.
+The neutral session members such as `Observable`, `Current`, `HasChanges`, `CreateChangeSet()`, `CreatePatch()`, and no-argument `AcceptChanges()` remain available independently of Blazor. Context-taking helpers require an `EditContext` whose `Model` is the same live-model instance the session edits.
 
 Edit-then-restore yields no semantic change even though fields were touched:
 
 ```csharp
-uiSession.Model.Number = "changed";
-uiSession.Model.Number = "ORD-1";   // restored
+uiSession.Observable.Number = "changed";
+uiSession.Observable.Number = "ORD-1";   // restored
 
 // uiSession.HasChanges == false
 // uiSession.CreateChangeSet().IsEmpty == true
@@ -424,7 +424,7 @@ var store = uiSession.CreateValidationStore(editContext);
 editContext.OnValidationRequested += (sender, _) =>
 {
     store.Clear();
-    if (string.IsNullOrEmpty(uiSession.Model.Number))
+    if (string.IsNullOrEmpty(uiSession.Current.Number))
     {
         store.Add(uiSession.Field(nameof(UiOrder.Number)), "Number is required.");
     }

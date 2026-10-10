@@ -5,6 +5,10 @@ namespace SparseFragments.Tests;
 
 public sealed class UnassignedKeyLifecycleTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     private static Optional<AssignedServerHolder.Fragment?> F(params AssignedServer[] items) =>
         Optional<AssignedServerHolder.Fragment?>.Present(
             AssignedServerHolder.Fragment.From(new AssignedServerHolder { Items = items.ToList() })
@@ -196,8 +200,8 @@ public sealed class UnassignedKeyLifecycleTests
         var pristine = new AssignedServerHolder { Items = [Item(7, "existing")] };
         var order = new AssignedServerHolder { Items = [Item(7, "existing")] };
         var session = order.CreateEditSession();
-        session.Model.Items.Add(Item(0, "first"));
-        session.Model.Items.Add(Item(0, "second"));
+        Raw(session).Items.Add(Item(0, "first"));
+        Raw(session).Items.Add(Item(0, "second"));
 
         var outgoing = session.CreateChangeSet();
         outgoing.IsEmpty.ShouldBeFalse();
@@ -218,14 +222,14 @@ public sealed class UnassignedKeyLifecycleTests
         var fresh = persisted.CreateEditSession();
         fresh.HasChanges.ShouldBeFalse();
         fresh.CreateChangeSet().IsEmpty.ShouldBeTrue();
-        ReferenceEquals(fresh.Model, persisted).ShouldBeTrue();
+        ReferenceEquals(Raw(fresh), persisted).ShouldBeTrue();
 
         // The next edit from authoritative state is a valid keyed change set.
-        fresh.Model.Items.Single(item => item.Id == 11).Name = "First v2";
+        Raw(fresh).Items.Single(item => item.Id == 11).Name = "First v2";
         var next = fresh.CreateChangeSet();
         next.IsEmpty.ShouldBeFalse();
         AssignedServerHolder
-            .Patch.Between(next.ToPatch().Apply(H(persisted)), H(fresh.Model))
+            .Patch.Between(next.ToPatch().Apply(H(persisted)), H(Raw(fresh)))
             .IsEmpty.ShouldBeTrue();
     }
 
@@ -235,7 +239,7 @@ public sealed class UnassignedKeyLifecycleTests
         var model = new AssignedServerHolder { Items = [Item(7, "existing")] };
         var session = model.CreateEditSession();
         var observable = session.Observable;
-        session.Model.Items.Add(Item(0, "first"));
+        Raw(session).Items.Add(Item(0, "first"));
 
         var outgoing = session.CreateChangeSet();
         outgoing.IsEmpty.ShouldBeFalse();
@@ -243,7 +247,7 @@ public sealed class UnassignedKeyLifecycleTests
         Should.Throw<InvalidOperationException>(() => session.AcceptChanges(outgoing));
 
         // Baseline unchanged, live edit still pending, identities preserved.
-        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(Raw(session), model).ShouldBeTrue();
         ReferenceEquals(session.Observable, observable).ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
         session.CreateChangeSet().Items.Added.Select(item => item.Name).ShouldBe(["first"]);
@@ -254,7 +258,7 @@ public sealed class UnassignedKeyLifecycleTests
     {
         var model = new AssignedServerHolder { Items = [Item(7, "existing")] };
         var session = model.CreateEditSession();
-        session.Model.Items.Add(Item(0, "first"));
+        Raw(session).Items.Add(Item(0, "first"));
 
         Should.Throw<InvalidOperationException>(() => session.AcceptChanges());
 
@@ -270,14 +274,14 @@ public sealed class UnassignedKeyLifecycleTests
         var session = model.CreateEditSession();
         var observable = session.Observable;
 
-        session.Model.Items.Single(item => item.Id == 7).Name = "sent";
+        Raw(session).Items.Single(item => item.Id == 7).Name = "sent";
         var captured = session.CreateChangeSet();
 
         // Intervening stable edit after capture stays pending.
-        session.Model.Items.Add(Item(9, "later"));
+        Raw(session).Items.Add(Item(9, "later"));
         session.AcceptChanges(captured);
 
-        ReferenceEquals(session.Model, model).ShouldBeTrue();
+        ReferenceEquals(Raw(session), model).ShouldBeTrue();
         ReferenceEquals(session.Observable, observable).ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
         var pending = session.CreateChangeSet();
@@ -314,12 +318,12 @@ public sealed class UnassignedKeyLifecycleTests
         var model = new AssignedServerHolder { Items = [Item(7, "existing")] };
         var session = model.CreateEditSession();
         var duplicate = Item(7, "duplicate");
-        session.Model.Items.Add(duplicate);
+        Raw(session).Items.Add(duplicate);
 
         session.HasChanges.ShouldBeTrue();
         Should.Throw<InvalidOperationException>(() => session.CreateChangeSet());
 
-        session.Model.Items.Remove(duplicate);
+        Raw(session).Items.Remove(duplicate);
         session.HasChanges.ShouldBeFalse();
     }
 }

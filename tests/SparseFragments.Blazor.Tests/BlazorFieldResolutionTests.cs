@@ -4,6 +4,10 @@ namespace SparseFragments.Blazor.Tests;
 
 public sealed class BlazorFieldResolutionTests
 {
+    // Raw live-model access now hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseFragments.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     private static GuidDirectory Directory() =>
         new()
         {
@@ -24,11 +28,11 @@ public sealed class BlazorFieldResolutionTests
         const string id = "3d6f3c1e-1a2b-4c5d-9e8f-0123456789ab";
 
         var quoted = session.Field($"ById[\"{id}\"].Name");
-        ReferenceEquals(quoted.Model, session.Model.ById[Guid.Parse(id)]).ShouldBeTrue();
+        ReferenceEquals(quoted.Model, Raw(session).ById[Guid.Parse(id)]).ShouldBeTrue();
         quoted.FieldName.ShouldBe(nameof(GuidContact.Name));
 
         var unquoted = session.Field($"ById[{id}].Name");
-        ReferenceEquals(unquoted.Model, session.Model.ById[Guid.Parse(id)]).ShouldBeTrue();
+        ReferenceEquals(unquoted.Model, Raw(session).ById[Guid.Parse(id)]).ShouldBeTrue();
     }
 
     [Test]
@@ -61,10 +65,10 @@ public sealed class BlazorFieldResolutionTests
     public void PureReadOnlyStringDictionaryResolves()
     {
         var session = ContactBook().CreateEditSession();
-        (session.Model.ByName is System.Collections.IDictionary).ShouldBeFalse();
+        (Raw(session).ByName is System.Collections.IDictionary).ShouldBeFalse();
 
         var field = session.Field("ByName[\"billing\"].Name");
-        ReferenceEquals(field.Model, session.Model.ByName["billing"]).ShouldBeTrue();
+        ReferenceEquals(field.Model, Raw(session).ByName["billing"]).ShouldBeTrue();
         field.FieldName.ShouldBe(nameof(OrderCustomer.Name));
     }
 
@@ -72,13 +76,13 @@ public sealed class BlazorFieldResolutionTests
     public void PureReadOnlyNonStringDictionaryKeysResolve()
     {
         var session = ContactBook().CreateEditSession();
-        (session.Model.ByNumber is System.Collections.IDictionary).ShouldBeFalse();
+        (Raw(session).ByNumber is System.Collections.IDictionary).ShouldBeFalse();
 
         var quoted = session.Field("ByNumber[\"7\"].Name");
-        ReferenceEquals(quoted.Model, session.Model.ByNumber[7]).ShouldBeTrue();
+        ReferenceEquals(quoted.Model, Raw(session).ByNumber[7]).ShouldBeTrue();
 
         var unquoted = session.Field("ByNumber[7].Name");
-        ReferenceEquals(unquoted.Model, session.Model.ByNumber[7]).ShouldBeTrue();
+        ReferenceEquals(unquoted.Model, Raw(session).ByNumber[7]).ShouldBeTrue();
     }
 
     [Test]
@@ -131,10 +135,10 @@ public sealed class BlazorFieldResolutionTests
     public void PureReadOnlyListResolvesNestedPath()
     {
         var session = LineSheet().CreateEditSession();
-        (session.Model.Lines is System.Collections.IList).ShouldBeFalse();
+        (Raw(session).Lines is System.Collections.IList).ShouldBeFalse();
 
         var field = session.Field("Lines[1].Quantity");
-        ReferenceEquals(field.Model, session.Model.Lines[1]).ShouldBeTrue();
+        ReferenceEquals(field.Model, Raw(session).Lines[1]).ShouldBeTrue();
         field.FieldName.ShouldBe(nameof(OrderLine.Quantity));
     }
 
@@ -175,7 +179,7 @@ public sealed class BlazorFieldResolutionTests
     public void KeyedChangeInfoPathsResolveToFields()
     {
         var session = KeyedOrder().CreateEditSession();
-        session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+        Raw(session).Lines.Single(line => line.Sku == "b").Quantity = 9;
 
         var itemPath = session
             .CreateChangeSet()
@@ -185,7 +189,7 @@ public sealed class BlazorFieldResolutionTests
         itemPath.ShouldBe("Lines[\"b\"].Quantity");
 
         var field = session.Field(itemPath);
-        ReferenceEquals(field.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+        ReferenceEquals(field.Model, Raw(session).Lines.Single(line => line.Sku == "b"))
             .ShouldBeTrue();
         field.FieldName.ShouldBe(nameof(OrderLine.Quantity));
     }
@@ -194,12 +198,12 @@ public sealed class BlazorFieldResolutionTests
     public void KeyedPathsSurviveReorder()
     {
         var session = KeyedOrder().CreateEditSession();
-        session.Model.Lines = session.Model.Lines.AsEnumerable().Reverse().ToList();
-        session.Model.Lines.Single(line => line.Sku == "b").Quantity = 9;
+        Raw(session).Lines = Raw(session).Lines.AsEnumerable().Reverse().ToList();
+        Raw(session).Lines.Single(line => line.Sku == "b").Quantity = 9;
 
-        session.Model.Lines[0].Sku.ShouldBe("b");
+        Raw(session).Lines[0].Sku.ShouldBe("b");
         var field = session.Field("Lines[\"b\"].Quantity");
-        ReferenceEquals(field.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+        ReferenceEquals(field.Model, Raw(session).Lines.Single(line => line.Sku == "b"))
             .ShouldBeTrue();
     }
 
@@ -207,11 +211,11 @@ public sealed class BlazorFieldResolutionTests
     public void RemovedKeysNoLongerResolve()
     {
         var session = KeyedOrder().CreateEditSession();
-        session.Model.Lines.RemoveAll(line => line.Sku == "a");
+        Raw(session).Lines.RemoveAll(line => line.Sku == "a");
 
         Should.Throw<ArgumentException>(() => session.Field("Lines[\"a\"].Quantity"));
         var survivor = session.Field("Lines[\"b\"].Quantity");
-        ReferenceEquals(survivor.Model, session.Model.Lines.Single(line => line.Sku == "b"))
+        ReferenceEquals(survivor.Model, Raw(session).Lines.Single(line => line.Sku == "b"))
             .ShouldBeTrue();
     }
 
@@ -228,12 +232,12 @@ public sealed class BlazorFieldResolutionTests
         }.CreateEditSession();
 
         var byKey = session.Field("Items[\"7\"].Name");
-        ReferenceEquals(byKey.Model, session.Model.Items.Single(item => item.Id == 7))
+        ReferenceEquals(byKey.Model, Raw(session).Items.Single(item => item.Id == 7))
             .ShouldBeTrue();
 
         Should.Throw<ArgumentException>(() => session.Field("Items[7].Name"));
         var byPosition = session.Field("Items[0].Name");
-        ReferenceEquals(byPosition.Model, session.Model.Items[0]).ShouldBeTrue();
+        ReferenceEquals(byPosition.Model, Raw(session).Items[0]).ShouldBeTrue();
     }
 
     [Test]
