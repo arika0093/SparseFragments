@@ -210,8 +210,8 @@ var serverState = new UiOrder
 
 var reload = reloadSession.Reload(serverState);
 // reload.HasConflicts == false
-// reloadSession.Model.Number == "local"
-// reloadSession.Model.Items.Count == 1
+// reloadSession.Current.Number == "local"
+// reloadSession.Current.Items.Count == 1
 // reloadSession.HasChanges == true
 ```
 <!-- /sample -->
@@ -227,7 +227,7 @@ var conflictingServer = new UiOrder { Number = "server" };
 
 var conflicted = conflictSession.Reload(conflictingServer);
 // conflicted.HasConflicts == true
-// conflictSession.Model.Number == "local"
+// conflictSession.Current.Number == "local"
 // conflictSession.HasChanges == true
 ```
 <!-- /sample -->

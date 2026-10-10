@@ -181,17 +181,17 @@ public static class UiFrameworksSamples
 
         var reload = reloadSession.Reload(serverState);
         // reload.HasConflicts == false
-        // reloadSession.Model.Number == "local"
-        // reloadSession.Model.Items.Count == 1
+        // reloadSession.Current.Number == "local"
+        // reloadSession.Current.Items.Count == 1
         // reloadSession.HasChanges == true
         // /sample
         DocsCheck.Require(!reload.HasConflicts, "disjoint server state merges cleanly");
         DocsCheck.Require(
-            ReferenceEquals(reloadSession.Model, reloadModel),
+            ReferenceEquals(reloadSession.GetModelForFrameworkAccess(), reloadModel),
             "reload keeps the live model instance"
         );
         DocsCheck.Require(
-            reloadSession.Model.Number == "local" && reloadSession.Model.Items.Count == 1,
+            reloadSession.Current.Number == "local" && reloadSession.Current.Items.Count == 1,
             "pending edit kept and server state adopted"
         );
         var pending = reloadSession.CreateChangeSet();
@@ -211,7 +211,7 @@ public static class UiFrameworksSamples
 
         var conflicted = conflictSession.Reload(conflictingServer);
         // conflicted.HasConflicts == true
-        // conflictSession.Model.Number == "local"
+        // conflictSession.Current.Number == "local"
         // conflictSession.HasChanges == true
         // /sample
         DocsCheck.Require(conflicted.HasConflicts, "overlapping edit reports a conflict");
@@ -220,7 +220,7 @@ public static class UiFrameworksSamples
             "conflict names the member"
         );
         DocsCheck.Require(
-            conflictSession.Model.Number == "local" && conflictSession.HasChanges,
+            conflictSession.Current.Number == "local" && conflictSession.HasChanges,
             "conflicted reload leaves the live model and baseline untouched"
         );
     }
