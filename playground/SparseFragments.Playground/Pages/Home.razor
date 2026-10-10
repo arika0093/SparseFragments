@@ -35,7 +35,7 @@
         <FluentTab Header="Playground" Id="section-1-playground">
             <div class="pg-section-content">
                 <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins uses append-merge.</p>
-                <div class="pg-grid">
+                <div class="pg-grid pg-grid-trio">
                     <FluentCard Class="pg-fluent-card">
                         <div class="pg-card-head">
                             <h3>Lower (baseline)</h3>
@@ -66,26 +66,26 @@
                             </FluentTab>
                         </FluentTabs>
                     </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Merged result</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
+                                <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (C#)" Id="merged-model-csharp">
+                                <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (JSON)" Id="merged-model-json">
+                                <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Diff Lower→Merged (JSON)" Id="merged-diff-json">
+                                <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
                 </div>
-                <FluentCard Class="pg-fluent-card pg-section-card">
-                    <div class="pg-card-head">
-                        <h3>Merged result</h3>
-                    </div>
-                    <FluentTabs>
-                        <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
-                            <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
-                        </FluentTab>
-                        <FluentTab Header="Model (C#)" Id="merged-model-csharp">
-                            <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
-                        </FluentTab>
-                        <FluentTab Header="Model (JSON)" Id="merged-model-json">
-                            <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
-                        </FluentTab>
-                        <FluentTab Header="Diff Lower→Merged (JSON)" Id="merged-diff-json">
-                            <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
-                        </FluentTab>
-                    </FluentTabs>
-                </FluentCard>
             </div>
         </FluentTab>
         <FluentTab Header="Codes" Id="section-1-codes">
@@ -160,7 +160,7 @@
                     <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
                     <span class="pg-lg"><span class="pg-dot"></span>edited</span>
                 </div>
-                <div class="pg-grid">
+                <div class="pg-grid pg-grid-trio">
                     <FluentCard Class="pg-fluent-card">
                         <div class="pg-card-head">
                             <h3>Before</h3>
@@ -175,57 +175,57 @@
                         </div>
                         <RosterEditor Model="RosterAfter" Changes="RosterEditorChanges" OnChanged="Refresh" />
                     </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Before → After keyed diff</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Patch (C#)" Id="roster-patch-manual">
+                                <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="ChangeSet" Id="roster-changeset">
+                                @{
+                                    var changeRows = BuildRosterChangeRows();
+                                }
+                                @if (_rosterChanges is null)
+                                {
+                                    <p class="pg-hint">Cannot calculate changes because the list has duplicate keys or an invalid state.</p>
+                                }
+                                else if (changeRows.Count == 0)
+                                {
+                                    <p class="pg-hint">No changes.</p>
+                                }
+                                else
+                                {
+                                    <div class="pg-change-table-wrap pg-roster-change-table-wrap">
+                                        <table class="pg-change-table" aria-label="Roster ChangeSet">
+                                            <thead>
+                                                <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var row in changeRows)
+                                                {
+                                                    <tr>
+                                                        <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                                        <td><span class="pg-change-value">@row.Path</span></td>
+                                                        <td><span class="pg-change-value">@row.Before</span></td>
+                                                        <td><span class="pg-change-value">@row.After</span></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </FluentTab>
+                            <FluentTab Header="ChangePayload" Id="roster-changeset-json">
+                                <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Applied (JSON)" Id="roster-applied-json">
+                                <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
                 </div>
-                <FluentCard Class="pg-fluent-card pg-section-card">
-                    <div class="pg-card-head">
-                        <h3>Before → After keyed diff</h3>
-                    </div>
-                    <FluentTabs>
-                        <FluentTab Header="Patch (C#)" Id="roster-patch-manual">
-                            <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
-                        </FluentTab>
-                        <FluentTab Header="ChangeSet" Id="roster-changeset">
-                            @{
-                                var changeRows = BuildRosterChangeRows();
-                            }
-                            @if (_rosterChanges is null)
-                            {
-                                <p class="pg-hint">Cannot calculate changes because the list has duplicate keys or an invalid state.</p>
-                            }
-                            else if (changeRows.Count == 0)
-                            {
-                                <p class="pg-hint">No changes.</p>
-                            }
-                            else
-                            {
-                                <div class="pg-change-table-wrap pg-roster-change-table-wrap">
-                                    <table class="pg-change-table" aria-label="Roster ChangeSet">
-                                        <thead>
-                                            <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var row in changeRows)
-                                            {
-                                                <tr>
-                                                    <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                                    <td><span class="pg-change-value">@row.Path</span></td>
-                                                    <td><span class="pg-change-value">@row.Before</span></td>
-                                                    <td><span class="pg-change-value">@row.After</span></td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            }
-                        </FluentTab>
-                        <FluentTab Header="ChangePayload" Id="roster-changeset-json">
-                            <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
-                        </FluentTab>
-                        <FluentTab Header="Applied (JSON)" Id="roster-applied-json">
-                            <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
-                        </FluentTab>
-                    </FluentTabs>
-                </FluentCard>
             </div>
         </FluentTab>
         <FluentTab Header="Codes" Id="section-3-codes">

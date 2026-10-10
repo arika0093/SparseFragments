@@ -191,6 +191,16 @@ a, .btn-link {
     margin-bottom: 1rem;
 }
 
+/* Three-card sections (01 Layers, 03 keyed list): same auto-fit behavior as
+   .pg-grid, but with a wider minimum track so three columns only kick in on
+   wide viewports. 3 x 28.5rem + 2 x 1rem gap needs ~1400px of content width,
+   i.e. roughly a 1450px viewport once .pg-shell padding is included. Below
+   that it folds back to two columns plus a full-width third card, then one
+   column, exactly like .pg-grid. */
+.pg-grid-trio {
+    grid-template-columns: repeat(auto-fit, minmax(min(28.5rem, 100%), 1fr));
+}
+
 .pg-stack {
     display: flex;
     flex-direction: column;
