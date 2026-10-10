@@ -59,6 +59,12 @@ internal static class SparseChangeSetRebaseEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"current\">The newer state to rebase onto.</param>"
+            );
+            code.AppendLineAt(2, "/// <param name=\"options\">Optional rebase behavior.</param>");
+            code.AppendLineAt(2, "/// <returns>The rebased change and conflicts.</returns>");
+            code.AppendLineAt(
+                2,
                 "public "
                     + rebaseResult
                     + " RebaseOnto("
@@ -104,6 +110,11 @@ internal static class SparseChangeSetRebaseEmitter
             2,
             "/// <remarks>Redacted-before members pass through as explicit operations unless the options reject them.</remarks>"
         );
+        if (target is not null)
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to rebase.</param>");
+        code.AppendLineAt(2, "/// <param name=\"current\">The newer state to rebase onto.</param>");
+        code.AppendLineAt(2, "/// <param name=\"options\">Optional rebase behavior.</param>");
+        code.AppendLineAt(2, "/// <returns>The rebased change and conflicts.</returns>");
         code.AppendLineAt(
             2,
             (target is null ? "public " : "internal static ")
@@ -808,6 +819,8 @@ internal static class SparseChangeSetRebaseEmitter
             2,
             "/// <remarks>Returns an in-place write conflict when the change includes an immutable member.</remarks>"
         );
+        if (target is not null)
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to apply.</param>");
         code.AppendLineAt(
             2,
             "/// <param name=\"current\">The existing model instance to update.</param>"
@@ -939,6 +952,8 @@ internal static class SparseChangeSetRebaseEmitter
             2,
             "/// <summary>Applies this change to an existing model or throws when its before-state conflicts or it includes an immutable member.</summary>"
         );
+        if (target is not null)
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to apply.</param>");
         code.AppendLineAt(
             2,
             "/// <param name=\"current\">The existing model instance to update.</param>"

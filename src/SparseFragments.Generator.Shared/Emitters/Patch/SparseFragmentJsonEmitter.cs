@@ -26,6 +26,10 @@ internal static class SparseFragmentJsonEmitter
         code.CancellationToken.ThrowIfCancellationRequested();
         code.AppendLineAt(
             2,
+            "/// <summary>Gets the JSON converter for this fragment type.</summary>"
+        );
+        code.AppendLineAt(
+            2,
             "public static global::System.Text.Json.Serialization.JsonConverter<Fragment> JsonConverter { get; } = new FragmentJsonConverter();"
         );
         code.AppendLine();
@@ -45,6 +49,10 @@ internal static class SparseFragmentJsonEmitter
     )
     {
         code.CancellationToken.ThrowIfCancellationRequested();
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets the JSON converter for this fragment type.</summary>"
+        );
         code.AppendLineAt(
             2,
             "public static global::System.Text.Json.Serialization.JsonConverter<Fragment> JsonConverter { get; } = new FragmentJsonConverter();"
@@ -88,41 +96,18 @@ internal static class SparseFragmentJsonEmitter
         code.AppendLineAt(2, "{");
         // Keep linear UTF-8 dispatch limited to small models; wider converters retain string dispatch.
         var utf8Dispatch = members.Length > 0 && members.Length <= 3;
-        if (utf8Dispatch)
-        {
-            for (var i = 0; i < members.Length; i++)
-            {
-                code.AppendIndent(3)
-                    .Append("private static readonly byte[] __jsonName")
-                    .Append(i.ToString())
-                    .Append(" = new byte[] { ")
-                    .Append(
-                        string.Join(", ", System.Text.Encoding.UTF8.GetBytes(WireName(members[i])))
-                    )
-                    .AppendLine(" };");
-            }
-        }
+        // Public readers first; private buffers and helpers trail the writers below.
         code.AppendLineAt(
             3,
-            "private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<TMember> GetMemberTypeInfo<TMember>(global::System.Text.Json.JsonSerializerOptions options)"
+            "/// <summary>Reads a fragment from its JSON object representation.</summary>"
         );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "try");
-        code.AppendLineAt(4, "{");
         code.AppendLineAt(
-            5,
-            "return (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<TMember>)options.GetTypeInfo(typeof(TMember));"
+            3,
+            "/// <param name=\"reader\">The reader positioned at the fragment object.</param>"
         );
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "catch (global::System.NotSupportedException exception)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "throw new global::System.InvalidOperationException(\"The generated fragment converter requires JsonTypeInfo metadata for member type '\" + typeof(TMember) + \"'. Add the model/member types to a source-generated JsonSerializerContext and set it as JsonSerializerOptions.TypeInfoResolver.\", exception);"
-        );
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(3, "}");
-        code.AppendLine();
+        code.AppendLineAt(3, "/// <param name=\"typeToConvert\">The type to convert.</param>");
+        code.AppendLineAt(3, "/// <param name=\"options\">The serializer options.</param>");
+        code.AppendLineAt(3, "/// <returns>The deserialized fragment.</returns>");
         code.AppendLineAt(
             3,
             "public override Fragment Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options)"
@@ -276,6 +261,16 @@ internal static class SparseFragmentJsonEmitter
         code.AppendLine();
         code.AppendLineAt(
             3,
+            "/// <summary>Writes the present members of a fragment as a JSON object.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <param name=\"writer\">The writer receiving the fragment object.</param>"
+        );
+        code.AppendLineAt(3, "/// <param name=\"value\">The fragment to write.</param>");
+        code.AppendLineAt(3, "/// <param name=\"options\">The serializer options.</param>");
+        code.AppendLineAt(
+            3,
             "public override void Write(global::System.Text.Json.Utf8JsonWriter writer, Fragment value, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(3, "{");
@@ -359,6 +354,41 @@ internal static class SparseFragmentJsonEmitter
         }
 
         code.AppendLineAt(4, "writer.WriteEndObject();");
+        code.AppendLineAt(3, "}");
+        code.AppendLine();
+        if (utf8Dispatch)
+        {
+            for (var i = 0; i < members.Length; i++)
+            {
+                code.AppendIndent(3)
+                    .Append("private static readonly byte[] __jsonName")
+                    .Append(i.ToString())
+                    .Append(" = new byte[] { ")
+                    .Append(
+                        string.Join(", ", System.Text.Encoding.UTF8.GetBytes(WireName(members[i])))
+                    )
+                    .AppendLine(" };");
+            }
+        }
+        code.AppendLineAt(
+            3,
+            "private static global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<TMember> GetMemberTypeInfo<TMember>(global::System.Text.Json.JsonSerializerOptions options)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "try");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "return (global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<TMember>)options.GetTypeInfo(typeof(TMember));"
+        );
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "catch (global::System.NotSupportedException exception)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "throw new global::System.InvalidOperationException(\"The generated fragment converter requires JsonTypeInfo metadata for member type '\" + typeof(TMember) + \"'. Add the model/member types to a source-generated JsonSerializerContext and set it as JsonSerializerOptions.TypeInfoResolver.\", exception);"
+        );
+        code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
         code.AppendLine();
         code.AppendLineAt(

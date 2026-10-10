@@ -38,6 +38,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The known baseline.</param>");
+            code.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet FromPatch("
@@ -51,6 +54,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The known baseline.</param>");
+            code.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static ChangeSet FromPatch("
@@ -64,6 +70,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Attaches a known baseline to an arbitrary patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The known baseline.</param>");
+            code.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet FromPatch(" + optionalFragment + " baseline, Patch patch)"
@@ -86,6 +95,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                     2,
                     "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
                 );
+                code.AppendLineAt(2, "/// <param name=\"baseline\">The model baseline.</param>");
+                code.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+                code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
                 code.AppendLineAt(
                     2,
                     "internal static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
@@ -97,6 +109,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                     2,
                     "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
                 );
+                code.AppendLineAt(2, "/// <param name=\"baseline\">The model baseline.</param>");
+                code.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+                code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
                 code.AppendLineAt(
                     2,
                     "public static ChangeSet FromPatch(" + modelType + " baseline, Patch patch)"
@@ -116,6 +131,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                     2,
                     "/// <summary>Attaches an ordinary model baseline to an arbitrary patch.</summary>"
                 );
+                shell.AppendLineAt(2, "/// <param name=\"baseline\">The model baseline.</param>");
+                shell.AppendLineAt(2, "/// <param name=\"patch\">The patch to attach.</param>");
+                shell.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
                 shell.AppendLineAt(
                     2,
                     "public static ChangeSet FromPatch("
@@ -144,6 +162,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
             code.AppendLineAt(
                 2,
                 "public Patch ToPatch() => " + target.ChangeSetOperationsType + ".ToPatch(this);"
@@ -153,6 +172,8 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to project.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
             code.AppendLineAt(2, "internal static Patch ToPatch(ChangeSet self)");
         }
         else
@@ -161,6 +182,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Discards baseline information and returns the equivalent desired-operation patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
             code.AppendLineAt(2, "public Patch ToPatch()");
         }
         code.AppendLineAt(2, "{");
@@ -279,6 +301,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The inverted change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public ChangeSet Invert() => " + target.ChangeSetOperationsType + ".Invert(this);"
@@ -288,6 +311,8 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to invert.</param>");
+            code.AppendLineAt(2, "/// <returns>The inverted change set.</returns>");
             code.AppendLineAt(2, "internal static ChangeSet Invert(ChangeSet self)");
         }
         else
@@ -296,6 +321,7 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <summary>Swaps the transition direction without requiring a separate baseline.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The inverted change set.</returns>");
             code.AppendLineAt(2, "public ChangeSet Invert()");
         }
         code.AppendLineAt(2, "{");
@@ -384,6 +410,8 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
             );
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The baseline to advance.</param>");
+            code.AppendLineAt(2, "/// <returns>The advanced baseline.</returns>");
             code.AppendLineAt(
                 2,
                 "public "
@@ -407,6 +435,9 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to apply.</param>");
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The baseline to advance.</param>");
+            code.AppendLineAt(2, "/// <returns>The advanced baseline.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static "
@@ -430,6 +461,8 @@ internal static class SparseChangeSetPatchSyncEmitter
                 2,
                 "/// <exception cref=\"global::System.InvalidOperationException\">Thrown when the transition is stale or incompatible with the baseline, or when advancing would not produce a valid model state.</exception>"
             );
+            code.AppendLineAt(2, "/// <param name=\"baseline\">The baseline to advance.</param>");
+            code.AppendLineAt(2, "/// <returns>The advanced baseline.</returns>");
             code.AppendLineAt(
                 2,
                 "public " + optionalFragment + " ApplyToBaseline(" + optionalFragment + " baseline)"

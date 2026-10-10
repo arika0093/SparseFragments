@@ -40,11 +40,19 @@ internal static class SparseChangeSetComposeEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"next\">The change set to apply after this change set.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The composed change set.</returns>");
+            code.AppendLineAt(
+                2,
                 "public ChangeSet Compose(ChangeSet next) => "
                     + target.ChangeSetOperationsType
                     + ".Compose(this, next);"
             );
             code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
+            code.AppendLineAt(2, "/// <param name=\"first\">The first change set.</param>");
+            code.AppendLineAt(2, "/// <param name=\"second\">The second change set.</param>");
+            code.AppendLineAt(2, "/// <returns>The composed change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet Compose(ChangeSet first, ChangeSet second) => "
@@ -56,6 +64,9 @@ internal static class SparseChangeSetComposeEmitter
                 2,
                 "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The first change set.</param>");
+            code.AppendLineAt(2, "/// <param name=\"next\">The second change set.</param>");
+            code.AppendLineAt(2, "/// <returns>The composed change set.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static ChangeSet Compose(ChangeSet self, ChangeSet next)"
@@ -67,6 +78,11 @@ internal static class SparseChangeSetComposeEmitter
                 2,
                 "/// <summary>Composes sequential transitions; overlapping paths must be semantically contiguous.</summary>"
             );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"next\">The change set to apply after this change set.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The composed change set.</returns>");
             code.AppendLineAt(2, "public ChangeSet Compose(ChangeSet next)");
         }
         code.AppendLineAt(2, "{");
@@ -294,6 +310,9 @@ internal static class SparseChangeSetComposeEmitter
         if (target is null)
         {
             code.AppendLineAt(2, "/// <summary>Composes two sequential change sets.</summary>");
+            code.AppendLineAt(2, "/// <param name=\"first\">The first change set.</param>");
+            code.AppendLineAt(2, "/// <param name=\"second\">The second change set.</param>");
+            code.AppendLineAt(2, "/// <returns>The composed change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet Compose(ChangeSet first, ChangeSet second)"

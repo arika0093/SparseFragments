@@ -83,6 +83,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         {
             SparseKeyedCollectionEmitter.EmitKeyOf(code, member, elementType, 3);
         }
+        code.AppendLineAt(3, "/// <summary>Whether this keyed patch carries no changes.</summary>");
         code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Keep");
         code.AppendLineAt(
             4,
@@ -93,12 +94,15 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             "&& (__edited is null || __edited.Count == 0) && (__order is null || __order.Count == 0);"
         );
         code.AppendLineAt(3, "internal bool __SparseIsEmpty() => IsEmpty;");
-        // Whole operations.
+        // Whole operations (public group).
+        code.AppendLineAt(3, "/// <summary>Replaces the whole collection.</summary>");
+        code.AppendLineAt(3, "/// <param name=\"value\">Replacement values.</param>");
         code.AppendLineAt(3, "public void Set(" + listType + " value)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "__whole = " + operation + ".Set(value);");
         code.AppendLineAt(4, "__added = null; __removed = null; __edited = null; __order = null;");
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "/// <summary>Removes the whole collection.</summary>");
         code.AppendLineAt(3, "public void Remove()");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "__whole = " + operation + ".Remove;");
@@ -106,6 +110,9 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         code.AppendLineAt(3, "}");
         if (!SparseKeyedCollectionEmitter.IsInterfaceMember(member))
         {
+            code.AppendLineAt(3, "/// <summary>Creates a keyed patch from values.</summary>");
+            code.AppendLineAt(3, "/// <param name=\"value\">Replacement values.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch carrying the values.</returns>");
             code.AppendLineAt(
                 3,
                 "public static implicit operator "
@@ -215,6 +222,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
                 3,
                 "/// <summary>Inverts this collection patch relative to the baseline it was applied to.</summary>"
             );
+            code.AppendLineAt(3, "/// <param name=\"baseline\">Baseline applied to.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch undoing this patch.</returns>");
             code.AppendLineAt(
                 3,
                 "public "
@@ -242,6 +251,12 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         }
         else
         {
+            code.AppendLineAt(
+                3,
+                "/// <summary>Inverts this patch relative to its baseline.</summary>"
+            );
+            code.AppendLineAt(3, "/// <param name=\"baseline\">Baseline applied to.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch undoing this patch.</returns>");
             code.AppendLineAt(
                 3,
                 "public "
@@ -332,6 +347,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Adds an element to this keyed patch.</summary>");
             code.AppendLineAt(3, "public void Add(" + elementType + " element)");
             code.AppendLineAt(3, "{");
         }
@@ -439,6 +455,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Removes an element by key.</summary>");
             code.AppendLineAt(3, "public void Remove(" + keyType + " key)");
             code.AppendLineAt(3, "{");
         }
@@ -510,6 +527,9 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             }
             else
             {
+                code.AppendLineAt(3, "/// <summary>Gets the edit patch for an element.</summary>");
+                code.AppendLineAt(3, "/// <param name=\"key\">Key to edit.</param>");
+                code.AppendLineAt(3, "/// <returns>The edit patch.</returns>");
                 code.AppendLineAt(3, "public " + elementPatch + " Edit(" + keyType + " key)");
                 code.AppendLineAt(3, "{");
             }
@@ -589,6 +609,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             }
             else
             {
+                code.AppendLineAt(3, "/// <summary>Updates an element in place.</summary>");
                 code.AppendLineAt(3, "public void Update(" + elementType + " element)");
                 code.AppendLineAt(3, "{");
             }
@@ -666,6 +687,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Replaces the key order.</summary>");
+            code.AppendLineAt(3, "/// <param name=\"keys\">Replacement order.</param>");
             code.AppendLineAt(
                 3,
                 "public void SetOrder(global::System.Collections.Generic.IEnumerable<"

@@ -30,6 +30,8 @@ internal static class SparseChangePayloadReaderEmitter
                 2,
                 "/// <remarks>Redacted or otherwise incomplete histories are rejected; project them with <see cref=\"ChangePayload.ToPatch\"/> instead.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+            code.AppendLineAt(2, "/// <returns>The complete change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet FromPayload(ChangePayload payload) => "
@@ -46,6 +48,8 @@ internal static class SparseChangePayloadReaderEmitter
             2,
             "/// <remarks>Redacted or otherwise incomplete histories are rejected; project them with <see cref=\"ChangePayload.ToPatch\"/> instead.</remarks>"
         );
+        code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+        code.AppendLineAt(2, "/// <returns>The complete change set.</returns>");
         code.AppendLineAt(
             2,
             (

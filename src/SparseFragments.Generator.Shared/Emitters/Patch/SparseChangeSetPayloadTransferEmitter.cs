@@ -44,6 +44,7 @@ internal static class SparseChangeSetPayloadTransferEmitter
                 2,
                 "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The serializable payload envelope.</returns>");
             code.AppendLineAt(
                 2,
                 "public ChangePayload ToPayload() => "
@@ -62,6 +63,11 @@ internal static class SparseChangeSetPayloadTransferEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"redactBefores\">Whether to redact before-states.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The transport core.</returns>");
+            code.AppendLineAt(
+                2,
                 "internal "
                     + payloadCore
                     + " ToPayloadCore(bool redactBefores) => "
@@ -73,6 +79,8 @@ internal static class SparseChangeSetPayloadTransferEmitter
                 2,
                 "/// <summary>Converts a change set into its serializable payload envelope.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to convert.</param>");
+            code.AppendLineAt(2, "/// <returns>The serializable payload envelope.</returns>");
             code.AppendLineAt(2, "internal static ChangePayload ToPayload(ChangeSet self)");
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
@@ -89,6 +97,7 @@ internal static class SparseChangeSetPayloadTransferEmitter
                 2,
                 "/// <summary>Converts this change set into its serializable payload envelope.</summary>"
             );
+            code.AppendLineAt(2, "/// <returns>The serializable payload envelope.</returns>");
             code.AppendLineAt(2, "public ChangePayload ToPayload()");
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
@@ -107,6 +116,13 @@ internal static class SparseChangeSetPayloadTransferEmitter
             2,
             "/// <remarks>ChangeSet payloads are lossless: members excluded from JSON transport (STJ <c>JsonIgnore</c>) throw instead of silently dropping their changes. Ordinary <c>Fragment</c> JSON still honors <c>JsonIgnore</c>.</remarks>"
         );
+        if (target is not null)
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to convert.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"redactBefores\">Whether to redact before-states.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The transport core.</returns>");
         code.AppendLineAt(
             2,
             (target is null ? "internal " : "internal static ")

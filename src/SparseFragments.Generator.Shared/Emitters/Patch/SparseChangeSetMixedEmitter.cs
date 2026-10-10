@@ -41,6 +41,8 @@ internal static class SparseChangeSetMixedEmitter
                 2,
                 "/// <exception cref=\"global::System.ArgumentException\">Thrown when the payload carries redacted before-states, which cannot form baseline-aware transitions.</exception>"
             );
+            code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static ChangeSet FromPayloadCore("
@@ -57,6 +59,17 @@ internal static class SparseChangeSetMixedEmitter
                 2,
                 "/// <remarks>Redacted before-states route to the blind patch without historical comparison; ordinary members keep baseline-aware validation. After-states must stay concrete.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+            code.AppendLineAt(2, "/// <param name=\"pathPrefix\">The dotted path prefix.</param>");
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"blindSets\">The blind patch for redacted paths.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"blindPaths\">The redacted paths routed to the blind patch.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static ChangeSet __SparseMixedPartition("
@@ -75,6 +88,8 @@ internal static class SparseChangeSetMixedEmitter
             2,
             "/// <exception cref=\"global::System.ArgumentException\">Thrown when the payload carries redacted before-states, which cannot form baseline-aware transitions.</exception>"
         );
+        code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+        code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
         code.AppendLineAt(
             2,
             "internal static ChangeSet FromPayloadCore(" + payloadCore + " payload)"
@@ -102,6 +117,17 @@ internal static class SparseChangeSetMixedEmitter
             2,
             "/// <remarks>Redacted before-states route to the blind patch without historical comparison; ordinary members keep baseline-aware validation. After-states must stay concrete.</remarks>"
         );
+        code.AppendLineAt(2, "/// <param name=\"payload\">The validated envelope.</param>");
+        code.AppendLineAt(2, "/// <param name=\"pathPrefix\">The dotted path prefix.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"blindSets\">The blind patch for redacted paths.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"blindPaths\">The redacted paths routed to the blind patch.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The baseline-aware change set.</returns>");
         code.AppendLineAt(
             2,
             "internal static ChangeSet __SparseMixedPartition("
@@ -511,6 +537,11 @@ internal static class SparseChangeSetMixedEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <param name=\"skippedPaths\">The write-only paths excluded from the result.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The inverted change set.</returns>");
+        code.AppendLineAt(
+            2,
             "public new "
                 + modelType
                 + ".ChangeSet InvertReversibleChanges(out global::System.Collections.Generic.IReadOnlyList<string> skippedPaths)"
@@ -526,6 +557,13 @@ internal static class SparseChangeSetMixedEmitter
         code.AppendLineAt(
             2,
             "/// <remarks>Validates the envelope wire version before interpreting the payload.</remarks>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"current\">The current model.</param>");
+        code.AppendLineAt(2, "/// <param name=\"updated\">The updated model when applied.</param>");
+        code.AppendLineAt(2, "/// <param name=\"result\">The apply outcome.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the request was applied.</returns>"
         );
         code.AppendLineAt(
             2,
@@ -560,6 +598,7 @@ internal static class SparseChangeSetMixedEmitter
             2,
             "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts. Public callers enter through the version-validated envelope override.</remarks>"
         );
+        code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
         code.AppendLineAt(2, "public Patch ToPatch()");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -576,6 +615,11 @@ internal static class SparseChangeSetMixedEmitter
             2,
             "/// <remarks>Write-only operations have no prior value to restore, so they are excluded. A non-empty <paramref name=\"skippedPaths\"/> means the result is not a complete inverse; use <c>ChangeSet.Invert()</c> on complete change sets for true inversion.</remarks>"
         );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"skippedPaths\">The write-only paths excluded from the result.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The inverted change set.</returns>");
         code.AppendLineAt(
             2,
             "public ChangeSet InvertReversibleChanges(out global::System.Collections.Generic.IReadOnlyList<string> skippedPaths)"
@@ -682,6 +726,13 @@ internal static class SparseChangeSetMixedEmitter
         code.AppendLineAt(
             2,
             "/// <remarks>Baseline-aware members rebase onto the current model; redacted-before members pass their requested after-state through. When rebasing conflicts, nothing is applied and the current model is left untouched. This default passes write-only operations through; it does not claim conflict reconciliation, and revision checks stay with the application.</remarks>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"current\">The current model.</param>");
+        code.AppendLineAt(2, "/// <param name=\"updated\">The updated model when applied.</param>");
+        code.AppendLineAt(2, "/// <param name=\"result\">The apply outcome.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the request was applied.</returns>"
         );
         code.AppendLineAt(
             2,

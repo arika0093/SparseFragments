@@ -770,6 +770,10 @@ internal static class SparseFragmentEmitter
             string.Empty,
             accessibility: generatedAccessibility
         );
+        // Public-first ordering: the empty singleton precedes the member
+        // slots so no public member trails the internal strategy caches.
+        code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
+        code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
         core.AppendMembers(
             code,
             members,
@@ -778,9 +782,6 @@ internal static class SparseFragmentEmitter
             rebasePolicyBase: SparseFragmentPatchEmitter.GetRebasePolicyType(patchDialect),
             rebasePolicyField: patchDialect.RebasePolicyField
         );
-        code.AppendLineAt(2, "/// <summary>The empty fragment.</summary>");
-        code.AppendLineAt(2, "public static Fragment Empty { get; } = new();");
-        AppendFragmentEquality(code, members, runtime.OptionalType, expressions, core);
         core.AppendFromModel(
             code,
             modelType,
@@ -814,10 +815,11 @@ internal static class SparseFragmentEmitter
             patchDialect.WriteContract,
             features
         );
-        if (canWriteInPlace || (features.EmitPatch && canApplyPatchInPlace))
-        {
-            AppendWritableMemberWriter(code, modelType, writableMembers);
-        }
+        code.AppendLineAt(
+            2,
+            "/// <summary>Creates a mutable builder seeded from this fragment.</summary>"
+        );
+        code.AppendLineAt(2, "/// <returns>The seeded builder.</returns>");
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
         if (features.EmitJsonConverters)
         {
@@ -852,6 +854,12 @@ internal static class SparseFragmentEmitter
                     runtime.OptionalType
                 );
             }
+        }
+        // Internal helpers trail the public surface (ToBuilder/JsonConverter).
+        AppendFragmentEquality(code, members, runtime.OptionalType, expressions, core);
+        if (canWriteInPlace || (features.EmitPatch && canApplyPatchInPlace))
+        {
+            AppendWritableMemberWriter(code, modelType, writableMembers);
         }
         code.AppendLineAt(1, "}");
         core.AppendBuilder(code, members, generatedAccessibility);

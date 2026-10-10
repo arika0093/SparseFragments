@@ -133,6 +133,9 @@ internal static class SparseDictionaryPatchEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Inverts this dictionary patch.</summary>");
+            code.AppendLineAt(3, "/// <param name=\"baseline\">Baseline applied to.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch undoing this patch.</returns>");
             code.AppendLineAt(
                 3,
                 "public "
@@ -232,12 +235,18 @@ internal static class SparseDictionaryPatchEmitter
                     + valueType
                     + ">? __edited;"
         );
+        code.AppendLineAt(
+            3,
+            "/// <summary>Whether this dictionary patch carries no changes.</summary>"
+        );
         code.AppendLineAt(3, "public bool IsEmpty => __whole.Kind == " + kind + ".Keep");
         code.AppendLineAt(
             4,
             "&& (__set is null || __set.Count == 0) && (__removed is null || __removed.Count == 0) && (__edited is null || __edited.Count == 0);"
         );
         code.AppendLineAt(3, "internal bool __SparseIsEmpty() => IsEmpty;");
+        code.AppendLineAt(3, "/// <summary>Replaces the whole dictionary.</summary>");
+        code.AppendLineAt(3, "/// <param name=\"value\">Replacement values.</param>");
         code.AppendLineAt(3, "public void Set(" + dictType + " value)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -247,6 +256,7 @@ internal static class SparseDictionaryPatchEmitter
                 + ".Set(value); __set = null; __removed = null; __removedLookup = null; __edited = null;"
         );
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "/// <summary>Removes the whole dictionary.</summary>");
         code.AppendLineAt(3, "public void Remove()");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -258,6 +268,9 @@ internal static class SparseDictionaryPatchEmitter
         code.AppendLineAt(3, "}");
         if (!SparseKeyedCollectionEmitter.IsInterfaceMember(member))
         {
+            code.AppendLineAt(3, "/// <summary>Creates a dictionary patch from values.</summary>");
+            code.AppendLineAt(3, "/// <param name=\"value\">Replacement values.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch carrying the values.</returns>");
             code.AppendLineAt(
                 3,
                 "public static implicit operator "
@@ -378,6 +391,7 @@ internal static class SparseDictionaryPatchEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Sets an entry of this dictionary patch.</summary>");
             code.AppendLineAt(
                 3,
                 "public void SetEntry(" + keyType + " key, " + valueType + " value)"
@@ -433,6 +447,7 @@ internal static class SparseDictionaryPatchEmitter
         }
         else
         {
+            code.AppendLineAt(3, "/// <summary>Removes an entry by key.</summary>");
             code.AppendLineAt(3, "public void RemoveEntry(" + keyType + " key)");
             code.AppendLineAt(3, "{");
         }
@@ -489,6 +504,7 @@ internal static class SparseDictionaryPatchEmitter
             }
             else
             {
+                code.AppendLineAt(3, "/// <summary>Gets the edit patch for an entry.</summary>");
                 code.AppendLineAt(3, "public " + valuePatch + " Edit(" + keyType + " key)");
                 code.AppendLineAt(3, "{");
             }
@@ -561,6 +577,10 @@ internal static class SparseDictionaryPatchEmitter
             }
             else
             {
+                code.AppendLineAt(
+                    3,
+                    "/// <summary>Updates an entry of this dictionary patch.</summary>"
+                );
                 code.AppendLineAt(
                     3,
                     "public void UpdateEntry(" + keyType + " key, " + valueType + " value)"
@@ -656,6 +676,9 @@ internal static class SparseDictionaryPatchEmitter
         else
         {
             // Apply.
+            code.AppendLineAt(3, "/// <summary>Applies this dictionary patch.</summary>");
+            code.AppendLineAt(3, "/// <param name=\"current\">Value to apply to.</param>");
+            code.AppendLineAt(3, "/// <returns>The value with the patch applied.</returns>");
             code.AppendLineAt(3, "public " + optionalDict + " Apply(" + optionalDict + " current)");
             code.AppendLineAt(3, "{");
         }
@@ -779,6 +802,16 @@ internal static class SparseDictionaryPatchEmitter
                 3,
                 "/// <summary>Derives a dictionary patch between two member values.</summary>"
             );
+        }
+        else
+        {
+            code.AppendLineAt(
+                3,
+                "/// <summary>Derives a dictionary patch between values.</summary>"
+            );
+            code.AppendLineAt(3, "/// <param name=\"before\">Value before.</param>");
+            code.AppendLineAt(3, "/// <param name=\"after\">Value after.</param>");
+            code.AppendLineAt(3, "/// <returns>A patch turning before into after.</returns>");
         }
         // Between.
         code.AppendLineAt(

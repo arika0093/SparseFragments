@@ -40,6 +40,7 @@ internal static class SparseChangeSetPayloadProjectionEmitter
             2,
             "/// <summary>Projects this payload to a baseline-free patch.</summary>"
         );
+        code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
         code.AppendLineAt(2, "internal Patch ToPatchCore()");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -101,6 +102,7 @@ internal static class SparseChangeSetPayloadProjectionEmitter
             2,
             "/// <remarks>Redacted members project their requested after-state without historical comparison, unless the strict rebase policy applies.</remarks>"
         );
+        code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
         code.AppendLineAt(2, "public Patch ToPatch()");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
