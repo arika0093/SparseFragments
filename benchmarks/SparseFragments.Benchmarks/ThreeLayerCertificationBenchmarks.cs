@@ -47,8 +47,8 @@ public partial class CertBenchDictHolder
 /// <summary>
 /// Operation matrix for the three-layer certification (issue #189): Clone,
 /// comparison, EditSession, keyed/dictionary, and Patch/ChangeSet paths over
-/// small generated models at two collection sizes. Each benchmark returns a
-/// checksum so the measured call cannot be eliminated; allocations are
+/// small generated models at two collection sizes. Benchmarks return results
+/// or checksums so the measured call cannot be eliminated; allocations are
 /// recorded by <c>MemoryDiagnoser</c>. Machine-dependent timings are reported
 /// in docs/benchmarks/three-layer-certification.md, never asserted.
 /// </summary>
@@ -59,9 +59,12 @@ public class ThreeLayerOpsBenchmarks
     public int Size { get; set; }
 
     private CertBenchLeaf _leaf = null!;
-    private CertBenchLeaf.Fragment _leafFragment = default;
+    private CertBenchLeaf.Fragment _leafFragment = null!;
     private SparseFragments.Optional<CertBenchLeaf.Fragment?> _leafBefore = default!;
     private SparseFragments.Optional<CertBenchLeaf.Fragment?> _leafAfter = default!;
+    private List<int> _equalValues = null!;
+    private SparseFragments.Optional<CertBenchLeaf.Fragment?> _equalLeaf;
+    private string _equalLabel = null!;
     private CertBenchLeaf.ChangeSet _leafChange = null!;
     private CertBenchLeaf.ChangeSet _leafNext = null!;
     private CertBenchKeyedHolder _keyedPrototype = null!;
@@ -83,6 +86,11 @@ public class ThreeLayerOpsBenchmarks
             Values = Enumerable.Range(0, Size).ToList(),
         };
         _leafFragment = CertBenchLeaf.Fragment.From(_leaf);
+        _equalValues = new List<int>(_leaf.Values);
+        _equalLabel = new string(_leaf.Label.ToCharArray());
+        _equalLeaf = SparseFragments.Optional<CertBenchLeaf.Fragment?>.Present(
+            CertBenchLeaf.Fragment.From(_leaf.DeepClone())
+        );
         _leafBefore = SparseFragments.Optional<CertBenchLeaf.Fragment?>.Present(_leafFragment);
         _leafAfter = SparseFragments.Optional<CertBenchLeaf.Fragment?>.Present(
             CertBenchLeaf.Fragment.From(
@@ -174,6 +182,20 @@ public class ThreeLayerOpsBenchmarks
         );
         _dictPatch = CertBenchDictHolder.ChangeSet.Between(_dictBefore, _dictAfter).ToPatch();
         if (
+            ReferenceEquals(_leaf.Values, _equalValues)
+            || ReferenceEquals(_leafFragment, _equalLeaf.Value)
+            || ReferenceEquals(_leaf.Label, _equalLabel)
+            || !ComparisonSequence()
+            || !ComparisonNoopBetween()
+        )
+            throw new InvalidOperationException("Equal fixtures must have independent references.");
+        _equalValues[^1]++;
+        if (ComparisonSequence())
+            throw new InvalidOperationException(
+                "Sequence comparison must inspect the last element."
+            );
+        _equalValues[^1]--;
+        if (
             _leaf.DeepClone().Values.Count != Size
             || _leafFragment.DeepClone().Counter != 1
             || _leafChange.IsEmpty
@@ -186,24 +208,28 @@ public class ThreeLayerOpsBenchmarks
     }
 
     [Benchmark(Description = "Clone: model DeepClone")]
-    public int CloneModel() => _leaf.DeepClone().Values.Count + _leaf.DeepClone().Counter;
+    public CertBenchLeaf CloneModel() => _leaf.DeepClone();
 
     [Benchmark(Description = "Clone: fragment DeepClone")]
-    public int CloneFragment() =>
-        _leafFragment.DeepClone().Counter.GetValueOrDefault()
-        + (_leafFragment.DeepClone().Label.GetValueOrDefault()?.Length ?? -1);
+    public CertBenchLeaf.Fragment CloneFragment() => _leafFragment.DeepClone();
 
     [Benchmark(Description = "Comparison: runtime scalar equality")]
-    public bool ComparisonRuntime() =>
-        SparseFragmentRuntime.AreEqual("leaf", "leaf")
-        && !SparseFragmentRuntime.AreEqual("leaf", "other");
+    public bool ComparisonRuntime() => SparseFragmentRuntime.AreEqual(_leaf.Label, _equalLabel);
 
     [Benchmark(Description = "Comparison: runtime sequence equality")]
     public bool ComparisonSequence() =>
-        SparseFragmentRuntime.AreSequenceEqual(_leaf.Values, _leaf.Values);
+        SparseFragmentRuntime.AreSequenceEqual(_leaf.Values, _equalValues);
 
     [Benchmark(Description = "Comparison: no-op Between")]
     public bool ComparisonNoopBetween() =>
+        CertBenchLeaf.ChangeSet.Between(_leafBefore, _equalLeaf).IsEmpty;
+
+    [Benchmark(Description = "Comparison: sequence reference shortcut control")]
+    public bool ComparisonSequenceSameReference() =>
+        SparseFragmentRuntime.AreSequenceEqual(_leaf.Values, _leaf.Values);
+
+    [Benchmark(Description = "Comparison: Between reference shortcut control")]
+    public bool ComparisonBetweenSameReference() =>
         CertBenchLeaf.ChangeSet.Between(_leafBefore, _leafBefore).IsEmpty;
 
     [Benchmark(Description = "EditSession: 64 edits without batching")]
@@ -236,16 +262,16 @@ public class ThreeLayerOpsBenchmarks
     }
 
     [Benchmark(Description = "Keyed: Between one edit plus one add")]
-    public int KeyedBetween() =>
-        CertBenchKeyedHolder.ChangeSet.Between(_keyedBefore, _keyedAfter).ToPatch().GetHashCode();
+    public CertBenchKeyedHolder.ChangeSet KeyedBetween() =>
+        CertBenchKeyedHolder.ChangeSet.Between(_keyedBefore, _keyedAfter);
 
     [Benchmark(Description = "Keyed: patch apply")]
     public int KeyedApply() =>
         _keyedPatch.Apply(_keyedBefore).Value!.Items.GetValueOrDefault()?.Count ?? -1;
 
     [Benchmark(Description = "Dictionary: Between edit plus append")]
-    public int DictionaryBetween() =>
-        CertBenchDictHolder.ChangeSet.Between(_dictBefore, _dictAfter).ToPatch().GetHashCode();
+    public CertBenchDictHolder.ChangeSet DictionaryBetween() =>
+        CertBenchDictHolder.ChangeSet.Between(_dictBefore, _dictAfter);
 
     [Benchmark(Description = "Dictionary: patch apply")]
     public int DictionaryApply() =>
@@ -342,14 +368,16 @@ public class ThreeLayerGeneratorBenchmarks
                 || source.HintName.Contains("ReadOnlyAdapters", StringComparison.Ordinal)
                 || source.HintName.Contains("RemovalIndex", StringComparison.Ordinal)
             )
-            .Sum(static source => source.SourceText.ToString().Length);
+            .Sum(static source =>
+                System.Text.Encoding.UTF8.GetByteCount(source.SourceText.ToString())
+            );
     }
 
     [Benchmark(Description = "Generator incremental: unrelated edit total bytes")]
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var oldTree = _compilation.SyntaxTrees.First(tree =>
             tree.FilePath.EndsWith("CertModel0.cs", StringComparison.Ordinal)
         );
@@ -357,7 +385,9 @@ public class ThreeLayerGeneratorBenchmarks
             _compilation.ReplaceSyntaxTree(
                 oldTree,
                 CSharpSyntaxTree.ParseText(
-                    oldTree.ToString() + $"\n// edit {_edits}\n",
+                    _baseCompilation
+                        .SyntaxTrees.First(tree => tree.FilePath == "CertModel0.cs")
+                        .ToString() + $"\n// edit {_edits}\n",
                     path: "CertModel0.cs"
                 )
             );
@@ -366,7 +396,7 @@ public class ThreeLayerGeneratorBenchmarks
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 
-    private static CSharpCompilation CreateCollectionCompilation(int modelCount)
+    internal static CSharpCompilation CreateCollectionCompilation(int modelCount)
     {
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < modelCount; index++)
@@ -402,7 +432,11 @@ public class ThreeLayerGeneratorBenchmarks
             "CertBenchGenerator",
             trees,
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                optimizationLevel: OptimizationLevel.Release,
+                deterministic: true
+            )
         );
     }
 }

@@ -50,7 +50,7 @@ public class ScalarEqualityBenchmarks
     public void Setup()
     {
         _integer = Equal ? 17 : 18;
-        _string = Equal ? "value" : "different";
+        _string = new string((Equal ? "value" : "different").ToCharArray());
         _nullable = _integer;
         _double = Equal ? double.NaN : 0;
         _decimal = Equal ? 10.00m : 11m;

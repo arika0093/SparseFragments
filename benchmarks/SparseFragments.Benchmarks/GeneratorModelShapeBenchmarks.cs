@@ -23,7 +23,6 @@ public class GeneratorWideModelBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private int _edits;
     private int _preparedFor = -1;
 
@@ -38,7 +37,6 @@ public class GeneratorWideModelBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreateWide(10, PropertyCount);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -59,14 +57,13 @@ public class GeneratorWideModelBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "WideRoot0.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 }
@@ -80,7 +77,6 @@ public class GeneratorNestedDepthBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private int _edits;
     private int _preparedFor = -1;
 
@@ -95,7 +91,6 @@ public class GeneratorNestedDepthBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreateDeep(Depth);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -116,14 +111,13 @@ public class GeneratorNestedDepthBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "DeepRoot.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 }
@@ -137,7 +131,6 @@ public class GeneratorFanOutBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private int _edits;
     private int _preparedFor = -1;
 
@@ -152,7 +145,6 @@ public class GeneratorFanOutBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreateFanOut(FanOut);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -173,14 +165,13 @@ public class GeneratorFanOutBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "FanRoot.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 }
@@ -194,7 +185,6 @@ public class GeneratorKeyedCollectionBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private int _edits;
     private int _preparedFor = -1;
 
@@ -209,7 +199,6 @@ public class GeneratorKeyedCollectionBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreateKeyed(KeyedMembers);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -230,14 +219,13 @@ public class GeneratorKeyedCollectionBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "KeyedRoot.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 }
@@ -251,7 +239,6 @@ public class GeneratorDictionaryMemberBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private int _edits;
     private int _preparedFor = -1;
 
@@ -266,7 +253,6 @@ public class GeneratorDictionaryMemberBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreateDictionary(DictionaryMembers);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -287,14 +273,13 @@ public class GeneratorDictionaryMemberBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "DictRoot.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 }
@@ -308,9 +293,7 @@ public class GeneratorPromotedCountBenchmarks
 
     private CSharpCompilation _baseCompilation = null!;
     private GeneratorDriver _driver = null!;
-    private CSharpCompilation _compilation = null!;
     private GeneratorDriver _sharedDriver = null!;
-    private CSharpCompilation _sharedCompilation = null!;
     private int _edits;
     private int _sharedEdits;
     private int _preparedFor = -1;
@@ -326,11 +309,9 @@ public class GeneratorPromotedCountBenchmarks
         }
 
         _baseCompilation = ShapeCompilations.CreatePromoted(PromotedCount, 3);
-        _compilation = _baseCompilation;
         _driver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
-        _sharedCompilation = _baseCompilation;
         _sharedDriver = CSharpGeneratorDriver
             .Create(new SparseFragmentsGenerator())
             .RunGenerators(_baseCompilation);
@@ -352,14 +333,13 @@ public class GeneratorPromotedCountBenchmarks
     public int IncrementalUnrelatedEditBytes()
     {
         EnsurePrepared();
-        _edits++;
+        _edits = 1 - _edits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _compilation,
+            _baseCompilation,
             "PromotedRoot0.cs",
             $"public int UnrelatedEdit{_edits} {{ get; set; }}"
         );
         _driver = _driver.RunGenerators(updated);
-        _compilation = updated;
         return GeneratorStepTracking.TotalSourceBytes(_driver.GetRunResult().Results.Single());
     }
 
@@ -367,15 +347,16 @@ public class GeneratorPromotedCountBenchmarks
     public int IncrementalSharedEditBytes()
     {
         EnsurePrepared();
-        _sharedEdits++;
+        _sharedEdits = 1 - _sharedEdits;
         var updated = ShapeCompilations.WithAppendedMember(
-            _sharedCompilation,
+            _baseCompilation,
             "PromotedShared0.cs",
             $"public string SharedEdit{_sharedEdits} {{ get; set; }} = \"\";"
         );
         _sharedDriver = _sharedDriver.RunGenerators(updated);
-        _sharedCompilation = updated;
-        return GeneratorStepTracking.TotalSourceBytes(_sharedDriver.GetRunResult().Results.Single());
+        return GeneratorStepTracking.TotalSourceBytes(
+            _sharedDriver.GetRunResult().Results.Single()
+        );
     }
 }
 
@@ -396,8 +377,7 @@ internal static class ShapeCompilations
                             : $"        public int Prop{index} {{ get; set; }}"
                     )
             );
-            files[$"WideRoot{root}.cs"] =
-                $$"""
+            files[$"WideRoot{root}.cs"] = $$"""
                 using SparseFragments;
                 [SparseFragmentModel]
                 public partial class WideRoot{{root}}
@@ -419,8 +399,7 @@ internal static class ShapeCompilations
                 level == depth - 1
                     ? string.Empty
                     : $"\n        public DepthLevel{level + 1} Child {{ get; set; }} = new();";
-            files[$"DepthLevel{level}.cs"] =
-                $$"""
+            files[$"DepthLevel{level}.cs"] = $$"""
                 using SparseFragments;
                 public partial class DepthLevel{{level}}
                 {
@@ -429,8 +408,7 @@ internal static class ShapeCompilations
                 """;
         }
 
-        files["DeepRoot.cs"] =
-            """
+        files["DeepRoot.cs"] = """
             using SparseFragments;
             [SparseFragmentModel]
             public partial class DeepRoot
@@ -447,8 +425,7 @@ internal static class ShapeCompilations
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < fanOut; index++)
         {
-            files[$"FanChild{index}.cs"] =
-                $$"""
+            files[$"FanChild{index}.cs"] = $$"""
                 using SparseFragments;
                 public partial class FanChild{{index}}
                 {
@@ -460,10 +437,13 @@ internal static class ShapeCompilations
 
         var members = string.Join(
             "\n",
-            Enumerable.Range(0, fanOut).Select(index => $"        public FanChild{index} Child{index} {{ get; set; }} = new();")
+            Enumerable
+                .Range(0, fanOut)
+                .Select(index =>
+                    $"        public FanChild{index} Child{index} {{ get; set; }} = new();"
+                )
         );
-        files["FanRoot.cs"] =
-            $$"""
+        files["FanRoot.cs"] = $$"""
             using SparseFragments;
             [SparseFragmentModel]
             public partial class FanRoot
@@ -495,10 +475,11 @@ internal static class ShapeCompilations
             "\n",
             Enumerable
                 .Range(0, memberCount)
-                .Select(index => $"        public System.Collections.Generic.List<KeyedItem> Keyed{index} {{ get; set; }} = new();")
+                .Select(index =>
+                    $"        public System.Collections.Generic.List<KeyedItem> Keyed{index} {{ get; set; }} = new();"
+                )
         );
-        files["KeyedRoot.cs"] =
-            $$"""
+        files["KeyedRoot.cs"] = $$"""
             using SparseFragments;
             [SparseFragmentModel]
             public partial class KeyedRoot
@@ -516,21 +497,22 @@ internal static class ShapeCompilations
             "\n",
             Enumerable
                 .Range(0, memberCount)
-                .Select(index => $"        public System.Collections.Generic.Dictionary<string, int> Scores{index} {{ get; set; }} = new();")
+                .Select(index =>
+                    $"        public System.Collections.Generic.Dictionary<string, int> Scores{index} {{ get; set; }} = new();"
+                )
         );
         return CreateCompilation(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["DictRoot.cs"] =
-                    $$"""
-                    using SparseFragments;
-                    [SparseFragmentModel]
-                    public partial class DictRoot
-                    {
-                        public string Label { get; set; } = "";
-                    {{members}}
-                    }
-                    """,
+                ["DictRoot.cs"] = $$"""
+                using SparseFragments;
+                [SparseFragmentModel]
+                public partial class DictRoot
+                {
+                    public string Label { get; set; } = "";
+                {{members}}
+                }
+                """,
             }
         );
     }
@@ -540,8 +522,7 @@ internal static class ShapeCompilations
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var shared = 0; shared < promotedCount; shared++)
         {
-            files[$"PromotedShared{shared}.cs"] =
-                $$"""
+            files[$"PromotedShared{shared}.cs"] = $$"""
                 using SparseFragments;
                 public partial class PromotedShared{{shared}}
                 {
@@ -552,8 +533,7 @@ internal static class ShapeCompilations
             for (var root = 0; root < rootsPerPromoted; root++)
             {
                 var name = $"PromotedRoot{shared * rootsPerPromoted + root}";
-                files[$"{name}.cs"] =
-                    $$"""
+                files[$"{name}.cs"] = $$"""
                     using SparseFragments;
                     [SparseFragmentModel]
                     public partial class {{name}}
@@ -600,9 +580,9 @@ internal static class ShapeCompilations
             "SparseGeneratorShapeProbe",
             trees,
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithNullableContextOptions(
-                NullableContextOptions.Enable
-            )
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary
+            ).WithNullableContextOptions(NullableContextOptions.Enable)
         );
     }
 }

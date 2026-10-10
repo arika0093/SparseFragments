@@ -93,7 +93,7 @@ internal static class GeneratorStepTracking
         var bytes = 0;
         foreach (var source in result.GeneratedSources)
         {
-            bytes += source.SourceText.Length;
+            bytes += System.Text.Encoding.UTF8.GetByteCount(source.SourceText.ToString());
         }
 
         return bytes;
