@@ -150,7 +150,15 @@ internal static class SparseChangeSetPayloadTransferEmitter
         SparseChangePayloadPatchSyncEmitter.AppendIgnoredTransportGuard(code, members);
         code.AppendLineAt(
             3,
-            "var changes = new global::System.Collections.Generic.List<" + payloadChange + ">();"
+            "var changes = new global::System.Collections.Generic.List<"
+                + payloadChange
+                + ">"
+                + (
+                    members.Length <= MaxPrecountedMembers
+                        ? "(__sparse_hasWhole ? 1 : " + PayloadCapacity(members) + ")"
+                        : "()"
+                )
+                + ";"
         );
         code.AppendLineAt(3, "if (__sparse_hasWhole)");
         code.AppendLineAt(3, "{");
@@ -286,6 +294,7 @@ internal static class SparseChangeSetPayloadTransferEmitter
                     + "<"
                     + itemValueType
                     + ">.FromOptional(item.After))";
+                code.AppendLineAt(5, "entry.Items.Capacity = " + itemField + "?.Count ?? 0;");
                 code.AppendLineAt(
                     5,
                     "if (" + itemField + " is not null) foreach (var item in " + itemField + ")"
@@ -531,4 +540,24 @@ internal static class SparseChangeSetPayloadTransferEmitter
         );
         code.AppendLineAt(2, "}");
     }
+
+    private static string PayloadCapacity(ImmutableArray<SparseMemberModel> members) =>
+        string.Join(
+            " + ",
+            members
+                .Where(static member => !member.Property.IsJsonIgnored)
+                .Select(static member =>
+                    "("
+                    + (
+                        SparseChangeSetBasicsEmitter.IsNested(member)
+                            ? SparseChangeSetBasicsEmitter.NestedField(member) + " is not null"
+                            : SparseChangeSetBasicsEmitter.HasField(member)
+                    )
+                    + " ? 1 : 0)"
+                )
+                .DefaultIfEmpty("0")
+        );
+
+    // Wide sparse models lose time when every flag is counted before emission.
+    private const int MaxPrecountedMembers = 4;
 }
