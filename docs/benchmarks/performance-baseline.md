@@ -37,6 +37,19 @@ Compilation time is the `BaselineGeneratorBenchmarks.Compile` measurement.
 Build logs are retained for troubleshooting; MSBuild elapsed time is outside
 the compilation measurement.
 
+For payload-specific generator changes, `PayloadGeneratorBenchmarks` adds scalar
+dictionaries, model-valued dictionaries, and keyed model collections. Each shape
+contains 1, 4, or 16 parent models; model-valued shapes share one child model.
+These exploratory cases measure fresh generation and compilation separately.
+They are outside the 45-case baseline. Record their source and assembly sizes with:
+
+```powershell
+dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --payload-sizes artifacts/payload-sizes.json
+```
+
+The output identifies the shape and parent model count alongside the same byte
+counts and source fingerprint used by the baseline size probe.
+
 Workflow setup checks the applied model, preserved remote label, edited elements,
 addition, conflict outcome, and unchanged prototype across repeated calls. Model
 creation and JSON payload conversion are included in the workflow allocation.

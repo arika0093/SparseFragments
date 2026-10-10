@@ -81,33 +81,11 @@ public class BaselineGeneratorBenchmarks
         var sizes = new List<object>();
         foreach (var count in new[] { 1, 4, 16 })
         {
-            var input = ThreeLayerGeneratorBenchmarks.CreateCollectionCompilation(count);
-            var compilation = Generate(input, out var driver);
-            var sources = driver
-                .GetRunResult()
-                .Results.Single()
-                .GeneratedSources.OrderBy(source => source.HintName, StringComparer.Ordinal)
-                .ToArray();
-            using var fingerprint = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            var bytes = 0;
-            foreach (var source in sources)
-            {
-                fingerprint.AppendData(Encoding.UTF8.GetBytes(source.HintName + "\0"));
-                var text = Encoding.UTF8.GetBytes(source.SourceText.ToString());
-                fingerprint.AppendData(text);
-                bytes += text.Length;
-            }
-            using var stream = new MemoryStream();
-            AssertNoErrors(compilation.Emit(stream).Diagnostics);
             sizes.Add(
-                new
-                {
-                    ModelCount = count,
-                    GeneratedFiles = sources.Length,
-                    GeneratedSourceBytes = bytes,
-                    GeneratedSourceSha256 = Convert.ToHexString(fingerprint.GetHashAndReset()),
-                    AssemblyBytes = stream.Length,
-                }
+                MeasureSizes(
+                    ThreeLayerGeneratorBenchmarks.CreateCollectionCompilation(count),
+                    count
+                )
             );
         }
         File.WriteAllText(
@@ -116,7 +94,36 @@ public class BaselineGeneratorBenchmarks
         );
     }
 
-    private static CSharpCompilation Fresh(Compilation compilation) =>
+    internal static GeneratorOutputSize MeasureSizes(CSharpCompilation input, int modelCount)
+    {
+        var compilation = Generate(input, out var driver);
+        var sources = driver
+            .GetRunResult()
+            .Results.Single()
+            .GeneratedSources.OrderBy(source => source.HintName, StringComparer.Ordinal)
+            .ToArray();
+        using var fingerprint = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var bytes = 0;
+        foreach (var source in sources)
+        {
+            fingerprint.AppendData(Encoding.UTF8.GetBytes(source.HintName + "\0"));
+            var text = Encoding.UTF8.GetBytes(source.SourceText.ToString());
+            fingerprint.AppendData(text);
+            bytes += text.Length;
+        }
+        using var stream = new MemoryStream();
+        AssertNoErrors(compilation.Emit(stream).Diagnostics);
+        return new GeneratorOutputSize
+        {
+            ModelCount = modelCount,
+            GeneratedFiles = sources.Length,
+            GeneratedSourceBytes = bytes,
+            GeneratedSourceSha256 = Convert.ToHexString(fingerprint.GetHashAndReset()),
+            AssemblyBytes = stream.Length,
+        };
+    }
+
+    internal static CSharpCompilation Fresh(Compilation compilation) =>
         CSharpCompilation.Create(
             compilation.AssemblyName,
             compilation.SyntaxTrees,
@@ -124,7 +131,7 @@ public class BaselineGeneratorBenchmarks
             (CSharpCompilationOptions)compilation.Options
         );
 
-    private static Compilation Generate(CSharpCompilation input, out GeneratorDriver driver)
+    internal static Compilation Generate(CSharpCompilation input, out GeneratorDriver driver)
     {
         driver = CSharpGeneratorDriver.Create(new SparseFragmentsGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -137,7 +144,7 @@ public class BaselineGeneratorBenchmarks
         return output;
     }
 
-    private static void AssertNoErrors(IEnumerable<Diagnostic> diagnostics)
+    internal static void AssertNoErrors(IEnumerable<Diagnostic> diagnostics)
     {
         var errors = diagnostics.Where(item => item.Severity == DiagnosticSeverity.Error).ToArray();
         if (errors.Length != 0)
@@ -145,4 +152,13 @@ public class BaselineGeneratorBenchmarks
                 string.Join<Diagnostic>(Environment.NewLine, errors)
             );
     }
+}
+
+internal sealed record GeneratorOutputSize
+{
+    public int ModelCount { get; init; }
+    public int GeneratedFiles { get; init; }
+    public int GeneratedSourceBytes { get; init; }
+    public string GeneratedSourceSha256 { get; init; } = string.Empty;
+    public long AssemblyBytes { get; init; }
 }
