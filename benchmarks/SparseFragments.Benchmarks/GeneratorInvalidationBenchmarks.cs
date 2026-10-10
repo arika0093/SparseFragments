@@ -44,7 +44,6 @@ public class GeneratorInvalidationBenchmarks
     private int _sharedEdits;
     private int _unrelatedTrackedEdits;
     private int _sharedTrackedEdits;
-    private int _coldCompilations;
     private int _preparedFor = -1;
     private bool _preparedWithComparisonRules;
 
@@ -261,13 +260,18 @@ public class GeneratorInvalidationBenchmarks
     }
 
     private CSharpCompilation CreateFreshCompilation() =>
-        _baseCompilation.WithAssemblyName("SparseGeneratorScaleProbe_" + ++_coldCompilations);
+        CSharpCompilation.Create(
+            _baseCompilation.AssemblyName,
+            _baseCompilation.SyntaxTrees,
+            _baseCompilation.References,
+            (CSharpCompilationOptions)_baseCompilation.Options
+        );
 
     [Benchmark(Description = "Generator incremental: edit a single unrelated root")]
     public int IncrementalUnrelatedEdit()
     {
         EnsurePrepared();
-        _unrelatedEdits++;
+        _unrelatedEdits = 1 - _unrelatedEdits;
         var updated = ScaleCompilations.WithUnrelatedEdit(_unrelatedCompilation, _unrelatedEdits);
         _unrelatedDriver = _unrelatedDriver.RunGenerators(updated);
         _unrelatedCompilation = updated;
@@ -281,7 +285,7 @@ public class GeneratorInvalidationBenchmarks
     public int IncrementalSharedEdit()
     {
         EnsurePrepared();
-        _sharedEdits++;
+        _sharedEdits = 1 - _sharedEdits;
         var updated = ScaleCompilations.WithSharedEdit(_sharedCompilation, _sharedEdits);
         _sharedDriver = _sharedDriver.RunGenerators(updated);
         _sharedCompilation = updated;
@@ -297,7 +301,7 @@ public class GeneratorInvalidationBenchmarks
     public int IncrementalUnrelatedEdit_CachedSteps()
     {
         EnsurePrepared();
-        _unrelatedTrackedEdits++;
+        _unrelatedTrackedEdits = 1 - _unrelatedTrackedEdits;
         var updated = ScaleCompilations.WithUnrelatedEdit(
             _unrelatedTrackedCompilation,
             _unrelatedTrackedEdits
@@ -315,7 +319,7 @@ public class GeneratorInvalidationBenchmarks
     public int IncrementalSharedEdit_RecomputedSteps()
     {
         EnsurePrepared();
-        _sharedTrackedEdits++;
+        _sharedTrackedEdits = 1 - _sharedTrackedEdits;
         var updated = ScaleCompilations.WithSharedEdit(
             _sharedTrackedCompilation,
             _sharedTrackedEdits
@@ -380,11 +384,7 @@ public class GeneratorInvalidationBenchmarks
 
         internal static CSharpCompilation WithUnrelatedEdit(CSharpCompilation compilation, int edit)
         {
-            var rootCount = compilation.SyntaxTrees.Count(tree =>
-                tree.FilePath.StartsWith("ScaleRoot", StringComparison.Ordinal)
-            );
-            var index = edit % rootCount;
-            return WithRenamedProperty(compilation, $"ScaleRoot{index}.cs", edit);
+            return WithRenamedProperty(compilation, "ScaleRoot0.cs", edit);
         }
 
         internal static CSharpCompilation WithSharedEdit(CSharpCompilation compilation, int edit)

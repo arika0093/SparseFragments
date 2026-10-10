@@ -52,17 +52,20 @@ public class ChangeSetJsonBenchmarks
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
         };
-        var alternateJson = JsonSerializer.SerializeToUtf8Bytes(_change, alternateOptions);
+        var alternateJson = JsonSerializer.SerializeToUtf8Bytes(
+            _change.ToPayload(),
+            alternateOptions
+        );
         Validate(
-            JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
-                alternateJson,
-                alternateOptions
-            )!
+            JsonSerializer
+                .Deserialize<BenchChangeSetRebaseRecord.ChangePayload>(
+                    alternateJson,
+                    alternateOptions
+                )!
+                .ToChangeSet()
         );
         if (!Serialize().SequenceEqual(_json))
-            throw new InvalidOperationException(
-                "Fragment converter reuse must not retain serializer options."
-            );
+            throw new InvalidOperationException("Payload serialization must remain deterministic.");
         ReadEmptyFragment(BenchJsonCaseNames.Fragment.JsonConverter, _options);
         AssertNameCollision(BenchJsonCaseNames.Fragment.JsonConverter, alternateOptions);
         var namingPolicy = new BenchCountingJsonNamingPolicy();
@@ -76,107 +79,18 @@ public class ChangeSetJsonBenchmarks
             throw new InvalidOperationException(
                 "Name validation must stop at the first collision."
             );
-        namingPolicy = new BenchCountingJsonNamingPolicy();
-        var singleOptions = new JsonSerializerOptions
-        {
-            TypeInfoResolver = _options.TypeInfoResolver,
-            PropertyNamingPolicy = namingPolicy,
-        };
-        ReadEmptyFragment(BenchJsonSingleName.Fragment.JsonConverter, singleOptions);
-        if (namingPolicy.Calls != 1)
-            throw new InvalidOperationException(
-                "Single-member validation must evaluate its naming policy."
-            );
-        var escaped = System.Text.Encoding.UTF8.GetBytes(
-            System
-                .Text.Encoding.UTF8.GetString(_json)
-                .Replace("\"version\"", "\"ver\\u0073ion\"")
-                .Replace("\"changes\"", "\"chan\\u0067es\"")
-                .Replace("\"before\"", "\"be\\u0066ore\"")
-                .Replace("\"after\"", "\"a\\u0066ter\"")
-                .Replace("\"state\"", "\"st\\u0061te\"")
-                .Replace("\"value\"", "\"v\\u0061lue\"")
-                .Replace("\"missing\"", "\"mi\\u0073sing\"")
-                .Replace("\"null\"", "\"n\\u0075ll\"")
-        );
+        using var document = JsonDocument.Parse(_json);
+        using var reordered = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(reordered))
+            WriteReordered(document.RootElement, writer);
         Validate(
-            JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(escaped, _options)!
-        );
-        using (var document = JsonDocument.Parse(_json))
-        using (var reordered = new MemoryStream())
-        {
-            using (var writer = new Utf8JsonWriter(reordered))
-            {
-                if (
-                    document.RootElement.GetProperty("version").GetInt32() != 1
-                    || document.RootElement.GetProperty("changes").ValueKind != JsonValueKind.Object
-                )
-                    throw new InvalidOperationException(
-                        "ChangeSet JSON must use the version 1 envelope."
-                    );
-                WriteReordered(document.RootElement, writer);
-            }
-            Validate(
-                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
+            JsonSerializer
+                .Deserialize<BenchChangeSetRebaseRecord.ChangePayload>(
                     reordered.ToArray(),
-                    _options
+                    new JsonSerializerOptions(_options) { AllowOutOfOrderMetadataProperties = true }
                 )!
-            );
-        }
-        foreach (
-            var invalid in new[]
-            {
-                "{\"before\":{\"state\":\"missing\"},\"before\":{\"state\":\"missing\"},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"missing\"},\"other\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"bogus\"},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"missing\",\"state\":\"null\"},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":null},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"value\"},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"value\",\"value\":null},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"missing\",\"value\":{}},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"state\":\"null\",\"value\":{}},\"after\":{\"state\":\"missing\"}}",
-                "{\"before\":{\"other\":\"missing\"},\"after\":{\"state\":\"missing\"}}",
-            }
-        )
-        {
-            try
-            {
-                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(
-                    "{\"version\":1,\"changes\":{\"$whole\":" + invalid + "}}",
-                    _options
-                );
-            }
-            catch (JsonException)
-            {
-                continue;
-            }
-            throw new InvalidOperationException("Invalid ChangeSet properties must be rejected.");
-        }
-        foreach (
-            var invalid in new[]
-            {
-                "{}",
-                "{\"version\":1}",
-                "{\"changes\":{}}",
-                "{\"version\":2,\"changes\":{}}",
-                "{\"version\":\"1\",\"changes\":{}}",
-                "{\"version\":1,\"version\":1,\"changes\":{}}",
-                "{\"version\":1,\"changes\":{},\"changes\":{}}",
-                "{\"version\":1,\"changes\":{},\"unknown\":1}",
-            }
-        )
-        {
-            try
-            {
-                JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(invalid, _options);
-            }
-            catch (JsonException)
-            {
-                continue;
-            }
-            throw new InvalidOperationException("Malformed version 1 envelopes must be rejected.");
-        }
+                .ToChangeSet()
+        );
     }
 
     private static void WriteReordered(JsonElement element, Utf8JsonWriter writer)
@@ -267,7 +181,8 @@ public class ChangeSetJsonBenchmarks
             throw new InvalidOperationException(
                 "ChangeSet JSON must preserve root presence and emptiness."
             );
-        if (actual.GetValueOrDefault() is { } fragment)
+        var fragment = actual.GetValueOrDefault();
+        if (fragment is not null)
         {
             var actualValues = fragment.Values.Value;
             var expectedValues = expected.Value!.Values.Value;
@@ -285,11 +200,13 @@ public class ChangeSetJsonBenchmarks
     }
 
     [Benchmark]
-    public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(_change, _options);
+    public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(_change.ToPayload(), _options);
 
     [Benchmark]
     public BenchChangeSetRebaseRecord.ChangeSet Deserialize() =>
-        JsonSerializer.Deserialize<BenchChangeSetRebaseRecord.ChangeSet>(_json, _options)!;
+        JsonSerializer
+            .Deserialize<BenchChangeSetRebaseRecord.ChangePayload>(_json, _options)!
+            .ToChangeSet();
 }
 
 [SparseFragmentModel]

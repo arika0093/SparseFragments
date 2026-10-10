@@ -1,5 +1,10 @@
 # Three-layer certification report
 
+Historical measurements: sequence equality and no-op Between used identical
+references, and clone methods performed two clones per call. The generator
+incremental input also grew with invocation count. Use the corrected suite in
+[Measure and compare performance](performance-baseline.md) for new comparisons.
+
 Scope: end-to-end benchmark and certification for the Runtime,
 Generated-Once, and Per-Model layers defined in
 [three-layer-ownership.md](../architecture/three-layer-ownership.md).

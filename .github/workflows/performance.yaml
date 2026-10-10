@@ -1,0 +1,62 @@
+name: Performance baseline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+      - 'Directory.*'
+      - 'global.json'
+      - '.github/workflows/performance.yaml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Restore previous successful baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          previous_id=$(gh run list --workflow performance.yaml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$previous_id" ]; then
+            gh run download "$previous_id" --name performance-baseline --dir artifacts/previous-baseline || echo 'Previous artifact unavailable; recording a new baseline.'
+          fi
+      - name: Measure and compare
+        shell: bash
+        run: |
+          previous=()
+          if [ -f artifacts/previous-baseline/baseline.json ]; then
+            previous=(--previous artifacts/previous-baseline/baseline.json)
+          fi
+          python3 benchmarks/run-baseline.py --output artifacts/performance-baseline "${previous[@]}"
+      - name: Publish comparison summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/performance-baseline/comparison.md ]; then
+            cat artifacts/performance-baseline/comparison.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: performance-baseline
+          path: artifacts/performance-baseline
+          retention-days: 90
