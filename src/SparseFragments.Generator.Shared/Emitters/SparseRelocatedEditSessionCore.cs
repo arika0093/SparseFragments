@@ -313,6 +313,7 @@ internal static class SparseRelocatedEditSessionCore
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
+        SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType);
         code.AppendLineAt(
             2,
             "internal EditSession("

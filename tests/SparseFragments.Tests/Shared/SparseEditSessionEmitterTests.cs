@@ -52,4 +52,23 @@ public sealed class SparseEditSessionEmitterTests
         current.ShouldContain("global::Downstream.Optional<");
         current.ShouldNotContain("SparseFragments.");
     }
+
+    [Test]
+    public void CoreSources_ExposeForkMergeThroughDialects()
+    {
+        var (core, current) = SparseEditSessionEmitter.RenderCoreSources(
+            new SparseEditSessionDialect("Downstream.Generated"),
+            RuntimeDialect(),
+            PatchDialect()
+        );
+
+        core.ShouldContain("Fork()");
+        core.ShouldContain("TryMergeFrom");
+        core.ShouldContain("global::Downstream.Conflict");
+        core.ShouldContain("global::Downstream.Rebase<TChangeSet>");
+        core.ShouldNotContain("SparseFragments.");
+        current.ShouldContain("Fork()");
+        current.ShouldContain("TryMergeFrom");
+        current.ShouldNotContain("SparseFragments.");
+    }
 }

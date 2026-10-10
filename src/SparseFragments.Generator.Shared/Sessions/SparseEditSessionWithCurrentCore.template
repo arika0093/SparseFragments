@@ -196,6 +196,53 @@ namespace __SESSION_NAMESPACE__
         /// <summary>The live model through a recursive read-only view.</summary>
         public TCurrent Current => _current;
 
+        /// <summary>Creates an independent speculative branch of this session.</summary>
+        /// <returns>A new session of the same runtime type with its own live model.</returns>
+        public new EditSessionCore<
+            TModel,
+            TFragment,
+            TPatch,
+            TChangeSet,
+            TObservable,
+            TCurrent
+        > Fork() =>
+            (EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent>)
+                base.Fork();
+
+        /// <summary>
+        /// Attempts to merge the changes of a fork into this session without modifying either session.
+        /// </summary>
+        /// <param name="fork">A session created by <see cref="Fork"/> in the same lineage.</param>
+        /// <param name="merged">
+        /// The new session with this session's baseline and the merged model, or null on failure.
+        /// </param>
+        /// <param name="conflicts">Structured rebase conflicts on failure; otherwise null.</param>
+        /// <returns><see langword="true"/> when the fork merged cleanly; otherwise <see langword="false"/>.</returns>
+        public bool TryMergeFrom(
+            EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> fork,
+            out EditSessionCore<
+                TModel,
+                TFragment,
+                TPatch,
+                TChangeSet,
+                TObservable,
+                TCurrent
+            >? merged,
+            out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
+        )
+        {
+            var applied = base.TryMergeFrom(fork, out var mergedCore, out conflicts);
+            merged = (EditSessionCore<
+                TModel,
+                TFragment,
+                TPatch,
+                TChangeSet,
+                TObservable,
+                TCurrent
+            >?)mergedCore;
+            return applied;
+        }
+
         /// <summary>Initializes a generated edit-session specialization.</summary>
         /// <param name="baseline">The model state to retain as the baseline.</param>
         /// <param name="current">The live editable model.</param>
@@ -221,8 +268,51 @@ namespace __SESSION_NAMESPACE__
                 onChanged
             ) { }
 
+        /// <summary>Creates a session of this runtime type with an explicit baseline and lineage.</summary>
+        /// <param name="live">The independent live model for the new session.</param>
+        /// <param name="baseline">The retained baseline snapshot.</param>
+        /// <param name="rootId">The branch lineage to continue.</param>
+        /// <param name="onChanged">The change callback for the new session.</param>
+        /// <returns>A new session with fresh bindings.</returns>
+        protected override EditSessionCore<
+            TModel,
+            TFragment,
+            TPatch,
+            TChangeSet,
+            TObservable
+        > CreateBranched(
+            TModel live,
+            __OPTIONAL_TYPE__<TFragment?> baseline,
+            Guid rootId,
+            Action? onChanged
+        )
+        {
+            if (!baseline.IsPresent || baseline.Value is null)
+                throw new InvalidOperationException(
+                    "Cannot branch an edit session with a missing baseline."
+                );
+            var branched = new EditSessionCore<
+                TModel,
+                TFragment,
+                TPatch,
+                TChangeSet,
+                TObservable,
+                TCurrent
+            >(live, baseline.Value, _configuration, onChanged);
+            branched.AdoptBranchRoot(rootId);
+            return branched;
+        }
+
         // Private state and helpers trail the protected surface.
         private readonly TCurrent _current;
+        private readonly EditSessionCoreConfiguration<
+            TModel,
+            TFragment,
+            TPatch,
+            TChangeSet,
+            TObservable,
+            TCurrent
+        > _configuration;
 
         private EditSessionCore(
             TModel model,
@@ -257,6 +347,7 @@ namespace __SESSION_NAMESPACE__
                 baselineToModel: configuration.BaselineToModel
             )
         {
+            _configuration = configuration;
             _current = configuration.ToCurrent(model);
         }
 

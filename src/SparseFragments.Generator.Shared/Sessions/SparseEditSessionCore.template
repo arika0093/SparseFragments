@@ -578,6 +578,170 @@ namespace __SESSION_NAMESPACE__
             OnPropertyChanged(nameof(HasChanges));
         }
 
+        /// <summary>Creates an independent speculative branch of this session.</summary>
+        /// <remarks>
+        /// The fork starts with a private mutable copy of the current model and a
+        /// baseline equal to the current state at fork time, so later edits on either
+        /// side stay isolated. The fork shares the branch lineage but not the change
+        /// callback, events, or observable bindings. Forking copies through the
+        /// fragment snapshot, so members that snapshots share by reference (such as
+        /// reference-safe singletons) stay shared by design. Reads both live models
+        /// without locking; concurrent mutations during the call are not atomic.
+        /// </remarks>
+        /// <returns>A new session of the same runtime type with its own live model.</returns>
+        /// <exception cref="NotSupportedException">
+        /// The session was built without baseline materialization support, or the model
+        /// graph cannot be snapshotted (such as a cyclic graph).
+        /// </exception>
+        public virtual EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> Fork()
+        {
+            // Two snapshots: ToModel aliases its source fragment, so the live copy
+            // needs its own snapshot to stay independent of the fork baseline.
+            // Opaque reference-safe members stay shared by snapshot design.
+            var forkPoint = _fromModel(_model);
+            var forkLive = CloneLiveModel(_model);
+            return CreateBranched(
+                forkLive,
+                __OPTIONAL_TYPE__<TFragment?>.Present(forkPoint),
+                _rootId,
+                onChanged: null
+            );
+        }
+
+        /// <summary>
+        /// Attempts to merge the changes of a fork into this session without modifying either session.
+        /// </summary>
+        /// <remarks>
+        /// The fork transition (fork baseline to fork current) is rebased onto this
+        /// session's current model using the existing change-set rebase behavior. On
+        /// success the returned session retains this session's original baseline with
+        /// the merged model as its current state, so its change set spans both sides.
+        /// The candidate merged model is fully computed and detached before it is
+        /// published; a conflict or projection failure leaves both input sessions,
+        /// their baselines, and their bound models unchanged. Both live models are
+        /// read without locking; concurrent mutations during the call are not atomic.
+        /// </remarks>
+        /// <param name="fork">A session created by <see cref="Fork"/> in the same lineage.</param>
+        /// <param name="merged">
+        /// The new session with this session's baseline and the merged model, or null on failure.
+        /// </param>
+        /// <param name="conflicts">Structured rebase conflicts on failure; otherwise null.</param>
+        /// <returns><see langword="true"/> when the fork merged cleanly; otherwise <see langword="false"/>.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="fork"/> is null.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The fork is this session itself, belongs to an unrelated lineage, or either
+        /// side holds keyed state that cannot be diffed; nothing was modified.
+        /// </exception>
+        /// <exception cref="NotSupportedException">
+        /// Either session was built without rebase or baseline materialization support,
+        /// or the merged model graph cannot be snapshotted.
+        /// </exception>
+        public virtual bool TryMergeFrom(
+            EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> fork,
+            out EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable>? merged,
+            out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
+        )
+        {
+            if (fork is null)
+                throw new ArgumentNullException(nameof(fork));
+            if (ReferenceEquals(this, fork))
+                throw new InvalidOperationException(
+                    "Cannot merge an edit session into itself. Fork the session first and merge the fork."
+                );
+            if (fork._rootId != _rootId)
+                throw new InvalidOperationException(
+                    "Cannot merge an edit session from an unrelated branch lineage. Only sessions created by Fork share a lineage."
+                );
+            if (_rebase is null || _tryApplyTo is null || _baselineToModel is null)
+            {
+                throw new NotSupportedException(
+                    "This edit session cannot merge forks because it was built without rebase or baseline materialization support."
+                );
+            }
+
+            if (!_baseline.IsPresent || _baseline.Value is null)
+                throw new InvalidOperationException(
+                    "Cannot merge into an edit session with a missing baseline."
+                );
+
+            // Fork changes B -> D; invalid keyed state throws before anything is published.
+            var forkChanges = fork.CreateChangeSet();
+            var rebased = _rebase(forkChanges, _model);
+            if (rebased.HasConflicts)
+            {
+                merged = null;
+                conflicts = rebased.Conflicts;
+                return false;
+            }
+
+            var applied = _tryApplyTo(rebased.Rebased, _model);
+            if (applied.Conflicts is not null)
+            {
+                merged = null;
+                conflicts = applied.Conflicts;
+                return false;
+            }
+
+            if (applied.Updated is null)
+            {
+                throw new InvalidOperationException("Merging the fork did not produce a model.");
+            }
+
+            // Detach through the fragment snapshot so the merged model owns its
+            // references and collections instead of aliasing either input session.
+            // The validation diff uses a distinct instance because a self-diff
+            // short-circuits on reference equality without checking keys.
+            var detached = CloneLiveModel(applied.Updated);
+            // Fail fast when the merged state cannot serve as a future diff baseline.
+            _between(_baseline, __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(detached)));
+
+            merged = CreateBranched(detached, _baseline, _rootId, _onChanged);
+            conflicts = null;
+            return true;
+        }
+
+        /// <summary>Creates a session of this runtime type with an explicit baseline and lineage.</summary>
+        /// <param name="live">The independent live model for the new session.</param>
+        /// <param name="baseline">The retained baseline snapshot.</param>
+        /// <param name="rootId">The branch lineage to continue.</param>
+        /// <param name="onChanged">The change callback for the new session.</param>
+        /// <returns>A new session with fresh bindings.</returns>
+        protected virtual EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> CreateBranched(
+            TModel live,
+            __OPTIONAL_TYPE__<TFragment?> baseline,
+            Guid rootId,
+            Action? onChanged
+        )
+        {
+            if (live is null)
+                throw new ArgumentNullException(nameof(live));
+            if (!baseline.IsPresent || baseline.Value is null)
+                throw new InvalidOperationException(
+                    "Cannot branch an edit session with a missing baseline."
+                );
+            var branched = new EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable>(
+                live,
+                baseline.Value,
+                _fromModel,
+                _between,
+                _toPatch,
+                _isEmpty,
+                _advanceBaseline,
+                _toObservable,
+                onChanged,
+                _tryApplyTo,
+                _writeModel,
+                _invert,
+                _rebase,
+                _enumerateChangedPaths,
+                _refreshObservable,
+                _initialCacheObservableChanges,
+                _baselineToModel
+            );
+            branched.AdoptBranchRoot(rootId);
+            return branched;
+        }
+
         /// <summary>Initializes a session with observable notifications.</summary>
         /// <param name="model">The live editable model.</param>
         /// <param name="baseline">The retained baseline fragment.</param>
@@ -659,6 +823,7 @@ namespace __SESSION_NAMESPACE__
             _toPatch = toPatch;
             _isEmpty = isEmpty;
             _advanceBaseline = advanceBaseline;
+            _toObservable = toObservable;
             _tryApplyTo = tryApplyTo;
             _writeModel = writeModel;
             _invert = invert;
@@ -667,11 +832,18 @@ namespace __SESSION_NAMESPACE__
             _refreshObservable = refreshObservable;
             _onChanged = onChanged;
             _cacheObservableChanges = cacheObservableChanges;
+            _initialCacheObservableChanges = cacheObservableChanges;
             _baselineToModel = baselineToModel;
+            // Fresh sessions start their own branch lineage; Fork keeps the
+            // receiver lineage while TryMergeFrom preserves it on the result.
+            _branchId = Guid.NewGuid();
+            _rootId = _branchId;
             _baseline = __OPTIONAL_TYPE__<TFragment?>.Present(baseline);
             _lastObserved = __OPTIONAL_TYPE__<TFragment?>.Present(fromModel(model));
             _observable = toObservable(model, OnObservableMutation, DisableHasChangesCache);
         }
+
+        internal void AdoptBranchRoot(Guid rootId) => _rootId = rootId;
 
         // Private state and helpers trail the internal surface.
         private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
@@ -699,8 +871,12 @@ namespace __SESSION_NAMESPACE__
         private readonly Func<TChangeSet, TModel, __REBASE_RESULT_TYPE__>? _rebase;
         private readonly Func<TChangeSet, IReadOnlyList<__PATH_TYPE__>>? _enumerateChangedPaths;
         private readonly Func<TFragment, TModel>? _baselineToModel;
+        private readonly Func<TModel, Action?, Action?, TObservable> _toObservable;
         private readonly Action<TObservable>? _refreshObservable;
         private readonly Action? _onChanged;
+        private readonly bool _initialCacheObservableChanges;
+        private Guid _branchId;
+        private Guid _rootId;
         private bool _cacheObservableChanges;
         private bool _hasChangesCacheValid;
         private bool _cachedHasChanges;
@@ -898,6 +1074,19 @@ namespace __SESSION_NAMESPACE__
 
             _writeModel(_model, _baselineToModel(_baseline.Value));
             RefreshAfterModelMutation();
+        }
+
+        private TModel CloneLiveModel(TModel source)
+        {
+            if (_baselineToModel is null)
+            {
+                throw new NotSupportedException(
+                    "This edit session cannot copy its model because it was built without baseline materialization support."
+                );
+            }
+
+            // Snapshots isolate containers and nested models; reference-safe members stay shared.
+            return _baselineToModel(_fromModel(source));
         }
 
         private void OnPropertyChanged(string propertyName)

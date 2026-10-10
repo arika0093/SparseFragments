@@ -422,6 +422,7 @@ internal static class SparseEditSessionEmitter
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
+        AppendForkMergeMembers(code, core, conflictType);
         code.AppendLineAt(
             2,
             "internal EditSession("
@@ -479,6 +480,76 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(1, "}");
         code.AppendLineAt(0, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Appends the fork/merge facade members shared by both session placements.</summary>
+    /// <param name="code">Target builder.</param>
+    /// <param name="core">Qualified reusable core type for this model.</param>
+    /// <param name="conflictType">Qualified structured conflict type.</param>
+    internal static void AppendForkMergeMembers(
+        SharedIndentedBuilder code,
+        string core,
+        string conflictType
+    )
+    {
+        // Public facade first; the internal core-backed ctor trails with the
+        // other internal ctors so generated members stay public-first ordered.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Creates an independent speculative branch of this session.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>The fork uses the same session type with a private mutable copy of the current model and a baseline equal to the current state at fork time. Edits on either side stay isolated and the fork starts without the change callback. This is not a transaction: use <see cref=\"TryMergeFrom\"/> to reconcile a fork, <see cref=\"BatchEdit\"/> to group notifications, <see cref=\"AcceptChanges()\"/> to acknowledge a save, and <see cref=\"Reload\"/> to rebase onto server state.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>A new session with its own live model, baseline, and bindings.</returns>"
+        );
+        code.AppendLineAt(2, "public EditSession Fork() => new EditSession(_session.Fork());");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Attempts to merge a fork created by <see cref=\"Fork\"/> without modifying either session.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>The fork transition is rebased onto this session's current model. On success the returned session retains this session's original baseline with the merged model as its current state. A conflict leaves both sessions unchanged. Merging an unrelated session or the session itself throws; both live models are read without locking.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"fork\">A session created by <see cref=\"Fork\"/> in the same lineage.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"merged\">The new session on success; otherwise null.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">Structured rebase conflicts on failure; otherwise null.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the fork merged cleanly; otherwise <see langword=\"false\"/>.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryMergeFrom(EditSession fork, out EditSession? merged, out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (fork is null) throw new global::System.ArgumentNullException(nameof(fork));"
+        );
+        code.AppendLineAt(
+            3,
+            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new EditSession(mergedCore); return true; }"
+        );
+        code.AppendLineAt(3, "merged = null;");
+        code.AppendLineAt(3, "return false;");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(2, "internal EditSession(" + core + " session) { _session = session; }");
     }
 
     private static string ReadTemplate(string resourceName)

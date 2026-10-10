@@ -236,6 +236,62 @@ A conflict-free reload whose merged result differs from the live model only in m
 
 When a form needs explicit control over the merge, for example to show a side-by-side resolution UI before committing, use the manual pattern: extract `session.CreateChangeSet()`, `TryApplyTo` it onto the new server state, and on success recreate the session with the two-argument overload so the new server state becomes the baseline and the merged model becomes the active instance. On conflict, keep the current session and surface `pending.RebaseOnto(newServerState).Conflicts`. `Reload` above performs these steps atomically; prefer it unless the UI must intervene mid-merge.
 
+### Branch speculative edits
+
+To preview edits without touching the current session, branch it with `Fork()` and reconcile the branch with `TryMergeFrom()`. The fork is the same session type with a private copy of the current model, and its baseline is the current state at fork time. Either side keeps editing independently. `TryMergeFrom()` rebases the fork changes onto the receiver's current state and returns a new session that keeps the receiver's baseline, so its change set spans both sides. The caller adopts the result explicitly; the call itself modifies neither input session.
+
+<!-- sample: ui-fork-merge -->
+```csharp
+var widget = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "m" } };
+var widgetSession = widget.CreateEditSession();
+var draft = widgetSession.Fork();
+
+draft.Observable.Title = "b";
+widgetSession.Observable.Child!.Name = "n";
+
+var didMerge = widgetSession.TryMergeFrom(
+    draft,
+    out var mergedSession,
+    out var mergeConflicts
+);
+// didMerge == true
+// mergeConflicts is null
+// mergedSession!.Model.Title == "b"
+// mergedSession!.Model.Child!.Name == "n"
+if (didMerge)
+{
+    widgetSession = mergedSession!;
+}
+// widgetSession.CreateChangeSet() carries Title "a" -> "b" and Child.Name "m" -> "n"
+```
+<!-- /sample -->
+
+When both sides edit the same member, the merge returns `false` with structured `SparseConflict` results and leaves both sessions unchanged:
+
+<!-- sample: ui-fork-conflict -->
+```csharp
+var clashing = new UiWidget { Title = "a" };
+var clashingSession = clashing.CreateEditSession();
+var clashingDraft = clashingSession.Fork();
+
+clashingSession.Observable.Title = "local";
+clashingDraft.Observable.Title = "remote";
+
+var didClashMerge = clashingSession.TryMergeFrom(
+    clashingDraft,
+    out var clashingMerged,
+    out var clashConflicts
+);
+// didClashMerge == false
+// clashingMerged is null
+// clashConflicts!.Single().PathText == "Title"
+// clashingSession.Model.Title == "local"
+// clashingDraft.Model.Title == "remote"
+```
+<!-- /sample -->
+
+Conflicts carry the same member paths as change-set rebase, so per-field resolution follows the [rebase](rebase.md) flow. The fork shares its origin session's lineage: merging an unrelated session throws `InvalidOperationException`, as does merging a session into itself. Branching differs from the neighboring calls. `BatchEdit` groups notifications for edits already in the session. `AcceptChanges` acknowledges a saved transition. `Reload` rebases pending edits onto authoritative server state in place. Branching stays in process: it assigns no temporary keys and performs no transport.
+
 ### Discard pending edits
 
 `RevertChanges()` writes the retained baseline back into the live model in place. It discards unsaved edits; it does not contact a server and does not advance the baseline. `Current` always reflects the live model, so it shows the reverted values immediately.

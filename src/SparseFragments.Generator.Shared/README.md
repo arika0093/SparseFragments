@@ -190,6 +190,12 @@ Observable families). `SparseEditSessionRoles` names the generic role binding
 (FromModel, Between, ToPatch, advance baseline, projections, apply, invert,
 rebase, notifications). Until the capability aggregation pipeline lands, call
 `EmitCore`/`EmitCapability` once per compilation with the de-duplicated flags.
+Each emitted `EditSession` also carries speculative branching: `Fork()` copies
+the live model through the fragment snapshot with the current state as its
+baseline, and `TryMergeFrom()` rebases a same-lineage fork onto the receiver
+and returns a new session keeping the receiver baseline. Branching reuses the
+existing adapter delegates and adds no configuration knob; sessions built
+without rebase or baseline materialization report `NotSupportedException`.
 
 ## Generated implementation placement
 

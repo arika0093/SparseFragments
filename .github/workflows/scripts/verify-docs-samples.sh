@@ -161,7 +161,7 @@ check_block "payload" "docs/change-payload.md" "${docs_fixture_dir}/ChangePayloa
 check_block "ui-session" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     ui-session-models ui-session ui-blazor-form ui-wpf-session
 check_block "ui-flows" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
-    ui-accept-flow ui-reload ui-reload-conflict ui-revert
+    ui-accept-flow ui-reload ui-reload-conflict ui-revert ui-fork-merge ui-fork-conflict
 check_block "descriptors" "docs/descriptors.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
 
@@ -197,7 +197,7 @@ check_coverage "payload" "docs/change-payload.md" \
     payload-invert payload-version
 check_coverage "ui" "docs/ui-frameworks.md" \
     ui-session-models ui-accept-flow ui-reload ui-reload-conflict ui-revert \
-    ui-session ui-blazor-form ui-wpf-session
+    ui-fork-merge ui-fork-conflict ui-session ui-blazor-form ui-wpf-session
 check_coverage "descriptors" "docs/descriptors.md" \
     ui-descriptor-models ui-descriptor-first ui-descriptor-changes
 

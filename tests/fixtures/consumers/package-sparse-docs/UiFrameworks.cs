@@ -18,6 +18,8 @@ public static class UiFrameworksSamples
         AcceptSubmittedAdvancesBaselineOnly();
         ReloadKeepsPendingEdits();
         ReloadConflictLeavesSessionUntouched();
+        ForkMergesIndependentEdits();
+        ForkConflictLeavesBothSessionsUntouched();
         RevertRestoresBaseline();
         DescriptorFirst();
         DescriptorChanges();
@@ -225,6 +227,85 @@ public static class UiFrameworksSamples
         DocsCheck.Require(
             conflictSession.Current.Number == "local" && conflictSession.HasChanges,
             "conflicted reload leaves the live model and baseline untouched"
+        );
+    }
+
+    private static void ForkMergesIndependentEdits()
+    {
+        // sample: ui-fork-merge
+        var widget = new UiWidget { Title = "a", Child = new UiWidgetChild { Name = "m" } };
+        var widgetSession = widget.CreateEditSession();
+        var draft = widgetSession.Fork();
+
+        draft.Observable.Title = "b";
+        widgetSession.Observable.Child!.Name = "n";
+
+        var didMerge = widgetSession.TryMergeFrom(
+            draft,
+            out var mergedSession,
+            out var mergeConflicts
+        );
+        // didMerge == true
+        // mergeConflicts is null
+        // mergedSession!.Model.Title == "b"
+        // mergedSession!.Model.Child!.Name == "n"
+        if (didMerge)
+        {
+            widgetSession = mergedSession!;
+        }
+        // widgetSession.CreateChangeSet() carries Title "a" -> "b" and Child.Name "m" -> "n"
+        // /sample
+        DocsCheck.Require(didMerge, "independent edits merge cleanly");
+        DocsCheck.Require(mergeConflicts is null, "clean merge reports no conflicts");
+        DocsCheck.Require(
+            widgetSession.Model.Title == "b",
+            "merged model keeps the fork edit"
+        );
+        DocsCheck.Require(
+            widgetSession.Model.Child!.Name == "n",
+            "merged model keeps the receiver edit"
+        );
+        var combined = widgetSession.CreateChangeSet();
+        DocsCheck.Require(
+            combined.Title.Before.Value == "a" && combined.Title.After.Value == "b",
+            "merged session retains the receiver baseline"
+        );
+        DocsCheck.Require(
+            combined.Child.Name.Before.Value == "m" && combined.Child.Name.After.Value == "n",
+            "merged change set spans both sides"
+        );
+    }
+
+    private static void ForkConflictLeavesBothSessionsUntouched()
+    {
+        // sample: ui-fork-conflict
+        var clashing = new UiWidget { Title = "a" };
+        var clashingSession = clashing.CreateEditSession();
+        var clashingDraft = clashingSession.Fork();
+
+        clashingSession.Observable.Title = "local";
+        clashingDraft.Observable.Title = "remote";
+
+        var didClashMerge = clashingSession.TryMergeFrom(
+            clashingDraft,
+            out var clashingMerged,
+            out var clashConflicts
+        );
+        // didClashMerge == false
+        // clashingMerged is null
+        // clashConflicts!.Single().PathText == "Title"
+        // clashingSession.Model.Title == "local"
+        // clashingDraft.Model.Title == "remote"
+        // /sample
+        DocsCheck.Require(!didClashMerge, "overlapping edits report a conflict");
+        DocsCheck.Require(clashingMerged is null, "failed merge returns no session");
+        DocsCheck.Require(
+            clashConflicts!.Single().PathText == nameof(UiWidget.Title),
+            "conflict names the member"
+        );
+        DocsCheck.Require(
+            clashingSession.Model.Title == "local" && clashingDraft.Model.Title == "remote",
+            "failed merge leaves both sessions unchanged"
         );
     }
 
