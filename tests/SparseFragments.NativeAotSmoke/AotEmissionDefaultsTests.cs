@@ -19,10 +19,10 @@ public sealed class AotEmissionDefaultsTests
         _ = typeof(PayloadRoot.ChangeSet);
         _ = typeof(PayloadRoot.ChangePayload);
         _ = typeof(PayloadRoot.FragmentBuilder);
-        var nested = typeof(PayloadRoot).GetNestedTypes().Select(static type => type.Name).ToList();
-        await Assert.That(nested.Contains("Observable")).IsFalse();
-        await Assert.That(nested.Contains("ReadOnlyView")).IsFalse();
-        await Assert.That(nested.Contains("EditSession")).IsFalse();
+        // NOTE: no typeof(PayloadRoot).GetNestedTypes() enumeration here.
+        // Enumerating nested types roots every nested type (including the
+        // fragment JSON converter and ChangePayload enum converters) and
+        // surfaces transitive IL2026/IL3050 diagnostics under PublishAot.
         var session = new PayloadRoot { Label = "a" }.CreateEditSession();
         await Assert
             .That(
