@@ -43,6 +43,15 @@ internal static class SparseChangeSetBetweenEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"before\">The state before the transition.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"after\">The state after the transition.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The baseline-aware diff.</returns>");
+            code.AppendLineAt(
+                2,
                 "public static ChangeSet Between("
                     + optionalFragment
                     + " before, "
@@ -73,6 +82,9 @@ internal static class SparseChangeSetBetweenEmitter
             2,
             "/// <remarks>The change set snapshots its inputs: whole-root fragments are deep-cloned and member collection containers are copied at capture, so later caller-side mutation cannot alter retained history. Element values are shared by reference. Typed <c>Before</c>/<c>After</c> endpoints return fresh container snapshots for collection members.</remarks>"
         );
+        code.AppendLineAt(2, "/// <param name=\"before\">The state before the transition.</param>");
+        code.AppendLineAt(2, "/// <param name=\"after\">The state after the transition.</param>");
+        code.AppendLineAt(2, "/// <returns>The baseline-aware diff.</returns>");
         code.AppendLineAt(
             2,
             (
@@ -272,6 +284,15 @@ internal static class SparseChangeSetBetweenEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"before\">The model before the transition.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"after\">The model after the transition.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The baseline-aware diff.</returns>");
+            code.AppendLineAt(
+                2,
                 "public static ChangeSet Between("
                     + modelType
                     + " before, "
@@ -287,6 +308,15 @@ internal static class SparseChangeSetBetweenEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <param name=\"before\">The model before the transition.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"after\">The model after the transition.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The baseline-aware diff.</returns>");
+            code.AppendLineAt(
+                2,
                 "internal static ChangeSet Between("
                     + modelType
                     + " before, "
@@ -300,6 +330,15 @@ internal static class SparseChangeSetBetweenEmitter
                 2,
                 "/// <summary>Derives the baseline-aware diff between two ordinary models.</summary>"
             );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"before\">The model before the transition.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"after\">The model after the transition.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The baseline-aware diff.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangeSet Between(" + modelType + " before, " + modelType + " after)"

@@ -21,6 +21,8 @@ internal static class SparseChangeSetPathEmitter
                 2,
                 "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"prefix\">The path prefix.</param>");
+            code.AppendLineAt(2, "/// <returns>The changed member paths.</returns>");
             code.AppendLineAt(
                 2,
                 "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\") => "
@@ -36,6 +38,9 @@ internal static class SparseChangeSetPathEmitter
                 2,
                 "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"self\">The change set to enumerate.</param>");
+            code.AppendLineAt(2, "/// <param name=\"prefix\">The path prefix.</param>");
+            code.AppendLineAt(2, "/// <returns>The changed member paths.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(ChangeSet self, string prefix = \"\")"
@@ -51,6 +56,8 @@ internal static class SparseChangeSetPathEmitter
                 2,
                 "/// <remarks>A whole-root presence transition reports <c>$root</c>, replacing member paths.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"prefix\">The path prefix.</param>");
+            code.AppendLineAt(2, "/// <returns>The changed member paths.</returns>");
             code.AppendLineAt(
                 2,
                 "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths(string prefix = \"\")"

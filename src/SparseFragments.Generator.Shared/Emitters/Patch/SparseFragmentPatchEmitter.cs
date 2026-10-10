@@ -41,7 +41,12 @@ internal static class SparseFragmentPatchEmitter
         var plan = features ?? SparseEmissionFeatures.Standalone;
         if (plan.EmitPatch)
         {
+            code.AppendLineAt(2, "/// <summary>Creates a patch from this fragment.</summary>");
+            code.AppendLineAt(2, "/// <returns>A patch carrying the present members.</returns>");
             code.AppendLineAt(2, "public Patch ToPatch() => new(this);");
+            code.AppendLineAt(2, "/// <summary>Applies a patch to this fragment.</summary>");
+            code.AppendLineAt(2, "/// <param name=\"patch\">Patch to apply.</param>");
+            code.AppendLineAt(2, "/// <returns>The fragment with the patch applied.</returns>");
             code.AppendLineAt(2, "public Fragment Apply(Patch patch)");
             code.AppendLineAt(2, "{");
             code.AppendLineAt(
@@ -379,6 +384,8 @@ internal static class SparseFragmentPatchEmitter
             implementationNamespace,
             target
         );
+        // Constructors lead the public group (public -> internal -> private order).
+        SparseFragmentPatchCoreEmitter.AppendPatchConstructor(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
             code,
@@ -388,7 +395,6 @@ internal static class SparseFragmentPatchEmitter
             members,
             dialect
         );
-        SparseFragmentPatchCoreEmitter.AppendPatchConstructor(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchOptionalApply(
             code,
             members,
@@ -396,8 +402,8 @@ internal static class SparseFragmentPatchEmitter
             "public " + optional + " Apply(" + optional + " current)",
             target
         );
-        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, target);
         AppendApplyTo(code, modelType, ignoredSettablePropertyNames, target);
+        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, target);
         if (canApplyInPlace)
         {
             AppendApplyInPlaceResult(code);
@@ -467,13 +473,6 @@ internal static class SparseFragmentPatchEmitter
         );
         code.AppendLineAt(2, "public sealed class ApplyInPlaceResult");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "private ApplyInPlaceResult(string[] unsupportedMembers)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "UnsupportedMembers = global::System.Array.AsReadOnly(unsupportedMembers);"
-        );
-        code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "/// <summary>Whether the patch was applied to the model.</summary>");
         code.AppendLineAt(3, "public bool Succeeded => UnsupportedMembers.Count == 0;");
         code.AppendLineAt(
@@ -492,6 +491,13 @@ internal static class SparseFragmentPatchEmitter
             3,
             "internal static ApplyInPlaceResult Failure(global::System.Collections.Generic.List<string> unsupportedMembers) => new(unsupportedMembers.ToArray());"
         );
+        code.AppendLineAt(3, "private ApplyInPlaceResult(string[] unsupportedMembers)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "UnsupportedMembers = global::System.Array.AsReadOnly(unsupportedMembers);"
+        );
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }
 
@@ -509,6 +515,8 @@ internal static class SparseFragmentPatchEmitter
                 2,
                 "/// <summary>Applies this patch to writable members of an existing model.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"current\">Model instance to update.</param>");
+            code.AppendLineAt(2, "/// <returns>The in-place result.</returns>");
             code.AppendLineAt(
                 2,
                 "public ApplyInPlaceResult ApplyInPlace("
@@ -549,6 +557,8 @@ internal static class SparseFragmentPatchEmitter
                 2,
                 "/// <summary>Applies this patch to writable members of an existing model.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"current\">Model instance to update.</param>");
+            code.AppendLineAt(2, "/// <returns>The in-place result.</returns>");
             code.AppendLineAt(
                 2,
                 "public ApplyInPlaceResult ApplyInPlace(" + modelType + " current)"
@@ -634,6 +644,8 @@ internal static class SparseFragmentPatchEmitter
                 2,
                 "/// <summary>Applies this patch to an ordinary model and returns a new model.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"current\">Model value to apply to.</param>");
+            code.AppendLineAt(2, "/// <returns>A new model with the patch applied.</returns>");
             code.AppendLineAt(
                 2,
                 "public "
@@ -673,6 +685,8 @@ internal static class SparseFragmentPatchEmitter
                 2,
                 "/// <summary>Applies this patch to an ordinary model and returns a new model.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"current\">Model value to apply to.</param>");
+            code.AppendLineAt(2, "/// <returns>A new model with the patch applied.</returns>");
             code.AppendLineAt(2, "public " + modelType + " ApplyTo(" + modelType + " current)");
         }
         code.AppendLineAt(2, "{");

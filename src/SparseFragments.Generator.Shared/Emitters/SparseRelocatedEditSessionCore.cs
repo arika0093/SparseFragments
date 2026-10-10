@@ -115,49 +115,11 @@ internal static class SparseRelocatedEditSessionCore
         }
         code.AppendLineAt(1, "public sealed class EditSession : " + sessionBases);
         code.AppendLineAt(1, "{");
-        code.AppendLineAt(
-            2,
-            "private static readonly "
-                + configuration
-                + " __configuration = new "
-                + configuration
-                + " { FromModel = "
-                + modelType
-                + ".Fragment.From, Between = "
-                + modelType
-                + ".ChangeSet.Between, ToPatch = static changes => changes.ToPatch(), IsEmpty = static changes => changes.IsEmpty, AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline), ToObservable = (current, changed, rawModelAccess) => new "
-                + observableRef
-                + "(current, changed, rawModelAccess), ToCurrent = static current => new "
-                + readOnlyRef
-                + "(current), TryApplyTo = "
-                + tryApply
-                + ", WriteModel = "
-                + writeModel
-                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
-        );
-        code.AppendLineAt(2, "private readonly " + core + " _session;");
-        code.AppendLineAt(
-            2,
-            "internal EditSession("
-                + modelType
-                + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
-        );
-        code.AppendLineAt(
-            2,
-            "internal EditSession("
-                + modelType
-                + " baseline, "
-                + modelType
-                + " current, global::System.Action? onChanged) { _session = "
-                + core
-                + ".Create(baseline, current, __configuration, onChanged); }"
-        );
-        // Raw model access bypasses the change cache, so it is exposed only
-        // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
-        code.AppendLineAt(
-            2,
-            modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
-        );
+        // Public surface first; internal constructors and private state follow.
+        code.AppendLineAt(2, "/// <summary>Gets the bindable proxy over the live model.</summary>");
+        code.AppendLineAt(2, "public " + observableRef + " Observable => _session.Observable;");
+        code.AppendLineAt(2, "/// <summary>Gets the read-only view over the live model.</summary>");
+        code.AppendLineAt(2, "public " + readOnlyRef + " Current => _session.Current;");
         if (modelAccessorInterfaceMetadataName is not null)
         {
             code.AppendLineAt(
@@ -171,17 +133,11 @@ internal static class SparseRelocatedEditSessionCore
                     + " GetModelForFrameworkAccess() => _session.GetModelForFrameworkAccess();"
             );
         }
-        code.AppendLineAt(2, "public " + observableRef + " Observable => _session.Observable;");
-        code.AppendLineAt(2, "public " + readOnlyRef + " Current => _session.Current;");
         if (
             config.DescriptorDialect is { } descriptorDialect
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
-            code.AppendLineAt(
-                2,
-                "private " + descriptorDialect.DescriptorSetInterface + "? __descriptors;"
-            );
             code.AppendLineAt(
                 2,
                 "/// <summary>Gets descriptors bound to this session's observable model.</summary>"
@@ -193,6 +149,10 @@ internal static class SparseRelocatedEditSessionCore
                     + " Descriptors => __descriptors ?? (__descriptors = DescriptorFactory.Create(Observable, global::System.String.Empty));"
             );
         }
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets a value indicating whether the session has pending changes.</summary>"
+        );
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
         code.AppendLineAt(
             2,
@@ -223,15 +183,43 @@ internal static class SparseRelocatedEditSessionCore
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Creates a change set describing the pending changes.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>The pending change set; empty when there are no changes.</returns>"
+        );
+        code.AppendLineAt(
+            2,
             "public " + modelType + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Creates a patch describing the pending changes.</summary>"
+        );
+        code.AppendLineAt(2, "/// <returns>The pending patch.</returns>");
+        code.AppendLineAt(
+            2,
             "public " + modelType + ".Patch CreatePatch() => _session.CreatePatch();"
         );
+        code.AppendLineAt(2, "/// <summary>Enumerates the changed member paths.</summary>");
+        code.AppendLineAt(2, "/// <returns>The changed paths in generated member order.</returns>");
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.IReadOnlyList<string> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies a change set to the current model in place when possible.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"changes\">The change set to apply.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">Structured conflicts when the change set cannot be applied in place.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns><see langword=\"true\"/> when the model was updated; otherwise <see langword=\"false\"/>.</returns>"
         );
         code.AppendLineAt(
             2,
@@ -243,9 +231,18 @@ internal static class SparseRelocatedEditSessionCore
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Applies a change set to the current model in place.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"changes\">The change set to apply.</param>");
+        code.AppendLineAt(
+            2,
             "public void ApplyInPlace("
                 + modelType
                 + ".ChangeSet changes) => _session.ApplyInPlace(changes);"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Reverts pending changes to the retained baseline.</summary>"
         );
         code.AppendLineAt(2, "public void RevertChanges() => _session.RevertChanges();");
         code.AppendLineAt(
@@ -268,19 +265,93 @@ internal static class SparseRelocatedEditSessionCore
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Reloads the session around the given server state, preserving local edits.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"serverState\">The authoritative server state.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>The rebase outcome with the rebased change set.</returns>"
+        );
+        code.AppendLineAt(
+            2,
             "public "
                 + rebaseResultType
                 + " Reload("
                 + modelType
                 + " serverState) => _session.Reload(serverState);"
         );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Accepts the pending changes and advances the baseline.</summary>"
+        );
         code.AppendLineAt(2, "public void AcceptChanges() => _session.AcceptChanges();");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Accepts the given change set and advances the baseline.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"changes\">The change set to accept.</param>");
         code.AppendLineAt(
             2,
             "public void AcceptChanges("
                 + modelType
                 + ".ChangeSet changes) => _session.AcceptChanges(changes);"
         );
+        // Raw model access bypasses the change cache, so it is exposed only
+        // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
+        code.AppendLineAt(
+            2,
+            modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
+        );
+        code.AppendLineAt(
+            2,
+            "internal EditSession("
+                + modelType
+                + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
+        );
+        code.AppendLineAt(
+            2,
+            "internal EditSession("
+                + modelType
+                + " baseline, "
+                + modelType
+                + " current, global::System.Action? onChanged) { _session = "
+                + core
+                + ".Create(baseline, current, __configuration, onChanged); }"
+        );
+        code.AppendLineAt(
+            2,
+            "private static readonly "
+                + configuration
+                + " __configuration = new "
+                + configuration
+                + " { FromModel = "
+                + modelType
+                + ".Fragment.From, Between = "
+                + modelType
+                + ".ChangeSet.Between, ToPatch = static changes => changes.ToPatch(), IsEmpty = static changes => changes.IsEmpty, AdvanceBaseline = static (changes, baseline) => changes.ApplyToBaseline(baseline), ToObservable = (current, changed, rawModelAccess) => new "
+                + observableRef
+                + "(current, changed, rawModelAccess), ToCurrent = static current => new "
+                + readOnlyRef
+                + "(current), TryApplyTo = "
+                + tryApply
+                + ", WriteModel = "
+                + writeModel
+                + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
+        );
+        code.AppendLineAt(2, "private readonly " + core + " _session;");
+        if (
+            config.DescriptorDialect is { } descriptorsDialect
+            && config.EffectiveEmissionFeatures.EmitObservable
+        )
+        {
+            code.AppendLineAt(
+                2,
+                "private " + descriptorsDialect.DescriptorSetInterface + "? __descriptors;"
+            );
+        }
         code.AppendLineAt(1, "}");
     }
 }

@@ -514,9 +514,15 @@ internal static class SparseChangeSetTransitionEmitter
         );
         code.AppendLineAt(2, "public readonly struct " + trans);
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "private readonly " + opt + " _before;");
-        code.AppendLineAt(3, "private readonly " + opt + " _after;");
-        code.AppendLineAt(3, "private readonly bool _isChanged;");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Gets whether the member changed between the endpoints.</summary>"
+        );
+        code.AppendLineAt(3, "public bool IsChanged => _isChanged;");
+        code.AppendLineAt(3, "/// <summary>Gets the value before the transition.</summary>");
+        code.AppendLineAt(3, "public " + opt + " Before => _before;");
+        code.AppendLineAt(3, "/// <summary>Gets the value after the transition.</summary>");
+        code.AppendLineAt(3, "public " + opt + " After => _after;");
         code.AppendLineAt(
             3,
             "internal " + trans + "(" + opt + " before, " + opt + " after, bool isChanged)"
@@ -526,9 +532,9 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(4, "_after = after;");
         code.AppendLineAt(4, "_isChanged = isChanged;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "public bool IsChanged => _isChanged;");
-        code.AppendLineAt(3, "public " + opt + " Before => _before;");
-        code.AppendLineAt(3, "public " + opt + " After => _after;");
+        code.AppendLineAt(3, "private readonly " + opt + " _before;");
+        code.AppendLineAt(3, "private readonly " + opt + " _after;");
+        code.AppendLineAt(3, "private readonly bool _isChanged;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
@@ -621,27 +627,6 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "internal "
-                + trans
-                + "("
-                + opt
-                + " before, "
-                + opt
-                + " after, bool isEmpty, global::System.Collections.Generic.List<"
-                + elementType
-                + "> added, global::System.Collections.Generic.List<"
-                + elementType
-                + "> removed)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "Before = before;");
-        code.AppendLineAt(4, "After = after;");
-        code.AppendLineAt(4, "IsEmpty = isEmpty;");
-        code.AppendLineAt(4, "Added = added.AsReadOnly();");
-        code.AppendLineAt(4, "Removed = removed.AsReadOnly();");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
             "/// <summary>Whether this set transition contains no semantic changes.</summary>"
         );
         code.AppendLineAt(3, "public bool IsEmpty { get; }");
@@ -664,6 +649,27 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(3, "public " + readOnlyList + " Added { get; }");
         code.AppendLineAt(3, "/// <summary>Values present only in the before set.</summary>");
         code.AppendLineAt(3, "public " + readOnlyList + " Removed { get; }");
+        code.AppendLineAt(
+            3,
+            "internal "
+                + trans
+                + "("
+                + opt
+                + " before, "
+                + opt
+                + " after, bool isEmpty, global::System.Collections.Generic.List<"
+                + elementType
+                + "> added, global::System.Collections.Generic.List<"
+                + elementType
+                + "> removed)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "Before = before;");
+        code.AppendLineAt(4, "After = after;");
+        code.AppendLineAt(4, "IsEmpty = isEmpty;");
+        code.AppendLineAt(4, "Added = added.AsReadOnly();");
+        code.AppendLineAt(4, "Removed = removed.AsReadOnly();");
+        code.AppendLineAt(3, "}");
         // IReadOnlySet<T> only exists on netstandard2.1 and later. Compilations
         // without the type (netstandard2.0, net48) cannot declare it, and naming
         // it would fail compilation, so fall back to comparer-agnostic search.

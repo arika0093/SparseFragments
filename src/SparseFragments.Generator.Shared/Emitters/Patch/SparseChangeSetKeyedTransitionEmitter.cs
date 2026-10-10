@@ -62,14 +62,173 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + ".Item>"
         );
         code.AppendLineAt(2, "{");
+        // Public surface first, then the internal constructor, then private storage.
         code.AppendLineAt(
             3,
-            "private readonly global::System.Collections.Generic.IReadOnlyList<Item> _items;"
+            "/// <summary>Gets whether this transition contains no changes.</summary>"
+        );
+        code.AppendLineAt(3, "public bool IsEmpty { get; }");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Gets whether this transition contains any changes.</summary>"
+        );
+        code.AppendLineAt(3, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(3, "/// <summary>Gets the value before the transition.</summary>");
+        code.AppendLineAt(3, "public " + optList + " Before { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the value after the transition.</summary>");
+        code.AppendLineAt(3, "public " + optList + " After { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the elements added by the transition.</summary>");
+        code.AppendLineAt(3, "public " + readOnlyList + elementType + "> Added { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the elements removed by the transition.</summary>");
+        code.AppendLineAt(3, "public " + readOnlyList + elementType + "> Removed { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the entries edited by the transition.</summary>");
+        code.AppendLineAt(
+            3,
+            "public " + readOnlyDict + keyType + ", " + elementCs + "> Edited { get; }"
+        );
+        code.AppendLineAt(3, "/// <summary>Gets the key order before the transition.</summary>");
+        code.AppendLineAt(3, "public " + readOnlyList + keyType + "> BeforeOrder { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the key order after the transition.</summary>");
+        code.AppendLineAt(3, "public " + readOnlyList + keyType + "> AfterOrder { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets whether the key order changed.</summary>");
+        code.AppendLineAt(3, "public bool OrderChanged { get; }");
+        code.AppendLineAt(3, "/// <summary>Gets the enumerator over changed entries.</summary>");
+        code.AppendLineAt(3, "/// <returns>The enumerator over changed entries.</returns>");
+        code.AppendLineAt(
+            3,
+            "public global::System.Collections.Generic.IEnumerator<Item> GetEnumerator() => _items.GetEnumerator();"
         );
         code.AppendLineAt(
             3,
-            "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
+            "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
         );
+        code.AppendLineAt(3, "/// <summary>A single typed keyed item change.</summary>");
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Empty lookup results expose <see cref=\"IsEmpty\"/> and are never enumerated.</remarks>"
+        );
+        code.AppendLineAt(3, "public sealed class Item");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "/// <summary>Gets the entry key.</summary>");
+        code.AppendLineAt(4, "public " + keyType + " Key { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets the value before the transition.</summary>");
+        code.AppendLineAt(4, "public " + optElement + " Before { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets the value after the transition.</summary>");
+        code.AppendLineAt(4, "public " + optElement + " After { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets the index before the transition.</summary>");
+        code.AppendLineAt(4, "public int BeforeIndex { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets the index after the transition.</summary>");
+        code.AppendLineAt(4, "public int AfterIndex { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets whether the entry was added.</summary>");
+        code.AppendLineAt(4, "public bool IsAdded { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets whether the entry was removed.</summary>");
+        code.AppendLineAt(4, "public bool IsRemoved { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets whether the entry was edited.</summary>");
+        code.AppendLineAt(4, "public bool IsEdited { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets whether the entry was reordered.</summary>");
+        code.AppendLineAt(4, "public bool IsReordered { get; }");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Gets the nested transition for the edited entry.</summary>"
+        );
+        code.AppendLineAt(4, "public " + elementCs + " Edit { get; }");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Whether this item carries no semantic change for the requested key.</summary>"
+        );
+        code.AppendLineAt(4, "public bool IsEmpty { get; }");
+        code.AppendLineAt(4, "/// <summary>Gets whether this item contains any changes.</summary>");
+        code.AppendLineAt(4, "public bool IsChanged => !IsEmpty;");
+        code.AppendLineAt(
+            4,
+            "/// <summary>Shared allocation-light empty item; retains no element snapshots.</summary>"
+        );
+        code.AppendLineAt(
+            4,
+            "public static Item Empty { get; } = new Item(default!, default, default, -1, -1, false, false, false, false, "
+                + elementCs
+                + ".Between("
+                + optionalElementFragment
+                + ".Missing, "
+                + optionalElementFragment
+                + ".Missing), true);"
+        );
+        code.AppendLineAt(
+            4,
+            "internal Item("
+                + keyType
+                + " key, "
+                + optElement
+                + " before, "
+                + optElement
+                + " after, int beforeIndex, int afterIndex, bool isAdded, bool isRemoved, bool isEdited, bool isReordered, "
+                + elementCs
+                + " edit, bool isEmpty)"
+        );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "Key = key;");
+        code.AppendLineAt(5, "Before = before;");
+        code.AppendLineAt(5, "After = after;");
+        code.AppendLineAt(5, "BeforeIndex = beforeIndex;");
+        code.AppendLineAt(5, "AfterIndex = afterIndex;");
+        code.AppendLineAt(5, "IsAdded = isAdded;");
+        code.AppendLineAt(5, "IsRemoved = isRemoved;");
+        code.AppendLineAt(5, "IsEdited = isEdited;");
+        code.AppendLineAt(5, "IsReordered = isReordered;");
+        code.AppendLineAt(5, "Edit = edit;");
+        code.AppendLineAt(5, "IsEmpty = isEmpty;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Looks up the typed change for a stable key; never returns null.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <remarks>Unchanged or unknown keys return <see cref=\"Item.Empty\"/> (allocation-light singleton shared across lookups). "
+                + "The unassigned sentinel is never a stable lookup: it always returns <see cref=\"Item.Empty\"/>. "
+                + "Non-empty results are the same instances produced by enumeration. "
+                + "BeforeIndex/AfterIndex are absolute collection indexes; IsReordered observes surviving-key relative rank.</remarks>"
+        );
+        code.AppendLineAt(3, "/// <param name=\"key\">The stable key to look up.</param>");
+        code.AppendLineAt(3, "/// <returns>The typed change for the key.</returns>");
+        code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var __lookup = _lookup;");
+        code.AppendLineAt(4, "if (__lookup is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "__lookup = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", Item>("
+                + comparer
+                + ");"
+        );
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                5,
+                "foreach (var __item in _items) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__item.Key")
+                    + ") __lookup[__item.Key] = __item;"
+            );
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + ") return Item.Empty;"
+            );
+        }
+        else
+            code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
+        code.AppendLineAt(5, "_lookup = __lookup;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
+        );
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
             "internal "
@@ -111,138 +270,14 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(4, "_items = items.AsReadOnly();");
         code.AppendLineAt(4, "IsEmpty = isEmpty;");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "public bool IsEmpty { get; }");
-        code.AppendLineAt(3, "public bool IsChanged => !IsEmpty;");
-        code.AppendLineAt(3, "public " + optList + " Before { get; }");
-        code.AppendLineAt(3, "public " + optList + " After { get; }");
-        code.AppendLineAt(3, "public " + readOnlyList + elementType + "> Added { get; }");
-        code.AppendLineAt(3, "public " + readOnlyList + elementType + "> Removed { get; }");
         code.AppendLineAt(
             3,
-            "public " + readOnlyDict + keyType + ", " + elementCs + "> Edited { get; }"
-        );
-        code.AppendLineAt(3, "public " + readOnlyList + keyType + "> BeforeOrder { get; }");
-        code.AppendLineAt(3, "public " + readOnlyList + keyType + "> AfterOrder { get; }");
-        code.AppendLineAt(3, "public bool OrderChanged { get; }");
-        code.AppendLineAt(
-            3,
-            "public global::System.Collections.Generic.IEnumerator<Item> GetEnumerator() => _items.GetEnumerator();"
+            "private readonly global::System.Collections.Generic.IReadOnlyList<Item> _items;"
         );
         code.AppendLineAt(
             3,
-            "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
+            "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
         );
-        code.AppendLineAt(3, "/// <summary>A single typed keyed item change.</summary>");
-        code.AppendLineAt(
-            3,
-            "/// <remarks>Empty lookup results expose <see cref=\"IsEmpty\"/> and are never enumerated.</remarks>"
-        );
-        code.AppendLineAt(3, "public sealed class Item");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "internal Item("
-                + keyType
-                + " key, "
-                + optElement
-                + " before, "
-                + optElement
-                + " after, int beforeIndex, int afterIndex, bool isAdded, bool isRemoved, bool isEdited, bool isReordered, "
-                + elementCs
-                + " edit, bool isEmpty)"
-        );
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "Key = key;");
-        code.AppendLineAt(5, "Before = before;");
-        code.AppendLineAt(5, "After = after;");
-        code.AppendLineAt(5, "BeforeIndex = beforeIndex;");
-        code.AppendLineAt(5, "AfterIndex = afterIndex;");
-        code.AppendLineAt(5, "IsAdded = isAdded;");
-        code.AppendLineAt(5, "IsRemoved = isRemoved;");
-        code.AppendLineAt(5, "IsEdited = isEdited;");
-        code.AppendLineAt(5, "IsReordered = isReordered;");
-        code.AppendLineAt(5, "Edit = edit;");
-        code.AppendLineAt(5, "IsEmpty = isEmpty;");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "public " + keyType + " Key { get; }");
-        code.AppendLineAt(4, "public " + optElement + " Before { get; }");
-        code.AppendLineAt(4, "public " + optElement + " After { get; }");
-        code.AppendLineAt(4, "public int BeforeIndex { get; }");
-        code.AppendLineAt(4, "public int AfterIndex { get; }");
-        code.AppendLineAt(4, "public bool IsAdded { get; }");
-        code.AppendLineAt(4, "public bool IsRemoved { get; }");
-        code.AppendLineAt(4, "public bool IsEdited { get; }");
-        code.AppendLineAt(4, "public bool IsReordered { get; }");
-        code.AppendLineAt(4, "public " + elementCs + " Edit { get; }");
-        code.AppendLineAt(
-            4,
-            "/// <summary>Whether this item carries no semantic change for the requested key.</summary>"
-        );
-        code.AppendLineAt(4, "public bool IsEmpty { get; }");
-        code.AppendLineAt(4, "public bool IsChanged => !IsEmpty;");
-        code.AppendLineAt(
-            4,
-            "/// <summary>Shared allocation-light empty item; retains no element snapshots.</summary>"
-        );
-        code.AppendLineAt(
-            4,
-            "public static Item Empty { get; } = new Item(default!, default, default, -1, -1, false, false, false, false, "
-                + elementCs
-                + ".Between("
-                + optionalElementFragment
-                + ".Missing, "
-                + optionalElementFragment
-                + ".Missing), true);"
-        );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "/// <summary>Looks up the typed change for a stable key; never returns null.</summary>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <remarks>Unchanged or unknown keys return <see cref=\"Item.Empty\"/> (allocation-light singleton shared across lookups). "
-                + "The unassigned sentinel is never a stable lookup: it always returns <see cref=\"Item.Empty\"/>. "
-                + "Non-empty results are the same instances produced by enumeration. "
-                + "BeforeIndex/AfterIndex are absolute collection indexes; IsReordered observes surviving-key relative rank.</remarks>"
-        );
-        code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var __lookup = _lookup;");
-        code.AppendLineAt(4, "if (__lookup is null)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "__lookup = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", Item>("
-                + comparer
-                + ");"
-        );
-        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
-        {
-            code.AppendLineAt(
-                5,
-                "foreach (var __item in _items) if (!"
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__item.Key")
-                    + ") __lookup[__item.Key] = __item;"
-            );
-            code.AppendLineAt(
-                4,
-                "if ("
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
-                    + ") return Item.Empty;"
-            );
-        }
-        else
-            code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
-        code.AppendLineAt(5, "_lookup = __lookup;");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(
-            4,
-            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
-        );
-        code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
         // Key helper: stays on the facade for single-file emission; it moves
         // into the operation container (below) when relocating.

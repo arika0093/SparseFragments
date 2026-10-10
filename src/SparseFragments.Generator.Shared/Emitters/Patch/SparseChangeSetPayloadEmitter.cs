@@ -85,6 +85,10 @@ internal static class SparseChangeSetPayloadEmitter
     {
         code.AppendLineAt(
             1,
+            "/// <summary>Serializer-facing payload DTOs for this model.</summary>"
+        );
+        code.AppendLineAt(
+            1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
         code.AppendLineAt(
@@ -97,6 +101,10 @@ internal static class SparseChangeSetPayloadEmitter
         code.IndentOffset++;
         code.AppendLineAt(
             1,
+            "/// <summary>Transport core carrying the validated member changes.</summary>"
+        );
+        code.AppendLineAt(
+            1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
         code.AppendLineAt(
@@ -105,12 +113,27 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "public class " + payloadCore);
         code.AppendLineAt(1, "{");
+        // XML docs precede serialization attributes so the compiler associates
+        // them with the member (CS1591).
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets or sets the member changes carried by this core.</summary>"
+        );
         AppendJsonProperty(code, 2, "Changes", 1);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.List<"
                 + payloadChange
                 + ">? Changes { get; set; }"
+        );
+        // Public DTO surface precedes the internal conversion seams so the
+        // emitted container reads public -> internal -> private.
+        SparseChangeSetMixedEmitter.AppendMixedPayloadSurface(
+            code,
+            members,
+            dialect,
+            modelType,
+            ignoredSettablePropertyNames
         );
         if (modelType is not null)
             code.AppendLineAt(
@@ -139,13 +162,6 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".Patch patch) => patch.ToChangePayloadCore();"
             );
-        SparseChangeSetMixedEmitter.AppendMixedPayloadSurface(
-            code,
-            members,
-            dialect,
-            modelType,
-            ignoredSettablePropertyNames
-        );
         if (modelType is not null && SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
         {
             SparseChangeSetPayloadProjectionEmitter.AppendCoreToPatch(
@@ -201,6 +217,7 @@ internal static class SparseChangeSetPayloadEmitter
                 2,
                 "/// <remarks>Redacted or otherwise incomplete histories are rejected; project them with <see cref=\"ToPatch\"/> instead.</remarks>"
             );
+            code.AppendLineAt(2, "/// <returns>The validated change set.</returns>");
             code.AppendLineAt(
                 2,
                 "public "
@@ -226,6 +243,7 @@ internal static class SparseChangeSetPayloadEmitter
                     2,
                     "/// <remarks>Redacted before-states project to their requested after-state without historical comparison; ordinary members project their after-state too. The result is baseline-free and can no longer rebase or report conflicts.</remarks>"
                 );
+                code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
                 code.AppendLineAt(2, "public new " + modelType + ".Patch ToPatch()");
                 code.AppendLineAt(2, "{");
                 SparseChangeSetMixedEmitter.AppendVersionGuard(code, dialect);
@@ -244,6 +262,8 @@ internal static class SparseChangeSetPayloadEmitter
                 2,
                 "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ToPatch\"/>.</remarks>"
             );
+            code.AppendLineAt(2, "/// <param name=\"patch\">The patch to convert.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-free command envelope.</returns>");
             code.AppendLineAt(
                 2,
                 "public static ChangePayload FromPatch(" + modelType + ".Patch patch)"
@@ -297,10 +317,15 @@ internal static class SparseChangeSetPayloadEmitter
         code.IndentOffset++;
         code.AppendLineAt(
             1,
+            "/// <summary>Snapshot of the present member values for whole-root transport.</summary>"
+        );
+        code.AppendLineAt(
+            1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
         code.AppendLineAt(1, "public sealed class " + payloadRoot);
         code.AppendLineAt(1, "{");
+        code.AppendLineAt(2, "/// <summary>Gets or sets the snapshot member values.</summary>");
         AppendJsonProperty(code, 2, "Members", 0);
         code.AppendLineAt(
             2,
@@ -308,6 +333,9 @@ internal static class SparseChangeSetPayloadEmitter
                 + payloadChange
                 + "> Members { get; set; } = new();"
         );
+        code.AppendLineAt(2, "/// <summary>Builds a snapshot from a fragment.</summary>");
+        code.AppendLineAt(2, "/// <param name=\"value\">The fragment to snapshot.</param>");
+        code.AppendLineAt(2, "/// <returns>The snapshot root.</returns>");
         code.AppendLineAt(2, "public static " + payloadRoot + " FromFragment(Fragment value)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
@@ -323,25 +351,11 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(3, "return result;");
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "internal static " + payloadRoot + " FromFragment(Fragment value, bool redactBefores)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
-        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
-            code,
-            System.Collections.Immutable.ImmutableArray.CreateRange(readable),
-            endpoint,
-            runtime,
-            dialect,
-            modelType,
-            true,
-            implementationNamespace
-        );
-        code.AppendLineAt(3, "return result;");
-        code.AppendLineAt(2, "}");
+        code.AppendLineAt(2, "/// <summary>Converts this snapshot to a fragment.</summary>");
+        code.AppendLineAt(2, "/// <returns>The converted fragment.</returns>");
         code.AppendLineAt(2, "public Fragment ToFragment()");
+        // The redacting overload stays internal and follows the public
+        // surface so the emitted container reads public -> internal.
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
@@ -444,9 +458,33 @@ internal static class SparseChangeSetPayloadEmitter
             );
         code.AppendLineAt(3, "};");
         code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "internal static " + payloadRoot + " FromFragment(Fragment value, bool redactBefores)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var result = new " + payloadRoot + "();");
+        SparseChangeSetPayloadSnapshotEmitter.AppendFromFragmentMembers(
+            code,
+            System.Collections.Immutable.ImmutableArray.CreateRange(readable),
+            endpoint,
+            runtime,
+            dialect,
+            modelType,
+            true,
+            implementationNamespace
+        );
+        code.AppendLineAt(3, "return result;");
+        code.AppendLineAt(2, "}");
         code.AppendLineAt(1, "}");
         code.AppendLine();
 
+        // XML docs precede serialization attributes so the compiler associates
+        // them with the member (CS1591).
+        code.AppendLineAt(
+            1,
+            "/// <summary>Base type for the per-member change variants.</summary>"
+        );
         code.AppendLineAt(
             1,
             "[global::System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = \"member\")]"
@@ -483,6 +521,10 @@ internal static class SparseChangeSetPayloadEmitter
 
         code.AppendLineAt(
             1,
+            "/// <summary>Whole-root change carrying the before and after snapshots.</summary>"
+        );
+        code.AppendLineAt(
+            1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
         code.AppendLineAt(
@@ -490,9 +532,11 @@ internal static class SparseChangeSetPayloadEmitter
             "public sealed class " + PayloadName(modelType, "RootChange") + " : " + payloadChange
         );
         code.AppendLineAt(1, "{");
+        code.AppendLineAt(2, "/// <summary>Gets or sets the before snapshot.</summary>");
         AppendIgnoreNull(code, 2);
         AppendJsonProperty(code, 2, "Before", 0);
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? Before { get; set; }");
+        code.AppendLineAt(2, "/// <summary>Gets or sets the after snapshot.</summary>");
         AppendIgnoreNull(code, 2);
         AppendJsonProperty(code, 2, "After", 1);
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? After { get; set; }");

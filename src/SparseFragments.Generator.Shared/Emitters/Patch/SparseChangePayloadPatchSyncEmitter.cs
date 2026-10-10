@@ -31,6 +31,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
                 2,
                 "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>. JSON-ignored members throw instead of exporting lossy cores.</remarks>"
             );
+            code.AppendLineAt(2, "/// <returns>The baseline-free command core.</returns>");
             code.AppendLineAt(
                 2,
                 "internal "
@@ -63,6 +64,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
                 2,
                 "/// <summary>Projects a validated command core to a baseline-free patch.</summary>"
             );
+            code.AppendLineAt(2, "/// <param name=\"payload\">The validated command core.</param>");
+            code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
             code.AppendLineAt(
                 2,
                 "internal static Patch PatchFromPayloadCore("
@@ -95,6 +98,9 @@ internal static class SparseChangePayloadPatchSyncEmitter
             2,
             "/// <remarks>Before-states are redacted by construction; the result only supports <see cref=\"ChangePayload.ToPatch\"/>. JSON-ignored members throw instead of exporting lossy cores.</remarks>"
         );
+        if (target is not null)
+            code.AppendLineAt(2, "/// <param name=\"self\">The patch to convert.</param>");
+        code.AppendLineAt(2, "/// <returns>The baseline-free command core.</returns>");
         code.AppendLineAt(
             2,
             (target is null ? "internal " : "internal static ")
@@ -406,6 +412,8 @@ internal static class SparseChangePayloadPatchSyncEmitter
             2,
             "/// <remarks>Before-states are ignored rather than validated; malformed after-states are rejected.</remarks>"
         );
+        code.AppendLineAt(2, "/// <param name=\"payload\">The validated command core.</param>");
+        code.AppendLineAt(2, "/// <returns>The baseline-free patch.</returns>");
         code.AppendLineAt(2, "internal static Patch PatchFromPayloadCore(" + core + " payload)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(

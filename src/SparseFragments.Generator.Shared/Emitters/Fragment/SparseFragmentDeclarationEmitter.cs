@@ -36,6 +36,7 @@ internal sealed class SparseFragmentDeclarationEmitter(
         appendAttributes?.Invoke(code);
         code.AppendLineAt(1, accessibility + " sealed class Fragment");
         code.AppendLineAt(1, "{");
+        code.AppendLineAt(2, "/// <summary>Initializes a new empty fragment.</summary>");
         code.AppendLineAt(2, "public Fragment() { }");
         code.AppendLine();
     }
@@ -49,10 +50,16 @@ internal sealed class SparseFragmentDeclarationEmitter(
         System.Func<SparseMemberModel, string>? rebasePolicyField = null
     )
     {
+        // Public surface first: member slots, then IsEmpty; per-member
+        // strategy caches stay last as internal implementation details.
         foreach (var member in members)
         {
             code.CancellationToken.ThrowIfCancellationRequested();
             appendMemberAttributes?.Invoke(code);
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets the sparse value for '" + member.Property.Name + "'.</summary>"
+            );
             code.AppendIndent(2)
                 .Append("public ")
                 .Append(Optional)
@@ -62,6 +69,25 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .Append(SparseNaming.EscapeIdentifier(member.Property.Name))
                 .AppendLine(" { get; init; }");
         }
+        code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "/// <summary>Whether this fragment has no present members.</summary>"
+        );
+        code.AppendIndent(2)
+            .Append("public bool IsEmpty => ")
+            .Append(
+                members.Length == 0
+                    ? "true"
+                    : string.Join(
+                        " && ",
+                        members.Select(member =>
+                            "!" + SparseNaming.EscapeIdentifier(member.Property.Name) + ".IsPresent"
+                        )
+                    )
+            )
+            .AppendLine(";");
+        code.AppendLine();
         foreach (var member in members.Where(static member => member.MergeStrategyType is not null))
         {
             code.AppendIndent(2)
@@ -112,25 +138,6 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .Append(member.RebasePolicyType!.Value.Name)
                 .AppendLine("();");
         }
-        code.AppendLine();
-        code.AppendLineAt(
-            2,
-            "/// <summary>Whether this fragment has no present members.</summary>"
-        );
-        code.AppendIndent(2)
-            .Append("public bool IsEmpty => ")
-            .Append(
-                members.Length == 0
-                    ? "true"
-                    : string.Join(
-                        " && ",
-                        members.Select(member =>
-                            "!" + SparseNaming.EscapeIdentifier(member.Property.Name) + ".IsPresent"
-                        )
-                    )
-            )
-            .AppendLine(";");
-        code.AppendLine();
     }
 
     public void AppendBuilder(
@@ -143,18 +150,18 @@ internal sealed class SparseFragmentDeclarationEmitter(
         code.AppendLineAt(1, "/// <summary>A mutable builder for a generated fragment.</summary>");
         code.AppendLineAt(1, accessibility + " sealed class FragmentBuilder");
         code.AppendLineAt(1, "{");
+        // Public surface first: staged references, construction, then Build.
+        // The seeding constructor and backing fields trail as internals.
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             var field = "__sparse_builder_member_" + member.Id;
-            code.AppendIndent(2)
-                .Append("private ")
-                .Append(Optional)
-                .Append("<")
-                .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
-                .Append("> ")
-                .Append(field)
-                .AppendLine(";");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets a mutable reference to the staged value for '"
+                    + member.Property.Name
+                    + "'.</summary>"
+            );
             code.AppendIndent(2)
                 .Append("public ref ")
                 .Append(Optional)
@@ -167,16 +174,11 @@ internal sealed class SparseFragmentDeclarationEmitter(
                 .AppendLine(";");
         }
 
+        code.AppendLine();
+        code.AppendLineAt(2, "/// <summary>Initializes a new empty builder.</summary>");
         code.AppendLineAt(2, "public FragmentBuilder() { }");
-        code.AppendLineAt(2, "internal FragmentBuilder(Fragment fragment)");
-        code.AppendLineAt(2, "{");
-        foreach (var member in members)
-        {
-            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
-            code.AppendIndent(3).Append(name).Append(" = fragment.").Append(name).AppendLine(";");
-        }
-
-        code.AppendLineAt(2, "}");
+        code.AppendLineAt(2, "/// <summary>Builds the staged fragment.</summary>");
+        code.AppendLineAt(2, "/// <returns>The built fragment.</returns>");
         code.AppendLineAt(2, "public Fragment Build() => new()");
         code.AppendLineAt(2, "{");
         foreach (var member in members)
@@ -186,6 +188,27 @@ internal sealed class SparseFragmentDeclarationEmitter(
         }
 
         code.AppendLineAt(2, "};");
+        code.AppendLineAt(2, "internal FragmentBuilder(Fragment fragment)");
+        code.AppendLineAt(2, "{");
+        foreach (var member in members)
+        {
+            var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+            code.AppendIndent(3).Append(name).Append(" = fragment.").Append(name).AppendLine(";");
+        }
+
+        code.AppendLineAt(2, "}");
+        foreach (var member in members)
+        {
+            var field = "__sparse_builder_member_" + member.Id;
+            code.AppendIndent(2)
+                .Append("private ")
+                .Append(Optional)
+                .Append("<")
+                .Append(SparseFragmentEmitHelpers.FragmentValueType(member))
+                .Append("> ")
+                .Append(field)
+                .AppendLine(";");
+        }
         code.AppendLineAt(1, "}");
     }
 }

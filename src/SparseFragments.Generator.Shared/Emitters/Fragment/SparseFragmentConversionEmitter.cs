@@ -37,6 +37,12 @@ internal sealed class SparseFragmentConversionEmitter
         // verbatim (static, explicit receivers, Fragment aliases in scope).
         if (operationsType is not null)
         {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Creates a fragment with every member present from a model value.</summary>"
+            );
+            code.AppendLineAt(2, "/// <param name=\"value\">The model value to project.</param>");
+            code.AppendLineAt(2, "/// <returns>The fragment with all members present.</returns>");
             code.AppendIndent(2)
                 .Append("public static Fragment From(")
                 .Append(modelType)
@@ -60,6 +66,12 @@ internal sealed class SparseFragmentConversionEmitter
             || member.Property.Type.PocoCloneHelperName is not null
             || member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported
         );
+        code.AppendLineAt(
+            2,
+            "/// <summary>Creates a fragment with every member present from a model value.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"value\">The model value to project.</param>");
+        code.AppendLineAt(2, "/// <returns>The fragment with all members present.</returns>");
         code.AppendIndent(2)
             .Append("public static Fragment From(")
             .Append(modelType)
@@ -277,6 +289,15 @@ internal sealed class SparseFragmentConversionEmitter
         // with an explicit receiver (surface instance access is bare).
         if (operationsType is not null)
         {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Materializes a model by overlaying this fragment onto a baseline value.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"baseline\">The baseline value supplying absent members.</param>"
+            );
+            code.AppendLineAt(2, "/// <returns>The materialized model value.</returns>");
             code.AppendIndent(2)
                 .Append("public ")
                 .Append(modelType)
@@ -285,6 +306,11 @@ internal sealed class SparseFragmentConversionEmitter
                 .Append(" baseline) => ")
                 .Append(operationsType)
                 .AppendLine(".ToModel(this, baseline);");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Materializes a model from the present members of this fragment.</summary>"
+            );
+            code.AppendLineAt(2, "/// <returns>The materialized model value.</returns>");
             code.AppendIndent(2)
                 .Append("public ")
                 .Append(modelType)
@@ -292,6 +318,17 @@ internal sealed class SparseFragmentConversionEmitter
             return;
         }
         var isOperationsBody = receiver.Length != 0;
+        code.AppendLineAt(
+            2,
+            "/// <summary>Materializes a model by overlaying a fragment onto a baseline value.</summary>"
+        );
+        if (isOperationsBody)
+            code.AppendLineAt(2, "/// <param name=\"fragment\">The fragment to overlay.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"baseline\">The baseline value supplying absent members.</param>"
+        );
+        code.AppendLineAt(2, "/// <returns>The materialized model value.</returns>");
         if (isOperationsBody)
         {
             code.AppendIndent(2)
@@ -319,6 +356,16 @@ internal sealed class SparseFragmentConversionEmitter
         );
         code.AppendLineAt(2, "}");
         code.AppendLine();
+        code.AppendLineAt(
+            2,
+            "/// <summary>Materializes a model from the present members of a fragment.</summary>"
+        );
+        if (isOperationsBody)
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"fragment\">The fragment to materialize.</param>"
+            );
+        code.AppendLineAt(2, "/// <returns>The materialized model value.</returns>");
         if (isOperationsBody)
             code.AppendIndent(2)
                 .Append("public static ")

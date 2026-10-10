@@ -5,6 +5,9 @@
     <AssemblyName>SparseFragments.GeneratedApiFixtures</AssemblyName>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Enable on-disk generated output for inspection (obj/, git-ignored). -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Fixture library, not a test runner: undo tests/Directory.Build.props. -->
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>

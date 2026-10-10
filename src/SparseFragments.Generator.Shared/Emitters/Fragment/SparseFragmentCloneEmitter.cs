@@ -40,6 +40,8 @@ internal sealed class SparseFragmentCloneEmitter
         // move with an explicit receiver (surface construction is `this`).
         if (operationsType is not null)
         {
+            code.AppendLineAt(1, "/// <summary>Creates a deep copy of this model value.</summary>");
+            code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
             code.AppendIndent(1)
                 .Append("public ")
                 .Append(modelType)
@@ -62,6 +64,12 @@ internal sealed class SparseFragmentCloneEmitter
         var isOperationsBody = !string.Equals(receiver, "this.", StringComparison.Ordinal);
         if (isOperationsBody)
         {
+            code.AppendLineAt(
+                1,
+                "/// <summary>Creates a deep copy of the specified model value.</summary>"
+            );
+            code.AppendLineAt(1, "/// <param name=\"value\">The model value to copy.</param>");
+            code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
             code.AppendIndent(1)
                 .Append("public static ")
                 .Append(modelType)
@@ -71,6 +79,8 @@ internal sealed class SparseFragmentCloneEmitter
         }
         else
         {
+            code.AppendLineAt(1, "/// <summary>Creates a deep copy of this model value.</summary>");
+            code.AppendLineAt(1, "/// <returns>The deep copy.</returns>");
             code.AppendIndent(1).Append("public ").Append(modelType).AppendLine(" DeepClone()");
         }
         code.AppendLineAt(1, "{");
@@ -411,6 +421,7 @@ internal sealed class SparseFragmentCloneEmitter
             2,
             "/// <summary>Copies the fragment and its generated nested values.</summary>"
         );
+        code.AppendLineAt(2, "/// <returns>The copied fragment.</returns>");
         code.AppendLineAt(2, "public Fragment DeepClone()");
         code.AppendLineAt(2, "{");
         if (RequiresCloneContext(members))

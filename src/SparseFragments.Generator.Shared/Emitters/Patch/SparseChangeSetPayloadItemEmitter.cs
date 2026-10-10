@@ -340,6 +340,7 @@ internal static class SparseChangeSetPayloadItemEmitter
         var id = member.Id;
         var runtime = dialect.RuntimeNamespace;
         var payloadChange = SparseChangeSetPayloadEmitter.PayloadName(modelType, "Change");
+        code.AppendLineAt(1, "/// <summary>Payload change for one member.</summary>");
         code.AppendLineAt(
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
@@ -360,6 +361,9 @@ internal static class SparseChangeSetPayloadItemEmitter
                 implementationNamespace
             ) + "?"
             : SparseChangeSetBasicsEmitter.FragmentValueType(member);
+        // XML docs precede serialization attributes so the compiler associates
+        // them with the member (CS1591).
+        code.AppendLineAt(2, "/// <summary>Gets or sets the snapshot value.</summary>");
         SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
         SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Value", 0);
         code.AppendLineAt(
@@ -375,6 +379,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                 "Core",
                 implementationNamespace
             );
+            code.AppendLineAt(2, "/// <summary>Gets or sets the nested change core.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Nested", 1);
             code.AppendLineAt(2, "public " + childPayload + "? Nested { get; set; }");
@@ -385,15 +390,18 @@ internal static class SparseChangeSetPayloadItemEmitter
         )
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
+            code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 2);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
             );
+            code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 3);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
+            code.AppendLineAt(2, "/// <summary>Gets or sets the per-item changes.</summary>");
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Items", 4);
             code.AppendLineAt(
                 2,
@@ -404,6 +412,7 @@ internal static class SparseChangeSetPayloadItemEmitter
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
                 var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
+                code.AppendLineAt(2, "/// <summary>Gets or sets the before key order.</summary>");
                 SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "BeforeOrder", 5);
                 code.AppendLineAt(
@@ -412,6 +421,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                         + keyType
                         + ">? BeforeOrder { get; set; }"
                 );
+                code.AppendLineAt(2, "/// <summary>Gets or sets the after key order.</summary>");
                 SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "AfterOrder", 6);
                 code.AppendLineAt(
@@ -425,12 +435,14 @@ internal static class SparseChangeSetPayloadItemEmitter
         else
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
+            code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 0);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
             );
+            code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 1);
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
@@ -462,6 +474,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                     "Core",
                     implementationNamespace
                 );
+            code.AppendLineAt(1, "/// <summary>Per-item change for a collection member.</summary>");
             code.AppendLineAt(
                 1,
                 "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
@@ -472,34 +485,45 @@ internal static class SparseChangeSetPayloadItemEmitter
                     + SparseChangeSetPayloadEmitter.PayloadMemberName(modelType, "Item", id)
             );
             code.AppendLineAt(1, "{");
+            code.AppendLineAt(2, "/// <summary>Gets or sets the item key.</summary>");
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Key", 0);
             code.AppendLineAt(2, "public " + keyType + " Key { get; set; } = default!;");
+            code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 4);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? Before { get; set; }"
             );
+            code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
             SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 5);
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? After { get; set; }"
             );
+            code.AppendLineAt(2, "/// <summary>Gets or sets the item change kind.</summary>");
             SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Kind", 1);
             code.AppendLineAt(2, "public " + runtime + "ChangePayloadItemKind Kind { get; set; }");
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
+                code.AppendLineAt(2, "/// <summary>Gets or sets the before index.</summary>");
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "BeforeIndex", 2);
                 code.AppendLineAt(2, "public int BeforeIndex { get; set; } = -1;");
+                code.AppendLineAt(2, "/// <summary>Gets or sets the after index.</summary>");
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "AfterIndex", 3);
                 code.AppendLineAt(2, "public int AfterIndex { get; set; } = -1;");
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Gets or sets whether the item was reordered.</summary>"
+                );
                 SparseChangeSetPayloadEmitter.AppendIgnoreDefault(code, 2);
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "IsReordered", 6);
                 code.AppendLineAt(2, "public bool IsReordered { get; set; }");
             }
             if (isModelValue)
             {
+                code.AppendLineAt(2, "/// <summary>Gets or sets the nested edit core.</summary>");
                 SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
                 SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Edit", 7);
                 code.AppendLineAt(2, "public " + childName + "? Edit { get; set; }");

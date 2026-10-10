@@ -17,6 +17,83 @@ internal static class SparseFragmentPatchCoreEmitter
         foreach (var member in members)
         {
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
+            if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                var type =
+                    runtime
+                    + "FragmentOperation"
+                    + "<"
+                    + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
+                    + ">";
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Gets the operation for member '"
+                        + member.Property.Name
+                        + "'.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "public ref "
+                        + type
+                        + " "
+                        + name
+                        + " => ref "
+                        + dialect.MemberField(member)
+                        + ";"
+                );
+            }
+            else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
+            {
+                var type = SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Gets the nested patch for member '"
+                        + member.Property.Name
+                        + "'.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "public "
+                        + type
+                        + " "
+                        + name
+                        + " { get => "
+                        + dialect.MemberField(member)
+                        + " ??= new "
+                        + type
+                        + "(); set => "
+                        + dialect.MemberField(member)
+                        + " = value; }"
+                );
+            }
+            else
+            {
+                var type = dialect.ChildPatchName(member);
+                code.AppendLineAt(
+                    2,
+                    "/// <summary>Gets the nested patch for member '"
+                        + member.Property.Name
+                        + "'.</summary>"
+                );
+                code.AppendLineAt(
+                    2,
+                    "public "
+                        + type
+                        + " "
+                        + name
+                        + " { get => "
+                        + dialect.MemberField(member)
+                        + " ??= new "
+                        + type
+                        + "(); set => "
+                        + dialect.MemberField(member)
+                        + " = value; }"
+                );
+            }
+        }
+
+        foreach (var member in members)
+        {
             var field = dialect.MemberField(member);
             if (member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
@@ -26,49 +103,25 @@ internal static class SparseFragmentPatchCoreEmitter
                     + "<"
                     + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
                     + ">";
-                // Relocated operation bodies reach state through these
-                // fields, so they are internal rather than private. The
-                // typed ref accessor stays on the facade to preserve
-                // in-place mutation identity.
+                // Relocated bodies read state through these fields, so they stay internal.
                 code.AppendLineAt(2, "internal " + type + " " + field + ";");
-                code.AppendLineAt(2, "public ref " + type + " " + name + " => ref " + field + ";");
             }
             else if (SparseFragmentPatchEmitter.IsCollectionPatch(member))
             {
-                var type = SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
-                code.AppendLineAt(2, "internal " + type + "? " + field + ";");
                 code.AppendLineAt(
                     2,
-                    "public "
-                        + type
-                        + " "
-                        + name
-                        + " { get => "
+                    "internal "
+                        + SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member)
+                        + "? "
                         + field
-                        + " ??= new "
-                        + type
-                        + "(); set => "
-                        + field
-                        + " = value; }"
+                        + ";"
                 );
             }
             else
             {
-                var type = dialect.ChildPatchName(member);
-                code.AppendLineAt(2, "internal " + type + "? " + field + ";");
                 code.AppendLineAt(
                     2,
-                    "public "
-                        + type
-                        + " "
-                        + name
-                        + " { get => "
-                        + field
-                        + " ??= new "
-                        + type
-                        + "(); set => "
-                        + field
-                        + " = value; }"
+                    "internal " + dialect.ChildPatchName(member) + "? " + field + ";"
                 );
             }
         }
@@ -89,21 +142,8 @@ internal static class SparseFragmentPatchCoreEmitter
         var wholePrefix = SparseNaming.WholeApiPrefix(
             members.Select(static member => member.Property.Name)
         );
-        // The whole-operation field and the member-emptiness predicate stay
-        // on the facade as storage, but relocated operation bodies read them
-        // through internal access.
-        code.AppendLineAt(
-            2,
-            "internal " + operation + "<Fragment?> " + dialect.WholeFieldName + ";"
-        );
-        code.AppendLineAt(
-            2,
-            "internal bool "
-                + dialect.MembersEmptyName
-                + " => "
-                + SparseFragmentPatchEmitter.MembersEmptyExpression(members, dialect)
-                + ";"
-        );
+        // Public whole operations first (public -> internal order).
+        code.AppendLineAt(2, "/// <summary>Whether this patch carries no changes.</summary>");
         code.AppendLineAt(
             2,
             "public bool "
@@ -118,6 +158,11 @@ internal static class SparseFragmentPatchCoreEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <summary>Replaces the whole contribution with the given model value.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"value\">Model value to store.</param>");
+        code.AppendLineAt(
+            2,
             "public void "
                 + wholePrefix
                 + "Set("
@@ -128,6 +173,7 @@ internal static class SparseFragmentPatchCoreEmitter
                 + operation
                 + "<Fragment?>.Set(Fragment.From(value));"
         );
+        code.AppendLineAt(2, "/// <summary>Sets the whole contribution to null.</summary>");
         code.AppendLineAt(
             2,
             "public void "
@@ -138,6 +184,7 @@ internal static class SparseFragmentPatchCoreEmitter
                 + operation
                 + "<Fragment?>.Set(null);"
         );
+        code.AppendLineAt(2, "/// <summary>Removes the whole contribution.</summary>");
         code.AppendLineAt(
             2,
             "public void "
@@ -148,14 +195,12 @@ internal static class SparseFragmentPatchCoreEmitter
                 + operation
                 + "<Fragment?>.Remove;"
         );
-        code.AppendLineAt(2, "internal bool __SparseIsEmpty() => " + wholePrefix + "IsEmpty;");
         code.AppendLineAt(
             2,
-            "internal void __SparseSet(" + modelType + " value) => " + wholePrefix + "Set(value);"
+            "/// <summary>Creates a patch from a whole-contribution operation.</summary>"
         );
-        code.AppendLineAt(2, "internal void __SparseSetNull() => " + wholePrefix + "SetNull();");
-        code.AppendLineAt(2, "internal void __SparseRemove() => " + wholePrefix + "Remove();");
-
+        code.AppendLineAt(2, "/// <param name=\"operation\">Whole operation to wrap.</param>");
+        code.AppendLineAt(2, "/// <returns>A patch carrying the operation.</returns>");
         code.AppendLineAt(
             2,
             "public static implicit operator Patch("
@@ -164,6 +209,26 @@ internal static class SparseFragmentPatchCoreEmitter
                 + dialect.WholeFieldName
                 + " = operation };"
         );
+        // Internal storage follows the public surface.
+        code.AppendLineAt(
+            2,
+            "internal " + operation + "<Fragment?> " + dialect.WholeFieldName + ";"
+        );
+        code.AppendLineAt(
+            2,
+            "internal bool "
+                + dialect.MembersEmptyName
+                + " => "
+                + SparseFragmentPatchEmitter.MembersEmptyExpression(members, dialect)
+                + ";"
+        );
+        code.AppendLineAt(2, "internal bool __SparseIsEmpty() => " + wholePrefix + "IsEmpty;");
+        code.AppendLineAt(
+            2,
+            "internal void __SparseSet(" + modelType + " value) => " + wholePrefix + "Set(value);"
+        );
+        code.AppendLineAt(2, "internal void __SparseSetNull() => " + wholePrefix + "SetNull();");
+        code.AppendLineAt(2, "internal void __SparseRemove() => " + wholePrefix + "Remove();");
     }
 
     /// <summary>Emits Patch() and Patch(Fragment) construction from present members.</summary>
@@ -174,7 +239,13 @@ internal static class SparseFragmentPatchCoreEmitter
     )
     {
         var operation = SparseFragmentPatchEmitter.Operation(dialect);
+        code.AppendLineAt(2, "/// <summary>Initializes an empty patch.</summary>");
         code.AppendLineAt(2, "public Patch() { }");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Initializes a patch from present fragment members.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"fragment\">Fragment seeding the patch.</param>");
         code.AppendLineAt(2, "public Patch(Fragment fragment)");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -365,6 +436,9 @@ internal static class SparseFragmentPatchCoreEmitter
         if (target is not null)
         {
             var optional = SparseFragmentPatchEmitter.OptionalFragment(dialect);
+            code.AppendLineAt(2, "/// <summary>Applies this patch to a sparse state.</summary>");
+            code.AppendLineAt(2, "/// <param name=\"current\">State to apply to.</param>");
+            code.AppendLineAt(2, "/// <returns>The state with the patch applied.</returns>");
             code.AppendLineAt(
                 2,
                 "public "
@@ -394,6 +468,13 @@ internal static class SparseFragmentPatchCoreEmitter
         string receiver
     )
     {
+        if (receiver.Length == 0)
+        {
+            code.AppendLineAt(2, "/// <summary>Applies this patch to a sparse state.</summary>");
+            code.AppendLineAt(2, "/// <param name=\"current\">State to apply to.</param>");
+            code.AppendLineAt(2, "/// <returns>The state with the patch applied.</returns>");
+        }
+
         var optional = SparseFragmentPatchEmitter.OptionalFragment(dialect);
         code.AppendLineAt(2, methodDeclaration);
         code.AppendLineAt(2, "{");
