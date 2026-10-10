@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "benchmarks/SparseFragments.Benchmarks"
 DLL = PROJECT / "bin/Release/net10.0/SparseFragments.Benchmarks.dll"
 EXPECTED_CASES = 45
+MODEL_COUNTS = {1, 4, 16}
+PAYLOAD_SHAPES = {"ScalarDictionary", "ModelDictionary", "ModelKeyed"}
 
 
 def command(*args):
@@ -75,6 +77,46 @@ def collect(directory):
     return cases, environments[0]
 
 
+def validate_sizes(records, payload):
+    if not isinstance(records, list):
+        raise ValueError("Size records must be an array")
+    expected = {(shape, count) for shape in PAYLOAD_SHAPES for count in MODEL_COUNTS} if payload else MODEL_COUNTS
+    indexed = {}
+    for item in records:
+        if not isinstance(item, dict):
+            raise ValueError("Size record must be an object")
+        key = (item["Shape"], item["ModelCount"]) if payload else item["ModelCount"]
+        if key not in expected or key in indexed:
+            raise ValueError(f"Unexpected/duplicate size record: {key}")
+        for name in ("ModelCount", "GeneratedFiles", "GeneratedSourceBytes", "AssemblyBytes"):
+            value = item[name]
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"Invalid {name} for size record {key}: {value!r}")
+        fingerprint = item["GeneratedSourceSha256"]
+        if not isinstance(fingerprint, str) or len(fingerprint) != 64 or any(
+                character not in "0123456789abcdefABCDEF" for character in fingerprint):
+            raise ValueError(f"Invalid source fingerprint for size record {key}")
+        indexed[key] = item
+    if indexed.keys() != expected:
+        raise ValueError(f"Missing size records: {sorted(expected - indexed.keys())}")
+    return indexed
+
+
+def size_table(current, previous, payload):
+    old_sizes = validate_sizes(previous, payload)
+    now_sizes = validate_sizes(current, payload)
+    label = "Shape / parent models" if payload else "Models"
+    lines = ["", f"| {label} | Generated source Δ (UTF-8 B) | Assembly Δ (B) | Source fingerprint changed |",
+             "| --- | ---: | ---: | --- |"]
+    for key, now in sorted(now_sizes.items()):
+        old = old_sizes[key]
+        name = f"{key[0]} / {key[1]}" if payload else str(key)
+        lines.append(f'| {name} | {now["GeneratedSourceBytes"] - old["GeneratedSourceBytes"]:+d} | '
+                     f'{now["AssemblyBytes"] - old["AssemblyBytes"]:+d} | '
+                     f'{"yes" if now["GeneratedSourceSha256"] != old["GeneratedSourceSha256"] else "no"} |')
+    return lines
+
+
 def compare(current, previous):
     lines = ["# Performance comparison", "", f'Previous: `{previous["commit"]}`',
              f'Current: `{current["commit"]}`', ""]
@@ -98,14 +140,9 @@ def compare(current, previous):
         changes = [now[f"gen{gen}_per_1000_ops"] - old[f"gen{gen}_per_1000_ops"] for gen in range(3)]
         lines.append(f'| {key} | {ratio} | {now["allocated_bytes"] - old["allocated_bytes"]:+.1f} | '
                      + " | ".join(f"{change:+.3f}" for change in changes) + f' | {overlap} |')
-    lines += ["", "| Models | Generated source Δ (UTF-8 B) | Assembly Δ (B) | Source fingerprint changed |",
-              "| ---: | ---: | ---: | --- |"]
-    old_sizes = {item["ModelCount"]: item for item in previous["sizes"]}
-    for now in current["sizes"]:
-        old = old_sizes[now["ModelCount"]]
-        lines.append(f'| {now["ModelCount"]} | {now["GeneratedSourceBytes"] - old["GeneratedSourceBytes"]:+d} | '
-                     f'{now["AssemblyBytes"] - old["AssemblyBytes"]:+d} | '
-                     f'{"yes" if now["GeneratedSourceSha256"] != old["GeneratedSourceSha256"] else "no"} |')
+    lines += size_table(current["sizes"], previous["sizes"], False)
+    lines += ["", "## Payload generator output"]
+    lines += size_table(current["payload_sizes"], previous["payload_sizes"], True)
     return "\n".join(lines) + "\n", True
 
 
@@ -133,14 +170,19 @@ def main():
             "-m:1", "--disable-build-servers", "/p:UseSharedCompilation=false", "-v", "quiet")
         run(output / "inputs.log", "dotnet", str(DLL), "--baseline-validate-inputs")
         run(output / "sizes.log", "dotnet", str(DLL), "--baseline-sizes", str(output / "sizes.json"))
+        run(output / "payload-sizes.log", "dotnet", str(DLL), "--payload-sizes", str(output / "payload-sizes.json"))
         run(output / "benchmark.log", "dotnet", str(DLL), "--baseline", *( ["--smoke"] if args.smoke else [] ),
             "--filter", "*", "--artifacts", str(output / "bdn"))
     provenance = json.loads((output / "provenance.json").read_text(encoding="utf-8"))
     if digest(benchmark_paths) != provenance["benchmark_sha256"]:
         raise ValueError("Benchmark source changed during the run; start a new run")
     cases, host = collect(output)
+    sizes = json.loads((output / "sizes.json").read_text(encoding="utf-8-sig"))
+    payload_sizes = json.loads((output / "payload-sizes.json").read_text(encoding="utf-8-sig"))
+    validate_sizes(sizes, False)
+    validate_sizes(payload_sizes, True)
     current = {
-        "schema": 1,
+        "schema": 2,
         "suite": "sparsefragments-v1",
         "profile": provenance["profile"],
         "captured_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -149,7 +191,8 @@ def main():
         "benchmark_sha256": provenance["benchmark_sha256"],
         "environment": {"sdk": provenance["sdk"], "host": host, "runtime_variables": provenance["runtime_variables"],
                         "logical_cpu_count": os.cpu_count(), "machine": platform.machine()},
-        "sizes": json.loads((output / "sizes.json").read_text(encoding="utf-8-sig")),
+        "sizes": sizes,
+        "payload_sizes": payload_sizes,
         "cases": cases,
     }
     (output / "baseline.json").write_text(json.dumps(current, indent=2, allow_nan=False) + "\n", encoding="utf-8")
@@ -164,6 +207,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, KeyError, subprocess.CalledProcessError) as error:
+    except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
         print(f"Baseline failed: {error}", file=sys.stderr)
         sys.exit(1)

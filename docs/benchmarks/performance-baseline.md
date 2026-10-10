@@ -41,7 +41,9 @@ For payload-specific generator changes, `PayloadGeneratorBenchmarks` adds scalar
 dictionaries, model-valued dictionaries, and keyed model collections. Each shape
 contains 1, 4, or 16 parent models; model-valued shapes share one child model.
 These exploratory cases measure fresh generation and compilation separately.
-They are outside the 45-case baseline. Record their source and assembly sizes with:
+Their timed cases are outside the 45-case baseline. The baseline runner also
+captures all nine shape/count size records in `payload-sizes.json` and includes
+them in `baseline.json` and the comparison report. To capture those sizes alone:
 
 ```powershell
 dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --payload-sizes artifacts/payload-sizes.json
@@ -82,6 +84,10 @@ and case set agree. Changes to benchmark inputs or measurement boundaries
 require a new baseline. Changes to runtime or generator implementation can be
 compared with the same benchmark source.
 
+Schema 2 adds the nine payload generator size records. Missing, duplicate,
+unexpected or invalid size records fail collection. Schema 1 runs start a new
+baseline; their measurements are not compared with schema 2.
+
 The report includes mean time changes, allocation and GC deltas, source and
 assembly size deltas, and whether the 99.9% time intervals overlap. Interval
 overlap is descriptive; it is not a significance test. Inspect the raw
@@ -110,7 +116,8 @@ serve as the baseline for the corrected methods.
 
 ## Recorded baseline
 
-The [recorded runs](baselines/README.md) include complete local Windows and CI
-Linux baselines. Pass the matching JSON file as `--previous` when measuring the
-next revision on a compatible machine and SDK. Each run's artifact directory retains
-the raw measurements needed to inspect variance and GC behavior.
+The [recorded runs](baselines/README.md) preserve the initial Windows and Linux
+schema 1 captures. Start a schema 2 run with the current runner and pass its
+`baseline.json` as `--previous` for later captures on a compatible machine and
+SDK. Each run's artifact directory retains the raw measurements needed to
+inspect variance and GC behavior.

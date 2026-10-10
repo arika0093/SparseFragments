@@ -15,14 +15,19 @@ These observations apply to that machine and workload. Some time intervals are
 wide; use the intervals and repeated measurements when assessing a later change.
 The runner checks environment and workload compatibility before reporting ratios.
 
-To compare a later revision on the same environment:
+These initial captures use schema 1. The current runner uses schema 2 and also
+records dictionary and keyed-model payload output sizes. Comparing an initial
+capture with schema 2 records a new baseline without numeric ratios.
+
+To establish a schema 2 reference and compare the next run on the same environment:
 
 ```powershell
-python benchmarks/run-baseline.py --output artifacts/baseline-next --previous docs/benchmarks/baselines/windows-x64.json
+python benchmarks/run-baseline.py --output artifacts/baseline-first
+python benchmarks/run-baseline.py --output artifacts/baseline-next --previous artifacts/baseline-first/baseline.json
 ```
 
-Use `linux-x64.json` for a matching Linux environment. Each file records its
-own environment; comparisons across the two environments are unavailable.
+Keep a separate reference for each environment. Comparisons across the Windows
+and Linux environments are unavailable.
 
 See [Measure and compare performance](../performance-baseline.md) for workload
 boundaries, the fixed job configuration and CI artifact retention. Full raw
