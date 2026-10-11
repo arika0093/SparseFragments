@@ -203,10 +203,19 @@ internal static class SparseChangeSetTransitionEmitter
                     transNames[member.Id],
                     runtime,
                     dialect.HashSetImplementsReadOnlySet,
-                    target
+                    target,
+                    dialect
                 );
             else if (IsScalar(member))
-                AppendScalarTransition(code, member, prop, transNames[member.Id], runtime, target);
+                AppendScalarTransition(
+                    code,
+                    member,
+                    prop,
+                    transNames[member.Id],
+                    runtime,
+                    target,
+                    dialect
+                );
             else if (IsNested(member))
                 AppendNestedProperty(code, member, prop, dialect, target);
             else if (IsKeyed(member))
@@ -504,7 +513,8 @@ internal static class SparseChangeSetTransitionEmitter
         string prop,
         string trans,
         string runtime,
-        SparseOperationTarget? target = null
+        SparseOperationTarget? target = null,
+        SparseFragmentPatchEmitter.SparsePatchDialect? dialect = null
     )
     {
         var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
@@ -512,7 +522,19 @@ internal static class SparseChangeSetTransitionEmitter
             2,
             "/// <summary>Typed transition for member '" + member.Property.Name + "'.</summary>"
         );
-        code.AppendLineAt(2, "public readonly struct " + trans);
+        code.AppendLineAt(
+            2,
+            "public readonly struct "
+                + trans
+                + (
+                    dialect.HasValue
+                        ? SparseChangeSetContractEmitter.ScalarBases(
+                            dialect.Value,
+                            FragmentValueType(member)
+                        )
+                        : string.Empty
+                )
+        );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
@@ -613,7 +635,8 @@ internal static class SparseChangeSetTransitionEmitter
         string trans,
         string runtime,
         bool supportsReadOnlySet,
-        SparseOperationTarget? target = null
+        SparseOperationTarget? target = null,
+        SparseFragmentPatchEmitter.SparsePatchDialect? dialect = null
     )
     {
         var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
@@ -623,7 +646,19 @@ internal static class SparseChangeSetTransitionEmitter
             2,
             "/// <summary>Typed set transition for member '" + member.Property.Name + "'.</summary>"
         );
-        code.AppendLineAt(2, "public sealed class " + trans);
+        code.AppendLineAt(
+            2,
+            "public sealed class "
+                + trans
+                + (
+                    dialect.HasValue
+                        ? SparseChangeSetContractEmitter.ScalarBases(
+                            dialect.Value,
+                            FragmentValueType(member)
+                        )
+                        : string.Empty
+                )
+        );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,

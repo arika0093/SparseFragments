@@ -24,6 +24,7 @@ docs/fragments-and-patches.md	core-between	tests/fixtures/consumers/package-spar
 docs/fragments-and-patches.md	core-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/fragments-and-patches.md	core-nested-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/fragments-and-patches.md	core-nested	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/fragments-and-patches.md	core-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/fragments-and-patches.md	core-changeset	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/fragments-and-patches.md	core-algebra	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/fragments-and-patches.md	core-serialization	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
@@ -40,6 +41,7 @@ docs/keyed-collections.md	keyed-reconcile-flow	tests/fixtures/consumers/package-
 docs/keyed-collections.md	keyed-server-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-server-mapping	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/keyed-collections.md	keyed-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/keyed-collections.md	keyed-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/merge-strategies.md	merge-compare-models	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
 docs/merge-strategies.md	merge-compare	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
 docs/rebase.md	rebase-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs

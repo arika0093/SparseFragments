@@ -118,7 +118,19 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
             InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
             PayloadImplementationContainerPrefix: "__Internal",
-            PathType: "global::SparseFragments.SparsePath"
+            PathType: "global::SparseFragments.SparsePath",
+            TransitionContracts: new SparseTransitionContracts(
+                "global::SparseFragments.ISparseValueChange",
+                "global::SparseFragments.ISparseChangeSet",
+                "global::SparseFragments.ISparseKeyedChange",
+                "global::SparseFragments.ISparseKeyedItemChange",
+                "global::SparseFragments.ISparseTemporaryKeyedChange",
+                "global::SparseFragments.ISparseDictionaryChange",
+                "global::SparseFragments.ISparseDictionaryItemChange",
+                "global::SparseFragments.ISparseStructuralDictionaryItemChange",
+                "global::SparseFragments.Generated.SparseChangeRecord",
+                "global::SparseFragments.Generated.SparseChangeKind"
+            )
         ),
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,

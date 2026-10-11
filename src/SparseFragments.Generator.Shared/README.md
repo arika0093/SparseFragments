@@ -168,6 +168,19 @@ to preserve missing versus present-null values; `ChangeKind.Order` carries
 keyed collection order as a collection-level entry. Consumers decide how to
 format or display these entries.
 
+`SparsePatchDialect` accepts an optional `TransitionContracts` record naming
+the caller-owned read-only transition contracts. When set, every generated
+`ChangeSet` implements the change-set contract (`IsChanged`,
+`EnumerateChangeRecords`, and the `TryGet*` member traversal entry points),
+scalar and set transitions implement the value-change contract, keyed
+transitions and their items implement the keyed contracts (plus the temporary
+contract when the element declares temporary identity), and dictionary
+transitions and their entries implement the dictionary contracts. Generated
+members forward to the existing typed surface; no parallel representation is
+introduced. Leave `TransitionContracts` null to disable the surface: products
+without the runtime contracts keep byte-identical output. Shared never names a
+`SparseFragments` runtime type; every contract name arrives through the record.
+
 Paths use the caller-owned path type from `SparsePatchDialect.PathType`
 (defaulting to the dialect runtime namespace plus `SparsePath`). `ChangeInfo`
 exposes the path in that type plus a wire-compatible text rendering; the

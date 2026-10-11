@@ -48,7 +48,12 @@ internal static class SparseChangeSetEmitter
             1,
             "/// <summary>Baseline-aware transition between two states. Validates before-states and supports compose and rebase.</summary>"
         );
-        code.AppendLineAt(1, accessibility + " sealed class ChangeSet");
+        code.AppendLineAt(
+            1,
+            accessibility
+                + " sealed class ChangeSet"
+                + SparseChangeSetContractEmitter.ChangeSetBases(dialect)
+        );
         code.AppendLineAt(1, "{");
         // Public-first order: canonical storage and match probes trail the
         // public surface so no internal member precedes a public one.
@@ -71,6 +76,7 @@ internal static class SparseChangeSetEmitter
             dialect
         );
         SparseChangeSetBasicsEmitter.AppendIsEmpty(code, members);
+        SparseChangeSetContractEmitter.AppendChangeSetContract(code, members, dialect);
         SparseChangeSetBetweenEmitter.AppendBetween(
             code,
             members,

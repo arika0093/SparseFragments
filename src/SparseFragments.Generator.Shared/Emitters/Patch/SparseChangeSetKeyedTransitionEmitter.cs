@@ -60,6 +60,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + " : global::System.Collections.Generic.IEnumerable<"
                 + trans
                 + ".Item>"
+                + SparseChangeSetContractEmitter.KeyedBases(dialect, member)
         );
         code.AppendLineAt(2, "{");
         // Public surface first, then the internal constructor, then private storage.
@@ -107,7 +108,11 @@ internal static class SparseChangeSetKeyedTransitionEmitter
             3,
             "/// <remarks>Empty lookup results expose <see cref=\"IsEmpty\"/> and are never enumerated.</remarks>"
         );
-        code.AppendLineAt(3, "public sealed class Item");
+        code.AppendLineAt(
+            3,
+            "public sealed class Item"
+                + SparseChangeSetContractEmitter.KeyedItemBases(dialect, member)
+        );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "/// <summary>Gets the entry key.</summary>");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
@@ -236,6 +241,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         {
             SparseChangeSetKeyedTempTransitionEmitter.AppendGetTemporaryChange(code, member);
         }
+        SparseChangeSetContractEmitter.AppendKeyedContractMembers(code, member, dialect);
         code.AppendLineAt(
             3,
             "internal "

@@ -102,6 +102,37 @@ namespace SparseFragments
         public static SparseFragments.FragmentRebasePolicy<T> PreferCurrent(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
         public static SparseFragments.FragmentRebasePolicy<T> PreferIncoming(System.Collections.Generic.IEqualityComparer<T>? comparer = null) { }
     }
+    public interface ISparseChangeSet
+    {
+        bool IsChanged { get; }
+        bool IsEmpty { get; }
+        System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.SparseChangeRecord> EnumerateChangeRecords();
+        bool TryGetDictionaryChange<TKey, TValue, TEdited>(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseDictionaryChange<TKey, TValue, TEdited>? change);
+        bool TryGetKeyedChange<TKey, TElement, TElementChange>(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseKeyedChange<TKey, TElement, TElementChange>? change);
+        bool TryGetNestedChange(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseChangeSet? child);
+        bool TryGetValueChange<T>(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseValueChange<T>? change);
+    }
+    public interface ISparseDictionaryChange<TKey, TValue, TEdited>
+    {
+        System.Collections.Generic.IReadOnlyDictionary<TKey, TValue> Added { get; }
+        System.Collections.Generic.IReadOnlyDictionary<TKey, TEdited> Edited { get; }
+        bool IsChanged { get; }
+        bool IsEmpty { get; }
+        System.Collections.Generic.IReadOnlyDictionary<TKey, TValue> Removed { get; }
+        System.Collections.Generic.IEnumerable<SparseFragments.ISparseDictionaryItemChange<TKey, TValue>> EnumerateEntries();
+        SparseFragments.ISparseDictionaryItemChange<TKey, TValue> GetChange(TKey key);
+    }
+    public interface ISparseDictionaryItemChange<TKey, TValue>
+    {
+        SparseFragments.Optional<TValue> After { get; }
+        SparseFragments.Optional<TValue> Before { get; }
+        bool IsAdded { get; }
+        bool IsChanged { get; }
+        bool IsEdited { get; }
+        bool IsEmpty { get; }
+        bool IsRemoved { get; }
+        TKey Key { get; }
+    }
     public interface ISparseEditSessionModelAccessor<out TModel>
         where out TModel :  class
     {
@@ -119,6 +150,49 @@ namespace SparseFragments
         where in TChangeSet :  class
     {
         void AcceptChanges(TChangeSet changes);
+    }
+    public interface ISparseKeyedChange<TKey, TElement, TElementChange>
+    {
+        System.Collections.Generic.IReadOnlyList<TElement> Added { get; }
+        System.Collections.Generic.IReadOnlyList<TKey> AfterOrder { get; }
+        System.Collections.Generic.IReadOnlyList<TKey> BeforeOrder { get; }
+        System.Collections.Generic.IReadOnlyDictionary<TKey, TElementChange> Edited { get; }
+        bool IsChanged { get; }
+        bool IsEmpty { get; }
+        bool OrderChanged { get; }
+        System.Collections.Generic.IReadOnlyList<TElement> Removed { get; }
+        System.Collections.Generic.IEnumerable<SparseFragments.ISparseKeyedItemChange<TKey, TElement, TElementChange>> EnumerateItems();
+        SparseFragments.ISparseKeyedItemChange<TKey, TElement, TElementChange> GetChange(TKey key);
+    }
+    public interface ISparseKeyedItemChange<TKey, TElement, TElementChange>
+    {
+        SparseFragments.Optional<TElement> After { get; }
+        int AfterIndex { get; }
+        SparseFragments.Optional<TElement> Before { get; }
+        int BeforeIndex { get; }
+        TElementChange Edit { get; }
+        bool IsAdded { get; }
+        bool IsChanged { get; }
+        bool IsEdited { get; }
+        bool IsEmpty { get; }
+        bool IsRemoved { get; }
+        bool IsReordered { get; }
+        TKey Key { get; }
+        System.Guid? TemporaryKey { get; }
+    }
+    public interface ISparseStructuralDictionaryItemChange<TKey, TValue, TEdit> : SparseFragments.ISparseDictionaryItemChange<TKey, TValue>
+    {
+        TEdit Edit { get; }
+    }
+    public interface ISparseTemporaryKeyedChange<TKey, TElement, TElementChange> : SparseFragments.ISparseKeyedChange<TKey, TElement, TElementChange>
+    {
+        SparseFragments.ISparseKeyedItemChange<TKey, TElement, TElementChange> GetTemporaryChange(System.Guid temporaryKey);
+    }
+    public interface ISparseValueChange<T>
+    {
+        SparseFragments.Optional<T> After { get; }
+        SparseFragments.Optional<T> Before { get; }
+        bool IsChanged { get; }
     }
     public enum MergeMode
     {

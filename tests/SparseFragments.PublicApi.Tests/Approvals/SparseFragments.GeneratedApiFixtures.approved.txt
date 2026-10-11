@@ -1202,10 +1202,11 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseFragments.Generated.@__Internal_7D2204AF.Core_7D2204AF.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition Details { get; }
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition Scores { get; }
@@ -1247,7 +1248,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public sealed class DetailsTransition : System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition.Item>, System.Collections.IEnumerable
+            public sealed class DetailsTransition : SparseFragments.ISparseDictionaryChange<string, SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>, System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition.Item>, System.Collections.IEnumerable
             {
                 public System.Collections.Generic.IReadOnlyDictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar> Added { get; }
                 public SparseFragments.Optional<System.Collections.Generic.Dictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>> After { get; }
@@ -1258,7 +1259,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyDictionary<string, SparseFragments.GeneratedApiFixtures.CatalogScalar> Removed { get; }
                 public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition.Item GetChange(string key) { }
                 public System.Collections.Generic.IEnumerator<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.DetailsTransition.Item> GetEnumerator() { }
-                public sealed class Item
+                public sealed class Item : SparseFragments.ISparseDictionaryItemChange<string, SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseStructuralDictionaryItemChange<string, SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>
                 {
                     public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar> After { get; }
                     public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar> Before { get; }
@@ -1279,7 +1280,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Fragment?> Current { get; }
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet? resolved, out string? failureReason) { }
             }
-            public sealed class ScoresTransition : System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition.Item>, System.Collections.IEnumerable
+            public sealed class ScoresTransition : SparseFragments.ISparseDictionaryChange<string, int, int>, System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition.Item>, System.Collections.IEnumerable
             {
                 public System.Collections.Generic.IReadOnlyDictionary<string, int> Added { get; }
                 public SparseFragments.Optional<System.Collections.Generic.Dictionary<string, int>> After { get; }
@@ -1290,7 +1291,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyDictionary<string, int> Removed { get; }
                 public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition.Item GetChange(string key) { }
                 public System.Collections.Generic.IEnumerator<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition.Item> GetEnumerator() { }
-                public sealed class Item
+                public sealed class Item : SparseFragments.ISparseDictionaryItemChange<string, int>
                 {
                     public SparseFragments.Optional<int> After { get; }
                     public SparseFragments.Optional<int> Before { get; }
@@ -1443,10 +1444,11 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogImmutable? updated, out SparseFragments.Generated.@__Internal_701C94C1.Core_701C94C1.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.CountTransition Count { get; }
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet.NameTransition Name { get; }
@@ -1490,13 +1492,13 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public readonly struct CountTransition
+            public readonly struct CountTransition : SparseFragments.ISparseValueChange<int>
             {
                 public SparseFragments.Optional<int> After { get; }
                 public SparseFragments.Optional<int> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct NameTransition
+            public readonly struct NameTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
@@ -1509,7 +1511,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Fragment?> Current { get; }
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet? resolved, out string? failureReason) { }
             }
-            public readonly struct TagsTransition
+            public readonly struct TagsTransition : SparseFragments.ISparseValueChange<int[]?>
             {
                 public SparseFragments.Optional<int[]?> After { get; }
                 public SparseFragments.Optional<int[]?> Before { get; }
@@ -1615,12 +1617,13 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseFragments.Generated.@__Internal_7A0F1DB0.Core_7A0F1DB0.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.CountTransition Count { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.IdTransition Id { get; }
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.TitleTransition Title { get; }
@@ -1662,13 +1665,13 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public readonly struct CountTransition
+            public readonly struct CountTransition : SparseFragments.ISparseValueChange<int>
             {
                 public SparseFragments.Optional<int> After { get; }
                 public SparseFragments.Optional<int> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct IdTransition
+            public readonly struct IdTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
@@ -1681,7 +1684,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> Current { get; }
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet? resolved, out string? failureReason) { }
             }
-            public readonly struct TitleTransition
+            public readonly struct TitleTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
@@ -1785,8 +1788,9 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseFragments.Generated.@__Internal_78C7120C.Core_78C7120C.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition Items { get; }
@@ -1828,7 +1832,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public sealed class ItemsTransition : System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item>, System.Collections.IEnumerable
+            public sealed class ItemsTransition : SparseFragments.ISparseKeyedChange<string, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>, System.Collections.Generic.IEnumerable<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item>, System.Collections.IEnumerable
             {
                 public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> Added { get; }
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>> After { get; }
@@ -1842,7 +1846,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> Removed { get; }
                 public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item GetChange(string key) { }
                 public System.Collections.Generic.IEnumerator<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition.Item> GetEnumerator() { }
-                public sealed class Item
+                public sealed class Item : SparseFragments.ISparseKeyedItemChange<string, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>
                 {
                     public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> After { get; }
                     public int AfterIndex { get; }
@@ -1990,12 +1994,13 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogNested? updated, out SparseFragments.Generated.@__Internal_2C61959C.Core_2C61959C.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogNested.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet Child { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet.ChildrenTransition Children { get; }
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet Maybe { get; }
@@ -2043,25 +2048,25 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public readonly struct ChildrenTransition
+            public readonly struct ChildrenTransition : SparseFragments.ISparseValueChange<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>>
             {
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> After { get; }
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct MetadataByKeyTransition
+            public readonly struct MetadataByKeyTransition : SparseFragments.ISparseValueChange<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>>
             {
                 public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> After { get; }
                 public SparseFragments.Optional<System.Collections.Generic.Dictionary<SparseFragments.GeneratedApiFixtures.CatalogPoco, string>> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct MetadataItemsTransition
+            public readonly struct MetadataItemsTransition : SparseFragments.ISparseValueChange<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>>
             {
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>> After { get; }
                 public SparseFragments.Optional<System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogPoco?>> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct MetadataTransition
+            public readonly struct MetadataTransition : SparseFragments.ISparseValueChange<SparseFragments.GeneratedApiFixtures.CatalogPoco?>
             {
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogPoco?> After { get; }
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogPoco?> Before { get; }
@@ -2193,8 +2198,9 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration? updated, out SparseFragments.Generated.@__Internal_DF686812.Core_DF686812.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet.SparseChangeInfoTransition SparseChangeInfo { get; }
@@ -2249,25 +2255,25 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment?> Current { get; }
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet? resolved, out string? failureReason) { }
             }
-            public readonly struct SparseChangeInfoTransition
+            public readonly struct SparseChangeInfoTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct SparseChangeKindTransition
+            public readonly struct SparseChangeKindTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct SparseEnumerateChangedPathsTransition
+            public readonly struct SparseEnumerateChangedPathsTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct SparseEnumerateChangesTransition
+            public readonly struct SparseEnumerateChangesTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
@@ -2379,10 +2385,11 @@ namespace SparseFragments.GeneratedApiFixtures
             public new bool TryApplyMixedTo(SparseFragments.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.GeneratedApiFixtures.CatalogScalar? updated, out SparseFragments.Generated.@__Internal_1D9B1A23.Core_1D9B1A23.MixedApplyResult result) { }
             public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangePayload FromPatch(SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
         }
-        public sealed class ChangeSet
+        public sealed class ChangeSet : SparseFragments.ISparseChangeSet
         {
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.CountTransition Count { get; }
+            public bool IsChanged { get; }
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet.LabelsTransition Labels { get; }
@@ -2430,13 +2437,13 @@ namespace SparseFragments.GeneratedApiFixtures
                 Removed = 2,
                 Order = 3,
             }
-            public readonly struct CountTransition
+            public readonly struct CountTransition : SparseFragments.ISparseValueChange<int>
             {
                 public SparseFragments.Optional<int> After { get; }
                 public SparseFragments.Optional<int> Before { get; }
                 public bool IsChanged { get; }
             }
-            public sealed class LabelsTransition
+            public sealed class LabelsTransition : SparseFragments.ISparseValueChange<System.Collections.Generic.ISet<string>>
             {
                 public System.Collections.Generic.IReadOnlyList<string> Added { get; }
                 public SparseFragments.Optional<System.Collections.Generic.ISet<string>> After { get; }
@@ -2445,13 +2452,13 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsEmpty { get; }
                 public System.Collections.Generic.IReadOnlyList<string> Removed { get; }
             }
-            public readonly struct NameTransition
+            public readonly struct NameTransition : SparseFragments.ISparseValueChange<string>
             {
                 public SparseFragments.Optional<string> After { get; }
                 public SparseFragments.Optional<string> Before { get; }
                 public bool IsChanged { get; }
             }
-            public readonly struct NoteTransition
+            public readonly struct NoteTransition : SparseFragments.ISparseValueChange<string?>
             {
                 public SparseFragments.Optional<string?> After { get; }
                 public SparseFragments.Optional<string?> Before { get; }
@@ -2464,7 +2471,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Fragment?> Current { get; }
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet? resolved, out string? failureReason) { }
             }
-            public readonly struct RetryTransition
+            public readonly struct RetryTransition : SparseFragments.ISparseValueChange<int?>
             {
                 public SparseFragments.Optional<int?> After { get; }
                 public SparseFragments.Optional<int?> Before { get; }

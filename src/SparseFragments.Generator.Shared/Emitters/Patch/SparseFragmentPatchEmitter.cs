@@ -250,7 +250,8 @@ internal static class SparseFragmentPatchEmitter
         SparseRebasePolicy? RebasePolicy = null,
         SparseWriteContract? WriteContract = null,
         string? InPlaceWriteUnavailableKindMemberName = null,
-        string? PathType = null
+        string? PathType = null,
+        SparseTransitionContracts? TransitionContracts = null
     )
     {
         /// <summary>Configured member policies, or empty for full disclosure.</summary>

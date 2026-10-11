@@ -249,6 +249,38 @@ var changes = DocsOrder.ChangeSet.Between(before, after);
 
 The root `ChangeSet` itself is not a generic enumerable. Model members are heterogeneous, so there is no single element type to enumerate. Keyed collection transitions are the exception because their items share one `TKey` and `TElement` type (see [Keyed collections](keyed-collections.md)).
 
+## Inspect Transitions Through Shared Contracts
+
+The typed members above are the fastest path for application code. Code that works across models without naming generated types, such as a persistence mapper that applies a `ChangeSet` to tracked entities, uses the read-only contracts in the `SparseFragments` namespace instead. Every generated `ChangeSet` implements `ISparseChangeSet`. Scalar and set transitions implement `ISparseValueChange<T>`; keyed transitions implement `ISparseKeyedChange<TKey, TElement, TElementChange>`; dictionary transitions implement `ISparseDictionaryChange<TKey, TValue, TEdited>`. The `TryGet*` entry points resolve members by CLR name with exact type matching, and `EnumerateChangeRecords()` replays the same projection as `EnumerateChanges()` with model-independent values:
+
+<!-- sample: core-transition-contracts -->
+```csharp
+var before = Optional<CounterSettings.Fragment?>.Present(
+    CounterSettings.Fragment.From(new CounterSettings { Label = "a", RetryCount = 1 })
+);
+var after = Optional<CounterSettings.Fragment?>.Present(
+    CounterSettings.Fragment.From(new CounterSettings { Label = "b", RetryCount = 1 })
+);
+
+// Generic consumers program against the contracts, not generated names.
+ISparseChangeSet changes = CounterSettings.ChangeSet.Between(before, after);
+// changes.IsChanged == true
+
+if (changes.TryGetValueChange<string>("Label", out var label) && label.IsChanged)
+{
+    Console.WriteLine($"{label.Before} -> {label.After}");
+}
+// label.Before.Value == "a"
+// label.After.Value == "b"
+// changes.TryGetValueChange<int>("Label", out _) == false
+
+var records = changes.EnumerateChangeRecords();
+// records.Single().PathText == "Label"
+```
+<!-- /sample -->
+
+`TryGetValueChange<T>` returns false unless both the member name and the value type match. `TryGetNestedChange` returns the nested `ChangeSet` as `ISparseChangeSet`, so recursion needs no generated type names. Keyed and dictionary traversal, including temporary identity lookup, follows the same pattern and is described in [Keyed collections](keyed-collections.md).
+
 ## Patch vs ChangeSet vs ChangePayload
 
 ```text
