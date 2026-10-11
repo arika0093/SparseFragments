@@ -281,7 +281,10 @@ internal static class SparseKeyedSequenceApplyEmitter
                 )
                 + (
                     SparseKeyedCollectionEmitter.HasTemporaryKey(member)
-                        ? " + __baselineTemp" + member.Id + ".Count"
+                        ? " + __baselineTemp"
+                            + member.Id
+                            + ".Count - __baselineTempEcho"
+                            + member.Id
                         : ""
                 )
                 + ") throw new global::System.InvalidOperationException(\"Order must list exactly the final keys.\");"
@@ -344,7 +347,9 @@ internal static class SparseKeyedSequenceApplyEmitter
         if (hasTempApply)
         {
             // Temporary baselines survive through their own map; assigned
-            // entries keep the key-map walk.
+            // entries keep the key-map walk, except assigned entries echoing
+            // a temporary identity prefer their temp-map entry so a replayed
+            // temp edit onto persisted state is not lost.
             code.AppendLineAt(
                 6,
                 "if ("
@@ -357,7 +362,15 @@ internal static class SparseKeyedSequenceApplyEmitter
             );
             code.AppendLineAt(
                 6,
-                "else if (map.TryGetValue(k, out var current2)) result.Add(current2);"
+                "else { var __ste = "
+                    + SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member)
+                    + "(item); if (__ste.HasValue && __ste.Value != global::System.Guid.Empty && __baselineTemp"
+                    + member.Id
+                    + ".TryGetValue(__ste.Value, out var __tecurrent)) result.Add(__tecurrent);"
+            );
+            code.AppendLineAt(
+                6,
+                "else if (map.TryGetValue(k, out var current2)) result.Add(current2); }"
             );
         }
         else

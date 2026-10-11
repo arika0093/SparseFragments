@@ -341,7 +341,7 @@ internal static class SparseRelocatedEditSessionCore
                 + modelType
                 + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
                 + modelType
-                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending), out error);"
+                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
         );
         // Raw model access bypasses the change cache, so it is exposed only
         // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().

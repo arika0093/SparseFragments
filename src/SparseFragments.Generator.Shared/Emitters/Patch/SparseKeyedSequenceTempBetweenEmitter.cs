@@ -202,6 +202,13 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
     }
 
     /// <summary>Emits baseline temporary validation for patch Apply.</summary>
+    /// <remarks>
+    /// Unassigned entries register by temporary identity as usual. Assigned
+    /// entries echoing a temporary identity register as well so a
+    /// baseline-free temp-correlated patch (such as a reconcile replay onto
+    /// persisted state) finds its target; duplicates across either shape
+    /// still fail closed.
+    /// </remarks>
     internal static void AppendApplyBaselineValidation(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -217,22 +224,53 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
                 + SparseKeyedCollectionEmitter.ElementType(member)
                 + ">();"
         );
+        code.AppendLineAt(4, "var __baselineTempEcho" + member.Id + " = 0;");
         code.AppendLineAt(
             4,
-            "if (current.IsPresent && (object?)current.Value is not null) foreach (var __baselineItem in current.Value!) { var __bk = "
-                + keyOf
-                + "(__baselineItem); if ("
-                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__bk")
-                + ") { var __bt = "
-                + tempOf
-                + "(__baselineItem); if (!__bt.HasValue) throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\"); if (__bt.Value == global::System.Guid.Empty) throw new global::System.InvalidOperationException(\"An unassigned keyed element has a reserved temporary identity.\"); "
-                + SparseKeyedCollectionEmitter.AddUniqueTempEntry(
-                    "__baselineTemp" + member.Id,
-                    "__bt.Value",
-                    "__baselineItem"
-                )
-                + " } }"
+            "if (current.IsPresent && (object?)current.Value is not null) foreach (var __baselineItem in current.Value!)"
         );
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "var __bk = " + keyOf + "(__baselineItem);");
+        code.AppendLineAt(
+            5,
+            "if (" + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__bk") + ")"
+        );
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "var __bt = " + tempOf + "(__baselineItem);");
+        code.AppendLineAt(
+            6,
+            "if (!__bt.HasValue) throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection operation.\");"
+        );
+        code.AppendLineAt(
+            6,
+            "if (__bt.Value == global::System.Guid.Empty) throw new global::System.InvalidOperationException(\"An unassigned keyed element has a reserved temporary identity.\");"
+        );
+        code.AppendLineAt(
+            6,
+            SparseKeyedCollectionEmitter.AddUniqueTempEntry(
+                "__baselineTemp" + member.Id,
+                "__bt.Value",
+                "__baselineItem"
+            )
+        );
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(5, "else");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "var __bte = " + tempOf + "(__baselineItem);");
+        code.AppendLineAt(6, "if (__bte.HasValue && __bte.Value != global::System.Guid.Empty)");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(7, "__baselineTempEcho" + member.Id + "++;");
+        code.AppendLineAt(
+            7,
+            SparseKeyedCollectionEmitter.AddUniqueTempEntry(
+                "__baselineTemp" + member.Id,
+                "__bte.Value",
+                "__baselineItem"
+            )
+        );
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(4, "}");
     }
 
     /// <summary>Emits the temporary map build for patch Apply baselines.</summary>
@@ -379,6 +417,7 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
         if (hasPatch)
         {
             var elementFragment = SparseKeyedCollectionEmitter.ElementFragmentType(member);
+            var keyType = SparseKeyedCollectionEmitter.KeyType(member);
             code.AppendLineAt(
                 5,
                 "var __tapplied = __tkv.Value.Apply("
@@ -394,14 +433,19 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
                 "if (!__tapplied.IsPresent || __tapplied.Value is null) throw new global::System.InvalidOperationException(\"Element edit removed the element. Use Remove instead.\");"
             );
             code.AppendLineAt(5, "var __tupdated = __tapplied.Value!.ToModel();");
+            // Identity is preserved rather than unassigned: ordinary flows
+            // keep the sentinel key while reconcile replays keep the
+            // persisted assignment. Either way the key and temporary
+            // identity must be unchanged.
             code.AppendLineAt(
                 5,
-                "if (!"
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
-                        member,
-                        keyOf + "(__tupdated)"
-                    )
-                    + " || "
+                "if (!global::System.Collections.Generic.EqualityComparer<"
+                    + keyType
+                    + ">.Default.Equals("
+                    + keyOf
+                    + "(__tupdated), "
+                    + keyOf
+                    + "(__texisting)) || "
                     + tempOf
                     + "(__tupdated) != __tkv.Key) throw new global::System.InvalidOperationException(\"Changing an element's identity through an edit is not allowed. Use remove-old + add-new instead.\");"
             );
