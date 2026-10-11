@@ -61,7 +61,7 @@ internal static class SparsePathBuilderEmitter
                 + pathType
                 + "(SparsePaths<TRoot> paths) => paths._path;"
         );
-        var navigations = new SharedIndentedBuilder(code.CancellationToken)
+        using var navigations = new SharedIndentedBuilder(code.CancellationToken)
         {
             IndentOffset = code.IndentOffset,
         };
@@ -181,7 +181,7 @@ internal static class SparsePathBuilderEmitter
                 + builderName
                 + " paths) => paths._path;"
         );
-        var entries = new SharedIndentedBuilder(code.CancellationToken)
+        using var entries = new SharedIndentedBuilder(code.CancellationToken)
         {
             IndentOffset = code.IndentOffset,
         };

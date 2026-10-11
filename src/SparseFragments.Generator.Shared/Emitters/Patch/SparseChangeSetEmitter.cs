@@ -57,7 +57,7 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(1, "{");
         // Public-first order: canonical storage and match probes trail the
         // public surface so no internal member precedes a public one.
-        var surfaceDeferred = target is null
+        using var surfaceDeferred = target is null
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
         var internalCode = surfaceDeferred ?? code;
@@ -168,7 +168,7 @@ internal static class SparseChangeSetEmitter
         SparseChangeSetPathEmitter.Append(code, dialect, target);
         // Resolution infrastructure is internal-only: it trails the public
         // surface (including payload facades below) to keep public-first order.
-        var resolutionInfra = target is null
+        using var resolutionInfra = target is null
             ? new SharedIndentedBuilder(code.CancellationToken)
             : null;
         if (modelType is not null)

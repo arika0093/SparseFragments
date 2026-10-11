@@ -42,7 +42,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         code.AppendLineAt(2, "{");
         // Public-first order for relocated patches: internal backing fields
         // and helpers trail public mutators and algebra stubs.
-        var surfaceDeferred = target is null
+        using var surfaceDeferred = target is null
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
         var internalCode = surfaceDeferred ?? code;
@@ -76,7 +76,9 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         );
         SparseMemberOperationSplit? split = null;
         SharedIndentedBuilder operations = code;
-        SharedIndentedBuilder? deferredKeyOf = null;
+        using var deferredKeyOf = target is null
+            ? null
+            : new SharedIndentedBuilder(code.CancellationToken);
         if (target is not null)
         {
             var operationsType = SparseOperationTarget.MemberOperationsType(
@@ -90,10 +92,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             split = new SparseMemberOperationSplit(code, operations, operationsType, "self.");
             // Private key helper trails the internal operation bodies so the
             // member operation class stays public/internal-first ordered.
-            deferredKeyOf = new SharedIndentedBuilder(code.CancellationToken)
-            {
-                IndentOffset = operations.IndentOffset,
-            };
+            deferredKeyOf!.IndentOffset = operations.IndentOffset;
             SparseKeyedCollectionEmitter.EmitKeyOf(deferredKeyOf, member, elementType, 3);
         }
         else

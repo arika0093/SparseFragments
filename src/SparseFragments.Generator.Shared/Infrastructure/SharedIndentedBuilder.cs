@@ -5,9 +5,9 @@ using System.Threading;
 
 namespace SparseFragments.Generator.Shared;
 
-internal sealed class SharedIndentedBuilder
+internal sealed class SharedIndentedBuilder : IDisposable
 {
-    private readonly StringBuilder _builder = new();
+    private StringBuilder? _builder = SharedSourceBufferPool.Rent();
     private readonly CancellationToken _cancellationToken;
     private bool _atLineStart = true;
 
@@ -18,8 +18,12 @@ internal sealed class SharedIndentedBuilder
 
     public int IndentOffset { get; set; }
 
+    private StringBuilder Buffer =>
+        _builder ?? throw new ObjectDisposedException(nameof(SharedIndentedBuilder));
+
     public SharedIndentedBuilder AppendIndent(int level)
     {
+        var buffer = Buffer;
         var effective = level + IndentOffset;
         if (effective < 0)
         {
@@ -33,7 +37,7 @@ internal sealed class SharedIndentedBuilder
             );
         }
 
-        _builder.Append(' ', effective * 4);
+        buffer.Append(' ', effective * 4);
         _atLineStart = false;
         return this;
     }
@@ -62,7 +66,7 @@ internal sealed class SharedIndentedBuilder
         {
             AppendIndent(0);
         }
-        _builder.Append(value);
+        Buffer.Append(value);
         _atLineStart = value == '\n';
         return this;
     }
@@ -75,6 +79,7 @@ internal sealed class SharedIndentedBuilder
 
     private SharedIndentedBuilder AppendRange(string value, int start, int limit)
     {
+        var buffer = Buffer;
         while (start < limit)
         {
             _cancellationToken.ThrowIfCancellationRequested();
@@ -86,13 +91,13 @@ internal sealed class SharedIndentedBuilder
                 {
                     AppendIndent(0);
                 }
-                _builder.Append(value, start, end - start);
+                buffer.Append(value, start, end - start);
             }
             if (newline < 0)
             {
                 break;
             }
-            _builder.Append('\n');
+            buffer.Append('\n');
             _atLineStart = true;
             start = newline + 1;
         }
@@ -118,6 +123,14 @@ internal sealed class SharedIndentedBuilder
     public override string ToString()
     {
         _cancellationToken.ThrowIfCancellationRequested();
-        return _builder.ToString();
+        return Buffer.ToString();
+    }
+
+    /// <summary>Returns the source buffer for reuse; repeated disposal has no effect.</summary>
+    public void Dispose()
+    {
+        var buffer = Interlocked.Exchange(ref _builder, null);
+        if (buffer is not null)
+            SharedSourceBufferPool.Return(buffer);
     }
 }

@@ -44,7 +44,7 @@ internal static class SparseDictionaryPatchEmitter
         }
         // Public-first order for relocated patches: internal surface helpers
         // trail public mutators and algebra stubs.
-        SharedIndentedBuilder? surfaceDeferred = split is null
+        using var surfaceDeferred = split is null
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
         EmitDictionarySurface(

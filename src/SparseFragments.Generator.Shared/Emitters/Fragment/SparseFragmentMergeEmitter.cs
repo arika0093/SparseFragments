@@ -537,7 +537,7 @@ internal sealed class SparseFragmentMergeEmitter
             "global::System.Collections.Generic.HashSet<global::System.Collections.Generic.KeyValuePair<object, object>>";
         // Public-first ordering: buffer the per-member private helpers and
         // append them after the public/internal overloads below.
-        var memberHelpers = new SharedIndentedBuilder(code.CancellationToken);
+        using var memberHelpers = new SharedIndentedBuilder(code.CancellationToken);
         var surface = code;
         code = memberHelpers;
         foreach (var member in members.Where(static member => member.ChildModel is not null))

@@ -23,7 +23,7 @@ internal static class SparseGeneratedOnceRemovalIndex
         CancellationToken cancellationToken
     )
     {
-        var code = new SharedIndentedBuilder(cancellationToken);
+        using var code = new SharedIndentedBuilder(cancellationToken);
         SparseGeneratedOnceNames.AppendGeneratedHeader(
             code,
             implementationNamespace,
