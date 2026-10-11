@@ -4,8 +4,8 @@ using Session = SparseFragments.Generated.EditSessionCore<
     SparseFragments.Tests.NeutralSessionModel.Fragment,
     SparseFragments.Tests.NeutralSessionModel.Patch,
     SparseFragments.Tests.NeutralSessionModel.ChangeSet,
-    SparseFragments.Generated.SparseFragments_Tests_NeutralSessionModel_39B46059.Observable,
-    SparseFragments.Generated.SparseFragments_Tests_NeutralSessionModel_39B46059.ReadOnlyView
+    SparseFragments.Tests.NeutralSessionModel.Observable,
+    SparseFragments.Tests.NeutralSessionModel.ReadOnlyView
 >;
 
 namespace SparseFragments.Tests;
