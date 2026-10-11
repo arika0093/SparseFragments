@@ -249,6 +249,10 @@ internal static class SparseCodeRewrite
     )
     {
         var c = source[index];
+        if (verbatim && c == '"' && index + 1 < source.Length && source[index + 1] == '"')
+        {
+            return index + 2;
+        }
         if (!verbatim && c == '\\' && index + 1 < source.Length)
         {
             return index + 2;
