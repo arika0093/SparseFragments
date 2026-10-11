@@ -28,8 +28,23 @@ public sealed class OperationOrderingTests
         "    private class C\n    {\n        public int P;\n        /// nested\n    }\n    internal int B;\n",
         "    internal int B;\n    private class C\n    {\n        public int P;\n        /// nested\n    }\n"
     )]
-    public void PreservesExistingWhitespaceAndBlockBoundaries(string source, string expected) =>
+    public void PreservesExistingWhitespaceAndBlockBoundaries(string source, string expected)
+    {
         SparseOperationOrdering.ReorderInternalFirst(source).ShouldBe(expected);
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseOperationOrdering.AppendInternalFirst(code, source);
+        code.ToString().ShouldBe(expected);
+    }
+
+    [Test]
+    public void StreamingPreservesTheDestinationLineStateAndIndentation()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None) { IndentOffset = 1 };
+        code.Append("prefix");
+        SparseOperationOrdering.AppendInternalFirst(code, "  private int C;\n  internal int B;");
+        code.Append("suffix");
+        code.ToString().ShouldBe("    prefix  internal int B;\n      private int C;suffix");
+    }
 
     [Test]
     public void KeepsRelativeOrderWithinEachAccessGroup()

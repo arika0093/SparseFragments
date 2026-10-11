@@ -29,11 +29,54 @@ internal static class SparseOperationOrdering
     /// <returns>Reordered body with identical members.</returns>
     public static string ReorderInternalFirst(string operations)
     {
-        if (string.IsNullOrEmpty(operations))
+        var blocks = FindBlocks(operations);
+        if (blocks is null)
             return operations;
+        var result = new StringBuilder(operations.Length);
+        for (var rank = 0; rank < 3; rank++)
+        {
+            foreach (var block in blocks)
+            {
+                if (block.Rank == rank)
+                    AppendBlock(result, operations, block.Start, block.End);
+            }
+        }
+        if (operations[operations.Length - 1] == '\n')
+            result.Append('\n');
+        return result.ToString();
+    }
+
+    /// <summary>Appends reordered operation members directly to the destination source builder.</summary>
+    /// <param name="code">Destination source builder.</param>
+    /// <param name="operations">Raw operation container body.</param>
+    public static void AppendInternalFirst(SharedIndentedBuilder code, string operations)
+    {
+        var blocks = FindBlocks(operations);
+        if (blocks is null)
+        {
+            code.Append(operations);
+            return;
+        }
+        var hasLine = false;
+        for (var rank = 0; rank < 3; rank++)
+        {
+            foreach (var block in blocks)
+            {
+                if (block.Rank == rank)
+                    AppendBlock(code, operations, block.Start, block.End, ref hasLine);
+            }
+        }
+        if (operations[operations.Length - 1] == '\n')
+            code.Append('\n');
+    }
+
+    private static List<(int Start, int End, int Rank)>? FindBlocks(string operations)
+    {
+        if (string.IsNullOrEmpty(operations))
+            return null;
         var topIndent = FindTopIndent(operations);
         if (topIndent < 0)
-            return operations;
+            return null;
 
         var blocks = new List<(int Start, int End, int Rank)>();
         var blockStart = -1;
@@ -80,18 +123,7 @@ internal static class SparseOperationOrdering
         if (blockStart >= 0)
             blocks.Add((blockStart, operations.Length, blockRank));
 
-        var result = new StringBuilder(operations.Length);
-        for (var rank = 0; rank < 3; rank++)
-        {
-            foreach (var block in blocks)
-            {
-                if (block.Rank == rank)
-                    AppendBlock(result, operations, block.Start, block.End);
-            }
-        }
-        if (operations[operations.Length - 1] == '\n')
-            result.Append('\n');
-        return result.ToString();
+        return blocks;
     }
 
     private static int FindTopIndent(string source)
@@ -147,6 +179,30 @@ internal static class SparseOperationOrdering
                 if (result.Length != 0)
                     result.Append('\n');
                 result.Append(source, start, lineEnd - start);
+            }
+            start = lineEnd + 1;
+        }
+    }
+
+    private static void AppendBlock(
+        SharedIndentedBuilder code,
+        string source,
+        int start,
+        int end,
+        ref bool hasLine
+    )
+    {
+        while (start < end)
+        {
+            var lineEnd = source.IndexOf('\n', start);
+            if (lineEnd < 0 || lineEnd > end)
+                lineEnd = end;
+            if (TrimStart(source, start, lineEnd) < lineEnd)
+            {
+                if (hasLine)
+                    code.Append('\n');
+                code.Append(source, start, lineEnd - start);
+                hasLine = true;
             }
             start = lineEnd + 1;
         }

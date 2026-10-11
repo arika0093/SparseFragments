@@ -276,6 +276,22 @@ public sealed class GeneratorStepTrackingTests
     }
 
     [Test]
+    public void CommentOnlyEditKeepsRootAndPromotedRenderingCached()
+    {
+        var files = ThreeRootFiles();
+        var before = Run(files);
+        var after = Rerun(before, "Root1.cs", files["Root1.cs"] + "\n// unrelated edit\n");
+        after.SpfDiagnostics().ShouldBeEmpty();
+        AllCached(after, "SparseFragmentsGenerator.Output");
+        AllCached(after, "SparseFragmentsGenerator.Promoted");
+        var expected = before.Sources();
+        var actual = after.Sources();
+        actual.Count.ShouldBe(expected.Count);
+        foreach (var source in actual)
+            source.Value.ShouldBe(expected[source.Key]);
+    }
+
+    [Test]
     public void UnrelatedRootEdit_CachesPromotedStages()
     {
         var before = Run(ThreeRootFiles());

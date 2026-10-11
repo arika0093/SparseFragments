@@ -38,31 +38,22 @@ internal sealed class SharedIndentedBuilder
         return this;
     }
 
-    public SharedIndentedBuilder Append(string value)
+    public SharedIndentedBuilder Append(string value) => AppendRange(value, 0, value.Length);
+
+    /// <summary>Appends a source range while preserving line indentation and cancellation.</summary>
+    /// <param name="value">Source text.</param>
+    /// <param name="start">First character to append.</param>
+    /// <param name="length">Number of characters to append.</param>
+    /// <returns>This builder.</returns>
+    public SharedIndentedBuilder Append(string value, int start, int length)
     {
-        var start = 0;
-        while (start < value.Length)
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-            var newline = value.IndexOf('\n', start);
-            var end = newline < 0 ? value.Length : newline;
-            if (end > start)
-            {
-                if (_atLineStart)
-                {
-                    AppendIndent(0);
-                }
-                _builder.Append(value, start, end - start);
-            }
-            if (newline < 0)
-            {
-                break;
-            }
-            _builder.Append('\n');
-            _atLineStart = true;
-            start = newline + 1;
-        }
-        return this;
+        if (value is null)
+            throw new ArgumentNullException(nameof(value));
+        if (start < 0 || start > value.Length)
+            throw new ArgumentOutOfRangeException(nameof(start));
+        if (length < 0 || length > value.Length - start)
+            throw new ArgumentOutOfRangeException(nameof(length));
+        return AppendRange(value, start, start + length);
     }
 
     public SharedIndentedBuilder Append(char value)
@@ -79,6 +70,32 @@ internal sealed class SharedIndentedBuilder
     public SharedIndentedBuilder Append(int value)
     {
         Append(value.ToString(CultureInfo.InvariantCulture));
+        return this;
+    }
+
+    private SharedIndentedBuilder AppendRange(string value, int start, int limit)
+    {
+        while (start < limit)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            var newline = value.IndexOf('\n', start, limit - start);
+            var end = newline < 0 ? limit : newline;
+            if (end > start)
+            {
+                if (_atLineStart)
+                {
+                    AppendIndent(0);
+                }
+                _builder.Append(value, start, end - start);
+            }
+            if (newline < 0)
+            {
+                break;
+            }
+            _builder.Append('\n');
+            _atLineStart = true;
+            start = newline + 1;
+        }
         return this;
     }
 

@@ -35,6 +35,10 @@ public class OperationOrderingBenchmarks
             throw new InvalidOperationException(
                 "Ordering must preserve bodies and relative member order."
             );
+        if (AppendReordered() != expected.ToString() || AppendOrdered() != expected.ToString())
+            throw new InvalidOperationException(
+                "Streaming and buffered ordering must emit identical text."
+            );
     }
 
     private static void AppendMember(StringBuilder source, int rank, int index)
@@ -68,4 +72,20 @@ public class OperationOrderingBenchmarks
 
     [Benchmark]
     public string Reorder() => SparseOperationOrdering.ReorderInternalFirst(_source);
+
+    [Benchmark]
+    public string AppendReordered()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        code.Append(SparseOperationOrdering.ReorderInternalFirst(_source));
+        return code.ToString();
+    }
+
+    [Benchmark]
+    public string AppendOrdered()
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseOperationOrdering.AppendInternalFirst(code, _source);
+        return code.ToString();
+    }
 }

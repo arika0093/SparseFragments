@@ -739,8 +739,9 @@ internal static class SparseFragmentEmitter
             );
             // Internal-first ordering: many emitters interleave helpers, so the
             // container body is reordered here with bodies untouched.
-            implementationBuilder.Append(
-                SparseOperationOrdering.ReorderInternalFirst(patchOperations.ToString())
+            SparseOperationOrdering.AppendInternalFirst(
+                implementationBuilder,
+                patchOperations.ToString()
             );
             SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
             if (features.EmitChangeSet && changeSetOperations is not null)
@@ -750,8 +751,9 @@ internal static class SparseFragmentEmitter
                     SparseGeneratedPlacement.ChangeSetOperationsSimpleName,
                     "ChangeSet"
                 );
-                implementationBuilder.Append(
-                    SparseOperationOrdering.ReorderInternalFirst(changeSetOperations.ToString())
+                SparseOperationOrdering.AppendInternalFirst(
+                    implementationBuilder,
+                    changeSetOperations.ToString()
                 );
                 SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
             }
