@@ -131,10 +131,13 @@ public sealed class TemporaryKeyReconcileTests
         error.ShouldBeNull();
 
         // Assigned keys landed; the dropped row stays dropped; the late row
-        // stays pending with its temporary identity.
+        // stays pending with its temporary identity. The untouched assigned
+        // row adopts the server-normalized value (issue #217): it had no
+        // post-submit edit, so the persisted value wins despite the dirty
+        // member.
         var pending = session.CreateChangeSet();
         pending.IsEmpty.ShouldBeFalse();
-        baseline.Lines.Select(item => item.Name).ShouldBe(["existing", "first v2", "late"]);
+        baseline.Lines.Select(item => item.Name).ShouldBe(["EXISTING", "first v2", "late"]);
         var assigned = baseline.Lines.Single(item => item.TemporaryId == first.TemporaryId);
         assigned.Id.ShouldNotBe(0);
         pending.Lines.GetChange(assigned.Id).IsEdited.ShouldBeTrue();

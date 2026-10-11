@@ -648,10 +648,37 @@ namespace __SESSION_NAMESPACE__
             }
 
             var backup = CloneLiveModel(_model);
+            var backupSnapshot = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(backup));
             var retargetError = retarget(_model, submittedAfter, persisted, map, pending);
             if (retargetError is not null)
             {
-                _writeModel(_model, backup);
+                // Retarget stages detached collections and restores its
+                // shallow sibling backups itself, so expected failures
+                // leave the live graph untouched, including init-only and
+                // getter-only contents and originally referenced rows.
+                // Only rewrite when the live model actually diverged;
+                // blindly writing the deep-clone backup would swap original
+                // references for clones.
+                var restore = true;
+                try
+                {
+                    restore = !_isEmpty(
+                        _between(
+                            backupSnapshot,
+                            __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                        )
+                    );
+                }
+                catch (InvalidOperationException)
+                {
+                    restore = true;
+                }
+
+                if (restore)
+                {
+                    _writeModel(_model, backup);
+                }
+
                 RefreshAfterModelMutation();
                 error = retargetError;
                 return false;
