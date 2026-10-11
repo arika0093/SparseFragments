@@ -31,6 +31,22 @@ internal static class SharedSourceBufferPool
         return new StringBuilder();
     }
 
+    /// <summary>Rents an empty buffer with at least the requested capacity.</summary>
+    /// <param name="initialCapacity">Minimum capacity in characters.</param>
+    /// <returns>An empty buffer with exclusive ownership.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The capacity is negative.</exception>
+    public static StringBuilder Rent(int initialCapacity)
+    {
+        if (initialCapacity < 0)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+        // Oversized rewrites must not consume buffers that ordinary emitters can reuse.
+        if (initialCapacity > MaximumCapacity)
+            return new StringBuilder(initialCapacity);
+        var buffer = Rent();
+        buffer.EnsureCapacity(initialCapacity);
+        return buffer;
+    }
+
     /// <summary>Returns a buffer if a bounded cache slot is available.</summary>
     /// <param name="buffer">A buffer whose owner has finished using it.</param>
     public static void Return(StringBuilder buffer)

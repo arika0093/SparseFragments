@@ -1,10 +1,13 @@
 using System;
 using System.Text;
+using System.Threading;
 
 namespace SparseFragments.Generator.Shared;
 
-internal sealed class SparseRewriteBuffer
+internal sealed class SparseRewriteBuffer : IDisposable
 {
+    // IndexOf uses -1 for exhaustion; -2 keeps disposal distinct without another field.
+    private const int Disposed = -2;
     private readonly string _source;
     private readonly string _oldValue;
     private readonly string _newValue;
@@ -26,6 +29,7 @@ internal sealed class SparseRewriteBuffer
 
     internal void MarkCode(int index)
     {
+        ThrowIfDisposed();
         if (index >= _match)
         {
             ReplaceAt(index);
@@ -42,15 +46,33 @@ internal sealed class SparseRewriteBuffer
         {
             return;
         }
-        _builder ??= new StringBuilder(_source.Length);
+        _builder ??= SharedSourceBufferPool.Rent(_source.Length);
         _builder.Append(_source, _copied, index - _copied);
         _builder.Append(_newValue);
         _copied = index + _oldValue.Length;
         _match = _source.IndexOf(_oldValue, _copied, StringComparison.Ordinal);
     }
 
-    internal string BuildResult() =>
-        _builder is null
+    internal string BuildResult()
+    {
+        ThrowIfDisposed();
+        return _builder is null
             ? _source
             : _builder.Append(_source, _copied, _source.Length - _copied).ToString();
+    }
+
+    /// <summary>Returns the source buffer after the rewrite completes or fails.</summary>
+    public void Dispose()
+    {
+        _match = Disposed;
+        var builder = Interlocked.Exchange(ref _builder, null);
+        if (builder is not null)
+            SharedSourceBufferPool.Return(builder);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_match == Disposed)
+            throw new ObjectDisposedException(nameof(SparseRewriteBuffer));
+    }
 }

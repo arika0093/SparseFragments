@@ -46,7 +46,7 @@ internal static class SparseCodeRewrite
             return source;
         }
 
-        var code = new SparseRewriteBuffer(source, oldValue, newValue, match);
+        using var code = new SparseRewriteBuffer(source, oldValue, newValue, match);
         RewriteCode(source, code, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         return code.BuildResult();
