@@ -161,9 +161,17 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         where TEntityChild : class
     {
         ArgumentNullException.ThrowIfNull(configure);
+        // The child default is resolved at plan build, not here: a root
+        // MissingDefault declared after this call still propagates unless the
+        // child sets its own.
         var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>
         {
-            DefaultMissing = DefaultMissing,
+            GeneratedElementConfigurators = GeneratedElementConfigurators,
+            GeneratedRegistrationMode = GeneratedRegistrationMode,
+            // Companion-emitted Object scopes carry their own conventional
+            // defaults, so the child plan skips runtime reflection scanning
+            // just like element scopes do.
+            GeneratedDefaultsApplied = GeneratedRegistrationMode,
         };
         configure(child);
         AddNode(
@@ -236,6 +244,10 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         var lines = new SparseEntityCollectionBuilder<TEntityChild, TDtoChild>();
         configure(lines);
         var dtoName = MemberPath.Parse(dto).SingleName("DTO");
+        GeneratedElementConfigurators.TryGetValue(
+            (typeof(TEntity), typeof(TDto), dtoName),
+            out var generatedElement
+        );
         AddNode(
             new CollectionNode<TDto, TEntity, TDtoChild, TEntityChild>(
                 dto,
@@ -256,7 +268,9 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
                     lines.DtoKeySelector,
                     lines.EntityKeySelector,
                     lines.UnassignedKeyValue,
-                    lines.HasUnassignedKeyValue
+                    lines.HasUnassignedKeyValue,
+                    generatedElement as Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>,
+                    GeneratedElementConfigurators
                 )
             )
         );
@@ -291,6 +305,37 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
             MemberPath.Parse(dto).SingleName("DTO"),
             MemberPath.Parse(entity).SingleName("entity")
         );
+        return this;
+    }
+
+    /// <summary>
+    /// Declares source-generated conventional element defaults for one collection.
+    /// </summary>
+    /// <remarks>
+    /// Emitted by the source-generated companion for same-name collections
+    /// with resolvable element types; explicit <c>Collection(dto, entity,
+    /// configure)</c> entries compose these defaults underneath their own
+    /// path-scoped <c>Element</c> configuration, which replaces each default
+    /// exactly once. Identity, factory, removal, and order policies are never
+    /// inferred and stay explicit.
+    /// </remarks>
+    /// <param name="dto">Selects the DTO collection member (single level).</param>
+    /// <param name="configure">Registers the conventional child mapping.</param>
+    /// <typeparam name="TDtoChild">The DTO element type.</typeparam>
+    /// <typeparam name="TEntityChild">The entity element type.</typeparam>
+    /// <returns>This builder.</returns>
+    public SparseEntityMapBuilder<TEntity, TDto> DeclareCollectionElement<TDtoChild, TEntityChild>(
+        Expression<Func<TDto, IEnumerable<TDtoChild>?>> dto,
+        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> configure
+    )
+        where TDtoChild : class
+        where TEntityChild : class
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        ArgumentNullException.ThrowIfNull(configure);
+        GeneratedElementConfigurators[
+            (typeof(TEntity), typeof(TDto), MemberPath.Parse(dto).SingleName("DTO"))
+        ] = configure;
         return this;
     }
 
@@ -338,6 +383,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     public SparseEntityMapBuilder<TEntity, TDto> MissingDefault(SparseEntityMissingPolicy policy)
     {
         DefaultMissing = policy;
+        MarkExplicitDefaultMissing();
         return this;
     }
 }
@@ -384,6 +430,37 @@ public abstract class SparseEntityMapBuilderBase
 
     /// <summary>Gets whether a generated companion contributed defaults.</summary>
     internal bool GeneratedDefaultsApplied { get; set; }
+
+    /// <summary>
+    /// Gets the shared source-generated element configurators by parent scope.
+    /// </summary>
+    /// <remarks>
+    /// Keyed by parent entity type, parent DTO type, and collection member
+    /// name, so the same child type pair keeps one conventional default per
+    /// parent collection while explicit <c>Element</c> overrides stay scoped.
+    /// The reference is shared down the builder tree (nested objects and
+    /// collection elements) as scopes are created.
+    /// </remarks>
+    internal Dictionary<
+        (Type EntityType, Type DtoType, string Member),
+        Delegate
+    > GeneratedElementConfigurators { get; set; } = new();
+
+    /// <summary>Runs generated registrations with replacement semantics.</summary>
+    internal void RunGenerated(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        var previous = GeneratedRegistrationMode;
+        GeneratedRegistrationMode = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            GeneratedRegistrationMode = previous;
+        }
+    }
 
     internal void AddNode(MemberNode node)
     {
@@ -520,5 +597,12 @@ public abstract class SparseEntityMapBuilderBase
         DefaultMissing = policy;
     }
 
+    /// <summary>Gets whether this scope declared its own missing default.</summary>
+    internal bool HasExplicitDefaultMissing { get; private set; }
+
+    internal void MarkExplicitDefaultMissing() => HasExplicitDefaultMissing = true;
+
     internal bool Covers(string dtoName) => _nodeNames.Contains(dtoName);
+
+    internal bool IsGeneratedDefault(string dtoName) => _generatedDefaults.Contains(dtoName);
 }

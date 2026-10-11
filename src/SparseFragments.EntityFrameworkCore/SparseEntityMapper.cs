@@ -67,7 +67,8 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// <remarks>
     /// Reads EF metadata and writes through property entries, so shadow,
     /// field-backed, and generated members behave per the validated plan. A
-    /// detached root entity is attached as unchanged first (explicit,
+    /// detached root entity stays detached while the change set validates and
+    /// attaches as unchanged only once validation succeeds (explicit,
     /// documented handling); no query and no <c>SaveChanges</c> take part.
     /// Validation runs before any write, so a deterministic mapping failure
     /// leaves the entity graph and ChangeTracker untouched. Custom
@@ -115,7 +116,9 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             );
         }
 
-        var entry = PlanApplyState.AttachSingle(context, entity);
+        // Validation-safe entry: a detached root stays detached while the
+        // change set validates, and attaches only once validation succeeds.
+        var entry = context.Entry(entity);
         var planned = Model.FindEntityType(typeof(TEntity));
         if (
             entry.Metadata is not IEntityType actual
@@ -134,19 +137,32 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         }
 
         var correlation = new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal);
+        var state = new PlanApplyState(
+            context,
+            entity,
+            entry,
+            changes,
+            string.Empty,
+            false,
+            correlation
+        );
+        var actions = new List<Action>();
         try
         {
-            Plan.Apply(
-                new PlanApplyState(
-                    context,
-                    entity,
-                    entry,
-                    changes,
-                    string.Empty,
-                    false,
-                    correlation
-                )
-            );
+            Plan.Prepare(state, actions);
+        }
+        catch (SparseEntityMappingException exception)
+        {
+            throw ScopeToMapper(exception);
+        }
+
+        PlanApplyState.AttachSingle(context, entity);
+        try
+        {
+            foreach (var action in actions)
+            {
+                action();
+            }
         }
         catch (SparseEntityMappingException exception)
         {
@@ -182,7 +198,23 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         try
         {
             var builder = new SparseEntityMapBuilder<TEntity, TDto>();
-            GeneratedDefaults.TryApply(mapping, builder);
+            var defaults = GeneratedDefaults.TryApply(mapping, builder);
+            if (
+                defaults != GeneratedDefaultsStatus.Applied
+                && GeneratedDefaults.RequiresGeneratedDefaults(mapping.GetType())
+            )
+            {
+                var reason =
+                    defaults == GeneratedDefaultsStatus.MissingCompanion
+                        ? "no generated companion was found"
+                        : "the generated companion exposes no compatible RegisterDefaults entry";
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.MetadataMismatch,
+                    null,
+                    $"The mapper '{mapperName}' is marked [SparseFragmentMapper] but {reason}. Reference SparseFragments.Generator as an analyzer in the mapper compilation so conventional defaults generate; mappings without the marker keep the scoped runtime inference fallback."
+                );
+            }
+
             mapping.Configure(builder);
             var entityType =
                 model.FindEntityType(typeof(TEntity))

@@ -27,6 +27,12 @@ public sealed class SparseEntityMapperEmitterTests
                 public SparseEntityMapBuilder<TEntity, TDto> Member<TDtoValue, TEntityValue>(
                     Expression<Func<TDto, TDtoValue?>> dto,
                     Expression<Func<TEntity, TEntityValue?>> entity) => this;
+                public SparseEntityMapBuilder<TEntity, TDto> Member<TDtoValue, TEntityValue>(
+                    Expression<Func<TDto, TDtoValue?>> dto,
+                    Expression<Func<TEntity, TEntityValue?>> entity,
+                    Func<TDtoValue?, TEntityValue?> convert) => this;
+                public SparseEntityMapBuilder<TEntity, TDto> Ignore<TValue>(
+                    Expression<Func<TDto, TValue?>> dto) => this;
                 public SparseEntityMapBuilder<TEntity, TDto> Object<TDtoChild, TEntityChild>(
                     Expression<Func<TDto, TDtoChild?>> dto,
                     Expression<Func<TEntity, TEntityChild?>> entity,
@@ -159,6 +165,12 @@ public sealed class SparseEntityMapperEmitterTests
         sources.ShouldContain(
             "builder.DeclareCollection(static dto => dto.Lines, static entity => entity.Lines);"
         );
+        // Path-scoped conventional element defaults ride alongside the marker.
+        sources.ShouldContain("builder.DeclareCollectionElement<");
+        sources.ShouldContain("LineDto,");
+        sources.ShouldContain(
+            "child.Member(static dto => dto.Qty, static entity => entity.Qty);"
+        );
         // Renamed/flattened pairs stay explicit-only: no guessed default.
         sources.ShouldNotContain("Renamed");
         sources.ShouldNotContain("CustomerName");
@@ -201,6 +213,242 @@ public sealed class SparseEntityMapperEmitterTests
         match.GetMessage().ShouldContain("OrderDto.Code");
         match.Location.IsInSource.ShouldBeTrue();
         sources.ShouldNotContain("dto.Code");
+    }
+
+    [Test]
+    public void NullableValueMismatchReportsSpf033ButAnnotationsDoNot()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public int? Count { get; set; }
+                    public string? Label { get; set; }
+                }
+                public sealed class OrderEntity
+                {
+                    public int Count { get; set; }
+                    public string Label { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, sources) = RunDriver(source);
+        // Nullable<T> never matches its underlying type (runtime exact-type
+        // check parity), while reference-type annotations are ignored.
+        var match = diagnostics.Single(static d => d.Id == "SPF033");
+        match.GetMessage().ShouldContain("OrderDto.Count");
+        sources.ShouldNotContain("dto.Count");
+        sources.ShouldContain(
+            "builder.Member(static dto => dto.Label, static entity => entity.Label);"
+        );
+    }
+
+    [Test]
+    public void InheritedMembersEmitDefaults()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public class BaseDto
+                {
+                    public string Base { get; set; } = string.Empty;
+                }
+                public sealed class OrderDto : BaseDto
+                {
+                    public string Own { get; set; } = string.Empty;
+                }
+                public class BaseEntity
+                {
+                    public string Base { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity : BaseEntity
+                {
+                    public string Own { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var sources = RenderDirect(source, "Probe.OrderMapper");
+        sources.ShouldContain(
+            "builder.Member(static dto => dto.Own, static entity => entity.Own);"
+        );
+        sources.ShouldContain(
+            "builder.Member(static dto => dto.Base, static entity => entity.Base);"
+        );
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+    }
+
+    [Test]
+    public void ExplicitConvertSuppressesSpf033()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Code { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public int Code { get; set; }
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    {
+                        map.Member(dto => dto.Code, entity => entity.Code, code => code == null ? 0 : int.Parse(code));
+                    }
+                }
+            }
+            """;
+        var (diagnostics, sources) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        sources.ShouldNotContain("dto.Code");
+    }
+
+    [Test]
+    public void ExplicitIgnoreSuppressesSpf033()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Code { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public int Code { get; set; }
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    {
+                        map.Ignore(dto => dto.Code);
+                    }
+                }
+            }
+            """;
+        var (diagnostics, sources) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        sources.ShouldNotContain("dto.Code");
+    }
+
+    [Test]
+    public void DynamicConfigureLeavesSpf033ToRuntime()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Code { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public int Code { get; set; }
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    {
+                        Setup(map);
+                    }
+                    private static void Setup(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    {
+                        map.Ignore(dto => dto.Code);
+                    }
+                }
+            }
+            """;
+        // Helper-delegated Configure bodies are outside the analyzable subset:
+        // nothing is provable, so no SPF033 fires and runtime plan validation
+        // remains the backstop.
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+    }
+
+    [Test]
+    public void KeywordMembersEscapeAndCompile()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string @event { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string @event { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, sources) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain("dto.@event");
+        emitted.ShouldContain("entity.@event");
+
+        // Compile fixture: the emitted companion must build with the probe.
+        var tree = CSharpSyntaxTree.ParseText(StubUsings + source + Stubs + emitted);
+        var tpa = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(
+            Path.PathSeparator
+        );
+        var references = tpa.Select(path =>
+                (MetadataReference)MetadataReference.CreateFromFile(path)
+            )
+            .ToList();
+        references.Add(
+            MetadataReference.CreateFromFile(typeof(SparseFragmentModelAttribute).Assembly.Location)
+        );
+        var compilation = CSharpCompilation.Create(
+            "SparseEntityMapperCompileProbe",
+            [tree],
+            references,
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary
+            ).WithNullableContextOptions(NullableContextOptions.Enable)
+        );
+        compilation
+            .GetDiagnostics()
+            .Where(static d => d.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using EfCoreSample.Contracts;
 using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
+using SparseFragments.EntityFrameworkCore.Mapping;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
 
@@ -102,6 +103,46 @@ public sealed class DirectApplyRegressionTests
     }
 
     [Test]
+    public async Task DetachedRootAndNestedStayDetachedOnFailure()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+
+        // Fully detached graph: validation must not attach the root or the
+        // owned nested instance when a later member fails deterministically.
+        var entity = new OrderEntity
+        {
+            CustomerName = "Ann",
+            Notes = "keep",
+            Code = "ABC",
+            Address = new AddressEntity { Street = "Old Street", City = "Osaka" },
+        };
+        var current = ReadOrderDto(entity);
+        var basis = Present(OrderDto.Fragment.From(current));
+        var builder = basis.Value!.ToBuilder();
+        builder.Notes = Optional<string?>.Missing;
+        var addressBuilder = builder.Address.Value!.ToBuilder();
+        addressBuilder.Street = Optional<string>.Present("New Street");
+        builder.Address = Optional<AddressDto.Fragment?>.Present(addressBuilder.Build());
+        var accepted = OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
+        counter.Reset();
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>
+                .Create(new OrderMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.MissingNotHandled);
+        context.ChangeTracker.Entries().ShouldBeEmpty();
+        context.Entry(entity).State.ShouldBe(EntityState.Detached);
+        context.Entry(entity.Address!).State.ShouldBe(EntityState.Detached);
+        entity.Notes.ShouldBe("keep");
+        entity.Address!.Street.ShouldBe("Old Street");
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
     public async Task NullCollectionPreflightLeavesNavigationUntouched()
     {
         using var connection = TestDatabases.OpenMemory();
@@ -132,13 +173,65 @@ public sealed class DirectApplyRegressionTests
         var incoming = new OrderDto { Lines = [] };
         var accepted = current.CreateChangeSet(incoming);
 
+        // A null but settable navigation validates against an empty preflight
+        // stand-in: the removal resolves to no tracked identity without ever
+        // assigning the navigation.
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<OrderEntity, OrderDto>
                 .Create(new OrderMapper(), context.Model)
                 .Apply(context, entity, accepted)
         );
-        error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
+        error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionKeyNotFound);
         context.Entry(entity).Collection(static order => order.Lines).CurrentValue.ShouldBeNull();
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task NullSettableCollectionAcceptsPureAddition()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var entity = context
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Notes = "keep",
+                    Code = "ABC",
+                    Address = new AddressEntity { Street = "Old", City = "Osaka" },
+                    Lines = null!,
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        context.Entry(entity).Collection(static order => order.Lines).IsLoaded = true;
+        counter.Reset();
+
+        // Pure additions never need existing members, so the execution phase
+        // assigns the list that preflight refused to touch.
+        var current = new OrderDto { Lines = [] };
+        var incoming = new OrderDto
+        {
+            Lines =
+            [
+                new OrderLineDto
+                {
+                    Quantity = 1,
+                    UnitPrice = 10m,
+                    TemporaryId = Guid.NewGuid(),
+                },
+            ],
+        };
+        var accepted = current.CreateChangeSet(incoming);
+
+        SparseEntityMapper<OrderEntity, OrderDto>
+            .Create(new OrderMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Lines.ShouldNotBeNull();
+        entity.Lines.Count.ShouldBe(1);
+        entity.Lines[0].Quantity.ShouldBe(1);
         counter.Commands.ShouldBe(0);
     }
 
@@ -649,6 +742,59 @@ public sealed class DirectApplyRegressionTests
     }
 
     [Test]
+    public void RequiresGeneratedDefaultsReflectsAttribute()
+    {
+        // Wiring proof complement: attributed mappers demand a companion at
+        // creation (the suite passing is the end-to-end wiring fixture), while
+        // plain mappings keep the scoped inference fallback.
+        GeneratedDefaults.RequiresGeneratedDefaults(typeof(WidgetMapper)).ShouldBeTrue();
+        GeneratedDefaults.RequiresGeneratedDefaults(typeof(DeviceMapper)).ShouldBeFalse();
+    }
+
+    [Test]
+    public void GeneratedMarkerAloneDoesNotCoverCollections()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateSample(connection, new QueryCounter());
+        // The companion emits a DeclareCollection marker for Lines, but the
+        // marker carries no synchronization behavior: creation must fail even
+        // though no change set touches the collection. Only a full
+        // Collection() mapping or Ignore() covers the path.
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>.Create(
+                new UnconfiguredLinesMapper(),
+                context.Model
+            )
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.Unmapped);
+        error.DtoPath.ShouldBe("Lines");
+    }
+
+    [SparseFragmentMapper]
+    public sealed class UnconfiguredLinesMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    {
+        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        {
+            map.Member(dto => dto.Name, entity => entity.CustomerName);
+            map.Member(
+                dto => dto.Code,
+                entity => entity.Code,
+                code => code == null ? null : code.ToUpperInvariant()
+            );
+            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            map.Ignore(dto => dto.DisplayTotal);
+            map.Object(
+                dto => dto.Address,
+                entity => entity.Address,
+                child =>
+                {
+                    child.Ignore(address => address.City);
+                }
+            );
+        }
+    }
+
+    [Test]
     public void FailuresCarryMapperTypePathAndCategory()
     {
         using var connection = TestDatabases.OpenMemory();
@@ -660,6 +806,514 @@ public sealed class DirectApplyRegressionTests
         error.DtoPath.ShouldBe("Courses");
         error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionNotSupported);
         error.InnerException.ShouldBeOfType<SparseEntityMappingException>();
+    }
+
+    [Test]
+    public async Task KeyedAdditionWithNestedReferencePersists()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .Parcels.Add(
+                new ParcelEntity
+                {
+                    Lines =
+                    [
+                        new ParcelLineEntity
+                        {
+                            Qty = 1,
+                            ShipTo = new ParcelAddressEntity { City = "Osaka" },
+                        },
+                    ],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
+        counter.Reset();
+
+        // Wholesale creation of an added element must project the nested
+        // snapshot through the DTO selector: a blind cast of the element
+        // snapshot previously threw InvalidCastException here.
+        static ParcelDto Read(ParcelEntity parcel) =>
+            new()
+            {
+                Lines = parcel
+                    .Lines.Select(static line => new ParcelLineDto
+                    {
+                        Id = line.Id,
+                        Qty = line.Qty,
+                        ShipTo = line.ShipTo is null
+                            ? null
+                            : new ParcelAddressDto { City = line.ShipTo.City },
+                    })
+                    .ToList(),
+            };
+        var current = Read(entity);
+        var incoming = Read(entity);
+        incoming.Lines.Single(static line => line.Qty == 1).ShipTo!.City = "Kyoto";
+        incoming.Lines.Add(
+            new ParcelLineDto
+            {
+                Qty = 2,
+                TemporaryId = Guid.NewGuid(),
+                ShipTo = new ParcelAddressDto { City = "Nara" },
+            }
+        );
+        var accepted = current.CreateChangeSet(incoming);
+
+        SparseEntityMapper<ParcelEntity, ParcelDto>
+            .Create(new ParcelMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Lines.Single(static line => line.Qty == 1).ShipTo!.City.ShouldBe("Kyoto");
+        var created = entity.Lines.Single(static line => line.Qty == 2);
+        created.ShipTo.ShouldNotBeNull();
+        created.ShipTo!.City.ShouldBe("Nara");
+        counter.Commands.ShouldBe(0);
+
+        await context.SaveChangesAsync();
+        using var verify = TestDatabases.CreateKeyed(connection, new QueryCounter());
+        var reloaded = verify
+            .Parcels.Include(static parcel => parcel.Lines)
+            .ThenInclude(static line => line.ShipTo)
+            .Single(parcel => parcel.Id == entity.Id);
+        reloaded.Lines.Single(static line => line.Qty == 2).ShipTo!.City.ShouldBe("Nara");
+    }
+
+    public sealed class ParcelMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
+    {
+        public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
+        {
+            map.Collection<ParcelLineDto, ParcelLineEntity>(
+                dto => dto.Lines,
+                entity => entity.Lines,
+                lines =>
+                {
+                    lines.Element(child =>
+                    {
+                        child.Ignore(line => line.Id);
+                        child.Ignore(line => line.TemporaryId);
+                        child.Object(
+                            line => line.ShipTo,
+                            entity => entity.ShipTo,
+                            address => { }
+                        );
+                        child.Collection<ParcelTagDto, ParcelTagEntity>(
+                            dto => dto.Tags,
+                            entity => entity.Tags,
+                            tags =>
+                            {
+                                tags.Element(tag =>
+                                {
+                                    tag.AllowWrite(tag => tag.Label);
+                                });
+                                tags.Delete();
+                            }
+                        );
+                    });
+                    lines.Delete();
+                }
+            );
+        }
+    }
+
+    [Test]
+    public async Task WholesaleCreationReplacesFactoryChildren()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context.Parcels.Add(new ParcelEntity { Lines = [] }).Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
+        counter.Reset();
+
+        // The factory pre-populates nested tags absent from the After
+        // snapshot: wholesale creation must replace, never append, and an
+        // empty snapshot must clear.
+        static ParcelDto Read(ParcelEntity parcel) =>
+            new()
+            {
+                Lines = parcel
+                    .Lines.Select(static line => new ParcelLineDto
+                    {
+                        Id = line.Id,
+                        Qty = line.Qty,
+                        Tags = line
+                            .Tags.Select(static tag => new ParcelTagDto { Label = tag.Label })
+                            .ToList(),
+                    })
+                    .ToList(),
+            };
+        var current = Read(entity);
+        var incoming = Read(entity);
+        incoming.Lines.Add(
+            new ParcelLineDto
+            {
+                Qty = 4,
+                TemporaryId = Guid.NewGuid(),
+                Tags = [new ParcelTagDto { Label = "keep" }],
+            }
+        );
+        incoming.Lines.Add(
+            new ParcelLineDto
+            {
+                Qty = 5,
+                TemporaryId = Guid.NewGuid(),
+                Tags = [],
+            }
+        );
+        var accepted = current.CreateChangeSet(incoming);
+
+        SparseEntityMapper<ParcelEntity, ParcelDto>
+            .Create(new ParcelJunkMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Lines.Count.ShouldBe(2);
+        entity.Lines.Single(static line => line.Qty == 4).Tags.Select(static tag => tag.Label).ShouldBe(["keep"]);
+        entity.Lines.Single(static line => line.Qty == 5).Tags.ShouldBeEmpty();
+        counter.Commands.ShouldBe(0);
+    }
+
+    /// <summary>Factory pre-populates nested tags to prove wholesale replacement.</summary>
+    public sealed class ParcelJunkMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
+    {
+        public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
+        {
+            map.Collection<ParcelLineDto, ParcelLineEntity>(
+                dto => dto.Lines,
+                entity => entity.Lines,
+                lines =>
+                {
+                    lines.Element(child =>
+                    {
+                        child.Ignore(line => line.Id);
+                        child.Ignore(line => line.TemporaryId);
+                        child.Object(
+                            line => line.ShipTo,
+                            entity => entity.ShipTo,
+                            address => { }
+                        );
+                        child.Collection<ParcelTagDto, ParcelTagEntity>(
+                            dto => dto.Tags,
+                            entity => entity.Tags,
+                            tags =>
+                            {
+                                tags.Element(tag =>
+                                {
+                                    tag.AllowWrite(tag => tag.Label);
+                                });
+                                tags.Delete();
+                            }
+                        );
+                    });
+                    lines.Create(dto => new ParcelLineEntity
+                    {
+                        Qty = dto.Qty,
+                        Tags =
+                        [
+                            new ParcelTagEntity { Label = $"junk-{dto.Qty}-1" },
+                            new ParcelTagEntity { Label = $"junk-{dto.Qty}-2" },
+                        ],
+                    });
+                    lines.Delete();
+                }
+            );
+        }
+    }
+
+    [Test]
+    public async Task ReorderWithEditAndWithoutOrderSetterFails()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var entity = SeedOrder(context);
+        counter.Reset();
+
+        // Reordering alongside an edit still cannot persist positions without
+        // Order(): the in-memory list must not move either.
+        var current = ReadOrderDto(entity);
+        var incoming = ReadOrderDto(entity);
+        incoming.Lines.Single(static line => line.Quantity == 2).Quantity = 5;
+        var reordered = new List<OrderLineDto>
+        {
+            incoming.Lines[1],
+            incoming.Lines[0],
+            incoming.Lines[2],
+        };
+        incoming.Lines.Clear();
+        incoming.Lines.AddRange(reordered);
+        var accepted = current.CreateChangeSet(incoming);
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>
+                .Create(new KeyedCollectionMappingTests.OrderNoOrderMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionNotSupported);
+        entity.Lines.Select(static line => line.Quantity).ShouldBe([1, 2, 3]);
+        context
+            .Entry(entity.Lines[1])
+            .Properties.Where(static property => property.IsModified)
+            .ShouldBeEmpty();
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task StaleOmissionUnderDeleteFailsPreflight()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .SkuOrders.Add(
+                new SkuOrderEntity
+                {
+                    Lines =
+                    [
+                        new SkuLineEntity { Sku = "a", Qty = 1 },
+                        new SkuLineEntity { Sku = "b", Qty = 2 },
+                    ],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static order => order.Lines).LoadAsync();
+        var trackedBefore = context.ChangeTracker.Entries().Count();
+        counter.Reset();
+
+        // Stale caller DTO: tracked line "b" is absent without a removal, so
+        // the membership evidence is incomplete and the apply must fail before
+        // the addition mutates anything.
+        var current = new SkuOrderDto { Lines = [new SkuLineDto { Sku = "a", Qty = 1 }] };
+        var incoming = new SkuOrderDto
+        {
+            Lines = [new SkuLineDto { Sku = "a", Qty = 1 }, new SkuLineDto { Sku = "c", Qty = 3 }],
+        };
+        var accepted = current.CreateChangeSet(incoming);
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<SkuOrderEntity, SkuOrderDto>
+                .Create(new SkuOrderMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionKeyNotFound);
+        entity.Lines.Count.ShouldBe(2);
+        context.ChangeTracker.Entries().Count().ShouldBe(trackedBefore);
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task SecondApplyOnSoftDeleteCollectionSucceeds()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .SoftOrders.Add(
+                new SoftOrderEntity
+                {
+                    Lines = [new SoftLineEntity { Qty = 1 }, new SoftLineEntity { Qty = 2 }],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static order => order.Lines).LoadAsync();
+
+        static SoftOrderDto Read(SoftOrderEntity order) =>
+            new()
+            {
+                Lines = order
+                    .Lines.Where(static line => !line.IsDeleted)
+                    .OrderBy(static line => line.Id)
+                    .Select(static line => new SoftLineDto { Id = line.Id, Qty = line.Qty })
+                    .ToList(),
+            };
+        var first = Read(entity);
+        var second = Read(entity);
+        second.Lines.RemoveAll(static line => line.Qty == 1);
+        var removed = first.CreateChangeSet(second);
+        SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
+            .Create(
+                new KeyedCollectionPolicyTests.SoftOrderMapper(),
+                context.Model
+            )
+            .Apply(context, entity, removed);
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        // The flagged row stays tracked but leaves the DTO projection. The
+        // next addition must retain it instead of failing on incomplete order
+        // evidence.
+        var current = Read(entity);
+        current.Lines.Count.ShouldBe(1);
+        var incoming = Read(entity);
+        // Assigned key (no sentinel hit, no temporary needed): the flagged row
+        // stays invisible to the DTO while the addition resolves by key.
+        incoming.Lines.Add(new SoftLineDto { Id = 100, Qty = 3 });
+        var accepted = current.CreateChangeSet(incoming);
+
+        SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
+            .Create(
+                new KeyedCollectionPolicyTests.SoftOrderMapper(),
+                context.Model
+            )
+            .Apply(context, entity, accepted);
+
+        entity.Lines.Count.ShouldBe(3);
+        entity.Lines.Single(static line => line.Qty == 1).IsDeleted.ShouldBeTrue();
+        entity.Lines.Single(static line => line.Qty == 3).IsDeleted.ShouldBeFalse();
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task LateMissingDefaultPropagatesToChildScope()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var strict = context
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Notes = "keep",
+                    Code = "ABC",
+                    Address = new AddressEntity { Street = "Old", City = "Osaka" },
+                }
+            )
+            .Entity;
+        var lenient = context
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Notes = "keep",
+                    Code = "ABC",
+                    Address = new AddressEntity { Street = "Old", City = "Osaka" },
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        static global::SparseFragments.ISparseChangeSet MissingStreet(OrderDto current)
+        {
+            var basis = Present(OrderDto.Fragment.From(current));
+            var builder = basis.Value!.ToBuilder();
+            var addressBuilder = builder.Address.Value!.ToBuilder();
+            addressBuilder.Street = Optional<string>.Missing;
+            builder.Address = Optional<AddressDto.Fragment?>.Present(addressBuilder.Build());
+            return OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
+        }
+
+        // FlagMapper declares Object(Address) before MissingDefault: the root
+        // default still governs the child scope (resolved at plan build).
+        // Street is non-nullable, so SetNull surfaces as NullNotAllowed while
+        // Throw surfaces as MissingNotHandled.
+        var strictError = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>
+                .Create(new FlagMapper(false), context.Model)
+                .Apply(context, strict, MissingStreet(Current(strict)))
+        );
+        strictError.Failure.ShouldBe(SparseEntityMappingFailure.MissingNotHandled);
+        strictError.DtoPath.ShouldBe("Address.Street");
+
+        var lenientError = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>
+                .Create(new FlagMapper(true), context.Model)
+                .Apply(context, lenient, MissingStreet(Current(lenient)))
+        );
+        lenientError.Failure.ShouldBe(SparseEntityMappingFailure.NullNotAllowed);
+        lenientError.DtoPath.ShouldBe("Address.Street");
+        counter.Commands.ShouldBe(0);
+
+        static OrderDto Current(OrderEntity order) =>
+            new()
+            {
+                Name = order.CustomerName,
+                Notes = order.Notes,
+                Code = order.Code,
+                ShipCity = order.Address?.City ?? string.Empty,
+                Address = order.Address is null
+                    ? null
+                    : new AddressDto
+                    {
+                        Street = order.Address.Street,
+                        City = order.Address.City,
+                    },
+            };
+    }
+
+    [Test]
+    public async Task ExplicitChildDefaultWinsOverRoot()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var entity = context
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Notes = "keep",
+                    Code = "ABC",
+                    Address = new AddressEntity { Street = "Old", City = "Osaka" },
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        var current = new OrderDto
+        {
+            Name = entity.CustomerName,
+            Notes = entity.Notes,
+            Code = entity.Code,
+            ShipCity = entity.Address!.City,
+            Address = new AddressDto { Street = "Old", City = "Osaka" },
+        };
+        var basis = Present(OrderDto.Fragment.From(current));
+        var builder = basis.Value!.ToBuilder();
+        var addressBuilder = builder.Address.Value!.ToBuilder();
+        addressBuilder.Street = Optional<string>.Missing;
+        builder.Address = Optional<AddressDto.Fragment?>.Present(addressBuilder.Build());
+        var accepted = OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
+
+        SparseEntityMapper<OrderEntity, OrderDto>
+            .Create(new ExplicitChildMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Address!.Street.ShouldBe("Old");
+        counter.Commands.ShouldBe(0);
+    }
+
+    public sealed class ExplicitChildMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    {
+        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        {
+            map.Member(dto => dto.Name, entity => entity.CustomerName);
+            map.Member(
+                dto => dto.Code,
+                entity => entity.Code,
+                code => code == null ? null : code.ToUpperInvariant()
+            );
+            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            map.Ignore(dto => dto.DisplayTotal);
+            map.Ignore(dto => dto.Lines);
+            map.Object(
+                dto => dto.Address,
+                entity => entity.Address,
+                child =>
+                {
+                    child.Ignore(address => address.City);
+                    child.MissingDefault(SparseEntityMissingPolicy.Ignore);
+                }
+            );
+        }
     }
 
     [Test]

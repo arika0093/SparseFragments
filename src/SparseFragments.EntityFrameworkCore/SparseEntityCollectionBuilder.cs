@@ -251,11 +251,12 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
     /// Persists collection order through a caller-supplied setter.
     /// </summary>
     /// <remarks>
-    /// Opt-in: without this call a pure reorder (no membership change) fails
-    /// explicitly instead of pretending the in-memory enumeration order is
-    /// persisted. Membership changes still reorder the tracked in-memory list
-    /// to the transition AfterOrder; the setter additionally writes the persisted
-    /// position for every element when the key order changed.
+    /// Opt-in: without this call any key-order change without membership
+    /// changes fails explicitly instead of pretending the in-memory
+    /// enumeration order is persisted. Membership changes still reorder the
+    /// tracked in-memory list to the transition AfterOrder; the setter
+    /// additionally writes the persisted position for every element when the
+    /// key order changed.
     /// </remarks>
     /// <param name="setOrder">Writes the zero-based position to the child.</param>
     /// <returns>This builder.</returns>

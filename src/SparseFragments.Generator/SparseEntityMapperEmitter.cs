@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SparseFragments.Generator.Shared;
 
 namespace SparseFragments.Generator;
@@ -88,6 +90,13 @@ internal static class SparseEntityMapperEmitter
         nesting.Reverse();
         nesting.Add(mapper.Name);
         var companionName = string.Join("_", nesting) + "_SparseEfDefaults";
+        // Supported-declarative Configure analysis: explicit Member/Ignore (and
+        // scoped Object/Collection/Element) registrations suppress SPF033 for
+        // the members they cover. A Configure body outside the analyzable
+        // subset (helpers, control flow, dynamic calls) suppresses nothing
+        // provable: diagnostics stay silent there and runtime plan validation
+        // remains the backstop.
+        var covered = TryCollectCoveredMembers(mapper);
         var indent = mapperNamespace is null ? 0 : 1;
         AppendIndent(code, indent).Append("internal static class ").AppendLine(companionName);
         AppendIndent(code, indent).AppendLine("{");
@@ -111,6 +120,8 @@ internal static class SparseEntityMapperEmitter
             "entity",
             "child",
             0,
+            string.Empty,
+            covered,
             visited,
             diagnostics,
             location
@@ -175,6 +186,8 @@ internal static class SparseEntityMapperEmitter
         string entityParameter,
         string childParameter,
         int depth,
+        string scope,
+        HashSet<(string Scope, string Member)>? covered,
         HashSet<string> visited,
         ImmutableArray<SparseGeneratorDiagnostic>.Builder diagnostics,
         Location? location
@@ -204,14 +217,69 @@ internal static class SparseEntityMapperEmitter
                     .Append(" => ")
                     .Append(dtoParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .Append(", static ")
                     .Append(entityParameter)
                     .Append(" => ")
                     .Append(entityParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .AppendLine(");");
+                var dtoElement = CollectionElementType(dtoPropertyType);
+                var entityElement = entityMember is not null
+                    ? CollectionElementType(GetMemberType(entityMember))
+                    : null;
+                if (
+                    dtoElement is INamedTypeSymbol dtoElementNamed
+                    && dtoElementNamed.TypeKind == TypeKind.Class
+                    && !IsScalarType(dtoElement)
+                    && entityElement is INamedTypeSymbol entityElementNamed
+                    && entityElementNamed.TypeKind == TypeKind.Class
+                )
+                {
+                    // Path-scoped conventional element defaults: the explicit
+                    // Collection(..., lines => lines.Element(...)) composes
+                    // these underneath its own overrides, which replace each
+                    // default exactly once. Policies stay explicit.
+                    AppendIndent(code, indent)
+                        .Append(builder)
+                        .Append(".DeclareCollectionElement<")
+                        .Append(
+                            dtoElement.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                        )
+                        .Append(", ")
+                        .Append(
+                            entityElement.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                        )
+                        .Append(">(static ")
+                        .Append(dtoParameter)
+                        .Append(" => ")
+                        .Append(dtoParameter)
+                        .Append('.')
+                        .Append(EscapeIdentifier(name))
+                        .Append(", static ")
+                        .Append(childParameter)
+                        .AppendLine(" =>");
+                    AppendIndent(code, indent).AppendLine("{");
+                    EmitDefaults(
+                        code,
+                        indent + 1,
+                        entityElementNamed,
+                        dtoElementNamed,
+                        childParameter,
+                        dtoParameter,
+                        entityParameter,
+                        childParameter,
+                        depth + 1,
+                        scope.Length == 0 ? name : scope + "." + name,
+                        covered,
+                        visited,
+                        diagnostics,
+                        location
+                    );
+                    AppendIndent(code, indent).AppendLine("});");
+                }
+
                 continue;
             }
 
@@ -223,8 +291,18 @@ internal static class SparseEntityMapperEmitter
 
             if (IsScalarType(dtoPropertyType) && IsScalarType(entityMemberType))
             {
-                if (!SameTypeIgnoringNullability(dtoPropertyType, entityMemberType))
+                if (!SameType(dtoPropertyType, entityMemberType))
                 {
+                    // Explicit Configure owns this path: no default to emit and
+                    // no diagnostic when the member is provably covered there.
+                    // An unanalyzable Configure proves nothing either way, so
+                    // diagnostics stay silent there with runtime plan validation
+                    // as the backstop.
+                    if (covered is null || covered.Contains((scope, name)))
+                    {
+                        continue;
+                    }
+
                     diagnostics.Add(
                         new SparseGeneratorDiagnostic(
                             SparseFragmentsDiagnosticIds.IncompatibleEntityDefaultMapping,
@@ -242,13 +320,13 @@ internal static class SparseEntityMapperEmitter
                     .Append(" => ")
                     .Append(dtoParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .Append(", static ")
                     .Append(entityParameter)
                     .Append(" => ")
                     .Append(entityParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .AppendLine(");");
                 continue;
             }
@@ -274,13 +352,13 @@ internal static class SparseEntityMapperEmitter
                     .Append(" => ")
                     .Append(dtoParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .Append(", static ")
                     .Append(entityParameter)
                     .Append(" => ")
                     .Append(entityParameter)
                     .Append('.')
-                    .Append(name)
+                    .Append(EscapeIdentifier(name))
                     .Append(", static ")
                     .Append(childParameter)
                     .AppendLine(" =>");
@@ -295,6 +373,8 @@ internal static class SparseEntityMapperEmitter
                     entityParameter,
                     childParameter,
                     depth + 1,
+                    scope.Length == 0 ? name : scope + "." + name,
+                    covered,
                     visited,
                     diagnostics,
                     location
@@ -305,22 +385,307 @@ internal static class SparseEntityMapperEmitter
         }
     }
 
-    private static List<IPropertySymbol> ListSettableProperties(INamedTypeSymbol type)
+    // Supported declarative Configure subset for SPF033 suppression: direct
+    // typed builder calls whose DTO selector is a single member access, with
+    // Object/Collection/Element lambdas tracked for scope. Anything else
+    // (helpers, control flow, dynamic calls) makes the whole Configure
+    // unanalyzable, in which case nothing is provable and diagnostics stay
+    // silent with runtime plan validation as the backstop.
+    private static HashSet<(string Scope, string Member)>? TryCollectCoveredMembers(
+        INamedTypeSymbol mapper
+    )
     {
-        var properties = new List<IPropertySymbol>();
-        foreach (var member in type.GetMembers().OfType<IPropertySymbol>())
+        var configure = mapper
+            .GetMembers("Configure")
+            .OfType<IMethodSymbol>()
+            .FirstOrDefault(static method => method.Parameters.Length == 1);
+        if (configure is null)
+        {
+            return null;
+        }
+
+        var declaration =
+            configure.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+            as MethodDeclarationSyntax;
+        if (declaration?.Body is not { } body)
+        {
+            return null;
+        }
+
+        var covered = new HashSet<(string Scope, string Member)>();
+        var vars = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [configure.Parameters[0].Name] = string.Empty,
+        };
+        return ProcessConfigureBlock(body, vars, covered) ? covered : null;
+    }
+
+    private static bool ProcessConfigureBlock(
+        BlockSyntax block,
+        Dictionary<string, string> vars,
+        HashSet<(string Scope, string Member)> covered
+    )
+    {
+        foreach (var statement in block.Statements)
         {
             if (
-                member.IsStatic
-                || member.IsIndexer
-                || member.GetMethod is null
-                || member.SetMethod is null
+                statement
+                    is not ExpressionStatementSyntax
+                    {
+                        Expression: InvocationExpressionSyntax invocation
+                    }
+                || !ProcessConfigureInvocation(invocation, vars, covered)
             )
             {
-                continue;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ProcessConfigureInvocation(
+        InvocationExpressionSyntax invocation,
+        Dictionary<string, string> vars,
+        HashSet<(string Scope, string Member)> covered
+    )
+    {
+        if (
+            invocation.Expression
+                is not MemberAccessExpressionSyntax
+                {
+                    Expression: IdentifierNameSyntax receiver,
+                    Name: IdentifierNameSyntax method
+                }
+            || !vars.TryGetValue(receiver.Identifier.Text, out var scope)
+        )
+        {
+            return false;
+        }
+
+        var arguments = invocation.ArgumentList.Arguments;
+        switch (method.Identifier.Text)
+        {
+            case "Member":
+            case "Write":
+            case "Ignore":
+            case "OnMissing":
+            case "AllowWrite":
+                if (arguments.Count > 0 && TrySingleMember(arguments[0].Expression, out var member))
+                {
+                    covered.Add((scope, member));
+                }
+
+                return true;
+            case "Object":
+            case "Collection":
+                if (
+                    arguments.Count == 0
+                    || !TrySingleMember(arguments[0].Expression, out var childMember)
+                )
+                {
+                    return true;
+                }
+
+                covered.Add((scope, childMember));
+                if (
+                    arguments.Count < 3
+                    || !TryLambdaStatements(
+                        arguments[2].Expression,
+                        out var parameter,
+                        out var statements
+                    )
+                )
+                {
+                    return arguments.Count < 3;
+                }
+
+                var childScope = scope.Length == 0 ? childMember : scope + "." + childMember;
+                var nested = new Dictionary<string, string>(vars, StringComparer.Ordinal)
+                {
+                    [parameter] = childScope,
+                };
+                return ProcessConfigureStatements(statements, nested, covered);
+            case "Element":
+                if (
+                    arguments.Count == 0
+                    || !TryLambdaStatements(
+                        arguments[0].Expression,
+                        out var elementParameter,
+                        out var elementStatements
+                    )
+                )
+                {
+                    return false;
+                }
+
+                var scoped = new Dictionary<string, string>(vars, StringComparer.Ordinal)
+                {
+                    [elementParameter] = scope,
+                };
+                return ProcessConfigureStatements(elementStatements, scoped, covered);
+            case "MissingDefault":
+            case "DeclareCollection":
+            case "DeclareCollectionElement":
+            case "Key":
+            case "Create":
+            case "Remove":
+            case "Delete":
+            case "Detach":
+            case "SoftDelete":
+            case "Order":
+            case "UnassignedKey":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool ProcessConfigureStatements(
+        IReadOnlyList<StatementSyntax> statements,
+        Dictionary<string, string> vars,
+        HashSet<(string Scope, string Member)> covered
+    )
+    {
+        foreach (var statement in statements)
+        {
+            if (
+                statement
+                    is not ExpressionStatementSyntax
+                    {
+                        Expression: InvocationExpressionSyntax invocation
+                    }
+                || !ProcessConfigureInvocation(invocation, vars, covered)
+            )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TrySingleMember(ExpressionSyntax expression, out string member)
+    {
+        member = string.Empty;
+        if (
+            expression
+                is SimpleLambdaExpressionSyntax
+                {
+                    Parameter: var token,
+                    Body: MemberAccessExpressionSyntax
+                    {
+                        Expression: IdentifierNameSyntax receiver,
+                        Name: IdentifierNameSyntax name
+                    }
+                }
+            && receiver.Identifier.Text == token.Identifier.Text
+        )
+        {
+            member = name.Identifier.Text;
+            return true;
+        }
+
+        if (
+            expression
+                is ParenthesizedLambdaExpressionSyntax
+                {
+                    ParameterList.Parameters.Count: 1
+                } parenthesized
+            && parenthesized.Body
+                is MemberAccessExpressionSyntax
+                {
+                    Expression: IdentifierNameSyntax parenthesizedReceiver,
+                    Name: IdentifierNameSyntax parenthesizedName
+                }
+            && parenthesizedReceiver.Identifier.Text
+                == parenthesized.ParameterList.Parameters[0].Identifier.Text
+        )
+        {
+            member = parenthesizedName.Identifier.Text;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryLambdaStatements(
+        ExpressionSyntax expression,
+        out string parameter,
+        out IReadOnlyList<StatementSyntax> statements
+    )
+    {
+        parameter = string.Empty;
+        statements = [];
+        if (expression is SimpleLambdaExpressionSyntax simple)
+        {
+            parameter = simple.Parameter.Identifier.Text;
+            if (simple.Body is BlockSyntax block)
+            {
+                statements = block.Statements;
+                return true;
             }
 
-            properties.Add(member);
+            if (simple.Body is ExpressionSyntax body)
+            {
+                statements = [SyntaxFactory.ExpressionStatement(body)];
+                return true;
+            }
+
+            return false;
+        }
+
+        if (
+            expression is ParenthesizedLambdaExpressionSyntax
+            {
+                ParameterList.Parameters.Count: 1
+            } parenthesized
+        )
+        {
+            parameter = parenthesized.ParameterList.Parameters[0].Identifier.Text;
+            if (parenthesized.Body is BlockSyntax parenthesizedBlock)
+            {
+                statements = parenthesizedBlock.Statements;
+                return true;
+            }
+
+            if (parenthesized.Body is ExpressionSyntax parenthesizedBody)
+            {
+                statements = [SyntaxFactory.ExpressionStatement(parenthesizedBody)];
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static List<IPropertySymbol> ListSettableProperties(INamedTypeSymbol type)
+    {
+        // Walk the base chain explicitly: inherited writable properties take
+        // conventional defaults too, with the nearest declaration winning.
+        var properties = new List<IPropertySymbol>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (
+            var current = type;
+            current is not null && current.SpecialType != SpecialType.System_Object;
+            current = current.BaseType
+        )
+        {
+            foreach (var member in current.GetMembers().OfType<IPropertySymbol>())
+            {
+                if (
+                    member.IsStatic
+                    || member.IsIndexer
+                    || member.GetMethod is null
+                    || member.SetMethod is null
+                    || !seen.Add(member.Name)
+                )
+                {
+                    continue;
+                }
+
+                properties.Add(member);
+            }
         }
 
         return properties;
@@ -328,21 +693,28 @@ internal static class SparseEntityMapperEmitter
 
     private static ISymbol? FindEntityMember(INamedTypeSymbol entityType, string name)
     {
-        foreach (var member in entityType.GetMembers(name))
+        for (
+            var current = entityType;
+            current is not null && current.SpecialType != SpecialType.System_Object;
+            current = current.BaseType
+        )
         {
-            if (member.IsStatic)
+            foreach (var member in current.GetMembers(name))
             {
-                continue;
-            }
+                if (member.IsStatic)
+                {
+                    continue;
+                }
 
-            if (member is IPropertySymbol property && property.GetMethod is not null)
-            {
-                return property;
-            }
+                if (member is IPropertySymbol property && property.GetMethod is not null)
+                {
+                    return property;
+                }
 
-            if (member is IFieldSymbol)
-            {
-                return member;
+                if (member is IFieldSymbol)
+                {
+                    return member;
+                }
             }
         }
 
@@ -410,6 +782,14 @@ internal static class SparseEntityMapperEmitter
             && array.Rank == 1;
     }
 
+    private static ITypeSymbol? CollectionElementType(ITypeSymbol? type) =>
+        type switch
+        {
+            IArrayTypeSymbol array => array.ElementType,
+            INamedTypeSymbol named when named.TypeArguments.Length == 1 => named.TypeArguments[0],
+            _ => null,
+        };
+
     private static bool IsCollectionType(ITypeSymbol type)
     {
         if (type.SpecialType == SpecialType.System_String)
@@ -431,36 +811,11 @@ internal static class SparseEntityMapperEmitter
         );
     }
 
-    private static bool SameTypeIgnoringNullability(ITypeSymbol left, ITypeSymbol right)
-    {
-        var unwrappedLeft = UnwrapNullable(left);
-        var unwrappedRight = UnwrapNullable(right);
-        if (!SymbolEqualityComparer.Default.Equals(unwrappedLeft, unwrappedRight))
-        {
-            if (
-                unwrappedLeft is INamedTypeSymbol leftNamed
-                && unwrappedRight is INamedTypeSymbol rightNamed
-            )
-            {
-                return string.Equals(
-                    leftNamed.OriginalDefinition.ToDisplayString(),
-                    rightNamed.OriginalDefinition.ToDisplayString(),
-                    StringComparison.Ordinal
-                );
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
-    private static ITypeSymbol UnwrapNullable(ITypeSymbol type) =>
-        type is INamedTypeSymbol named
-        && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
-        && named.TypeArguments.Length == 1
-            ? named.TypeArguments[0]
-            : type;
+    // Exact-type parity with the runtime plan check: reference-type nullable
+    // annotations are ignored by the comparer, but Nullable<T> value types
+    // never match their underlying type (int? versus int reports SPF033).
+    private static bool SameType(ITypeSymbol left, ITypeSymbol right) =>
+        SymbolEqualityComparer.Default.Equals(left, right);
 
     private static StringBuilder AppendIndent(StringBuilder code, int indent)
     {
@@ -471,4 +826,12 @@ internal static class SparseEntityMapperEmitter
 
         return code;
     }
+
+    // A valid model property may spell a reserved or contextual keyword
+    // (@event): the symbol name needs an escape for member access emission.
+    internal static string EscapeIdentifier(string name) =>
+        SyntaxFacts.GetKeywordKind(name) != SyntaxKind.None
+        || SyntaxFacts.GetContextualKeywordKind(name) != SyntaxKind.None
+            ? "@" + name
+            : name;
 }

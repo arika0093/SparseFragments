@@ -386,6 +386,106 @@ public sealed class CourseEntity
     public List<StudentEntity> Students { get; set; } = [];
 }
 
+/// <summary>Nested address DTO carried by a keyed element.</summary>
+[SparseFragmentModel]
+public partial class ParcelAddressDto
+{
+    /// <summary>Gets or sets the city.</summary>
+    public string City { get; set; } = string.Empty;
+}
+
+/// <summary>Tag DTO nested one more level under a keyed element.</summary>
+public partial class ParcelTagDto
+{
+    /// <summary>Gets or sets the tag label, acting as its stable key.</summary>
+    [SparseKey]
+    public string Label { get; set; } = string.Empty;
+}
+
+/// <summary>DTO line with a nested reference under keyed synchronization.</summary>
+public partial class ParcelLineDto
+{
+    /// <summary>Gets or sets the persisted identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets the stable key.</summary>
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Qty { get; set; }
+
+    /// <summary>Gets or sets the nested ship-to address.</summary>
+    public ParcelAddressDto? ShipTo { get; set; }
+
+    /// <summary>Gets or sets the nested tags.</summary>
+    public List<ParcelTagDto> Tags { get; set; } = [];
+}
+
+/// <summary>DTO holding parcel lines.</summary>
+[SparseFragmentModel]
+public partial class ParcelDto
+{
+    /// <summary>Gets or sets the lines.</summary>
+    public List<ParcelLineDto> Lines { get; set; } = [];
+}
+
+/// <summary>Entity holding parcel lines.</summary>
+public sealed class ParcelEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the lines.</summary>
+    public List<ParcelLineEntity> Lines { get; set; } = [];
+}
+
+/// <summary>Owned ship-to address of a parcel line.</summary>
+public sealed class ParcelAddressEntity
+{
+    /// <summary>Gets or sets the city.</summary>
+    public string City { get; set; } = string.Empty;
+}
+
+/// <summary>Tag entity nested under a parcel line.</summary>
+public sealed class ParcelTagEntity
+{
+    /// <summary>Gets or sets the tag label, acting as its stable key.</summary>
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the owning line identity.</summary>
+    public int LineId { get; set; }
+
+    /// <summary>Gets or sets the owning line.</summary>
+    public ParcelLineEntity? Line { get; set; }
+}
+
+/// <summary>Line entity with a nested owned reference.</summary>
+public sealed class ParcelLineEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Qty { get; set; }
+
+    /// <summary>Gets or sets the nested ship-to address.</summary>
+    public ParcelAddressEntity? ShipTo { get; set; }
+
+    /// <summary>Gets or sets the nested tags.</summary>
+    public List<ParcelTagEntity> Tags { get; set; } = [];
+
+    /// <summary>Gets or sets the owning parcel identity.</summary>
+    public int ParcelId { get; set; }
+
+    /// <summary>Gets or sets the owning parcel.</summary>
+    public ParcelEntity? Parcel { get; set; }
+}
+
 /// <summary>SQLite in-memory context for the keyed mapping test models.</summary>
 public sealed class KeyedMappingContext : DbContext
 {
@@ -414,6 +514,9 @@ public sealed class KeyedMappingContext : DbContext
 
     /// <summary>Gets the courses.</summary>
     public DbSet<CourseEntity> Courses => Set<CourseEntity>();
+
+    /// <summary>Gets the parcel owners.</summary>
+    public DbSet<ParcelEntity> Parcels => Set<ParcelEntity>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -486,6 +589,29 @@ public sealed class KeyedMappingContext : DbContext
         modelBuilder.Entity<CourseEntity>(entity =>
         {
             entity.HasKey(course => course.Id);
+        });
+        modelBuilder.Entity<ParcelEntity>(entity =>
+        {
+            entity.HasKey(parcel => parcel.Id);
+            entity
+                .HasMany(parcel => parcel.Lines)
+                .WithOne(line => line.Parcel)
+                .HasForeignKey(line => line.ParcelId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ParcelLineEntity>(entity =>
+        {
+            entity.HasKey(line => line.Id);
+            entity.OwnsOne(line => line.ShipTo);
+            entity
+                .HasMany(line => line.Tags)
+                .WithOne(tag => tag.Line)
+                .HasForeignKey(tag => tag.LineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ParcelTagEntity>(entity =>
+        {
+            entity.HasKey(tag => tag.Label);
         });
     }
 }

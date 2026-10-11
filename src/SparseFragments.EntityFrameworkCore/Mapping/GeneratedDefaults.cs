@@ -1,5 +1,18 @@
 namespace SparseFragments.EntityFrameworkCore.Mapping;
 
+/// <summary>How source-generated conventional defaults resolved for one mapping.</summary>
+public enum GeneratedDefaultsStatus
+{
+    /// <summary>A companion ran and registered conventional defaults.</summary>
+    Applied,
+
+    /// <summary>No companion type was found for the mapping.</summary>
+    MissingCompanion,
+
+    /// <summary>A companion exists but exposes no compatible registration entry.</summary>
+    IncompatibleCompanion,
+}
+
 /// <summary>
 /// Applies source-generated conventional defaults emitted by the ordinary
 /// <c>SparseFragments.Generator</c> for <c>[SparseFragmentMapper]</c> types.
@@ -12,17 +25,31 @@ namespace SparseFragments.EntityFrameworkCore.Mapping;
 /// Reflection here only locates that explicitly registered companion; it never
 /// scans DTO members for fallback implicit mapping. Registrations run in
 /// generated-default mode so an explicit <c>Configure</c> entry replaces each
-/// default exactly once at the same DTO path. When no companion exists (a
-/// compilation without the generator), the scoped runtime inference in
-/// <c>EntityPlan</c> still validates.
+/// default exactly once at the same DTO path. Mappings without the marker
+/// attribute keep the scoped runtime inference fallback.
 /// </remarks>
-internal static class GeneratedDefaults
+public static class GeneratedDefaults
 {
+    /// <summary>Gets whether a mapping opts into source-generated defaults.</summary>
+    /// <remarks>
+    /// True for <c>[SparseFragmentMapper]</c> mappings, whose companion must
+    /// exist at mapper creation; otherwise creation fails fast instead of
+    /// silently falling back to runtime inference.
+    /// </remarks>
+    /// <param name="mappingType">The mapper implementation type.</param>
+    /// <returns>True when the mapper carries the marker attribute.</returns>
+    public static bool RequiresGeneratedDefaults(Type mappingType)
+    {
+        ArgumentNullException.ThrowIfNull(mappingType);
+        return mappingType.GetCustomAttributes(typeof(SparseFragmentMapperAttribute), false).Length
+            > 0;
+    }
+
     /// <summary>
     /// Applies generated defaults for one mapping instance when emitted.
     /// </summary>
-    /// <returns>True when a companion ran; otherwise false.</returns>
-    public static bool TryApply<TEntity, TDto>(
+    /// <returns>How the companion lookup resolved.</returns>
+    public static GeneratedDefaultsStatus TryApply<TEntity, TDto>(
         IEntityModelMapping<TEntity, TDto> mapping,
         SparseEntityMapBuilder<TEntity, TDto> builder
     )
@@ -54,7 +81,7 @@ internal static class GeneratedDefaults
         var companion = assembly.GetType(companionName, throwOnError: false, ignoreCase: false);
         if (companion is null)
         {
-            return false;
+            return GeneratedDefaultsStatus.MissingCompanion;
         }
 
         var register = companion.GetMethod(
@@ -63,26 +90,17 @@ internal static class GeneratedDefaults
         );
         if (register is null)
         {
-            return false;
+            return GeneratedDefaultsStatus.IncompatibleCompanion;
         }
 
         var parameters = register.GetParameters();
         if (parameters.Length != 1 || !parameters[0].ParameterType.IsInstanceOfType(builder))
         {
-            return false;
+            return GeneratedDefaultsStatus.IncompatibleCompanion;
         }
 
-        builder.GeneratedRegistrationMode = true;
-        try
-        {
-            register.Invoke(null, [builder]);
-        }
-        finally
-        {
-            builder.GeneratedRegistrationMode = false;
-        }
-
+        builder.RunGenerated(() => register.Invoke(null, [builder]));
         builder.GeneratedDefaultsApplied = true;
-        return true;
+        return GeneratedDefaultsStatus.Applied;
     }
 }

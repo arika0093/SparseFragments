@@ -436,6 +436,9 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
         }
     }
 
-    private static string Friendly(Type type) =>
-        Nullable.GetUnderlyingType(type) is { } underlying ? underlying.Name + "?" : type.Name;
+    private static string Friendly(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type);
+        return underlying is not null ? underlying.Name + "?" : type.Name;
+    }
 }

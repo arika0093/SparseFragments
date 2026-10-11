@@ -4,7 +4,7 @@
     <AssemblyName>SparseFragments.EntityFrameworkCore</AssemblyName>
     <RootNamespace>SparseFragments.EntityFrameworkCore</RootNamespace>
     <IsPackable>true</IsPackable>
-    <PackageDescription>ChangeSet-aware DTO to EF Core entity mapping for SparseFragments (proof of concept).</PackageDescription>
+    <PackageDescription>ChangeSet-aware DTO to EF Core entity mapping for SparseFragments.</PackageDescription>
     <PackageTags>dotnet;entity-framework;patch;changetracking</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

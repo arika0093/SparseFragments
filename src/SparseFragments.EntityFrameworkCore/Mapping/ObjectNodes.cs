@@ -96,8 +96,10 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
     where TDtoChild : class
     where TEntityChild : class
 {
+    private readonly Func<TDto, TDtoChild?> _dtoGetter;
     private readonly Func<TEntity, TEntityChild?> _entityGetter;
     private readonly Action<TEntity, TEntityChild?> _entitySetter;
+    private readonly SparseEntityMapBuilderBase _childRegistrations;
     private readonly Func<PlanBuildSession, IEntityType, EntityPlanBase> _planFactory;
     private readonly SparseEntityMissingPolicy _objectMissing;
 
@@ -132,8 +134,10 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         NavigationName = navigationName;
+        _dtoGetter = dto.Compile();
         _entityGetter = entity.Compile();
         _entitySetter = CompileSetter(entity);
+        _childRegistrations = child;
         _planFactory = planFactory;
         _objectMissing = objectMissing;
     }
@@ -180,6 +184,11 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         session.ClaimNavigation(level.EntityType, NavigationName, DtoName);
         _navigationNullable = ReadNavigationNullability(navigation);
         _childConstructor = ResolveConstructor(childEntityType.ClrType, DtoName);
+        if (!_childRegistrations.HasExplicitDefaultMissing)
+        {
+            _childRegistrations.InheritDefaultMissing(level.Registrations.DefaultMissing);
+        }
+
         _childPlan = _planFactory(session, childEntityType);
     }
 
@@ -229,7 +238,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         var existing = _entityGetter((TEntity)state.Entity);
         if (existing is not null)
         {
-            var entry = PlanApplyState.AttachSingle(state.Context, existing);
+            var entry = PlanApplyState.ValidationEntry(state.Context, existing, actions);
             var sub = new PlanApplyState(
                 state.Context,
                 existing,
@@ -270,13 +279,28 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
 
     public override void WriteAll(PlanWriteState state, List<Action> actions)
     {
-        // Wholesale writes copy from the explicit After snapshot carried by the
-        // ChangeSet transition, never a reconstructed root DTO.
-        var snapshot = (TDtoChild)state.AfterSnapshot;
+        // Wholesale writes project the nested snapshot from the parent-level
+        // After snapshot through the DTO selector, never a reconstructed root
+        // DTO and never a blind cast: deeper levels carry their own DTO type.
+        if (state.AfterSnapshot is not TDto parent)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                state.DisplayPath(DtoName),
+                $"The wholesale snapshot for '{DtoName}' is not '{typeof(TDto).Name}'."
+            );
+        }
+
+        var snapshot = _dtoGetter(parent);
+        if (snapshot is null)
+        {
+            return;
+        }
+
         var existing = _entityGetter((TEntity)state.Entity);
         if (existing is not null)
         {
-            var entry = PlanApplyState.AttachSingle(state.Context, existing);
+            var entry = PlanApplyState.ValidationEntry(state.Context, existing, actions);
             var sub = new PlanWriteState(
                 state.Context,
                 existing,
@@ -354,7 +378,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         var existing = _entityGetter((TEntity)state.Entity);
         if (existing is not null)
         {
-            var entry = PlanApplyState.AttachSingle(state.Context, existing);
+            var entry = PlanApplyState.ValidationEntry(state.Context, existing, actions);
             var sub = new PlanWriteState(
                 state.Context,
                 existing,
@@ -398,7 +422,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         var existing = _entityGetter((TEntity)state.Entity);
         if (existing is not null)
         {
-            var entry = PlanApplyState.AttachSingle(state.Context, existing);
+            var entry = PlanApplyState.ValidationEntry(state.Context, existing, actions);
             var sub = new PlanApplyState(
                 state.Context,
                 existing,
@@ -632,6 +656,23 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
 
     private static bool ReadNavigationNullability(INavigation navigation)
     {
+        // Requiredness comes from EF relationship metadata, which stays
+        // correct without nullable annotations; CLR reflection is the fallback.
+        try
+        {
+            var foreignKey = navigation.ForeignKey;
+            if (foreignKey is not null)
+            {
+                return navigation.IsOnDependent
+                    ? !foreignKey.IsRequired
+                    : !foreignKey.IsRequiredDependent;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Relationships without a direct foreign key fall through below.
+        }
+
         var property = navigation.PropertyInfo;
         if (property is null)
         {

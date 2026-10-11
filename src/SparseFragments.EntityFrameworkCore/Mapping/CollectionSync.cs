@@ -61,7 +61,7 @@ internal static class CollectionSync
             var sub = new PlanApplyState(
                 state.Context,
                 edit.Entity,
-                PlanApplyState.AttachSingle(state.Context, edit.Entity),
+                PlanApplyState.ValidationEntry(state.Context, edit.Entity, actions),
                 edit.Changes,
                 edit.Path,
                 true,
@@ -102,9 +102,11 @@ internal static class CollectionSync
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(actions);
         // Wholesale writes copy from the explicit After snapshot carried by the
-        // parent transition (never a reconstructed root DTO).
+        // parent transition (never a reconstructed root DTO). A null snapshot
+        // is absent and preserves factory state; an empty snapshot means empty
+        // and clears the destination below.
         var snapshot = runtime.SnapshotReader(state.AfterSnapshot)?.ToList();
-        if (snapshot is null || snapshot.Count == 0)
+        if (snapshot is null)
         {
             return;
         }
@@ -176,6 +178,15 @@ internal static class CollectionSync
                 state.Entity,
                 path
             );
+            // Replace semantics: the snapshot is complete, so factory- or
+            // constructor-provided children absent from it must not survive to
+            // tracking. Clearing the contents (not the reference) keeps
+            // read-only navigations working.
+            if (list.Count > 0)
+            {
+                list.Clear();
+            }
+
             foreach (var (dto, entity, temporaryKey) in creations)
             {
                 if (temporaryKey is not null && temporaryKey != Guid.Empty)
@@ -265,14 +276,13 @@ internal static class CollectionSync
             view.OrderChanged
             && plan.Added.Count == 0
             && plan.Removed.Count == 0
-            && plan.Edits.Count == 0
             && runtime.OrderSetter is null
         )
         {
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.CollectionNotSupported,
                 path,
-                $"The collection '{runtime.DtoName}' only reordered, but no Order() setter is configured. In-memory enumeration order is never assumed persisted: configure Order() to persist positions."
+                $"The collection '{runtime.DtoName}' reordered without membership changes, but no Order() setter is configured. In-memory enumeration order is never assumed persisted: configure Order() to persist positions."
             );
         }
 
@@ -470,41 +480,44 @@ internal static class CollectionSync
             );
         }
 
-        // Order evidence must be complete when positions persist: every
-        // surviving tracked key needs an AfterOrder slot, and every assigned
-        // AfterOrder key must resolve to a tracked survivor or an assigned
-        // addition. A filtered Include (partial load) fails here instead of
-        // reordering unseen children. Delta add/edit/remove without order
-        // changes stays safe on partial loads because only addressed keys move.
-        if (view.OrderChanged && runtime.OrderSetter is not null)
+        // Order and membership evidence must be complete before anything
+        // mutates: every assigned AfterOrder key must resolve to a tracked
+        // survivor or an assigned addition, and every surviving tracked key
+        // needs an AfterOrder slot. A filtered Include (partial load) or a
+        // stale caller DTO fails here instead of syncing around unseen state.
+        // SoftDelete is the single exception on the survivor side: previously
+        // flagged rows stay tracked but leave the DTO projection, so their
+        // omission is tolerated and they are retained (PlanOrder appends
+        // them); anything else missing fails.
+        var survivors = tracked.Keys.Where(key => !removedKeys.Contains(key)).ToList();
+        var assignedAdds = plan
+            .Added.Where(addition => addition.AssignedKey is not null)
+            .Select(addition => addition.AssignedKey!)
+            .ToList();
+        var afterAssigned = view.AfterOrder.Where(key => !runtime.IsUnassigned(key)).ToList();
+        var afterSet = new HashSet<object>(afterAssigned, runtime.KeyComparer);
+        var known = new HashSet<object>(survivors, runtime.KeyComparer);
+        known.UnionWith(assignedAdds);
+
+        if (afterAssigned.Any(key => !known.Contains(key)))
         {
-            var survivors = tracked.Keys.Where(key => !removedKeys.Contains(key)).ToList();
-            var assignedAdds = plan
-                .Added.Where(addition => addition.AssignedKey is not null)
-                .Select(addition => addition.AssignedKey!)
-                .ToList();
-            var afterAssigned = view.AfterOrder.Where(key => !runtime.IsUnassigned(key)).ToList();
-            var afterSet = new HashSet<object>(afterAssigned, runtime.KeyComparer);
-            if (survivors.Any(survivor => !afterSet.Contains(survivor)))
-            {
-                throw new SparseEntityMappingException(
-                    SparseEntityMappingFailure.CollectionKeyNotFound,
-                    path,
-                    $"The keyed transition order for '{runtime.DtoName}' omits a surviving tracked child. Refusing a partial reorder: load the collection completely with an unfiltered Include or Load."
-                );
-            }
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.CollectionKeyNotFound,
+                path,
+                $"The keyed transition order for '{runtime.DtoName}' references a child with no tracked identity in this parent collection."
+            );
+        }
 
-            var known = new HashSet<object>(survivors, runtime.KeyComparer);
-            known.UnionWith(assignedAdds);
-
-            if (afterAssigned.Any(key => !known.Contains(key)))
-            {
-                throw new SparseEntityMappingException(
-                    SparseEntityMappingFailure.CollectionKeyNotFound,
-                    path,
-                    $"The keyed transition order for '{runtime.DtoName}' references a child with no tracked identity in this parent collection."
-                );
-            }
+        if (
+            runtime.RemoveKind != SparseEntityRemoveKind.SoftDelete
+            && survivors.Any(survivor => !afterSet.Contains(survivor))
+        )
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.CollectionKeyNotFound,
+                path,
+                $"The keyed transition order for '{runtime.DtoName}' omits a surviving tracked child. Refusing a partial sync: load the collection completely with an unfiltered Include or Load."
+            );
         }
     }
 
@@ -638,6 +651,22 @@ internal static class CollectionSync
             foreach (var removal in plan.Removed.Where(removal => !merged.Contains(removal.Entity)))
             {
                 merged.Add(removal.Entity);
+            }
+
+            // Previously flagged rows leave the DTO projection but stay
+            // tracked: retain them in tracked order instead of failing. Their
+            // positions persist through Order() like any other element.
+            var afterSet = new HashSet<object>(
+                view.AfterOrder.Where(key => !runtime.IsUnassigned(key)),
+                runtime.KeyComparer
+            );
+            foreach (
+                var survivor in survivors.Where(candidate =>
+                    !afterSet.Contains(candidate.Key) && !merged.Contains(candidate.Value)
+                )
+            )
+            {
+                merged.Add(survivor.Value);
             }
         }
 

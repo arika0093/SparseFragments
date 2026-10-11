@@ -155,6 +155,27 @@ internal sealed class PlanApplyState
         return entry;
     }
 
+    /// <summary>
+    /// Returns a validation-safe entry without attaching, queuing the attach first.
+    /// </summary>
+    /// <remarks>
+    /// Preflight validation must never mutate the <c>ChangeTracker</c>: the
+    /// returned entry stays detached until the queued attach action runs ahead
+    /// of the other queued writes at execution time.
+    /// </remarks>
+    public static EntityEntry ValidationEntry(
+        DbContext context,
+        object entity,
+        List<Action> actions
+    )
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(actions);
+        actions.Add(() => AttachSingle(context, entity));
+        return context.Entry(entity);
+    }
+
     private static Dictionary<string, List<SparseChangeRecord>> Group(
         ISparseChangeSet changes,
         string path,

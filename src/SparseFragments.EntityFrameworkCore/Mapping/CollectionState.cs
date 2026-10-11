@@ -44,6 +44,14 @@ internal static class CollectionState
             );
         }
 
+        if (collection.CurrentValue is null && runtime.CollectionSetter is not null)
+        {
+            // Read-only preflight stand-in: execution assigns the real list via
+            // EnsureList. Removals and edits resolve against the empty set and
+            // fail as KeyNotFound; pure additions proceed.
+            return new List<TEntityChild>();
+        }
+
         return PeekList(runtime, state.Context, state.Entity, state.DisplayPath(runtime.DtoName));
     }
 

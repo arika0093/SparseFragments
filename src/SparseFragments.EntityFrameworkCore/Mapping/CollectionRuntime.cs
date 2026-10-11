@@ -26,7 +26,9 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         Delegate? dtoKeySelector,
         Delegate? entityKeySelector,
         object? unassignedKeyValue = null,
-        bool hasUnassignedKeyValue = false
+        bool hasUnassignedKeyValue = false,
+        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>? generatedElementConfigure = null,
+        Dictionary<(Type EntityType, Type DtoType, string Member), Delegate>? elementStash = null
     )
     {
         ElementConfigure = elementConfigure;
@@ -40,9 +42,22 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         EntityKeySelector = entityKeySelector;
         UnassignedKeyValue = unassignedKeyValue;
         HasUnassignedKeyValue = hasUnassignedKeyValue;
+        GeneratedElementConfigure = generatedElementConfigure;
+        ElementStash =
+            elementStash
+            ?? new Dictionary<(Type EntityType, Type DtoType, string Member), Delegate>();
     }
 
     public Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> ElementConfigure { get; }
+
+    public Action<
+        SparseEntityMapBuilder<TEntityChild, TDtoChild>
+    >? GeneratedElementConfigure { get; }
+
+    public Dictionary<
+        (Type EntityType, Type DtoType, string Member),
+        Delegate
+    > ElementStash { get; }
 
     public Func<TDtoChild, TEntityChild>? CreateFactory { get; }
 
@@ -451,8 +466,17 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         CollectionDeclaration<TDtoChild, TEntityChild> declaration
     )
     {
-        var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>();
+        var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>
+        {
+            GeneratedElementConfigurators = declaration.ElementStash,
+        };
         child.InheritDefaultMissing(level.Registrations.DefaultMissing);
+        if (declaration.GeneratedElementConfigure is not null)
+        {
+            child.RunGenerated(() => declaration.GeneratedElementConfigure(child));
+            child.GeneratedDefaultsApplied = true;
+        }
+
         declaration.ElementConfigure(child);
         var childEntityType = session.Model.FindEntityType(typeof(TEntityChild))!;
         ChildPlan = EntityPlan<TEntityChild, TDtoChild>.Build(

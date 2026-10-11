@@ -419,13 +419,32 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         foreach (var dtoProperty in dtoProperties)
         {
             var name = dtoProperty.Name;
+            if (level.ByDtoName.ContainsKey(name) || level.Registrations.Ignored.Contains(name))
+            {
+                continue;
+            }
+
+            // A generated DeclareCollection marker alone never synchronizes:
+            // only an explicit full Collection mapping (or Ignore) covers a
+            // collection path. Explicit markers still count: the author took
+            // responsibility and changes fail as CollectionNotSupported.
             if (
-                level.ByDtoName.ContainsKey(name)
-                || level.Registrations.Ignored.Contains(name)
-                || level.Collections.ContainsKey(name)
+                level.Collections.ContainsKey(name) && !level.Registrations.IsGeneratedDefault(name)
             )
             {
                 continue;
+            }
+
+            if (
+                level.Collections.ContainsKey(name)
+                && PlanBuildSession.IsCollectionType(dtoProperty.PropertyType)
+            )
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.Unmapped,
+                    name,
+                    $"The DTO member '{name}' has a conventional DeclareCollection marker but no collection mapping. Declare Collection() with element mapping, identity, factory, removal, and order policies, or Ignore() the member."
+                );
             }
 
             if (level.ProtectedNames.TryGetValue(name, out var detail))
@@ -481,8 +500,11 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         }
     }
 
-    private static string Friendly(Type type) =>
-        Nullable.GetUnderlyingType(type) is { } underlying ? underlying.Name + "?" : type.Name;
+    private static string Friendly(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type);
+        return underlying is not null ? underlying.Name + "?" : type.Name;
+    }
 
     private static void ValidateCollectionMember(
         IEntityType entityType,

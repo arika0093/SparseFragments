@@ -101,10 +101,14 @@ scalars via `Member`, same-name nested models via recursive `Object`, and
 same-name collections via `DeclareCollection` markers. `Configure` declares
 only the rest, and every explicit entry replaces its generated default exactly
 once at the same DTO member path; the default setter never runs in addition
-to a configured override. Child element mappings configured through
-`Collection(..., lines => lines.Element(...))` are scoped by parent
-collection path: the same child CLR type pair may map differently under two
-collections.
+to a configured override. Collection element defaults arrive the same way:
+the companion registers path-scoped conventional child mappings that the
+explicit `Collection(..., lines => lines.Element(...))` composes underneath
+its own overrides. Child element mappings stay scoped by parent collection
+path: the same child CLR type pair may map differently under two
+collections. A conventional `DeclareCollection` marker alone never counts as
+coverage: declare the full keyed `Collection` mapping or `Ignore` the member,
+or mapper creation fails even when no change set touches the collection.
 
 <!-- illustrative: member-level registrations available on the builder -->
 ```csharp
@@ -128,10 +132,16 @@ inferable: use current entity state inside the callback or fail explicitly.
 
 Static mistakes fail at compile time: an incompatible same-name pair (both
 sides exist, types differ) reports `SPF033` and points at the mapper, instead
-of failing later through reflection. A `[SparseFragmentMapper]` type that does
-not implement `IEntityModelMapping<TEntity, TDto>` reports `SPF034`. Since
+of failing later through reflection. Explicit `Member` conversions and
+`Ignore` entries suppress it for the members they provably cover;
+helper-delegated `Configure` bodies stay silent there with runtime plan
+validation as the backstop. A `[SparseFragmentMapper]` type that does not
+implement `IEntityModelMapping<TEntity, TDto>` reports `SPF034`. Since
 arbitrary `Configure` bodies cannot be evaluated statically, deeper omissions
 fail fast at mapper creation with the DTO path and a corrective action.
+A marked mapper whose companion is missing (generator not wired as an
+analyzer) fails fast at creation instead of silently falling back to runtime
+inference; unmarked mappings keep the scoped fallback explicitly.
 
 Ownership split: the generator statically discovers every conventional
 default it can resolve (same-name scalars, nested objects, collection
@@ -240,7 +250,9 @@ map.Collection<OrderLineDto, OrderLineEntity>(
   resolves independently. The application reads database-generated keys off the
   tracked instances after its own `SaveChanges`, builds the authoritative DTO
   (preserving temporary values for new rows), and hands it to the existing
-  client `Reconcile` flow.
+  client `Reconcile` flow. Previously soft-deleted rows stay tracked but leave
+  the DTO projection: later applies retain them instead of failing, and their
+  positions persist through `Order()` like any other element.
 * Order persistence is opt-in through `Order()`. A pure reorder without a
   setter fails explicitly, as do reorders whose transition evidence is
   incomplete.
