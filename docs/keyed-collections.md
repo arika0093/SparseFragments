@@ -681,6 +681,54 @@ Concretely:
 
 A collection transition object may be enumerable while the root ChangeSet is not: collection items share one `TKey` and `TElement` type, whereas root model members are heterogeneous. Like the scalar projections, `Added`, `Removed`, `Edited`, enumeration, and the order views are API projections over the before and after state, not duplicate wire fields (see [Fragments and patches](fragments-and-patches.md)).
 
+### Read transitions through shared contracts
+
+Generic consumers reach the same transition through `ISparseChangeSet.TryGetKeyedChange<TKey, TElement, TElementChange>`, using the member name with the key, element, and element-change types. Lookup, order views, and edits behave exactly as above; `EnumerateItems()` visits the same instances as typed enumeration without naming the generated item type. Members whose element declares a temporary identity expose `ISparseTemporaryKeyedChange<TKey, TElement, TElementChange>`, which adds `GetTemporaryChange(Guid)` scoped to that collection:
+
+<!-- sample: keyed-transition-contracts -->
+```csharp
+var before = new Fleet
+{
+    Servers = new()
+    {
+        new Server { Id = "a", Host = "A" },
+        new Server { Id = "b", Host = "B" },
+    },
+};
+var after = new Fleet
+{
+    Servers = new()
+    {
+        new Server { Id = "b", Host = "B2" },
+        new Server { Id = "c", Host = "C" },
+    },
+};
+
+// The same transition through the shared keyed contract.
+ISparseChangeSet changes = before.CreateChangeSet(after);
+if (changes.TryGetKeyedChange<string, Server, Server.ChangeSet>("Servers", out var servers))
+{
+    // servers.Added.Single().Id == "c"
+    // servers.GetChange("b").Edit.Host.After.Value == "B2"
+    foreach (var item in servers.EnumerateItems())
+    {
+        Console.WriteLine($"{item.Key}: added={item.IsAdded}, edited={item.IsEdited}");
+    }
+}
+
+var pendingId = Guid.NewGuid();
+var pendingBefore = new DocsTempOrder();
+var pendingAfter = new DocsTempOrder
+{
+    Lines = new()
+    {
+        new DocsTempLine { Name = "new", TemporaryId = pendingId },
+    },
+};
+ISparseChangeSet pending = pendingBefore.CreateChangeSet(pendingAfter);
+```
+<!-- /sample -->
+
 ## Duplicate Keys and Key Changes
 
 * `Duplicate keys are invalid.` A collection state containing the same key twice has no well-defined element identity; deriving a patch from or onto such a state throws `InvalidOperationException`. The same holds for temporary identity: two unassigned elements sharing one Guid, an unassigned element with `Guid.Empty`, and an unassigned element with a missing Guid all fail keyed diffing rather than merging silently.

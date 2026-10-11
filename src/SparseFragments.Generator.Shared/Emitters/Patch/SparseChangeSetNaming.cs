@@ -17,6 +17,12 @@ internal static class SparseChangeSetNaming
         new(System.StringComparer.Ordinal)
         {
             "IsEmpty",
+            "IsChanged",
+            "EnumerateChangeRecords",
+            "TryGetNestedChange",
+            "TryGetValueChange",
+            "TryGetKeyedChange",
+            "TryGetDictionaryChange",
             "Between",
             "FromPatch",
             "ToPatch",

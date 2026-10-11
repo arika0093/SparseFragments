@@ -60,6 +60,7 @@ internal static class SparseChangeSetDictTransitionEmitter
                 + " : global::System.Collections.Generic.IEnumerable<"
                 + trans
                 + ".Item>"
+                + SparseChangeSetContractEmitter.DictionaryBases(dialect, member)
         );
         code.AppendLineAt(2, "{");
         // Public surface first, then the internal constructor, then private storage.
@@ -103,7 +104,11 @@ internal static class SparseChangeSetDictTransitionEmitter
             "global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();"
         );
         code.AppendLineAt(3, "/// <summary>A single typed dictionary entry change.</summary>");
-        code.AppendLineAt(3, "public sealed class Item");
+        code.AppendLineAt(
+            3,
+            "public sealed class Item"
+                + SparseChangeSetContractEmitter.DictionaryItemBases(dialect, member)
+        );
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "/// <summary>Gets the entry key.</summary>");
         code.AppendLineAt(4, "public " + keyType + " Key { get; }");
@@ -223,6 +228,7 @@ internal static class SparseChangeSetDictTransitionEmitter
             "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
         );
         code.AppendLineAt(3, "}");
+        SparseChangeSetContractEmitter.AppendDictionaryContractMembers(code, member, dialect);
         code.AppendLineAt(
             3,
             "internal "

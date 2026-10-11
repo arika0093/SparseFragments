@@ -19,11 +19,13 @@ public static class VerifiedSamples
         CoreChangeSet();
         CoreTyped();
         CoreNested();
+        CoreTransitionContracts();
         CoreAlgebra();
         CoreSerialization();
         CoreChangePayload();
         KeyedFirst();
         KeyedTyped();
+        KeyedTransitionContracts();
         KeyedUnassignedFlow();
         KeyedTemporaryFlow();
         KeyedReconcileFlow();
@@ -250,6 +252,49 @@ public static class VerifiedSamples
         // /sample
     }
 
+    private static void CoreTransitionContracts()
+    {
+        // sample: core-transition-contracts
+        var before = Optional<CounterSettings.Fragment?>.Present(
+            CounterSettings.Fragment.From(new CounterSettings { Label = "a", RetryCount = 1 })
+        );
+        var after = Optional<CounterSettings.Fragment?>.Present(
+            CounterSettings.Fragment.From(new CounterSettings { Label = "b", RetryCount = 1 })
+        );
+
+        // Generic consumers program against the contracts, not generated names.
+        ISparseChangeSet changes = CounterSettings.ChangeSet.Between(before, after);
+        // changes.IsChanged == true
+
+        if (changes.TryGetValueChange<string>("Label", out var label) && label.IsChanged)
+        {
+            Console.WriteLine($"{label.Before} -> {label.After}");
+        }
+        // label.Before.Value == "a"
+        // label.After.Value == "b"
+        // changes.TryGetValueChange<int>("Label", out _) == false
+
+        var records = changes.EnumerateChangeRecords();
+        // records.Single().PathText == "Label"
+        DocsCheck.Require(changes.IsChanged, "contract reports IsChanged");
+        DocsCheck.Require(
+            changes.TryGetValueChange<string>("Label", out var contractLabel)
+                && contractLabel.IsChanged
+                && contractLabel.Before.Value == "a"
+                && contractLabel.After.Value == "b",
+            "contract scalar lookup preserves presence"
+        );
+        DocsCheck.Require(
+            !changes.TryGetValueChange<int>("Label", out _),
+            "contract scalar lookup rejects a wrong value type"
+        );
+        DocsCheck.Require(
+            records.Count == 1 && records[0].PathText == "Label",
+            "contract records reuse the typed enumeration"
+        );
+        // /sample
+    }
+
     private static void CoreAlgebra()
     {
         // sample: core-algebra
@@ -437,6 +482,71 @@ public static class VerifiedSamples
             "keyed lookup carries the nested change"
         );
         DocsCheck.Require(servers.GetChange("absent").IsEmpty, "unknown key is empty");
+        // /sample
+    }
+
+    private static void KeyedTransitionContracts()
+    {
+        // sample: keyed-transition-contracts
+        var before = new Fleet
+        {
+            Servers = new()
+            {
+                new Server { Id = "a", Host = "A" },
+                new Server { Id = "b", Host = "B" },
+            },
+        };
+        var after = new Fleet
+        {
+            Servers = new()
+            {
+                new Server { Id = "b", Host = "B2" },
+                new Server { Id = "c", Host = "C" },
+            },
+        };
+
+        // The same transition through the shared keyed contract.
+        ISparseChangeSet changes = before.CreateChangeSet(after);
+        if (changes.TryGetKeyedChange<string, Server, Server.ChangeSet>("Servers", out var servers))
+        {
+            // servers.Added.Single().Id == "c"
+            // servers.GetChange("b").Edit.Host.After.Value == "B2"
+            foreach (var item in servers.EnumerateItems())
+            {
+                Console.WriteLine($"{item.Key}: added={item.IsAdded}, edited={item.IsEdited}");
+            }
+        }
+
+        var pendingId = Guid.NewGuid();
+        var pendingBefore = new DocsTempOrder();
+        var pendingAfter = new DocsTempOrder
+        {
+            Lines = new()
+            {
+                new DocsTempLine { Name = "new", TemporaryId = pendingId },
+            },
+        };
+        ISparseChangeSet pending = pendingBefore.CreateChangeSet(pendingAfter);
+        DocsCheck.Require(
+            changes.TryGetKeyedChange<string, Server, Server.ChangeSet>("Servers", out var contract)
+                && contract.Added.Single().Id == "c"
+                && contract.GetChange("b").Edit.Host.After.Value == "B2",
+            "contract keyed lookup preserves add/edit"
+        );
+        DocsCheck.Require(
+            pending.TryGetKeyedChange<int, DocsTempLine, DocsTempLine.ChangeSet>(
+                "Lines",
+                out var pendingLines
+            )
+                && pendingLines
+                    is ISparseTemporaryKeyedChange<
+                        int,
+                        DocsTempLine,
+                        DocsTempLine.ChangeSet
+                    > temporary
+                && temporary.GetTemporaryChange(pendingId).IsAdded,
+            "contract temporary lookup stays collection-scoped"
+        );
         // /sample
     }
 
