@@ -136,7 +136,8 @@ internal static class SparseChangeSetPayloadEmitter
             ignoredSettablePropertyNames
         );
         if (modelType is not null)
-            code.AppendLineAt(
+            SparseFragmentEmitHelpers.AppendInternal(
+                code,
                 2,
                 "internal "
                     + modelType
@@ -145,7 +146,8 @@ internal static class SparseChangeSetPayloadEmitter
                     + ".ChangeSet.FromPayloadCore(this);"
             );
         if (modelType is not null && !SparseDownstreamPolicy.HasAnyNonFullPolicy(dialect))
-            code.AppendLineAt(
+            SparseFragmentEmitHelpers.AppendInternal(
+                code,
                 2,
                 "internal "
                     + modelType
@@ -154,7 +156,8 @@ internal static class SparseChangeSetPayloadEmitter
                     + ".ChangeSet.PatchFromPayloadCore(this);"
             );
         if (modelType is not null)
-            code.AppendLineAt(
+            SparseFragmentEmitHelpers.AppendInternal(
+                code,
                 2,
                 "internal static "
                     + payloadCore
@@ -187,10 +190,6 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(
             1,
             "/// <summary>Serializable envelope carrying the validated transition for transport.</summary>"
-        );
-        code.AppendLineAt(
-            1,
-            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
         code.AppendLineAt(
             1,

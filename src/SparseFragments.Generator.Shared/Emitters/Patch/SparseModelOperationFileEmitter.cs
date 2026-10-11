@@ -90,7 +90,7 @@ internal static class SparseModelOperationFileEmitter
                 + backedFacade
                 + " algorithms backing the thin model facade.</summary>"
         );
-        code.AppendLineAt(2, "internal static class " + simpleName);
+        SparseFragmentEmitHelpers.AppendInternal(code, 2, "internal static class " + simpleName);
         code.AppendLineAt(2, "{");
     }
 

@@ -18,7 +18,10 @@ internal static class SparseObservableDescriptorEmitter
     {
         var accessorName = AccessorName(modelType);
         var pathType = dialect.EffectivePathType(runtimeNamespace);
-        code.AppendLineAt(
+        // Generated-code plumbing: hidden from IntelliSense like the other
+        // internal seams.
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
             2,
             "internal "
                 + dialect.DescriptorSetInterface

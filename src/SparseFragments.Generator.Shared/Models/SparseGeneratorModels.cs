@@ -132,7 +132,8 @@ internal readonly record struct SparseModelInfo(
     string HintName,
     ModelConstructorBinding? Constructor,
     ImmutableArray<string> IgnoredSettablePropertyNames = default,
-    bool IsPublic = true
+    bool IsPublic = true,
+    ImmutableArray<string> NestedTypeNames = default
 )
 {
     public bool Equals(SparseModelInfo other) =>
@@ -145,7 +146,8 @@ internal readonly record struct SparseModelInfo(
         && IsPublic == other.IsPublic
         && HintName == other.HintName
         && Equals(Constructor, other.Constructor)
-        && SparseSequence.Equal(IgnoredSettablePropertyNames, other.IgnoredSettablePropertyNames);
+        && SparseSequence.Equal(IgnoredSettablePropertyNames, other.IgnoredSettablePropertyNames)
+        && SparseSequence.Equal(NestedTypeNames, other.NestedTypeNames);
 
     public override int GetHashCode()
     {
@@ -160,7 +162,8 @@ internal readonly record struct SparseModelInfo(
             hash = hash * 31 + (IsPublic ? 1 : 0);
             hash = hash * 31 + HintName.GetHashCode();
             hash = hash * 31 + (Constructor?.GetHashCode() ?? 0);
-            return hash * 31 + SparseSequence.Hash(IgnoredSettablePropertyNames);
+            hash = hash * 31 + SparseSequence.Hash(IgnoredSettablePropertyNames);
+            return hash * 31 + SparseSequence.Hash(NestedTypeNames);
         }
     }
 }

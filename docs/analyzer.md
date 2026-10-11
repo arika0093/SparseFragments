@@ -171,11 +171,13 @@ public partial class Settings
   generated member/method names (`Empty`, `IsEmpty`, `Merge`, `ApplyChanges`,
   `Diff`, `DeepClone`, `From`, `ToModel`, `ToBuilder`, `Build`, `ApplyTo`,
   `TryApplyTo`, `WriteTo`, `ApplyInPlace`, `ApplyInPlaceResult`).
-  Names that now exist only in the per-model `SparseFragments.Generated`
-  container (`Observable`, `ReadOnlyView`, `EditSession`,
-  `DescriptorFactory`, operation helpers, payload DTOs, converter bodies)
+  Names that exist only in the per-model `SparseFragments.Generated`
+  container (operation helpers, payload DTOs, converter bodies)
   are not reserved: model members may reuse them, and collisions there are
-  resolved through the central placement resolver instead.
+  resolved through the central placement resolver instead. The UI/editing
+  family (`Observable`, `ReadOnlyView`, `EditSession`) nests in the model
+  too, but it is not reserved either: a colliding member or nested type
+  pushes the generated type behind a `Sparse` prefix.
 * Fix: Rename the member.
 
 ## SPF010: Incompatible promoted fragment model

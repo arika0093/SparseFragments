@@ -38,7 +38,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
             1,
             "/// <remarks>Replays recorded post-submit edits onto persisted elements; rows without their own edits adopt the persisted element, and unmapped temporary identities stay pending. Returns an error without partial writes when the live state is incompatible.</remarks>"
         );
-        code.AppendLineAt(
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
             1,
             "internal static string? __SparseRetargetTemps("
                 + modelType

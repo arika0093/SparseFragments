@@ -824,11 +824,13 @@ internal static class SparseModelDiscovery
             return null;
         }
 
-        // UI type names resolve through the central placement resolver.
+        // UI type names resolve through the central placement resolver,
+        // competing with member names and user-declared nested types.
         return SparseGeneratedPlacement.ResolveUiTypeName(
             config.EffectiveFamilyNames.ReadOnlyView,
             GetMembers(model, config, cancellationToken)
                 .Select(static member => member.Property.Name)
+                .Concat(model.GetTypeMembers().Select(static type => type.Name))
         );
     }
 
@@ -844,11 +846,13 @@ internal static class SparseModelDiscovery
             return null;
         }
 
-        // UI type names resolve through the central placement resolver.
+        // UI type names resolve through the central placement resolver,
+        // competing with member names and user-declared nested types.
         return SparseGeneratedPlacement.ResolveUiTypeName(
             config.EffectiveFamilyNames.Observable,
             GetMembers(model, config, cancellationToken)
                 .Select(static member => member.Property.Name)
+                .Concat(model.GetTypeMembers().Select(static type => type.Name))
         );
     }
 
@@ -938,8 +942,24 @@ internal static class SparseModelDiscovery
             hintName,
             ModelConstructorBinding.AnalyzeRoot(model, config, cancellationToken),
             GetIgnoredSettablePropertyNames(model, config, cancellationToken),
-            model.DeclaredAccessibility == Accessibility.Public
+            model.DeclaredAccessibility == Accessibility.Public,
+            GetNestedTypeNames(model)
         );
+
+    /// <summary>Collects user-declared nested type names competing with generated UI names.</summary>
+    /// <remarks>
+    /// Generated <c>Observable</c>/<c>ReadOnlyView</c>/<c>EditSession</c> nest
+    /// in the model again, so a same-named nested type would collide. The
+    /// names join the member names in the UI collision set; the generated
+    /// type retreats behind a <c>Sparse</c> prefix when taken.
+    /// </remarks>
+    private static ImmutableArray<string> GetNestedTypeNames(INamedTypeSymbol model) =>
+        model
+            .GetTypeMembers()
+            .Select(static type => type.Name)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToImmutableArray();
 
     private static ImmutableArray<string> GetIgnoredSettablePropertyNames(
         INamedTypeSymbol model,

@@ -266,9 +266,10 @@ Generated fragments use this distinction while exposing model-shaped members, so
 ### Source generation
 
 <!-- illustrative: simplified names; does not compile as written -->
-`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state and
-operation families stay nested in the model; per-model UI and editing types
-live in a stable `SparseFragments.Generated` container:
+`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state,
+operation, and UI/editing families nest in the model; only the heavy
+algorithm bodies live in a stable per-model `SparseFragments.Generated`
+container:
 
 ```csharp
 partial class Settings
@@ -280,19 +281,22 @@ partial class Settings
     public sealed class ChangeSet;
     public sealed class ChangePayload;
     public sealed class FragmentBuilder;
+    public sealed class Observable;
+    public sealed class ReadOnlyView;
+    public sealed class EditSession;
 }
 
 // In namespace SparseFragments.Generated, one container per model:
-// <Container>.Observable, <Container>.ReadOnlyView, <Container>.EditSession.
+// <Container>FragmentOperations, <Container>.PatchOperations,
+// <Container>.ChangeSetOperations, payload DTOs.
 ```
 
-Previously these UI and editing types were nested in the model
-(`Settings.EditSession`, `Settings.Observable`, `Settings.ReadOnlyView`).
-Update explicit references to the container paths, or use `var` with
+Name the nested types directly (`Settings.EditSession`), or use `var` with
 `CreateEditSession()` and `ToObservable()` instead of naming the types.
-There are no backwards-compatibility aliases. See
-[Relocated generated types](docs/ui-frameworks.md#relocated-generated-types)
-for the full old-to-new mapping.
+A colliding model member or nested type pushes the generated UI type behind
+a `Sparse` prefix (`Settings.SparseEditSession`). See
+[Generated type placement](docs/ui-frameworks.md#generated-type-placement)
+for the full mapping.
 
 Reachable eligible `partial` nested types receive the corresponding generated APIs as well. See [Model shapes](docs/model-shapes.md) for the supported shapes and constructor rules.
 

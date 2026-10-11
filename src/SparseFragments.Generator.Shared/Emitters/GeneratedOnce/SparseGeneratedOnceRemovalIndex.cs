@@ -34,7 +34,8 @@ internal static class SparseGeneratedOnceRemovalIndex
             1,
             "/// <summary>Ordered removal-index kernels shared by keyed patch types.</summary>"
         );
-        code.AppendLineAt(
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
             1,
             "internal static class " + SparseGeneratedOnceNames.RemovalIndex + "<TKey>"
         );

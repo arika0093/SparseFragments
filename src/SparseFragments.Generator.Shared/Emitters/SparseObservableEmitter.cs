@@ -25,15 +25,73 @@ internal static class SparseObservableEmitter
         );
     }
 
+    /// <summary>Resolves the model-aware observable proxy type name.</summary>
+    /// <remarks>
+    /// Extends the member-name collision set with user-declared nested
+    /// types, since the proxy nests in the model. Falls back to the
+    /// member-only name when the model carries no nested type names.
+    /// </remarks>
+    public static string ObservableTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model,
+        SparseFamilyNames family
+    )
+    {
+        return SparseSemanticReference.ObservableRootName(
+            SparseSemanticReference.TakenUiNames(members, model),
+            family
+        );
+    }
+
+    /// <summary>Resolves the model-aware observable proxy type name using the standalone product family.</summary>
+    public static string ObservableTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model
+    ) => ObservableTypeName(members, model, SparseFamilyNames.Standalone);
+
     public static void AppendObservable(
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
         SparseDescriptorDialect? descriptorDialect
+    ) =>
+        AppendObservableCore(
+            code,
+            modelType,
+            members,
+            ObservableTypeName(members),
+            runtimeNamespace,
+            descriptorDialect
+        );
+
+    /// <summary>Emits the nested bindable proxy using a model-aware resolved name.</summary>
+    public static void AppendObservable(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        string runtimeNamespace,
+        SparseDescriptorDialect? descriptorDialect,
+        SparseModelInfo model
+    ) =>
+        AppendObservableCore(
+            code,
+            modelType,
+            members,
+            ObservableTypeName(members, model, SparseFamilyNames.Standalone),
+            runtimeNamespace,
+            descriptorDialect
+        );
+
+    private static void AppendObservableCore(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        string observable,
+        string runtimeNamespace,
+        SparseDescriptorDialect? descriptorDialect
     )
     {
-        var observable = ObservableTypeName(members);
         code.AppendLineAt(
             1,
             "/// <summary>Bindable proxy over the live model instance. No state is copied.</summary>"
@@ -120,10 +178,26 @@ internal static class SparseObservableEmitter
             AppendReplacement(code, member, members);
         }
 
-        code.AppendLineAt(2, "internal " + modelType + " __SparseTarget => __model;");
-        code.AppendLineAt(2, "internal readonly " + modelType + " __model;");
-        code.AppendLineAt(2, "internal readonly global::System.Action? __onChanged;");
-        code.AppendLineAt(2, "internal readonly global::System.Action? __onRawModelAccess;");
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
+            2,
+            "internal " + modelType + " __SparseTarget => __model;"
+        );
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
+            2,
+            "internal readonly " + modelType + " __model;"
+        );
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
+            2,
+            "internal readonly global::System.Action? __onChanged;"
+        );
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
+            2,
+            "internal readonly global::System.Action? __onRawModelAccess;"
+        );
 
         if (descriptorDialect is not null)
         {
@@ -136,7 +210,7 @@ internal static class SparseObservableEmitter
             );
         }
 
-        code.AppendLineAt(2, "internal void __SparseRefresh()");
+        SparseFragmentEmitHelpers.AppendInternal(code, 2, "internal void __SparseRefresh()");
         code.AppendLineAt(2, "{");
         foreach (
             var property in members
@@ -191,7 +265,8 @@ internal static class SparseObservableEmitter
             );
         }
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
             2,
             "internal void __Raise(string propertyName) => PropertyChanged?.Invoke(this, new global::System.ComponentModel.PropertyChangedEventArgs(propertyName));"
         );

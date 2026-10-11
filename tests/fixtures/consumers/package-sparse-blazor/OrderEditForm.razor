@@ -42,8 +42,7 @@
 @code {
     private BlazorEditFormOrder live = new() { Number = "ORD-1", Version = 7 };
 
-    // Generator-assigned per-model container; stable for this model identity.
-    private global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession session = null!;
+    private global::BlazorEditFormOrder.EditSession session = null!;
     private EditContext editContext = null!;
     private ValidationMessageStore store = null!;
     private BlazorEditFormOrder? latestServer;
@@ -159,7 +158,7 @@
         conflictNotice = null;
     }
 
-    private void AdoptSession(global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession next)
+    private void AdoptSession(global::BlazorEditFormOrder.EditSession next)
     {
         // Detach from the previous context first: the named handler closes over
         // these fields, so a lingering subscription would clear the new store.

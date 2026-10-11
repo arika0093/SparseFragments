@@ -19,15 +19,65 @@ internal static class SparseReadOnlyViewEmitter
         );
     }
 
+    internal static string ReadOnlyViewTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model,
+        SparseFamilyNames family
+    )
+    {
+        return SparseSemanticReference.ReadOnlyViewRootName(
+            SparseSemanticReference.TakenUiNames(members, model),
+            family
+        );
+    }
+
+    internal static string ReadOnlyViewTypeName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model
+    ) => ReadOnlyViewTypeName(members, model, SparseFamilyNames.Standalone);
+
     internal static void AppendReadOnlyView(
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
         string? implementationNamespace = null
+    ) =>
+        AppendReadOnlyViewCore(
+            code,
+            modelType,
+            members,
+            ReadOnlyViewTypeName(members),
+            readOnlyViewModels,
+            implementationNamespace
+        );
+
+    internal static void AppendReadOnlyView(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        SparseModelInfo model,
+        string? implementationNamespace = null
+    ) =>
+        AppendReadOnlyViewCore(
+            code,
+            modelType,
+            members,
+            ReadOnlyViewTypeName(members, model),
+            readOnlyViewModels,
+            implementationNamespace
+        );
+
+    private static void AppendReadOnlyViewCore(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        string typeName,
+        ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels,
+        string? implementationNamespace = null
     )
     {
-        var typeName = ReadOnlyViewTypeName(members);
         var modelFieldName = HelperName(MemberNames(members), "__model");
         var allMemberNames = MemberNames(members)
             .AddRange(readOnlyViewModels.SelectMany(static view => MemberNames(view.Members)));
@@ -455,7 +505,8 @@ internal static class SparseReadOnlyViewEmitter
                 + " value.</summary>"
         );
         code.AppendLineAt(3, "/// <param name=\"model\">The value to expose.</param>");
-        code.AppendLineAt(
+        SparseFragmentEmitHelpers.AppendInternal(
+            code,
             3,
             "internal " + viewTypeName + "(" + viewModel.SourceTypeName + " model)"
         );

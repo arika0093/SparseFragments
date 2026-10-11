@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -89,6 +91,37 @@ internal static class SparseSemanticReference
         IEnumerable<string> memberNames,
         SparseFamilyNames family
     ) => SparseGeneratedPlacement.ResolveUiTypeName(family.ReadOnlyView, memberNames);
+
+    /// <summary>Collects names competing with generated UI types in one model.</summary>
+    /// <remarks>
+    /// Generated <c>Observable</c>/<c>ReadOnlyView</c>/<c>EditSession</c> nest
+    /// in the model, so both source member names and user-declared nested
+    /// type names compete. The generated type retreats behind a
+    /// <c>Sparse</c> prefix when its preferred name is taken.
+    /// </remarks>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="model">Model identity carrying nested type names.</param>
+    /// <returns>Member names followed by nested type names.</returns>
+    public static IEnumerable<string> TakenUiNames(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model
+    ) =>
+        members
+            .Select(static member => member.Property.Name)
+            .Concat(
+                model.NestedTypeNames.IsDefault
+                    ? ImmutableArray<string>.Empty
+                    : model.NestedTypeNames
+            );
+
+    /// <summary>Resolves a collision-aware edit-session root name for one model.</summary>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="model">Model identity carrying nested type names.</param>
+    /// <returns><c>EditSession</c>, or <c>SparseEditSession</c> when taken.</returns>
+    public static string EditSessionRootName(
+        ImmutableArray<SparseMemberModel> members,
+        SparseModelInfo model
+    ) => SparseGeneratedPlacement.ResolveUiTypeName("EditSession", TakenUiNames(members, model));
 
     private static string ReplaceRoleSuffix(string typeName, string fromRole, string toRole)
     {

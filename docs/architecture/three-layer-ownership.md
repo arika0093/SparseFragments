@@ -140,8 +140,8 @@ to the default, and Shared provides no implicit fallback. A null or
 empty value keeps single-file emission. All placement decisions flow
 through `SparseGeneratedPlacement`: the per-model container derives from
 the stable fully qualified model identity plus a stable hash, UI type
-names dodge source member collisions, and surface/implementation hint
-names stay stable and unique. The isolated consumer probe (a downstream
+names dodge source member and nested-type collisions by retreating behind
+a `Sparse` prefix, and surface/implementation hint names stay stable and unique. The isolated consumer probe (a downstream
 generator with no `SparseFragments` runtime reference) verifies that
 Shared never assumes the default namespace.
 

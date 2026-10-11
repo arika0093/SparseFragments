@@ -100,13 +100,13 @@ namespace SparseFragments.Tests.Shared
             implementation.ShouldContain("class PatchOperations");
             implementation.ShouldContain("class ChangeSetOperations");
 
-            // Surface and implementation hints stay stable and distinct (union:
-            // reloc-1 UI/session family plus the combined reloc-2 payload/
-            // Fragment-operations and reloc-3 Patch/ChangeSet implementation).
+            // Surface and implementation hints stay stable and distinct (the
+            // model surface plus the combined payload/Fragment-operations and
+            // Patch/ChangeSet implementation file).
             var hints = sources
                 .Keys.Where(static key => key.Contains("ProbeRoot", StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(6);
+            hints.Length.ShouldBe(2);
             hints
                 .Count(static key => key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal))
                 .ShouldBe(1);

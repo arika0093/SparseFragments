@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
-using BenchSession = global::SparseFragments.Generated.BenchDescriptorHolder_72AE3E12.EditSession;
+using BenchSession = global::BenchDescriptorHolder.EditSession;
 
 [SparseFragmentModel]
 public partial class BenchDescriptorChild

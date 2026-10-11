@@ -162,15 +162,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "global::SparseFragments.Generated.SparseDescriptorValue"
         ),
         ReservedGeneratedNames: ImmutableArray.Create(
-            // Issue #195: only names injected into the annotated model are
-            // reserved here. Nested state/operation families (Fragment,
+            // Only names injected into the annotated model are reserved
+            // here. Nested state/operation families (Fragment,
             // FragmentBuilder, Patch, ChangeSet, ChangePayload) plus the
-            // member/method names they declare on the model surface. Names
-            // that now exist only in the per-model implementation container
-            // (Observable, ReadOnlyView, EditSession, DescriptorFactory and
-            // the operation/DTO/converter types) are resolved through the
-            // central SparseGeneratedPlacement resolver instead, so model
-            // members may freely reuse them.
+            // member/method names they declare on the model surface. The
+            // UI/editing family (Observable, ReadOnlyView, EditSession) nests
+            // in the model too but resolves through the central
+            // SparseGeneratedPlacement resolver, retreating behind a Sparse
+            // prefix on collision, so model members may freely reuse those
+            // names. Operation/DTO/converter types live only in the per-model
+            // implementation container and need no reservation.
             "Fragment",
             "FragmentBuilder",
             "Empty",
@@ -827,10 +828,10 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        // Union of both relocations: the surface plus the reloc-2 split
-        // implementation file share one result, and the reloc-1 UI/session
-        // family joins AdditionalSources under distinct hints so per-model
-        // incremental isolation covers all of them.
+        // The surface carries the model-facing families (Fragment, Patch,
+        // ChangeSet, payload facades, Observable, ReadOnlyView, EditSession)
+        // plus the reloc-2/3 split implementation file; UI/session types nest
+        // in the model again so AdditionalSources only holds the split file.
         var (surface, implementation) = SparsePerModelEmitter.BuildSplitSurface(
             model,
             analysis.Members,

@@ -72,7 +72,7 @@ public sealed class BlazorEditFormRenderedTests
     {
         public OrderDto Live = Order();
 
-        public global::SparseFragments.Generated.SparseFragments_Blazor_Tests_OrderDto_19983FDA.EditSession Session =
+        public global::SparseFragments.Blazor.Tests.OrderDto.EditSession Session =
             null!;
 
         public EditContext Context = null!;
@@ -175,7 +175,7 @@ public sealed class BlazorEditFormRenderedTests
         }
 
         private void Adopt(
-            global::SparseFragments.Generated.SparseFragments_Blazor_Tests_OrderDto_19983FDA.EditSession next
+            global::SparseFragments.Blazor.Tests.OrderDto.EditSession next
         )
         {
             if (Context is not null)

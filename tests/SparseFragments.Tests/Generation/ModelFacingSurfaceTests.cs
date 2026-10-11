@@ -4,11 +4,12 @@ using SparseFragments.Generator;
 
 namespace SparseFragments.Tests.Generation;
 
-// Issue #195, stage 5: locks the intended model-facing surface after the
-// #190-#194 relocations. Only the Fragment/Patch/ChangeSet/ChangePayload
-// families stay nested in the annotated model; Observable, ReadOnlyView,
-// EditSession, DescriptorFactory, and the operation/DTO/converter
-// implementations live in the per-model SparseFragments.Generated container.
+// Locks the intended model-facing surface: Fragment/Patch/ChangeSet/
+// ChangePayload families plus the UI/editing family (Observable,
+// ReadOnlyView, EditSession) nest in the annotated model again, while the
+// operation/DTO/converter implementations live in the per-model
+// SparseFragments.Generated container. Colliding models retreat the
+// generated UI type behind a Sparse prefix instead of relocating it.
 public sealed class ModelFacingSurfaceTests
 {
     private const string ShapesSource = """
@@ -77,16 +78,7 @@ public sealed class ModelFacingSurfaceTests
         }
         """;
 
-    private static readonly string[] BannedNested =
-    [
-        "Observable",
-        "SparseObservable",
-        "ReadOnlyView",
-        "EditSession",
-        "DescriptorFactory",
-        "PatchOperations",
-        "ChangeSetOperations",
-    ];
+    private static readonly string[] BannedNested = ["PatchOperations", "ChangeSetOperations"];
 
     private static Compilation Generate(string source)
     {
@@ -143,7 +135,16 @@ public sealed class ModelFacingSurfaceTests
         nested
             .Where(static name => name.EndsWith("FragmentJsonConverter", StringComparison.Ordinal))
             .ShouldBeEmpty();
-        foreach (var expected in new[] { "Fragment", "FragmentBuilder", "Patch", "ChangeSet" })
+        foreach (
+            var expected in new[]
+            {
+                "Fragment",
+                "FragmentBuilder",
+                "Patch",
+                "ChangeSet",
+                "ReadOnlyView",
+            }
+        )
             nested.ShouldContain(expected);
 
         // The converter shell stays private inside Fragment and derives from
@@ -157,6 +158,14 @@ public sealed class ModelFacingSurfaceTests
 
         if (expectSessionFamily)
         {
+            // The UI/editing family nests in the model: Observable and the
+            // session resolve as nested types, never in the implementation
+            // container.
+            nested.ShouldContain("Observable");
+            model.GetTypeMembers("Observable").ShouldHaveSingleItem();
+            var session = model.GetTypeMembers("EditSession").ShouldHaveSingleItem();
+            session.IsSealed.ShouldBeTrue();
+
             // Same-short-name roots share the simple extension prefix, so
             // scope the lookup to the model's own namespace.
             var modelNamespace = model.ContainingNamespace.ToDisplayString();
@@ -178,9 +187,10 @@ public sealed class ModelFacingSurfaceTests
                 var method in extensions.GetMembers("CreateEditSession").OfType<IMethodSymbol>()
             )
             {
-                method
-                    .ReturnType.ContainingNamespace.ToDisplayString()
-                    .ShouldStartWith("SparseFragments.Generated");
+                // The factory returns the model-nested session type itself.
+                SymbolEqualityComparer
+                    .Default.Equals(method.ReturnType.ContainingType, model)
+                    .ShouldBeTrue();
             }
         }
     }
@@ -239,19 +249,17 @@ public sealed class ModelFacingSurfaceTests
             RequireModel(compilation, "Surface.Probe.Second.Dup"),
             expectSessionFamily: true
         );
-        var sessions = compilation
-            .GetSymbolsWithName("EditSession")
-            .OfType<INamedTypeSymbol>()
-            .Where(static symbol =>
-                symbol
-                    .ContainingNamespace.ToDisplayString()
-                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
-            .Select(static symbol => symbol.ToDisplayString())
+        var sessions = new[]
+        {
+            RequireModel(compilation, "Surface.Probe.First.Dup"),
+            RequireModel(compilation, "Surface.Probe.Second.Dup"),
+        }
+            .Select(static model => model.GetTypeMembers("EditSession").ShouldHaveSingleItem())
+            .Select(static session => session.ToDisplayString())
             .Distinct()
             .ToArray();
-        // Both same-short-name roots resolve to distinct stable containers.
-        sessions.Length.ShouldBeGreaterThanOrEqualTo(2);
+        // Both same-short-name roots resolve to distinct model-nested sessions.
+        sessions.Length.ShouldBe(2);
     }
 
     [Test]
@@ -271,16 +279,9 @@ public sealed class ModelFacingSurfaceTests
         AssertClean(compilation);
         var model = RequireModel(compilation, "Surface.Probe.FreedSessionMemberModel");
         model.GetTypeMembers("EditSession").ShouldBeEmpty();
-        // The generated session still resolves in the relocated container.
-        compilation
-            .GetSymbolsWithName("EditSession")
-            .OfType<INamedTypeSymbol>()
-            .Where(static symbol =>
-                symbol
-                    .ContainingNamespace.ToDisplayString()
-                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
-            .ShouldNotBeEmpty();
+        // The generated session retreats behind the Sparse prefix instead.
+        var evaded = model.GetTypeMembers("SparseEditSession").ShouldHaveSingleItem();
+        evaded.IsSealed.ShouldBeTrue();
     }
 
     [Test]
@@ -302,7 +303,12 @@ public sealed class ModelFacingSurfaceTests
         var compilation = Generate(source);
         AssertClean(compilation);
         var model = RequireModel(compilation, "Surface.Probe.FreedSessionNestedModel");
-        model.GetTypeMembers("EditSession").ShouldHaveSingleItem();
+        var own = model.GetTypeMembers("EditSession").ShouldHaveSingleItem();
+        own.DeclaringSyntaxReferences.Length.ShouldBeGreaterThan(0);
+        // The generated session retreats behind the Sparse prefix instead.
+        var evaded = model.GetTypeMembers("SparseEditSession").ShouldHaveSingleItem();
+        evaded.DeclaringSyntaxReferences.Length.ShouldBeGreaterThan(0);
+        own.ToDisplayString().ShouldNotBe(evaded.ToDisplayString());
     }
 
     [Test]

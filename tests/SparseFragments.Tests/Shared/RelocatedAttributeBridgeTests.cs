@@ -8,11 +8,10 @@ using SparseFragments.Generator.Shared;
 
 namespace SparseFragments.Tests.Shared;
 
-// Regression tests for the attribute-bridge gating mismatch (reloc-1 review,
-// #190/#191): the surface used to emit __SparseAttributes_* bridges only with
-// a descriptor dialect present, while the relocation rewrite referenced them
-// whenever an implementation namespace was set. Both sides now use the same
-// gate (emission whenever relocation can reference a bridge).
+// Regression tests for descriptor attribute handling now that the UI
+// family nests in the model again: descriptor accessors embed the attribute
+// expressions inline in the model-nested Observable, so no
+// __SparseAttributes_* bridge crosses the surface/implementation boundary.
 public sealed class RelocatedAttributeBridgeTests
 {
     private const string AttributeExpression =
@@ -142,8 +141,10 @@ public sealed class RelocatedAttributeBridgeTests
         );
         relocated.ShouldContain("ReadModel.__SparseAttributes_0()");
 
+        // The model surface keeps descriptors inline, so it defines no
+        // cross-file bridge for the (now unused) relocation rewrite.
         var surface = BuildSurface(config, members);
-        surface.ShouldContain("internal static global::System.Attribute[] __SparseAttributes_0()");
+        surface.ShouldNotContain("__SparseAttributes_0");
     }
 
     [Test]
@@ -153,6 +154,8 @@ public sealed class RelocatedAttributeBridgeTests
         var members = AttributedMembers();
         var (surface, splitImplementation) = BuildSplit(config, members);
         splitImplementation.ShouldNotBeNull();
+        // UI/editing types nest in the model surface again: no additional
+        // implementation sources remain for them.
         var implementations = SparseFragmentEmitter.BuildImplementationSources(
             BridgeModel(),
             members,
@@ -160,35 +163,10 @@ public sealed class RelocatedAttributeBridgeTests
             CancellationToken.None,
             config
         );
-        implementations.ShouldNotBeEmpty();
+        implementations.ShouldBeEmpty();
 
-        // Every bridge call in the relocated outputs must resolve to a bridge
-        // the surface defines; otherwise the compilation below fails.
-        var defined = new HashSet<string>(
-            Regex
-                .Matches(
-                    surface,
-                    @"__SparseAttributes_(\d+)\(\) =>",
-                    RegexOptions.None,
-                    TimeSpan.FromSeconds(1)
-                )
-                .Select(static match => match.Groups[1].Value)
-        );
-        var referenced = implementations
-            .SelectMany(static source =>
-                Regex
-                    .Matches(
-                        source.Source,
-                        @"__SparseAttributes_(\d+)\(\)",
-                        RegexOptions.None,
-                        TimeSpan.FromSeconds(1)
-                    )
-                    .Select(static match => match.Groups[1].Value)
-            )
-            .Distinct()
-            .ToArray();
-        referenced.ShouldBeSubsetOf(defined);
-
+        // No cross-file bridge remains: the surface plus the split
+        // implementation file must compile on their own.
         var cores = SparseEditSessionEmitter.RenderCoreSources(
             config.EditSessionDialect!,
             config.RuntimeDialect!,
