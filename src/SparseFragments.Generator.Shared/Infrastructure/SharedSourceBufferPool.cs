@@ -5,9 +5,10 @@ namespace SparseFragments.Generator.Shared;
 
 internal static class SharedSourceBufferPool
 {
-    // Four simultaneous source builders fit the usual model emission. Bound retention per thread.
+    // Share one character budget across four owners rather than reserving it per buffer.
     private const int SlotCount = 4;
-    private const int MaximumCapacity = 128 * 1024;
+    private const int OrdinaryCapacity = 128 * 1024;
+    private const int MaximumCapacity = SlotCount * OrdinaryCapacity;
 
     [ThreadStatic]
     private static StringBuilder?[]? _buffers;
@@ -39,12 +40,36 @@ internal static class SharedSourceBufferPool
     {
         if (initialCapacity < 0)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
-        // Oversized rewrites must not consume buffers that ordinary emitters can reuse.
-        if (initialCapacity > MaximumCapacity)
+        var compatible = TryRent(initialCapacity);
+        if (compatible is not null)
+            return compatible;
+        // Preserve ordinary cached buffers when no retained buffer fits a large rewrite.
+        if (initialCapacity > OrdinaryCapacity)
             return new StringBuilder(initialCapacity);
         var buffer = Rent();
         buffer.EnsureCapacity(initialCapacity);
         return buffer;
+    }
+
+    private static StringBuilder? TryRent(int minimumCapacity)
+    {
+        var buffers = _buffers;
+        if (buffers is null)
+            return null;
+        var best = -1;
+        for (var index = 0; index < buffers.Length; index++)
+        {
+            var buffer = buffers[index];
+            if (buffer is null || buffer.Capacity < minimumCapacity)
+                continue;
+            if (best < 0 || buffer.Capacity < buffers[best]!.Capacity)
+                best = index;
+        }
+        if (best < 0)
+            return null;
+        var result = buffers[best];
+        buffers[best] = null;
+        return result;
     }
 
     /// <summary>Returns a buffer if a bounded cache slot is available.</summary>
@@ -54,24 +79,34 @@ internal static class SharedSourceBufferPool
         if (buffer.Capacity > MaximumCapacity)
             return;
         var buffers = _buffers ??= new StringBuilder?[SlotCount];
-        var smallest = 0;
+        var smallest = -1;
+        var empty = -1;
+        var retainedCapacity = 0;
         for (var index = 0; index < buffers.Length; index++)
         {
             var cached = buffers[index];
             if (cached is null)
             {
-                buffer.Clear();
-                buffers[index] = buffer;
-                return;
+                if (empty < 0)
+                    empty = index;
+                continue;
             }
-            if (cached.Capacity < buffers[smallest]!.Capacity)
+            retainedCapacity += cached.Capacity;
+            if (smallest < 0 || cached.Capacity < buffers[smallest]!.Capacity)
                 smallest = index;
         }
-        // Small nested emitters must not displace the large outer source buffers.
-        if (buffer.Capacity > buffers[smallest]!.Capacity)
+        var target = empty;
+        if (target < 0)
         {
-            buffer.Clear();
-            buffers[smallest] = buffer;
+            var previousCapacity = buffers[smallest]!.Capacity;
+            if (buffer.Capacity <= previousCapacity)
+                return;
+            retainedCapacity -= previousCapacity;
+            target = smallest;
         }
+        if (retainedCapacity + buffer.Capacity > MaximumCapacity)
+            return;
+        buffer.Clear();
+        buffers[target] = buffer;
     }
 }

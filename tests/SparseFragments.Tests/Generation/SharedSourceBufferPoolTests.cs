@@ -22,9 +22,61 @@ public sealed class SharedSourceBufferPoolTests
     {
         DrainPool();
         var buffer = SharedSourceBufferPool.Rent();
-        buffer.EnsureCapacity(128 * 1024 + 1);
+        buffer.EnsureCapacity(512 * 1024 + 1);
         SharedSourceBufferPool.Return(buffer);
         SharedSourceBufferPool.Rent().ShouldNotBeSameAs(buffer);
+    }
+
+    [Test]
+    public void ASharedBudgetCanRetainOneLargeAndOneOrdinaryBuffer()
+    {
+        DrainPool();
+        var large = SharedSourceBufferPool.Rent(384 * 1024);
+        var ordinary = SharedSourceBufferPool.Rent(128 * 1024);
+        SharedSourceBufferPool.Return(large);
+        SharedSourceBufferPool.Return(ordinary);
+        SharedSourceBufferPool.Rent(350 * 1024).ShouldBeSameAs(large);
+        SharedSourceBufferPool.Rent(64 * 1024).ShouldBeSameAs(ordinary);
+    }
+
+    [Test]
+    public void EmptySlotsCannotExceedTheTotalCharacterBudget()
+    {
+        DrainPool();
+        var large = SharedSourceBufferPool.Rent(400 * 1024);
+        var ordinary = SharedSourceBufferPool.Rent(128 * 1024);
+        SharedSourceBufferPool.Return(large);
+        SharedSourceBufferPool.Return(ordinary);
+        SharedSourceBufferPool.Rent().ShouldBeSameAs(large);
+        SharedSourceBufferPool.Rent().ShouldNotBeSameAs(ordinary);
+    }
+
+    [Test]
+    public void AFullOrdinaryCacheIsPreservedWhenALargeReplacementWouldExceedTheBudget()
+    {
+        DrainPool();
+        var ordinary = Enumerable
+            .Range(0, 4)
+            .Select(_ => SharedSourceBufferPool.Rent(128 * 1024))
+            .ToArray();
+        foreach (var buffer in ordinary)
+            SharedSourceBufferPool.Return(buffer);
+        var large = SharedSourceBufferPool.Rent(256 * 1024);
+        SharedSourceBufferPool.Return(large);
+        for (var index = 0; index < 4; index++)
+            SharedSourceBufferPool.Rent().ShouldBeSameAs(ordinary[index]);
+    }
+
+    [Test]
+    public void CapacityRequestsChooseTheSmallestCompatibleBuffer()
+    {
+        DrainPool();
+        var large = SharedSourceBufferPool.Rent(256 * 1024);
+        var ordinary = SharedSourceBufferPool.Rent(64 * 1024);
+        SharedSourceBufferPool.Return(large);
+        SharedSourceBufferPool.Return(ordinary);
+        SharedSourceBufferPool.Rent(32 * 1024).ShouldBeSameAs(ordinary);
+        SharedSourceBufferPool.Rent(200 * 1024).ShouldBeSameAs(large);
     }
 
     [Test]
