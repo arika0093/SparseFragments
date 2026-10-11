@@ -34,6 +34,15 @@ public enum SparseEntityMappingFailure
 
     /// <summary>A required nested entity instance is missing and cannot be created.</summary>
     NestedNotCreatable = 9,
+
+    /// <summary>A changed collection path addresses a navigation that is not loaded, so sync-by-key has no complete state.</summary>
+    CollectionNotLoaded = 10,
+
+    /// <summary>A keyed collection change references a child key with no matching tracked or desired identity.</summary>
+    CollectionKeyNotFound = 11,
+
+    /// <summary>A keyed collection change carries colliding, duplicated, or otherwise unresolvable child identities.</summary>
+    CollectionKeyConflict = 12,
 }
 
 /// <summary>

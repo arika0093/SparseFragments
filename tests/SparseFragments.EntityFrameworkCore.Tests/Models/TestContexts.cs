@@ -215,4 +215,14 @@ public static class TestDatabases
             (DbContextOptions<MappingVariantContext> options) => new MappingVariantContext(options)
         );
     }
+
+    /// <summary>Creates a keyed mapping-test context over an open connection.</summary>
+    public static KeyedMappingContext CreateKeyed(SqliteConnection connection, QueryCounter counter)
+    {
+        return Create(
+            connection,
+            counter,
+            (DbContextOptions<KeyedMappingContext> options) => new KeyedMappingContext(options)
+        );
+    }
 }

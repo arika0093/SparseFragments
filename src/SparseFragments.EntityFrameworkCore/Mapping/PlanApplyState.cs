@@ -20,6 +20,18 @@ internal sealed class PlanApplyState
         string path,
         bool isNested = false
     )
+        : this(context, entity, entry, desired, changes, path, isNested, null) { }
+
+    public PlanApplyState(
+        DbContext context,
+        object entity,
+        EntityEntry entry,
+        object desired,
+        ISparseChangeSet changes,
+        string path,
+        bool isNested,
+        Dictionary<Guid, (string Path, object Entity)>? sharedCorrelation
+    )
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(entity);
@@ -33,6 +45,7 @@ internal sealed class PlanApplyState
         Desired = desired;
         Changes = changes;
         Path = path;
+        Correlation = sharedCorrelation ?? [];
         Groups = Group(changes, path, isNested);
     }
 
@@ -51,6 +64,31 @@ internal sealed class PlanApplyState
 
     /// <summary>Gets changed records grouped by root member name.</summary>
     public Dictionary<string, List<SparseChangeRecord>> Groups { get; }
+
+    /// <summary>Gets the shared temporary-identity correlation for this apply.</summary>
+    public Dictionary<Guid, (string Path, object Entity)> Correlation { get; }
+
+    /// <summary>Records a created child entity under its DTO temporary identity.</summary>
+    public void RecordTemporary(string path, Guid temporaryKey, object entity)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(entity);
+        if (Correlation.TryGetValue(temporaryKey, out var existing))
+        {
+            if (!ReferenceEquals(existing.Entity, entity))
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyConflict,
+                    path,
+                    "Two created children share one temporary identity."
+                );
+            }
+
+            return;
+        }
+
+        Correlation[temporaryKey] = (path, entity);
+    }
 
     /// <summary>Whether any changed record starts at the DTO member.</summary>
     public bool HasRecords(string dtoName) => Groups.ContainsKey(dtoName);

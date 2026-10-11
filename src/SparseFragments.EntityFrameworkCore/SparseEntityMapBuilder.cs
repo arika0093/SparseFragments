@@ -203,6 +203,62 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     }
 
     /// <summary>
+    /// Maps a keyed child collection with path-scoped element configuration.
+    /// </summary>
+    /// <remarks>
+    /// The child mapping, key projection, factory, removal policy, and order
+    /// setter declared in <paramref name="configure" /> apply to this parent
+    /// collection only. Dispatch runs through the typed keyed transition
+    /// emitted by the ordinary <c>SparseFragments.Generator</c>; no separate
+    /// EF generator exists. An explicitly configured DTO path replaces its
+    /// inferred default instead of running both.
+    /// </remarks>
+    /// <param name="dto">Selects the DTO collection member.</param>
+    /// <param name="entity">Selects the entity collection navigation.</param>
+    /// <param name="configure">Configures the scoped child mapping and policies.</param>
+    /// <typeparam name="TDtoChild">The DTO element type.</typeparam>
+    /// <typeparam name="TEntityChild">The entity element type.</typeparam>
+    /// <returns>This builder.</returns>
+    public SparseEntityMapBuilder<TEntity, TDto> Collection<TDtoChild, TEntityChild>(
+        Expression<Func<TDto, IEnumerable<TDtoChild>?>> dto,
+        Expression<Func<TEntity, IEnumerable<TEntityChild>?>> entity,
+        Action<SparseEntityCollectionBuilder<TEntityChild, TDtoChild>> configure
+    )
+        where TDtoChild : class
+        where TEntityChild : class
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(configure);
+        var lines = new SparseEntityCollectionBuilder<TEntityChild, TDtoChild>();
+        configure(lines);
+        var dtoName = MemberPath.Parse(dto).SingleName("DTO");
+        AddNode(
+            new CollectionNode<TDto, TEntity, TDtoChild, TEntityChild>(
+                dto,
+                entity,
+                new CollectionDeclaration<TDtoChild, TEntityChild>(
+                    lines.ElementConfigure
+                        ?? throw new SparseEntityMappingException(
+                            SparseEntityMappingFailure.MetadataMismatch,
+                            dtoName,
+                            "The collection declares no Element() child mapping. Scoped child overrides live in the same parent mapper Configure."
+                        ),
+                    lines.CreateFactory,
+                    lines.RemoveKind,
+                    lines.RemoveHandler,
+                    lines.SoftDeleteMark,
+                    lines.OrderSetter,
+                    lines.KeyType,
+                    lines.DtoKeySelector,
+                    lines.EntityKeySelector
+                )
+            )
+        );
+        return this;
+    }
+
+    /// <summary>
     /// Sets the missing-value policy for one mapped scalar member.
     /// </summary>
     /// <remarks>
@@ -334,6 +390,11 @@ public abstract class SparseEntityMapBuilderBase
     internal void AddAllowedWrite(string dtoName)
     {
         _allowedWrites.Add(dtoName);
+    }
+
+    internal void InheritDefaultMissing(SparseEntityMissingPolicy policy)
+    {
+        DefaultMissing = policy;
     }
 
     internal bool Covers(string dtoName) => _nodeNames.Contains(dtoName);

@@ -3,8 +3,9 @@
 `SparseFragments.EntityFrameworkCore` maps an accepted DTO `ChangeSet` onto a
 tracked EF Core entity. The change set is the strict write mask: only members
 it marks changed execute their setters, and untouched EF properties stay
-unmodified. This page describes the proof of concept built for issue #224:
-the API, the execution lifecycle, and what stays out of scope.
+unmodified. This page describes the proof of concept built for issues #224
+(scalar/nested mapping) and #225 (keyed child collections): the API, the
+execution lifecycle, and what stays out of scope.
 
 ## Lifecycle
 
@@ -36,6 +37,24 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
                 child.Ignore(address => address.City);
             }
         );
+        map.Collection<OrderLineDto, OrderLineEntity>(
+            dto => dto.Lines,
+            entity => entity.Lines,
+            lines =>
+            {
+                lines.Element(child =>
+                {
+                    child.Ignore(line => line.Subtotal);
+                });
+                lines.Create(dto => new OrderLineEntity
+                {
+                    Quantity = dto.Quantity,
+                    UnitPrice = dto.UnitPrice,
+                });
+                lines.Delete();
+                lines.Order((entity, index) => entity.SortOrder = index);
+            }
+        );
     }
 }
 ```
@@ -53,7 +72,7 @@ if (rebase.HasConflicts)
 var accepted = rebase.Rebased;
 var desired = accepted.ToPatch().ApplyTo(current);
 var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(new OrderMapper(), db.Model);
-mapper.Apply(db, trackedEntity, desired, accepted); // no query, no SaveChanges
+var applied = mapper.ApplyWithResult(db, trackedEntity, desired, accepted); // no query, no SaveChanges
 await db.SaveChangesAsync();
 ```
 
@@ -61,7 +80,9 @@ await db.SaveChangesAsync();
 type and returns the cached mapper. `Apply` validates the change set first and
 only then executes the queued writes, so a deterministic mapping failure
 leaves scalar state untouched. Present values come from the change set's
-after-state; `desired` supplies nested objects for recursion.
+after-state; `desired` supplies nested objects for recursion. `ApplyWithResult`
+additionally correlates created child entities by DTO temporary identity (see
+below); plain `Apply` discards that correlation.
 
 ## Configuration
 
@@ -87,7 +108,7 @@ for changed members; missing policies do not apply to them.
 Nested objects stay inside the same mapper through `Object`, scoped to the
 parent path so the same child type pair can map differently elsewhere:
 
-<!-- illustrative: scoped nested mapping; collections stay diagnostic in this PoC -->
+<!-- illustrative: scoped nested mapping; keyed collections follow the same scoping -->
 ```csharp
 map.Object(
     dto => dto.Address,
@@ -98,8 +119,77 @@ map.Object(
     },
     SparseEntityMissingPolicy.Throw
 );
-map.Collection(dto => dto.Lines, entity => entity.Lines); // diagnosed, see below
 ```
+
+## Keyed collections
+
+Keyed child collections synchronize by stable DTO identity through the typed
+keyed transition (`Added`/`Edited`/`Removed`, `BeforeOrder`/`AfterOrder`,
+`OrderChanged`) emitted by the ordinary `SparseFragments.Generator`; no
+separate EF generator exists. Child mapping, key projection, factory, removal,
+and order policies are declared in the same parent mapper `Configure`, nested
+under the collection member, and scoped to that parent path: two collections
+with the same element CLR types keep independent configurations. A shared
+private method taking the collection builder may deduplicate repeated
+declarations; a standalone child mapper class is never required.
+
+<!-- illustrative: keyed collection registrations available on the collection builder -->
+```csharp
+map.Collection<OrderLineDto, OrderLineEntity>(
+    dto => dto.Lines,
+    entity => entity.Lines,
+    lines =>
+    {
+        lines.Element(child =>
+        {
+            child.Ignore(line => line.Subtotal);
+        });
+        lines.Key(dto => dto.Key, entity => ValueTuple.Create(entity.TenantId, entity.LineNo)); // computed/composite
+        lines.Create(dto => new OrderLineEntity { Quantity = dto.Quantity }); // optional factory
+        lines.Delete(); // or Detach(), SoftDelete(mark), Remove(callback)
+        lines.Order((entity, index) => entity.SortOrder = index); // opt-in order persistence
+    }
+);
+```
+
+* Added children are created (factory or parameterless constructor), written
+  through the path-scoped child plan from the desired after-state, and attached
+  to the parent collection; tracked instances of edited or untouched children
+  are preserved, never replaced, and only their changed members execute
+  setters.
+* Edited children are located by key among the tracked children and recurse
+  through their typed element transition; removed children follow the explicit
+  policy. Collection removal is never physical deletion by default: `Delete`
+  marks rows deleted, `Detach` unlinks them (optional relationships only),
+  `SoftDelete` flags them through a callback while keeping the row, and
+  `Remove` runs a custom callback. A missing policy, `Detach` on a required or
+  owned relationship, and `SoftDelete` on an owned navigation all fail plan
+  validation with an explicit diagnostic.
+* The DTO `[SparseKey]` may be computed (tuples, value objects) and may differ
+  from EF identity. Without `Key()`, the DTO key must equal the single-property
+  EF primary key type; composite EF keys and alternate identities always need
+  an explicit projection to the same key space. Key members that EF protects
+  (primary, alternate, or composite keys) are written on creation only through
+  an explicit child `AllowWrite`, matching scalar protection elsewhere.
+* `ApplyWithResult` correlates every `[SparseTemporaryKey]` Guid to its created
+  child entity, scoped by collection path. Permanent keys always win when
+  assigned; unassigned additions without a temporary value fail explicitly. The
+  application reads database-generated keys off the tracked instances after
+  its own `SaveChanges`, builds the authoritative DTO (preserving temporary
+  values for new rows), and hands it to the existing client `Reconcile` flow;
+  existing Reconcile issues (#216, #218) stay separately tracked.
+* Order persistence is opt-in through `Order()`. Membership changes reorder the
+  tracked in-memory list to the desired DTO order; the setter additionally
+  writes the persisted position when the key order changed. A pure reorder
+  without a setter fails explicitly, as do partial orders whose transition
+  does not cover the full desired assigned keys.
+* The navigation must be loaded (`Include`/`Load`): unloaded collections fail
+  with `CollectionNotLoaded` instead of auto-loading or inferring empty.
+  Unknown edited/removed keys, colliding additions, duplicated keys, and
+  desired states that do not cover the full tracked collection all fail before
+  mutating. `Apply` never queries, never calls `SaveChanges`, and never
+  rebases; reflection covers EF metadata, relationship resolution, and
+  configured callbacks only, never implicit child mapping discovery.
 
 ## Missing versus null
 
@@ -135,27 +225,38 @@ reflection:
 * a pre-existing but untracked instance is attached as unchanged for that
   single entity, never through a graph-wide update.
 
-Unmapped, ambiguous, protected, and collection changed paths all fail with
-`SparseEntityMappingException` carrying the dotted DTO path. Changed
-collection paths fail with `CollectionNotSupported`: keyed synchronization
-continues in issue #225, and this PoC diagnoses collections (including
-whole-value sequences) instead of syncing them.
+Unmapped, ambiguous, protected, keyed-sync, and marker-only collection changed
+paths all fail with `SparseEntityMappingException` carrying the dotted DTO
+path. Changed marker-only collection paths (the two-argument `Collection`
+overload, kept for diagnostics) fail with `CollectionNotSupported`; keyed
+synchronization is configured through the three-argument overload above.
 
 ## PoC limitations
 
 * Targets `net10.0` only.
-* No collection synchronization: any changed collection path fails. Element
-  configuration arrives with issue #225.
-* No source-generated Apply bodies yet: conventional mappings are compiled
-  expression plans validated against EF metadata and cached per `IModel`
-  plus mapping type. `Configure` must be deterministic for its mapping type.
-  Generator emission stays a follow-up; the runtime plan is the validated
-  source in this PoC.
+* Keyed synchronization covers `IList` collection navigations with a generated
+  keyed transition (`[SparseKey]` element with generator support). Scalar or
+  unkeyed sequences, many-to-many skip navigations, and whole-collection
+  replacement outside the keyed transition fail explicitly instead of syncing.
+* No source-generated mapper Apply bodies yet: conventional mappings are
+  compiled expression plans validated against EF metadata and cached per
+  `IModel` plus mapping type. `Configure` must be deterministic for its mapping
+  type. Dispatch runs through the typed keyed-transition contracts emitted by
+  the ordinary generator; no separate EF generator exists. Generator emission
+  stays a follow-up; the runtime plan is the validated source in this PoC.
+* Added-child member validation (for example nullability) surfaces while the
+  collection action executes, after relationship, key, and policy validation;
+  every other deterministic failure precedes any write.
 * Reference navigations only for `Object` and flattened paths; value-type
   and collection intermediates are rejected.
-* Nested materialization needs a public parameterless constructor.
+* Nested materialization needs a public parameterless constructor (or `Create`).
 * Root presence transitions (whole-DTO null or missing) are outside `Apply`
   scope; pass a non-null desired DTO with member-level changes.
+* Cross-parent foreign identities are detected only where feasible without
+  querying (stale-current collisions, unknown tracked keys); true
+  cross-parent conflicts surface at the application-owned `SaveChanges`.
+  Editing an unassigned (temporary-only) identity is rejected: the server
+  cannot resolve pending identities to persisted rows.
 * No auto-load, no `SaveChanges`, no transactions, no retries, no Mapperly
   dependency, and no NativeAOT support.
 * The Contracts project (DTOs plus generated change sets) references only

@@ -38,4 +38,33 @@ public partial class OrderDto
 
     /// <summary>Gets or sets the nested address.</summary>
     public AddressDto? Address { get; set; }
+
+    /// <summary>Gets or sets the keyed order lines.</summary>
+    public List<OrderLineDto> Lines { get; set; } = [];
+}
+
+/// <summary>
+/// The order line DTO. Knows nothing about EF Core.
+/// </summary>
+public partial class OrderLineDto
+{
+    /// <summary>Gets or sets the persisted identity (unassigned for new rows).</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets the stable key.</summary>
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity for new rows.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Quantity { get; set; }
+
+    /// <summary>Gets or sets the unit price.</summary>
+    public decimal UnitPrice { get; set; }
+
+    /// <summary>Gets or sets the display subtotal. Read-only presentation state, never written.</summary>
+    public decimal Subtotal { get; set; }
 }

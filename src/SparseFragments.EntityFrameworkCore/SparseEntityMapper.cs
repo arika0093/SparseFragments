@@ -78,6 +78,31 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// <param name="changes">The accepted change set acting as the strict write mask.</param>
     public void Apply(DbContext context, TEntity entity, TDto desired, ISparseChangeSet changes)
     {
+        ApplyWithResult(context, entity, desired, changes);
+    }
+
+    /// <summary>
+    /// Applies the accepted change set to a tracked entity and correlates created children.
+    /// </summary>
+    /// <remarks>
+    /// Same lifecycle as <see cref="Apply" />. The returned result maps every
+    /// DTO <c>[SparseTemporaryKey]</c> to its created child entity, so the
+    /// application can read database-generated permanent keys after the
+    /// application-owned <c>SaveChanges</c> and build the authoritative DTO for
+    /// client <c>Reconcile</c>.
+    /// </remarks>
+    /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
+    /// <param name="entity">The tracked entity to update.</param>
+    /// <param name="desired">The accepted after-state DTO supplying present values.</param>
+    /// <param name="changes">The accepted change set acting as the strict write mask.</param>
+    /// <returns>The temporary-identity correlation for created child entities.</returns>
+    public SparseEntityApplyResult ApplyWithResult(
+        DbContext context,
+        TEntity entity,
+        TDto desired,
+        ISparseChangeSet changes
+    )
+    {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(desired);
@@ -109,7 +134,32 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             );
         }
 
-        Plan.Apply(new PlanApplyState(context, entity, entry, desired, changes, string.Empty));
+        var correlation = new Dictionary<Guid, (string Path, object Entity)>();
+        Plan.Apply(
+            new PlanApplyState(
+                context,
+                entity,
+                entry,
+                desired,
+                changes,
+                string.Empty,
+                false,
+                correlation
+            )
+        );
+        return new SparseEntityApplyResult(
+            correlation
+                .GroupBy(static entry => entry.Value.Path, StringComparer.Ordinal)
+                .ToDictionary(
+                    static group => group.Key,
+                    static group =>
+                        group.ToDictionary(
+                            static entry => entry.Key,
+                            static entry => entry.Value.Entity
+                        ),
+                    StringComparer.Ordinal
+                )
+        );
     }
 
     private static SparseEntityMapper<TEntity, TDto> Build(

@@ -244,7 +244,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             desired,
             child!,
             state.DisplayPath(DtoName),
-            isNested: true
+            isNested: true,
+            sharedCorrelation: state.Correlation
         );
         _childPlan.Prepare(sub, actions);
     }
@@ -264,7 +265,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             target,
             entry,
             desired,
-            state.DisplayPath(DtoName)
+            state.DisplayPath(DtoName),
+            state.Correlation
         );
         _childPlan.WriteAll(sub, actions);
     }
@@ -285,7 +287,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             target,
             entry,
             desired,
-            state.DisplayPath(DtoName)
+            state.DisplayPath(DtoName),
+            state.Correlation
         );
         _childPlan.WriteAll(sub, actions);
     }

@@ -36,6 +36,33 @@ public sealed class OrderEntity
 
     /// <summary>Gets or sets the owned address.</summary>
     public AddressEntity? Address { get; set; }
+
+    /// <summary>Gets or sets the keyed order lines.</summary>
+    public List<OrderLineEntity> Lines { get; set; } = [];
+}
+
+/// <summary>
+/// The tracked order line entity. Carries no mapping attributes.
+/// </summary>
+public sealed class OrderLineEntity
+{
+    /// <summary>Gets or sets the database-generated identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the owning order identity.</summary>
+    public int OrderId { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Quantity { get; set; }
+
+    /// <summary>Gets or sets the unit price.</summary>
+    public decimal UnitPrice { get; set; }
+
+    /// <summary>Gets or sets the persisted position.</summary>
+    public int SortOrder { get; set; }
+
+    /// <summary>Gets or sets the owning order.</summary>
+    public OrderEntity? Order { get; set; }
 }
 
 /// <summary>
@@ -61,6 +88,15 @@ public sealed class SampleDbContext : DbContext
             // SQLite cannot store-generate it). Protection reads IsConcurrencyToken either way.
             entity.Property(order => order.RowVersion).IsConcurrencyToken();
             entity.OwnsOne(order => order.Address);
+            entity
+                .HasMany(order => order.Lines)
+                .WithOne(line => line.Order)
+                .HasForeignKey(line => line.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<OrderLineEntity>(entity =>
+        {
+            entity.HasKey(line => line.Id);
         });
     }
 }
