@@ -101,6 +101,22 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 + id
                 + ".Value is not null;"
         );
+        // Whole transitions do not build maps, so they validate the baseline separately.
+        // Granular transitions validate each identity while building its map below.
+        code.AppendLineAt(
+            4,
+            "if (__before"
+                + id
+                + ".IsPresent != __after"
+                + id
+                + ".IsPresent || !__beforeHas"
+                + id
+                + " || !__afterHas"
+                + id
+                + ")"
+        );
+        code.AppendLineAt(4, "{");
+        code.IndentOffset++;
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
             if (hasTemp)
@@ -122,20 +138,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                         + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed collection transition.\");"
                 );
         }
-        // Whole when presence differs or null involved (exact Missing/null/value).
-        code.AppendLineAt(
-            4,
-            "if (__before"
-                + id
-                + ".IsPresent != __after"
-                + id
-                + ".IsPresent || !__beforeHas"
-                + id
-                + " || !__afterHas"
-                + id
-                + ")"
-        );
-        code.AppendLineAt(4, "{");
+        code.IndentOffset--;
         code.AppendLineAt(
             5,
             "if (!Fragment.__SparseEqual_" + id + "(__before" + id + ", __after" + id + "))"
