@@ -180,9 +180,18 @@ internal static class SparseTemporaryKeyElementEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__liveList is not null)");
         code.AppendLineAt(4, "{");
+        // Predecessor lookup needs indexing even when the model exposes only IEnumerable.
+        code.AppendLineAt(
+            5,
+            "var __liveOrder = __liveList as global::System.Collections.Generic.IReadOnlyList<"
+                + member.Collection.ElementType.Name
+                + "> ?? new global::System.Collections.Generic.List<"
+                + member.Collection.ElementType.Name
+                + ">(__liveList);"
+        );
         SparseTemporaryKeyOrderEmitter.EmitPostAddInsert(
             code,
-            "__liveList",
+            "__liveOrder",
             "__ordered",
             "__subKeys",
             "__subTemps",
