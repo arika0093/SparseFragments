@@ -330,6 +330,9 @@ internal sealed record SparseRuntimeDialect
 
     public string ReferenceComparer { get; init; }
 
+    /// <summary>Optional parameterless factory for a disposable scope exposing a reference-identity Dictionary&lt;object, object&gt; through Context.</summary>
+    public string? CloneContextScopeFactory { get; init; }
+
     public string ValueComparer { get; init; }
 
     public string CollectionMerger { get; init; }

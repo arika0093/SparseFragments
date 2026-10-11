@@ -309,7 +309,10 @@ internal static class SparseFragmentEmitter
             cloneKernelsPrefix,
             memberFieldQualifier: "",
             pocoHelperQualifier: operationsType is null ? "" : operationsType + "."
-        );
+        )
+        {
+            CloneContextScopeFactory = runtime.CloneContextScopeFactory,
+        };
         var originEmitter = SparseFragmentOriginEmitter.TryCreate(features, runtime, patchDialect);
         var core = new SparseFragmentCoreEmitter(
             runtime.OptionalType,
@@ -331,7 +334,10 @@ internal static class SparseFragmentEmitter
                 config.EffectiveFamilyNames,
                 cloneKernelsPrefix,
                 memberFieldQualifier: "Fragment."
-            );
+            )
+            {
+                CloneContextScopeFactory = runtime.CloneContextScopeFactory,
+            };
             operationsCore = new SparseFragmentCoreEmitter(
                 runtime.OptionalType,
                 runtime.MergeStrategyFieldPrefix,

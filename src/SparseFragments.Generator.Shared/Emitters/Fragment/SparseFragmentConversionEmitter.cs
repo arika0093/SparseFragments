@@ -94,7 +94,7 @@ internal sealed class SparseFragmentConversionEmitter
 
         if (requiresContext)
         {
-            SparseFragmentEmitHelpers.AppendCloneContext(code, 3, CloneContext, ReferenceComparer);
+            Expressions.AppendCloneContext(code, 3, ReferenceComparer);
             code.AppendLineAt(
                 3,
                 "var __sparse_from_context = " + ReferenceComparer + ".CreateFromCycleContext();"

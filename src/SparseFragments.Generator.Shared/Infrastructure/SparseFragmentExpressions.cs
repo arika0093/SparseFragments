@@ -26,6 +26,31 @@ internal sealed class SparseFragmentExpressions(
     private string ValueComparer { get; } = valueComparer;
     private string CollectionMerger { get; } = collectionMerger;
     private string CloneContext { get; } = cloneContext;
+
+    /// <summary>Optional runtime factory for a disposable clone-context scope.</summary>
+    public string? CloneContextScopeFactory { get; init; }
+
+    /// <summary>Emits a clone context whose lifetime covers the enclosing generated operation.</summary>
+    /// <param name="code">Target source builder.</param>
+    /// <param name="indent">Declaration indentation.</param>
+    /// <param name="referenceComparer">Runtime type providing the unscoped context factory.</param>
+    public void AppendCloneContext(SharedIndentedBuilder code, int indent, string referenceComparer)
+    {
+        if (CloneContextScopeFactory is null)
+        {
+            SparseFragmentEmitHelpers.AppendCloneContext(
+                code,
+                indent,
+                CloneContext,
+                referenceComparer
+            );
+            return;
+        }
+        var scope = CloneContext + "_scope";
+        code.AppendLineAt(indent, "using var " + scope + " = " + CloneContextScopeFactory + "();");
+        code.AppendLineAt(indent, "var " + CloneContext + " = " + scope + ".Context;");
+    }
+
     private string OptionalType { get; } = optionalType;
 
     // Null keeps the standalone vocabulary so existing downstream call sites

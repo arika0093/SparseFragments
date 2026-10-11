@@ -74,7 +74,7 @@ internal sealed class SparseFragmentCloneEmitter
         code.AppendLineAt(1, "{");
         if (RequiresCloneContext(members))
         {
-            SparseFragmentEmitHelpers.AppendCloneContext(code, 2, CloneContext, ReferenceComparer);
+            Expressions.AppendCloneContext(code, 2, ReferenceComparer);
             code.AppendLineAt(
                 2,
                 isOperationsBody
@@ -370,7 +370,7 @@ internal sealed class SparseFragmentCloneEmitter
         code.AppendLineAt(1, "{");
         if (RequiresCloneContext(members))
         {
-            SparseFragmentEmitHelpers.AppendCloneContext(code, 2, CloneContext, ReferenceComparer);
+            Expressions.AppendCloneContext(code, 2, ReferenceComparer);
             code.AppendLineAt(2, "return DeepClone(value, " + CloneContext + ");");
         }
         else
@@ -569,7 +569,7 @@ internal sealed class SparseFragmentCloneEmitter
         code.AppendLineAt(2, "{");
         if (RequiresCloneContext(members))
         {
-            SparseFragmentEmitHelpers.AppendCloneContext(code, 3, CloneContext, ReferenceComparer);
+            Expressions.AppendCloneContext(code, 3, ReferenceComparer);
             code.AppendLineAt(3, "return DeepClone(" + CloneContext + ");");
         }
         else

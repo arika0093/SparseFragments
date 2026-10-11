@@ -136,18 +136,18 @@ public sealed class ThreeLayerCertificationTests
 
     // Ownership table, Runtime row: every facade member classifies into one
     // documented family (equality, merge, rebase, clone/cycle, keyed,
-    // provenance). 40 methods share 24 distinct names; the count pins the
+    // provenance). 41 methods share 25 distinct names; the count pins the
     // #186 audit plus the 12 #187 comparison specializations plus the 3 #204
-    // live origin-attribution helpers.
+    // live origin-attribution helpers and the clone-context scope factory.
     [Test]
     public void OwnershipTable_EveryFacadeMemberHasARuntimeLayerOwner()
     {
         var methods = typeof(SparseFragmentRuntime).GetMethods(
             BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly
         );
-        methods.Length.ShouldBe(40);
+        methods.Length.ShouldBe(41);
         var names = methods.Select(static method => method.Name).ToImmutableArray();
-        names.Distinct().Count().ShouldBe(24);
+        names.Distinct().Count().ShouldBe(25);
 
         string Family(string name) =>
             name switch
@@ -162,8 +162,10 @@ public sealed class ThreeLayerCertificationTests
                 or "TryRebaseSequenceAppendArray"
                 or "TryRebaseSequenceSetUnion"
                 or "TryRebaseSequenceSetUnionArray" => "rebase",
-                "CreateCloneContext" or "CreateFromCycleContext" or "CreateDiffCycleContext" =>
-                    "clone",
+                "CreateCloneContext"
+                or "RentCloneContext"
+                or "CreateFromCycleContext"
+                or "CreateDiffCycleContext" => "clone",
                 "EnsureUniqueKeys" or "KeyOrderEquals" => "keyed",
                 "TryExplainCollectionProvenance" or "TryExplainSetProvenance" => "provenance",
                 "MergeAppendOrigins" or "MergeSetUnionOrigins" or "MergeSetOrigins" => "provenance",

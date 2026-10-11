@@ -582,6 +582,11 @@ namespace SparseFragments
 }
 namespace SparseFragments.CompilerServices
 {
+    public sealed class SparseCloneContextScope : System.IDisposable
+    {
+        public System.Collections.Generic.Dictionary<object, object> Context { get; }
+        public void Dispose() { }
+    }
     public static class SparseFragmentRuntime
     {
         public static bool AreDictionaryEqual<TKey, TValue>(System.Collections.Generic.Dictionary<TKey, TValue>? left, System.Collections.Generic.Dictionary<TKey, TValue>? right) { }
@@ -615,6 +620,7 @@ namespace SparseFragments.CompilerServices
         public static System.Collections.Generic.HashSet<T> MergeSet<T>(System.Collections.Generic.IEnumerable<T> lower, System.Collections.Generic.IEnumerable<T> higher) { }
         public static string?[] MergeSetOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEnumerable<T> effective) { }
         public static string?[] MergeSetUnionOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEqualityComparer<T>? comparer) { }
+        public static SparseFragments.CompilerServices.SparseCloneContextScope RentCloneContext() { }
         public static bool TryExplainCollectionProvenance<T>(SparseFragments.MergeMode mode, System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?> effective, System.Collections.Generic.IEqualityComparer<T>? comparer, out int[] origins, out string? reason) { }
         public static bool TryExplainSetProvenance<T>(System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?> effective, out int[] origins, out string? reason) { }
         public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }

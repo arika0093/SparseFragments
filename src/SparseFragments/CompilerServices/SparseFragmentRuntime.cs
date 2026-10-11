@@ -349,6 +349,9 @@ public static class SparseFragmentRuntime
     public static Dictionary<object, object> CreateCloneContext() =>
         new(SparseReferenceEqualityComparer.Instance);
 
+    /// <summary>Rents an exclusive reference-identity context for a generated clone operation.</summary>
+    public static SparseCloneContextScope RentCloneContext() => SparseCloneContextPool.Rent();
+
     /// <summary>Creates a reference-identity cycle scope for generated <c>Fragment.From</c> helpers.</summary>
     public static HashSet<object> CreateFromCycleContext() =>
         new(SparseReferenceEqualityComparer.Instance);

@@ -60,7 +60,14 @@ architecture overview (current layer placement, document status, and the
 migration ledger).
 
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
-helpers to downstream-owned runtime types. `SparsePatchDialect` maps patch
+helpers to downstream-owned runtime types. Its optional `CloneContextScopeFactory`
+names a parameterless method returning an `IDisposable` scope with a `Context`
+property of type `Dictionary<object, object>`. Each scope must own an empty,
+reference-identity dictionary exclusively until disposal. Generated `From` and
+`DeepClone` operations dispose the scope on success and on exceptions. Leave the
+factory unset to keep using `ReferenceComparer.CreateCloneContext()`.
+
+`SparsePatchDialect` maps patch
 runtime/facade, conflict/result types, nested member names, member
 field/value types, and the provisional ChangePayload version token
 (`ChangePayloadVersion`, default `"0.1"`). `ReservedGeneratedNames` is caller-owned and defaults to an

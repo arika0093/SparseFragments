@@ -96,7 +96,11 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             "global::SparseFragments.CompilerServices.SparseFragmentRuntime",
             "__sparse_merge_strategy_",
             "__sparse_rebase_policy_"
-        ),
+        )
+        {
+            CloneContextScopeFactory =
+                "global::SparseFragments.CompilerServices.SparseFragmentRuntime.RentCloneContext",
+        },
         PatchDialect: new SparseFragmentPatchEmitter.SparsePatchDialect(
             "global::SparseFragments.",
             "__sparse_whole",
