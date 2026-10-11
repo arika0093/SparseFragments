@@ -143,13 +143,16 @@ internal static class SparseKeyedSequenceApplyEmitter
         }
         code.AppendLineAt(4, "}");
         // Removals.
-        code.AppendLineAt(
-            4,
-            "if (__removed is not null) foreach (var k in __removed) map.Remove(k);"
-        );
+        if (hasTempApply)
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyAssignedRemovals(code, member);
+        else
+            code.AppendLineAt(
+                4,
+                "if (__removed is not null) foreach (var k in __removed) map.Remove(k);"
+            );
         if (hasTempApply)
         {
-            SparseKeyedSequenceTempBetweenEmitter.AppendApplyTempRemovals(code, member.Id);
+            SparseKeyedSequenceTempBetweenEmitter.AppendApplyTempRemovals(code, member);
         }
         // Edits.
         if (hasPatch)
@@ -185,6 +188,12 @@ internal static class SparseKeyedSequenceApplyEmitter
                     + "(updated), kv.Key)) throw new global::System.InvalidOperationException(\"Changing an element's identity through an edit is not allowed. Use remove-old + add-new instead.\");"
             );
             code.AppendLineAt(5, "map[kv.Key] = updated;");
+            if (hasTempApply)
+                SparseKeyedSequenceTempBetweenEmitter.AppendApplyAssignedEdit(
+                    code,
+                    member,
+                    "updated"
+                );
             code.AppendLineAt(4, "}");
         }
         else
@@ -193,7 +202,7 @@ internal static class SparseKeyedSequenceApplyEmitter
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
                 5,
-                "if (!map.ContainsKey(kv.Key)) throw new global::System.InvalidOperationException(\"Cannot update a missing element.\");"
+                "if (!map.TryGetValue(kv.Key, out var existing)) throw new global::System.InvalidOperationException(\"Cannot update a missing element.\");"
             );
             code.AppendLineAt(
                 5,
@@ -204,6 +213,12 @@ internal static class SparseKeyedSequenceApplyEmitter
                     + "(kv.Value), kv.Key)) throw new global::System.InvalidOperationException(\"Changing an element's identity through an update is not allowed. Use remove-old + add-new instead.\");"
             );
             code.AppendLineAt(5, "map[kv.Key] = kv.Value;");
+            if (hasTempApply)
+                SparseKeyedSequenceTempBetweenEmitter.AppendApplyAssignedEdit(
+                    code,
+                    member,
+                    "kv.Value"
+                );
             code.AppendLineAt(4, "}");
         }
         if (hasTempApply)

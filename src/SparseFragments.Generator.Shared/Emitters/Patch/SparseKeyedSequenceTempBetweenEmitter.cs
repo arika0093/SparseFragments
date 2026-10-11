@@ -293,14 +293,49 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
     }
 
     /// <summary>Emits temporary removals application for patch Apply.</summary>
-    internal static void AppendApplyTempRemovals(SharedIndentedBuilder code, int id)
+    internal static void AppendApplyTempRemovals(
+        SharedIndentedBuilder code,
+        SparseMemberModel member
+    )
     {
+        var id = member.Id;
+        var keyOf = SparseKeyedCollectionEmitter.KeyOfMethod(member);
         // Assigned removals stay silent on missing keys; temporary removals match that.
         code.AppendLineAt(
             4,
-            "if (__removedTemp is not null) foreach (var __t in __removedTemp) __baselineTemp"
-                + id
-                + ".Remove(__t);"
+            $"if (__removedTemp is not null) foreach (var __t in __removedTemp) {{ if (__baselineTemp{id}.TryGetValue(__t, out var __removedItem)) {{ var __removedKey = {keyOf}(__removedItem); if (map.Remove(__removedKey)) __baselineTempEcho{id}--; __baselineTemp{id}.Remove(__t); }} }}"
+        );
+    }
+
+    internal static void AppendApplyAssignedRemovals(
+        SharedIndentedBuilder code,
+        SparseMemberModel member
+    )
+    {
+        var id = member.Id;
+        var tempOf = SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member);
+        code.AppendLineAt(4, "if (__removed is not null) foreach (var k in __removed)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            $"if (map.TryGetValue(k, out var __removedItem)) {{ var __removedTempKey = {tempOf}(__removedItem); if (__removedTempKey.HasValue && __baselineTemp{id}.Remove(__removedTempKey.Value)) __baselineTempEcho{id}--; }}"
+        );
+        code.AppendLineAt(5, "map.Remove(k);");
+        code.AppendLineAt(4, "}");
+    }
+
+    internal static void AppendApplyAssignedEdit(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string updated
+    )
+    {
+        var id = member.Id;
+        var tempOf = SparseKeyedCollectionEmitter.TemporaryKeyOfMethod(member);
+        code.AppendLineAt(5, $"var __editedTempKey = {tempOf}(existing);");
+        code.AppendLineAt(
+            5,
+            $"if (__editedTempKey.HasValue && __baselineTemp{id}.ContainsKey(__editedTempKey.Value)) __baselineTemp{id}[__editedTempKey.Value] = {updated};"
         );
     }
 
@@ -450,6 +485,13 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
                     + "(__tupdated) != __tkv.Key) throw new global::System.InvalidOperationException(\"Changing an element's identity through an edit is not allowed. Use remove-old + add-new instead.\");"
             );
             code.AppendLineAt(5, "__baselineTemp" + id + "[__tkv.Key] = __tupdated;");
+            code.AppendLineAt(5, $"var __assignedKey = {keyOf}(__texisting);");
+            code.AppendLineAt(
+                5,
+                "if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__assignedKey")
+                    + ") map[__assignedKey] = __tupdated;"
+            );
         }
         else
         {

@@ -4,6 +4,8 @@ if (args.Length == 1 && args[0] == "--baseline-validate-inputs")
     BaselineInputValidation.Run();
 else if (args.Length == 1 && args[0] == "--temporary-payload-validate-inputs")
     TemporaryKeyPayloadBenchmarks.ValidateInputs();
+else if (args.Length == 1 && args[0] == "--keyed-capacity-validate-inputs")
+    TemporaryKeyChangeSetCapacityBenchmarks.ValidateInputs();
 else if (args.Length == 1 && args[0] == "--mixed-payload-validate-inputs")
     MixedCollectionPayloadBenchmarks.ValidateInputs();
 else if (args.Length == 2 && args[0] == "--payload-sizes")

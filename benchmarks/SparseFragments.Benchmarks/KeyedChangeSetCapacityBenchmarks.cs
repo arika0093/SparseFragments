@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using SparseFragments;
 
@@ -122,12 +123,22 @@ public class TemporaryKeyChangeSetCapacityBenchmarks
         var changes = Between();
         if (
             changes.IsEmpty
-            || !BenchTemporaryPayloadHolder
-                .Patch.Between(changes.ToPatch().Apply(_before), _after)
-                .IsEmpty
-            || !BenchTemporaryPayloadHolder
-                .Patch.Between(changes.Invert().ToPatch().Apply(_after), _before)
-                .IsEmpty
+            || !JsonSerializer
+                .SerializeToUtf8Bytes(after)
+                .AsSpan()
+                .SequenceEqual(
+                    JsonSerializer.SerializeToUtf8Bytes(
+                        changes.ToPatch().Apply(_before).Value!.ToModel()
+                    )
+                )
+            || !JsonSerializer
+                .SerializeToUtf8Bytes(before)
+                .AsSpan()
+                .SequenceEqual(
+                    JsonSerializer.SerializeToUtf8Bytes(
+                        changes.Invert().ToPatch().Apply(_after).Value!.ToModel()
+                    )
+                )
         )
             throw new InvalidOperationException(
                 "Temporary identities must preserve both endpoints."
@@ -137,4 +148,19 @@ public class TemporaryKeyChangeSetCapacityBenchmarks
     [Benchmark]
     public BenchTemporaryPayloadHolder.ChangeSet Between() =>
         BenchTemporaryPayloadHolder.ChangeSet.Between(_before, _after);
+
+    public static void ValidateInputs()
+    {
+        foreach (var size in new[] { 16, 2048 })
+        {
+            foreach (var assigned in new[] { false, true })
+                new TemporaryKeyChangeSetCapacityBenchmarks
+                {
+                    Size = size,
+                    Assigned = assigned,
+                }.Setup();
+            foreach (var storage in Enum.GetValues<KeyedBetweenStorage>())
+                new KeyedChangeSetCapacityBenchmarks { Size = size, Storage = storage }.Setup();
+        }
+    }
 }
