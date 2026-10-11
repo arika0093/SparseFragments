@@ -158,26 +158,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
         // Granular Value -> Value: build key maps and orders (single enumeration each).
-        code.AppendLineAt(
-            5,
-            "var __beforeMap"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + elementType
-                + ">("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            5,
-            "var __beforeOrder"
-                + id
-                + " = new global::System.Collections.Generic.List<"
-                + keyType
-                + ">();"
-        );
+        SparseKeyedCollectionEmitter.AppendChangeSetBetweenStorage(code, member, "before");
         code.AppendLineAt(5, "foreach (var __item in __before" + id + ".Value!)");
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "var __k = __SparseKeyOf_ChangeSet_" + id + "(__item);");
@@ -199,26 +180,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         );
         code.AppendLineAt(6, "__beforeOrder" + id + ".Add(__k);");
         code.AppendLineAt(5, "}");
-        code.AppendLineAt(
-            5,
-            "var __afterMap"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", "
-                + elementType
-                + ">("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            5,
-            "var __afterOrder"
-                + id
-                + " = new global::System.Collections.Generic.List<"
-                + keyType
-                + ">();"
-        );
+        SparseKeyedCollectionEmitter.AppendChangeSetBetweenStorage(code, member, "after");
         if (!hasTemp)
             code.AppendLineAt(
                 5,

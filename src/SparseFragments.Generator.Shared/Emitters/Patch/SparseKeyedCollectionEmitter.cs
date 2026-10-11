@@ -37,6 +37,83 @@ internal static class SparseKeyedCollectionEmitter
     internal static bool HasValuePatch(SparseMemberModel member) =>
         member.Collection.ValueType?.IsFragmentModel == true;
 
+    /// <summary>Allocates the key map and order storage for one side of a ChangeSet diff.</summary>
+    internal static void AppendChangeSetBetweenStorage(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string side
+    )
+    {
+        var stem = "__" + side;
+        var id = member.Id;
+        var elementType = ElementType(member);
+        var keyType = KeyType(member);
+        var capacity = stem + "Capacity" + id;
+        code.AppendLineAt(
+            5,
+            "var "
+                + capacity
+                + " = "
+                + stem
+                + id
+                + ".Value is global::System.Collections.Generic.ICollection<"
+                + elementType
+                + "> "
+                + stem
+                + "Collection"
+                + id
+                + " ? "
+                + stem
+                + "Collection"
+                + id
+                + ".Count : ("
+                + stem
+                + id
+                + ".Value is global::System.Collections.Generic.IReadOnlyCollection<"
+                + elementType
+                + "> "
+                + stem
+                + "ReadOnly"
+                + id
+                + " ? "
+                + stem
+                + "ReadOnly"
+                + id
+                + ".Count : 0);"
+        );
+        // Partitioned identity maps can be empty even when the source is large.
+        var partitioned = side == "before" ? HasTemporaryKey(member) : HasUnassignedKey(member);
+        var mapCapacity = partitioned ? "0" : capacity;
+        code.AppendLineAt(
+            5,
+            "var "
+                + stem
+                + "Map"
+                + id
+                + " = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + elementType
+                + ">("
+                + mapCapacity
+                + ", global::System.Collections.Generic.EqualityComparer<"
+                + keyType
+                + ">.Default);"
+        );
+        code.AppendLineAt(
+            5,
+            "var "
+                + stem
+                + "Order"
+                + id
+                + " = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">("
+                + capacity
+                + ");"
+        );
+    }
+
     internal static void AppendPendingKeyLoopStart(
         SharedIndentedBuilder code,
         string baseMap = "baseMap",
