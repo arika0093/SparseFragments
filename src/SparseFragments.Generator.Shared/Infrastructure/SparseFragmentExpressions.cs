@@ -240,7 +240,9 @@ internal sealed class SparseFragmentExpressions(
     private string CloneSelector(SparseTypeModel type, string parameter)
     {
         var expression = CloneValueExpression(type, parameter);
-        return expression == parameter ? "null" : $"{parameter} => {expression}";
+        return expression == parameter
+            ? "null"
+            : $"static ({parameter}, {CloneContext}) => {expression}";
     }
 
     private static bool IsInterfaceSet(string? namedTypeDefinition) =>

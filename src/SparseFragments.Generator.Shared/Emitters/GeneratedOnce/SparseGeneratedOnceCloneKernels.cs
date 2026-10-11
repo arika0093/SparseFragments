@@ -58,7 +58,7 @@ internal static class SparseGeneratedOnceCloneKernels
         );
         code.AppendLineAt(
             2,
-            "internal static TSet __CloneSet<T, TSet>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, T>? cloneElement)"
+            "internal static TSet __CloneSet<T, TSet>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, global::System.Collections.Generic.Dictionary<object, object>, T>? cloneElement)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "if (context.TryGetValue(source, out var existing))");
@@ -84,7 +84,10 @@ internal static class SparseGeneratedOnceCloneKernels
         code.AppendLineAt(3, "if (cloneElement is null) clone.UnionWith(source);");
         code.AppendLineAt(3, "else");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "foreach (var item in source) clone.Add(cloneElement(item));");
+        code.AppendLineAt(
+            4,
+            "foreach (var item in source) clone.Add(cloneElement(item, context));"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return (TSet)(object)clone;");
         code.AppendLineAt(2, "}");
@@ -92,7 +95,7 @@ internal static class SparseGeneratedOnceCloneKernels
         {
             code.AppendLineAt(
                 2,
-                "internal static TSet __CloneSetView<T, TSet>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, T>? cloneElement)"
+                "internal static TSet __CloneSetView<T, TSet>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, global::System.Collections.Generic.Dictionary<object, object>, T>? cloneElement)"
             );
             code.AppendLineAt(2, "{");
             code.AppendLineAt(3, "if (context.TryGetValue(source, out var existing))");
@@ -125,14 +128,17 @@ internal static class SparseGeneratedOnceCloneKernels
             code.AppendLineAt(3, "if (cloneElement is null) clone.UnionWith(source);");
             code.AppendLineAt(3, "else");
             code.AppendLineAt(3, "{");
-            code.AppendLineAt(4, "foreach (var item in source) view.Add(cloneElement(item));");
+            code.AppendLineAt(
+                4,
+                "foreach (var item in source) view.Add(cloneElement(item, context));"
+            );
             code.AppendLineAt(3, "}");
             code.AppendLineAt(3, "return (TSet)(object)view;");
             code.AppendLineAt(2, "}");
         }
         code.AppendLineAt(
             2,
-            "internal static TDictionary __CloneDictionary<TKey, TValue, TDictionary>(global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<TKey, TValue>> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<TKey, TKey>? cloneKey, global::System.Func<TValue, TValue>? cloneValue) where TKey : notnull"
+            "internal static TDictionary __CloneDictionary<TKey, TValue, TDictionary>(global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<TKey, TValue>> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<TKey, global::System.Collections.Generic.Dictionary<object, object>, TKey>? cloneKey, global::System.Func<TValue, global::System.Collections.Generic.Dictionary<object, object>, TValue>? cloneValue) where TKey : notnull"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -167,13 +173,13 @@ internal static class SparseGeneratedOnceCloneKernels
         code.AppendLineAt(3, "context.Add(source, clone);");
         code.AppendLineAt(
             3,
-            "foreach (var pair in source) clone.Add(cloneKey is null ? pair.Key : cloneKey(pair.Key), cloneValue is null ? pair.Value : cloneValue(pair.Value));"
+            "foreach (var pair in source) clone.Add(cloneKey is null ? pair.Key : cloneKey(pair.Key, context), cloneValue is null ? pair.Value : cloneValue(pair.Value, context));"
         );
         code.AppendLineAt(3, "return (TDictionary)(object)clone;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
-            "internal static TCollection __CloneArray<T, TCollection>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, T>? cloneElement)"
+            "internal static TCollection __CloneArray<T, TCollection>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, global::System.Collections.Generic.Dictionary<object, object>, T>? cloneElement)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -202,14 +208,14 @@ internal static class SparseGeneratedOnceCloneKernels
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "for (var index = 0; index < values.Length; index++) clone[index] = cloneElement(values[index]);"
+            "for (var index = 0; index < values.Length; index++) clone[index] = cloneElement(values[index], context);"
         );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return (TCollection)(object)clone;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
-            "internal static TCollection __CloneList<T, TCollection>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, T>? cloneElement)"
+            "internal static TCollection __CloneList<T, TCollection>(global::System.Collections.Generic.IEnumerable<T> source, global::System.Collections.Generic.Dictionary<object, object> context, global::System.Func<T, global::System.Collections.Generic.Dictionary<object, object>, T>? cloneElement)"
         );
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
@@ -228,7 +234,10 @@ internal static class SparseGeneratedOnceCloneKernels
         code.AppendLineAt(3, "if (cloneElement is null) clone.AddRange(source);");
         code.AppendLineAt(3, "else");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "foreach (var item in source) clone.Add(cloneElement(item));");
+        code.AppendLineAt(
+            4,
+            "foreach (var item in source) clone.Add(cloneElement(item, context));"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return (TCollection)(object)clone;");
         code.AppendLineAt(2, "}");
