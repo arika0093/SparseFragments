@@ -201,6 +201,8 @@ public class ThreeLayerOpsBenchmarks
             || _leafChange.IsEmpty
             || _keyedPatch is null
             || _dictPatch is null
+            || EditSessionObservedIndividual() != 128
+            || EditSessionObservedBatched() != 2
         )
         {
             throw new InvalidOperationException("Certification fixtures must stay valid.");
@@ -259,6 +261,39 @@ public class ThreeLayerOpsBenchmarks
         });
 
         return model.Items.Count + model.Label.Length;
+    }
+
+    [Benchmark(Description = "EditSession: 64 edits with HasChanges and transition observers")]
+    public int EditSessionObservedIndividual()
+    {
+        var session = FreshKeyed().CreateEditSession();
+        var notifications = 0;
+        session.PropertyChanged += (_, _) => notifications += session.HasChanges ? 1 : 0;
+        session.TransitionObserved += changes => notifications += changes.IsEmpty ? 0 : 1;
+        for (var index = 0; index < 64; index++)
+        {
+            session.Observable.Items[index % Size].Name = "edit-" + index;
+        }
+
+        return notifications;
+    }
+
+    [Benchmark(Description = "EditSession: one batch with HasChanges and transition observers")]
+    public int EditSessionObservedBatched()
+    {
+        var session = FreshKeyed().CreateEditSession();
+        var notifications = 0;
+        session.PropertyChanged += (_, _) => notifications += session.HasChanges ? 1 : 0;
+        session.TransitionObserved += changes => notifications += changes.IsEmpty ? 0 : 1;
+        session.BatchEdit(() =>
+        {
+            for (var index = 0; index < 64; index++)
+            {
+                session.Observable.Items[index % Size].Name = "edit-" + index;
+            }
+        });
+
+        return notifications;
     }
 
     [Benchmark(Description = "Keyed: Between one edit plus one add")]
