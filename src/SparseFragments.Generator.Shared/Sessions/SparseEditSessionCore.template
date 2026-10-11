@@ -31,7 +31,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, TObservable> toObservable
         )
         {
@@ -58,7 +62,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, Action?, TObservable> toObservable,
             Action? onChanged = null
         )
@@ -94,7 +102,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, TObservable> toObservable
         )
         {
@@ -124,7 +136,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, Action?, TObservable> toObservable,
             Action? onChanged = null
         )
@@ -180,6 +196,10 @@ namespace __SESSION_NAMESPACE__
         public TObservable Observable => _observable;
 
         /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
+        /// <remarks>
+        /// Observable edits defer the baseline comparison until this property is read,
+        /// reusing the latest observed snapshot. Transition validation still runs during each edit.
+        /// </remarks>
         public bool HasChanges
         {
             get
@@ -189,14 +209,21 @@ namespace __SESSION_NAMESPACE__
                     return _cachedHasChanges;
                 }
 
+                var cachePending = _cacheObservableChanges && _hasChangesSnapshotPending;
                 TChangeSet changes;
                 try
                 {
-                    changes = CreateChangeSet();
+                    changes = cachePending ? _between(_baseline, _lastObserved) : CreateChangeSet();
                 }
                 catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
                 {
                     return true;
+                }
+
+                if (cachePending)
+                {
+                    CacheHasChanges(changes);
+                    return _cachedHasChanges;
                 }
 
                 return !_isEmpty(changes);
@@ -250,9 +277,9 @@ namespace __SESSION_NAMESPACE__
         {
             var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             var changes = _between(_baseline, current);
-            if (_cacheObservableChanges && _hasChangesCacheValid)
+            if (_cacheObservableChanges && (_hasChangesCacheValid || _hasChangesSnapshotPending))
             {
-                _cachedHasChanges = !_isEmpty(changes);
+                CacheHasChanges(changes);
             }
 
             return changes;
@@ -582,9 +609,7 @@ namespace __SESSION_NAMESPACE__
                     return true;
                 }
             }
-            catch (InvalidOperationException)
-            {
-            }
+            catch (InvalidOperationException) { }
 
             // Reconstruct the submitted-after state; a stale or incompatible
             // submission fails here before anything is mutated.
@@ -617,8 +642,7 @@ namespace __SESSION_NAMESPACE__
             catch (InvalidOperationException exception)
             {
                 error =
-                    "The persisted model cannot serve as a keyed baseline: "
-                    + exception.Message;
+                    "The persisted model cannot serve as a keyed baseline: " + exception.Message;
                 return false;
             }
 
@@ -729,7 +753,7 @@ namespace __SESSION_NAMESPACE__
             _between(candidate, _baseline);
             _baseline = candidate;
             _lastObserved = candidate;
-            _hasChangesCacheValid = false;
+            InvalidateHasChangesCache();
             OnPropertyChanged(nameof(HasChanges));
         }
 
@@ -777,7 +801,7 @@ namespace __SESSION_NAMESPACE__
                 );
             }
             _baseline = advanced;
-            _hasChangesCacheValid = false;
+            InvalidateHasChangesCache();
             OnPropertyChanged(nameof(HasChanges));
         }
 
@@ -909,7 +933,13 @@ namespace __SESSION_NAMESPACE__
         /// <param name="rootId">The branch lineage to continue.</param>
         /// <param name="onChanged">The change callback for the new session.</param>
         /// <returns>A new session with fresh bindings.</returns>
-        protected virtual EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> CreateBranched(
+        protected virtual EditSessionCore<
+            TModel,
+            TFragment,
+            TPatch,
+            TChangeSet,
+            TObservable
+        > CreateBranched(
             TModel live,
             __OPTIONAL_TYPE__<TFragment?> baseline,
             Guid rootId,
@@ -962,7 +992,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, Action?, TObservable> toObservable,
             Action? onChanged = null
         )
@@ -1003,7 +1037,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, Action?, Action?, TObservable> toObservable,
             Action? onChanged,
             Func<
@@ -1055,7 +1093,11 @@ namespace __SESSION_NAMESPACE__
         private const string UnassignedChangeSetBaselineErrorMessage =
             "An unassigned key cannot appear in the current baseline of a keyed ChangeSet.";
         private readonly Func<TModel, TFragment> _fromModel;
-        private readonly Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> _between;
+        private readonly Func<
+            __OPTIONAL_TYPE__<TFragment?>,
+            __OPTIONAL_TYPE__<TFragment?>,
+            TChangeSet
+        > _between;
         private readonly Func<TChangeSet, TPatch> _toPatch;
         private readonly Func<TChangeSet, bool> _isEmpty;
         private readonly Func<
@@ -1083,6 +1125,7 @@ namespace __SESSION_NAMESPACE__
         private bool _cacheObservableChanges;
         private bool _hasChangesCacheValid;
         private bool _cachedHasChanges;
+        private bool _hasChangesSnapshotPending;
         private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
@@ -1100,7 +1143,7 @@ namespace __SESSION_NAMESPACE__
                 // Defer all snapshot/diff work to the outermost batch exit; only the
                 // net entry-to-exit transition is computed and published there.
                 _batchDirty = true;
-                _hasChangesCacheValid = false;
+                InvalidateHasChangesCache();
                 OnPropertyChanged(nameof(HasChanges));
                 return;
             }
@@ -1113,16 +1156,16 @@ namespace __SESSION_NAMESPACE__
             }
             catch (InvalidOperationException exception) when (IsDuplicateKeyError(exception))
             {
-                _hasChangesCacheValid = false;
+                InvalidateHasChangesCache();
                 OnPropertyChanged(nameof(HasChanges));
                 return;
             }
 
             _lastObserved = current;
+            InvalidateHasChangesCache();
             if (_cacheObservableChanges)
             {
-                _cachedHasChanges = !_isEmpty(_between(_baseline, current));
-                _hasChangesCacheValid = true;
+                _hasChangesSnapshotPending = true;
             }
 
             if (_batchDepth == 0 && !_isEmpty(transition))
@@ -1138,7 +1181,7 @@ namespace __SESSION_NAMESPACE__
             var current = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             var transition = _between(_lastObserved, current);
             _lastObserved = current;
-            _hasChangesCacheValid = false;
+            InvalidateHasChangesCache();
             _refreshObservable?.Invoke(_observable);
             if (_batchDepth == 0 && !_isEmpty(transition))
             {
@@ -1151,7 +1194,20 @@ namespace __SESSION_NAMESPACE__
         private void DisableHasChangesCache()
         {
             _cacheObservableChanges = false;
+            InvalidateHasChangesCache();
+        }
+
+        private void InvalidateHasChangesCache()
+        {
             _hasChangesCacheValid = false;
+            _hasChangesSnapshotPending = false;
+        }
+
+        private void CacheHasChanges(TChangeSet changes)
+        {
+            _cachedHasChanges = !_isEmpty(changes);
+            _hasChangesCacheValid = true;
+            _hasChangesSnapshotPending = false;
         }
 
         private void OnObservableMutation()
@@ -1205,7 +1261,7 @@ namespace __SESSION_NAMESPACE__
             if (!start.IsPresent)
             {
                 _lastObserved = current;
-                _hasChangesCacheValid = false;
+                InvalidateHasChangesCache();
                 return;
             }
 
@@ -1218,23 +1274,15 @@ namespace __SESSION_NAMESPACE__
             {
                 // The net batch state cannot be diffed; keep the last valid
                 // observation so later diffs still start from valid state.
-                _hasChangesCacheValid = false;
+                InvalidateHasChangesCache();
                 return;
             }
 
             _lastObserved = current;
+            InvalidateHasChangesCache();
             if (_cacheObservableChanges)
             {
-                try
-                {
-                    _cachedHasChanges = !_isEmpty(_between(_baseline, current));
-                    _hasChangesCacheValid = true;
-                }
-                catch (InvalidOperationException exception)
-                    when (IsDuplicateKeyError(exception))
-                {
-                    _hasChangesCacheValid = false;
-                }
+                _hasChangesSnapshotPending = true;
             }
 
             if (!_isEmpty(transition))
@@ -1302,12 +1350,17 @@ namespace __SESSION_NAMESPACE__
 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
         private static void ValidateNotificationDelegates(
             Func<TModel, TFragment> fromModel,
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, Action?, TObservable> toObservable
         )
         {
@@ -1330,7 +1383,11 @@ namespace __SESSION_NAMESPACE__
             Func<__OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>, TChangeSet> between,
             Func<TChangeSet, TPatch> toPatch,
             Func<TChangeSet, bool> isEmpty,
-            Func<TChangeSet, __OPTIONAL_TYPE__<TFragment?>, __OPTIONAL_TYPE__<TFragment?>> advanceBaseline,
+            Func<
+                TChangeSet,
+                __OPTIONAL_TYPE__<TFragment?>,
+                __OPTIONAL_TYPE__<TFragment?>
+            > advanceBaseline,
             Func<TModel, TObservable> toObservable
         )
         {
@@ -1347,6 +1404,5 @@ namespace __SESSION_NAMESPACE__
             if (toObservable is null)
                 throw new ArgumentNullException(nameof(toObservable));
         }
-
     }
 }

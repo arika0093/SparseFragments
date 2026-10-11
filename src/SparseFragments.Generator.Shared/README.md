@@ -216,6 +216,16 @@ implements a trusted model-accessor interface on each generated session, so
 framework integrations can read the live model without invalidating the
 session's observable-change cache. Consumers without that interface keep the
 previous behavior: framework helpers fall back to the raw model.
+
+Outside `BatchEdit`, observable edits validate and publish their transitions
+immediately; a batch publishes its net transition at exit. The baseline
+comparison for `HasChanges` is deferred until its first read after an edit,
+which reuses the observed snapshot, or an explicit `CreateChangeSet` call.
+Notification handlers can read `HasChanges` synchronously. Custom `Between`
+delegates must allow the baseline comparison, including any exceptions it
+produces, to occur at that read. Raw model access disables this cache so
+subsequent reads capture the live model.
+
 `SparseEditSessionCapabilities` represents the reusable cores as explicit
 Generated-Once capabilities with validated prerequisites
 (`EditSessionDialect`, runtime/patch dialects, Fragment/Patch/ChangeSet/

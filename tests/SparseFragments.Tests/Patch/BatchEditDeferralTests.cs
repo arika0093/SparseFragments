@@ -96,9 +96,9 @@ public sealed class BatchEditDeferralTests
             single.Observable.Tags.Add("tag-" + index);
         }
 
-        // Without batching every mutation pays for a full snapshot and two diffs.
+        // Without batching every mutation captures a snapshot and computes its transition.
         singleProbe.Snapshots.ShouldBe(edits * 2);
-        singleProbe.Diffs.ShouldBe(edits * 4);
+        singleProbe.Diffs.ShouldBe(edits * 2);
         singleProbe.Transitions.Count.ShouldBe(edits * 2);
     }
 
