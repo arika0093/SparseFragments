@@ -79,6 +79,16 @@ internal static class SparseChangeSetBasicsEmitter
     internal static string KeyedTempAfterOrder(SparseMemberModel m) =>
         "__sparse_ktempafterOrder_" + m.Id;
 
+    internal static string KeyedOrderChangedExpression(SparseMemberModel member, string facade)
+    {
+        var expression =
+            $"!{facade}.KeyOrderEquals<{KeyTypeOf(member)}>({KeyedBeforeOrder(member)}, {KeyedAfterOrder(member)})";
+        if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
+            expression +=
+                $" || ({KeyedTempBeforeOrder(member)} is not null && {KeyedTempAfterOrder(member)} is not null && !{facade}.KeyOrderEquals<global::System.Guid>({KeyedTempBeforeOrder(member)}, {KeyedTempAfterOrder(member)}))";
+        return expression;
+    }
+
     internal static void AppendFields(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,

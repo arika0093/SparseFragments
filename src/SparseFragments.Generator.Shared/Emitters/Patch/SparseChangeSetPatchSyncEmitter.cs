@@ -569,7 +569,6 @@ internal static class SparseChangeSetPatchSyncEmitter
     {
         var id = member.Id;
         var __facade = dialect.RuntimeFacade;
-        var __keyType = KeyTypeOf(member);
         var coll = "Patch." + SparseFragmentPatchEmitter.GetCollectionPatchName(dialect, member);
         var isKeyed = IsKeyed(member);
         var hasValuePatch = isKeyed
@@ -707,67 +706,38 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(5, "}");
         if (isKeyed)
         {
-            // Full key orders are always retained for granular transitions; project
-            // an order patch only when the order semantically changed.
+            var beforeOrder = KeyedBeforeOrder(member);
+            var afterOrder = KeyedAfterOrder(member);
+            var tempBeforeOrder = KeyedTempBeforeOrder(member);
+            var tempAfterOrder = KeyedTempAfterOrder(member);
+            var orderChanged = KeyedOrderChangedExpression(member, __facade);
+            // Equal sentinel-key sequences can still carry a temporary-identity reorder.
             code.AppendLineAt(
                 5,
-                "if ("
-                    + KeyedBeforeOrder(member)
-                    + " is not null && "
-                    + KeyedAfterOrder(member)
-                    + " is not null && !"
-                    + __facade
-                    + ".KeyOrderEquals<"
-                    + __keyType
-                    + ">("
-                    + KeyedBeforeOrder(member)
-                    + ", "
-                    + KeyedAfterOrder(member)
-                    + ")) __coll"
-                    + id
-                    + ".SetOrder("
-                    + KeyedAfterOrder(member)
-                    + ");"
+                $"if ({beforeOrder} is not null && {afterOrder} is not null && ({orderChanged}))"
             );
+            code.AppendLineAt(5, "{");
+            code.AppendLineAt(6, $"__coll{id}.SetOrder({afterOrder});");
             if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
             {
-                // Temporary order travels parallel to the key order so apply
-                // resolves surviving identities exactly instead of positionally.
                 code.AppendLineAt(
-                    5,
-                    "if ("
-                        + KeyedBeforeOrder(member)
-                        + " is not null && "
-                        + KeyedAfterOrder(member)
-                        + " is not null && "
-                        + KeyedTempBeforeOrder(member)
-                        + " is not null && "
-                        + KeyedTempAfterOrder(member)
-                        + " is not null && !"
-                        + __facade
-                        + ".KeyOrderEquals<"
-                        + __keyType
-                        + ">("
-                        + KeyedBeforeOrder(member)
-                        + ", "
-                        + KeyedAfterOrder(member)
-                        + ")) { __coll"
-                        + id
-                        + ".__orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>(); { var __ti = 0; foreach (var __ok in "
-                        + KeyedAfterOrder(member)
-                        + ") { if ("
-                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ok")
-                        + ") __coll"
-                        + id
-                        + ".__orderTemp.Add(__ti < "
-                        + KeyedTempAfterOrder(member)
-                        + ".Count ? (global::System.Guid?)"
-                        + KeyedTempAfterOrder(member)
-                        + "[__ti++] : null); else __coll"
-                        + id
-                        + ".__orderTemp.Add(null); } } }"
+                    6,
+                    $"if ({tempBeforeOrder} is not null && {tempAfterOrder} is not null)"
                 );
+                code.AppendLineAt(6, "{");
+                code.AppendLineAt(
+                    7,
+                    $"__coll{id}.__orderTemp = new global::System.Collections.Generic.List<global::System.Guid?>();"
+                );
+                code.AppendLineAt(
+                    7,
+                    $"{{ var __ti = 0; foreach (var __ok in {afterOrder}) {{ if ("
+                        + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__ok")
+                        + $") __coll{id}.__orderTemp.Add(__ti < {tempAfterOrder}.Count ? (global::System.Guid?){tempAfterOrder}[__ti++] : null); else __coll{id}.__orderTemp.Add(null); }} }}"
+                );
+                code.AppendLineAt(6, "}");
             }
+            code.AppendLineAt(5, "}");
         }
         code.AppendLineAt(5, "patch." + escName + " = __coll" + id + ";");
         code.AppendLineAt(4, "}");

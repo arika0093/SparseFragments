@@ -94,6 +94,9 @@ public class TemporaryKeyChangeSetCapacityBenchmarks
     [Params(false, true)]
     public bool Assigned { get; set; }
 
+    [Params(false, true)]
+    public bool Reordered { get; set; }
+
     private Optional<BenchTemporaryPayloadHolder.Fragment?> _before;
     private Optional<BenchTemporaryPayloadHolder.Fragment?> _after;
 
@@ -114,6 +117,8 @@ public class TemporaryKeyChangeSetCapacityBenchmarks
         };
         var after = before.DeepClone();
         after.Items[0].Name = "edited";
+        if (Reordered)
+            after.Items.Reverse();
         _before = Optional<BenchTemporaryPayloadHolder.Fragment?>.Present(
             BenchTemporaryPayloadHolder.Fragment.From(before)
         );
@@ -151,13 +156,16 @@ public class TemporaryKeyChangeSetCapacityBenchmarks
 
     public static void ValidateInputs()
     {
+        KeyedChangeSetBetweenBenchmarks.ValidateInputs();
         foreach (var size in new[] { 16, 2048 })
         {
             foreach (var assigned in new[] { false, true })
+            foreach (var reordered in new[] { false, true })
                 new TemporaryKeyChangeSetCapacityBenchmarks
                 {
                     Size = size,
                     Assigned = assigned,
+                    Reordered = reordered,
                 }.Setup();
             foreach (var storage in Enum.GetValues<KeyedBetweenStorage>())
                 new KeyedChangeSetCapacityBenchmarks { Size = size, Storage = storage }.Setup();

@@ -929,11 +929,9 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + KeyedBeforeOrder(member)
                 + " is not null && "
                 + KeyedAfterOrder(member)
-                + " is not null && !"
-                + facade
-                + ".KeyOrderEquals<"
-                + keyType
-                + ">(__bO, __aO);"
+                + " is not null && ("
+                + KeyedOrderChangedExpression(member, facade)
+                + ");"
         );
         code.AppendLineAt(
             3,
