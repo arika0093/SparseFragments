@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import re
 import statistics
 import subprocess
 import sys
@@ -48,6 +49,7 @@ def finite(value):
 
 def collect(directory):
     cases = {}
+    reports = {}
     environments = []
     quality = []
     for path in sorted((directory / "bdn/results").glob("*-report-full.json")):
@@ -68,16 +70,79 @@ def collect(directory):
                 "mean_ns": finite(stats["Mean"]),
                 "standard_error_ns": finite(stats["StandardError"]),
                 "confidence_interval": stats["ConfidenceInterval"],
-                "allocated_bytes": finite(memory["BytesAllocatedPerOperation"]),
-                **{f"gen{generation}_per_1000_ops": finite(memory[f"Gen{generation}Collections"]) * 1000 / operations
-                   for generation in range(3)},
             }
+            display = case["DisplayInfo"]
+            if display in reports:
+                raise ValueError(f"Duplicate benchmark display: {display}")
+            reports[display] = case
             quality.extend(measurement_quality(key, case["Measurements"]))
     if len(cases) != EXPECTED_CASES:
         raise ValueError(f"Expected {EXPECTED_CASES} cases, received {len(cases)}; inspect benchmark.log")
     if any(environment != environments[0] for environment in environments[1:]):
         raise ValueError("Benchmark reports have different host environments")
+    memory_quality(cases, quality, reports, directory / "benchmark.log")
     return cases, environments[0], quality
+
+
+def read_process_memory(reports, path):
+    records = {}
+    current = None
+    with path.open(encoding="utf-8-sig") as source:
+        for line in source:
+            if line.startswith("// Benchmark: "):
+                current = line.removeprefix("// Benchmark: ").strip()
+                if current not in reports or current in records:
+                    raise ValueError(f"Unexpected/duplicate benchmark in log: {current}")
+                records[current] = []
+            elif line.startswith("// GC:"):
+                values = [int(value) for value in line.split(":", 1)[1].split()]
+                if current is None or len(values) != 5 or any(value < 0 for value in values) or values[4] <= 0:
+                    raise ValueError(f"Invalid process GC record: {line.strip()}")
+                records[current].append(values)
+    if records.keys() != reports.keys():
+        raise ValueError("Benchmark log and JSON reports contain different cases")
+    return records
+
+
+def memory_quality(cases, quality, reports, path):
+    records = read_process_memory(reports, path)
+    indexed = {(item["case"], item["launch"]): item for item in quality}
+    seen = set()
+    for display, case in reports.items():
+        key = f'{case["Type"]}.{case["Method"]}({case["Parameters"]})'
+        count = re.search(r"\bLaunchCount=(\d+)\b", display)
+        if count is None or int(count[1]) <= 0 or len(records[display]) != int(count[1]):
+            raise ValueError(f"Missing/extra process GC records: {key}")
+        processes = []
+        for launch, values in enumerate(records[display], 1):
+            identity = (key, launch)
+            if identity not in indexed or indexed[identity]["measured_count"] <= 0:
+                raise ValueError(f"Process GC record has no matching measurements: {identity}")
+            process = {
+                "launch": launch, "gc_operations": values[4], "total_allocated_bytes": values[3],
+                "allocated_bytes": finite(values[3] / values[4]),
+                **{f"gen{generation}_collections": values[generation] for generation in range(3)},
+                **{f"gen{generation}_per_1000_ops": finite(values[generation] * 1000 / values[4])
+                   for generation in range(3)},
+            }
+            indexed[identity].update(process)
+            processes.append(process)
+            seen.add(identity)
+        last = records[display][-1]
+        memory = case["Memory"]
+        if (memory["TotalOperations"] != last[4]
+                or any(memory[f"Gen{generation}Collections"] != last[generation] for generation in range(3))
+                or abs(finite(memory["BytesAllocatedPerOperation"]) - processes[-1]["allocated_bytes"]) > 1):
+            raise ValueError(f"Process GC log does not match the BDN memory result: {key}")
+        names = ["allocated_bytes", *(f"gen{generation}_per_1000_ops" for generation in range(3))]
+        cases[key].update({name: statistics.mean(item[name] for item in processes) for name in names})
+        cases[key].update({
+            "allocated_bytes_min": min(item["allocated_bytes"] for item in processes),
+            "allocated_bytes_max": max(item["allocated_bytes"] for item in processes),
+            "memory_launches": processes,
+        })
+    if seen != indexed.keys() or len(indexed) != len(quality):
+        raise ValueError("Process GC records and measured launches differ")
 
 
 def measurement_quality(key, measurements):
@@ -112,12 +177,15 @@ def quality_report(records):
              "Each row compares the first three and last three measured workload iterations in one process.",
              "The ratio is early / late time. Drift can reflect runtime compilation, caches or machine load; inspect the raw log before attributing it to an implementation change.",
              "At least six iterations are required. Smoke runs cannot assess stability.", "",
-             "| Case | Launch | Warmups | Measurements | Early / late |",
-             "| --- | ---: | ---: | ---: | ---: |"]
+             "Allocation and GC values come from each process's raw GC record. GC values are collections per 1,000 operations.", "",
+             "| Case | Launch | Warmups | Measurements | Early / late | Allocated (B/op) | Gen0 | Gen1 | Gen2 |",
+             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for record in sorted(records, key=lambda item: (item["case"], item["launch"])):
         ratio = record["first_to_last_ratio"]
         display = f"{ratio:.3f}" if ratio is not None else "n/a"
-        lines.append(f'| {record["case"]} | {record["launch"]} | {record["warmup_count"]} | {record["measured_count"]} | {display} |')
+        gc = " | ".join(f'{record[f"gen{generation}_per_1000_ops"]:.3f}' for generation in range(3))
+        lines.append(f'| {record["case"]} | {record["launch"]} | {record["warmup_count"]} | {record["measured_count"]} | '
+                     f'{display} | {record["allocated_bytes"]:.1f} | {gc} |')
     return "\n".join(lines) + "\n"
 
 
@@ -172,9 +240,9 @@ def compare(current, previous):
         lines += ["Comparison unavailable: " + ", ".join(reasons) + " changed.",
                   "Keep this run as a new baseline; numeric ratios would mix measurement conditions."]
         return "\n".join(lines) + "\n", False
-    lines += ["GC columns are collections per 1,000 operations. Time intervals are the BDN 99.9% intervals.", "",
-              "| Case | Time change | Allocated change (B) | Gen0 Δ | Gen1 Δ | Gen2 Δ | Time intervals overlap |",
-              "| --- | ---: | ---: | ---: | ---: | ---: | --- |"]
+    lines += ["Allocation and GC changes use equally weighted process means. GC columns are collections per 1,000 operations. Time intervals are the BDN 99.9% intervals.", "",
+              "| Case | Time change | Allocated change (B) | Allocation ranges (B, previous / current) | Gen0 Δ | Gen1 Δ | Gen2 Δ | Time intervals overlap |",
+              "| --- | ---: | ---: | --- | ---: | ---: | ---: | --- |"]
     for key, now in sorted(current["cases"].items()):
         old = previous["cases"][key]
         ratio = f'{(now["mean_ns"] / old["mean_ns"] - 1) * 100:+.2f}%' if old["mean_ns"] > 0 else "n/a"
@@ -182,8 +250,10 @@ def compare(current, previous):
         intervals = [before["Lower"], before["Upper"], after["Lower"], after["Upper"]]
         overlap = ("yes" if before["Lower"] <= after["Upper"] and after["Lower"] <= before["Upper"] else "no") if all(isinstance(item, (int, float)) for item in intervals) else "n/a"
         changes = [now[f"gen{gen}_per_1000_ops"] - old[f"gen{gen}_per_1000_ops"] for gen in range(3)]
+        ranges = (f'{old["allocated_bytes_min"]:.1f}..{old["allocated_bytes_max"]:.1f} / '
+                  f'{now["allocated_bytes_min"]:.1f}..{now["allocated_bytes_max"]:.1f}')
         lines.append(f'| {key} | {ratio} | {now["allocated_bytes"] - old["allocated_bytes"]:+.1f} | '
-                     + " | ".join(f"{change:+.3f}" for change in changes) + f' | {overlap} |')
+                     + ranges + " | " + " | ".join(f"{change:+.3f}" for change in changes) + f' | {overlap} |')
     lines += size_table(current["sizes"], previous["sizes"], False)
     lines += ["", "## Payload generator output"]
     lines += size_table(current["payload_sizes"], previous["payload_sizes"], True)
@@ -228,7 +298,7 @@ def main():
     validate_sizes(sizes, False)
     validate_sizes(payload_sizes, True)
     current = {
-        "schema": 2,
+        "schema": 3,
         "suite": "sparsefragments-v1",
         "profile": provenance["profile"],
         "captured_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),

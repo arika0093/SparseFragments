@@ -15,11 +15,12 @@ These observations apply to that machine and workload. Some time intervals are
 wide; use the intervals and repeated measurements when assessing a later change.
 The runner checks environment and workload compatibility before reporting ratios.
 
-These initial captures use schema 1. The current runner uses schema 2 and also
-records dictionary and keyed-model payload output sizes. Comparing an initial
-capture with schema 2 records a new baseline without numeric ratios.
+These initial captures use schema 1. The current runner uses schema 3, records
+dictionary and keyed-model payload output sizes, and retains allocation and GC
+values for each process. Memory comparisons use the mean of the process rates.
+Comparing schema 1 or 2 with schema 3 records a new baseline without numeric ratios.
 
-To establish a schema 2 reference and compare the next run on the same environment:
+To establish a schema 3 reference and compare the next run on the same environment:
 
 ```powershell
 python benchmarks/run-baseline.py --output artifacts/baseline-first

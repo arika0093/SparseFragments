@@ -34,6 +34,10 @@ runtime compilation, caches and machine load can all affect them. Use the ratio
 to identify runs that need investigation. Runs with fewer than six measurements,
 including smoke runs, report no ratio. CI publishes the table in its summary.
 
+The same table records each process's allocated bytes and normalized GC counts
+from its raw GC log. Allocation can differ between processes even when their
+inputs match; inspect these values before attributing a small change to the code.
+
 ## Workloads and measurement boundaries
 
 | Group | Inputs | Included work |
@@ -46,6 +50,15 @@ including smoke runs, report no ratio. CI publishes the table in its summary.
 
 MemoryDiagnoser records allocated bytes and Gen0/Gen1/Gen2 collections for every
 timed case. The normalized GC values are collections per 1,000 operations.
+The runner reads every process's GC record from the raw benchmark log and
+matches it to the case and measured launch. Allocation and GC comparisons use
+the arithmetic mean of the process rates, with equal weight for each process.
+`baseline.json` retains the individual records in `memory_launches` and the
+minimum and maximum allocated bytes per operation. The comparison table shows
+both allocation ranges. Missing, extra or mismatched process records fail
+collection. BenchmarkDotNet's JSON memory summary describes the last process;
+it remains available in the raw report.
+
 The size probe separately records generated UTF-8 bytes, file count, a SHA-256
 fingerprint over ordered hint names and source bytes, and emitted assembly bytes.
 Compilation time is the `BaselineGeneratorBenchmarks.Compile` measurement.
@@ -99,9 +112,11 @@ and case set agree. Changes to benchmark inputs or measurement boundaries
 require a new baseline. Changes to runtime or generator implementation can be
 compared with the same benchmark source.
 
-Schema 2 adds the nine payload generator size records. Missing, duplicate,
-unexpected or invalid size records fail collection. Schema 1 runs start a new
-baseline; their measurements are not compared with schema 2.
+Schema 3 aggregates allocation and GC across processes and retains their
+individual records. Schema 1 and 2 runs start a new baseline because their memory
+values describe only the last process. The nine payload generator size records
+introduced in schema 2 remain required. Missing, duplicate, unexpected or invalid
+size records fail collection.
 
 The report includes mean time changes, allocation and GC deltas, source and
 assembly size deltas, and whether the 99.9% time intervals overlap. Interval
@@ -132,7 +147,7 @@ serve as the baseline for the corrected methods.
 ## Recorded baseline
 
 The [recorded runs](baselines/README.md) preserve the initial Windows and Linux
-schema 1 captures. Start a schema 2 run with the current runner and pass its
+schema 1 captures. Start a schema 3 run with the current runner and pass its
 `baseline.json` as `--previous` for later captures on a compatible machine and
 SDK. Each run's artifact directory retains the raw measurements needed to
 inspect variance and GC behavior.
