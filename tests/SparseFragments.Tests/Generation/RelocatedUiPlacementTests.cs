@@ -6,14 +6,7 @@ using SparseFragments.Generator.Shared;
 
 namespace SparseFragments.Tests.Generation;
 
-/// <summary>Placement checks for model-nested UI/editing types.</summary>
-/// <remarks>
-/// UI/editing types (<c>Observable</c>, <c>ReadOnlyView</c>,
-/// <c>EditSession</c>) nest in the annotated model again; only the
-/// operation/DTO/converter implementations live in the per-model
-/// <c>SparseFragments.Generated</c> container. Colliding models retreat the
-/// generated UI type behind a <c>Sparse</c> prefix.
-/// </remarks>
+/// <summary>Placement checks for relocated UI/editing types (issue #190).</summary>
 public sealed class RelocatedUiPlacementTests
 {
     private static (
@@ -77,13 +70,11 @@ public sealed class RelocatedUiPlacementTests
         var model = compilation.GetTypeByMetadataName("Reloc.Probe.CollisionModel");
         model.ShouldNotBeNull();
         var nested = model!.GetTypeMembers().Select(static type => type.Name).ToList();
-        // The colliding observable retreats behind the Sparse prefix but
-        // stays nested in the model.
         nested.ShouldNotContain("Observable");
-        nested.ShouldContain("SparseObservable");
-        nested.ShouldContain("ReadOnlyView");
-        nested.ShouldContain("EditSession");
-        // No UI type leaks into the generated namespace.
+        nested.ShouldNotContain("SparseObservable");
+        nested.ShouldNotContain("ReadOnlyView");
+        nested.ShouldNotContain("EditSession");
+        // Relocated collision-safe observable exists in the generated namespace.
         compilation
             .GetSymbolsWithName("SparseObservable")
             .OfType<INamedTypeSymbol>()
@@ -92,7 +83,7 @@ public sealed class RelocatedUiPlacementTests
                     .ContainingNamespace.ToDisplayString()
                     .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
             )
-            .ShouldBeEmpty();
+            .ShouldHaveSingleItem();
     }
 
     [Test]
@@ -109,26 +100,22 @@ public sealed class RelocatedUiPlacementTests
             """;
         var (_, _, all) = Generate(source);
         var hints = all.Keys.Where(static key => key.Contains("HintModel")).ToArray();
-        // Surface plus the split implementation file; UI/editing types nest
-        // in the model, so no per-family hints remain.
+        // Surface plus implementations (observable, view, session, factory).
         hints
             .Count(static key => key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal))
             .ShouldBe(1);
         hints
-            .Count(static key => key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal))
+            .Count(static key => key.EndsWith(".Observable.g.cs", StringComparison.Ordinal))
             .ShouldBe(1);
         hints
-            .Count(static key => key.EndsWith(".Observable.g.cs", StringComparison.Ordinal))
-            .ShouldBe(0);
-        hints
             .Count(static key => key.EndsWith(".ReadOnlyView.g.cs", StringComparison.Ordinal))
-            .ShouldBe(0);
+            .ShouldBe(1);
         hints
             .Count(static key => key.EndsWith(".EditSession.g.cs", StringComparison.Ordinal))
-            .ShouldBe(0);
+            .ShouldBe(1);
         hints
             .Count(static key => key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal))
-            .ShouldBe(0);
+            .ShouldBe(1);
     }
 
     [Test]
@@ -155,10 +142,19 @@ public sealed class RelocatedUiPlacementTests
             .ShouldBeEmpty();
         var internalModel = compilation.GetTypeByMetadataName("Reloc.Probe.InternalModel");
         internalModel.ShouldNotBeNull();
-        // UI/editing types nest in the internal model too.
-        internalModel!.GetTypeMembers("Observable").ShouldHaveSingleItem();
-        internalModel.GetTypeMembers("EditSession").ShouldHaveSingleItem();
-        internalModel.DeclaredAccessibility.ShouldBe(Accessibility.Internal);
+        internalModel!.GetTypeMembers("Observable").ShouldBeEmpty();
+        internalModel.GetTypeMembers("EditSession").ShouldBeEmpty();
+        // Internal container stays internal; session still resolves.
+        compilation
+            .GetSymbolsWithName("EditSession")
+            .OfType<INamedTypeSymbol>()
+            .Where(static symbol =>
+                symbol
+                    .ContainingNamespace.ToDisplayString()
+                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .Count()
+            .ShouldBeGreaterThanOrEqualTo(1);
     }
 
     [Test]
@@ -184,25 +180,23 @@ public sealed class RelocatedUiPlacementTests
         create.Length.ShouldBe(2);
         foreach (var method in create.OfType<IMethodSymbol>())
         {
-            // The factory returns the model-nested session type itself.
-            SymbolEqualityComparer.Default.Equals(
-                method.ReturnType.ContainingType,
-                model
-            ).ShouldBeTrue();
+            method
+                .ReturnType.ContainingNamespace.ToDisplayString()
+                .ShouldStartWith("SparseFragments.Generated");
         }
         var toObservable = extensions.GetMembers("ToObservable").ShouldHaveSingleItem();
         ((IMethodSymbol)toObservable)
             .ReturnType.ToDisplayString()
-            .ShouldContain("Reloc.Probe.EntryModel.Observable");
+            .ShouldContain("SparseFragments.Generated");
     }
 
     [Test]
     public void CollisionNamesAndTrickyLiteralsStayIntact()
     {
-        // Hardening for tricky member names and literals now that UI types
-        // nest in the model: a member colliding with proxy internals plus a
-        // string literal carrying child-ref text must compile, with the
-        // literal verbatim and no cross-file bridge.
+        // Hardening for the string-based relocation rewrites (#190/#191): a
+        // member colliding with rewritten identifiers (observable, pathPrefix)
+        // plus a string literal carrying this./__model./child-ref text must
+        // compile, with code rewritten and literals verbatim.
         const string source = """
             using SparseFragments;
             using System.ComponentModel;
@@ -222,12 +216,21 @@ public sealed class RelocatedUiPlacementTests
                 public string Name { get; set; } = string.Empty;
             }
             """;
-        var (compilation, surface, all) = Generate(source);
+        var (compilation, _, all) = Generate(source);
         compilation
             .GetDiagnostics()
             .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
             .ShouldBeEmpty();
-        // The attribute literal survives verbatim in the model surface.
+        var factory = all.Values.First(text =>
+            text.Contains("internal static class DescriptorFactory", StringComparison.Ordinal)
+        );
+        // Member access in code follows the factory parameter.
+        factory.ShouldContain("observable.observable");
+        factory.ShouldContain("observable.pathPrefix");
+        // The attribute literal survives verbatim on the surface bridge.
+        var surface = all.Values.First(text =>
+            text.Contains("__SparseAttributes_", StringComparison.Ordinal)
+        );
         surface.ShouldContain(
             "\"call this.foo; child ref global::Reloc.Probe.TrickyChild.Observable; use __model.bar\""
         );
@@ -236,10 +239,6 @@ public sealed class RelocatedUiPlacementTests
             text.ShouldNotContain("\"call observable.foo");
             text.ShouldNotContain("observable.bar\"");
         }
-        // Descriptors stay inside the model-nested Observable.
-        var model = compilation.GetTypeByMetadataName("Reloc.Probe.TrickyModel");
-        model.ShouldNotBeNull();
-        model!.GetTypeMembers("Observable").ShouldHaveSingleItem();
     }
 
     [Test]
@@ -261,20 +260,19 @@ public sealed class RelocatedUiPlacementTests
             .ShouldBeEmpty();
         var model = compilation.GetTypeByMetadataName("Reloc.Probe.FactoryModel");
         model.ShouldNotBeNull();
-        // No standalone factory remains: descriptors live in the
-        // model-nested Observable.
-        compilation.GetSymbolsWithName("DescriptorFactory").ShouldBeEmpty();
-        model!
-            .GetTypeMembers("Observable")
-            .ShouldHaveSingleItem()
-            .GetMembers()
-            .Select(static member => member.Name)
-            .ShouldContain(name =>
-                name.StartsWith("__SparseGetDescriptors_", StringComparison.Ordinal)
-            );
+        model!.GetTypeMembers("DescriptorFactory").ShouldBeEmpty();
+        compilation
+            .GetSymbolsWithName("DescriptorFactory")
+            .OfType<INamedTypeSymbol>()
+            .Where(static symbol =>
+                symbol
+                    .ContainingNamespace.ToDisplayString()
+                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .ShouldHaveSingleItem();
         all.Keys.Count(static key =>
                 key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal)
             )
-            .ShouldBe(0);
+            .ShouldBe(1);
     }
 }

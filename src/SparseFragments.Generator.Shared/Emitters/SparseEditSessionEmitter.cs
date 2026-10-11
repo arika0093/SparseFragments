@@ -204,9 +204,6 @@ internal static class SparseEditSessionEmitter
                 + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
         var conflictType = patchDialect.ConflictType;
         var rebaseResultType = patchDialect.RebaseResult(modelType + ".ChangeSet");
-        // The session nests in the model again, so it retreats behind a
-        // Sparse prefix when the model takes the preferred name.
-        var session = SparseSemanticReference.EditSessionRootName(members, model);
 
         code.AppendLineAt(0, accessibility + " " + declaration + modelName);
         code.AppendLineAt(0, "{");
@@ -217,7 +214,7 @@ internal static class SparseEditSessionEmitter
             sessionBases +=
                 ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
         }
-        code.AppendLineAt(1, "public sealed class " + session + " : " + sessionBases);
+        code.AppendLineAt(1, "public sealed class EditSession : " + sessionBases);
         code.AppendLineAt(1, "{");
         // Public surface first; internal constructors and private state follow.
         code.AppendLineAt(2, "/// <summary>Gets the bindable proxy over the live model.</summary>");
@@ -461,35 +458,22 @@ internal static class SparseEditSessionEmitter
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        AppendForkMergeMembers(code, core, conflictType, session);
-        // Created by the model extension container in the same assembly,
-        // so the constructors stay internal but hidden from IntelliSense.
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        AppendForkMergeMembers(code, core, conflictType);
+        code.AppendLineAt(
             2,
-            "internal "
-                + session
-                + "("
+            "internal EditSession("
                 + modelType
                 + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             2,
-            "internal "
-                + session
-                + "("
+            "internal EditSession("
                 + modelType
                 + " baseline, "
                 + modelType
                 + " current, global::System.Action? onChanged) { _session = "
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
-        );
-        // Only Fork/TryMergeFrom above call this; siblings never do, so it stays private.
-        code.AppendLineAt(
-            2,
-            "private " + session + "(" + core + " session) { _session = session; }"
         );
         code.AppendLineAt(
             2,
@@ -538,16 +522,14 @@ internal static class SparseEditSessionEmitter
     /// <param name="code">Target builder.</param>
     /// <param name="core">Qualified reusable core type for this model.</param>
     /// <param name="conflictType">Qualified structured conflict type.</param>
-    /// <param name="session">Collision-resolved session simple name.</param>
     internal static void AppendForkMergeMembers(
         SharedIndentedBuilder code,
         string core,
-        string conflictType,
-        string session = "EditSession"
+        string conflictType
     )
     {
-        // Public facade only; ctors trail after this so generated members
-        // stay public-first ordered (public, internal, private).
+        // Public facade first; the internal core-backed ctor trails with the
+        // other internal ctors so generated members stay public-first ordered.
         code.AppendLineAt(
             2,
             "/// <summary>Creates an independent speculative branch of this session.</summary>"
@@ -560,10 +542,7 @@ internal static class SparseEditSessionEmitter
             2,
             "/// <returns>A new session with its own live model, baseline, and bindings.</returns>"
         );
-        code.AppendLineAt(
-            2,
-            "public " + session + " Fork() => new " + session + "(_session.Fork());"
-        );
+        code.AppendLineAt(2, "public EditSession Fork() => new EditSession(_session.Fork());");
         code.AppendLineAt(
             2,
             "/// <summary>Attempts to merge a fork created by <see cref=\"Fork\"/> without modifying either session.</summary>"
@@ -590,11 +569,7 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             2,
-            "public bool TryMergeFrom("
-                + session
-                + " fork, out "
-                + session
-                + "? merged, out global::System.Collections.Generic.IReadOnlyList<"
+            "public bool TryMergeFrom(EditSession fork, out EditSession? merged, out global::System.Collections.Generic.IReadOnlyList<"
                 + conflictType
                 + ">? conflicts)"
         );
@@ -605,15 +580,12 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             3,
-            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new "
-                + session
-                + "(mergedCore); return true; }"
+            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new EditSession(mergedCore); return true; }"
         );
         code.AppendLineAt(3, "merged = null;");
         code.AppendLineAt(3, "return false;");
         code.AppendLineAt(2, "}");
-        // The core-backed ctor is emitted by the caller after the internal
-        // ctors so the public-first member order holds (public, internal, private).
+        code.AppendLineAt(2, "internal EditSession(" + core + " session) { _session = session; }");
     }
 
     private static string ReadTemplate(string resourceName)

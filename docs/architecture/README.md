@@ -24,13 +24,13 @@ The generator is organized in three layers:
   `FromPatch`, `ToPatch`, `Invert`, `Compose`, and `Rebase` cores, typed
   transitions, JSON converters, and the UI/editing types.
 
-The model-facing surface is: `Fragment`, `FragmentBuilder`, `Patch`,
-`ChangeSet`, the `ChangePayload` facade, and the UI/editing family
-(`Observable`, `ReadOnlyView`, `EditSession`) nest in the annotated model,
-with `CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` as
-the entry points. Only the operation/DTO/converter implementations live in
-a stable per-model container in `SparseFragments.Generated` (see
-[Generated type placement](../ui-frameworks.md#generated-type-placement)).
+The model-facing surface after the relocation work (#190–#195, all
+landed) is: `Fragment`, `FragmentBuilder`, `Patch`, `ChangeSet`, and the
+`ChangePayload` facade stay nested in the annotated model, with
+`CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` as the
+entry points. Everything else generated per model lives in a stable
+per-model container in `SparseFragments.Generated` (see
+[Relocated generated types](../ui-frameworks.md#relocated-generated-types)).
 There are no backwards-compatibility aliases. The surface is pinned by
 `ModelFacingSurfaceTests` and `FragmentOperationsSplitTests`.
 

@@ -64,7 +64,7 @@ internal static class SparsePerModelEmitter
     /// <param name="readOnlyViewModels">Read-only view models.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <param name="config">Owning generator configuration.</param>
-    /// <returns>Always empty: UI/editing types nest in the model surface again.</returns>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
     public static ImmutableArray<SparseGeneratedSource> BuildImplementationSources(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
@@ -84,7 +84,7 @@ internal static class SparsePerModelEmitter
     /// <param name="promoted">Promoted model.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <param name="config">Owning generator configuration.</param>
-    /// <returns>Always empty: UI/editing types nest in the model surface again.</returns>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
     public static ImmutableArray<SparseGeneratedSource> BuildPromotedImplementationSources(
         SparsePromotedModel promoted,
         CancellationToken cancellationToken,

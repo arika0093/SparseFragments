@@ -134,18 +134,16 @@ internal static class SparseFragmentEmitter
     }
 
     /// <summary>Builds relocated UI/session/factory implementation sources for one model.</summary>
-    /// <remarks>UI/editing types (<c>Observable</c>, <c>ReadOnlyView</c>,
-    /// <c>EditSession</c>) always nest in the model surface again, so no
-    /// additional sources remain. The per-model operation container
-    /// (payload DTOs, Fragment/Patch/ChangeSet operations) still flows
-    /// through <see cref="BuildSplitSource"/>. Kept for downstream
-    /// compatibility; always empty.</remarks>
+    /// <remarks>Reloc-1 family: per-model <c>Observable</c>, <c>ReadOnlyView</c>,
+    /// <c>EditSession</c>, and descriptor-factory sources under distinct hints.
+    /// Kept alongside the payload/Fragment-operations split implementation so
+    /// both families stay under <c>AdditionalSources</c> with per-model isolation.</remarks>
     /// <param name="model">Model identity.</param>
     /// <param name="members">Analyzed members.</param>
     /// <param name="readOnlyViewModels">Read-only view models.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <param name="config">Owning generator configuration.</param>
-    /// <returns>Always empty.</returns>
+    /// <returns>Additional sources, or empty for single-file emission.</returns>
     public static ImmutableArray<SparseGeneratedSource> BuildImplementationSources(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
@@ -154,12 +152,76 @@ internal static class SparseFragmentEmitter
         SparseGeneratorConfig config
     )
     {
-        _ = model;
-        _ = members;
-        _ = readOnlyViewModels;
-        _ = cancellationToken;
-        _ = config;
-        return ImmutableArray<SparseGeneratedSource>.Empty;
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        if (implementationNamespace is null)
+        {
+            return ImmutableArray<SparseGeneratedSource>.Empty;
+        }
+
+        var features = config.EffectiveEmissionFeatures;
+        if (!features.EmitFragment || !features.EmitObservable)
+        {
+            return ImmutableArray<SparseGeneratedSource>.Empty;
+        }
+
+        var runtime =
+            config.RuntimeDialect
+            ?? throw new ArgumentException(
+                "A runtime dialect is required for source emission.",
+                nameof(config)
+            );
+        var builder = ImmutableArray.CreateBuilder<SparseGeneratedSource>();
+        if (!model.IsStruct)
+        {
+            builder.Add(
+                SparseModelImplementationEmitter.BuildObservableSource(
+                    model,
+                    members,
+                    config,
+                    cancellationToken,
+                    runtime.Namespace,
+                    null
+                )
+            );
+        }
+
+        builder.Add(
+            SparseModelImplementationEmitter.BuildReadOnlyViewSource(
+                model,
+                members,
+                readOnlyViewModels,
+                config,
+                cancellationToken,
+                implementationNamespace
+            )
+        );
+        if (!model.IsStruct)
+        {
+            builder.Add(
+                SparseModelImplementationEmitter.BuildEditSessionSource(
+                    model,
+                    members,
+                    config,
+                    cancellationToken
+                )
+            );
+            if (config.DescriptorDialect is not null)
+            {
+                builder.Add(
+                    SparseDescriptorFactoryEmitter.BuildSource(
+                        model,
+                        members,
+                        config,
+                        cancellationToken,
+                        runtime.Namespace
+                    )
+                );
+            }
+        }
+
+        return builder.ToImmutable();
     }
 
     private static (string Surface, string? Implementation) BuildSourceInternal(
@@ -537,33 +599,6 @@ internal static class SparseFragmentEmitter
                 bclHashSetSupportsCapacity
             );
         }
-        // Public-first order: UI/editing types join the public nested types
-        // before any model-level internal member (bridges, reconcile
-        // helpers), so the class definition stays in T without breaking the
-        // public-first member order. Names resolve model-aware so colliding
-        // models retreat behind the Sparse prefix.
-        if (features.EmitFragment && features.EmitObservable)
-        {
-            if (!model.IsStruct)
-            {
-                SparseObservableEmitter.AppendObservable(
-                    code,
-                    modelType,
-                    members,
-                    runtime.Namespace,
-                    config.DescriptorDialect,
-                    model
-                );
-            }
-            SparseReadOnlyViewEmitter.AppendReadOnlyView(
-                code,
-                modelType,
-                members,
-                readOnlyViewModels,
-                model,
-                implementationNamespace
-            );
-        }
         if (features.EmitFragment)
         {
             AppendFragment(
@@ -617,6 +652,52 @@ internal static class SparseFragmentEmitter
                     modelType,
                     operationsType
                 );
+            }
+        }
+        if (features.EmitFragment && features.EmitObservable && implementationNamespace is null)
+        {
+            // Relocated stage: UI/editing types live in AdditionalSources under
+            // the configured namespace; the surface keeps only Fragment state.
+            if (!model.IsStruct)
+            {
+                SparseObservableEmitter.AppendObservable(
+                    code,
+                    modelType,
+                    members,
+                    runtime.Namespace,
+                    config.DescriptorDialect
+                );
+            }
+            SparseReadOnlyViewEmitter.AppendReadOnlyView(
+                code,
+                modelType,
+                members,
+                readOnlyViewModels,
+                implementationNamespace
+            );
+        }
+
+        // Relocated descriptors call back into these bridges instead of
+        // naming private attribute arrays directly. Emit them whenever
+        // relocation is active (the same gate as the rewrite side in
+        // SparseModelImplementationEmitter), not only when a descriptor
+        // dialect is present, so the reference always resolves.
+        if (implementationNamespace is not null && features.EmitFragment && features.EmitObservable)
+        {
+            foreach (var member in members)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.IsNullOrEmpty(member.Property.AttributeExpressions))
+                {
+                    code.AppendLineAt(
+                        1,
+                        "internal static global::System.Attribute[] __SparseAttributes_"
+                            + member.Id
+                            + "() => new global::System.Attribute[] { "
+                            + member.Property.AttributeExpressions
+                            + " };"
+                    );
+                }
             }
         }
 

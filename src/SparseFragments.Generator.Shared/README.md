@@ -74,13 +74,10 @@ field/value types, and the provisional ChangePayload version token
 empty set; list only names the generator injects into the annotated model
 itself (nested state/operation families and their member/method names).
 Names that exist only in an external implementation container
-(operation helpers, payload DTOs, converter bodies) must not be reserved on
+(`Observable`, `ReadOnlyView`, `EditSession`, descriptor factories,
+operation helpers, payload DTOs, converter bodies) must not be reserved on
 the model: member reuse is legal there, and collisions resolve through the
-central `SparseGeneratedPlacement` resolver. The UI/editing family
-(`Observable`, `ReadOnlyView`, `EditSession`) nests in the model too, but it
-also resolves through that resolver (retreating behind a `Sparse` prefix on
-collision) instead of reservation, so model members may freely reuse those
-names. Pass the same config
+central `SparseGeneratedPlacement` resolver. Pass the same config
 through analysis and source emission; this lets a consuming generator emit
 against runtime types it owns instead of adding a SparseFragments runtime
 dependency. Full source emission requires both dialects, and the Patch/STJ
@@ -277,13 +274,12 @@ carries the implementation files with the surface file so per-model incremental
 isolation covers both.
 
 With an explicit namespace, per-model `Observable`, `ReadOnlyView`, and
-`EditSession` types nest in the annotated model again, so `Model.EditSession`
-and `Model.Observable` resolve without naming the implementation container.
-Only the heavy algorithm bodies live in that namespace inside the model
-container. Child references resolve to the child model. A colliding member
-or nested type pushes the generated UI type behind a `Sparse` prefix
-(`SparseEditSession`), resolved through the central placement resolver from
-member names plus user-declared nested type names.
+`EditSession` types live in that namespace inside the model container. They are
+emitted as separate additional sources (`.Observable.g.cs`, `.ReadOnlyView.g.cs`,
+`.EditSession.g.cs`). The annotated model keeps no nested copy and no
+compatibility alias. Child references resolve to the child container. Private
+member attributes are read through an internal model bridge so the relocated
+code never names a private type.
 
 With an explicit namespace, each model also emits a payload/operations
 implementation source, `<sanitized>_<hash>.Implementation.g.cs`, in that
@@ -362,9 +358,11 @@ projection, collection/value helpers) with validated prerequisites
 (descriptor dialect plus the Observable family). Static per-model metadata is
 cached once per model and shared across accesses; generic implementations
 stay shared once per compilation where contract identity permits (today via
-the shared runtime). Per-model live bindings live in the model-nested
-`Observable` itself, so child `current.__SparseGet_X(path)` call sites keep
-working without naming private state.
+the shared runtime). Per-model live bindings live in a `DescriptorFactory`
+(`.DescriptorFactory.g.cs`) inside the model container. The relocated
+`Observable` keeps a thin internal bridge delegating to its factory, so child
+`current.__SparseGet_X(path)` call sites keep working without naming private
+state.
 
 ## Member transport and rebase policies
 

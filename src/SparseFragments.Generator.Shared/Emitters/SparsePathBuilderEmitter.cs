@@ -71,12 +71,7 @@ internal static class SparsePathBuilderEmitter
         }
 
         code.Append(navigations.ToString());
-        // Only ChangeSet/EnumerateChangedPaths construct paths, so the ctor hides from IntelliSense.
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
-            2,
-            "internal SparsePaths(" + pathType + " path) => _path = path;"
-        );
+        code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _path = path;");
         code.AppendLineAt(2, "private readonly " + pathType + " _path;");
         code.AppendLineAt(1, "}");
     }
@@ -228,8 +223,7 @@ internal static class SparsePathBuilderEmitter
         }
 
         code.Append(entries.ToString());
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             3,
             "internal " + builderName + "(" + pathType + " path) => _path = path;"
         );

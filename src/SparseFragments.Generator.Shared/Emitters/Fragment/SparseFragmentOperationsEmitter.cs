@@ -42,11 +42,7 @@ internal static class SparseFragmentOperationsEmitter
             1,
             "/// <summary>Per-model Fragment conversion, merge, diff, and clone operations.</summary>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
-            1,
-            "internal static class " + operationsName
-        );
+        code.AppendLineAt(1, "internal static class " + operationsName);
         code.AppendLineAt(1, "{");
         // Public-first order: public operations precede internal bridges,
         // with private Diff helpers last.

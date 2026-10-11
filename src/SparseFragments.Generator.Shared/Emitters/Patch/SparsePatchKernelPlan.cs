@@ -137,11 +137,7 @@ internal static class SparsePatchKernelEmitter
             1,
             "/// <summary>Model-independent patch operation kernels (Generated-Once).</summary>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
-            1,
-            "internal static class PatchOperationKernels"
-        );
+        code.AppendLineAt(1, "internal static class PatchOperationKernels");
         code.AppendLineAt(1, "{");
         if ((kinds & SparsePatchKernelKind.EmptyIdentities) != 0)
         {

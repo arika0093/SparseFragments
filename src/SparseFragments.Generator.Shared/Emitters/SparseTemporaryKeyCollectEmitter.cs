@@ -22,8 +22,7 @@ internal static class SparseTemporaryKeyCollectEmitter
             1,
             "/// <remarks>Returns the opaque correlation and a null error on success, or a null map with the first mismatch. Never mutates either model.</remarks>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             1,
             "internal static (global::System.Collections.Generic.Dictionary<(string Scope, global::System.Guid Temp), object?>? Map, string? Error) __SparseBuildTempMap("
                 + modelType
@@ -67,8 +66,7 @@ internal static class SparseTemporaryKeyCollectEmitter
             1,
             "/// <remarks>Recurses through keyed and nested members; server-side drops absorb while omitted, duplicated, or unassigned temporary identities fail.</remarks>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             1,
             "internal static string? __SparseCollectTempMap("
                 + modelType

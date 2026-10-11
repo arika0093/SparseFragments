@@ -31,7 +31,7 @@ public partial class UiOrderItem
 
 Reference-type models provide an edit session via `CreateEditSession()` without depending on any UI package. The session retains a baseline snapshot, tracks changes against the live model, and derives `ChangeSet` transitions on demand:
 
-For callers that need an explicit type name, the session type is nested in the model: `Model.EditSession`. Prefer `var` and the `CreateEditSession()` extension; name the nested type only when a declaration requires it. The session composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
+For callers that need an explicit type name, the session type is the per-model `EditSession` in the `SparseFragments.Generated` namespace: `global::SparseFragments.Generated.<Container>.EditSession`, where `<Container>` is the stable per-model container. Prefer `var` and the `CreateEditSession()` extension; name the container only when a declaration requires it (see [Relocated generated types](#relocated-generated-types)). The session composes an implementation emitted into the consumer assembly, so callers do not need to name or depend on a generic runtime session type.
 
 <!-- illustrative: excerpt; continues the UiOrder flow in prose and does not compile as written -->
 ```csharp
@@ -111,7 +111,7 @@ Limitations: descriptors track the live model, so values read through them chang
 
 Writable reference-type models also generate `Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)`. They update the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>` properties retain their collection instance and have their contents replaced. Nested model values may be replaced. A model with init-only or constructor-only members keeps its normal edit-session APIs but cannot use in-place apply (see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
 
-For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()` maps `Optional<Model?>` to the generated, model-specific observable proxy while preserving missing, present-null, and present-value states. The proxy type is nested in the model as `Model.Observable`, so keep the call inferred with `var`:
+For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()` maps `Optional<Model?>` to the generated, model-specific observable proxy while preserving missing, present-null, and present-value states. The proxy type lives in the per-model `SparseFragments.Generated` container (see [Relocated generated types](#relocated-generated-types)), so keep the call inferred with `var`:
 
 <!-- illustrative: excerpt; uses a session from the surrounding prose and does not compile as written -->
 ```csharp
@@ -347,27 +347,28 @@ Rows the client adds carry an unassigned sentinel key such as `0` until the data
 
 When added rows carry `[SparseTemporaryKey]` Guids, the form has a second option that keeps later edits: `TryReconcile(submitted, persisted)` writes the assigned IDs into the live model in place and adopts the persisted state as the baseline, so typing that continued during the save stays pending. This is the only acknowledgement path that correlates temporary Guids with assigned keys; `AcceptChanges(submitted)` still rejects sentinel-retaining transitions, and matching by position or value is never attempted. See [Temporary identity](keyed-collections.md#temporary-identity-for-pending-additions) and [Saving pending additions with Reconcile](keyed-collections.md#saving-pending-additions-with-reconcile).
 
-## Generated type placement
+## Relocated generated types
 
-`Model.Fragment`, `Model.FragmentBuilder`, `Model.Patch`, `Model.ChangeSet`, `Model.ChangePayload`, `Model.Observable`, `Model.ReadOnlyView`, and `Model.EditSession` nest in the annotated model, and the `CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` entry points return those nested types. Only the heavy algorithm bodies live outside the model, in a stable per-model container in `SparseFragments.Generated`:
+`Model.Fragment`, `Model.FragmentBuilder`, `Model.Patch`, `Model.ChangeSet`, and `Model.ChangePayload` stay nested in the annotated model, and the `CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` entry points are unchanged. Everything else generated per model moved out of the annotated type into a stable per-model container in `SparseFragments.Generated`:
 
-| Nested in the model | Per-model container |
+| Before (nested in the model) | After (per-model container) |
 | --- | --- |
-| `Model.EditSession` (facade; `Model.SparseEditSession` on collision) | Operation state backing the facade |
-| `Model.Observable` (`Model.SparseObservable` on collision) | Shared clone kernels |
-| `Model.ReadOnlyView` (`Model.SparseReadOnlyView` on collision) | Shared read-only adapters |
-| Payload facades under `Model.ChangePayload` | `global::SparseFragments.Generated.__Internal_<hash>` DTOs |
-| Fragment JSON converter shell | `<Container>FragmentJsonConverter` (`Model.Fragment.FragmentJsonConverter` stays as a private shell) |
+| `Model.EditSession` | `global::SparseFragments.Generated.<Container>.EditSession` |
+| `Model.Observable` (`Model.SparseObservable` on collision) | `<Container>.Observable` (`<Container>.SparseObservable`) |
+| `Model.ReadOnlyView` | `<Container>.ReadOnlyView` |
+| `Model.DescriptorFactory` | `<Container>.DescriptorFactory` (internal) |
+| Payload DTOs under `Model.ChangePayload` | `global::SparseFragments.Generated.__Internal_<hash>` |
+| Fragment JSON converter body | `<Container>FragmentJsonConverter` (`Model.Fragment.FragmentJsonConverter` stays as a private shell) |
 | Fragment/Patch/ChangeSet operation bodies | `<Container>FragmentOperations`, `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) |
 
-`<Container>` is the sanitized fully qualified model identity plus a stable hash, so same-short-name models in different namespaces get distinct containers. A generated UI type retreats behind a `Sparse` prefix when the model already uses the preferred name for a member or nested type. The playground names one directly:
+`<Container>` is the sanitized fully qualified model identity plus a stable hash, so same-short-name models in different namespaces get distinct containers. The playground names one directly:
 
 <!-- illustrative: playground-specific alias; resolves only inside the playground assembly -->
 ```csharp
-using TaskObservable = SparseFragments.Playground.Models.PlaygroundTask.Observable;
+using TaskObservable = global::SparseFragments.Generated.SparseFragments_Playground_Models_PlaygroundTask_E6C8F7DB.Observable;
 ```
 
-There are no backwards-compatibility aliases for the container paths: update explicit type references to the nested types, or drop them in favor of `var` and the extension entry points. Members named `ChangeSet` or `ChangePayload` are reported as SPF009 instead of failing with a raw compiler error (see [SPF009](analyzer.md#spf009-member-conflicts-with-generated-api)).
+There are no backwards-compatibility aliases: update explicit type references to the container paths, or drop them in favor of `var` and the extension entry points. A model member or nested type named `EditSession`, `Observable`, `ReadOnlyView`, or `DescriptorFactory` no longer collides with generated code; members named `ChangeSet` or `ChangePayload` are now reported as SPF009 instead of failing with a raw compiler error (see [SPF009](analyzer.md#spf009-member-conflicts-with-generated-api)).
 
 ## Blazor
 
@@ -404,7 +405,7 @@ Bind the created `EditContext` to an ordinary `EditForm`:
 <EditForm EditContext="@editContext">...</EditForm>
 ```
 
-`CreateEditContext()` binds the original editable model `T` to the `EditContext`. Do not use the generated observable proxy (`Model.Observable`) as `EditContext.Model`. Blazor field tracking and validation run on `EditContext` and `FieldIdentifier` and model metadata, so `DataAnnotations` keep applying to `T`, while the semantic patch still comes from baseline and current `T`.
+`CreateEditContext()` binds the original editable model `T` to the `EditContext`. Do not use the generated observable proxy (the per-model `Observable` type in `SparseFragments.Generated`) as `EditContext.Model`. Blazor field tracking and validation run on `EditContext` and `FieldIdentifier` and model metadata, so `DataAnnotations` keep applying to `T`, while the semantic patch still comes from baseline and current `T`.
 
 ### Submit, conflict display, and refresh
 

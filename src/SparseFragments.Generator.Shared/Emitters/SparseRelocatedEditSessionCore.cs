@@ -350,17 +350,13 @@ internal static class SparseRelocatedEditSessionCore
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
         SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType);
-        // Created by the model extension container in the same assembly,
-        // so the constructors stay internal but hidden from IntelliSense.
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             2,
             "internal EditSession("
                 + modelType
                 + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
+        code.AppendLineAt(
             2,
             "internal EditSession("
                 + modelType
@@ -370,8 +366,6 @@ internal static class SparseRelocatedEditSessionCore
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
         );
-        // Only Fork/TryMergeFrom above call this; siblings never do, so it stays private.
-        code.AppendLineAt(2, "private EditSession(" + core + " session) { _session = session; }");
         code.AppendLineAt(
             2,
             "private static readonly "

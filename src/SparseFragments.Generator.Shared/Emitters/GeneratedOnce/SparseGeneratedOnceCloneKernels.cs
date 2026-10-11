@@ -37,11 +37,7 @@ internal static class SparseGeneratedOnceCloneKernels
             1,
             "/// <summary>Shared generic collection clone kernels with identity tracking.</summary>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
-            1,
-            "internal static class " + SparseGeneratedOnceNames.CloneKernels
-        );
+        code.AppendLineAt(1, "internal static class " + SparseGeneratedOnceNames.CloneKernels);
         code.AppendLineAt(1, "{");
         AppendKernels(code, includePortableSetView, hashSetSupportsCapacity);
         code.AppendLineAt(1, "}");

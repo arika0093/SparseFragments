@@ -26,16 +26,24 @@ internal static class SparseModelExtensionsEmitter
         var modelType = model.ModelTypeName;
         var extensionClass = ContainerName(model, cancellationToken);
         var family = config.EffectiveFamilyNames;
-        // UI/editing types always nest in the model; colliding models retreat
-        // behind the Sparse prefix resolved from members and nested types.
-        var observableSimple = SparseObservableEmitter.ObservableTypeName(members, model, family);
+        var observableSimple = SparseObservableEmitter.ObservableTypeName(members, family);
         var accessibility = model.IsPublic ? "public" : "internal";
-        var readOnlySimple = SparseReadOnlyViewEmitter.ReadOnlyViewTypeName(members, model, family);
-        var sessionSimple = SparseSemanticReference.EditSessionRootName(members, model);
-        var observableRef = modelType + "." + observableSimple;
+        var readOnlySimple = SparseReadOnlyViewEmitter.ReadOnlyViewTypeName(members, family);
+        var implementationNamespace = SparseGeneratedPlacement.TryGetImplementationNamespace(
+            config
+        );
+        var relocated = implementationNamespace is not null;
+        var observableRef = relocated
+            ? SparseGeneratedPlacement.GetObservableReference(
+                model,
+                observableSimple,
+                config,
+                cancellationToken
+            )
+            : modelType + "." + observableSimple;
 
         code.AppendLine();
-        if (!model.IsStruct)
+        if (!model.IsStruct && !relocated)
         {
             SparseEditSessionEmitter.AppendModelEditSession(
                 code,
@@ -75,7 +83,9 @@ internal static class SparseModelExtensionsEmitter
 
         if (!model.IsStruct)
         {
-            var editSession = modelType + "." + sessionSimple;
+            var editSession = relocated
+                ? SparseGeneratedPlacement.GetEditSessionReference(model, config, cancellationToken)
+                : modelType + ".EditSession";
             code.AppendLineAt(
                 1,
                 "/// <summary>Creates a framework-neutral edit session using this model as both the baseline source and live current value.</summary>"

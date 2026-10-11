@@ -91,9 +91,9 @@ generator rebinds the same roles through `FamilyNames` and the
 `ChildChangeSetName` delegates built from the same resolver. Per-child
 UI fallbacks of the form `ObservableTypeName ?? "Observable"` and
 `ReadOnlyViewTypeName ?? "ReadOnlyView"` in the descriptor and read-only
-emitters remain until UI paths carry family context; the UI types
-themselves nest in the model again while only the operation/DTO bodies
-live in the per-model implementation containers. Runtime member names on dialect-owned types (`AreEqual`,
+emitters remain until UI paths carry family context; the relocated UI
+types themselves live in the per-model implementation containers
+(#190, #191). Runtime member names on dialect-owned types (`AreEqual`,
 `MergeSet`, `CreateCloneContext`, `TryRebaseAppend`, provenance entry
 points) are stable contracts documented in the runtime ownership audit
 (#186); dialectizing them is follow-up work for the helper migrations

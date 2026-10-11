@@ -94,11 +94,7 @@ internal static class SparseDescriptorFactoryEmitter
             2,
             "/// <summary>Descriptor factory bound to the owning observable.</summary>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            code,
-            2,
-            "internal static class DescriptorFactory"
-        );
+        code.AppendLineAt(2, "internal static class DescriptorFactory");
         code.AppendLineAt(2, "{");
         code.Append(body);
         code.AppendLineAt(2, "}");

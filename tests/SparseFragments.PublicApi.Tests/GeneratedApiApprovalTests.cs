@@ -61,10 +61,13 @@ public sealed class GeneratedApiApprovalTests
             )
                 AssertNested(model, nested);
 
-            // UI/editing types nest in the model again for discoverability.
-            model.GetNestedType("Observable").ShouldNotBeNull();
-            model.GetNestedType("ReadOnlyView").ShouldNotBeNull();
-            model.GetNestedType("EditSession").ShouldNotBeNull();
+            // Relocated stage (#190): UI/editing types live outside the model.
+            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("Observable");
+            model
+                .GetNestedTypes()
+                .Select(static type => type.Name)
+                .ShouldNotContain("ReadOnlyView");
+            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("EditSession");
 
             var changeSet = AssertNested(model, "ChangeSet");
             AssertMethods(
@@ -134,7 +137,7 @@ public sealed class GeneratedApiApprovalTests
     {
         var session = new CatalogScalar().CreateEditSession();
 
-        session.GetType().Namespace.ShouldBe(typeof(CatalogScalar).Namespace);
+        session.GetType().Namespace.ShouldStartWith("SparseFragments.Generated");
         session.GetType().Name.ShouldBe("EditSession");
         session
             .GetType()

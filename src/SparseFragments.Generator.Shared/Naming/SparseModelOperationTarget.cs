@@ -79,11 +79,7 @@ internal sealed class SparseOperationTarget
             2,
             "/// <summary>Collection operations for one member patch.</summary>"
         );
-        SparseFragmentEmitHelpers.AppendInternal(
-            PatchOperations,
-            2,
-            "internal static class " + className
-        );
+        PatchOperations.AppendLineAt(2, "internal static class " + className);
         PatchOperations.AppendLineAt(2, "{");
         return PatchOperations;
     }
