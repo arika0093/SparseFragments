@@ -42,6 +42,33 @@ public sealed class CodeRewriteBoundaryTests
     }
 
     [Test]
+    [Arguments("a/* a */ a", "a/*", "b", "b a */ a")]
+    [Arguments("a\"tail\" a", "a\"", "b", "btail\" a")]
+    [Arguments("// a\na", "\na", "b", "// ab")]
+    [Arguments("aaaaa", "aa", "b", "bba")]
+    [Arguments("a a", "a", "\"", "\" \"")]
+    public void MatchesKeepTheirOriginalAnchorsAndDoNotRescanReplacementText(
+        string source,
+        string oldValue,
+        string newValue,
+        string expected
+    )
+    {
+        SparseCodeRewrite
+            .ReplaceOutsideLiteralsAndComments(source, oldValue, newValue, CancellationToken.None)
+            .ShouldBe(expected);
+    }
+
+    [Test]
+    public void ProtectedMatchesReturnTheOriginalSourceInstance()
+    {
+        const string source = "\"needle\" // needle\n/* needle */";
+        SparseCodeRewrite
+            .ReplaceOutsideLiteralsAndComments(source, "needle", "found", CancellationToken.None)
+            .ShouldBeSameAs(source);
+    }
+
+    [Test]
     public void SparseMatchesDoNotSkipAProtectedRegionBetweenCandidates()
     {
         var prefix = new string('x', 10000);

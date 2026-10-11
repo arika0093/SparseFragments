@@ -14,6 +14,14 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparseCodeRewrite
 {
+    private static readonly char[] CodeBoundaries = { '/', '#', '\'', '"' };
+    private static readonly char[] HoleBoundaries = { '/', '#', '\'', '"', '{', '}' };
+    private static readonly char[] CharBoundaries = { '\\', '\'', '\n' };
+    private static readonly char[] StringBoundaries = { '\\', '"', '\n' };
+    private static readonly char[] VerbatimBoundaries = { '"' };
+    private static readonly char[] InterpolatedBoundaries = { '\\', '{', '}', '"', '\n' };
+    private static readonly char[] InterpolatedVerbatimBoundaries = { '{', '}', '"' };
+
     /// <summary>Replaces occurrences anchored outside literals and comments.</summary>
     /// <param name="source">Generated source to rewrite.</param>
     /// <param name="oldValue">Text to replace; empty values match nothing.</param>
@@ -136,7 +144,20 @@ internal static class SparseCodeRewrite
         }
 
         code.MarkCode(index);
-        return index + 1;
+        return NextCodePosition(source, code.NextCandidate, frames.Peek(), index);
+    }
+
+    private static int NextCodePosition(string source, int candidate, ScanKind kind, int index)
+    {
+        if (candidate < 0)
+            return source.Length;
+        // Only lexical boundaries or replacement candidates can change the scan state.
+        var boundary = source.IndexOfAny(
+            kind == ScanKind.HoleCode ? HoleBoundaries : CodeBoundaries,
+            index + 1,
+            candidate - index - 1
+        );
+        return boundary < 0 ? candidate : boundary;
     }
 
     // Interpolation holes are code: braces balance against HoleCode frames so
@@ -173,25 +194,21 @@ internal static class SparseCodeRewrite
         int index
     )
     {
-        if (source[index] == '\n')
-        {
-            code.MarkCode(index);
-            frames.Pop();
-            return index + 1;
-        }
-
-        return index + 1;
+        var newline = source.IndexOf('\n', index);
+        if (newline < 0)
+            return source.Length;
+        code.MarkCode(newline);
+        frames.Pop();
+        return newline + 1;
     }
 
     private static int ScanBlockComment(string source, Stack<ScanKind> frames, int index)
     {
-        if (source[index] == '*' && index + 1 < source.Length && source[index + 1] == '/')
-        {
-            frames.Pop();
-            return index + 2;
-        }
-
-        return index + 1;
+        var closer = source.IndexOf("*/", index, StringComparison.Ordinal);
+        if (closer < 0)
+            return source.Length;
+        frames.Pop();
+        return closer + 2;
     }
 
     private static int ScanCharLiteral(string source, Stack<ScanKind> frames, int index)
@@ -204,9 +221,10 @@ internal static class SparseCodeRewrite
         if (source[index] == '\'' || source[index] == '\n')
         {
             frames.Pop();
+            return index + 1;
         }
 
-        return index + 1;
+        return NextBoundary(source, CharBoundaries, index);
     }
 
     private static int ScanString(string source, Stack<ScanKind> frames, int index)
@@ -220,9 +238,10 @@ internal static class SparseCodeRewrite
         if (source[index] == '"' || source[index] == '\n')
         {
             frames.Pop();
+            return index + 1;
         }
 
-        return index + 1;
+        return NextBoundary(source, StringBoundaries, index);
     }
 
     private static int ScanVerbatimString(string source, Stack<ScanKind> frames, int index)
@@ -235,9 +254,10 @@ internal static class SparseCodeRewrite
             }
 
             frames.Pop();
+            return index + 1;
         }
 
-        return index + 1;
+        return NextBoundary(source, VerbatimBoundaries, index);
     }
 
     private static int ScanInterpolated(
@@ -277,7 +297,17 @@ internal static class SparseCodeRewrite
             return index + (c == '"' ? 1 : 0);
         }
 
-        return index + 1;
+        return NextBoundary(
+            source,
+            verbatim ? InterpolatedVerbatimBoundaries : InterpolatedBoundaries,
+            index
+        );
+    }
+
+    private static int NextBoundary(string source, char[] boundaries, int index)
+    {
+        var boundary = source.IndexOfAny(boundaries, index + 1);
+        return boundary < 0 ? source.Length : boundary;
     }
 
     private static ScanKind StringKind(string source, int index)
@@ -312,8 +342,19 @@ internal static class SparseCodeRewrite
             quotes++;
         }
 
-        var closer = new string('"', quotes);
-        var end = source.IndexOf(closer, index + quotes, StringComparison.Ordinal);
-        return end < 0 ? source.Length : end + quotes;
+        var next = index + quotes;
+        while (next < source.Length)
+        {
+            var end = source.IndexOf('"', next);
+            if (end < 0)
+                return source.Length;
+            var length = 1;
+            while (length < quotes && end + length < source.Length && source[end + length] == '"')
+                length++;
+            if (length == quotes)
+                return end + quotes;
+            next = end + length;
+        }
+        return source.Length;
     }
 }

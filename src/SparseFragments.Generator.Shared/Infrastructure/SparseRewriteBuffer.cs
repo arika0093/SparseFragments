@@ -22,6 +22,8 @@ internal sealed class SparseRewriteBuffer
 
     internal bool HasCandidate => _match >= 0;
 
+    internal int NextCandidate => _match;
+
     internal void MarkCode(int index)
     {
         if (index >= _match)
