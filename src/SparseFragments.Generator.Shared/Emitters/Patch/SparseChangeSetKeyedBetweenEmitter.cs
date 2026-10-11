@@ -339,6 +339,18 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__h" + id + " = true;");
         // Surviving-rank reorder set (relative order, not absolute shifts).
+        // Equal complete orders also imply equal surviving ranks.
+        code.AppendLineAt(
+            6,
+            "global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">? __reordered"
+                + id
+                + " = null;"
+        );
+        code.AppendLineAt(6, "if (__orderChanged" + id + ")");
+        code.AppendLineAt(6, "{");
+        code.IndentOffset++;
         code.AppendLineAt(
             6,
             "var __beforeRank"
@@ -389,7 +401,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         );
         code.AppendLineAt(
             6,
-            "var __reordered"
+            "__reordered"
                 + id
                 + " = new global::System.Collections.Generic.HashSet<"
                 + keyType
@@ -407,6 +419,8 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 + id
                 + ".Add(__kv.Key);"
         );
+        code.IndentOffset--;
+        code.AppendLineAt(6, "}");
         if (hasTemp)
         {
             SparseChangeSetKeyedTempBetweenEmitter.AppendTempRanks(code, id);
@@ -541,7 +555,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             7,
             "bool __isEdited = __edited" + id + ".TryGetValue(__k, out var __edit);"
         );
-        code.AppendLineAt(7, "bool __isReordered = __reordered" + id + ".Contains(__k);");
+        code.AppendLineAt(7, "bool __isReordered = __reordered" + id + "?.Contains(__k) == true;");
         code.AppendLineAt(7, "if (!__inBefore || __isEdited || __isReordered)");
         code.AppendLineAt(7, "{");
         code.AppendLineAt(

@@ -262,6 +262,15 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         // the assigned computation so temp-only reorders are observed.
         code.AppendLineAt(
             6,
+            "global::System.Collections.Generic.HashSet<global::System.Guid>? __reorderedTemp"
+                + id
+                + " = null;"
+        );
+        code.AppendLineAt(6, "if (__orderChanged" + id + ")");
+        code.AppendLineAt(6, "{");
+        code.IndentOffset++;
+        code.AppendLineAt(
+            6,
             "var __beforeTempRank"
                 + id
                 + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
@@ -294,7 +303,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         );
         code.AppendLineAt(
             6,
-            "var __reorderedTemp"
+            "__reorderedTemp"
                 + id
                 + " = new global::System.Collections.Generic.HashSet<global::System.Guid>();"
         );
@@ -308,6 +317,8 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
                 + id
                 + ".Add(__kv.Key);"
         );
+        code.IndentOffset--;
+        code.AppendLineAt(6, "}");
     }
 
     /// <summary>Emits absolute index maps for temporary identities.</summary>
@@ -394,7 +405,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
                 + id
                 + ".TryGetValue(__tt, out var __ttedit); bool __ttisReordered = __reorderedTemp"
                 + id
-                + ".Contains(__tt); if (!__tinBefore || __tisEdited || __ttisReordered) { "
+                + "?.Contains(__tt) == true; if (!__tinBefore || __tisEdited || __ttisReordered) { "
                 + runtime
                 + "Optional<"
                 + elementFrag
