@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
 using static SparseFragments.Generator.Shared.SparseChangeSetComposeEmitter;
@@ -31,6 +32,11 @@ internal static class SparseChangeSetBetweenEmitter
         SparseOperationTarget? target = null
     )
     {
+        var empty = EmptyArgs(members);
+        var emptyName = "__sparse_empty";
+        var emptySuffix = 0;
+        while (members.Any(member => member.Property.Name == emptyName))
+            emptyName = "__sparse_empty" + (++emptySuffix).ToString(CultureInfo.InvariantCulture);
         if (target is not null)
         {
             code.AppendLineAt(
@@ -63,6 +69,11 @@ internal static class SparseChangeSetBetweenEmitter
             // The algorithm body below streams into the operation container.
             code = target.ChangeSetOperations;
         }
+        // Empty storage contains no retained endpoints or mutable containers.
+        code.AppendLineAt(
+            2,
+            "private static readonly ChangeSet " + emptyName + " = new ChangeSet(" + empty + ");"
+        );
         code.AppendLineAt(2, "/// <summary>Deep-clones a retained whole-root fragment.</summary>");
         code.AppendLineAt(
             2,
@@ -98,7 +109,6 @@ internal static class SparseChangeSetBetweenEmitter
                 + " after)"
         );
         code.AppendLineAt(2, "{");
-        var empty = EmptyArgs(members);
         code.AppendLineAt(3, "if (before.IsPresent != after.IsPresent)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
@@ -108,18 +118,18 @@ internal static class SparseChangeSetBetweenEmitter
                 + ");"
         );
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "if (!before.IsPresent) return new ChangeSet(" + empty + ");");
+        code.AppendLineAt(3, "if (!before.IsPresent) return " + emptyName + ";");
         code.AppendLineAt(
             3,
-            "if (global::System.Object.ReferenceEquals(before.Value, after.Value)) return new ChangeSet("
-                + empty
-                + ");"
+            "if (global::System.Object.ReferenceEquals(before.Value, after.Value)) return "
+                + emptyName
+                + ";"
         );
         code.AppendLineAt(3, "if (before.Value is null || after.Value is null)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
             4,
-            "if (before.Value is null && after.Value is null) return new ChangeSet(" + empty + ");"
+            "if (before.Value is null && after.Value is null) return " + emptyName + ";"
         );
         code.AppendLineAt(
             4,
@@ -130,7 +140,7 @@ internal static class SparseChangeSetBetweenEmitter
         code.AppendLineAt(3, "}");
         if (members.IsDefaultOrEmpty || members.Length == 0)
         {
-            code.AppendLineAt(3, "return new ChangeSet(" + empty + ");");
+            code.AppendLineAt(3, "return " + emptyName + ";");
             code.AppendLineAt(2, "}");
             return;
         }
@@ -229,10 +239,7 @@ internal static class SparseChangeSetBetweenEmitter
             else
                 conds.Add("!__h" + member.Id);
         }
-        code.AppendLineAt(
-            3,
-            "if (" + string.Join(" && ", conds) + ") return new ChangeSet(" + empty + ");"
-        );
+        code.AppendLineAt(3, "if (" + string.Join(" && ", conds) + ") return " + emptyName + ";");
         var args = new List<string> { "false", "default", "default" };
         foreach (var member in members)
         {
