@@ -3,14 +3,20 @@
 @using SparseFragments
 @using SparseFragments.Blazor
 
+@implements IDisposable
+
 @* Compilable counterpart of docs/how-to/blazor-edit-form.md. The C# save
    lifecycle is verified by the Blazor consumer fixture (Program.cs); this
    component proves the Razor shape around it compiles: EditForm bound to the
    session model, an InputText adapter that edits through Observable while
-   validation tracks the original model, and an explicit refresh action for
-   conflicts. The session type names its generator-assigned container because
-   a field declaration requires it; handler code elsewhere prefers var. *@
-<EditForm EditContext="@editContext" OnValidSubmit="@HandleValidSubmit">
+   validation tracks the original model, and explicit conflict choices.
+   The session type names its generator-assigned container because
+   a field declaration requires it; handler code elsewhere prefers var.
+   The EditForm carries a @key tied to an explicit session generation (#219):
+   adopting a new session/EditContext tears down and recreates the input
+   subtree, because InputBase caches its cascaded EditContext and throws when
+   the same instance sees a different context. *@
+<EditForm @key="formGeneration" EditContext="@editContext" OnValidSubmit="@HandleValidSubmit">
     <DataAnnotationsValidator />
     <ValidationSummary />
     <InputText Value="@session.Current.Number"
@@ -21,7 +27,11 @@
     <button type="submit" disabled="@isSaving">Save</button>
     @if (latestServer is not null)
     {
-        <button type="button" disabled="@isSaving" @onclick="RefreshFromServer">Use server value</button>
+        <button type="button" disabled="@isSaving" @onclick="UseServerValue">Use server value</button>
+    }
+    @if (conflictNotice is not null)
+    {
+        <p>@conflictNotice</p>
     }
     @if (transportError is not null)
     {
@@ -37,8 +47,10 @@
     private EditContext editContext = null!;
     private ValidationMessageStore store = null!;
     private BlazorEditFormOrder? latestServer;
+    private string? conflictNotice;
     private string? transportError;
     private bool isSaving;
+    private int formGeneration;
 
     [Parameter]
     public FakeOrderSaveService SaveService { get; set; } = new();
@@ -46,6 +58,23 @@
     protected override void OnInitialized()
     {
         AdoptSession(live.CreateEditSession());
+    }
+
+    public void Dispose()
+    {
+        if (editContext is not null)
+        {
+            editContext.OnValidationRequested -= OnValidationRequested;
+        }
+    }
+
+    private void OnValidationRequested(object? sender, ValidationRequestedEventArgs args)
+    {
+        store.Clear();
+        if (string.IsNullOrWhiteSpace(session.Current.Number))
+        {
+            store.Add(session.Field(nameof(BlazorEditFormOrder.Number)), "Number is required.");
+        }
     }
 
     private void OnNumberChanged(string value)
@@ -65,18 +94,43 @@
             if (result is BlazorFormSaved saved)
             {
                 latestServer = null;
+                conflictNotice = null;
                 AdoptSession(saved.Persisted.CreateEditSession());
             }
             else if (result is BlazorFormConflicted conflicted)
             {
                 latestServer = conflicted.ServerState;
-                if (submitted.TryApplyTo(conflicted.ServerState, out _, out var conflicts))
+                // Probe on a defensive copy: TryApplyTo can mutate its target,
+                // while the authoritative server row must stay pristine for the
+                // explicit user decision below.
+                var probe = CopyServerState(conflicted.ServerState);
+                if (submitted.TryApplyTo(probe, out _, out var conflicts))
                 {
-                    return;
+                    // Row-version mismatch with disjoint changes: clean semantic
+                    // rebase. Merge the server state, keep the pending edits,
+                    // and ask for an explicit retry instead of silently returning.
+                    var reload = session.Reload(conflicted.ServerState);
+                    if (!reload.HasConflicts)
+                    {
+                        latestServer = null;
+                        conflictNotice =
+                            "Server changed other fields. Merged the latest values; review and save again.";
+                    }
+                    else
+                    {
+                        conflictNotice =
+                            "Server reported a conflict. Use the server value or edit to resolve.";
+                    }
                 }
-                foreach (var conflict in conflicts)
+                else
                 {
-                    session.AddValidationError(store, conflict.PathText, "Server kept a newer value.");
+                    foreach (var conflict in conflicts)
+                    {
+                        session.AddValidationError(store, conflict.PathText, "Server kept a newer value.");
+                    }
+                    conflictNotice =
+                        "Server kept a newer value. Keep editing, or use the server value to discard your change.";
+                    editContext.NotifyValidationStateChanged();
                 }
             }
         }
@@ -90,24 +144,43 @@
         }
     }
 
-    private void RefreshFromServer()
+    // Explicit discard choice (#220): replace the session and EditContext from
+    // the authoritative response and drop local edits, field tracking, and
+    // conflict errors with them. Reload alone cannot do this; it preserves the
+    // local edit and keeps reporting the same overlap.
+    private void UseServerValue()
     {
         if (latestServer is null)
         {
             return;
         }
-        var reload = session.Reload(latestServer);
-        if (!reload.HasConflicts)
-        {
-            latestServer = null;
-        }
+        AdoptSession(latestServer.CreateEditSession());
+        latestServer = null;
+        conflictNotice = null;
     }
 
     private void AdoptSession(global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession next)
     {
+        // Detach from the previous context first: the named handler closes over
+        // these fields, so a lingering subscription would clear the new store.
+        if (editContext is not null)
+        {
+            editContext.OnValidationRequested -= OnValidationRequested;
+        }
         session = next;
         live = session.GetModelForFrameworkAccess();
         editContext = session.CreateEditContext();
         store = session.CreateValidationStore(editContext);
+        editContext.OnValidationRequested += OnValidationRequested;
+        formGeneration++;
     }
+
+    private static BlazorEditFormOrder CopyServerState(BlazorEditFormOrder source) =>
+        new()
+        {
+            Number = source.Number,
+            Note = source.Note,
+            Version = source.Version,
+            UpdatedAt = source.UpdatedAt,
+        };
 }

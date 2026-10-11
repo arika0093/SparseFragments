@@ -120,15 +120,24 @@ component below does.
 
 <!-- illustrative: razor markup shape; the compilable component is OrderEditForm.razor in the Blazor consumer fixture -->
 ```razor
-<EditForm EditContext="@editContext" OnValidSubmit="@HandleValidSubmit">
+<EditForm @key="formGeneration" EditContext="@editContext" OnValidSubmit="@HandleValidSubmit">
     <DataAnnotationsValidator />
     <InputText Value="@session.Current.Number"
                ValueChanged="@OnNumberChanged"
                ValueExpression="@(() => live.Number)"
                disabled="@isSaving" />
+    @if (latestServer is not null)
+    {
+        <button type="button" @onclick="UseServerValue">Use server value</button>
+    }
 </EditForm>
 
 @code {
+    // formGeneration increments on every adopted session, so the input
+    // subtree is recreated with the new EditContext instead of reusing
+    // inputs bound to the old one.
+    private int formGeneration;
+
     private void OnNumberChanged(string value)
     {
         session.Observable.Number = value;
@@ -265,6 +274,15 @@ without reconciliation code. The old validation handler is detached before
 the context is replaced, so the dead context keeps no references to the new
 session. `HasChanges` is false because the baseline is the persisted row.
 
+Adopting a new `EditContext` must also recreate the rendered inputs. An
+`InputText` caches its cascaded context and rejects a different one on the
+same instance, so the component keys the `EditForm` by an explicit session
+generation that increments on every adoption. The key forces Blazor to tear
+down the old input subtree (disposing its validation subscriptions) and
+create inputs bound to the new context with no stale modified flags or
+messages. The rendered-component tests cover two save cycles through this
+recreation, plus a probe proving the old validation subscription is gone.
+
 Two neighboring calls serve narrower cases. `BatchEdit` groups one user
 action that needs several observable mutations into one notification; it
 never rolls back, so discarding still goes through `RevertChanges`. For
@@ -351,8 +369,12 @@ A conflict-free `Reload` with disjoint server changes merges instead: it
 writes the merged result into the live model instance and keeps the pending
 edits as changes against the new baseline, as shown in
 [UI frameworks](../ui-frameworks.md#reload-with-fresh-server-state). The
-component exposes the same choice as a visible refresh button rather than
-an automatic accept.
+component turns that into two explicit choices rather than an automatic
+accept or a silent return. A row-version mismatch with disjoint changes
+merges the server state, clears the conflict, and asks for an explicit
+retry with a notice; overlapping field conflicts keep the session, surface
+field errors, and offer a visible **Use server value** button that discards
+the local edit by adopting the authoritative row as a fresh session.
 
 ## Retry transport failure without data loss
 
