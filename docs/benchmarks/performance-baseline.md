@@ -16,8 +16,23 @@ when BenchmarkDotNet exits successfully.
 
 Use `--smoke` to check the harness with one launch and one measured iteration.
 Smoke results have a separate profile and cannot be compared with full runs.
-A full run uses two launches, eight warmups, fifteen measured iterations, and
+A full run uses two launches, fifteen measured iterations, and
 a 250 ms target iteration duration. The suite contains 45 cases.
+
+The v2 jobs use twenty warmups for single operations and edit workflows, fifty
+for fresh and incremental generation, and an adaptive range of 100–250 for
+compilation. Each case runs under one job. These timings describe repeated
+operations in a warmed process. Eight warmups left large timing changes inside
+measured iterations on Windows and Linux; compilation still changed during
+measurement after fifty warmups. The new job configuration requires a new
+reference. The benchmark digest prevents ratios against the earlier setup.
+
+`measurement-quality.json` and `measurement-quality.md` compare the medians of
+the first three and last three measured iterations for each process. The ratio
+is early time divided by late time. Inspect changes alongside the raw log:
+runtime compilation, caches and machine load can all affect them. Use the ratio
+to identify runs that need investigation. Runs with fewer than six measurements,
+including smoke runs, report no ratio. CI publishes the table in its summary.
 
 ## Workloads and measurement boundaries
 

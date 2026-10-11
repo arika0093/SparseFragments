@@ -53,9 +53,12 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -f artifacts/performance-baseline/comparison.md ]; then
-            cat artifacts/performance-baseline/comparison.md >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for report in comparison measurement-quality; do
+            if [ -f "artifacts/performance-baseline/$report.md" ]; then
+              cat "artifacts/performance-baseline/$report.md" >> "$GITHUB_STEP_SUMMARY"
+              printf '\n' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - uses: actions/upload-artifact@v7
         if: always()
         with:

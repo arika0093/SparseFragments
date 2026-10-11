@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import statistics
 import subprocess
 import sys
 
@@ -48,6 +49,7 @@ def finite(value):
 def collect(directory):
     cases = {}
     environments = []
+    quality = []
     for path in sorted((directory / "bdn/results").glob("*-report-full.json")):
         report = json.loads(path.read_text(encoding="utf-8-sig"))
         environments.append(report["HostEnvironmentInfo"])
@@ -70,11 +72,53 @@ def collect(directory):
                 **{f"gen{generation}_per_1000_ops": finite(memory[f"Gen{generation}Collections"]) * 1000 / operations
                    for generation in range(3)},
             }
+            quality.extend(measurement_quality(key, case["Measurements"]))
     if len(cases) != EXPECTED_CASES:
         raise ValueError(f"Expected {EXPECTED_CASES} cases, received {len(cases)}; inspect benchmark.log")
     if any(environment != environments[0] for environment in environments[1:]):
         raise ValueError("Benchmark reports have different host environments")
-    return cases, environments[0]
+    return cases, environments[0], quality
+
+
+def measurement_quality(key, measurements):
+    launches = {}
+    for item in measurements:
+        stage = item["IterationStage"]
+        if item["IterationMode"] != "Workload" or stage not in ("Warmup", "Actual"):
+            continue
+        operations = finite(item["Operations"])
+        elapsed = finite(item["Nanoseconds"])
+        if operations <= 0 or elapsed <= 0:
+            raise ValueError(f"Invalid workload measurement: {key}")
+        stages = launches.setdefault(item["LaunchIndex"], {"Warmup": [], "Actual": []})
+        stages[stage].append((item["IterationIndex"], elapsed / operations))
+    result = []
+    for launch, stages in sorted(launches.items()):
+        actual = [value for _, value in sorted(stages["Actual"])]
+        enough = len(actual) >= 6
+        first = statistics.median(actual[:3]) if enough else None
+        last = statistics.median(actual[-3:]) if enough else None
+        result.append({
+            "case": key, "launch": launch, "warmup_count": len(stages["Warmup"]),
+            "measured_count": len(actual), "first_three_median_ns": first,
+            "last_three_median_ns": last,
+            "first_to_last_ratio": first / last if enough else None,
+        })
+    return result
+
+
+def quality_report(records):
+    lines = ["# Measurement stability", "",
+             "Each row compares the first three and last three measured workload iterations in one process.",
+             "The ratio is early / late time. Drift can reflect runtime compilation, caches or machine load; inspect the raw log before attributing it to an implementation change.",
+             "At least six iterations are required. Smoke runs cannot assess stability.", "",
+             "| Case | Launch | Warmups | Measurements | Early / late |",
+             "| --- | ---: | ---: | ---: | ---: |"]
+    for record in sorted(records, key=lambda item: (item["case"], item["launch"])):
+        ratio = record["first_to_last_ratio"]
+        display = f"{ratio:.3f}" if ratio is not None else "n/a"
+        lines.append(f'| {record["case"]} | {record["launch"]} | {record["warmup_count"]} | {record["measured_count"]} | {display} |')
+    return "\n".join(lines) + "\n"
 
 
 def validate_sizes(records, payload):
@@ -176,7 +220,9 @@ def main():
     provenance = json.loads((output / "provenance.json").read_text(encoding="utf-8"))
     if digest(benchmark_paths) != provenance["benchmark_sha256"]:
         raise ValueError("Benchmark source changed during the run; start a new run")
-    cases, host = collect(output)
+    cases, host, quality = collect(output)
+    (output / "measurement-quality.json").write_text(json.dumps(quality, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    (output / "measurement-quality.md").write_text(quality_report(quality), encoding="utf-8")
     sizes = json.loads((output / "sizes.json").read_text(encoding="utf-8-sig"))
     payload_sizes = json.loads((output / "payload-sizes.json").read_text(encoding="utf-8-sig"))
     validate_sizes(sizes, False)
