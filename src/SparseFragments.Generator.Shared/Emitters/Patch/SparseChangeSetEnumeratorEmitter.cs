@@ -342,10 +342,13 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(2, visibility + " ChangeInfo? Find(" + receiver + pathType + " path)");
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-        );
+        if (!dialect.PathIsValueType)
+        {
+            code.AppendLineAt(
+                3,
+                "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
+            );
+        }
         code.AppendLineAt(3, "foreach (var change in " + enumerate + ")");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "if (change.Path.Equals(path)) return change;");
@@ -374,10 +377,13 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + " path)"
         );
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-        );
+        if (!dialect.PathIsValueType)
+        {
+            code.AppendLineAt(
+                3,
+                "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
+            );
+        }
         code.AppendLineAt(
             3,
             target is null ? "return Find(path.Path);" : "return Find(self, path.Path);"

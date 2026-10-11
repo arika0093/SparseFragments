@@ -47,7 +47,11 @@ internal static class SparsePathBuilderEmitter
             1,
             "/// <typeparam name=\"TRoot\">The root model the path navigates from.</typeparam>"
         );
-        code.AppendLineAt(1, "public sealed class SparsePaths<TRoot>");
+        code.AppendLineAt(
+            1,
+            (dialect.PathIsValueType ? "public readonly struct " : "public sealed class ")
+                + "SparsePaths<TRoot>"
+        );
         code.AppendLineAt(1, "{");
         // Public-first order: conversion and member navigation precede the
         // internal constructor, and the private backing field trails both.
@@ -71,8 +75,8 @@ internal static class SparsePathBuilderEmitter
         }
 
         code.Append(navigations.ToString());
-        code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _path = path;");
-        code.AppendLineAt(2, "private readonly " + pathType + " _path;");
+        code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _storedPath = path;");
+        AppendPathStorage(code, pathType, "", dialect.PathIsValueType, 2);
         code.AppendLineAt(1, "}");
     }
 
@@ -166,7 +170,11 @@ internal static class SparsePathBuilderEmitter
                 + "));"
         );
         code.AppendLineAt(2, "/// <summary>Collection path builder for '" + name + "'.</summary>");
-        code.AppendLineAt(2, "public sealed class " + builderName);
+        code.AppendLineAt(
+            2,
+            (dialect.PathIsValueType ? "public readonly struct " : "public sealed class ")
+                + builderName
+        );
         code.AppendLineAt(2, "{");
         // Public-first order, matching the root builder above.
         code.AppendLineAt(
@@ -225,9 +233,9 @@ internal static class SparsePathBuilderEmitter
         code.Append(entries.ToString());
         code.AppendLineAt(
             3,
-            "internal " + builderName + "(" + pathType + " path) => _path = path;"
+            "internal " + builderName + "(" + pathType + " path) => _storedPath = path;"
         );
-        code.AppendLineAt(3, "private readonly " + pathType + " _path;");
+        AppendPathStorage(code, pathType, ".Member(" + literal + ")", dialect.PathIsValueType, 3);
         code.AppendLineAt(2, "}");
     }
 
@@ -296,5 +304,34 @@ internal static class SparsePathBuilderEmitter
         }
 
         return SparseFragmentPatchEmitter.GetTypedPathType(dialect, "TRoot", element.Name);
+    }
+
+    private static void AppendPathStorage(
+        SharedIndentedBuilder code,
+        string pathType,
+        string suffix,
+        bool valueType,
+        int indent
+    )
+    {
+        code.AppendLineAt(indent, "private readonly " + pathType + " _storedPath;");
+        var collectionGuard = suffix.Length == 0 ? "" : " && !_storedPath.IsRoot";
+        code.AppendLineAt(
+            indent,
+            "private "
+                + pathType
+                + " _path => "
+                + (
+                    valueType
+                        ? "_storedPath.RootType == typeof(TRoot)"
+                            + collectionGuard
+                            + " ? _storedPath : "
+                            + pathType
+                            + ".Root(typeof(TRoot))"
+                            + suffix
+                        : "_storedPath"
+                )
+                + ";"
+        );
     }
 }

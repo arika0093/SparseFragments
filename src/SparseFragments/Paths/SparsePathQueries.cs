@@ -16,8 +16,14 @@ public static class SparsePathQueries
     )
     {
         ArgumentNullException.ThrowIfNull(conflicts);
-        ArgumentNullException.ThrowIfNull(path);
-        return conflicts.FirstOrDefault(conflict => conflict.Path.Equals(path));
+        for (var index = 0; index < conflicts.Count; index++)
+        {
+            var conflict = conflicts[index];
+            if (conflict.Path.Equals(path))
+                return conflict;
+        }
+
+        return null;
     }
 
     /// <summary>Finds the first conflict at exactly the given typed path, or null when absent.</summary>
@@ -31,7 +37,6 @@ public static class SparsePathQueries
         SparsePath<TModel, TValue> path
     )
     {
-        ArgumentNullException.ThrowIfNull(path);
         return Find(conflicts, path.Path);
     }
 }

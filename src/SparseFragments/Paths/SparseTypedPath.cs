@@ -8,18 +8,18 @@ namespace SparseFragments;
 /// produce these paths, so wrong key, value, or root types fail at compile time on
 /// typed APIs. The path converts implicitly to <see cref="SparsePath"/> for
 /// model-agnostic storage, comparison, and lookup.
+/// The default value addresses the root of <typeparamref name="TModel"/>.
 /// </remarks>
 /// <typeparam name="TModel">The root model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public sealed class SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, TValue>>
+public readonly struct SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, TValue>>
 {
     /// <summary>Creates a typed path over an untyped path.</summary>
     /// <param name="path">The underlying path.</param>
     /// <exception cref="ArgumentException">The path root is not <typeparamref name="TModel"/>.</exception>
     public SparsePath(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         if (path.RootType != typeof(TModel))
         {
             throw new ArgumentException(
@@ -28,11 +28,13 @@ public sealed class SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, T
             );
         }
 
-        Path = path;
+        _path = path;
     }
 
+    private readonly SparsePath _path;
+
     /// <summary>Gets the underlying model-agnostic path.</summary>
-    public SparsePath Path { get; }
+    public SparsePath Path => _path.IsInitialized ? _path : SparsePath.Root<TModel>();
 
     /// <summary>Gets the root model type.</summary>
     public Type RootType => typeof(TModel);
@@ -42,20 +44,18 @@ public sealed class SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, T
 
     /// <summary>Converts a typed path to its model-agnostic form.</summary>
     /// <param name="path">The typed path.</param>
-    public static implicit operator SparsePath(SparsePath<TModel, TValue>? path)
+    public static implicit operator SparsePath(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return path.Path;
     }
 
     /// <summary>Determines whether two typed paths have the same identity.</summary>
     /// <param name="other">The path to compare.</param>
-    public bool Equals(SparsePath<TModel, TValue>? other) =>
-        other is not null && Path.Equals(other.Path);
+    public bool Equals(SparsePath<TModel, TValue> other) => Path.Equals(other.Path);
 
     /// <summary>Determines whether this path equals a model-agnostic path.</summary>
     /// <param name="other">The path to compare.</param>
-    public bool Equals(SparsePath? other) => other is not null && Path.Equals(other);
+    public bool Equals(SparsePath other) => Path.Equals(other);
 
     /// <inheritdoc />
     public override bool Equals(object? obj) =>
@@ -64,18 +64,18 @@ public sealed class SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, T
             : obj is SparsePath untyped && Equals(untyped);
 
     /// <inheritdoc />
-    public override int GetHashCode() => Path.GetHashCode();
+    public override int GetHashCode() => _path.GetSegmentsHashCode(typeof(TModel).GetHashCode());
 
     /// <summary>Determines whether two typed paths have the same identity.</summary>
     public static bool operator ==(
-        SparsePath<TModel, TValue>? left,
-        SparsePath<TModel, TValue>? right
-    ) => left is null ? right is null : left.Equals(right);
+        SparsePath<TModel, TValue> left,
+        SparsePath<TModel, TValue> right
+    ) => left.Equals(right);
 
     /// <summary>Determines whether two typed paths differ in identity.</summary>
     public static bool operator !=(
-        SparsePath<TModel, TValue>? left,
-        SparsePath<TModel, TValue>? right
+        SparsePath<TModel, TValue> left,
+        SparsePath<TModel, TValue> right
     ) => !(left == right);
 
     /// <inheritdoc />

@@ -165,7 +165,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns>The conflict, or <see langword="null"/> when no conflict sits exactly there.</returns>
     public SparseConflict? FindConflict(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return FindExact(path);
     }
 
@@ -176,7 +175,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns>The conflict, or <see langword="null"/> when no conflict sits exactly there.</returns>
     public SparseConflict? FindConflict<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return FindExact(path.Path);
     }
 
@@ -185,7 +183,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> for an exact conflict match.</returns>
     public bool HasConflict(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return FindExact(path) is not null;
     }
 
@@ -196,7 +193,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> for an exact conflict match.</returns>
     public bool HasConflict<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return FindExact(path.Path) is not null;
     }
 
@@ -205,7 +201,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> when at least one conflict descends from <paramref name="path"/>.</returns>
     public bool HasConflictsUnder(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return Rebase.Conflicts.Any(conflict => path.IsAncestorOf(conflict.Path));
     }
 
@@ -216,7 +211,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> when at least one conflict descends from <paramref name="path"/>.</returns>
     public bool HasConflictsUnder<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return HasConflictsUnder(path.Path);
     }
 
@@ -225,7 +219,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> when a conflict sits at, above, or below <paramref name="path"/>.</returns>
     public bool HasConflictsAffecting(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return Rebase.Conflicts.Any(conflict =>
             conflict.Path.Equals(path)
             || conflict.Path.IsAncestorOf(path)
@@ -240,7 +233,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> when a conflict sits at, above, or below <paramref name="path"/>.</returns>
     public bool HasConflictsAffecting<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return HasConflictsAffecting(path.Path);
     }
 
@@ -249,7 +241,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns>The effective state; no per-model members are generated.</returns>
     public SparseConflictState GetState(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         if (FindExact(path) is null)
         {
             return SparseConflictState.NoConflict;
@@ -275,7 +266,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns>The effective state; no per-model members are generated.</returns>
     public SparseConflictState GetState<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return GetState(path.Path);
     }
 
@@ -283,7 +273,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="path">An exact conflict path or an ancestor covering conflicts below it.</param>
     public void UseIncoming(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         ValidateDecisionTarget(path, custom: false);
         RejectRedactedCoverage(path, incoming: true);
         _decisions[path] = new Decision { Kind = DecisionKind.UseIncoming };
@@ -295,7 +284,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="path">An exact conflict path or an ancestor covering conflicts below it.</param>
     public void UseIncoming<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         UseIncoming(path.Path);
     }
 
@@ -303,7 +291,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="path">An exact conflict path or an ancestor covering conflicts below it.</param>
     public void UseCurrent(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         ValidateDecisionTarget(path, custom: false);
         _decisions[path] = new Decision { Kind = DecisionKind.UseCurrent };
     }
@@ -314,7 +301,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="path">An exact conflict path or an ancestor covering conflicts below it.</param>
     public void UseCurrent<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         UseCurrent(path.Path);
     }
 
@@ -325,7 +311,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="value">The custom value, including a present null.</param>
     public void SetValue<TModel, TValue>(SparsePath<TModel, TValue> path, TValue? value)
     {
-        ArgumentNullException.ThrowIfNull(path);
         SetBoxedValue(path.Path, BoxValue(value));
     }
 
@@ -336,7 +321,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="value">The custom value; missing removes, present null clears.</param>
     public void SetValue<TModel, TValue>(SparsePath<TModel, TValue> path, Optional<TValue> value)
     {
-        ArgumentNullException.ThrowIfNull(path);
         SetBoxedValue(path.Path, BoxValue(value));
     }
 
@@ -344,7 +328,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <param name="path">An exact conflict path.</param>
     public void Remove(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         SetBoxedValue(path, Optional<object?>.Missing);
     }
 
@@ -353,7 +336,6 @@ public abstract class SparseRebaseResolution<TChange>
     /// <returns><see langword="true"/> when a decision was stored there.</returns>
     public bool ClearDecision(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return _decisions.Remove(path);
     }
 
@@ -442,7 +424,6 @@ public abstract class SparseRebaseResolution<TChange>
     [EditorBrowsable(EditorBrowsableState.Advanced)]
     protected void SetBoxedValue(SparsePath path, Optional<object?> value)
     {
-        ArgumentNullException.ThrowIfNull(path);
         ValidateDecisionTarget(path, custom: true);
         RejectRedactedCoverage(path, incoming: true);
         _decisions[path] = new Decision { Kind = DecisionKind.Custom, CustomValue = value };
@@ -527,7 +508,7 @@ public abstract class SparseRebaseResolution<TChange>
     }
 
     private Decision? EffectiveDecision(SparsePath conflictPath) =>
-        NearestDecision(conflictPath) is { } nearest ? _decisions[nearest] : null;
+        NearestDecision(conflictPath) is SparsePath nearest ? _decisions[nearest] : null;
 
     private static Optional<object?> DesiredFor(SparseConflict conflict, Decision decision) =>
         decision.Kind switch
@@ -547,7 +528,7 @@ public abstract class SparseRebaseResolution<TChange>
                 continue;
             }
 
-            if (nearest is null || nearest.Depth < decided.Depth)
+            if (nearest is null || nearest.Value.Depth < decided.Depth)
             {
                 nearest = decided;
             }

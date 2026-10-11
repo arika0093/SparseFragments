@@ -134,27 +134,28 @@ public class SparsePathTraversalBenchmarks
     private const string KeyedId = "k-1";
     private const string GroupId = "g-0";
 
-    private SparsePath<BenchPathSingle, string> _scalar = null!;
+    private SparsePath<BenchPathSingle, string> _scalar;
     private string _scalarText = string.Empty;
-    private SparsePath<BenchPathRoot, string> _nested2 = null!;
-    private SparsePath<BenchPathRoot, string> _nested3 = null!;
-    private SparsePath<BenchPathRoot, string> _keyed = null!;
-    private SparsePath<BenchPathRoot, string> _indexed = null!;
-    private SparsePath<BenchPathRoot, int> _dictScalar = null!;
-    private SparsePath<BenchPathRoot, string> _dictStruct = null!;
-    private SparsePath<BenchPathCluster, string> _deep5a = null!;
-    private SparsePath<BenchPathCluster, string> _deep5b = null!;
-    private SparsePath<BenchPathCluster, string> _deep5Miss = null!;
+    private SparsePath<BenchPathRoot, string> _nested2;
+    private SparsePath<BenchPathRoot, string> _nested3;
+    private SparsePath<BenchPathRoot, string> _keyed;
+    private SparsePath<BenchPathRoot, string> _indexed;
+    private SparsePath<BenchPathRoot, int> _dictScalar;
+    private SparsePath<BenchPathRoot, string> _dictStruct;
+    private SparsePath<BenchPathCluster, string> _deep5a;
+    private SparsePath<BenchPathCluster, string> _deep5b;
+    private SparsePath<BenchPathCluster, string> _deep5Miss;
     private string _deep5Text = string.Empty;
-    private SparsePath<BenchPathRoot, int> _escaped = null!;
+    private SparsePath<BenchPathRoot, int> _escaped;
     private string _escapedText = string.Empty;
-    private SparsePath<BenchPathCompositeHolder, string> _composite = null!;
-    private SparsePath _scalarUntyped = null!;
-    private SparsePath _wideMissing = null!;
+    private SparsePath<BenchPathCompositeHolder, string> _composite;
+    private SparsePath _scalarUntyped;
+    private SparsePath _wideMissing;
+    private SparsePath _conflictMissing;
 
     private BenchPathSingle.ChangeSet _sparseChange = null!;
     private BenchPathWide.ChangeSet _wideChange = null!;
-    private SparsePath<BenchPathWide, int> _wideLast = null!;
+    private SparsePath<BenchPathWide, int> _wideLast;
     private BenchPathRoot.ChangeSet _keyedOne = null!;
     private BenchPathRoot.ChangeSet _keyedMany = null!;
     private BenchPathRoot.ChangeSet _escapedChange = null!;
@@ -185,6 +186,7 @@ public class SparsePathTraversalBenchmarks
         _composite = BenchPathCompositeHolder.SparsePath.Items.Key(("t-0", KeyedId)).Name;
         _wideLast = BenchPathWide.SparsePath.Value15;
         _wideMissing = SparsePath.Root<BenchPathWide>().Member("Missing");
+        _conflictMissing = SparsePath.Root<BenchPathSingle>().Member("Missing");
 
         var sparseBefore = Optional<BenchPathSingle.Fragment?>.Present(
             BenchPathSingle.Fragment.From(new BenchPathSingle { Title = "before" })
@@ -358,9 +360,9 @@ public class SparsePathTraversalBenchmarks
         var conflictRemote = Optional<BenchPathSingle.Fragment?>.Present(
             BenchPathSingle.Fragment.From(new BenchPathSingle { Title = "c" })
         );
-        var rebased = BenchPathSingle.ChangeSet.Between(conflictBase, conflictLocal).RebaseOnto(
-            conflictRemote
-        );
+        var rebased = BenchPathSingle
+            .ChangeSet.Between(conflictBase, conflictLocal)
+            .RebaseOnto(conflictRemote);
         _conflicts = rebased.Conflicts;
         if (
             _sparseChange.Find(_scalar) is null
@@ -377,6 +379,7 @@ public class SparsePathTraversalBenchmarks
             || _descriptors.Find(_dictStruct) is null
             || _conflicts.Find(_scalar) is null
             || _conflicts.Find(BenchPathSingle.SparsePath.Title) is null
+            || _conflicts.Find(_conflictMissing) is not null
             || SparsePath.Parse<BenchPathSingle>(_scalarText) != _scalarUntyped
             || SparsePath.Parse<BenchPathCluster>(_deep5Text) != (SparsePath)_deep5a
             || !_deep5a.Equals(_deep5b)
@@ -524,7 +527,10 @@ public class SparsePathTraversalBenchmarks
     public SparseConflict? Conflicts_Find_Hit_Cached() => _conflicts.Find(_scalar);
 
     [Benchmark(Description = "Conflicts Find miss (cached)")]
-    public SparseConflict? Conflicts_Find_Miss_Cached() =>
+    public SparseConflict? Conflicts_Find_Miss_Cached() => _conflicts.Find(_conflictMissing);
+
+    [Benchmark(Description = "Conflicts Find miss (cold)")]
+    public SparseConflict? Conflicts_Find_Miss_Cold() =>
         _conflicts.Find(SparsePath.Root<BenchPathSingle>().Member("Missing"));
 
     [Benchmark(Description = "UI 100 repeated ChangeSet Finds (cached)")]

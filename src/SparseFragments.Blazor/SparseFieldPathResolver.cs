@@ -17,7 +17,7 @@ internal static class SparseFieldPathResolver
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentException.ThrowIfNullOrEmpty(fieldName);
-        if (!SparsePath.TryParse(model.GetType(), fieldName, out var path) || path is null)
+        if (!SparsePath.TryParse(model.GetType(), fieldName, out var path))
         {
             throw InvalidFieldPath(fieldName);
         }
@@ -29,7 +29,6 @@ internal static class SparseFieldPathResolver
     internal static FieldIdentifier Resolve(object model, SparsePath path)
     {
         ArgumentNullException.ThrowIfNull(model);
-        ArgumentNullException.ThrowIfNull(path);
         return Resolve(model, path, path.ToString());
     }
 

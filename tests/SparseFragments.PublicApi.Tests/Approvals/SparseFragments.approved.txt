@@ -443,7 +443,7 @@ namespace SparseFragments
         public static bool IsUnassignedKey<TKey>(TKey key, TKey unassigned, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
         public static bool TryComposePresence(bool firstBeforePresent, bool firstAfterPresent, bool secondAfterPresent, out bool resultBeforePresent, out bool resultAfterPresent) { }
     }
-    public sealed class SparsePath : System.IEquatable<SparseFragments.SparsePath>
+    public readonly struct SparsePath : System.IEquatable<SparseFragments.SparsePath>
     {
         public SparsePath(System.Type rootType, params SparseFragments.SparsePathSegment[] segments) { }
         public SparsePath(System.Type rootType, System.Collections.Generic.IEnumerable<SparseFragments.SparsePathSegment> segments) { }
@@ -455,26 +455,26 @@ namespace SparseFragments
         public SparseFragments.SparsePath Append(SparseFragments.SparsePath suffix) { }
         public SparseFragments.SparsePath Append(SparseFragments.SparsePathSegment segment) { }
         public SparseFragments.SparsePath At(int index) { }
-        public bool Equals(SparseFragments.SparsePath? other) { }
+        public bool Equals(SparseFragments.SparsePath other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
-        public bool IsAncestorOf(SparseFragments.SparsePath? other) { }
-        public bool IsDescendantOf(SparseFragments.SparsePath? other) { }
+        public bool IsAncestorOf(SparseFragments.SparsePath other) { }
+        public bool IsDescendantOf(SparseFragments.SparsePath other) { }
         public SparseFragments.SparsePath Key<TKey>(TKey key) { }
         public SparseFragments.SparsePath Member(string name) { }
         public SparseFragments.SparsePath Prepend(SparseFragments.SparsePath prefix) { }
         public SparseFragments.SparsePath PrependMember(string name) { }
-        public bool StartsWith(SparseFragments.SparsePath? other) { }
+        public bool StartsWith(SparseFragments.SparsePath other) { }
         public SparseFragments.SparsePath TemporaryKey(System.Guid temporaryKey) { }
         public override string ToString() { }
         public static SparseFragments.SparsePath Parse(System.Type rootType, string text) { }
         public static SparseFragments.SparsePath Parse<TModel>(string text) { }
         public static SparseFragments.SparsePath Root(System.Type rootType) { }
         public static SparseFragments.SparsePath Root<TModel>() { }
-        public static bool TryParse(System.Type rootType, string? text, out SparseFragments.SparsePath? path) { }
-        public static bool TryParse<TModel>(string? text, out SparseFragments.SparsePath? path) { }
-        public static bool operator !=(SparseFragments.SparsePath? left, SparseFragments.SparsePath? right) { }
-        public static bool operator ==(SparseFragments.SparsePath? left, SparseFragments.SparsePath? right) { }
+        public static bool TryParse(System.Type rootType, string? text, out SparseFragments.SparsePath path) { }
+        public static bool TryParse<TModel>(string? text, out SparseFragments.SparsePath path) { }
+        public static bool operator !=(SparseFragments.SparsePath left, SparseFragments.SparsePath right) { }
+        public static bool operator ==(SparseFragments.SparsePath left, SparseFragments.SparsePath right) { }
     }
     public static class SparsePathQueries
     {
@@ -507,20 +507,20 @@ namespace SparseFragments
         Index = 2,
         TemporaryKey = 3,
     }
-    public sealed class SparsePath<TModel, TValue> : System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
+    public readonly struct SparsePath<TModel, TValue> : System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
     {
         public SparsePath(SparseFragments.SparsePath path) { }
         public SparseFragments.SparsePath Path { get; }
         public System.Type RootType { get; }
         public System.Type ValueType { get; }
-        public bool Equals(SparseFragments.SparsePath? other) { }
-        public bool Equals(SparseFragments.SparsePath<TModel, TValue>? other) { }
+        public bool Equals(SparseFragments.SparsePath other) { }
+        public bool Equals(SparseFragments.SparsePath<TModel, TValue> other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override string ToString() { }
-        public static SparseFragments.SparsePath op_Implicit(SparseFragments.SparsePath<TModel, TValue>? path) { }
-        public static bool operator !=(SparseFragments.SparsePath<TModel, TValue>? left, SparseFragments.SparsePath<TModel, TValue>? right) { }
-        public static bool operator ==(SparseFragments.SparsePath<TModel, TValue>? left, SparseFragments.SparsePath<TModel, TValue>? right) { }
+        public static SparseFragments.SparsePath op_Implicit(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public static bool operator !=(SparseFragments.SparsePath<TModel, TValue> left, SparseFragments.SparsePath<TModel, TValue> right) { }
+        public static bool operator ==(SparseFragments.SparsePath<TModel, TValue> left, SparseFragments.SparsePath<TModel, TValue> right) { }
     }
     public enum SparseRebaseMode
     {

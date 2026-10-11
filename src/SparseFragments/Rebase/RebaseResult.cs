@@ -49,7 +49,6 @@ public sealed class SparseConflict
         string? reason
     )
     {
-        ArgumentNullException.ThrowIfNull(path);
         Path = path;
         Kind = kind;
         BaseValue = baseValue;
@@ -97,7 +96,6 @@ public sealed class SparseConflict
     /// <remarks>The result adopts the prefix root type, bubbling nested paths to their parent.</remarks>
     public SparseConflict WithPathPrefix(SparsePath prefix)
     {
-        ArgumentNullException.ThrowIfNull(prefix);
         return new SparseConflict(
             Path.Prepend(prefix),
             Kind,

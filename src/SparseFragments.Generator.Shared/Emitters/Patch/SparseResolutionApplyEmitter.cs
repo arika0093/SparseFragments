@@ -104,7 +104,12 @@ internal static class SparseResolutionApplyEmitter
         body.AppendLineAt(2, "{");
         body.AppendLineAt(3, "updated = null;");
         body.AppendLineAt(3, "error = null;");
-        body.AppendLineAt(3, "if (path is null || offset < 0 || offset >= path.Depth)");
+        body.AppendLineAt(
+            3,
+            "if ("
+                + (dialect.PathIsValueType ? "" : "path is null || ")
+                + "offset < 0 || offset >= path.Depth)"
+        );
         body.AppendLineAt(3, "{");
         body.AppendLineAt(4, "error = \"The resolution path is empty.\";");
         body.AppendLineAt(4, "return false;");

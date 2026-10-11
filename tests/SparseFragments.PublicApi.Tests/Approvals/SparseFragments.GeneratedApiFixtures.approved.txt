@@ -1398,17 +1398,17 @@ namespace SparseFragments.GeneratedApiFixtures
                 public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch.ScoresPatch op_Implicit(System.Collections.Generic.Dictionary<string, int> value) { }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparsePaths<TRoot>.SparseDetailsPaths Details { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparsePaths<TRoot>.SparseScoresPaths Scores { get; }
             public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparsePaths<TRoot> paths) { }
-            public sealed class SparseDetailsPaths
+            public readonly struct SparseDetailsPaths
             {
                 public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparsePaths<TRoot> Key(string key) { }
                 public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparsePaths<TRoot>.SparseDetailsPaths paths) { }
             }
-            public sealed class SparseScoresPaths
+            public readonly struct SparseScoresPaths
             {
                 public SparseFragments.SparsePath<TRoot, int> Key(string key) { }
                 public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.SparsePaths<TRoot>.SparseScoresPaths paths) { }
@@ -1579,7 +1579,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.SparsePath<TRoot, int> Count { get; }
             public SparseFragments.SparsePath<TRoot, string> Name { get; }
@@ -1753,7 +1753,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.SparsePath<TRoot, int> Count { get; }
             public SparseFragments.SparsePath<TRoot, string> Id { get; }
@@ -1946,11 +1946,11 @@ namespace SparseFragments.GeneratedApiFixtures
                 public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch.ItemsPatch op_Implicit(System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem> value) { }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparsePaths<TRoot>.SparseItemsPaths Items { get; }
             public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.SparsePaths<TRoot> paths) { }
-            public sealed class SparseItemsPaths
+            public readonly struct SparseItemsPaths
             {
                 public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparsePaths<TRoot> At(int index) { }
                 public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.SparsePaths<TRoot> Key(string key) { }
@@ -2151,7 +2151,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparsePaths<TRoot> Child { get; }
             public SparseFragments.SparsePath<TRoot, System.Collections.Generic.List<SparseFragments.GeneratedApiFixtures.CatalogScalar>> Children { get; }
@@ -2345,7 +2345,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.SparsePath<TRoot, string> ChangeInfo { get; }
             public SparseFragments.SparsePath<TRoot, string> ChangeKind { get; }
@@ -2546,7 +2546,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public System.Collections.Generic.IReadOnlyList<string> UnsupportedMembers { get; }
             }
         }
-        public sealed class SparsePaths<TRoot>
+        public readonly struct SparsePaths<TRoot>
         {
             public SparseFragments.SparsePath<TRoot, int> Count { get; }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.SparsePaths<TRoot>.SparseLabelsPaths Labels { get; }
@@ -2554,7 +2554,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparsePath<TRoot, string?> Note { get; }
             public SparseFragments.SparsePath<TRoot, int?> Retry { get; }
             public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparsePaths<TRoot> paths) { }
-            public sealed class SparseLabelsPaths
+            public readonly struct SparseLabelsPaths
             {
                 public SparseFragments.SparsePath<TRoot, string> Element(string item) { }
                 public static SparseFragments.SparsePath op_Implicit(SparseFragments.GeneratedApiFixtures.CatalogScalar.SparsePaths<TRoot>.SparseLabelsPaths paths) { }

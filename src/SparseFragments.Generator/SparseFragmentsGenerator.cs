@@ -123,6 +123,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
             PayloadImplementationContainerPrefix: "__Internal",
             PathType: "global::SparseFragments.SparsePath",
+            PathIsValueType: true,
             TransitionContracts: new SparseTransitionContracts(
                 "global::SparseFragments.ISparseValueChange",
                 "global::SparseFragments.ISparseChangeSet",

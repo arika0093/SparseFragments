@@ -251,7 +251,8 @@ internal static class SparseFragmentPatchEmitter
         SparseWriteContract? WriteContract = null,
         string? InPlaceWriteUnavailableKindMemberName = null,
         string? PathType = null,
-        SparseTransitionContracts? TransitionContracts = null
+        SparseTransitionContracts? TransitionContracts = null,
+        bool PathIsValueType = false
     )
     {
         /// <summary>Configured member policies, or empty for full disclosure.</summary>

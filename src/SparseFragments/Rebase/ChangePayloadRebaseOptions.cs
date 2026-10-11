@@ -49,7 +49,6 @@ public sealed record ChangePayloadRebaseOptions
     /// <summary>Whether the given member path is redacted-before under these options.</summary>
     public bool IsRedactedBefore(IReadOnlyList<string> path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         return IsRedactedBefore(string.Join(".", path));
     }
 

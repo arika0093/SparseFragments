@@ -96,7 +96,6 @@ public static class SparseEditSessionExtensions
         where TModel : class
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(path);
         return SparseFieldPathResolver.Resolve(GetSessionModel(session), path);
     }
 
@@ -112,7 +111,6 @@ public static class SparseEditSessionExtensions
         where TModel : class
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(path);
         return SparseFieldPathResolver.Resolve(GetSessionModel(session), path.Path);
     }
 
@@ -182,7 +180,6 @@ public static class SparseEditSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(fieldPath);
         ArgumentNullException.ThrowIfNull(message);
 
         store.Add(session.Field(fieldPath), message);
@@ -205,7 +202,6 @@ public static class SparseEditSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(fieldPath);
         ArgumentNullException.ThrowIfNull(message);
 
         store.Add(session.Field(fieldPath), message);

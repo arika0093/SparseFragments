@@ -131,7 +131,7 @@ public sealed class SparsePathNavigationTests
 
         var missingRoot = SparsePath.Root<KeyedServerHolder>().Member("Missing");
         changes.Find(missingRoot).ShouldBeNull();
-        Should.Throw<ArgumentNullException>(() => changes.Find((SparsePath)null!));
+        changes.Find(default(SparsePath)).ShouldBeNull();
     }
 
     [Test]

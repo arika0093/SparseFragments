@@ -138,7 +138,7 @@ public sealed class SparsePathTests
         SparsePath.TryParse<Settings>("not a path..", out _).ShouldBeFalse();
         SparsePath.TryParse<Settings>("A[", out _).ShouldBeFalse();
         SparsePath.TryParse<Settings>(null, out var missing).ShouldBeFalse();
-        missing.ShouldBeNull();
+        missing.ShouldBe(default(SparsePath));
     }
 
     [Test]
@@ -163,6 +163,6 @@ public sealed class SparsePathTests
     {
         var foreign = SparsePath.Root<Nested>().Member("Host");
         Should.Throw<ArgumentException>(() => new SparsePath<Settings, string>(foreign));
-        Should.Throw<ArgumentNullException>(() => new SparsePath<Settings, string>(null!));
+        Should.Throw<ArgumentException>(() => new SparsePath<Settings, string>(default));
     }
 }

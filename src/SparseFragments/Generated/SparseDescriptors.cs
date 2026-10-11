@@ -45,7 +45,6 @@ public sealed class SparseDescriptorSet : IDescriptorSet
     /// <inheritdoc />
     public IDescriptor? Find(SparsePath path)
     {
-        ArgumentNullException.ThrowIfNull(path);
         IDescriptorSet? scope = this;
         IDescriptor? current = null;
         var count = path.Segments.Count;
@@ -184,7 +183,6 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
     )
     {
         ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(attributes);
         _getValue = getValue ?? throw new ArgumentNullException(nameof(getValue));

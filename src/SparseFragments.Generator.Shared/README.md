@@ -124,7 +124,10 @@ from the dialect's own runtime namespace (`ChangePayloadRebaseOptions`,
 always name caller-owned types. The optional `PathType` entry names the
 caller-owned canonical path type used by `ChangeInfo`, `EnumerateChangedPaths`,
 rebase conflicts, and the generated fluent builders (defaulting to the runtime
-namespace plus `SparsePath`). A downstream runtime that enables the
+namespace plus `SparsePath`). Set `PathIsValueType` to `true` when both canonical
+and typed paths are value types. This emits readonly struct builders and omits
+path null checks; the default remains compatible with reference-type paths.
+A downstream runtime that enables the
 generated options overloads provides those types itself: an options record
 with `RejectChangesWithRedactedBeforeValuesDuringRebase`,
 `RedactedBeforePaths`, `DefaultRebaseMode`, `IsRedactedBefore`, and `Nest`;

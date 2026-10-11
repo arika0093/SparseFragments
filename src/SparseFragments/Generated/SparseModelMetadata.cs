@@ -124,7 +124,7 @@ public sealed class SparseChangeRecord
         SparseChangeKind kind
     )
     {
-        Path = path ?? throw new ArgumentNullException(nameof(path));
+        Path = path;
         Before = before;
         After = after;
         Kind = kind;

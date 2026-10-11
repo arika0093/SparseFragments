@@ -463,7 +463,8 @@ public sealed class DownstreamPolicyTests
                     "global::Ns.WriteCmd",
                     ImmutableArray.Create(new SparseWriteMember("Secret", "NewSecret"))
                 ),
-                PayloadImplementationContainerPrefix: "SparseFragmentsInternal"
+                PayloadImplementationContainerPrefix: "SparseFragmentsInternal",
+                PathIsValueType: true
             )
         );
         var generated = BuildSource(config, SecretMembers());
