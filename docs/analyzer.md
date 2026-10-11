@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF032)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF034)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -33,6 +33,8 @@ when keys became property-only (#206) and are not reused.
 | [SPF030](#spf030-invalid-comparison-strategy) | Invalid comparison strategy | Error |
 | [SPF031](#spf031-invalid-sparsetemporarykey-declaration) | Invalid SparseTemporaryKey declaration | Error |
 | [SPF032](#spf032-temporary-key-property-initializer) | Temporary key property has an initializer | Warning |
+| [SPF033](#spf033-incompatible-entity-default-mapping) | Incompatible entity default mapping | Error |
+| [SPF034](#spf034-invalid-entity-mapper-declaration) | Invalid entity mapper declaration | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -368,3 +370,23 @@ public partial class PolicySettings
   `= default`. Assignments in constructors or object initializers are unaffected.
 * Fix: Remove the initializer from the property declaration. This is a warning;
   generation continues.
+
+## SPF033: Incompatible entity default mapping
+
+* Message: `Incompatible conventional entity mapping: {0}`
+* Cause: A `[SparseFragmentMapper]` type has a same-name DTO/entity member pair
+  whose types differ, so no conventional `Member` default can be generated.
+  The generator never guesses a conversion.
+* Fix: Declare an explicit `Member` mapping with a convert callback, or
+  `Ignore` the member, in the mapper's `Configure`. Protection (keys,
+  concurrency tokens, generated and shadow members) is still validated at
+  mapper creation against the EF model.
+
+## SPF034: Invalid entity mapper declaration
+
+* Message: `Entity mapper '{0}' must implement IEntityModelMapping<TEntity, TDto>`
+* Cause: `[SparseFragmentMapper]` annotates a type that does not implement
+  `IEntityModelMapping<TEntity, TDto>`, so no Entity/DTO pair can be resolved.
+* Fix: Implement `IEntityModelMapping<TEntity, TDto>` on the mapper and declare
+  overrides in `Configure`. The mapper class itself need not be partial; the
+  generator emits an external companion.

@@ -28,4 +28,6 @@ internal static class SparseFragmentsDiagnosticIds
     public const string InvalidComparisonStrategy = "SPF030";
     public const string InvalidTemporaryKeyShape = "SPF031";
     public const string TemporaryKeyInitializer = "SPF032";
+    public const string IncompatibleEntityDefaultMapping = "SPF033";
+    public const string InvalidEntityMapperDeclaration = "SPF034";
 }

@@ -809,6 +809,8 @@ public sealed class SparseGeneratorDiagnosticTests
             ["SPF030"] = "#spf030-invalid-comparison-strategy",
             ["SPF031"] = "#spf031-invalid-sparsetemporarykey-declaration",
             ["SPF032"] = "#spf032-temporary-key-property-initializer",
+            ["SPF033"] = "#spf033-incompatible-entity-default-mapping",
+            ["SPF034"] = "#spf034-invalid-entity-mapper-declaration",
         };
         var descriptors = typeof(SparseFragmentsGenerator)
             .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
