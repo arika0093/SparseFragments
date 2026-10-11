@@ -4,9 +4,11 @@
     <Project Path="src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
     <Project Path="src/SparseFragments.Generator/SparseFragments.Generator.csproj" />
     <Project Path="src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj" />
+    <Project Path="src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
+    <Project Path="tests/SparseFragments.EntityFrameworkCore.Tests/SparseFragments.EntityFrameworkCore.Tests.csproj" />
     <Project Path="tests/SparseFragments.Blazor.Tests/SparseFragments.Blazor.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />
     <Project Path="tests/SparseFragments.NativeAotFixtures/SparseFragments.NativeAotFixtures.csproj" />
@@ -18,5 +20,9 @@
   </Folder>
   <Folder Name="/playground/">
     <Project Path="playground/SparseFragments.Playground/SparseFragments.Playground.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
+    <Project Path="samples/EfCoreSample.Server/EfCoreSample.Server.csproj" />
   </Folder>
 </Solution>

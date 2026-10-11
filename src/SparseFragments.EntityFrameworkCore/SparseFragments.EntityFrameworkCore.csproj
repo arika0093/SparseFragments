@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>SparseFragments.EntityFrameworkCore</AssemblyName>
+    <RootNamespace>SparseFragments.EntityFrameworkCore</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageDescription>ChangeSet-aware DTO to EF Core entity mapping for SparseFragments (proof of concept).</PackageDescription>
+    <PackageTags>dotnet;entity-framework;patch;changetracking</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SparseFragments/SparseFragments.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
