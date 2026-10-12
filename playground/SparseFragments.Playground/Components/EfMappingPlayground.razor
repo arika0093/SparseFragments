@@ -1,6 +1,5 @@
 @using System.Globalization
 @using System.Text.Json
-@using Microsoft.Data.Sqlite
 @using Microsoft.EntityFrameworkCore
 @using SparseFragments
 @using SparseFragments.EntityFrameworkCore
@@ -8,7 +7,7 @@
 @implements IDisposable
 
 <div class="pg-stack">
-    <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is SQLite in-memory, so keys and constraints behave like a real database.</p>
+    <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is EF Core InMemory; integer keys are generated on save, while constraint checks stay covered by the test suite.</p>
     <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
@@ -214,8 +213,10 @@
 </div>
 
 @code {
-    private SqliteConnection? _connection;
-    private DbContextOptions<PlaygroundEfContext>? _options;
+    private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
+        new DbContextOptionsBuilder<PlaygroundEfContext>()
+            .UseInMemoryDatabase("pg-ef-demo")
+            .Options;
 
     private PlaygroundEfContext? _db;
     private PlaygroundOrderEntity? _tracked;
@@ -244,26 +245,13 @@
 
     protected override void OnInitialized() => Seed();
 
-    public void Dispose()
-    {
-        _db?.Dispose();
-        _connection?.Dispose();
-    }
+    public void Dispose() => _db?.Dispose();
 
     private void Seed()
     {
-        // SQLite in-memory databases live as long as their connection stays
-        // open, so reseeding swaps in a fresh open connection. The same
-        // native e_sqlite3 bundle backing server-side SQLite links into the
-        // browser-wasm build, which is why this works in the playground.
         _db?.Dispose();
-        _connection?.Dispose();
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        _options = new DbContextOptionsBuilder<PlaygroundEfContext>()
-            .UseSqlite(_connection)
-            .Options;
-        _db = new PlaygroundEfContext(_options);
+        _db = new PlaygroundEfContext(SharedOptions);
+        _db.Database.EnsureDeleted();
         _db.Database.EnsureCreated();
         var seeded = _db.Orders.Add(
             new PlaygroundOrderEntity
@@ -535,7 +523,7 @@
     private void SaveAndRefetch()
     {
         _saveError = null;
-        if (_db is null || _tracked is null || _options is null)
+        if (_db is null || _tracked is null)
         {
             return;
         }
@@ -543,7 +531,7 @@
         try
         {
             _db.SaveChanges();
-            using var fresh = new PlaygroundEfContext(_options);
+            using var fresh = new PlaygroundEfContext(SharedOptions);
             var reloaded = fresh.Orders
                 .Include(static order => order.Lines)
                 .Single(order => order.Id == _tracked.Id);

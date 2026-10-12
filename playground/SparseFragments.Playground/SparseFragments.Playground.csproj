@@ -18,9 +18,7 @@
       Version="10.0.12"
       PrivateAssets="all"
     />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
-    <!-- Explicit pin lifts the transitive SQLitePCLRaw.lib.e_sqlite3 past GHSA-2m69-gcr7-jv3q (NU1903). -->
-    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="5.0.0" />
   </ItemGroup>
 
