@@ -542,35 +542,23 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(7, "bool __isReordered = __reordered" + id + "?.Contains(__k) == true;");
         code.AppendLineAt(7, "if (!__inBefore || __isEdited || __isReordered)");
         code.AppendLineAt(7, "{");
+        // Surviving elements were already compared; only additions need a root snapshot.
+        var optionalElementFragment = runtime + "Optional<" + elementFrag + "?>";
         code.AppendLineAt(
             8,
-            runtime
-                + "Optional<"
+            "var __fullEdit = __isEdited ? __edit! : __inBefore ? "
+                + elementCs
+                + ".Between(default("
+                + optionalElementFragment
+                + "), default("
+                + optionalElementFragment
+                + ")) : "
+                + elementCs
+                + ".Between(default, "
+                + optionalElementFragment
+                + ".Present("
                 + elementFrag
-                + "?> __eb = __inBefore ? "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__b!)) : default;"
-        );
-        code.AppendLineAt(
-            8,
-            runtime
-                + "Optional<"
-                + elementFrag
-                + "?> __ea = "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__a));"
-        );
-        code.AppendLineAt(
-            8,
-            "var __fullEdit = __isEdited ? __edit! : " + elementCs + ".Between(__eb, __ea);"
+                + ".From(__a)));"
         );
         code.AppendLineAt(
             8,

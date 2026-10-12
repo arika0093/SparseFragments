@@ -8,6 +8,8 @@ public enum KeyedChangeSetBetweenShape
     AllEdits,
     Reorder,
     RemoveFirst,
+    AddLast,
+    ReplaceAll,
 }
 
 [MemoryDiagnoser]
@@ -48,7 +50,12 @@ public class KeyedChangeSetBetweenBenchmarks
             .Range(0, Size)
             .Select(index => new BenchKeyedServer
             {
-                Id = "server-" + index,
+                Id =
+                    (
+                        after && Shape == KeyedChangeSetBetweenShape.ReplaceAll
+                            ? "replacement-"
+                            : "server-"
+                    ) + index,
                 Name = "name-" + index,
                 Count = index + (IsEdited(index, after) ? 1 : 0),
             })
@@ -57,6 +64,15 @@ public class KeyedChangeSetBetweenBenchmarks
             items.Reverse();
         if (after && Shape == KeyedChangeSetBetweenShape.RemoveFirst)
             items.RemoveAt(0);
+        if (after && Shape == KeyedChangeSetBetweenShape.AddLast)
+            items.Add(
+                new BenchKeyedServer
+                {
+                    Id = "added",
+                    Name = "added",
+                    Count = Size,
+                }
+            );
         return Optional<BenchKeyedServerHolder.Fragment?>.Present(
             BenchKeyedServerHolder.Fragment.From(new() { Items = items })
         );

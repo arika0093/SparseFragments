@@ -381,29 +381,25 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
                 + id
                 + ".TryGetValue(__tt, out var __ttedit); bool __ttisReordered = __reorderedTemp"
                 + id
-                + "?.Contains(__tt) == true; if (!__tinBefore || __tisEdited || __ttisReordered) { "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?> __tteb = __tinBefore ? "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__ttb!)) : default; "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?> __ttea = "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__tua)); var __ttfullEdit = __tisEdited ? __ttedit! : "
+                + "?.Contains(__tt) == true; if (!__tinBefore || __tisEdited || __ttisReordered) { var __ttfullEdit = __tisEdited ? __ttedit! : __tinBefore ? "
                 + elementCs
-                + ".Between(__tteb, __ttea); "
+                + ".Between(default("
+                + runtime
+                + "Optional<"
+                + elementFrag
+                + "?>), default("
+                + runtime
+                + "Optional<"
+                + elementFrag
+                + "?>)) : "
+                + elementCs
+                + ".Between(default, "
+                + runtime
+                + "Optional<"
+                + elementFrag
+                + "?>.Present("
+                + elementFrag
+                + ".From(__tua))); "
                 + runtime
                 + "Optional<"
                 + elementType
