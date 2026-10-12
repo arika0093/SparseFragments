@@ -184,6 +184,36 @@ a, .btn-link {
     gap: 0.5rem;
 }
 
+/* Per-case pages: sticky sample nav beside the content. */
+.pg-body {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.pg-nav {
+    flex: 0 0 13rem;
+    position: sticky;
+    top: 1rem;
+}
+
+.pg-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 62rem) {
+    .pg-body {
+        flex-direction: column;
+    }
+
+    .pg-nav {
+        flex: none;
+        width: 100%;
+        position: static;
+    }
+}
+
 .pg-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
@@ -206,6 +236,23 @@ a, .btn-link {
    to fewer columns sooner than .pg-grid-trio. */
 .pg-grid-trio-wide {
     grid-template-columns: repeat(auto-fit, minmax(min(36rem, 100%), 1fr));
+}
+
+/* Two-card rows (05 EF mapping cards 1-2): 2 x 28rem + gap needs ~920px of
+   content width, so the pair stays side by side at a 1000px viewport and
+   folds to one column below that. */
+.pg-grid-duo {
+    grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
+}
+
+/* Third card in a trio (01 Merged result, 03 Before->After diff): at
+   two-column widths it would dangle half-width on its own row, so it spans
+   the full row below the trio breakpoint. At trio width the normal three
+   columns apply. */
+@media (max-width: 1450px) {
+    .pg-grid-trio > .pg-span-full {
+        grid-column: 1 / -1;
+    }
 }
 
 .pg-stack {
@@ -696,6 +743,10 @@ a, .btn-link {
     justify-self: end;
     width: max-content;
     max-width: 100%;
+}
+
+.pg-task-add {
+    justify-self: end;
 }
 
 .pg-session-legend {

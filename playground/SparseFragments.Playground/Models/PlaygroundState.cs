@@ -387,6 +387,12 @@ public static class PlaygroundJson
             return "null";
         }
 
+        // Strings are IEnumerable<char>: keep the previous JSON-quoted rendering.
+        if (value is string text)
+        {
+            return JsonSerializer.Serialize(text, PlaygroundJsonContext.Default.String);
+        }
+
         if (value is IEnumerable<string> strings)
         {
             return "["
@@ -399,12 +405,27 @@ public static class PlaygroundJson
                 + "]";
         }
 
-        var typeInfo =
-            PlaygroundJsonContext.Default.GetTypeInfo(value.GetType())
-            ?? throw new InvalidOperationException(
-                $"No JSON metadata is registered for {value.GetType()}."
-            );
-        return JsonSerializer.Serialize(value, typeInfo);
+        // Collection-level Before/After values (e.g. a whole keyed list) box as
+        // ReadOnlyCollection<T>; format element-wise instead of Object.ToString().
+        if (value is System.Collections.IEnumerable sequence)
+        {
+            return "["
+                + string.Join(
+                    ", ",
+                    sequence.Cast<object?>().Select(static item => FormatChangeValue(item))
+                )
+                + "]";
+        }
+
+        var typeInfo = PlaygroundJsonContext.Default.GetTypeInfo(value.GetType());
+        if (typeInfo is not null)
+        {
+            return JsonSerializer.Serialize(value, typeInfo);
+        }
+
+        // No JSON metadata (e.g. an ad-hoc projection): fall back to ToString so a
+        // ChangeSet table cell never throws during render.
+        return value.ToString() ?? "null";
     }
 
     /// <summary>Deserializes a settings ChangeSet from its typed payload DTO.</summary>

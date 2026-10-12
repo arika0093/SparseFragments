@@ -8,7 +8,7 @@
 
 <div class="pg-stack">
     <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is EF Core InMemory; integer keys are generated on save, while constraint checks stay covered by the test suite.</p>
-    <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
+    <div class="pg-grid pg-grid-duo">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>1. Entity (tracked)</h3>
@@ -22,9 +22,10 @@
             </div>
             <MonacoView Content="@BaselineJson" Language="json" Height="270px" />
         </FluentCard>
-        <FluentCard Class="pg-fluent-card">
-            <div class="pg-card-head">
-                <h3>3. Edit draft</h3>
+    </div>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>3. Edit draft</h3>
                 <div class="pg-actions">
                     <FluentButton Appearance="ButtonAppearance.Default" @onclick="ResetDraft">Reset draft</FluentButton>
                     <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
@@ -53,36 +54,18 @@
             </div>
             <div class="pg-row pg-session-field pg-task-field">
                 <span class="pg-name notranslate" translate="no">Lines <small>List&lt;Line&gt;</small></span>
-            </div>
-            <div class="pg-task-line-ef" aria-label="New line">
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Id <small>new</small></span>
-                    <FluentTextInput Placeholder="(auto)" Style="width: 100%;" Disabled="true" />
-                </div>
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Product</span>
-                    <FluentTextInput Placeholder="product" Style="width: 100%;"
-                        Value="@_newProduct" ValueChanged="@(v => _newProduct = v ?? string.Empty)" />
-                </div>
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Qty</span>
-                    <FluentNumberInput TValue="int" Style="width: 100%;"
-                        Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
-                </div>
-                <div class="pg-roster-actions pg-task-actions">
-                    <FluentButton Appearance="ButtonAppearance.Primary" Title="Add line" @onclick="AddLine">Add</FluentButton>
-                </div>
+                <span class="pg-task-add">
+                    <FluentButton Appearance="ButtonAppearance.Primary" Title="Add a random line" @onclick="AddLine">Add</FluentButton>
+                </span>
             </div>
             <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                 OnUpdate="OnLinesReordered" Context="line">
                 <SortableItemTemplate>
                     <div class="@LineRowClass(line, _draft.Lines.IndexOf(line)) pg-task-row">
                         <div class="pg-task-line-ef">
-                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Id)) ? "pg-changed" : "")">
-                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Id)))Id <small>int?</small></span>
-                                <FluentNumberInput TValue="int?"
-                                    Value="@line.Id"
-                                    ValueChanged="@(v => EditDraft(_ => line.Id = v))" />
+                            <div class="pg-roster-field">
+                                <span class="pg-mini notranslate" translate="no">Id <small>@(line.Id.HasValue ? "int" : "new")</small></span>
+                                <span class="pg-change-value">@(line.Id.HasValue ? $"#{line.Id.Value}" : "#new")</span>
                             </div>
                             <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
                                 <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)))Product</span>
@@ -118,8 +101,7 @@
             </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
         </FluentCard>
-    </div>
-    <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
+    <div class="pg-grid">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>4. Save Entity</h3>
@@ -224,8 +206,6 @@
     private string? _changesError;
     private string? _applyError;
     private string? _saveError;
-    private string _newProduct = string.Empty;
-    private int _newQty = 1;
     private bool _applied;
     private string _entityJsonBeforeApply = string.Empty;
     private FluentDialog? _saveDialog;
@@ -287,8 +267,6 @@
         _draft = Clone(_baseline);
         _applied = false;
         _modifiedRows = [];
-        _newProduct = string.Empty;
-        _newQty = 1;
         _saveDialogHidden = true;
         RefreshChanges();
     }
@@ -309,17 +287,21 @@
         RefreshChanges();
     }
 
+    // New lines never carry an Id: like the case 4 task list, Add appends a
+    // random draft row and the store assigns the integer identity on save.
+    private static readonly string[] NewLineProducts =
+        ["Espresso", "Croissant", "Latte", "Muffin", "Cappuccino", "Cookie"];
+    private static readonly Random NewLineRandom = new();
+
     private void AddLine()
     {
         EditDraft(draft => draft.Lines.Add(
             new PlaygroundOrderLineDto
             {
-                Product = _newProduct.Trim(),
-                Qty = _newQty,
+                Product = NewLineProducts[NewLineRandom.Next(NewLineProducts.Length)],
+                Qty = NewLineRandom.Next(1, 6),
                 TemporaryId = Guid.NewGuid(),
             }));
-        _newProduct = string.Empty;
-        _newQty = 1;
     }
 
     private void MoveLine(int index, int direction)
@@ -388,7 +370,6 @@
 
         return property switch
         {
-            nameof(PlaygroundOrderLineDto.Id) => line.Id != baseline.Id,
             nameof(PlaygroundOrderLineDto.Product) => line.Product != baseline.Product,
             nameof(PlaygroundOrderLineDto.Qty) => line.Qty != baseline.Qty,
             _ => false,
@@ -444,20 +425,8 @@
         _changesError = null;
         _applyError = null;
         _saveError = null;
-        var duplicates = _draft
-            .Lines.Where(static line => line.Id.HasValue)
-            .GroupBy(static line => line.Id!.Value)
-            .Where(static group => group.Count() > 1)
-            .Select(static group => group.Key.ToString(CultureInfo.InvariantCulture))
-            .ToList();
-        if (duplicates.Count > 0)
-        {
-            _changes = null;
-            _changeRows = [];
-            _changesError = $"Duplicate line Id: {string.Join(", ", duplicates)}. Give each row a unique Id or clear it for a new row.";
-            return;
-        }
-
+        // Line Ids are read-only and new rows never set one, so duplicate keys
+        // cannot be introduced from the UI.
         try
         {
             _changes = _baseline.CreateChangeSet(_draft);
@@ -561,6 +530,11 @@
         catch (Exception ex)
         {
             _saveError = $"{ex.GetType().Name}: {ex.Message}. The tracked graph is left as-is; fix the draft or reseed to recover.";
+            // Drop the applied-but-unsaved view so no stale success UI survives
+            // the failure; the pipeline falls back to draft-vs-baseline below.
+            _applied = false;
+            _modifiedRows = [];
+            RefreshChanges();
         }
     }
 
