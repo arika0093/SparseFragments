@@ -160,7 +160,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
-        SparseChangeSetKeyedAlignedBetweenEmitter.Append(code, member, trans);
+        SparseChangeSetKeyedAlignedBetweenEmitter.Append(code, member, trans, dialect);
         SparseChangeSetKeyedAlignedBetweenEmitter.AppendGeneralStart(code, member, trans, runtime);
         code.IndentOffset += 2;
         // Granular Value -> Value: build key maps and orders (single enumeration each).

@@ -7,7 +7,8 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
     internal static void Append(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string transition
+        string transition,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
         var key = KeyTypeOf(member);
@@ -40,8 +41,11 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
                 + indexed
                 + " b || sourceAfter is not "
                 + indexed
-                + " a || b.Count != a.Count) return false;"
+                + " a) return false;"
         );
+        code.AppendLineAt(6, "var count = b.Count;");
+        code.AppendLineAt(6, "if (count != a.Count) return false;");
+        code.AppendLineAt(6, "if (count == 0) return true;");
         code.AppendLineAt(
             6,
             "var comparer = global::System.Collections.Generic.EqualityComparer<"
@@ -49,7 +53,7 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
                 + ">.Default;"
         );
         // Reject nonaligned inputs before allocating or comparing element values.
-        code.AppendLineAt(6, "for (var i = 0; i < b.Count; i++)");
+        code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "if ((object?)b[i] is null || (object?)a[i] is null) return false;");
         code.AppendLineAt(7, "var k = " + keyOf + "(b[i]);");
@@ -62,20 +66,28 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
             );
         code.AppendLineAt(7, "if (!comparer.Equals(k, " + keyOf + "(a[i]))) return false;");
         code.AppendLineAt(6, "}");
-        code.AppendLineAt(6, "var keys = new " + order + "(b.Count);");
-        code.AppendLineAt(
-            6,
-            "var seen = new global::System.Collections.Generic.Dictionary<"
-                + key
-                + ", byte>(b.Count, comparer);"
-        );
-        code.AppendLineAt(6, "for (var i = 0; i < b.Count; i++)");
+        code.AppendLineAt(6, "var keys = new " + order + "(count);");
+        var seenType = dialect.HashSetSupportsCapacity
+            ? "global::System.Collections.Generic.HashSet<" + key + ">"
+            : "global::System.Collections.Generic.Dictionary<" + key + ", byte>";
+        code.AppendLineAt(6, "var seen = new " + seenType + "(count, comparer);");
+        code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var k = " + keyOf + "(b[i]);");
-        code.AppendLineAt(7, SparseKeyedCollectionEmitter.AddUniqueEntry("seen", "k", "0"));
+        if (dialect.HashSetSupportsCapacity)
+            code.AppendLineAt(
+                7,
+                "if ((object?)k is null) throw new global::System.ArgumentNullException(\"key\");"
+            );
+        code.AppendLineAt(
+            7,
+            dialect.HashSetSupportsCapacity
+                ? "if (!seen.Add(k)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+                : SparseKeyedCollectionEmitter.AddUniqueEntry("seen", "k", "0")
+        );
         code.AppendLineAt(7, "keys.Add(k);");
         code.AppendLineAt(6, "}");
-        code.AppendLineAt(6, "for (var i = 0; i < b.Count; i++)");
+        code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var edit = " + ElementChangeSetOf(member) + ".Between(b[i], a[i]);");
         code.AppendLineAt(7, "if (edit.IsEmpty) continue;");

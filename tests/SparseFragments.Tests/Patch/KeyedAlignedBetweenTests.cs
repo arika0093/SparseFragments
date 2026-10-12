@@ -5,6 +5,28 @@ namespace SparseFragments.Tests;
 public sealed class KeyedAlignedBetweenTests
 {
     [Test]
+    public void EmptyIndexedCollectionsHaveNoChanges()
+    {
+        var change = KeyedServerHolder.ChangeSet.Between(
+            new KeyedServerHolder(),
+            new KeyedServerHolder()
+        );
+        change.IsEmpty.ShouldBeTrue();
+        change.Items.BeforeOrder.ShouldBeEmpty();
+        change.Items.AfterOrder.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void NullKeysDoNotBecomeValidSetEntries()
+    {
+        var before = new KeyedServerHolder { Items = [new() { Id = null! }] };
+        var after = before.DeepClone();
+        Should
+            .Throw<ArgumentNullException>(() => KeyedServerHolder.ChangeSet.Between(before, after))
+            .ParamName.ShouldBe("key");
+    }
+
+    [Test]
     public void AlignedEditsPreserveAbsoluteOrdersIndicesAndNestedTransitions()
     {
         var before = new KeyedServerHolder
