@@ -728,6 +728,13 @@ internal static class SparseChangeSetDictTransitionEmitter
         code.AppendLineAt(3, "{");
         EmitDictEmptyReturn(code, member, trans, comparer);
         code.AppendLineAt(3, "}");
+        var wholeBefore = KeyedWholeBefore(member);
+        var wholeAfter = KeyedWholeAfter(member);
+        if (SparseChangeSetTransitionEmitter.NeedsSnapshot(member))
+        {
+            wholeBefore = "__SparseSnapshot_" + member.Id + "(" + wholeBefore + ")";
+            wholeAfter = "__SparseSnapshot_" + member.Id + "(" + wholeAfter + ")";
+        }
         code.AppendLineAt(
             3,
             "if ("
@@ -735,9 +742,9 @@ internal static class SparseChangeSetDictTransitionEmitter
                 + ") return __SparseBuild_"
                 + member.Id
                 + "("
-                + KeyedWholeBefore(member)
+                + wholeBefore
                 + ", "
-                + KeyedWholeAfter(member)
+                + wholeAfter
                 + ");"
         );
         // Granular: derive Added/Removed/Edited maps from stored items (no full snapshots).
