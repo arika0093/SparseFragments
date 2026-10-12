@@ -877,7 +877,7 @@ public sealed class DirectApplyRegressionTests
         using var verify = TestDatabases.CreateKeyed(connection, new QueryCounter());
         var reloaded = verify
             .Parcels.Include(static parcel => parcel.Lines)
-            .ThenInclude(static line => line.ShipTo)
+                .ThenInclude(static line => line.ShipTo)
             .Single(parcel => parcel.Id == entity.Id);
         reloaded.Lines.Single(static line => line.Qty == 2).ShipTo!.City.ShouldBe("Nara");
     }
@@ -895,11 +895,7 @@ public sealed class DirectApplyRegressionTests
                     {
                         child.Ignore(line => line.Id);
                         child.Ignore(line => line.TemporaryId);
-                        child.Object(
-                            line => line.ShipTo,
-                            entity => entity.ShipTo,
-                            address => { }
-                        );
+                        child.Object(line => line.ShipTo, entity => entity.ShipTo, address => { });
                         child.Collection<ParcelTagDto, ParcelTagEntity>(
                             dto => dto.Tags,
                             entity => entity.Tags,
@@ -973,7 +969,10 @@ public sealed class DirectApplyRegressionTests
             .Apply(context, entity, accepted);
 
         entity.Lines.Count.ShouldBe(2);
-        entity.Lines.Single(static line => line.Qty == 4).Tags.Select(static tag => tag.Label).ShouldBe(["keep"]);
+        entity
+            .Lines.Single(static line => line.Qty == 4)
+            .Tags.Select(static tag => tag.Label)
+            .ShouldBe(["keep"]);
         entity.Lines.Single(static line => line.Qty == 5).Tags.ShouldBeEmpty();
         counter.Commands.ShouldBe(0);
     }
@@ -992,11 +991,7 @@ public sealed class DirectApplyRegressionTests
                     {
                         child.Ignore(line => line.Id);
                         child.Ignore(line => line.TemporaryId);
-                        child.Object(
-                            line => line.ShipTo,
-                            entity => entity.ShipTo,
-                            address => { }
-                        );
+                        child.Object(line => line.ShipTo, entity => entity.ShipTo, address => { });
                         child.Collection<ParcelTagDto, ParcelTagEntity>(
                             dto => dto.Tags,
                             entity => entity.Tags,
@@ -1139,10 +1134,7 @@ public sealed class DirectApplyRegressionTests
         second.Lines.RemoveAll(static line => line.Qty == 1);
         var removed = first.CreateChangeSet(second);
         SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
-            .Create(
-                new KeyedCollectionPolicyTests.SoftOrderMapper(),
-                context.Model
-            )
+            .Create(new KeyedCollectionPolicyTests.SoftOrderMapper(), context.Model)
             .Apply(context, entity, removed);
         await context.SaveChangesAsync();
         counter.Reset();
@@ -1159,10 +1151,7 @@ public sealed class DirectApplyRegressionTests
         var accepted = current.CreateChangeSet(incoming);
 
         SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
-            .Create(
-                new KeyedCollectionPolicyTests.SoftOrderMapper(),
-                context.Model
-            )
+            .Create(new KeyedCollectionPolicyTests.SoftOrderMapper(), context.Model)
             .Apply(context, entity, accepted);
 
         entity.Lines.Count.ShouldBe(3);
@@ -1242,11 +1231,7 @@ public sealed class DirectApplyRegressionTests
                 ShipCity = order.Address?.City ?? string.Empty,
                 Address = order.Address is null
                     ? null
-                    : new AddressDto
-                    {
-                        Street = order.Address.Street,
-                        City = order.Address.City,
-                    },
+                    : new AddressDto { Street = order.Address.Street, City = order.Address.City },
             };
     }
 
@@ -1358,10 +1343,7 @@ public sealed class DirectApplyRegressionTests
 
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
-                .Create(
-                    new KeyedCollectionPolicyTests.SoftOrderMapper(),
-                    context.Model
-                )
+                .Create(new KeyedCollectionPolicyTests.SoftOrderMapper(), context.Model)
                 .Apply(context, entity, accepted)
         );
         error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionKeyNotFound);
@@ -1424,9 +1406,7 @@ public sealed class DirectApplyRegressionTests
             .CreatedByPath.Where(entry => entry.Key.EndsWith(".Tags", StringComparison.Ordinal))
             .ToList();
         tagScopes.Count.ShouldBe(2);
-        tagScopes
-            .SelectMany(static scope => scope.Value.Keys)
-            .ShouldBe([sharedTag, sharedTag]);
+        tagScopes.SelectMany(static scope => scope.Value.Keys).ShouldBe([sharedTag, sharedTag]);
         counter.Commands.ShouldBe(0);
     }
 
@@ -1444,10 +1424,7 @@ public sealed class DirectApplyRegressionTests
         counter.Reset();
 
         var current = new ObservableOrderDto { Lines = [] };
-        var incoming = new ObservableOrderDto
-        {
-            Lines = [new SkuLineDto { Sku = "a", Qty = 1 }],
-        };
+        var incoming = new ObservableOrderDto { Lines = [new SkuLineDto { Sku = "a", Qty = 1 }] };
         var accepted = current.CreateChangeSet(incoming);
 
         SparseEntityMapper<ObservableOrderEntity, ObservableOrderDto>
@@ -1461,7 +1438,8 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
-    public sealed class ObservableOrderMapper : IEntityModelMapping<ObservableOrderEntity, ObservableOrderDto>
+    public sealed class ObservableOrderMapper
+        : IEntityModelMapping<ObservableOrderEntity, ObservableOrderDto>
     {
         public void Configure(SparseEntityMapBuilder<ObservableOrderEntity, ObservableOrderDto> map)
         {

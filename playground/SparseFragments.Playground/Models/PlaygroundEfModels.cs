@@ -19,11 +19,21 @@ public partial class PlaygroundOrderDto
     public List<PlaygroundOrderLineDto> Lines { get; set; } = [];
 }
 
-/// <summary>Order line DTO keyed by its natural SKU.</summary>
+/// <summary>Order line DTO keyed by its editable identity.</summary>
 public partial class PlaygroundOrderLineDto
 {
-    /// <summary>Gets or sets the stock-keeping unit, acting as the stable key.</summary>
-    [SparseKey]
+    /// <summary>Gets or sets the persisted identity. Null means unassigned.</summary>
+    public int? Id { get; set; }
+
+    /// <summary>Gets the stable key.</summary>
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id ?? 0;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity for new rows.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    /// <summary>Gets or sets the stock-keeping unit.</summary>
     public string Sku { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the product name.</summary>
@@ -31,6 +41,9 @@ public partial class PlaygroundOrderLineDto
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
+
+    /// <summary>Gets or sets the unit price.</summary>
+    public decimal UnitPrice { get; set; }
 }
 
 /// <summary>Tracked order entity. Carries no mapping attributes.</summary>
@@ -63,6 +76,12 @@ public sealed class PlaygroundOrderLineEntity
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
+
+    /// <summary>Gets or sets the unit price.</summary>
+    public decimal UnitPrice { get; set; }
+
+    /// <summary>Gets or sets the persisted position.</summary>
+    public int SortOrder { get; set; }
 
     /// <summary>Gets or sets the owning order identity.</summary>
     public int OrderId { get; set; }
@@ -126,10 +145,11 @@ public sealed class PlaygroundOrderMapper
             {
                 lines.Element(child =>
                 {
-                    child.AllowWrite(line => line.Sku);
+                    child.Ignore(line => line.Id);
+                    child.Ignore(line => line.TemporaryId);
                 });
-                lines.Key(dto => dto.Sku, entity => entity.Sku);
                 lines.Delete();
+                lines.Order((entity, index) => entity.SortOrder = index);
             }
         );
     }

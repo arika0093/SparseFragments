@@ -235,13 +235,18 @@ else if (Section == 5)
                     entity => entity.Lines,
                     lines =>
                     {
-                        lines.Element(child => child.AllowWrite(line => line.Sku));
-                        lines.Key(dto => dto.Sku, entity => entity.Sku);
+                        lines.Element(child =>
+                        {
+                            child.Ignore(line => line.Id);
+                            child.Ignore(line => line.TemporaryId);
+                        });
                         lines.Delete();
+                        lines.Order((entity, index) => entity.SortOrder = index);
                     });
             }
         }
-        // Notes maps automatically via the generated default.
+        // Notes, Sku, Product, Qty, and UnitPrice map automatically.
+        // The int Key and TemporaryId ride the keyed transition, never scalars.
         """;
 
     private const string EfFlowCode = """

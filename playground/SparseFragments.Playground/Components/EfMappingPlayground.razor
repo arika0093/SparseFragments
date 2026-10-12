@@ -8,7 +8,7 @@
 
 <div class="pg-stack">
     <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is EF Core InMemory.</p>
-    <div class="pg-grid pg-grid-trio">
+    <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>1. Entity (tracked)</h3>
@@ -41,54 +41,86 @@
                         ValueChanged="@(v => EditDraft(d => d.Notes = v ?? string.Empty))" />
                 </div>
             </div>
-            <table class="pg-change-table" aria-label="Draft lines">
-                <thead>
-                    <tr><th>Sku (key)</th><th>Product</th><th>Qty</th><th></th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var line in _draft.Lines)
-                    {
+            <div class="pg-change-table-wrap pg-change-table-wrap-scroll">
+                <table class="pg-change-table" aria-label="Draft lines">
+                    <thead>
+                        <tr><th>Id (key)</th><th>Sku</th><th>Product</th><th>Qty</th><th>UnitPrice</th><th>Temp</th><th>Order</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in _draft.Lines)
+                        {
+                            <tr>
+                                <td>
+                                    <FluentNumberInput TValue="int?" Style="width: 6rem;"
+                                        Value="@line.Id"
+                                        ValueChanged="@(v => EditDraft(_ => line.Id = v))" />
+                                </td>
+                                <td>
+                                    <FluentTextInput Style="width: 8rem;"
+                                        Value="@line.Sku"
+                                        ValueChanged="@(v => EditDraft(_ => line.Sku = v ?? string.Empty))" />
+                                </td>
+                                <td>
+                                    <FluentTextInput Style="width: 10rem;"
+                                        Value="@line.Product"
+                                        ValueChanged="@(v => EditDraft(_ => line.Product = v ?? string.Empty))" />
+                                </td>
+                                <td>
+                                    <FluentNumberInput TValue="int" Style="width: 5rem;"
+                                        Value="@line.Qty"
+                                        ValueChanged="@(v => EditDraft(_ => line.Qty = v))" />
+                                </td>
+                                <td>
+                                    <FluentNumberInput TValue="decimal" Style="width: 7rem;"
+                                        Value="@line.UnitPrice"
+                                        ValueChanged="@(v => EditDraft(_ => line.UnitPrice = v))" />
+                                </td>
+                                <td><span class="pg-change-value">@FormatTemporary(line.TemporaryId)</span></td>
+                                <td style="white-space: nowrap;">
+                                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                                        Disabled="@(_draft.Lines.IndexOf(line) == 0)"
+                                        @onclick="@(() => MoveLine(line, -1))">↑</FluentButton>
+                                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                                        Disabled="@(_draft.Lines.IndexOf(line) == _draft.Lines.Count - 1)"
+                                        @onclick="@(() => MoveLine(line, 1))">↓</FluentButton>
+                                </td>
+                                <td>
+                                    <FluentButton Appearance="ButtonAppearance.Default" Title="@($"Remove {DisplayKey(line)}")"
+                                        @onclick="@(() => EditDraft(d => d.Lines.Remove(line)))">Remove</FluentButton>
+                                </td>
+                            </tr>
+                        }
                         <tr>
-                            <td><span class="pg-change-value">@line.Sku</span></td>
+                            <td><span class="pg-change-value">new</span></td>
                             <td>
-                                <FluentTextInput Style="width: 9rem;"
-                                    Value="@line.Product"
-                                    ValueChanged="@(v => EditDraft(_ => line.Product = v ?? string.Empty))" />
+                                <FluentTextInput Placeholder="sku" Style="width: 8rem;"
+                                    Value="@_newSku" ValueChanged="@(v => _newSku = v ?? string.Empty)" />
+                            </td>
+                            <td>
+                                <FluentTextInput Placeholder="product" Style="width: 10rem;"
+                                    Value="@_newProduct" ValueChanged="@(v => _newProduct = v ?? string.Empty)" />
                             </td>
                             <td>
                                 <FluentNumberInput TValue="int" Style="width: 5rem;"
-                                    Value="@line.Qty"
-                                    ValueChanged="@(v => EditDraft(_ => line.Qty = v))" />
+                                    Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
                             </td>
                             <td>
-                                <FluentButton Appearance="ButtonAppearance.Default" Title="@($"Remove {line.Sku}")"
-                                    @onclick="@(() => EditDraft(d => d.Lines.Remove(line)))">Remove</FluentButton>
+                                <FluentNumberInput TValue="decimal" Style="width: 7rem;"
+                                    Value="@_newUnitPrice" ValueChanged="@(v => _newUnitPrice = v)" />
+                            </td>
+                            <td><span class="pg-change-value">auto</span></td>
+                            <td></td>
+                            <td>
+                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddLine">Add</FluentButton>
                             </td>
                         </tr>
-                    }
-                    <tr>
-                        <td>
-                            <FluentTextInput Placeholder="sku" Style="width: 7rem;"
-                                Value="@_newSku" ValueChanged="@(v => _newSku = v ?? string.Empty)" />
-                        </td>
-                        <td>
-                            <FluentTextInput Placeholder="product" Style="width: 9rem;"
-                                Value="@_newProduct" ValueChanged="@(v => _newProduct = v ?? string.Empty)" />
-                        </td>
-                        <td>
-                            <FluentNumberInput TValue="int" Style="width: 5rem;"
-                                Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
-                        </td>
-                        <td>
-                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddLine">Add</FluentButton>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
         </FluentCard>
     </div>
-    <div class="pg-grid pg-grid-trio">
+    <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>4. ChangeSet</h3>
@@ -205,6 +237,7 @@
     private string _newSku = string.Empty;
     private string _newProduct = string.Empty;
     private int _newQty = 1;
+    private decimal _newUnitPrice;
     private bool _applied;
     private string _entityJsonBeforeApply = string.Empty;
     private string? _refetchedJson;
@@ -235,8 +268,22 @@
                 Notes = "first order",
                 Lines =
                 [
-                    new PlaygroundOrderLineEntity { Sku = "espresso", Product = "Espresso", Qty = 2 },
-                    new PlaygroundOrderLineEntity { Sku = "croissant", Product = "Croissant", Qty = 3 },
+                    new PlaygroundOrderLineEntity
+                    {
+                        Sku = "espresso",
+                        Product = "Espresso",
+                        Qty = 2,
+                        UnitPrice = 3.5m,
+                        SortOrder = 0,
+                    },
+                    new PlaygroundOrderLineEntity
+                    {
+                        Sku = "croissant",
+                        Product = "Croissant",
+                        Qty = 3,
+                        UnitPrice = 2.25m,
+                        SortOrder = 1,
+                    },
                 ],
             }
         ).Entity;
@@ -254,6 +301,7 @@
         _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
+        _newUnitPrice = 0m;
         RefreshChanges();
     }
 
@@ -278,10 +326,33 @@
     private void AddLine()
     {
         EditDraft(draft => draft.Lines.Add(
-            new PlaygroundOrderLineDto { Sku = _newSku.Trim(), Product = _newProduct.Trim(), Qty = _newQty }));
+            new PlaygroundOrderLineDto
+            {
+                Sku = _newSku.Trim(),
+                Product = _newProduct.Trim(),
+                Qty = _newQty,
+                UnitPrice = _newUnitPrice,
+                TemporaryId = Guid.NewGuid(),
+            }));
         _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
+        _newUnitPrice = 0m;
+    }
+
+    private void MoveLine(PlaygroundOrderLineDto line, int direction)
+    {
+        EditDraft(draft =>
+        {
+            var index = draft.Lines.IndexOf(line);
+            var other = index + direction;
+            if (index < 0 || other < 0 || other >= draft.Lines.Count)
+            {
+                return;
+            }
+
+            (draft.Lines[index], draft.Lines[other]) = (draft.Lines[other], draft.Lines[index]);
+        });
     }
 
     private void RefreshChanges()
@@ -289,6 +360,20 @@
         _changesError = null;
         _applyError = null;
         _saveError = null;
+        var duplicates = _draft
+            .Lines.Where(static line => line.Id.HasValue)
+            .GroupBy(static line => line.Id!.Value)
+            .Where(static group => group.Count() > 1)
+            .Select(static group => group.Key.ToString(CultureInfo.InvariantCulture))
+            .ToList();
+        if (duplicates.Count > 0)
+        {
+            _changes = null;
+            _changeRows = [];
+            _changesError = $"Duplicate line Id: {string.Join(", ", duplicates)}. Give each row a unique Id or clear it for a new row.";
+            return;
+        }
+
         try
         {
             _changes = _baseline.CreateChangeSet(_draft);
@@ -330,6 +415,8 @@
         catch (Exception ex)
         {
             _applyError = $"{ex.GetType().Name}: {ex.Message}";
+            _applied = false;
+            _modifiedRows = [];
         }
     }
 
@@ -352,7 +439,8 @@
         }
         catch (Exception ex)
         {
-            _saveError = $"{ex.GetType().Name}: {ex.Message}";
+            _saveError = $"{ex.GetType().Name}: {ex.Message}. The tracked graph is left as-is; fix the draft or reseed to recover.";
+            _refetchedJson = null;
         }
     }
 
@@ -362,12 +450,14 @@
             Customer = order.CustomerName,
             Notes = order.Notes,
             Lines = order
-                .Lines.OrderBy(static line => line.Id)
+                .Lines.OrderBy(static line => line.SortOrder)
                 .Select(static line => new PlaygroundOrderLineDto
                 {
+                    Id = line.Id,
                     Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
+                    UnitPrice = line.UnitPrice,
                 })
                 .ToList(),
         };
@@ -380,9 +470,12 @@
             Lines = source
                 .Lines.Select(static line => new PlaygroundOrderLineDto
                 {
+                    Id = line.Id,
+                    TemporaryId = line.TemporaryId,
                     Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
+                    UnitPrice = line.UnitPrice,
                 })
                 .ToList(),
         };
@@ -450,9 +543,19 @@
             foreach (var line in dto.Lines)
             {
                 writer.WriteStartObject();
+                if (line.Id.HasValue)
+                {
+                    writer.WriteNumber("Id", line.Id.Value);
+                }
+                else
+                {
+                    writer.WriteNull("Id");
+                }
+
                 writer.WriteString("Sku", line.Sku);
                 writer.WriteString("Product", line.Product);
                 writer.WriteNumber("Qty", line.Qty);
+                writer.WriteNumber("UnitPrice", line.UnitPrice);
                 writer.WriteEndObject();
             }
 
@@ -473,13 +576,15 @@
             writer.WriteString("CustomerName", order.CustomerName);
             writer.WriteString("Notes", order.Notes);
             writer.WriteStartArray("Lines");
-            foreach (var line in order.Lines.OrderBy(static item => item.Id))
+            foreach (var line in order.Lines.OrderBy(static item => item.SortOrder))
             {
                 writer.WriteStartObject();
                 writer.WriteNumber("Id", line.Id);
                 writer.WriteString("Sku", line.Sku);
                 writer.WriteString("Product", line.Product);
                 writer.WriteNumber("Qty", line.Qty);
+                writer.WriteNumber("UnitPrice", line.UnitPrice);
+                writer.WriteNumber("SortOrder", line.SortOrder);
                 writer.WriteNumber("OrderId", line.OrderId);
                 writer.WriteEndObject();
             }
@@ -507,11 +612,26 @@
     private static string FormatChangeValue(Optional<object?> value) =>
         value.IsPresent ? FormatValue(value.Value) : "—";
 
+    private static string FormatTemporary(Guid? temporary) =>
+        temporary is null || temporary == Guid.Empty
+            ? "—"
+            : temporary.Value.ToString("N")[..8];
+
+    private static string DisplayKey(PlaygroundOrderLineDto line) =>
+        line.Id.HasValue
+            ? line.Id.Value.ToString(CultureInfo.InvariantCulture)
+            : "new";
+
     private static string FormatValue(object? value) =>
         value switch
         {
             null => "null",
             string text => text,
+            System.Collections.IEnumerable sequence => "["
+                + string.Join(
+                    ", ",
+                    sequence.Cast<object?>().Select(static item => FormatValue(item)))
+                + "]",
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "null",
         };

@@ -201,6 +201,13 @@ a, .btn-link {
     grid-template-columns: repeat(auto-fit, minmax(min(28.5rem, 100%), 1fr));
 }
 
+/* Wide three-card sections (05 EF mapping): the edit table carries many
+   columns, so each card takes a wider minimum track and the trio folds back
+   to fewer columns sooner than .pg-grid-trio. */
+.pg-grid-trio-wide {
+    grid-template-columns: repeat(auto-fit, minmax(min(36rem, 100%), 1fr));
+}
+
 .pg-stack {
     display: flex;
     flex-direction: column;
@@ -929,6 +936,13 @@ fluent-dialog::part(dialog) {
 .pg-roster-change-table-wrap {
     height: 270px;
     max-height: 270px;
+}
+
+/* Wide input tables (05 EF draft editor): keep the card width and scroll the
+   table horizontally instead of clipping it like the default wrap does. */
+.pg-change-table-wrap-scroll {
+    width: 100%;
+    overflow-x: auto;
 }
 
 .pg-change-table {
