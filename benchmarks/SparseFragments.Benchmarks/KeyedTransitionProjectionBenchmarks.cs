@@ -30,6 +30,7 @@ public class KeyedTransitionProjectionBenchmarks
             RepeatedView() != expected
             || RepeatedLookup() != (expected > 0)
             || FirstView() != expected
+            || FirstLookup() != (expected > 0)
         )
             throw new InvalidOperationException("Typed projections must preserve edited entries.");
     }
@@ -42,4 +43,7 @@ public class KeyedTransitionProjectionBenchmarks
 
     [Benchmark]
     public int FirstView() => _input.Between().Items.Edited.Count;
+
+    [Benchmark]
+    public bool FirstLookup() => _input.Between().Items.GetChange("server-0").IsChanged;
 }

@@ -214,11 +214,28 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(4, "var __lookup = _lookup;");
         code.AppendLineAt(4, "if (__lookup is null)");
         code.AppendLineAt(4, "{");
+        var lookupCapacity = "_items.Count";
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(5, "int __lookupCount = 0;");
+            code.AppendLineAt(
+                5,
+                "for (int __index = 0; __index < _items.Count; __index++) if (!"
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                        member,
+                        "_items[__index].Key"
+                    )
+                    + ") __lookupCount++;"
+            );
+            lookupCapacity = "__lookupCount";
+        }
         code.AppendLineAt(
             5,
             "__lookup = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", Item>("
+                + lookupCapacity
+                + ", "
                 + comparer
                 + ");"
         );

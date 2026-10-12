@@ -56,9 +56,16 @@ internal static class SparseChangeSetKeyedTempTransitionEmitter
         code.AppendLineAt(4, "var __lookup = _temporaryLookup;");
         code.AppendLineAt(4, "if (__lookup is null)");
         code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "int __lookupCount = 0;");
         code.AppendLineAt(
             5,
-            "__lookup = new global::System.Collections.Generic.Dictionary<global::System.Guid, Item>();"
+            "for (int __index = 0; __index < _items.Count; __index++) if (_items[__index].TemporaryKey.HasValue && "
+                + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "_items[__index].Key")
+                + ") __lookupCount++;"
+        );
+        code.AppendLineAt(
+            5,
+            "__lookup = new global::System.Collections.Generic.Dictionary<global::System.Guid, Item>(__lookupCount);"
         );
         code.AppendLineAt(5, "foreach (var __item in _items)");
         code.AppendLineAt(

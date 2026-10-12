@@ -123,17 +123,36 @@ internal static class SparseChangeSetKeyedProjectionEmitter
                 + trans
                 + ".Item>();"
         );
+        code.AppendLineAt(3, "int __addedCount = 0, __removedCount = 0, __editedCount = 0;");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(3, "bool __hasUnassignedEdit = false;");
+            code.AppendLineAt(
+                3,
+                "foreach (var __it in __stored) { if (__it.IsAdded) __addedCount++; else if (__it.IsRemoved) __removedCount++; else if (__it.IsEdited) { if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__it.Key")
+                    + ") __hasUnassignedEdit = true; else __editedCount++; } }"
+            );
+            code.AppendLineAt(3, "if (__hasUnassignedEdit) __editedCount++;");
+        }
+        else
+        {
+            code.AppendLineAt(
+                3,
+                "foreach (var __it in __stored) { if (__it.IsAdded) __addedCount++; else if (__it.IsRemoved) __removedCount++; else if (__it.IsEdited) __editedCount++; }"
+            );
+        }
         code.AppendLineAt(
             3,
             "var __added = new global::System.Collections.Generic.List<"
                 + elementType
-                + ">(); var __removed = new global::System.Collections.Generic.List<"
+                + ">(__addedCount); var __removed = new global::System.Collections.Generic.List<"
                 + elementType
-                + ">(); var __edited = new global::System.Collections.Generic.Dictionary<"
+                + ">(__removedCount); var __edited = new global::System.Collections.Generic.Dictionary<"
                 + keyType
                 + ", "
                 + elementCs
-                + ">("
+                + ">(__editedCount, "
                 + comparer
                 + ");"
         );
