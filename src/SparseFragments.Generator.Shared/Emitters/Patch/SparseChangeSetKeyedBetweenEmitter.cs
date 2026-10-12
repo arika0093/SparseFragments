@@ -160,6 +160,9 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
+        SparseChangeSetKeyedAlignedBetweenEmitter.Append(code, member, trans);
+        SparseChangeSetKeyedAlignedBetweenEmitter.AppendGeneralStart(code, member, trans, runtime);
+        code.IndentOffset += 2;
         // Granular Value -> Value: build key maps and orders (single enumeration each).
         SparseKeyedCollectionEmitter.AppendChangeSetBetweenStorage(code, member, "before");
         code.AppendLineAt(5, "foreach (var __item in __before" + id + ".Value!)");
@@ -621,6 +624,9 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             6,
             "__bO" + id + " = __beforeOrder" + id + "; __aO" + id + " = __afterOrder" + id + ";"
         );
+        code.AppendLineAt(5, "}");
+        code.IndentOffset -= 2;
+        SparseChangeSetKeyedAlignedBetweenEmitter.AppendGeneralEnd(code, member);
         code.AppendLineAt(5, "}");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");

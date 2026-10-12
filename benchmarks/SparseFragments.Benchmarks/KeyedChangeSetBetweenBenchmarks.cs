@@ -10,6 +10,7 @@ public enum KeyedChangeSetBetweenShape
     RemoveFirst,
     AddLast,
     ReplaceAll,
+    ReplaceLast,
 }
 
 [MemoryDiagnoser]
@@ -73,6 +74,8 @@ public class KeyedChangeSetBetweenBenchmarks
                     Count = Size,
                 }
             );
+        if (after && Shape == KeyedChangeSetBetweenShape.ReplaceLast)
+            items[^1].Id = "replacement-last";
         return Optional<BenchKeyedServerHolder.Fragment?>.Present(
             BenchKeyedServerHolder.Fragment.From(new() { Items = items })
         );
