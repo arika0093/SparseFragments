@@ -15,6 +15,9 @@ public partial class PlaygroundOrderDto
     /// <summary>Gets or sets the notes. Same-name scalar mapping.</summary>
     public string Notes { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the order total. Same-name scalar mapping.</summary>
+    public decimal Total { get; set; }
+
     /// <summary>Gets or sets the keyed order lines.</summary>
     public List<PlaygroundOrderLineDto> Lines { get; set; } = [];
 }
@@ -41,9 +44,6 @@ public partial class PlaygroundOrderLineDto
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
-
-    /// <summary>Gets or sets the unit price.</summary>
-    public decimal UnitPrice { get; set; }
 }
 
 /// <summary>Tracked order entity. Carries no mapping attributes.</summary>
@@ -57,6 +57,9 @@ public sealed class PlaygroundOrderEntity
 
     /// <summary>Gets or sets the notes.</summary>
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the order total.</summary>
+    public decimal Total { get; set; }
 
     /// <summary>Gets or sets the keyed order lines.</summary>
     public List<PlaygroundOrderLineEntity> Lines { get; set; } = [];
@@ -76,9 +79,6 @@ public sealed class PlaygroundOrderLineEntity
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
-
-    /// <summary>Gets or sets the unit price.</summary>
-    public decimal UnitPrice { get; set; }
 
     /// <summary>Gets or sets the persisted position.</summary>
     public int SortOrder { get; set; }

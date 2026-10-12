@@ -721,6 +721,26 @@ a, .btn-link {
     width: 100%;
 }
 
+/* EF order-line rows (section 05): Id / Sku / Product / Qty plus actions,
+   mirroring the case-4 task row language on a wider track. */
+.pg-task-line-ef {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.7fr) minmax(7rem, 1fr) minmax(8rem, 1.5fr) minmax(5rem, 0.7fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-task-line-ef > * {
+    min-width: 0;
+}
+
+.pg-task-line-ef .pg-roster-field > fluent-text-input,
+.pg-task-line-ef .pg-roster-field > fluent-number-input,
+.pg-task-line-ef .pg-roster-field > input {
+    width: 100%;
+}
+
 .pg-task-actions {
     flex-wrap: nowrap;
     justify-content: flex-end;
@@ -835,6 +855,10 @@ a, .btn-link {
 
 @media (max-width: 48rem) {
     .pg-task-line {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .pg-task-line-ef {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 

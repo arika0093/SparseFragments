@@ -1,5 +1,6 @@
 @using System.Globalization
 @using System.Text.Json
+@using Microsoft.Data.Sqlite
 @using Microsoft.EntityFrameworkCore
 @using SparseFragments
 @using SparseFragments.EntityFrameworkCore
@@ -7,7 +8,7 @@
 @implements IDisposable
 
 <div class="pg-stack">
-    <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is EF Core InMemory.</p>
+    <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is SQLite in-memory, so keys and constraints behave like a real database.</p>
     <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
@@ -28,94 +29,98 @@
                 <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetDraft">Reset draft</FluentButton>
             </div>
             <div class="pg-stack pg-edit-fields">
-                <div class="pg-row pg-session-field">
-                    <span class="pg-name notranslate" translate="no">Customer <small>string</small></span>
+                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Customer)) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Customer)))Customer <small>string</small></span>
                     <FluentTextInput Style="flex: 1 1 12rem;"
                         Value="@_draft.Customer"
                         ValueChanged="@(v => EditDraft(d => d.Customer = v ?? string.Empty))" />
                 </div>
-                <div class="pg-row pg-session-field">
-                    <span class="pg-name notranslate" translate="no">Notes <small>string</small></span>
+                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Notes)) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Notes)))Notes <small>string</small></span>
                     <FluentTextInput Style="flex: 1 1 12rem;"
                         Value="@_draft.Notes"
                         ValueChanged="@(v => EditDraft(d => d.Notes = v ?? string.Empty))" />
                 </div>
+                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Total)) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Total)))Total <small>decimal</small></span>
+                    <FluentNumberInput TValue="decimal" Style="width: 10rem;"
+                        Value="@_draft.Total"
+                        ValueChanged="@(v => EditDraft(d => d.Total = v))" />
+                </div>
             </div>
-            <div class="pg-change-table-wrap pg-change-table-wrap-scroll">
-                <table class="pg-change-table" aria-label="Draft lines">
-                    <thead>
-                        <tr><th>Id (key)</th><th>Sku</th><th>Product</th><th>Qty</th><th>UnitPrice</th><th>Temp</th><th>Order</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var line in _draft.Lines)
-                        {
-                            <tr>
-                                <td>
-                                    <FluentNumberInput TValue="int?" Style="width: 6rem;"
-                                        Value="@line.Id"
-                                        ValueChanged="@(v => EditDraft(_ => line.Id = v))" />
-                                </td>
-                                <td>
-                                    <FluentTextInput Style="width: 8rem;"
-                                        Value="@line.Sku"
-                                        ValueChanged="@(v => EditDraft(_ => line.Sku = v ?? string.Empty))" />
-                                </td>
-                                <td>
-                                    <FluentTextInput Style="width: 10rem;"
-                                        Value="@line.Product"
-                                        ValueChanged="@(v => EditDraft(_ => line.Product = v ?? string.Empty))" />
-                                </td>
-                                <td>
-                                    <FluentNumberInput TValue="int" Style="width: 5rem;"
-                                        Value="@line.Qty"
-                                        ValueChanged="@(v => EditDraft(_ => line.Qty = v))" />
-                                </td>
-                                <td>
-                                    <FluentNumberInput TValue="decimal" Style="width: 7rem;"
-                                        Value="@line.UnitPrice"
-                                        ValueChanged="@(v => EditDraft(_ => line.UnitPrice = v))" />
-                                </td>
-                                <td><span class="pg-change-value">@FormatTemporary(line.TemporaryId)</span></td>
-                                <td style="white-space: nowrap;">
-                                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
-                                        Disabled="@(_draft.Lines.IndexOf(line) == 0)"
-                                        @onclick="@(() => MoveLine(line, -1))">↑</FluentButton>
-                                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                                        Disabled="@(_draft.Lines.IndexOf(line) == _draft.Lines.Count - 1)"
-                                        @onclick="@(() => MoveLine(line, 1))">↓</FluentButton>
-                                </td>
-                                <td>
-                                    <FluentButton Appearance="ButtonAppearance.Default" Title="@($"Remove {DisplayKey(line)}")"
-                                        @onclick="@(() => EditDraft(d => d.Lines.Remove(line)))">Remove</FluentButton>
-                                </td>
-                            </tr>
-                        }
-                        <tr>
-                            <td><span class="pg-change-value">new</span></td>
-                            <td>
-                                <FluentTextInput Placeholder="sku" Style="width: 8rem;"
-                                    Value="@_newSku" ValueChanged="@(v => _newSku = v ?? string.Empty)" />
-                            </td>
-                            <td>
-                                <FluentTextInput Placeholder="product" Style="width: 10rem;"
-                                    Value="@_newProduct" ValueChanged="@(v => _newProduct = v ?? string.Empty)" />
-                            </td>
-                            <td>
-                                <FluentNumberInput TValue="int" Style="width: 5rem;"
-                                    Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
-                            </td>
-                            <td>
-                                <FluentNumberInput TValue="decimal" Style="width: 7rem;"
-                                    Value="@_newUnitPrice" ValueChanged="@(v => _newUnitPrice = v)" />
-                            </td>
-                            <td><span class="pg-change-value">auto</span></td>
-                            <td></td>
-                            <td>
-                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddLine">Add</FluentButton>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="pg-row pg-session-field pg-task-field">
+                <span class="pg-name notranslate" translate="no">Lines <small>List&lt;Line&gt;</small></span>
+                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddLine">Add line</FluentButton>
+            </div>
+            <div class="pg-task-line-ef" aria-label="New line">
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Id <small>new</small></span>
+                    <FluentTextInput Placeholder="(auto)" Style="width: 100%;" Disabled="true" />
+                </div>
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Sku</span>
+                    <FluentTextInput Placeholder="sku" Style="width: 100%;"
+                        Value="@_newSku" ValueChanged="@(v => _newSku = v ?? string.Empty)" />
+                </div>
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Product</span>
+                    <FluentTextInput Placeholder="product" Style="width: 100%;"
+                        Value="@_newProduct" ValueChanged="@(v => _newProduct = v ?? string.Empty)" />
+                </div>
+                <div class="pg-roster-field">
+                    <span class="pg-mini notranslate" translate="no">Qty</span>
+                    <FluentNumberInput TValue="int" Style="width: 100%;"
+                        Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
+                </div>
+            </div>
+            <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
+                OnUpdate="OnLinesReordered" Context="line">
+                <SortableItemTemplate>
+                    <div class="@LineRowClass(line, _draft.Lines.IndexOf(line)) pg-task-row">
+                        <div class="pg-task-line-ef">
+                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Id)) ? "pg-changed" : "")">
+                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Id)))Id <small>int?</small></span>
+                                <FluentNumberInput TValue="int?"
+                                    Value="@line.Id"
+                                    ValueChanged="@(v => EditDraft(_ => line.Id = v))" />
+                            </div>
+                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Sku)) ? "pg-changed" : "")">
+                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Sku)))Sku</span>
+                                <FluentTextInput
+                                    Value="@line.Sku"
+                                    ValueChanged="@(v => EditDraft(_ => line.Sku = v ?? string.Empty))" />
+                            </div>
+                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
+                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)))Product</span>
+                                <FluentTextInput
+                                    Value="@line.Product"
+                                    ValueChanged="@(v => EditDraft(_ => line.Product = v ?? string.Empty))" />
+                            </div>
+                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Qty)) ? "pg-changed" : "")">
+                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Qty)))Qty</span>
+                                <FluentNumberInput TValue="int"
+                                    Value="@line.Qty"
+                                    ValueChanged="@(v => EditDraft(_ => line.Qty = v))" />
+                            </div>
+                            <div class="pg-roster-actions pg-task-actions">
+                                <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+                                <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                                    Disabled="@(_draft.Lines.IndexOf(line) == 0)"
+                                    @onclick="@(() => MoveLine(_draft.Lines.IndexOf(line), -1))">↑</FluentButton>
+                                <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                                    Disabled="@(_draft.Lines.IndexOf(line) == _draft.Lines.Count - 1)"
+                                    @onclick="@(() => MoveLine(_draft.Lines.IndexOf(line), 1))">↓</FluentButton>
+                                <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
+                                    @onclick="@(() => EditDraft(d => d.Lines.Remove(line)))">✕</FluentButton>
+                            </div>
+                        </div>
+                    </div>
+                </SortableItemTemplate>
+            </SortableList>
+            <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+                <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+                <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+                <span class="pg-lg"><span class="pg-dot"></span>edited</span>
             </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
         </FluentCard>
@@ -160,31 +165,31 @@
         </FluentCard>
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
-                <h3>5. Apply → modified EF properties</h3>
-                <FluentButton Appearance="ButtonAppearance.Primary"
-                    Disabled="@(_changes?.IsChanged != true)" @onclick="ApplyChanges">Apply</FluentButton>
+                <h3>5. Apply, save &amp; re-fetch</h3>
+                <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                    Disabled="@(_changes?.IsChanged != true)" @onclick="ApplyAndSave">Apply &amp; Save</FluentButton>
             </div>
             @if (_applyError is not null)
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_applyError</FluentMessageBar>
             }
-            else if (_modifiedRows.Count == 0)
+            else if (!_applied)
             {
-                <p class="pg-hint">Apply the ChangeSet to see exactly which tracked properties turn modified. Untouched properties stay unmodified.</p>
+                <p class="pg-hint">Applies the ChangeSet to the tracked entity, persists with <em>SaveChanges</em>, then re-reads from a fresh context. Untouched properties stay unmodified.</p>
             }
             else
             {
                 <div class="pg-change-table-wrap">
                     <table class="pg-change-table" aria-label="Modified EF properties">
                         <thead>
-                            <tr><th>Entity</th><th>State</th><th>Property</th><th>Before</th><th>After</th></tr>
+                            <tr><th>Entity</th><th>Operation</th><th>Property</th><th>Before</th><th>After</th></tr>
                         </thead>
                         <tbody>
                             @foreach (var row in _modifiedRows)
                             {
                                 <tr>
                                     <td><span class="pg-change-value">@row.Entity</span></td>
-                                    <td><span class="@ChangeOperationClass(row.State)">@row.State</span></td>
+                                    <td><span class="@ChangeOperationClass(EfStateOperation(row.State))">@EfStateOperation(row.State)</span></td>
                                     <td><span class="pg-change-value">@row.Property</span></td>
                                     <td><span class="pg-change-value">@row.Before</span></td>
                                     <td><span class="pg-change-value">@row.After</span></td>
@@ -194,36 +199,23 @@
                     </table>
                 </div>
                 <MonacoDiffView Original="@_entityJsonBeforeApply" Modified="@EntityJson" Language="json" Height="240px" />
-            }
-        </FluentCard>
-        <FluentCard Class="pg-fluent-card">
-            <div class="pg-card-head">
-                <h3>6. Save &amp; re-fetch</h3>
-                <FluentButton Appearance="ButtonAppearance.Primary"
-                    Disabled="@(!_applied)" @onclick="SaveAndRefetch">Save &amp; re-fetch</FluentButton>
-            </div>
-            @if (_saveError is not null)
-            {
-                <FluentMessageBar Intent="MessageBarIntent.Error">@_saveError</FluentMessageBar>
-            }
-            else if (_refetchedJson is null)
-            {
-                <p class="pg-hint">Saves with a fresh context over the same InMemory store, then re-reads the order from the database.</p>
-            }
-            else
-            {
-                <p class="pg-hint">Fresh context, re-read after <em>SaveChanges</em>. Matches the applied state above.</p>
-                <MonacoView Content="@_refetchedJson" Language="json" Height="270px" />
+                @if (_saveError is not null)
+                {
+                    <FluentMessageBar Intent="MessageBarIntent.Error">@_saveError</FluentMessageBar>
+                }
+                else if (_refetchedJson is not null)
+                {
+                    <p class="pg-hint">Fresh context, re-read after <em>SaveChanges</em>. Matches the applied state above.</p>
+                    <MonacoView Content="@_refetchedJson" Language="json" Height="270px" />
+                }
             }
         </FluentCard>
     </div>
 </div>
 
 @code {
-    private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
-        new DbContextOptionsBuilder<PlaygroundEfContext>()
-            .UseInMemoryDatabase("pg-ef-demo")
-            .Options;
+    private SqliteConnection? _connection;
+    private DbContextOptions<PlaygroundEfContext>? _options;
 
     private PlaygroundEfContext? _db;
     private PlaygroundOrderEntity? _tracked;
@@ -237,7 +229,6 @@
     private string _newSku = string.Empty;
     private string _newProduct = string.Empty;
     private int _newQty = 1;
-    private decimal _newUnitPrice;
     private bool _applied;
     private string _entityJsonBeforeApply = string.Empty;
     private string? _refetchedJson;
@@ -253,19 +244,33 @@
 
     protected override void OnInitialized() => Seed();
 
-    public void Dispose() => _db?.Dispose();
+    public void Dispose()
+    {
+        _db?.Dispose();
+        _connection?.Dispose();
+    }
 
     private void Seed()
     {
+        // SQLite in-memory databases live as long as their connection stays
+        // open, so reseeding swaps in a fresh open connection. The same
+        // native e_sqlite3 bundle backing server-side SQLite links into the
+        // browser-wasm build, which is why this works in the playground.
         _db?.Dispose();
-        _db = new PlaygroundEfContext(SharedOptions);
-        _db.Database.EnsureDeleted();
+        _connection?.Dispose();
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
+        _options = new DbContextOptionsBuilder<PlaygroundEfContext>()
+            .UseSqlite(_connection)
+            .Options;
+        _db = new PlaygroundEfContext(_options);
         _db.Database.EnsureCreated();
         var seeded = _db.Orders.Add(
             new PlaygroundOrderEntity
             {
                 CustomerName = "Cafe Vienna",
                 Notes = "first order",
+                Total = 13.75m,
                 Lines =
                 [
                     new PlaygroundOrderLineEntity
@@ -273,7 +278,6 @@
                         Sku = "espresso",
                         Product = "Espresso",
                         Qty = 2,
-                        UnitPrice = 3.5m,
                         SortOrder = 0,
                     },
                     new PlaygroundOrderLineEntity
@@ -281,7 +285,6 @@
                         Sku = "croissant",
                         Product = "Croissant",
                         Qty = 3,
-                        UnitPrice = 2.25m,
                         SortOrder = 1,
                     },
                 ],
@@ -301,7 +304,6 @@
         _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
-        _newUnitPrice = 0m;
         RefreshChanges();
     }
 
@@ -331,28 +333,129 @@
                 Sku = _newSku.Trim(),
                 Product = _newProduct.Trim(),
                 Qty = _newQty,
-                UnitPrice = _newUnitPrice,
                 TemporaryId = Guid.NewGuid(),
             }));
         _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
-        _newUnitPrice = 0m;
     }
 
-    private void MoveLine(PlaygroundOrderLineDto line, int direction)
+    private void MoveLine(int index, int direction)
     {
+        var other = index + direction;
+        if (index < 0 || other < 0 || other >= _draft.Lines.Count)
+        {
+            return;
+        }
+
         EditDraft(draft =>
         {
-            var index = draft.Lines.IndexOf(line);
-            var other = index + direction;
-            if (index < 0 || other < 0 || other >= draft.Lines.Count)
-            {
-                return;
-            }
-
             (draft.Lines[index], draft.Lines[other]) = (draft.Lines[other], draft.Lines[index]);
         });
+    }
+
+    private Task OnLinesReordered((int oldIndex, int newIndex) indices)
+    {
+        var (oldIndex, newIndex) = indices;
+        var lines = _draft.Lines;
+        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= lines.Count || newIndex < 0 || newIndex > lines.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        EditDraft(draft =>
+        {
+            var line = draft.Lines[oldIndex];
+            draft.Lines.RemoveAt(oldIndex);
+            draft.Lines.Insert(Math.Min(newIndex, draft.Lines.Count), line);
+        });
+        return Task.CompletedTask;
+    }
+
+    private static RenderFragment ChangedDot(bool changed) => builder =>
+    {
+        if (changed)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "pg-dot");
+            builder.AddAttribute(2, "title", "edited");
+            builder.CloseElement();
+        }
+    };
+
+    private bool IsScalarChanged(string property) => property switch
+    {
+        nameof(PlaygroundOrderDto.Customer) => _draft.Customer != _baseline.Customer,
+        nameof(PlaygroundOrderDto.Notes) => _draft.Notes != _baseline.Notes,
+        nameof(PlaygroundOrderDto.Total) => _draft.Total != _baseline.Total,
+        _ => false,
+    };
+
+    private PlaygroundOrderLineDto? GetLineBaseline(PlaygroundOrderLineDto line) =>
+        line.Id.HasValue
+            ? _baseline.Lines.FirstOrDefault(item => item.Id == line.Id)
+            : null;
+
+    private bool IsLineFieldChanged(PlaygroundOrderLineDto line, string property)
+    {
+        var baseline = GetLineBaseline(line);
+        if (baseline is null)
+        {
+            return false;
+        }
+
+        return property switch
+        {
+            nameof(PlaygroundOrderLineDto.Id) => line.Id != baseline.Id,
+            nameof(PlaygroundOrderLineDto.Sku) => line.Sku != baseline.Sku,
+            nameof(PlaygroundOrderLineDto.Product) => line.Product != baseline.Product,
+            nameof(PlaygroundOrderLineDto.Qty) => line.Qty != baseline.Qty,
+            _ => false,
+        };
+    }
+
+    private string LineRowClass(PlaygroundOrderLineDto line, int index)
+    {
+        var baseline = GetLineBaseline(line);
+        if (baseline is null)
+        {
+            return "pg-roster-row pg-added";
+        }
+
+        return IsLineMoved(baseline, index) ? "pg-roster-row pg-moved" : "pg-roster-row";
+    }
+
+    private bool IsLineMoved(PlaygroundOrderLineDto baseline, int index)
+    {
+        var baselineIndex = _baseline.Lines.IndexOf(baseline);
+        if (baselineIndex < 0)
+        {
+            return false;
+        }
+
+        var currentRank = 0;
+        for (var i = 0; i < index; i++)
+        {
+            if (GetLineBaseline(_draft.Lines[i]) is not null)
+            {
+                currentRank++;
+            }
+        }
+
+        var baselineRank = 0;
+        for (var i = 0; i < baselineIndex; i++)
+        {
+            foreach (var currentLine in _draft.Lines)
+            {
+                if (ReferenceEquals(GetLineBaseline(currentLine), _baseline.Lines[i]))
+                {
+                    baselineRank++;
+                    break;
+                }
+            }
+        }
+
+        return currentRank != baselineRank;
     }
 
     private void RefreshChanges()
@@ -394,6 +497,15 @@
         }
     }
 
+    private void ApplyAndSave()
+    {
+        ApplyChanges();
+        if (_applied)
+        {
+            SaveAndRefetch();
+        }
+    }
+
     private void ApplyChanges()
     {
         _applyError = null;
@@ -423,7 +535,7 @@
     private void SaveAndRefetch()
     {
         _saveError = null;
-        if (_db is null || _tracked is null)
+        if (_db is null || _tracked is null || _options is null)
         {
             return;
         }
@@ -431,7 +543,7 @@
         try
         {
             _db.SaveChanges();
-            using var fresh = new PlaygroundEfContext(SharedOptions);
+            using var fresh = new PlaygroundEfContext(_options);
             var reloaded = fresh.Orders
                 .Include(static order => order.Lines)
                 .Single(order => order.Id == _tracked.Id);
@@ -449,6 +561,7 @@
         {
             Customer = order.CustomerName,
             Notes = order.Notes,
+            Total = order.Total,
             Lines = order
                 .Lines.OrderBy(static line => line.SortOrder)
                 .Select(static line => new PlaygroundOrderLineDto
@@ -457,7 +570,6 @@
                     Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
-                    UnitPrice = line.UnitPrice,
                 })
                 .ToList(),
         };
@@ -467,6 +579,7 @@
         {
             Customer = source.Customer,
             Notes = source.Notes,
+            Total = source.Total,
             Lines = source
                 .Lines.Select(static line => new PlaygroundOrderLineDto
                 {
@@ -475,7 +588,6 @@
                     Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
-                    UnitPrice = line.UnitPrice,
                 })
                 .ToList(),
         };
@@ -539,28 +651,44 @@
             writer.WriteStartObject();
             writer.WriteString("Customer", dto.Customer);
             writer.WriteString("Notes", dto.Notes);
+            writer.WriteNumber("Total", dto.Total);
             writer.WriteStartArray("Lines");
             foreach (var line in dto.Lines)
             {
-                writer.WriteStartObject();
-                if (line.Id.HasValue)
-                {
-                    writer.WriteNumber("Id", line.Id.Value);
-                }
-                else
-                {
-                    writer.WriteNull("Id");
-                }
-
-                writer.WriteString("Sku", line.Sku);
-                writer.WriteString("Product", line.Product);
-                writer.WriteNumber("Qty", line.Qty);
-                writer.WriteNumber("UnitPrice", line.UnitPrice);
-                writer.WriteEndObject();
+                WriteLineJson(writer, line);
             }
 
             writer.WriteEndArray();
             writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteLineJson(Utf8JsonWriter writer, PlaygroundOrderLineDto line)
+    {
+        writer.WriteStartObject();
+        if (line.Id.HasValue)
+        {
+            writer.WriteNumber("Id", line.Id.Value);
+        }
+        else
+        {
+            writer.WriteNull("Id");
+        }
+
+        writer.WriteString("Sku", line.Sku);
+        writer.WriteString("Product", line.Product);
+        writer.WriteNumber("Qty", line.Qty);
+        writer.WriteEndObject();
+    }
+
+    private static string WriteLineJson(PlaygroundOrderLineDto line)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            WriteLineJson(writer, line);
         }
 
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
@@ -575,6 +703,7 @@
             writer.WriteNumber("Id", order.Id);
             writer.WriteString("CustomerName", order.CustomerName);
             writer.WriteString("Notes", order.Notes);
+            writer.WriteNumber("Total", order.Total);
             writer.WriteStartArray("Lines");
             foreach (var line in order.Lines.OrderBy(static item => item.SortOrder))
             {
@@ -583,7 +712,6 @@
                 writer.WriteString("Sku", line.Sku);
                 writer.WriteString("Product", line.Product);
                 writer.WriteNumber("Qty", line.Qty);
-                writer.WriteNumber("UnitPrice", line.UnitPrice);
                 writer.WriteNumber("SortOrder", line.SortOrder);
                 writer.WriteNumber("OrderId", line.OrderId);
                 writer.WriteEndObject();
@@ -612,21 +740,20 @@
     private static string FormatChangeValue(Optional<object?> value) =>
         value.IsPresent ? FormatValue(value.Value) : "—";
 
-    private static string FormatTemporary(Guid? temporary) =>
-        temporary is null || temporary == Guid.Empty
-            ? "—"
-            : temporary.Value.ToString("N")[..8];
-
-    private static string DisplayKey(PlaygroundOrderLineDto line) =>
-        line.Id.HasValue
-            ? line.Id.Value.ToString(CultureInfo.InvariantCulture)
-            : "new";
+    private static string EfStateOperation(string state) => state switch
+    {
+        "Added" => "Add",
+        "Deleted" => "Remove",
+        "Modified" => "Edit",
+        _ => state,
+    };
 
     private static string FormatValue(object? value) =>
         value switch
         {
             null => "null",
             string text => text,
+            PlaygroundOrderLineDto line => WriteLineJson(line),
             System.Collections.IEnumerable sequence => "["
                 + string.Join(
                     ", ",
