@@ -136,7 +136,11 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 "global::SparseFragments.Generated.SparseChangeRecord",
                 "global::SparseFragments.Generated.SparseChangeKind"
             )
-        ),
+        )
+        {
+            KeyValidationScopeFactory =
+                "global::SparseFragments.CompilerServices.SparseFragmentRuntime.RentKeyValidation",
+        },
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,
         ComparisonAttributeMetadataName: "SparseFragments.SparseCompareAttribute",

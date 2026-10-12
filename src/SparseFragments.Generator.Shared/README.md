@@ -67,6 +67,15 @@ reference-identity dictionary exclusively until disposal. Generated `From` and
 `DeepClone` operations dispose the scope on success and on exceptions. Leave the
 factory unset to keep using `ReferenceComparer.CreateCloneContext()`.
 
+`SparsePatchDialect.KeyValidationScopeFactory` optionally names a generic method
+called with the key type, required capacity, and a `Func<int, HashSet<TKey>>`
+constructor. The constructor uses the target framework's capacity overload when
+available. The factory returns an `IDisposable` scope whose `Keys` property is an
+empty `HashSet<TKey>` using default key equality. The scope owns that set
+exclusively until disposal. Aligned
+keyed comparisons dispose it after validating keys, before comparing child
+values. Leave the factory unset to allocate validation storage per comparison.
+
 `SparsePatchDialect` maps patch
 runtime/facade, conflict/result types, nested member names, member
 field/value types, and the provisional ChangePayload version token

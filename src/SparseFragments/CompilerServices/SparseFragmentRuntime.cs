@@ -352,6 +352,19 @@ public static class SparseFragmentRuntime
     /// <summary>Rents an exclusive reference-identity context for a generated clone operation.</summary>
     public static SparseCloneContextScope RentCloneContext() => SparseCloneContextPool.Rent();
 
+    /// <summary>Rents an exclusive set using default key equality for uniqueness checks.</summary>
+    /// <typeparam name="TKey">The collection key type.</typeparam>
+    /// <param name="capacity">The required number of keys.</param>
+    /// <param name="create">Creates an empty set with default key equality and the requested capacity on a cache miss.</param>
+    /// <returns>A scope owning an empty set until disposal.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Capacity is negative.</exception>
+    /// <exception cref="ArgumentNullException">The constructor is null.</exception>
+    public static SparseKeyValidationScope<TKey> RentKeyValidation<TKey>(
+        int capacity,
+        Func<int, HashSet<TKey>> create
+    )
+        where TKey : notnull => SparseKeyValidationPool<TKey>.Rent(capacity, create);
+
     /// <summary>Creates a reference-identity cycle scope for generated <c>Fragment.From</c> helpers.</summary>
     public static HashSet<object> CreateFromCycleContext() =>
         new(SparseReferenceEqualityComparer.Instance);

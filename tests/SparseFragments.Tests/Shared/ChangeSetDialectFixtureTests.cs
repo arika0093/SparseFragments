@@ -225,6 +225,36 @@ public sealed class ChangeSetDialectFixtureTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public void Downstream_KeyValidationUsesOnlyItsConfiguredFactory(bool supportsCapacity)
+    {
+        var code = new SharedIndentedBuilder(CancellationToken.None);
+        SparseChangeSetKeyedAlignedBetweenEmitter.Append(
+            code,
+            KeyedMember(),
+            "global::Downstream.Transition",
+            DownstreamDialect() with
+            {
+                KeyValidationScopeFactory = "global::Downstream.RentKeys",
+                HashSetSupportsCapacity = supportsCapacity,
+            }
+        );
+        var text = code.ToString();
+        text.ShouldContain(
+            "global::Downstream.RentKeys<global::System.Int32>(count, static capacity =>"
+        );
+        text.ShouldContain("var seen = keyScope.Keys;");
+        text.ShouldContain("if (!seen.Add(k))");
+        text.ShouldNotContain("global::SparseFragments");
+        text.ShouldContain(
+            supportsCapacity
+                ? "HashSet<global::System.Int32>(capacity, "
+                : "HashSet<global::System.Int32>(global::System.Collections.Generic.EqualityComparer"
+        );
+    }
+
+    [Test]
     public void Downstream_ContainsNoSparseFragmentsRuntime()
     {
         var text = EmitChangeSet(FixtureMembers(), DownstreamDialect());

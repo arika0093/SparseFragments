@@ -255,6 +255,10 @@ internal static class SparseFragmentPatchEmitter
         bool PathIsValueType = false
     )
     {
+        /// <summary>Optional generic factory taking capacity and a set constructor for an exclusive disposable key-validation scope.</summary>
+        /// <remarks>The scope exposes an empty HashSet&lt;TKey&gt; Keys using default key equality.</remarks>
+        public string? KeyValidationScopeFactory { get; init; }
+
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
         public ImmutableArray<SparseMemberPolicy> EffectiveMemberPolicies =>
             MemberPolicies.IsDefault ? ImmutableArray<SparseMemberPolicy>.Empty : MemberPolicies;

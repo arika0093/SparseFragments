@@ -634,6 +634,8 @@ namespace SparseFragments.CompilerServices
         public static string?[] MergeSetOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEnumerable<T> effective) { }
         public static string?[] MergeSetUnionOrigins<T>(System.Collections.Generic.IEnumerable<T> lower, string?[]? lowerOrigins, string? lowerFallback, System.Collections.Generic.IEnumerable<T> higher, string?[]? higherOrigins, string? higherFallback, System.Collections.Generic.IEqualityComparer<T>? comparer) { }
         public static SparseFragments.CompilerServices.SparseCloneContextScope RentCloneContext() { }
+        public static SparseFragments.CompilerServices.SparseKeyValidationScope<TKey> RentKeyValidation<TKey>(int capacity, System.Func<int, System.Collections.Generic.HashSet<TKey>> create)
+            where TKey :  notnull { }
         public static bool TryExplainCollectionProvenance<T>(SparseFragments.MergeMode mode, System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IReadOnlyList<T>?> effective, System.Collections.Generic.IEqualityComparer<T>? comparer, out int[] origins, out string? reason) { }
         public static bool TryExplainSetProvenance<T>(System.Collections.Generic.IReadOnlyList<SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?>> contributions, SparseFragments.Optional<System.Collections.Generic.IEnumerable<T>?> effective, out int[] origins, out string? reason) { }
         public static bool TryRebaseAppend(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
@@ -643,6 +645,12 @@ namespace SparseFragments.CompilerServices
         public static bool TryRebaseSequenceSetUnionArray<T>(System.Collections.Generic.IReadOnlyList<T> before, System.Collections.Generic.IReadOnlyList<T> desired, System.Collections.Generic.IReadOnlyList<T> current, System.Collections.Generic.IEqualityComparer<T>? comparer, out T[] rebased, out string? reason) { }
         public static bool TryRebaseSetUnion(System.Collections.Generic.IReadOnlyList<object?> before, System.Collections.Generic.IReadOnlyList<object?> desired, System.Collections.Generic.IReadOnlyList<object?> current, System.Func<object?, object?, bool> equal, out System.Collections.Generic.IReadOnlyList<object?> rebased, out string? reason) { }
         public static bool TryRebaseSetUnion<T>(System.Collections.Generic.IEnumerable<T> before, System.Collections.Generic.IEnumerable<T> desired, System.Collections.Generic.IEnumerable<T> current, out System.Collections.Generic.HashSet<T> rebased, out string? reason) { }
+    }
+    public sealed class SparseKeyValidationScope<TKey> : System.IDisposable
+        where TKey :  notnull
+    {
+        public System.Collections.Generic.HashSet<TKey> Keys { get; }
+        public void Dispose() { }
     }
 }
 namespace SparseFragments.Generated

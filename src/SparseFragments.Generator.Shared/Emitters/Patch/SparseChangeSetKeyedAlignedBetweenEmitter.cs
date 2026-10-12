@@ -67,26 +67,42 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
         code.AppendLineAt(7, "if (!comparer.Equals(k, " + keyOf + "(a[i]))) return false;");
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "var keys = new " + order + "(count);");
-        var seenType = dialect.HashSetSupportsCapacity
-            ? "global::System.Collections.Generic.HashSet<" + key + ">"
-            : "global::System.Collections.Generic.Dictionary<" + key + ", byte>";
-        code.AppendLineAt(6, "var seen = new " + seenType + "(count, comparer);");
-        code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
-        code.AppendLineAt(6, "{");
-        code.AppendLineAt(7, "var k = " + keyOf + "(b[i]);");
-        if (dialect.HashSetSupportsCapacity)
+        if (dialect.KeyValidationScopeFactory is not null)
+        {
+            code.AppendLineAt(
+                6,
+                "static void ValidateKeys(" + indexed + " b, " + order + " keys, int count)"
+            );
+            code.AppendLineAt(6, "{");
             code.AppendLineAt(
                 7,
-                "if ((object?)k is null) throw new global::System.ArgumentNullException(\"key\");"
+                "using (var keyScope = "
+                    + dialect.KeyValidationScopeFactory
+                    + "<"
+                    + key
+                    + ">(count, static capacity => new global::System.Collections.Generic.HashSet<"
+                    + key
+                    + ">("
+                    + (dialect.HashSetSupportsCapacity ? "capacity, " : "")
+                    + "global::System.Collections.Generic.EqualityComparer<"
+                    + key
+                    + ">.Default)))"
             );
-        code.AppendLineAt(
-            7,
-            dialect.HashSetSupportsCapacity
-                ? "if (!seen.Add(k)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
-                : SparseKeyedCollectionEmitter.AddUniqueEntry("seen", "k", "0")
-        );
-        code.AppendLineAt(7, "keys.Add(k);");
-        code.AppendLineAt(6, "}");
+            code.AppendLineAt(7, "{");
+            code.AppendLineAt(8, "var seen = keyScope.Keys;");
+            AppendValidation(code, keyOf, true, 8);
+            code.AppendLineAt(7, "}");
+            code.AppendLineAt(6, "}");
+            code.AppendLineAt(6, "ValidateKeys(b, keys, count);");
+        }
+        else
+        {
+            var seenType = dialect.HashSetSupportsCapacity
+                ? "global::System.Collections.Generic.HashSet<" + key + ">"
+                : "global::System.Collections.Generic.Dictionary<" + key + ", byte>";
+            code.AppendLineAt(6, "var seen = new " + seenType + "(count, comparer);");
+            AppendValidation(code, keyOf, dialect.HashSetSupportsCapacity, 6);
+        }
         code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var edit = " + ElementChangeSetOf(member) + ".Between(b[i], a[i]);");
@@ -134,6 +150,31 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
+    }
+
+    private static void AppendValidation(
+        SharedIndentedBuilder code,
+        string keyOf,
+        bool useSet,
+        int indent
+    )
+    {
+        code.AppendLineAt(indent, "for (var i = 0; i < count; i++)");
+        code.AppendLineAt(indent, "{");
+        code.AppendLineAt(indent + 1, "var k = " + keyOf + "(b[i]);");
+        if (useSet)
+            code.AppendLineAt(
+                indent + 1,
+                "if ((object?)k is null) throw new global::System.ArgumentNullException(\"key\");"
+            );
+        code.AppendLineAt(
+            indent + 1,
+            useSet
+                ? "if (!seen.Add(k)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
+                : SparseKeyedCollectionEmitter.AddUniqueEntry("seen", "k", "0")
+        );
+        code.AppendLineAt(indent + 1, "keys.Add(k);");
+        code.AppendLineAt(indent, "}");
     }
 
     internal static void AppendGeneralStart(

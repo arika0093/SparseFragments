@@ -31,6 +31,7 @@ public sealed class RuntimeOwnershipTests
         "TryRebaseSequenceSetUnionArray",
         "CreateCloneContext",
         "RentCloneContext",
+        "RentKeyValidation",
         "CreateFromCycleContext",
         "CreateDiffCycleContext",
         "EnsureUniqueKeys",
@@ -101,15 +102,15 @@ public sealed class RuntimeOwnershipTests
     // Every facade member has a documented layer owner in
     // docs/architecture/runtime-ownership-audit.md. Pin the surface so
     // relocations change it deliberately instead of silently.
-    // 41 = 25 audited methods, 12 comparison specializations, 3 origin
-    // helpers, and the optional clone-context scope factory.
+    // 42 = 25 audited methods, 12 comparison specializations, 3 origin
+    // helpers, and the optional clone-context and key-validation scope factories.
     [Test]
     public void FacadeSurfaceMatchesTheAuditedContract()
     {
         var methods = typeof(SparseFragmentRuntime).GetMethods(
             BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly
         );
-        methods.Length.ShouldBe(41);
+        methods.Length.ShouldBe(42);
         methods
             .Select(static method => method.Name)
             .Distinct()

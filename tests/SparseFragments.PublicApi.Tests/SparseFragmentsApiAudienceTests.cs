@@ -34,6 +34,7 @@ public sealed class SparseFragmentsApiAudienceTests
     private static readonly string[] Plumbing =
     [
         "SparseFragments.CompilerServices.SparseCloneContextScope",
+        "SparseFragments.CompilerServices.SparseKeyValidationScope`1",
         "SparseFragments.CompilerServices.SparseFragmentRuntime",
     ];
 
