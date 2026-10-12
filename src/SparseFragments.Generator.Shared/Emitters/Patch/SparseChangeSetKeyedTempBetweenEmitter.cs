@@ -334,7 +334,9 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
             6,
             "var __beforeTempIndex"
                 + id
-                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
+                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>(__bT"
+                + id
+                + ".Count);"
         );
         code.AppendLineAt(
             6,
@@ -355,7 +357,9 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
             6,
             "var __afterTempIndex"
                 + id
-                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
+                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>(__aT"
+                + id
+                + ".Count);"
         );
         code.AppendLineAt(
             6,

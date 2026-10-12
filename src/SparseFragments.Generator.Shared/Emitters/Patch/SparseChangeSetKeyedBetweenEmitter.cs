@@ -428,13 +428,22 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         {
             SparseChangeSetKeyedTempBetweenEmitter.AppendTempRanks(code, id);
         }
+        // Pending entries share one sentinel slot in the assigned before-index map.
         code.AppendLineAt(
             6,
             "var __beforeIndex"
                 + id
                 + " = new global::System.Collections.Generic.Dictionary<"
                 + keyType
-                + ", int>("
+                + ", int>(__beforeMap"
+                + id
+                + ".Count"
+                + (
+                    SparseKeyedCollectionEmitter.HasUnassignedKey(member)
+                        ? " + (__beforeOrder" + id + ".Count > __beforeMap" + id + ".Count ? 1 : 0)"
+                        : ""
+                )
+                + ", "
                 + comparer
                 + ");"
         );
@@ -454,7 +463,9 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 + id
                 + " = new global::System.Collections.Generic.Dictionary<"
                 + keyType
-                + ", int>("
+                + ", int>(__afterMap"
+                + id
+                + ".Count, "
                 + comparer
                 + ");"
         );
