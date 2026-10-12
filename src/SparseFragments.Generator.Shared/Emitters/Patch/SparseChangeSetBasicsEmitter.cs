@@ -92,16 +92,15 @@ internal static class SparseChangeSetBasicsEmitter
     internal static void AppendFields(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
-        string runtime,
-        string optionalFragment,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseChangeSetStorageLayout storage
     )
     {
         // Canonical sparse storage stays on the facade; relocated operation
         // bodies reach it through internal access.
         code.AppendLineAt(2, "internal readonly bool __sparse_hasWhole;");
-        code.AppendLineAt(2, "internal readonly " + optionalFragment + " __sparse_wholeBefore;");
-        code.AppendLineAt(2, "internal readonly " + optionalFragment + " __sparse_wholeAfter;");
+        storage.AppendFields(code, "__sparse_wholeBefore", "Fragment?", true);
+        storage.AppendFields(code, "__sparse_wholeAfter", "Fragment?", true);
         ComputePublicNames(members, out _, out var transNames);
         foreach (var member in members)
         {
@@ -119,18 +118,21 @@ internal static class SparseChangeSetBasicsEmitter
             else if (IsKeyed(member) || IsDict(member))
             {
                 // Canonical sparse storage. No full member snapshots.
-                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
                 var trans = transNames[member.Id];
                 var keyType = KeyTypeOf(member);
                 code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
                 code.AppendLineAt(2, "internal readonly bool " + KeyedWholeFlag(member) + ";");
-                code.AppendLineAt(
-                    2,
-                    "internal readonly " + opt + " " + KeyedWholeBefore(member) + ";"
+                storage.AppendFields(
+                    code,
+                    KeyedWholeBefore(member),
+                    FragmentValueType(member),
+                    member.Property.Type.IsReferenceType
                 );
-                code.AppendLineAt(
-                    2,
-                    "internal readonly " + opt + " " + KeyedWholeAfter(member) + ";"
+                storage.AppendFields(
+                    code,
+                    KeyedWholeAfter(member),
+                    FragmentValueType(member),
+                    member.Property.Type.IsReferenceType
                 );
                 code.AppendLineAt(
                     2,
@@ -177,9 +179,18 @@ internal static class SparseChangeSetBasicsEmitter
             }
             else
             {
-                var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
-                code.AppendLineAt(2, "internal readonly " + opt + " " + BeforeField(member) + ";");
-                code.AppendLineAt(2, "internal readonly " + opt + " " + AfterField(member) + ";");
+                storage.AppendFields(
+                    code,
+                    BeforeField(member),
+                    FragmentValueType(member),
+                    member.Property.Type.IsReferenceType
+                );
+                storage.AppendFields(
+                    code,
+                    AfterField(member),
+                    FragmentValueType(member),
+                    member.Property.Type.IsReferenceType
+                );
                 code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
             }
         }
@@ -190,7 +201,8 @@ internal static class SparseChangeSetBasicsEmitter
         ImmutableArray<SparseMemberModel> members,
         string runtime,
         string optionalFragment,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseChangeSetStorageLayout storage
     )
     {
         ComputePublicNames(members, out _, out var transNames);
@@ -258,8 +270,8 @@ internal static class SparseChangeSetBasicsEmitter
         code.AppendLineAt(2, "internal ChangeSet(" + string.Join(", ", parts) + ")");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "__sparse_hasWhole = hasWhole;");
-        code.AppendLineAt(3, "__sparse_wholeBefore = wholeBefore;");
-        code.AppendLineAt(3, "__sparse_wholeAfter = wholeAfter;");
+        storage.AppendAssignment(code, "__sparse_wholeBefore", "wholeBefore");
+        storage.AppendAssignment(code, "__sparse_wholeAfter", "wholeAfter");
         foreach (var member in members)
         {
             if (IsNested(member))
@@ -270,8 +282,8 @@ internal static class SparseChangeSetBasicsEmitter
             {
                 code.AppendLineAt(3, HasField(member) + " = has" + member.Id + ";");
                 code.AppendLineAt(3, KeyedWholeFlag(member) + " = whole" + member.Id + ";");
-                code.AppendLineAt(3, KeyedWholeBefore(member) + " = wholeBefore" + member.Id + ";");
-                code.AppendLineAt(3, KeyedWholeAfter(member) + " = wholeAfter" + member.Id + ";");
+                storage.AppendAssignment(code, KeyedWholeBefore(member), "wholeBefore" + member.Id);
+                storage.AppendAssignment(code, KeyedWholeAfter(member), "wholeAfter" + member.Id);
                 code.AppendLineAt(3, KeyedItems(member) + " = items" + member.Id + ";");
                 if (IsKeyed(member))
                 {
@@ -298,8 +310,8 @@ internal static class SparseChangeSetBasicsEmitter
             }
             else
             {
-                code.AppendLineAt(3, BeforeField(member) + " = before" + member.Id + ";");
-                code.AppendLineAt(3, AfterField(member) + " = after" + member.Id + ";");
+                storage.AppendAssignment(code, BeforeField(member), "before" + member.Id);
+                storage.AppendAssignment(code, AfterField(member), "after" + member.Id);
                 code.AppendLineAt(3, HasField(member) + " = has" + member.Id + ";");
             }
         }

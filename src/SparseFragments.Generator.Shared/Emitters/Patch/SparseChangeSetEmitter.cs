@@ -61,19 +61,15 @@ internal static class SparseChangeSetEmitter
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
         var internalCode = surfaceDeferred ?? code;
-        SparseChangeSetBasicsEmitter.AppendFields(
-            internalCode,
-            members,
-            runtime,
-            optionalFragment,
-            dialect
-        );
+        var storage = new SparseChangeSetStorageLayout(members, runtime);
+        SparseChangeSetBasicsEmitter.AppendFields(internalCode, members, dialect, storage);
         SparseChangeSetBasicsEmitter.AppendConstructor(
             internalCode,
             members,
             runtime,
             optionalFragment,
-            dialect
+            dialect,
+            storage
         );
         SparseChangeSetBasicsEmitter.AppendIsEmpty(code, members);
         SparseChangeSetContractEmitter.AppendChangeSetContract(code, members, dialect);
@@ -250,6 +246,7 @@ internal static class SparseChangeSetEmitter
             code.Append(resolutionInfra.ToString());
         }
         code.Append(keyedProjectionFields);
+        storage.AppendPrivateFields(code);
         code.AppendLineAt(1, "}");
         code.AppendLine();
         if (plan.EmitChangePayload)
