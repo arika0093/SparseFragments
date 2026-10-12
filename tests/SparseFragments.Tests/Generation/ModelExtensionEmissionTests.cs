@@ -121,8 +121,8 @@ public sealed class ModelExtensionEmissionTests
         generated.GeneratedSource.ShouldContain("internal partial class InternalStableModel");
         generated.GeneratedSource.ShouldContain("internal sealed class Fragment");
         generated.GeneratedSource.ShouldContain("internal sealed class FragmentBuilder");
-        generated.GeneratedSource.ShouldContain("internal sealed class Patch");
-        generated.GeneratedSource.ShouldContain("internal sealed class ChangeSet");
+        generated.GeneratedSource.ShouldContain("internal sealed partial class Patch");
+        generated.GeneratedSource.ShouldContain("internal sealed partial class ChangeSet");
         generated.GeneratedSource.ShouldContain("internal static partial class");
         generated.GeneratedSource.ShouldContain(
             "internal static global::Stable.Generated.InternalStableModel.ChangeSet CreateChangeSet"

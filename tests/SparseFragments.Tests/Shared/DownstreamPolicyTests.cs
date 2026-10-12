@@ -205,8 +205,8 @@ public sealed class DownstreamPolicyTests
     {
         var text = BuildSource(DownstreamConfig(DownstreamDialect()), SecretMembers());
 
-        text.ShouldContain("public sealed class Patch");
-        text.ShouldContain("public sealed class ChangeSet");
+        text.ShouldContain("partial class Patch");
+        text.ShouldContain("partial class ChangeSet");
         text.ShouldContain("ChangePayload");
         text.ShouldContain("public sealed class Observable");
         text.ShouldContain("FragmentJsonConverter");
@@ -228,8 +228,8 @@ public sealed class DownstreamPolicyTests
         );
         var text = BuildSource(DownstreamConfig(DownstreamDialect(), features), SecretMembers());
 
-        text.ShouldContain("public sealed class Patch");
-        text.ShouldContain("public sealed class ChangeSet");
+        text.ShouldContain("partial class Patch");
+        text.ShouldContain("partial class ChangeSet");
         text.ShouldNotContain("public sealed class Observable");
         // Payload DTOs are omitted, though the shared rebase-options
         // vocabulary (#120) still names caller-owned ChangePayload types.
@@ -262,8 +262,8 @@ public sealed class DownstreamPolicyTests
         var features = new SparseEmissionFeatures(EmitChangeSet: false, EmitChangePayload: false);
         var text = BuildSource(DownstreamConfig(DownstreamDialect(), features), SecretMembers());
 
-        text.ShouldContain("public sealed class Patch");
-        text.ShouldNotContain("public sealed class ChangeSet");
+        text.ShouldContain("partial class Patch");
+        text.ShouldNotContain("partial class ChangeSet");
     }
 
     [Test]

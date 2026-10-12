@@ -345,17 +345,18 @@ incremental isolation covers both.
 With an explicit implementation namespace, model-specific Patch algorithms
 (apply, compose, invert, rebase and nested/keyed/dictionary operations) and
 ChangeSet algorithms (Between, Compose, Invert, Rebase, Apply, enumeration,
-payload projection and restoration) stream into the per-model
-`PatchOperations`/`ChangeSetOperations` containers. The model keeps thin
-typed facades: Patch retains its fields, typed `ref` member access, lazy
-nested identity, constructors and whole operations; ChangeSet retains its
-canonical sparse storage, constructor and typed transition API. Operation
-bodies take the facade as an explicit parameter and reach state through
-`internal` bridges, so `ref` identity, lazy aliasing, canonical sparsity
-and ownership behave as in single-file emission. Bare `Patch`/`ChangeSet`/
-`Fragment` references inside moved bodies resolve through file-level `using`
-aliases, so emitters carry no product-specific qualification. A null
-namespace keeps the legacy single-file emission for downstream dialects.
+payload projection and restoration) live in the private nested
+`Patch.__Core`/`ChangeSet.__Core` with direct private-state access. The model
+keeps thin typed facades: Patch retains private fields, typed `ref` member
+access, lazy nested identity, constructors and whole operations; ChangeSet
+retains private canonical sparse storage, a private constructor and the typed
+transition API. Facades call their nested core; the core reads and writes
+private state without an internal bridge. Cross-family use goes through typed
+facades or narrow internal `__Sparse*` bridges, so `ref` identity, lazy
+aliasing, canonical sparsity and ownership behave as in single-file emission.
+The per-model implementation container hosts only public `FragmentBuilder`
+and paths. A null namespace keeps the legacy single-file emission for
+downstream dialects.
 
 Compilation-scoped helpers live in the same namespace with stable hint names
 (`Generated.ReadOnlyAdapters.g.cs`, `Generated.CloneKernels.g.cs`,

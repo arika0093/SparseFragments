@@ -739,9 +739,10 @@ internal static class SparseFragmentEmitter
 
         // Single-file union: payload DTOs, Fragment operations/converter
         // (reloc-2) already streamed into the implementation builder inside
-        // its namespace block; co-host the Patch/ChangeSet operation container
-        // (reloc-3) as a sibling partial class in the same namespace so one
-        // hint carries coexisting containers under the fixed identity.
+        // its namespace block; the per-model container hosts public
+        // Builder/Paths only. State-bound Patch/ChangeSet bodies live in the
+        // private nested Patch.__Core / ChangeSet.__Core (issue #230), so no
+        // internal operation container is co-hosted here.
         if (
             operationTarget is not null
             && operationContainer is not null
@@ -801,30 +802,38 @@ internal static class SparseFragmentEmitter
                     implementationBuilder.Append(pathsBody.ToString());
                 }
             }
-            SparseModelOperationFileEmitter.OpenOperations(
-                implementationBuilder,
-                SparseGeneratedPlacement.PatchOperationsSimpleName,
-                "Patch"
-            );
-            // Internal-first ordering: many emitters interleave helpers, so the
-            // container body is reordered here with bodies untouched.
-            SparseOperationOrdering.AppendInternalFirst(
-                implementationBuilder,
-                patchOperations.ToString()
-            );
-            SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
-            if (features.EmitChangeSet && changeSetOperations is not null)
+            // State-bound Patch/ChangeSet bodies now live in the private nested
+            // Patch.__Core / ChangeSet.__Core with direct private-state access.
+            // The implementation container keeps only public Builder/Paths (no
+            // co-hosted internal algorithm owners). Empty operation containers
+            // from the legacy split are omitted to minimize the internal surface.
+            var patchOpsText = patchOperations.ToString();
+            if (!string.IsNullOrWhiteSpace(patchOpsText))
             {
                 SparseModelOperationFileEmitter.OpenOperations(
                     implementationBuilder,
-                    SparseGeneratedPlacement.ChangeSetOperationsSimpleName,
-                    "ChangeSet"
+                    SparseGeneratedPlacement.PatchOperationsSimpleName,
+                    "Patch"
                 );
-                SparseOperationOrdering.AppendInternalFirst(
-                    implementationBuilder,
-                    changeSetOperations.ToString()
-                );
+                SparseOperationOrdering.AppendInternalFirst(implementationBuilder, patchOpsText);
                 SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
+            }
+            if (features.EmitChangeSet && changeSetOperations is not null)
+            {
+                var changeSetOpsText = changeSetOperations.ToString();
+                if (!string.IsNullOrWhiteSpace(changeSetOpsText))
+                {
+                    SparseModelOperationFileEmitter.OpenOperations(
+                        implementationBuilder,
+                        SparseGeneratedPlacement.ChangeSetOperationsSimpleName,
+                        "ChangeSet"
+                    );
+                    SparseOperationOrdering.AppendInternalFirst(
+                        implementationBuilder,
+                        changeSetOpsText
+                    );
+                    SparseModelOperationFileEmitter.CloseOperations(implementationBuilder);
+                }
             }
             implementationBuilder.AppendLineAt(1, "}");
         }

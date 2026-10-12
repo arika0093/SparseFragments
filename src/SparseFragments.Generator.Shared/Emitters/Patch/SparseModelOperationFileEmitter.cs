@@ -4,16 +4,15 @@ using System.Threading;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Per-model Patch/ChangeSet implementation file shell.</summary>
+/// <summary>Per-model Builder/Paths implementation file shell.</summary>
 /// <remarks>
-/// Issue #194 relocates model-specific Patch and ChangeSet algorithms into
-/// an external per-model operation container while the model keeps thin
-/// typed facades. This emitter writes the implementation file envelope
-/// (header, facade aliases, namespace, per-model container and operation
-/// class frames); the algorithm bodies themselves stream into the provided
-/// builders through the existing Patch/ChangeSet emitters with a
-/// <see cref="SparseOperationTarget"/>. Placement and hint names resolve
-/// through <see cref="SparseGeneratedPlacement"/> with no product literals.
+/// Issue #194 relocated model-specific algorithms into an external per-model
+/// container. Issue #230 moves the state-bound Patch and ChangeSet bodies
+/// into the private nested <c>Patch.__Core</c> and <c>ChangeSet.__Core</c>,
+/// so this container hosts only public <c>FragmentBuilder</c> and paths.
+/// This emitter writes the implementation file envelope; placement and hint
+/// names resolve through <see cref="SparseGeneratedPlacement"/> with no
+/// product literals.
 /// </remarks>
 internal static class SparseModelOperationFileEmitter
 {

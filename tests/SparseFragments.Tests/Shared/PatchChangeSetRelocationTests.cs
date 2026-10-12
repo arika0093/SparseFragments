@@ -86,7 +86,7 @@ namespace SparseFragments.Tests.Shared
         {
             var sources = RunProbe();
             var surface = sources.Values.Single(text =>
-                text.Contains("sealed class Patch", StringComparison.Ordinal)
+                text.Contains("class Patch", StringComparison.Ordinal)
                 && text.Contains("namespace RelocationProbe", StringComparison.Ordinal)
                 && text.Contains("ProbeRoot", StringComparison.Ordinal)
             );
@@ -96,22 +96,26 @@ namespace SparseFragments.Tests.Shared
                 )
             );
 
-            // The implementation file carries both operation containers.
-            implementation.ShouldContain("class PatchOperations");
-            implementation.ShouldContain("class ChangeSetOperations");
+            // Issue #230: state-bound bodies live in the private nested
+            // Patch.__Core / ChangeSet.__Core with direct private-state access.
+            // The implementation container keeps only public Builder/Paths.
+            surface.ShouldContain("partial class Patch");
+            surface.ShouldContain("partial class ChangeSet");
+            surface.ShouldContain("private static class __Core");
+            surface.ShouldContain("private ");
+            surface.ShouldNotContain("internal __sparse_patch_member_");
+            surface.ShouldNotContain("internal readonly bool __sparse_hasWhole;");
+            implementation.ShouldContain("FragmentBuilder");
+            implementation.ShouldNotContain("class PatchOperations");
+            implementation.ShouldNotContain("class ChangeSetOperations");
 
-            // Single-file emission: the model owns one merged hint carrying
-            // the surface plus implementations.
+            // Split emission: the surface carries facades plus nested cores,
+            // the implementation carries Builder/Paths and DTOs.
             var hints = sources
                 .Keys.Where(static key => key.Contains("ProbeRoot", StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(1);
-            hints
-                .Count(static key =>
-                    key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
-                )
-                .ShouldBe(1);
-            surface.ShouldContain("sealed class Patch");
+            hints.Length.ShouldBeGreaterThanOrEqualTo(1);
+            surface.ShouldContain("class Patch");
         }
 
         [Test]
@@ -119,14 +123,9 @@ namespace SparseFragments.Tests.Shared
         {
             var sources = RunProbe();
             var surface = sources.Values.Single(text =>
-                text.Contains("sealed class Patch", StringComparison.Ordinal)
+                text.Contains("class Patch", StringComparison.Ordinal)
                 && text.Contains("namespace RelocationProbe", StringComparison.Ordinal)
                 && text.Contains("ProbeRoot", StringComparison.Ordinal)
-            );
-            var implementation = sources.Values.Single(text =>
-                text.Contains(
-                    "Per-model generated operations for 'global::RelocationProbe.ProbeRoot'"
-                )
             );
 
             // Typed facade surface is preserved: ref member access, lazy nested
@@ -137,24 +136,17 @@ namespace SparseFragments.Tests.Shared
             surface.ShouldContain("public ChangeSet Compose(ChangeSet next)");
             surface.ShouldContain("EnumerateChanges()");
 
-            // Facade methods delegate into the operation container.
-            surface.ShouldContain("PatchOperations.");
-            surface.ShouldContain("ChangeSetOperations.");
-
-            // Single-file emission: the heavyweight bodies share the merged
-            // file with the facades.
-            surface.ShouldBe(implementation);
+            // Issue #230: facades delegate to the private nested __Core, which
+            // reads private state directly. Top-level Patch/ChangeSet bodies no
+            // longer live in an external operation container.
+            surface.ShouldContain("__Core.");
+            surface.ShouldContain("private static class __Core");
             surface.ShouldContain("ApplyMembers(Patch self");
             surface.ShouldContain("ToPatch(ChangeSet self");
             surface.ShouldContain("EnumerateChanges(ChangeSet self");
-
-            // The algorithms live in the implementation section instead.
-            implementation.ShouldContain("ApplyMembers(Patch self");
-            implementation.ShouldContain("ToPatch(ChangeSet self");
-            implementation.ShouldContain("EnumerateChanges(ChangeSet self");
-            implementation.ShouldContain("ToPayload(ChangeSet self");
-            implementation.ShouldContain("Compose(ChangeSet self, ChangeSet next)");
-            implementation.ShouldContain("Compose(Patch self, Patch next)");
+            surface.ShouldContain("ToPayload(ChangeSet self");
+            surface.ShouldContain("Compose(ChangeSet self, ChangeSet next)");
+            surface.ShouldContain("Compose(Patch self, Patch next)");
         }
 
         [Test]

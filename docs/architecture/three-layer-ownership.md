@@ -154,8 +154,15 @@ distinct, and unrelated model edits never churn other roots.
 ## Ownership and dependency table
 
 Status reflects the landed implementation after the #190–#195 relocation
-(all migration issues closed). The migration column is history: it records
+and the #230 visibility narrowing. The migration column is history: it records
 which change landed each row, not pending work.
+Remaining `internal` members are narrow cross-boundary seams: Patch
+`__SparseIsEmpty`/`__SparseSet*` for Patch/ChangeSet and payload use,
+ChangeSet canonical construction through its private `__Core`, Fragment
+`__SparseAreEqual` and strategy caches for Patch/ChangeSet readers,
+Observable `__SparseTarget`/`__SparseRefresh`/`__Raise` for descriptor and
+session use, and model `__SparseAttributes_*` for private attribute reads.
+Payload DTOs stay public under E1.
 
 | Helper family | Current location | Target layer | Criteria | Migration |
 | --- | --- | --- | --- | --- |
@@ -166,7 +173,7 @@ which change landed each row, not pending work.
 | `SparseFragmentRuntime` itself | Runtime (public facade) | Runtime, narrowed to the required generated-to-runtime contract | C2 | #186 landed |
 | Generic clone/collection helpers emitted per model (`__Clone*`, materializers) | Generated-Once (`Generated.CloneKernels.g.cs`, read-only adapters, removal index) | Generated-Once | C3, C4 | #178, #176 landed (#190–#195) |
 | Payload Core/Root/Change/item DTOs | Generated-Once implementation containers (`__Internal_<hash>`, E1 stays public) | Generated-Once implementation containers (E1 stays public) | C4, C6 | #176 landed (#192) |
-| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model operations delegating to Generated-Once generics where C3 applies; bodies in `<Container>FragmentOperations` (`file`-scoped on C# 11+), `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194) |
+| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model state-bound bodies in private nested `Patch.__Core` / `ChangeSet.__Core` with direct private-state access; pure/shared kernels stay in Generated-Once or `file`-scoped helpers where C3 applies. The per-model container hosts only public `FragmentBuilder`/`SparsePaths` | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194); #230 moved state-bound bodies to private nested cores |
 | JSON converters, descriptor factories | Per-Model facades over implementation-namespace bodies | Per-Model, under implementation namespace | C5 | #176 landed (#191, #192) |
 | `Observable`, `ReadOnlyView`, `EditSession` | Model-nested types in the annotated model | Model-nested types | C2, C5 | UI/session return (builders/paths move the other way) |
 | `FragmentBuilder`, `SparsePaths<TRoot>` | Implementation-namespace Per-Model types in `SparseFragments.Generated` | Implementation-namespace Per-Model types | C2, C5 | Builder/paths relocation (with `Model.SparsePath` entry point) |

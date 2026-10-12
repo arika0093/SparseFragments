@@ -96,9 +96,10 @@ internal static class SparseChangeSetBasicsEmitter
         SparseChangeSetStorageLayout storage
     )
     {
-        // Canonical sparse storage stays on the facade; relocated operation
-        // bodies reach it through internal access.
-        code.AppendLineAt(2, "internal readonly bool __sparse_hasWhole;");
+        // Canonical sparse storage is private; the nested ChangeSet.__Core reads
+        // it directly. Cross-family seams use typed facades or narrow internal
+        // bridges, never direct field access.
+        code.AppendLineAt(2, "private readonly bool __sparse_hasWhole;");
         storage.AppendFields(code, "__sparse_wholeBefore", "Fragment?", true);
         storage.AppendFields(code, "__sparse_wholeAfter", "Fragment?", true);
         ComputePublicNames(members, out _, out var transNames);
@@ -108,7 +109,7 @@ internal static class SparseChangeSetBasicsEmitter
             {
                 code.AppendLineAt(
                     2,
-                    "internal readonly "
+                    "private readonly "
                         + ChildChangeSet(member, dialect)
                         + "? "
                         + NestedField(member)
@@ -120,8 +121,8 @@ internal static class SparseChangeSetBasicsEmitter
                 // Canonical sparse storage. No full member snapshots.
                 var trans = transNames[member.Id];
                 var keyType = KeyTypeOf(member);
-                code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
-                code.AppendLineAt(2, "internal readonly bool " + KeyedWholeFlag(member) + ";");
+                code.AppendLineAt(2, "private readonly bool " + HasField(member) + ";");
+                code.AppendLineAt(2, "private readonly bool " + KeyedWholeFlag(member) + ";");
                 storage.AppendFields(
                     code,
                     KeyedWholeBefore(member),
@@ -136,7 +137,7 @@ internal static class SparseChangeSetBasicsEmitter
                 );
                 code.AppendLineAt(
                     2,
-                    "internal readonly global::System.Collections.Generic.List<"
+                    "private readonly global::System.Collections.Generic.List<"
                         + trans
                         + ".Item>? "
                         + KeyedItems(member)
@@ -146,7 +147,7 @@ internal static class SparseChangeSetBasicsEmitter
                 {
                     code.AppendLineAt(
                         2,
-                        "internal readonly global::System.Collections.Generic.List<"
+                        "private readonly global::System.Collections.Generic.List<"
                             + keyType
                             + ">? "
                             + KeyedBeforeOrder(member)
@@ -154,7 +155,7 @@ internal static class SparseChangeSetBasicsEmitter
                     );
                     code.AppendLineAt(
                         2,
-                        "internal readonly global::System.Collections.Generic.List<"
+                        "private readonly global::System.Collections.Generic.List<"
                             + keyType
                             + ">? "
                             + KeyedAfterOrder(member)
@@ -164,13 +165,13 @@ internal static class SparseChangeSetBasicsEmitter
                     {
                         code.AppendLineAt(
                             2,
-                            "internal readonly global::System.Collections.Generic.List<global::System.Guid>? "
+                            "private readonly global::System.Collections.Generic.List<global::System.Guid>? "
                                 + KeyedTempBeforeOrder(member)
                                 + ";"
                         );
                         code.AppendLineAt(
                             2,
-                            "internal readonly global::System.Collections.Generic.List<global::System.Guid>? "
+                            "private readonly global::System.Collections.Generic.List<global::System.Guid>? "
                                 + KeyedTempAfterOrder(member)
                                 + ";"
                         );
@@ -191,7 +192,7 @@ internal static class SparseChangeSetBasicsEmitter
                     FragmentValueType(member),
                     member.Property.Type.IsReferenceType
                 );
-                code.AppendLineAt(2, "internal readonly bool " + HasField(member) + ";");
+                code.AppendLineAt(2, "private readonly bool " + HasField(member) + ";");
             }
         }
     }
@@ -265,9 +266,9 @@ internal static class SparseChangeSetBasicsEmitter
                 parts.Add("bool has" + member.Id);
             }
         }
-        // The canonical-state constructor stays on the facade; relocated
-        // operation bodies construct through internal access.
-        code.AppendLineAt(2, "internal ChangeSet(" + string.Join(", ", parts) + ")");
+        // The canonical-state constructor is private; the nested __Core builds
+        // instances directly. No external container constructs ChangeSets.
+        code.AppendLineAt(2, "private ChangeSet(" + string.Join(", ", parts) + ")");
         code.AppendLineAt(2, "{");
         code.AppendLineAt(3, "__sparse_hasWhole = hasWhole;");
         storage.AppendAssignment(code, "__sparse_wholeBefore", "wholeBefore");

@@ -7,25 +7,23 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Relocation target for per-model Patch and ChangeSet operations.</summary>
 /// <remarks>
 /// <para>
-/// Issue #194 moves model-specific Patch (apply, compose, invert, rebase and
-/// nested/keyed/dictionary operations) and ChangeSet (Between, Compose,
-/// Invert, Rebase, Apply, EnumerateChanges, projection and restoration)
-/// algorithms out of the model-nested facades into external per-model
-/// operation containers. Emitters receive this target alongside the facade
-/// builder: a null target keeps the legacy single-file emission for
-/// downstream dialects without an implementation namespace, while a non-null
-/// target writes a thin delegating stub to the facade and the algorithm body
-/// to the operation container.
+/// Issue #194 moved model-specific Patch and ChangeSet algorithms out of the
+/// facades into external per-model operation containers. Issue #230 moves the
+/// state-bound bodies into the private nested <c>Patch.__Core</c> and
+/// <c>ChangeSet.__Core</c> with direct private-state access. Emitters receive
+/// this target alongside the facade builder: a null target keeps the legacy
+/// single-file emission for downstream dialects without an implementation
+/// namespace, while a non-null target writes a thin delegating stub to the
+/// facade and the algorithm body to the nested core (<c>__Core</c>).
 /// </para>
 /// <para>
-/// Facade state never moves: Patch keeps its typed <c>ref</c> member access
-/// and lazy nested identity, and ChangeSet keeps its canonical sparse
-/// storage. Operation bodies therefore take the facade as an explicit
-/// <c>self</c> parameter and reach state through <c>internal</c> bridges.
-/// Bare <c>Patch</c>/<c>ChangeSet</c>/<c>Fragment</c> references inside moved
-/// bodies resolve through file-level <c>using</c> aliases emitted by
-/// <see cref="SparseModelOperationAliases"/>, so emitter bodies stay
-/// product-neutral with no hard-coded product names.
+/// Facade state stays private: Patch keeps private fields, typed <c>ref</c>
+/// member access and lazy nested identity, and ChangeSet keeps private
+/// canonical sparse storage with a private constructor. Nested cores take the
+/// facade as an explicit <c>self</c> parameter and read private state
+/// directly. Cross-family use goes through typed facades or narrow internal
+/// <c>__Sparse*</c> bridges. Bare names resolve lexically inside the facade,
+/// so emitter bodies stay product-neutral with no hard-coded product names.
 /// </para>
 /// </remarks>
 internal sealed class SparseOperationTarget

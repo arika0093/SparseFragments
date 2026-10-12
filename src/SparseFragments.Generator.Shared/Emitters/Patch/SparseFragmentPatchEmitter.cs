@@ -397,15 +397,31 @@ internal static class SparseFragmentPatchEmitter
             1,
             "/// <summary>Desired-operation patch without baseline history. Applies directly to fragments and models.</summary>"
         );
-        code.AppendLineAt(1, accessibility + " sealed class Patch");
+        code.AppendLineAt(1, accessibility + " sealed partial class Patch");
         code.AppendLineAt(1, "{");
+        // State-bound bodies live in the private nested __Core, which reads
+        // private facade state directly. When split emission is active the
+        // facades delegate to __Core instead of an external operation
+        // container; pure/shared kernels stay detached in Generated-Once.
+        SparseOperationTarget? patchTarget = target;
+        SharedIndentedBuilder? patchCore = null;
+        if (target is not null)
+        {
+            patchCore = new SharedIndentedBuilder(code.CancellationToken) { IndentOffset = 1 };
+            patchTarget = new SparseOperationTarget(
+                patchCore,
+                target.ChangeSetOperations,
+                "__Core",
+                target.ChangeSetOperationsType
+            );
+        }
         SparseKeyedCollectionEmitter.EmitCollectionPatches(
             code,
             members,
             dialect,
             modelType,
             implementationNamespace,
-            target
+            patchTarget
         );
         // Constructors lead the public group (public -> internal -> private order).
         SparseFragmentPatchCoreEmitter.AppendPatchConstructor(code, members, dialect);
@@ -423,27 +439,27 @@ internal static class SparseFragmentPatchEmitter
             members,
             dialect,
             "public " + optional + " Apply(" + optional + " current)",
-            target
+            patchTarget
         );
-        AppendApplyTo(code, modelType, ignoredSettablePropertyNames, target);
+        AppendApplyTo(code, modelType, ignoredSettablePropertyNames, patchTarget);
         if (canApplyInPlace)
         {
             AppendApplyInPlaceResult(code);
-            AppendApplyInPlace(code, modelType, members, dialect, target);
+            AppendApplyInPlace(code, modelType, members, dialect, patchTarget);
         }
         SparseFragmentPatchAlgebraEmitter.AppendPatchAlgebra(
             code,
             modelType,
             members,
             dialect,
-            target
+            patchTarget
         );
         SparseFragmentPatchRebaseEmitter.AppendPatchRebase(
             code,
             modelType,
             members,
             dialect,
-            target
+            patchTarget
         );
         if (plan.EmitChangePayload)
         {
@@ -453,14 +469,30 @@ internal static class SparseFragmentPatchEmitter
                 dialect,
                 modelType,
                 implementationNamespace,
-                target
+                patchTarget
             );
         }
-        // Internal group trails the public surface: backing fields, whole
-        // storage, then internal bridges.
-        SparseFragmentPatchCoreEmitter.AppendPatchMemberFields(code, members, dialect);
+        // Public-first order: internal bridges precede private storage.
+        // ApplyMembers facade (internal) and whole bridges (internal) lead,
+        // then private backing fields and storage, then the private __Core.
+        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, patchTarget);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeStorage(code, modelType, members, dialect);
-        SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, target);
+        SparseFragmentPatchCoreEmitter.AppendPatchMemberFields(code, members, dialect);
+        if (patchCore is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>State-bound Patch algorithms with direct private-state access.</summary>"
+            );
+            code.AppendLineAt(2, "private static class __Core");
+            code.AppendLineAt(2, "{");
+            // Many emitters interleave internal entry points and private
+            // helpers; reorder internal-first so public-first ordering holds
+            // inside the nested core with bodies untouched.
+            SparseOperationOrdering.AppendInternalFirst(code, patchCore.ToString());
+            code.AppendLineAt(2, "}");
+            patchCore.Dispose();
+        }
         code.AppendLineAt(1, "}");
         if (plan.EmitChangeSet)
         {

@@ -51,20 +51,38 @@ internal static class SparseChangeSetEmitter
         code.AppendLineAt(
             1,
             accessibility
-                + " sealed class ChangeSet"
+                + " sealed partial class ChangeSet"
                 + SparseChangeSetContractEmitter.ChangeSetBases(dialect)
         );
         code.AppendLineAt(1, "{");
-        // Public-first order: canonical storage and match probes trail the
-        // public surface so no internal member precedes a public one.
-        using var surfaceDeferred = target is null
+        // State-bound bodies live in the private nested __Core with direct
+        // private-state access; facades delegate to __Core instead of an
+        // external container. Pure/shared kernels stay in Generated-Once.
+        SharedIndentedBuilder? changeSetCore = null;
+        if (target is not null)
+        {
+            changeSetCore = new SharedIndentedBuilder(code.CancellationToken) { IndentOffset = 1 };
+            target = new SparseOperationTarget(
+                target.PatchOperations,
+                changeSetCore,
+                target.PatchOperationsType,
+                "__Core"
+            );
+        }
+        // Public-first order: internal probes precede private canonical storage.
+        // Split emission defers both: internal match bridges first, then
+        // private storage and constructor, so no private precedes internal.
+        using var surfaceDeferred = changeSetCore is null
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
-        var internalCode = surfaceDeferred ?? code;
+        using var privateDeferred = changeSetCore is null
+            ? null
+            : new SharedIndentedBuilder(code.CancellationToken);
+        var storageCode = privateDeferred ?? code;
         var storage = new SparseChangeSetStorageLayout(members, runtime);
-        SparseChangeSetBasicsEmitter.AppendFields(internalCode, members, dialect, storage);
+        SparseChangeSetBasicsEmitter.AppendFields(storageCode, members, dialect, storage);
         SparseChangeSetBasicsEmitter.AppendConstructor(
-            internalCode,
+            storageCode,
             members,
             runtime,
             optionalFragment,
@@ -241,12 +259,28 @@ internal static class SparseChangeSetEmitter
         {
             code.Append(surfaceDeferred.ToString());
         }
+        if (privateDeferred is not null)
+        {
+            code.Append(privateDeferred.ToString());
+        }
         if (resolutionInfra is not null)
         {
             code.Append(resolutionInfra.ToString());
         }
         code.Append(keyedProjectionFields);
         storage.AppendPrivateFields(code);
+        if (changeSetCore is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>State-bound ChangeSet algorithms with direct private-state access.</summary>"
+            );
+            code.AppendLineAt(2, "private static class __Core");
+            code.AppendLineAt(2, "{");
+            SparseOperationOrdering.AppendInternalFirst(code, changeSetCore.ToString());
+            code.AppendLineAt(2, "}");
+            changeSetCore.Dispose();
+        }
         code.AppendLineAt(1, "}");
         code.AppendLine();
         if (plan.EmitChangePayload)
