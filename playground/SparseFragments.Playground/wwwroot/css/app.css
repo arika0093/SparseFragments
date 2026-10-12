@@ -185,36 +185,6 @@ a, .btn-link {
     gap: 0.5rem;
 }
 
-/* Per-case pages: sticky sample nav beside the content. */
-.pg-body {
-    display: flex;
-    gap: 1.5rem;
-    align-items: flex-start;
-}
-
-.pg-nav {
-    flex: 0 0 13rem;
-    position: sticky;
-    top: 1rem;
-}
-
-.pg-content {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-@media (max-width: 62rem) {
-    .pg-body {
-        flex-direction: column;
-    }
-
-    .pg-nav {
-        flex: none;
-        width: 100%;
-        position: static;
-    }
-}
-
 .pg-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
@@ -748,6 +718,30 @@ a, .btn-link {
 
 .pg-task-add {
     justify-self: end;
+}
+
+/* Overview sample links and per-case prev/next pager: plain anchors so the
+   Blazor router handles navigation (FluentButton has no Href in v5). */
+.pg-case-link,
+.pg-page-link {
+    display: inline-block;
+    padding: 0.45rem 1rem;
+    border-radius: 4px;
+    background: var(--accent-fill-rest);
+    color: #fff;
+    text-decoration: none;
+}
+
+.pg-case-link:hover,
+.pg-page-link:hover {
+    color: #fff;
+}
+
+.pg-pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
 }
 
 .pg-session-legend {

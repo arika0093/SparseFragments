@@ -23,9 +23,10 @@
             <MonacoView Content="@BaselineJson" Language="json" Height="270px" />
         </FluentCard>
     </div>
-    <FluentCard Class="pg-fluent-card">
-        <div class="pg-card-head">
-            <h3>3. Edit draft</h3>
+    <div class="pg-grid pg-grid-duo">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head">
+                <h3>3. Edit draft</h3>
                 <div class="pg-actions">
                     <FluentButton Appearance="ButtonAppearance.Default" @onclick="ResetDraft">Reset draft</FluentButton>
                     <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
@@ -101,7 +102,6 @@
             </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
         </FluentCard>
-    <div class="pg-grid">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>4. Save Entity</h3>
