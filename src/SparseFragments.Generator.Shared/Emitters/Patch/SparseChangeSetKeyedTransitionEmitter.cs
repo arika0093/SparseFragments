@@ -202,6 +202,15 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         code.AppendLineAt(3, "/// <returns>The typed change for the key.</returns>");
         code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
         code.AppendLineAt(3, "{");
+        if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
+        {
+            code.AppendLineAt(
+                4,
+                "if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
+                    + ") return Item.Empty;"
+            );
+        }
         code.AppendLineAt(4, "var __lookup = _lookup;");
         code.AppendLineAt(4, "if (__lookup is null)");
         code.AppendLineAt(4, "{");
@@ -220,12 +229,6 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 "foreach (var __item in _items) if (!"
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__item.Key")
                     + ") __lookup[__item.Key] = __item;"
-            );
-            code.AppendLineAt(
-                4,
-                "if ("
-                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "key")
-                    + ") return Item.Empty;"
             );
         }
         else

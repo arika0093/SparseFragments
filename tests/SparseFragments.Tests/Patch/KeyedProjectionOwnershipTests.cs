@@ -12,6 +12,20 @@ public partial class ProjectionCacheCollisionHolder
 public sealed class KeyedProjectionOwnershipTests
 {
     [Test]
+    public void NullSentinelLookupStaysEmptyAfterAssignedLookup()
+    {
+        var changes = ExplicitNullKeyServerHolder.ChangeSet.Between(
+            new ExplicitNullKeyServerHolder { Items = [new() { Id = "server", Name = "before" }] },
+            new ExplicitNullKeyServerHolder { Items = [new() { Id = "server", Name = "after" }] }
+        );
+        var transition = changes.Items;
+        transition.GetChange("server").IsEdited.ShouldBeTrue();
+        transition.GetChange(null!).IsEmpty.ShouldBeTrue();
+        changes.Items.GetChange(null!).IsEmpty.ShouldBeTrue();
+        transition.GetChange("server").IsEdited.ShouldBeTrue();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public void WholeKeyedViewsReturnIndependentContainerSnapshots(bool wholeRoot)
