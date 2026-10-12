@@ -104,10 +104,12 @@ public sealed class PlaygroundEfContext : DbContext
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Note: Sku is a plain business column on purpose. The stable key is
+        // Id, so declaring an alternate key here would protect Sku writes
+        // and reject the generated same-name default at mapper creation.
         modelBuilder.Entity<PlaygroundOrderLineEntity>(entity =>
         {
             entity.HasKey(line => line.Id);
-            entity.HasAlternateKey(line => line.Sku);
         });
         modelBuilder.Entity<PlaygroundOrderEntity>(entity =>
         {
