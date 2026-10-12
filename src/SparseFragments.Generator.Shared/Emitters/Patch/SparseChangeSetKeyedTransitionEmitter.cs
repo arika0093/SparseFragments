@@ -873,6 +873,13 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + ".Item>(), true);"
         );
         code.AppendLineAt(3, "}");
+        var wholeBefore = KeyedWholeBefore(member);
+        var wholeAfter = KeyedWholeAfter(member);
+        if (SparseChangeSetTransitionEmitter.NeedsSnapshot(member))
+        {
+            wholeBefore = "__SparseSnapshot_" + member.Id + "(" + wholeBefore + ")";
+            wholeAfter = "__SparseSnapshot_" + member.Id + "(" + wholeAfter + ")";
+        }
         code.AppendLineAt(
             3,
             "if ("
@@ -880,9 +887,9 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + ") return __SparseBuild_"
                 + member.Id
                 + "("
-                + KeyedWholeBefore(member)
+                + wholeBefore
                 + ", "
-                + KeyedWholeAfter(member)
+                + wholeAfter
                 + ");"
         );
         code.AppendLineAt(
