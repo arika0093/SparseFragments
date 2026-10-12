@@ -165,7 +165,12 @@ internal static class SparseChangeSetEmitter
             target
         );
         // The emitted model-targeted ApplyInPlace checks the before-state first.
-        SparseChangeSetTransitionEmitter.AppendTypedSurface(code, members, dialect, target);
+        var keyedProjectionFields = SparseChangeSetTransitionEmitter.AppendTypedSurface(
+            code,
+            members,
+            dialect,
+            target
+        );
         SparseChangeSetEnumeratorEmitter.Append(code, members, dialect, target, modelType);
         SparseChangeSetPathEmitter.Append(code, dialect, target);
         // Resolution infrastructure is internal-only: it trails the public
@@ -244,6 +249,7 @@ internal static class SparseChangeSetEmitter
         {
             code.Append(resolutionInfra.ToString());
         }
+        code.Append(keyedProjectionFields);
         code.AppendLineAt(1, "}");
         code.AppendLine();
         if (plan.EmitChangePayload)

@@ -22,7 +22,8 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Typed surface (scalar/nested transitions).</summary>
 internal static class SparseChangeSetTransitionEmitter
 {
-    internal static void AppendTypedSurface(
+    /// <summary>Emits typed members and returns private fields for deferred placement.</summary>
+    internal static string AppendTypedSurface(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
@@ -30,7 +31,8 @@ internal static class SparseChangeSetTransitionEmitter
     )
     {
         if (members.IsDefaultOrEmpty)
-            return;
+            return string.Empty;
+        System.Text.StringBuilder? keyedProjectionFields = null;
         var runtime = dialect.RuntimeNamespace;
         SparseChangeSetNaming.ComputePublicNames(members, out var propNames, out var transNames);
         // Canonical-state readers and snapshot helpers move into the
@@ -219,15 +221,36 @@ internal static class SparseChangeSetTransitionEmitter
             else if (IsNested(member))
                 AppendNestedProperty(code, member, prop, dialect, target);
             else if (IsKeyed(member))
+            {
+                var cacheBuilder = new System.Text.StringBuilder(
+                    "__sparse_projection_cache_"
+                ).Append(member.Id);
+                var cacheName = cacheBuilder.ToString();
+                while (
+                    propNames.Values.Contains(cacheName) || transNames.Values.Contains(cacheName)
+                )
+                {
+                    cacheBuilder.Append('_');
+                    cacheName = cacheBuilder.ToString();
+                }
                 AppendKeyedTransition(
                     code,
                     member,
                     prop,
                     transNames[member.Id],
-                    runtime,
+                    cacheName,
                     dialect,
                     target
                 );
+                keyedProjectionFields ??= new System.Text.StringBuilder();
+                keyedProjectionFields
+                    .Append(' ', (2 + code.IndentOffset) * 4)
+                    .Append("private ")
+                    .Append(transNames[member.Id])
+                    .Append("? ")
+                    .Append(cacheName)
+                    .AppendLine(";");
+            }
             else if (IsDict(member))
                 AppendDictTransition(
                     code,
@@ -239,6 +262,7 @@ internal static class SparseChangeSetTransitionEmitter
                     target
                 );
         }
+        return keyedProjectionFields?.ToString() ?? string.Empty;
     }
 
     /// <summary>Whether member values need a defensive container snapshot.</summary>
