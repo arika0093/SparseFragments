@@ -1,0 +1,22 @@
+@page "/case-4"
+@using SparseFragments.Playground.Components
+
+<PageTitle>04 Undo / Redo — SparseFragments Playground</PageTitle>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">04</span>
+        <h2>EditSession with Undo/Redo</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
+        <FluentTab Header="Playground" Id="section-4-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Edit the observable model, inspect its changes, then submit, reset, or undo and redo.</p>
+                <EditSessionUndoRedo />
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-4-codes">
+            <PlaygroundCodeSamples Section="4" />
+        </FluentTab>
+    </FluentTabs>
+</section>
