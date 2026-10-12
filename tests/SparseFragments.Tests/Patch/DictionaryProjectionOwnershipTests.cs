@@ -2,8 +2,63 @@ using System.Text.Json;
 
 namespace SparseFragments.Tests;
 
+[SparseFragmentModel]
+public partial class DictionaryProjectionCacheCollisionHolder
+{
+    public int __sparse_projection_cache_1 { get; set; }
+    public Dictionary<string, int> Scores { get; set; } = new();
+}
+
 public sealed class DictionaryProjectionOwnershipTests
 {
+    [Test]
+    public void ProjectionFieldsDoNotCollideWithDictionaryModelMembers()
+    {
+        var changes = DictionaryProjectionCacheCollisionHolder.ChangeSet.Between(
+            new DictionaryProjectionCacheCollisionHolder
+            {
+                __sparse_projection_cache_1 = 1,
+                Scores = new() { ["score"] = 1 },
+            },
+            new DictionaryProjectionCacheCollisionHolder
+            {
+                __sparse_projection_cache_1 = 2,
+                Scores = new() { ["score"] = 2 },
+            }
+        );
+        changes.__sparse_projection_cache_1.After.Value.ShouldBe(2);
+        changes.Scores.GetChange("score").After.Value.ShouldBe(2);
+        changes.Scores.Edited["score"].ShouldBe(2);
+    }
+
+    [Test]
+    public void SparseStructuralDictionaryViewsExposeReadOnlyContainers()
+    {
+        var changes = StructuralDictHolder.ChangeSet.Between(
+            new StructuralDictHolder
+            {
+                Servers = new()
+                {
+                    ["server"] = new() { Id = "server", Name = "before" },
+                },
+            },
+            new StructuralDictHolder
+            {
+                Servers = new()
+                {
+                    ["server"] = new() { Id = "server", Name = "after" },
+                },
+            }
+        );
+        var payload = JsonSerializer.Serialize(changes.ToPayload());
+        Should.Throw<NotSupportedException>(() =>
+            ((IDictionary<string, KeyedServer.ChangeSet>)changes.Servers.Edited).Clear()
+        );
+        changes.Servers.GetChange("server").Edit.Name.After.Value.ShouldBe("after");
+        changes.Servers.Edited["server"].Name.After.Value.ShouldBe("after");
+        JsonSerializer.Serialize(changes.ToPayload()).ShouldBe(payload);
+    }
+
     [Test]
     [Arguments(false)]
     [Arguments(true)]

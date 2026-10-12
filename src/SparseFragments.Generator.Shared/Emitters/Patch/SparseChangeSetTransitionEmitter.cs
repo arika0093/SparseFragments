@@ -32,7 +32,7 @@ internal static class SparseChangeSetTransitionEmitter
     {
         if (members.IsDefaultOrEmpty)
             return string.Empty;
-        System.Text.StringBuilder? keyedProjectionFields = null;
+        System.Text.StringBuilder? projectionFields = null;
         var runtime = dialect.RuntimeNamespace;
         SparseChangeSetNaming.ComputePublicNames(members, out var propNames, out var transNames);
         // Canonical-state readers and snapshot helpers move into the
@@ -220,7 +220,7 @@ internal static class SparseChangeSetTransitionEmitter
                 );
             else if (IsNested(member))
                 AppendNestedProperty(code, member, prop, dialect, target);
-            else if (IsKeyed(member))
+            else if (IsKeyed(member) || IsDict(member))
             {
                 var cacheBuilder = new System.Text.StringBuilder(
                     "__sparse_projection_cache_"
@@ -233,17 +233,32 @@ internal static class SparseChangeSetTransitionEmitter
                     cacheBuilder.Append('_');
                     cacheName = cacheBuilder.ToString();
                 }
-                AppendKeyedTransition(
-                    code,
-                    member,
-                    prop,
-                    transNames[member.Id],
-                    cacheName,
-                    dialect,
-                    target
-                );
-                keyedProjectionFields ??= new System.Text.StringBuilder();
-                keyedProjectionFields
+                if (IsKeyed(member))
+                {
+                    AppendKeyedTransition(
+                        code,
+                        member,
+                        prop,
+                        transNames[member.Id],
+                        cacheName,
+                        dialect,
+                        target
+                    );
+                }
+                else
+                {
+                    AppendDictTransition(
+                        code,
+                        member,
+                        prop,
+                        transNames[member.Id],
+                        cacheName,
+                        dialect,
+                        target
+                    );
+                }
+                projectionFields ??= new System.Text.StringBuilder();
+                projectionFields
                     .Append(' ', (2 + code.IndentOffset) * 4)
                     .Append("private ")
                     .Append(transNames[member.Id])
@@ -251,18 +266,8 @@ internal static class SparseChangeSetTransitionEmitter
                     .Append(cacheName)
                     .AppendLine(";");
             }
-            else if (IsDict(member))
-                AppendDictTransition(
-                    code,
-                    member,
-                    prop,
-                    transNames[member.Id],
-                    runtime,
-                    dialect,
-                    target
-                );
         }
-        return keyedProjectionFields?.ToString() ?? string.Empty;
+        return projectionFields?.ToString() ?? string.Empty;
     }
 
     /// <summary>Whether member values need a defensive container snapshot.</summary>
