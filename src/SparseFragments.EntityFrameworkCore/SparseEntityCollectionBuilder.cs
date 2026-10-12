@@ -50,6 +50,8 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
 
     internal Action<TEntityChild>? SoftDeleteMark { get; private set; }
 
+    internal Func<TEntityChild, bool>? IsDeletedPredicate { get; private set; }
+
     internal Action<TEntityChild, int>? OrderSetter { get; private set; }
 
     internal Type? KeyType { get; private set; }
@@ -233,6 +235,9 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
     /// <remarks>
     /// The child stays in the parent collection; only <paramref name="markDeleted" />
     /// distinguishes it afterwards. Not valid for owned navigations.
+    /// Previously flagged rows leave later DTO projections: without the
+    /// <c>isDeleted</c> overload below, their omission fails completeness
+    /// validation like any other missing survivor.
     /// </remarks>
     /// <param name="markDeleted">Flags the removed child (for example a soft-delete column).</param>
     /// <returns>This builder.</returns>
@@ -244,6 +249,34 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
         EnsureSingleRemovePolicy();
         RemoveKind = SparseEntityRemoveKind.SoftDelete;
         SoftDeleteMark = markDeleted;
+        return this;
+    }
+
+    /// <summary>
+    /// Keeps removed rows and flags them, with a predicate proving prior deletion.
+    /// </summary>
+    /// <remarks>
+    /// Like <see cref="SoftDelete(Action{TEntityChild})"/>, plus <paramref name="isDeleted" />
+    /// proves that a tracked row omitted from a later transition was already
+    /// flagged: only proven rows are retained, while a stale DTO that omits an
+    /// active child still fails completeness validation. The predicate runs
+    /// during preflight validation and is expected to be pure. Not valid for
+    /// owned navigations.
+    /// </remarks>
+    /// <param name="markDeleted">Flags the removed child (for example a soft-delete column).</param>
+    /// <param name="isDeleted">Tests whether a tracked child was already flagged.</param>
+    /// <returns>This builder.</returns>
+    public SparseEntityCollectionBuilder<TEntityChild, TDtoChild> SoftDelete(
+        Action<TEntityChild> markDeleted,
+        Func<TEntityChild, bool> isDeleted
+    )
+    {
+        ArgumentNullException.ThrowIfNull(markDeleted);
+        ArgumentNullException.ThrowIfNull(isDeleted);
+        EnsureSingleRemovePolicy();
+        RemoveKind = SparseEntityRemoveKind.SoftDelete;
+        SoftDeleteMark = markDeleted;
+        IsDeletedPredicate = isDeleted;
         return this;
     }
 

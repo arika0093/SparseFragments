@@ -331,6 +331,26 @@ internal static class SparseEntityMapperEmitter
                 continue;
             }
 
+            // Value types outside the scalar set (custom structs) cannot take
+            // Object mappings, whose builder contracts require reference
+            // types: report a clear diagnostic instead of emitting code that
+            // violates the generic constraint.
+            if (
+                !IsScalarType(dtoPropertyType)
+                && !IsScalarType(entityMemberType)
+                && (dtoPropertyType.IsValueType || entityMemberType.IsValueType)
+            )
+            {
+                diagnostics.Add(
+                    new SparseGeneratorDiagnostic(
+                        SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+                        location,
+                        $"{dtoType.Name}.{name} ({dtoPropertyType.ToDisplayString()}) does not match {entityType.Name}.{name} ({entityMemberType.ToDisplayString()}); value-type members outside the scalar set need an explicit Member() conversion or Ignore()"
+                    )
+                );
+                continue;
+            }
+
             if (
                 !IsScalarType(dtoPropertyType)
                 && !IsScalarType(entityMemberType)
@@ -467,15 +487,32 @@ internal static class SparseEntityMapperEmitter
         switch (method.Identifier.Text)
         {
             case "Member":
-            case "Write":
-            case "Ignore":
-            case "OnMissing":
-            case "AllowWrite":
-                if (arguments.Count > 0 && TrySingleMember(arguments[0].Expression, out var member))
+                // Only a converter-bearing Member resolves a member: a
+                // two-argument or policy-only Member cannot supply a conversion.
+                if (
+                    arguments.Count > 0
+                    && HasConverterArgument(arguments)
+                    && TrySingleMember(arguments[0].Expression, out var member)
+                )
                 {
                     covered.Add((scope, member));
                 }
 
+                return true;
+            case "Write":
+            case "Ignore":
+                if (
+                    arguments.Count > 0
+                    && TrySingleMember(arguments[0].Expression, out var written)
+                )
+                {
+                    covered.Add((scope, written));
+                }
+
+                return true;
+            case "OnMissing":
+            case "AllowWrite":
+                // Policies alone resolve nothing; still supported syntax.
                 return true;
             case "Object":
             case "Collection":
@@ -563,6 +600,25 @@ internal static class SparseEntityMapperEmitter
         }
 
         return true;
+    }
+
+    // A converter lives past the DTO/entity selector pair: the third or fourth
+    // argument as a lambda (a policy enum member access is not one).
+    private static bool HasConverterArgument(SeparatedSyntaxList<ArgumentSyntax> arguments)
+    {
+        for (var index = 2; index < arguments.Count; index++)
+        {
+            if (
+                arguments[index].Expression
+                is SimpleLambdaExpressionSyntax
+                    or ParenthesizedLambdaExpressionSyntax
+            )
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TrySingleMember(ExpressionSyntax expression, out string member)
@@ -769,6 +825,8 @@ internal static class SparseEntityMapperEmitter
             var full = namedType.OriginalDefinition.ToDisplayString();
             if (
                 full == "System.DateTimeOffset"
+                || full == "System.DateOnly"
+                || full == "System.TimeOnly"
                 || full == "System.TimeSpan"
                 || full == "System.Guid"
             )

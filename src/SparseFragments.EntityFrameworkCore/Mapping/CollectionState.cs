@@ -127,7 +127,7 @@ internal static class CollectionState
             );
         }
 
-        var created = new List<TEntityChild>();
+        var created = (IList)runtime.CollectionFactory();
         runtime.CollectionSetter(parent, created);
         return created;
     }

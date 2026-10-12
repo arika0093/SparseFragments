@@ -245,14 +245,18 @@ map.Collection<OrderLineDto, OrderLineEntity>(
   `[SparseTemporaryKey]` values. Assigned keys always take precedence over
   temporary lookup.
 * `ApplyWithResult` correlates every `[SparseTemporaryKey]` Guid to its created
-  child entity, scoped by collection path and keyed parent identity: duplicate
-  Guids within one logical collection fail, reuse across distinct scopes
-  resolves independently. The application reads database-generated keys off the
-  tracked instances after its own `SaveChanges`, builds the authoritative DTO
-  (preserving temporary values for new rows), and hands it to the existing
-  client `Reconcile` flow. Previously soft-deleted rows stay tracked but leave
-  the DTO projection: later applies retain them instead of failing, and their
-  positions persist through `Order()` like any other element.
+  child entity, scoped by collection path and keyed parent identity (nested
+  scopes additionally qualify with the added parent's assigned or temporary
+  identity): duplicate Guids within one logical collection fail, reuse across
+  distinct scopes resolves independently. The application reads
+  database-generated keys off the tracked instances after its own
+  `SaveChanges`, builds the authoritative DTO (preserving temporary values
+  for new rows), and hands it to the existing client `Reconcile` flow.
+  Previously soft-deleted rows stay tracked but leave the DTO projection:
+  later applies retain them only when the `SoftDelete` `isDeleted` predicate
+  proves the omission, and their positions persist through `Order()` like any
+  other element; without the predicate (or for an active row) the omission
+  fails completeness validation.
 * Order persistence is opt-in through `Order()`. A pure reorder without a
   setter fails explicitly, as do reorders whose transition evidence is
   incomplete.

@@ -60,12 +60,15 @@ internal static class CollectionExecution
 
             context.Add(addition.Entity);
             var entry = PlanApplyState.AttachSingle(context, addition.Entity);
+            // Nested scopes qualify with the added parent's identity so the
+            // same temporary value reused under two new parents resolves
+            // independently instead of falsely conflicting.
             var sub = new PlanWriteState(
                 context,
                 addition.Entity,
                 entry,
                 addition.Dto,
-                path,
+                $"{path}[{addition.ScopeKey}]",
                 correlation
             );
             var subs = new List<Action>();
@@ -206,6 +209,13 @@ internal sealed class PlannedAddition<TDtoChild, TEntityChild>
 
     /// <summary>Gets the item AfterIndex used to order sentinel slots.</summary>
     public int SequenceHint { get; }
+
+    /// <summary>
+    /// Gets the display key qualifying nested scopes: the assigned key, the
+    /// temporary identity, or the sequence hint as a last resort.
+    /// </summary>
+    public string ScopeKey =>
+        AssignedKey?.ToString() ?? TemporaryKey?.ToString() ?? SequenceHint.ToString();
 }
 
 /// <summary>

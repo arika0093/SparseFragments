@@ -21,6 +21,7 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         SparseEntityRemoveKind? removeKind,
         Action<DbContext, TEntityChild>? removeHandler,
         Action<TEntityChild>? softDeleteMark,
+        Func<TEntityChild, bool>? isDeletedPredicate,
         Action<TEntityChild, int>? orderSetter,
         Type? keyType,
         Delegate? dtoKeySelector,
@@ -36,6 +37,7 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         RemoveKind = removeKind;
         RemoveHandler = removeHandler;
         SoftDeleteMark = softDeleteMark;
+        IsDeletedPredicate = isDeletedPredicate;
         OrderSetter = orderSetter;
         KeyType = keyType;
         DtoKeySelector = dtoKeySelector;
@@ -66,6 +68,8 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
     public Action<DbContext, TEntityChild>? RemoveHandler { get; }
 
     public Action<TEntityChild>? SoftDeleteMark { get; }
+
+    public Func<TEntityChild, bool>? IsDeletedPredicate { get; }
 
     public Action<TEntityChild, int>? OrderSetter { get; }
 
@@ -129,11 +133,16 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
 
     public Action<TEntityChild>? SoftDeleteMark { get; private set; }
 
+    public Func<TEntityChild, bool>? IsDeletedPredicate { get; private set; }
+
     public Action<TEntityChild, int>? OrderSetter { get; private set; }
 
     public Func<TDtoChild, TEntityChild> CreateFactory { get; private set; } = null!;
 
     public Action<object, object?>? CollectionSetter { get; private set; }
+
+    public Func<object> CollectionFactory { get; private set; } =
+        static () => new List<TEntityChild>();
 
     public bool ForeignKeyRequired { get; private set; }
 
@@ -521,6 +530,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         RemoveKind = declaration.RemoveKind.Value;
         RemoveHandler = declaration.RemoveHandler;
         SoftDeleteMark = declaration.SoftDeleteMark;
+        IsDeletedPredicate = declaration.IsDeletedPredicate;
         OrderSetter = declaration.OrderSetter;
         CreateFactory = declaration.CreateFactory ?? CreateWithConstructor();
     }
@@ -548,6 +558,47 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 instance,
                 value
             )
+            .Compile();
+        ResolveCollectionFactory(property.PropertyType);
+    }
+
+    /// <summary>Builds the null-navigation factory for the declared type.</summary>
+    /// <remarks>
+    /// Interface-typed navigations take a plain list. Concrete collection
+    /// types are instantiated as declared (so an ObservableCollection stays
+    /// one) when they carry a public parameterless constructor; anything
+    /// else fails here at plan creation instead of casting blindly during
+    /// execution after the root already attached.
+    /// </remarks>
+    private void ResolveCollectionFactory(Type declared)
+    {
+        if (declared.IsInterface || declared == typeof(List<TEntityChild>))
+        {
+            CollectionFactory = static () => new List<TEntityChild>();
+            return;
+        }
+
+        if (!typeof(System.Collections.IList).IsAssignableFrom(declared))
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                DtoName,
+                $"The navigation '{NavigationName}' is declared as '{declared.Name}', which is not an IList collection, so keyed synchronization cannot materialize or reorder it."
+            );
+        }
+
+        var constructor = declared.GetConstructor(Type.EmptyTypes);
+        if (constructor is null)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                DtoName,
+                $"The navigation '{NavigationName}' is null and declared as '{declared.Name}' with no public parameterless constructor, so added children have nowhere to attach. Declare it as List<{typeof(TEntityChild).Name}> or give it a public parameterless constructor."
+            );
+        }
+
+        CollectionFactory = Expression
+            .Lambda<Func<object>>(Expression.Convert(Expression.New(constructor), typeof(object)))
             .Compile();
     }
 

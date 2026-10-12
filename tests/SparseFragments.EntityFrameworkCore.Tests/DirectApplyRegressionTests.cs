@@ -907,7 +907,8 @@ public sealed class DirectApplyRegressionTests
                             {
                                 tags.Element(tag =>
                                 {
-                                    tag.AllowWrite(tag => tag.Label);
+                                    tag.Ignore(tag => tag.Id);
+                                    tag.Ignore(tag => tag.TemporaryId);
                                 });
                                 tags.Delete();
                             }
@@ -1003,7 +1004,8 @@ public sealed class DirectApplyRegressionTests
                             {
                                 tags.Element(tag =>
                                 {
-                                    tag.AllowWrite(tag => tag.Label);
+                                    tag.Ignore(tag => tag.Id);
+                                    tag.Ignore(tag => tag.TemporaryId);
                                 });
                                 tags.Delete();
                             }
@@ -1311,6 +1313,205 @@ public sealed class DirectApplyRegressionTests
                 {
                     child.Ignore(address => address.City);
                     child.MissingDefault(SparseEntityMissingPolicy.Ignore);
+                }
+            );
+        }
+    }
+
+    [Test]
+    public async Task StaleActiveOmissionUnderSoftDeleteStillFails()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .SoftOrders.Add(
+                new SoftOrderEntity
+                {
+                    Lines = [new SoftLineEntity { Qty = 1 }, new SoftLineEntity { Qty = 2 }],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static order => order.Lines).LoadAsync();
+        var trackedBefore = context.ChangeTracker.Entries().Count();
+        counter.Reset();
+
+        // The predicate proves nothing here: the omitted row was never
+        // flagged, so a stale DTO omitting an active child fails even though
+        // previously deleted rows would be tolerated.
+        static SoftOrderDto Read(SoftOrderEntity order) =>
+            new()
+            {
+                Lines = order
+                    .Lines.Where(static line => !line.IsDeleted)
+                    .OrderBy(static line => line.Id)
+                    .Select(static line => new SoftLineDto { Id = line.Id, Qty = line.Qty })
+                    .ToList(),
+            };
+        var current = Read(entity);
+        current.Lines.RemoveAll(static line => line.Qty == 2);
+        var incoming = Read(entity);
+        incoming.Lines.RemoveAll(static line => line.Qty == 2);
+        incoming.Lines.Add(new SoftLineDto { Id = 100, Qty = 3 });
+        var accepted = current.CreateChangeSet(incoming);
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<SoftOrderEntity, SoftOrderDto>
+                .Create(
+                    new KeyedCollectionPolicyTests.SoftOrderMapper(),
+                    context.Model
+                )
+                .Apply(context, entity, accepted)
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionKeyNotFound);
+        entity.Lines.Count.ShouldBe(2);
+        context.ChangeTracker.Entries().Count().ShouldBe(trackedBefore);
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task NestedTemporaryIdsAreScopedByParentIdentity()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context.Parcels.Add(new ParcelEntity { Lines = [] }).Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
+        counter.Reset();
+
+        // The same temporary value under two new siblings' nested collections
+        // resolves independently once scopes qualify with the parent identity;
+        // without qualification the second record falsely conflicts.
+        var firstLine = Guid.NewGuid();
+        var secondLine = Guid.NewGuid();
+        var sharedTag = Guid.NewGuid();
+        static ParcelDto Read(ParcelEntity parcel) =>
+            new()
+            {
+                Lines = parcel
+                    .Lines.Select(static line => new ParcelLineDto { Id = line.Id, Qty = line.Qty })
+                    .ToList(),
+            };
+        var current = Read(entity);
+        var incoming = Read(entity);
+        incoming.Lines.Add(
+            new ParcelLineDto
+            {
+                Qty = 1,
+                TemporaryId = firstLine,
+                Tags = [new ParcelTagDto { TemporaryId = sharedTag, Label = "one" }],
+            }
+        );
+        incoming.Lines.Add(
+            new ParcelLineDto
+            {
+                Qty = 2,
+                TemporaryId = secondLine,
+                Tags = [new ParcelTagDto { TemporaryId = sharedTag, Label = "two" }],
+            }
+        );
+        var accepted = current.CreateChangeSet(incoming);
+
+        var result = SparseEntityMapper<ParcelEntity, ParcelDto>
+            .Create(new ParcelJunkMapper(), context.Model)
+            .ApplyWithResult(context, entity, accepted);
+
+        result.TryGetCreated<ParcelLineEntity>(firstLine, out _).ShouldBeTrue();
+        result.TryGetCreated<ParcelLineEntity>(secondLine, out _).ShouldBeTrue();
+        var tagScopes = result
+            .CreatedByPath.Where(entry => entry.Key.EndsWith(".Tags", StringComparison.Ordinal))
+            .ToList();
+        tagScopes.Count.ShouldBe(2);
+        tagScopes
+            .SelectMany(static scope => scope.Value.Keys)
+            .ShouldBe([sharedTag, sharedTag]);
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task NullObservableCollectionMaterializesDeclaredType()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .ObservableOrders.Add(new ObservableOrderEntity { Lines = null! })
+            .Entity;
+        await context.SaveChangesAsync();
+        context.Entry(entity).Collection(static order => order.Lines).IsLoaded = true;
+        counter.Reset();
+
+        var current = new ObservableOrderDto { Lines = [] };
+        var incoming = new ObservableOrderDto
+        {
+            Lines = [new SkuLineDto { Sku = "a", Qty = 1 }],
+        };
+        var accepted = current.CreateChangeSet(incoming);
+
+        SparseEntityMapper<ObservableOrderEntity, ObservableOrderDto>
+            .Create(new ObservableOrderMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Lines.ShouldNotBeNull();
+        entity.Lines.ShouldBeOfType<System.Collections.ObjectModel.ObservableCollection<SkuLineEntity>>();
+        entity.Lines.Count.ShouldBe(1);
+        entity.Lines[0].Sku.ShouldBe("a");
+        counter.Commands.ShouldBe(0);
+    }
+
+    public sealed class ObservableOrderMapper : IEntityModelMapping<ObservableOrderEntity, ObservableOrderDto>
+    {
+        public void Configure(SparseEntityMapBuilder<ObservableOrderEntity, ObservableOrderDto> map)
+        {
+            map.Collection<SkuLineDto, SkuLineEntity>(
+                dto => dto.Lines,
+                entity => entity.Lines,
+                lines =>
+                {
+                    lines.Element(child =>
+                    {
+                        child.AllowWrite(line => line.Sku);
+                    });
+                    lines.Key(dto => dto.Sku, entity => entity.Sku);
+                    lines.Delete();
+                }
+            );
+        }
+    }
+
+    [Test]
+    public void RigidCollectionWithoutConstructorFailsAtBuild()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateKeyed(connection, new QueryCounter());
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<RigidOrderEntity, RigidOrderDto>.Create(
+                new RigidOrderMapper(),
+                context.Model
+            )
+        );
+        error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
+        error.DtoPath.ShouldBe("Lines");
+        error.Message.ShouldContain("parameterless constructor");
+    }
+
+    public sealed class RigidOrderMapper : IEntityModelMapping<RigidOrderEntity, RigidOrderDto>
+    {
+        public void Configure(SparseEntityMapBuilder<RigidOrderEntity, RigidOrderDto> map)
+        {
+            map.Collection<SkuLineDto, SkuLineEntity>(
+                dto => dto.Lines,
+                entity => entity.Lines,
+                lines =>
+                {
+                    lines.Element(child =>
+                    {
+                        child.AllowWrite(line => line.Sku);
+                    });
+                    lines.Key(dto => dto.Sku, entity => entity.Sku);
+                    lines.Delete();
                 }
             );
         }

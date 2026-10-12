@@ -1,4 +1,4 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF034)
+# SparseFragments Analyzer Diagnostics (SPF001–SPF035)
 
 Diagnostics reported by the source generator `SparseFragments.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -35,6 +35,7 @@ when keys became property-only (#206) and are not reused.
 | [SPF032](#spf032-temporary-key-property-initializer) | Temporary key property has an initializer | Warning |
 | [SPF033](#spf033-incompatible-entity-default-mapping) | Incompatible entity default mapping | Error |
 | [SPF034](#spf034-invalid-entity-mapper-declaration) | Invalid entity mapper declaration | Error |
+| [SPF035](#spf035-unsupported-entity-member-shape) | Unsupported entity member shape | Error |
 
 ## SPF001: Sparse fragment model must be partial
 
@@ -390,3 +391,13 @@ public partial class PolicySettings
 * Fix: Implement `IEntityModelMapping<TEntity, TDto>` on the mapper and declare
   overrides in `Configure`. The mapper class itself need not be partial; the
   generator emits an external companion.
+
+## SPF035: Unsupported entity member shape
+
+* Message: `Unsupported conventional entity member shape: {0}`
+* Cause: A same-name DTO/entity member pair involves a value type outside the
+  scalar set (custom structs), so neither a conventional `Member` default nor
+  a nested `Object` mapping applies: `Object` contracts require reference
+  types. Supported scalar value types include `DateOnly` and `TimeOnly`.
+* Fix: Declare an explicit `Member` mapping with a convert callback, or
+  `Ignore` the member, in the mapper's `Configure`.

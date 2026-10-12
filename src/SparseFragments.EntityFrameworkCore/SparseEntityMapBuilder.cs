@@ -263,6 +263,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
                     lines.RemoveKind,
                     lines.RemoveHandler,
                     lines.SoftDeleteMark,
+                    lines.IsDeletedPredicate,
                     lines.OrderSetter,
                     lines.KeyType,
                     lines.DtoKeySelector,

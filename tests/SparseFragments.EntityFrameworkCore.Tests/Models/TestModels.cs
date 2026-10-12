@@ -12,6 +12,8 @@ public partial class WidgetDto
 
     public string Status { get; set; } = string.Empty;
 
+    public DateOnly DueDate { get; set; }
+
     public byte[] RowVersion { get; set; } = [];
 
     public string? Display { get; set; }
@@ -36,6 +38,8 @@ public sealed class WidgetEntity
 
     /// <summary>Field-backed read-only property: writes must go through the EF entry.</summary>
     public string Status => _status;
+
+    public DateOnly DueDate { get; set; }
 
     public byte[] RowVersion { get; set; } = [];
 }
@@ -65,6 +69,7 @@ public sealed class WidgetStrictMapper : IEntityModelMapping<WidgetEntity, Widge
         map.Ignore(dto => dto.Id);
         map.Ignore(dto => dto.Name);
         map.Ignore(dto => dto.Status);
+        map.Ignore(dto => dto.DueDate);
         map.Ignore(dto => dto.RowVersion);
     }
 }

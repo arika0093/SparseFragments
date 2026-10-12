@@ -21,7 +21,10 @@ public sealed class KeyedCollectionPolicyTests
                     {
                         child.Ignore(line => line.Id);
                     });
-                    lines.SoftDelete(line => line.IsDeleted = true);
+                    lines.SoftDelete(
+                        line => line.IsDeleted = true,
+                        line => line.IsDeleted
+                    );
                 }
             );
         }

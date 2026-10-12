@@ -97,6 +97,7 @@ public sealed class MappingPolicyTests
             Id = entity.Id,
             Name = entity.Name,
             Status = entity.Status,
+            DueDate = entity.DueDate,
             RowVersion = entity.RowVersion,
             Display = null,
         };
@@ -566,6 +567,29 @@ public sealed class MappingPolicyTests
         // Status has no CLR setter: only the EF property entry can write it.
         entity.Status.ShouldBe("suspended");
         context.Entry(entity).Property(widget => widget.Status).IsModified.ShouldBeTrue();
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task ScalarDateOnlyApplies()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateMapping(connection, counter);
+        var entity = SeedWidget(context);
+        counter.Reset();
+        var current = ReadWidgetDto(entity);
+        var incoming = ReadWidgetDto(entity);
+        incoming.DueDate = new DateOnly(2026, 10, 12);
+
+        var accepted = current.CreateChangeSet(incoming);
+        SparseEntityMapper<WidgetEntity, WidgetDto>
+            .Create(new WidgetMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        // DateOnly pairs map as conventional scalar defaults end to end.
+        entity.DueDate.ShouldBe(new DateOnly(2026, 10, 12));
+        context.Entry(entity).Property(widget => widget.DueDate).IsModified.ShouldBeTrue();
         counter.Commands.ShouldBe(0);
     }
 

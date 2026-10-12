@@ -122,6 +122,8 @@ internal sealed class PlanBuildSession
             || underlying == typeof(decimal)
             || underlying == typeof(DateTime)
             || underlying == typeof(DateTimeOffset)
+            || underlying == typeof(DateOnly)
+            || underlying == typeof(TimeOnly)
             || underlying == typeof(TimeSpan)
             || underlying == typeof(Guid)
             || underlying == typeof(byte[]);

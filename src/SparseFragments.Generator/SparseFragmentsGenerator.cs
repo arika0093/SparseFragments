@@ -337,6 +337,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf034-invalid-entity-mapper-declaration"
     );
 
+    private static readonly DiagnosticDescriptor UnsupportedEntityMemberShape = new(
+        SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+        "Unsupported entity member shape",
+        "Unsupported conventional entity member shape: {0}",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf035-unsupported-entity-member-shape"
+    );
+
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
         SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence,
         "Structural sequence without usable key",
@@ -965,6 +975,8 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 IncompatibleEntityDefaultMapping,
             SparseFragmentsDiagnosticIds.InvalidEntityMapperDeclaration =>
                 InvalidEntityMapperDeclaration,
+            SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape =>
+                UnsupportedEntityMemberShape,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

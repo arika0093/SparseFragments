@@ -181,17 +181,48 @@ internal static class CollectionSync
             // Replace semantics: the snapshot is complete, so factory- or
             // constructor-provided children absent from it must not survive to
             // tracking. Clearing the contents (not the reference) keeps
-            // read-only navigations working.
+            // read-only navigations working, and detaching Added orphans keeps
+            // them out of SaveChanges entirely. Pre-existing tracked rows keep
+            // their own state: relationship fixup owns them.
+            var orphans = list.Cast<object>().ToList();
             if (list.Count > 0)
             {
                 list.Clear();
             }
 
-            foreach (var (dto, entity, temporaryKey) in creations)
+            foreach (var orphan in orphans)
             {
+                var orphanEntry = state.Context.Entry(orphan);
+                if (orphanEntry.State == EntityState.Added)
+                {
+                    orphanEntry.State = EntityState.Detached;
+                }
+            }
+
+            for (var index = 0; index < creations.Count; index++)
+            {
+                var (dto, entity, temporaryKey) = creations[index];
                 if (temporaryKey is not null && temporaryKey != Guid.Empty)
                 {
                     state.RecordTemporary(path, temporaryKey.Value, entity);
+                }
+
+                // Nested scopes qualify with the added element's identity so
+                // the same temporary value reused under two new siblings
+                // resolves independently instead of falsely conflicting.
+                var key = runtime.DtoKey(dto);
+                string childPath;
+                if (key is not null && !runtime.IsUnassigned(key))
+                {
+                    childPath = $"{path}[{key}]";
+                }
+                else if (temporaryKey is not null && temporaryKey != Guid.Empty)
+                {
+                    childPath = $"{path}[{temporaryKey}]";
+                }
+                else
+                {
+                    childPath = $"{path}[{index}]";
                 }
 
                 state.Context.Add(entity);
@@ -201,7 +232,7 @@ internal static class CollectionSync
                     entity,
                     entry,
                     dto,
-                    path,
+                    childPath,
                     state.Correlation
                 );
                 var subs = new List<Action>();
@@ -508,16 +539,27 @@ internal static class CollectionSync
             );
         }
 
-        if (
-            runtime.RemoveKind != SparseEntityRemoveKind.SoftDelete
-            && survivors.Any(survivor => !afterSet.Contains(survivor))
-        )
+        var missing = survivors.Where(survivor => !afterSet.Contains(survivor)).ToList();
+        if (missing.Count > 0)
         {
-            throw new SparseEntityMappingException(
-                SparseEntityMappingFailure.CollectionKeyNotFound,
-                path,
-                $"The keyed transition order for '{runtime.DtoName}' omits a surviving tracked child. Refusing a partial sync: load the collection completely with an unfiltered Include or Load."
-            );
+            // SoftDelete tolerates only provably flagged rows: the predicate
+            // runs here during validation (it must be pure) and stale DTOs
+            // that omit an active child still fail. Anything else missing
+            // fails regardless of policy.
+            var proven =
+                runtime.RemoveKind == SparseEntityRemoveKind.SoftDelete
+                && runtime.IsDeletedPredicate is not null
+                && missing.All(key =>
+                    tracked.TryGetValue(key, out var child) && runtime.IsDeletedPredicate(child)
+                );
+            if (!proven)
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyNotFound,
+                    path,
+                    $"The keyed transition order for '{runtime.DtoName}' omits a surviving tracked child. Refusing a partial sync: load the collection completely with an unfiltered Include or Load."
+                );
+            }
         }
     }
 
@@ -654,15 +696,19 @@ internal static class CollectionSync
             }
 
             // Previously flagged rows leave the DTO projection but stay
-            // tracked: retain them in tracked order instead of failing. Their
-            // positions persist through Order() like any other element.
+            // tracked: retain proven rows in tracked order instead of failing.
+            // Their positions persist through Order() like any other element.
+            // Anything unproven already failed validation above.
             var afterSet = new HashSet<object>(
                 view.AfterOrder.Where(key => !runtime.IsUnassigned(key)),
                 runtime.KeyComparer
             );
             foreach (
                 var survivor in survivors.Where(candidate =>
-                    !afterSet.Contains(candidate.Key) && !merged.Contains(candidate.Value)
+                    !afterSet.Contains(candidate.Key)
+                    && runtime.IsDeletedPredicate is not null
+                    && runtime.IsDeletedPredicate(candidate.Value)
+                    && !merged.Contains(candidate.Value)
                 )
             )
             {

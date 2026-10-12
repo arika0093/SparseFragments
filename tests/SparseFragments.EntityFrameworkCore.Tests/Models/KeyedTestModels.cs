@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
 
@@ -136,6 +137,64 @@ public sealed class SkuLineEntity
 
     /// <summary>Gets or sets the owning order.</summary>
     public SkuOrderEntity? Order { get; set; }
+
+    /// <summary>Gets or sets the observable owning order identity.</summary>
+    public int? ObservableOwnerId { get; set; }
+
+    /// <summary>Gets or sets the observable owning order.</summary>
+    public ObservableOrderEntity? ObservableOwner { get; set; }
+
+    /// <summary>Gets or sets the rigid owning order identity.</summary>
+    public int? RigidOwnerId { get; set; }
+
+    /// <summary>Gets or sets the rigid owning order.</summary>
+    public RigidOrderEntity? RigidOwner { get; set; }
+}
+
+/// <summary>Custom list without a parameterless constructor.</summary>
+/// <typeparam name="T">The element type.</typeparam>
+public sealed class FixedList<T> : List<T>
+{
+    /// <summary>Creates a fixed list.</summary>
+    /// <param name="capacity">The initial capacity.</param>
+    public FixedList(int capacity)
+        : base(capacity) { }
+}
+
+/// <summary>DTO holding lines over an observable navigation.</summary>
+[SparseFragmentModel]
+public partial class ObservableOrderDto
+{
+    /// <summary>Gets or sets the lines.</summary>
+    public List<SkuLineDto> Lines { get; set; } = [];
+}
+
+/// <summary>Entity holding an observable collection navigation.</summary>
+public sealed class ObservableOrderEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the lines.</summary>
+    public ObservableCollection<SkuLineEntity> Lines { get; set; } = [];
+}
+
+/// <summary>DTO holding lines over a rigid navigation.</summary>
+[SparseFragmentModel]
+public partial class RigidOrderDto
+{
+    /// <summary>Gets or sets the lines.</summary>
+    public List<SkuLineDto> Lines { get; set; } = [];
+}
+
+/// <summary>Entity holding a custom collection without a default constructor.</summary>
+public sealed class RigidOrderEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the lines.</summary>
+    public FixedList<SkuLineEntity> Lines { get; set; } = null!;
 }
 
 /// <summary>Natural-key order mapping: the DTO key meets the EF alternate key, not the primary key.</summary>
@@ -397,8 +456,18 @@ public partial class ParcelAddressDto
 /// <summary>Tag DTO nested one more level under a keyed element.</summary>
 public partial class ParcelTagDto
 {
-    /// <summary>Gets or sets the tag label, acting as its stable key.</summary>
-    [SparseKey]
+    /// <summary>Gets or sets the persisted identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets the stable key.</summary>
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    /// <summary>Gets or sets the tag label.</summary>
     public string Label { get; set; } = string.Empty;
 }
 
@@ -454,7 +523,10 @@ public sealed class ParcelAddressEntity
 /// <summary>Tag entity nested under a parcel line.</summary>
 public sealed class ParcelTagEntity
 {
-    /// <summary>Gets or sets the tag label, acting as its stable key.</summary>
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the tag label.</summary>
     public string Label { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the owning line identity.</summary>
@@ -514,6 +586,12 @@ public sealed class KeyedMappingContext : DbContext
 
     /// <summary>Gets the courses.</summary>
     public DbSet<CourseEntity> Courses => Set<CourseEntity>();
+
+    /// <summary>Gets the observable owners.</summary>
+    public DbSet<ObservableOrderEntity> ObservableOrders => Set<ObservableOrderEntity>();
+
+    /// <summary>Gets the rigid owners.</summary>
+    public DbSet<RigidOrderEntity> RigidOrders => Set<RigidOrderEntity>();
 
     /// <summary>Gets the parcel owners.</summary>
     public DbSet<ParcelEntity> Parcels => Set<ParcelEntity>();
@@ -590,6 +668,26 @@ public sealed class KeyedMappingContext : DbContext
         {
             entity.HasKey(course => course.Id);
         });
+        modelBuilder.Entity<ObservableOrderEntity>(entity =>
+        {
+            entity.HasKey(order => order.Id);
+            entity
+                .HasMany(order => order.Lines)
+                .WithOne(line => line.ObservableOwner)
+                .HasForeignKey(line => line.ObservableOwnerId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+        modelBuilder.Entity<RigidOrderEntity>(entity =>
+        {
+            entity.HasKey(order => order.Id);
+            entity
+                .HasMany(order => order.Lines)
+                .WithOne(line => line.RigidOwner)
+                .HasForeignKey(line => line.RigidOwnerId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
         modelBuilder.Entity<ParcelEntity>(entity =>
         {
             entity.HasKey(parcel => parcel.Id);
@@ -611,7 +709,7 @@ public sealed class KeyedMappingContext : DbContext
         });
         modelBuilder.Entity<ParcelTagEntity>(entity =>
         {
-            entity.HasKey(tag => tag.Label);
+            entity.HasKey(tag => tag.Id);
         });
     }
 }
