@@ -9,7 +9,9 @@ public class DictionaryTransitionProjectionBenchmarks
     [Params(
         DictionaryChangeSetBetweenShape.NoOp,
         DictionaryChangeSetBetweenShape.OneEdit,
-        DictionaryChangeSetBetweenShape.AllEdits
+        DictionaryChangeSetBetweenShape.AllEdits,
+        DictionaryChangeSetBetweenShape.ReplaceAll,
+        DictionaryChangeSetBetweenShape.Mixed
     )]
     public DictionaryChangeSetBetweenShape Shape { get; set; }
 
@@ -28,13 +30,18 @@ public class DictionaryTransitionProjectionBenchmarks
         _scalar = _input.ScalarBetween();
         _structural = _input.StructuralBetween();
         var expected =
-            Shape == DictionaryChangeSetBetweenShape.NoOp ? 0
-            : Shape == DictionaryChangeSetBetweenShape.OneEdit ? 1
-            : Size;
+            Shape == DictionaryChangeSetBetweenShape.AllEdits ? Size
+            : Shape
+                is DictionaryChangeSetBetweenShape.OneEdit
+                    or DictionaryChangeSetBetweenShape.Mixed
+                ? 1
+            : 0;
+        var changed = Shape != DictionaryChangeSetBetweenShape.NoOp;
         if (
             RepeatedView() != expected
-            || RepeatedLookup() != (expected > 0)
+            || RepeatedLookup() != changed
             || FirstView() != expected
+            || FirstLookup() != changed
         )
             throw new InvalidOperationException(
                 "Dictionary projections must preserve edited entries."
@@ -56,4 +63,10 @@ public class DictionaryTransitionProjectionBenchmarks
         Structural
             ? _input.StructuralBetween().Servers.Edited.Count
             : _input.ScalarBetween().Scores.Edited.Count;
+
+    [Benchmark]
+    public bool FirstLookup() =>
+        Structural
+            ? _input.StructuralBetween().Servers.GetChange("key-0").IsChanged
+            : _input.ScalarBetween().Scores.GetChange("key-0").IsChanged;
 }

@@ -1,5 +1,4 @@
 using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetMatchEmitter;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -18,11 +17,8 @@ internal static class SparseChangeSetDictProjectionEmitter
     {
         var code = target is null ? shell : target.ChangeSetOperations;
         var keyType = KeyTypeOf(member);
-        var valueType = ValueTypeOf(member);
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
-        var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
-        var editedType = hasPatch ? ValueChangeSetOf(member) : valueType;
         // Sparse projection from canonical storage.
         if (target is null)
         {
@@ -56,7 +52,7 @@ internal static class SparseChangeSetDictProjectionEmitter
         );
         code.AppendLineAt(3, "if (!" + HasField(member) + ")");
         code.AppendLineAt(3, "{");
-        EmitDictEmptyReturn(code, member, trans, comparer);
+        AppendEmptyReturn(code, member, trans, comparer);
         code.AppendLineAt(3, "}");
         var wholeBefore = KeyedWholeBefore(member);
         var wholeAfter = KeyedWholeAfter(member);
@@ -78,16 +74,7 @@ internal static class SparseChangeSetDictProjectionEmitter
                 + ");"
         );
         // Granular: derive Added/Removed/Edited maps from stored items (no full snapshots).
-        EmitDictGranularReturn(
-            code,
-            member,
-            trans,
-            comparer,
-            keyType,
-            valueType,
-            editedType,
-            hasPatch
-        );
+        AppendGranularReturn(code, member, trans, comparer);
         code.AppendLineAt(2, "}");
         var projectCall = target is null
             ? "__SparseProject_" + member.Id + "()"
@@ -114,5 +101,108 @@ internal static class SparseChangeSetDictProjectionEmitter
         );
         shell.AppendLineAt(3, "}");
         shell.AppendLineAt(2, "}");
+    }
+
+    private static void AppendGranularReturn(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string trans,
+        string comparer
+    )
+    {
+        var keyType = KeyTypeOf(member);
+        var valueType = ValueTypeOf(member);
+        var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
+        var editedType = hasPatch ? ValueChangeSetOf(member) : valueType;
+        code.AppendLineAt(
+            3,
+            "var __stored = "
+                + KeyedItems(member)
+                + " ?? new global::System.Collections.Generic.List<"
+                + trans
+                + ".Item>();"
+        );
+        code.AppendLineAt(3, "int __addedCount = 0, __removedCount = 0, __editedCount = 0;");
+        code.AppendLineAt(
+            3,
+            "foreach (var __it in __stored) { if (__it.IsAdded) __addedCount++; else if (__it.IsRemoved) __removedCount++; else if (__it.IsEdited) __editedCount++; }"
+        );
+        code.AppendLineAt(
+            3,
+            "var __added = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(__addedCount, "
+                + comparer
+                + "); var __removed = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + valueType
+                + ">(__removedCount, "
+                + comparer
+                + "); var __edited = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + editedType
+                + ">(__editedCount, "
+                + comparer
+                + ");"
+        );
+        if (hasPatch)
+            code.AppendLineAt(
+                3,
+                "foreach (var __it in __stored) { if (__it.IsAdded) __added[__it.Key] = __it.After.Value!; else if (__it.IsRemoved) __removed[__it.Key] = __it.Before.Value!; else if (__it.IsEdited) __edited[__it.Key] = __it.Edit; }"
+            );
+        else
+            code.AppendLineAt(
+                3,
+                "foreach (var __it in __stored) { if (__it.IsAdded) __added[__it.Key] = __it.After.Value!; else if (__it.IsRemoved) __removed[__it.Key] = __it.Before.Value!; else if (__it.IsEdited) __edited[__it.Key] = __it.After.Value!; }"
+            );
+        code.AppendLineAt(
+            3,
+            "return new "
+                + trans
+                + "(default, default, __added, __removed, __edited, __stored, false);"
+        );
+    }
+
+    private static void AppendEmptyReturn(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string trans,
+        string comparer
+    )
+    {
+        var emptyEdited =
+            (member.Collection.ValueType?.IsFragmentModel == true)
+                ? ValueChangeSetOf(member)
+                : ValueTypeOf(member);
+        code.AppendLineAt(
+            4,
+            "return new "
+                + trans
+                + "(default, default, new global::System.Collections.Generic.Dictionary<"
+                + KeyTypeOf(member)
+                + ", "
+                + ValueTypeOf(member)
+                + ">("
+                + comparer
+                + "), new global::System.Collections.Generic.Dictionary<"
+                + KeyTypeOf(member)
+                + ", "
+                + ValueTypeOf(member)
+                + ">("
+                + comparer
+                + "), new global::System.Collections.Generic.Dictionary<"
+                + KeyTypeOf(member)
+                + ", "
+                + emptyEdited
+                + ">("
+                + comparer
+                + "), new global::System.Collections.Generic.List<"
+                + trans
+                + ".Item>(), true);"
+        );
     }
 }

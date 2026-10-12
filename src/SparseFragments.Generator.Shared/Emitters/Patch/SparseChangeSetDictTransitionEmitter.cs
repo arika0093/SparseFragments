@@ -5,6 +5,8 @@ namespace SparseFragments.Generator.Shared;
 /// <summary>Typed dictionary transition surface.</summary>
 internal static class SparseChangeSetDictTransitionEmitter
 {
+    private const int MaxCombinedLookupCount = 2048;
+
     internal static void AppendDictTransition(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -191,24 +193,7 @@ internal static class SparseChangeSetDictTransitionEmitter
         code.AppendLineAt(3, "/// <returns>The typed change for the key.</returns>");
         code.AppendLineAt(3, "public Item GetChange(" + keyType + " key)");
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "var __lookup = _lookup;");
-        code.AppendLineAt(4, "if (__lookup is null)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(
-            5,
-            "__lookup = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", Item>("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(5, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
-        code.AppendLineAt(5, "_lookup = __lookup;");
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(
-            4,
-            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
-        );
+        AppendLookupBody(code);
         code.AppendLineAt(3, "}");
         SparseChangeSetContractEmitter.AppendDictionaryContractMembers(code, member, dialect);
         code.AppendLineAt(
@@ -261,6 +246,7 @@ internal static class SparseChangeSetDictTransitionEmitter
                 + ">(edited);"
         );
         code.AppendLineAt(4, "_items = items.AsReadOnly();");
+        code.AppendLineAt(4, "_itemCount = items.Count;");
         code.AppendLineAt(4, "IsEmpty = isEmpty;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
@@ -271,6 +257,14 @@ internal static class SparseChangeSetDictTransitionEmitter
             3,
             "private global::System.Collections.Generic.Dictionary<" + keyType + ", Item>? _lookup;"
         );
+        code.AppendLineAt(
+            3,
+            "private global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", Item>?[]? _lookupPartitions;"
+        );
+        code.AppendLineAt(3, "private readonly int _itemCount;");
+        AppendLookupHelpers(code, keyType, comparer);
         code.AppendLineAt(2, "}");
         SparseChangeSetDictBuildEmitter.AppendBuild(code, member, trans, dialect, target);
         SparseChangeSetDictProjectionEmitter.AppendProjection(
@@ -282,5 +276,103 @@ internal static class SparseChangeSetDictTransitionEmitter
             dialect,
             target
         );
+    }
+
+    private static void AppendLookupBody(SharedIndentedBuilder code)
+    {
+        code.AppendLineAt(4, "var __lookup = _lookup;");
+        code.AppendLineAt(
+            4,
+            "if (__lookup is not null && __lookup.TryGetValue(key, out var __found)) return __found;"
+        );
+        code.AppendLineAt(4, "return __SparseGetUncachedChange(key);");
+    }
+
+    private static void AppendLookupHelpers(
+        SharedIndentedBuilder code,
+        string keyType,
+        string comparer
+    )
+    {
+        var dictionary = "global::System.Collections.Generic.Dictionary<" + keyType + ", Item>";
+        code.AppendLineAt(3, "private Item __SparseGetUncachedChange(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (_itemCount > "
+                + MaxCombinedLookupCount
+                + ") return __SparseGetPartitionedChange(key);"
+        );
+        code.AppendLineAt(4, "var __lookup = _lookup ?? __SparseBuildLookup();");
+        code.AppendLineAt(
+            4,
+            "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
+        );
+        code.AppendLineAt(3, "}");
+        // Keep index construction and the large-diff path out of the hot public lookup.
+        code.AppendLineAt(3, "private " + dictionary + " __SparseBuildLookup()");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "var __lookup = new " + dictionary + "(_itemCount, " + comparer + ");"
+        );
+        code.AppendLineAt(4, "foreach (var __item in _items) __lookup[__item.Key] = __item;");
+        code.AppendLineAt(4, "_lookup = __lookup;");
+        code.AppendLineAt(4, "return __lookup;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "private Item __SparseGetPartitionedChange(" + keyType + " key)");
+        code.AppendLineAt(3, "{");
+        // The public lookup already tried the most recently used partition.
+        code.AppendLineAt(4, "var __lookup = _lookup;");
+        code.AppendLineAt(4, "Item? __found;");
+        code.AppendLineAt(4, "var __partitions = _lookupPartitions;");
+        code.AppendLineAt(4, "if (__partitions is not null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "foreach (var __candidate in __partitions)");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(
+            6,
+            "if (__candidate is not null && !global::System.Object.ReferenceEquals(__candidate, __lookup) && __candidate.TryGetValue(key, out __found))"
+        );
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(7, "_lookup = __candidate;");
+        code.AppendLineAt(7, "return __found;");
+        code.AppendLineAt(6, "}");
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(
+            4,
+            "int __kind = Added.ContainsKey(key) ? 0 : Removed.ContainsKey(key) ? 1 : Edited.ContainsKey(key) ? 2 : -1;"
+        );
+        code.AppendLineAt(4, "if (__kind < 0) return Item.Empty;");
+        code.AppendLineAt(4, "if (__partitions is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "__partitions = new " + dictionary + "?[3];");
+        code.AppendLineAt(5, "_lookupPartitions = __partitions;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "__lookup = __partitions[__kind];");
+        code.AppendLineAt(4, "if (__lookup is null)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(
+            5,
+            "int __count = __kind == 0 ? Added.Count : __kind == 1 ? Removed.Count : Edited.Count;"
+        );
+        code.AppendLineAt(5, "__lookup = new " + dictionary + "(__count, " + comparer + ");");
+        code.AppendLineAt(5, "foreach (var __item in _items)");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(
+            6,
+            "int __itemKind = __item.IsAdded ? 0 : __item.IsRemoved ? 1 : __item.IsEdited ? 2 : -1;"
+        );
+        code.AppendLineAt(6, "if (__itemKind == __kind) __lookup[__item.Key] = __item;");
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(5, "__partitions[__kind] = __lookup;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(4, "_lookup = __lookup;");
+        code.AppendLineAt(
+            4,
+            "return __lookup.TryGetValue(key, out __found) ? __found : Item.Empty;"
+        );
+        code.AppendLineAt(3, "}");
     }
 }

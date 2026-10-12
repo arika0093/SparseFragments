@@ -5,6 +5,58 @@ namespace SparseFragments.Tests;
 public sealed class DictionaryChangeSetAssemblyTests
 {
     [Test]
+    public void LargeMixedLookupsCanAlternateKindsAndPreserveItemIdentity()
+    {
+        var before = new ScalarDictHolder
+        {
+            Scores = Enumerable
+                .Range(0, 2048)
+                .ToDictionary(static index => "remove-" + index, static index => index),
+        };
+        var after = new ScalarDictHolder
+        {
+            Scores = Enumerable
+                .Range(0, 2048)
+                .ToDictionary(static index => "add-" + index, static index => index),
+        };
+        var changes = ScalarDictHolder.ChangeSet.Between(before, after);
+        var items = changes.Scores.ToDictionary(static item => item.Key);
+        foreach (var key in new[] { "remove-0", "add-0", "remove-2047", "add-2047", "remove-0" })
+            changes.Scores.GetChange(key).ShouldBeSameAs(items[key]);
+        changes.Scores.GetChange("missing").IsEmpty.ShouldBeTrue();
+        Should.Throw<ArgumentNullException>(() => changes.Scores.GetChange(null!));
+    }
+
+    [Test]
+    public void LargeMixedLookupsKeepEditsAlongsideMembershipChanges()
+    {
+        var before = new ScalarDictHolder
+        {
+            Scores = Enumerable
+                .Range(0, 2048)
+                .ToDictionary(static index => "remove-" + index, static index => index),
+        };
+        before.Scores["edit"] = 1;
+        var after = new ScalarDictHolder
+        {
+            Scores = Enumerable
+                .Range(0, 2048)
+                .ToDictionary(static index => "add-" + index, static index => index),
+        };
+        after.Scores["edit"] = 2;
+        var changes = ScalarDictHolder.ChangeSet.Between(before, after);
+        changes.Scores.GetChange("missing").IsEmpty.ShouldBeTrue();
+        changes.Scores.GetChange("edit").Before.Value.ShouldBe(1);
+        changes.Scores.GetChange("remove-0").IsRemoved.ShouldBeTrue();
+        changes.Scores.GetChange("add-0").IsAdded.ShouldBeTrue();
+        changes.Scores.GetChange("edit").After.Value.ShouldBe(2);
+        var replayed = changes.ToPatch().ApplyTo(before);
+        replayed.Scores.Count.ShouldBe(after.Scores.Count);
+        foreach (var pair in after.Scores)
+            replayed.Scores[pair.Key].ShouldBe(pair.Value);
+    }
+
+    [Test]
     public void MixedScalarChangesPreserveGroupedOrderAndReplay()
     {
         var before = Optional<ScalarDictHolder.Fragment?>.Present(
