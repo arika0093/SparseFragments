@@ -202,6 +202,11 @@ as exact-match `Find` overloads (untyped and compile-time typed) on the
 their own path type with member/key/index segments, equality, and text
 rendering; Shared never names a `SparseFragments` runtime type.
 
+Scalar `Find` lookups inspect the path's `Depth`, `RootType`, and segment `Name`
+before reading the matching transition. Custom path types must expose these
+members along with equality and the path factories described above. Segment
+`Name` is empty for non-member segments.
+
 ## Edit-session configuration
 
 `SparseEditSessionDialect` configures the namespace and hint names for the

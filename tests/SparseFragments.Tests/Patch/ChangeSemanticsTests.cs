@@ -357,6 +357,11 @@ public sealed class ChangeSemanticsTests
 
         var entries = changes.EnumerateChanges().ToDictionary(static change => change.Path);
         entries.Count.ShouldBe(2);
+        changes.Find(SetTransitionModel.SparsePath.Values).ShouldBeNull();
+        changes
+            .Find(SetTransitionModel.SparsePath.Values.Element("add"))
+            .ShouldNotBeNull()
+            .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
         entries[SetTransitionModel.SparsePath.Values.Element("add")]
             .Kind.ShouldBe(SetTransitionModel.ChangeSet.ChangeKind.Added);
         entries[SetTransitionModel.SparsePath.Values.Element("add")]

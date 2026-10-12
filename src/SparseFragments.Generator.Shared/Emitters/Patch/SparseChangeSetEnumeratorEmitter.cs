@@ -26,14 +26,28 @@ internal static class SparseChangeSetEnumeratorEmitter
             AppendValueHelpers(ops, runtime, optionalObject, pathType, modelType);
             AppendMethodShellStub(code, target);
             AppendMethod(ops, members, propertyNames, optionalObject, pathType, modelType, target);
-            AppendFindShellStub(code, dialect, modelType, target);
-            AppendFind(ops, dialect, modelType, target);
+            SparseChangeSetFindEmitter.AppendShellStub(code, dialect, modelType, target);
+            SparseChangeSetFindEmitter.Append(
+                ops,
+                dialect,
+                modelType,
+                members,
+                propertyNames,
+                target
+            );
         }
         else
         {
             AppendValueHelpers(code, runtime, optionalObject, pathType, modelType);
             AppendMethod(code, members, propertyNames, optionalObject, pathType, modelType, target);
-            AppendFind(code, dialect, modelType, target);
+            SparseChangeSetFindEmitter.Append(
+                code,
+                dialect,
+                modelType,
+                members,
+                propertyNames,
+                target
+            );
         }
     }
 
@@ -52,51 +66,6 @@ internal static class SparseChangeSetEnumeratorEmitter
                 + target.ChangeSetOperationsType
                 + ".EnumerateChanges(this);"
         );
-    }
-
-    private static void AppendFindShellStub(
-        SharedIndentedBuilder code,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType,
-        SparseOperationTarget target
-    )
-    {
-        var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
-        code.AppendLineAt(
-            2,
-            "/// <summary>Finds the entry at exactly the given path, or null when absent.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>Exact paths only; ancestors and descendants never match.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "public ChangeInfo? Find("
-                + pathType
-                + " path) => "
-                + target.ChangeSetOperationsType
-                + ".Find(this, path);"
-        );
-        if (modelType is not null)
-        {
-            code.AppendLineAt(
-                2,
-                "/// <summary>Finds the entry at exactly the given typed path, or null when absent.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <remarks>Exact paths only; ancestors and descendants never match.</remarks>"
-            );
-            code.AppendLineAt(
-                2,
-                "public ChangeInfo? Find<TValue>("
-                    + SparseFragmentPatchEmitter.GetTypedPathType(dialect, modelType, "TValue")
-                    + " path) => "
-                    + target.ChangeSetOperationsType
-                    + ".Find(this, path);"
-            );
-        }
     }
 
     private static void AppendChangeInfoTypes(
@@ -318,76 +287,6 @@ internal static class SparseChangeSetEnumeratorEmitter
         }
 
         code.AppendLineAt(3, "return changes;");
-        code.AppendLineAt(2, "}");
-    }
-
-    private static void AppendFind(
-        SharedIndentedBuilder code,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        string? modelType,
-        SparseOperationTarget? target = null
-    )
-    {
-        var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
-        var receiver = target is null ? string.Empty : "ChangeSet self, ";
-        var enumerate = target is null ? "EnumerateChanges()" : "EnumerateChanges(self)";
-        var visibility = target is null ? "public" : "internal static";
-        code.AppendLineAt(
-            2,
-            "/// <summary>Finds the entry at exactly the given path, or null when absent.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>Exact paths only; ancestors and descendants never match.</remarks>"
-        );
-        code.AppendLineAt(2, visibility + " ChangeInfo? Find(" + receiver + pathType + " path)");
-        code.AppendLineAt(2, "{");
-        if (!dialect.PathIsValueType)
-        {
-            code.AppendLineAt(
-                3,
-                "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-            );
-        }
-        code.AppendLineAt(3, "foreach (var change in " + enumerate + ")");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "if (change.Path.Equals(path)) return change;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "return null;");
-        code.AppendLineAt(2, "}");
-        if (modelType is null)
-        {
-            return;
-        }
-
-        code.AppendLineAt(
-            2,
-            "/// <summary>Finds the entry at exactly the given typed path, or null when absent.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>Exact paths only; ancestors and descendants never match. The path root and value types are checked at compile time.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            visibility
-                + " ChangeInfo? Find<TValue>("
-                + receiver
-                + SparseFragmentPatchEmitter.GetTypedPathType(dialect, modelType, "TValue")
-                + " path)"
-        );
-        code.AppendLineAt(2, "{");
-        if (!dialect.PathIsValueType)
-        {
-            code.AppendLineAt(
-                3,
-                "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-            );
-        }
-        code.AppendLineAt(
-            3,
-            target is null ? "return Find(path.Path);" : "return Find(self, path.Path);"
-        );
         code.AppendLineAt(2, "}");
     }
 
