@@ -51,6 +51,20 @@ else if (Section == 4)
         </FluentTabs>
     </div>
 }
+else if (Section == 5)
+{
+    <div class="pg-code-samples">
+        <p class="pg-hint">Declare the mapper once; the generator emits the conventional defaults. Apply the accepted ChangeSet directly, then persist explicitly.</p>
+        <FluentTabs Orientation="Orientation.Vertical">
+            <FluentTab Header="Mapper" Id="code-5-mapper">
+                <MonacoView Content="@EfMapperCode" Language="csharp" Height="330px" />
+            </FluentTab>
+            <FluentTab Header="Apply flow" Id="code-5-flow">
+                <MonacoView Content="@EfFlowCode" Language="csharp" Height="330px" />
+            </FluentTab>
+        </FluentTabs>
+    </div>
+}
 
 @code {
     [Parameter, EditorRequired]
@@ -206,5 +220,41 @@ else if (Section == 4)
             redo.Pop();
             undo.Push(transition);
         }
+        """;
+
+    private const string EfMapperCode = """
+        [SparseFragmentMapper]
+        public sealed class PlaygroundOrderMapper
+            : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
+        {
+            public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+            {
+                map.Member(dto => dto.Customer, entity => entity.CustomerName);
+                map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
+                    dto => dto.Lines,
+                    entity => entity.Lines,
+                    lines =>
+                    {
+                        lines.Element(child => child.AllowWrite(line => line.Sku));
+                        lines.Key(dto => dto.Sku, entity => entity.Sku);
+                        lines.Delete();
+                    });
+            }
+        }
+        // Notes maps automatically via the generated default.
+        """;
+
+    private const string EfFlowCode = """
+        var current = Project(tracked); // Application-owned read mapping.
+        var accepted = current.CreateChangeSet(draft); // Or rebase an incoming set.
+
+        var mapper = SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>.Create(
+            new PlaygroundOrderMapper(), db.Model);
+        mapper.Apply(db, tracked, accepted); // No query, no SaveChanges.
+        var modified = db.ChangeTracker.Entries()
+            .SelectMany(static entry => entry.Properties)
+            .Where(static property => property.IsModified);
+
+        await db.SaveChangesAsync(); // Explicit persistence stays application-owned.
         """;
 }

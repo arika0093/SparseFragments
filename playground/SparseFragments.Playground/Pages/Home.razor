@@ -252,6 +252,24 @@
     </FluentTabs>
 </section>
 
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">05</span>
+        <h2>EF Core: ChangeSet to tracked entity</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
+        <FluentTab Header="Playground" Id="section-5-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Order aggregate with keyed lines, like the case 4 task list. InMemory store; no queries leave the section.</p>
+                <EfMappingPlayground @ref="_efPlayground" />
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-5-codes">
+            <PlaygroundCodeSamples Section="5" />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
 <FluentDialog @ref="_importDialog" Hidden="@_importHidden" Modal="true" TrapFocus="true"
     Class="pg-import-dialog" AriaLabel="Import ChangePayload">
     <div class="pg-dialog-heading">
@@ -299,6 +317,7 @@
     private string HigherTabId = "higher-csharp";
     private bool _importHidden = true;
     private FluentDialog? _importDialog;
+    private EfMappingPlayground? _efPlayground;
     private string _importText = """{"version":"0.1","changes":[]}""";
     private string? _importError;
     private string? _importResult;
@@ -483,6 +502,7 @@
         ResetPatch();
         ResetRosterBefore();
         ResetRosterAfter();
+        _efPlayground?.Reset();
         LowerTabId = "lower-csharp";
         HigherTabId = "higher-csharp";
         _importHidden = true;
