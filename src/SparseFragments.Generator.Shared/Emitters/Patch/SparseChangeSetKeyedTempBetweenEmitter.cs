@@ -293,7 +293,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         code.AppendLineAt(6, "}");
     }
 
-    /// <summary>Emits absolute index maps for temporary identities.</summary>
+    /// <summary>Emits absolute before indexes for temporary identities.</summary>
     internal static void AppendTempIndexes(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -322,29 +322,6 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
                 + ") __beforeTempIndex"
                 + id
                 + ".Add(__bTO"
-                + id
-                + "[__ti++], __i); }"
-        );
-        code.AppendLineAt(
-            6,
-            "var __afterTempIndex"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>(__aT"
-                + id
-                + ".Count);"
-        );
-        code.AppendLineAt(
-            6,
-            "{ var __ti = 0; for (var __i = 0; __i < __afterOrder"
-                + id
-                + ".Count; __i++) if ("
-                + SparseKeyedCollectionEmitter.IsUnassignedExpression(
-                    member,
-                    "__afterOrder" + id + "[__i]"
-                )
-                + ") __afterTempIndex"
-                + id
-                + ".Add(__aTO"
                 + id
                 + "[__ti++], __i); }"
         );
@@ -417,9 +394,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
                 + elementType
                 + ">.Present(__tua) : default; int __ttbi = __beforeTempIndex"
                 + id
-                + ".TryGetValue(__tt, out var __ttbv) ? __ttbv : -1; int __ttai = __afterTempIndex"
-                + id
-                + ".TryGetValue(__tt, out var __ttav) ? __ttav : -1; __list"
+                + ".TryGetValue(__tt, out var __ttbv) ? __ttbv : -1; int __ttai = __afterItemIndex; __list"
                 + id
                 + ".Add(new "
                 + trans
