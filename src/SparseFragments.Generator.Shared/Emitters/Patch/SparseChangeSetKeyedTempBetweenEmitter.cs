@@ -271,25 +271,13 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         code.IndentOffset++;
         code.AppendLineAt(
             6,
-            "var __beforeTempRank"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
-        );
-        code.AppendLineAt(
-            6,
-            "{ var __r = 0; foreach (var __tk in __bTO"
-                + id
-                + ") if (__aT"
-                + id
-                + ".ContainsKey(__tk)) __beforeTempRank"
-                + id
-                + "[__tk] = __r++; }"
-        );
-        code.AppendLineAt(
-            6,
             "var __afterTempRank"
                 + id
-                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
+                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>(__hasTempRemoved"
+                + id
+                + " ? 0 : __bT"
+                + id
+                + ".Count);"
         );
         code.AppendLineAt(
             6,
@@ -309,13 +297,13 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         );
         code.AppendLineAt(
             6,
-            "foreach (var __kv in __beforeTempRank"
+            "{ var __r = 0; foreach (var __tk in __bTO"
                 + id
                 + ") if (__afterTempRank"
                 + id
-                + ".TryGetValue(__kv.Key, out var __ar) && __ar != __kv.Value) __reorderedTemp"
+                + ".TryGetValue(__tk, out var __ar)) { if (__ar != __r) __reorderedTemp"
                 + id
-                + ".Add(__kv.Key);"
+                + ".Add(__tk); __r++; } }"
         );
         code.IndentOffset--;
         code.AppendLineAt(6, "}");

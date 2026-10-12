@@ -356,31 +356,15 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.IndentOffset++;
         code.AppendLineAt(
             6,
-            "var __beforeRank"
-                + id
-                + " = new global::System.Collections.Generic.Dictionary<"
-                + keyType
-                + ", int>("
-                + comparer
-                + ");"
-        );
-        code.AppendLineAt(
-            6,
-            "{ var __r = 0; foreach (var __k in __beforeOrder"
-                + id
-                + ") if (__afterMap"
-                + id
-                + ".ContainsKey(__k)) __beforeRank"
-                + id
-                + "[__k] = __r++; }"
-        );
-        code.AppendLineAt(
-            6,
             "var __afterRank"
                 + id
                 + " = new global::System.Collections.Generic.Dictionary<"
                 + keyType
-                + ", int>("
+                + ", int>(__hasRemoved"
+                + id
+                + " ? 0 : __beforeMap"
+                + id
+                + ".Count, "
                 + comparer
                 + ");"
         );
@@ -414,13 +398,13 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         );
         code.AppendLineAt(
             6,
-            "foreach (var __kv in __beforeRank"
+            "{ var __r = 0; foreach (var __k in __beforeOrder"
                 + id
                 + ") if (__afterRank"
                 + id
-                + ".TryGetValue(__kv.Key, out var __ar) && __ar != __kv.Value) __reordered"
+                + ".TryGetValue(__k!, out var __ar)) { if (__ar != __r) __reordered"
                 + id
-                + ".Add(__kv.Key);"
+                + ".Add(__k!); __r++; } }"
         );
         code.IndentOffset--;
         code.AppendLineAt(6, "}");
