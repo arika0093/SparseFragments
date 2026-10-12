@@ -75,59 +75,63 @@ public sealed class PayloadImplementationSplitTests
     }
 
     [Test]
-    public void SurfaceKeepsFacadesWithoutDtoOrConverterBodies()
+    public void MergedFileKeepsFacadesWithDtoAndConverterBodies()
     {
         var sources = Sources();
-        // Union: the surface file is the per-model .SparseFragments.g.cs hint;
-        // reloc-1 UI/session implementations share the model name too.
-        var surfaceHint = sources.Keys.Single(key =>
+        // Single-file emission: one merged hint per model carries the surface
+        // plus implementations.
+        var mergedHint = sources.Keys.Single(key =>
             key.Contains("SplitParent", StringComparison.Ordinal)
             && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
         );
-        var surface = sources[surfaceHint];
+        sources
+            .Keys.Count(key =>
+                key.Contains("SplitParent", StringComparison.Ordinal)
+                && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+            )
+            .ShouldBe(0);
+        var merged = sources[mergedHint];
 
         // Facades stay model-facing.
-        surface.ShouldContain("class ChangePayload");
-        surface.ShouldContain("FragmentJsonConverter");
+        merged.ShouldContain("class ChangePayload");
+        merged.ShouldContain("FragmentJsonConverter");
         // Thin shell forwards to the implementation converter.
-        surface.ShouldContain(
+        merged.ShouldContain(
             "private sealed class FragmentJsonConverter : global::SparseFragments.Generated."
         );
-        // No DTO hierarchy or converter implementation inside the model.
-        surface.ShouldNotContain("static partial class __Internal_");
-        surface.ShouldNotContain("public class Core_");
-        surface.ShouldNotContain("public sealed class Root_");
-        surface.ShouldNotContain("JsonDerivedType");
-        surface.ShouldNotContain(
-            ": global::System.Text.Json.Serialization.JsonConverter<Fragment>"
-        );
-        surface.ShouldNotContain("public override Fragment Read(");
+        // DTO hierarchy and converter implementation share the merged file.
+        merged.ShouldContain("static partial class __Internal_");
+        merged.ShouldContain("public class Core_");
+        merged.ShouldContain("public sealed class Root_");
+        merged.ShouldContain("JsonDerivedType");
+        merged.ShouldContain(": global::System.Text.Json.Serialization.JsonConverter<Fragment>");
+        merged.ShouldContain("public override Fragment Read(");
         // Container references resolve through the shared file alias.
-        surface.ShouldContain("using __Internal_");
+        merged.ShouldContain("using __Internal_");
     }
 
     [Test]
-    public void ImplementationCarriesDtosAndConverterBodies()
+    public void MergedFileCarriesDtosAndConverterBodies()
     {
         var sources = Sources();
-        var implementationHint = sources.Keys.Single(key =>
+        var mergedHint = sources.Keys.Single(key =>
             key.Contains("SplitParent", StringComparison.Ordinal)
-            && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
         );
-        var implementation = sources[implementationHint];
+        var merged = sources[mergedHint];
 
-        implementation.ShouldContain("namespace SparseFragments.Generated");
-        implementation.ShouldContain("static partial class __Internal_");
-        implementation.ShouldContain("public class Core_");
-        implementation.ShouldContain("public sealed class Root_");
-        implementation.ShouldContain("JsonDerivedType");
-        implementation.ShouldContain("FragmentJsonConverter");
-        implementation.ShouldContain("public override Fragment Read(");
-        implementation.ShouldContain("public override void Write(");
+        merged.ShouldContain("namespace SparseFragments.Generated");
+        merged.ShouldContain("static partial class __Internal_");
+        merged.ShouldContain("public class Core_");
+        merged.ShouldContain("public sealed class Root_");
+        merged.ShouldContain("JsonDerivedType");
+        merged.ShouldContain("FragmentJsonConverter");
+        merged.ShouldContain("public override Fragment Read(");
+        merged.ShouldContain("public override void Write(");
         // Nested child payloads resolve to the implementation namespace.
-        implementation.ShouldContain("global::SparseFragments.Generated.__Internal_");
+        merged.ShouldContain("global::SparseFragments.Generated.__Internal_");
         // Wire protocol is untouched by the move.
-        implementation.ShouldContain("\"member\"");
-        implementation.ShouldContain("$root");
+        merged.ShouldContain("\"member\"");
+        merged.ShouldContain("$root");
     }
 }

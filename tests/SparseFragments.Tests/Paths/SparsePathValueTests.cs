@@ -28,12 +28,12 @@ public sealed class SparsePathValueTests
     [Test]
     public void DefaultBuildersRetainTheirRootAndCollection()
     {
-        var builder = default(Settings.SparsePaths<Settings>);
+        var builder = Settings.SparsePath;
         builder.Label.Path.ShouldBe(Settings.SparsePath.Label.Path);
         SparsePath root = builder;
         root.ShouldBe(SparsePath.Root<Settings>());
 
-        var items = default(KeyedServerHolder.SparsePaths<KeyedServerHolder>.SparseItemsPaths);
+        var items = KeyedServerHolder.SparsePath.Items;
         items.Key("a").Name.Path.ShouldBe(KeyedServerHolder.SparsePath.Items.Key("a").Name.Path);
         SparsePath collection = items;
         collection.ShouldBe(SparsePath.Root<KeyedServerHolder>().Member("Items"));

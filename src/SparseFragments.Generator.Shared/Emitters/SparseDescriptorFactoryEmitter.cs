@@ -45,12 +45,12 @@ internal static class SparseDescriptorFactoryEmitter
             dialect
         );
         var legacy = innerBuilder.ToString();
-        var relocated = SparseModelImplementationEmitter.RelocateUiReferences(
+        // UI types nest in the model again: child observable references stay
+        // model-nested, so only attribute-array bridges still rewrite.
+        var relocated = SparseModelImplementationEmitter.RelocateAttributeBridges(
             legacy,
             model.ModelTypeName,
             members,
-            ImmutableArray<SparseReadOnlyViewModel>.Empty,
-            config,
             cancellationToken
         );
         var body = RewriteReceiver(relocated, cancellationToken);
@@ -140,7 +140,7 @@ internal static class SparseDescriptorFactoryEmitter
         // Instance state moves from "this" to the factory parameter. Order
         // matters: longer names first so "__onRawModelAccess" does not get a
         // partial "__model" rewrite. Child proxy accessors stay as
-        // "current.__SparseGet_X(path)": each relocated Observable keeps a
+        // "current.__SparseGet_X(path)": each model-nested Observable keeps a
         // thin bridge delegating to its own factory. Replacement skips string
         // literals and comments so member-name literals stay intact.
         source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(

@@ -152,13 +152,15 @@ public sealed class PromotedIncrementalTests
         return match;
     }
 
-    private static string ImplementationHintFor(Dictionary<string, string> sources, string typeName)
+    private static string MergedHintFor(Dictionary<string, string> sources, string typeName)
     {
+        // Single-file emission: each model owns one merged hint carrying the
+        // surface plus implementations.
         var match = sources.Keys.SingleOrDefault(key =>
             key.Contains(typeName, StringComparison.Ordinal)
-            && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
         );
-        match.ShouldNotBeNull($"expected an implementation source for '{typeName}'");
+        match.ShouldNotBeNull($"expected a merged source for '{typeName}'");
         return match;
     }
 
@@ -192,15 +194,14 @@ public sealed class PromotedIncrementalTests
         // The shared promoted output is byte-identical.
         afterSources[promotedHint].ShouldBe(beforeSources[promotedHint]);
         // Untouched roots are byte-identical; the edited root reflects the edit.
-        // Union: each root owns a surface plus the reloc-1 UI/session
-        // implementations plus the reloc-2 payload/operations file; all stay
+        // Single-file emission: each root owns one merged file; all stay
         // isolated per model.
         foreach (var root in new[] { "InvRoot2", "InvRoot3" })
         {
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(6);
+            hints.Length.ShouldBe(1);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
@@ -208,8 +209,8 @@ public sealed class PromotedIncrementalTests
         }
         var editedHint = SurfaceHintFor(afterSources, "InvRoot1");
         afterSources[editedHint].ShouldContain("EditMarker");
-        var editedImplementationHint = ImplementationHintFor(afterSources, "InvRoot1");
-        afterSources[editedImplementationHint].ShouldContain("EditMarker");
+        var editedMergedHint = MergedHintFor(afterSources, "InvRoot1");
+        afterSources[editedMergedHint].ShouldContain("EditMarker");
     }
 
     [Test]
@@ -286,14 +287,13 @@ public sealed class PromotedIncrementalTests
         afterSources[promotedHint].ShouldContain("C");
 
         // Root outputs only reference the promoted fragment by name.
-        // Each explicit root emits a surface file plus its relocated
-        // Patch/ChangeSet operations file (issue #194).
+        // Each explicit root emits one merged file.
         foreach (var root in new[] { "InvRoot1", "InvRoot2" })
         {
             var hints = afterSources
                 .Keys.Where(key => key.Contains(root, StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(6);
+            hints.Length.ShouldBe(1);
             foreach (var hint in hints)
             {
                 afterSources[hint].ShouldBe(beforeSources[hint]);
@@ -330,12 +330,11 @@ public sealed class PromotedIncrementalTests
         probe.SpfDiagnostics().ShouldBeEmpty();
         var sources = probe.Sources();
 
-        // The shared type gets its surface plus implementations (the reloc-1
-        // UI/session family plus the reloc-2 payload/operations file), never
-        // a promoted duplicate.
+        // The shared type gets its single merged file, never a promoted
+        // duplicate.
         sources
             .Keys.Count(key => key.Contains("InvExplicitShared", StringComparison.Ordinal))
-            .ShouldBe(6);
+            .ShouldBe(1);
         sources
             .Keys.Any(key => key.EndsWith(".SparsePromoted.g.cs", StringComparison.Ordinal))
             .ShouldBeFalse();

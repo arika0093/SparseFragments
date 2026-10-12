@@ -58,7 +58,7 @@ internal static class SparsePerModelEmitter
             appendProductExtensions
         );
 
-    /// <summary>Builds relocated implementation sources for one explicit root.</summary>
+    /// <summary>Builds model-nested UI and container implementation sources for one explicit root.</summary>
     /// <param name="model">Model identity.</param>
     /// <param name="members">Analyzed members.</param>
     /// <param name="readOnlyViewModels">Read-only view models.</param>
@@ -80,7 +80,7 @@ internal static class SparsePerModelEmitter
             config
         );
 
-    /// <summary>Builds relocated implementation sources for one promoted model.</summary>
+    /// <summary>Builds model-nested UI and container implementation sources for one promoted model.</summary>
     /// <param name="promoted">Promoted model.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <param name="config">Owning generator configuration.</param>

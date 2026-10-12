@@ -83,9 +83,13 @@ internal static class SparseModelExtensionsEmitter
 
         if (!model.IsStruct)
         {
-            var editSession = relocated
-                ? SparseGeneratedPlacement.GetEditSessionReference(model, config, cancellationToken)
-                : modelType + ".EditSession";
+            // Session collision resolution mirrors the emitter: a same-named
+            // member pushes the session behind a Sparse prefix.
+            var sessionSimple = SparseGeneratedPlacement.ResolveUiTypeName(
+                "EditSession",
+                members.Select(static member => member.Property.Name)
+            );
+            var editSession = modelType + "." + sessionSimple;
             code.AppendLineAt(
                 1,
                 "/// <summary>Creates a framework-neutral edit session using this model as both the baseline source and live current value.</summary>"

@@ -459,10 +459,20 @@ internal static class SparseFragmentEmitter
             var seenAliases = new System.Collections.Generic.HashSet<string>(
                 System.StringComparer.Ordinal
             );
-            // FragmentBuilder is reloc-2-only (Collect lacks it); Fragment is
-            // provided by Collect when operations exist, otherwise by reloc-2.
+            // FragmentBuilder lives in the per-model implementation container
+            // when Patch/ChangeSet operations split; otherwise it stays nested
+            // in the model and the implementation aliases the model nested type.
+            var relocateBuilder = operationContainer is not null;
             implementationBuilder.AppendLine(
-                "using FragmentBuilder = global::" + TrimImplPrefix(modelType) + ".FragmentBuilder;"
+                relocateBuilder
+                    ? "using FragmentBuilder = global::"
+                        + implementationNamespace
+                        + "."
+                        + operationContainer
+                        + ".FragmentBuilder;"
+                    : "using FragmentBuilder = global::"
+                        + TrimImplPrefix(modelType)
+                        + ".FragmentBuilder;"
             );
             seenAliases.Add("FragmentBuilder");
             if (operationTarget is null)
@@ -535,6 +545,18 @@ internal static class SparseFragmentEmitter
                     + "."
                     + payloadContainerAlias
                     + ";"
+            );
+        }
+        if (splitImplementation && operationContainer is not null)
+        {
+            // FragmentBuilder is container-nested after relocation; the model
+            // facade resolves it through this alias.
+            code.AppendLine(
+                "using FragmentBuilder = global::"
+                    + implementationNamespace
+                    + "."
+                    + operationContainer
+                    + ".FragmentBuilder;"
             );
         }
         if (
@@ -623,7 +645,8 @@ internal static class SparseFragmentEmitter
                 operationTarget: operationTarget,
                 canApplyPatchInPlace: canApplyPatchInPlace,
                 canApplyChangeSetInPlace: canApplyChangeSetInPlace,
-                originEmitter: originEmitter
+                originEmitter: originEmitter,
+                builderContainer: operationContainer
             );
             // Stage 4 (#193): moved algorithms live in the operations class in
             // the same implementation file (hints stay per-model via the shared
@@ -634,7 +657,8 @@ internal static class SparseFragmentEmitter
                     model,
                     members,
                     pocoCloneModels,
-                    operationsCore
+                    operationsCore,
+                    operationsAccessibility: config.AllowFileScopedTypes ? "file" : "internal"
                 );
             // Public-first order: model internal bridges trail public nested
             // types, so no internal member precedes the Fragment facade.
@@ -656,8 +680,8 @@ internal static class SparseFragmentEmitter
         }
         if (features.EmitFragment && features.EmitObservable && implementationNamespace is null)
         {
-            // Relocated stage: UI/editing types live in AdditionalSources under
-            // the configured namespace; the surface keeps only Fragment state.
+            // Legacy single-file emission: UI/editing types nest in the model
+            // partial alongside Fragment state.
             if (!model.IsStruct)
             {
                 SparseObservableEmitter.AppendObservable(
@@ -740,6 +764,43 @@ internal static class SparseFragmentEmitter
                 containerAccessibility + " static partial class " + operationContainer
             );
             implementationBuilder.AppendLineAt(1, "{");
+            // FragmentBuilder is public model-facing API co-hosted first in the
+            // container; internal operation classes follow it.
+            using (
+                var builderBody = new SharedIndentedBuilder(cancellationToken) { IndentOffset = 1 }
+            )
+            {
+                core.AppendBuilder(builderBody, members, generatedAccessibility);
+                implementationBuilder.Append(builderBody.ToString());
+            }
+            // Paths navigation relocates with the builder; T keeps the static
+            // entry point forwarding to this class.
+            if (features.EmitChangeSet)
+            {
+                using (
+                    var pathsBody = new SharedIndentedBuilder(cancellationToken)
+                    {
+                        IndentOffset = 1,
+                    }
+                )
+                {
+                    SparsePathBuilderEmitter.AppendPathsClass(
+                        pathsBody,
+                        modelType,
+                        members,
+                        patchDialect,
+                        child =>
+                            "global::"
+                            + implementationNamespace
+                            + "."
+                            + SparseGeneratedPlacement.GetContainerForQualifiedName(
+                                child,
+                                cancellationToken
+                            )
+                    );
+                    implementationBuilder.Append(pathsBody.ToString());
+                }
+            }
             SparseModelOperationFileEmitter.OpenOperations(
                 implementationBuilder,
                 SparseGeneratedPlacement.PatchOperationsSimpleName,
@@ -811,7 +872,8 @@ internal static class SparseFragmentEmitter
         SparseOperationTarget? operationTarget = null,
         bool canApplyPatchInPlace = false,
         bool canApplyChangeSetInPlace = false,
-        SparseFragmentOriginEmitter? originEmitter = null
+        SparseFragmentOriginEmitter? originEmitter = null,
+        string? builderContainer = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -922,7 +984,10 @@ internal static class SparseFragmentEmitter
             }
         }
         code.AppendLineAt(1, "}");
-        core.AppendBuilder(code, members, generatedAccessibility);
+        // Relocated builders live in the per-model implementation container;
+        // legacy single-file emission keeps them nested in the model.
+        if (operationTarget is null)
+            core.AppendBuilder(code, members, generatedAccessibility);
         SparseFragmentPatchEmitter.AppendPatch(
             code,
             modelType,
@@ -939,7 +1004,20 @@ internal static class SparseFragmentEmitter
         );
         if (features.EmitChangeSet)
         {
-            SparsePathBuilderEmitter.Append(code, modelType, members, patchDialect);
+            // Paths classes relocate with the builder; the entry point stays.
+            if (builderContainer is not null && implementationNamespace is not null)
+            {
+                SparsePathBuilderEmitter.AppendEntryPoint(
+                    code,
+                    modelType,
+                    patchDialect,
+                    "global::" + implementationNamespace + "." + builderContainer + "."
+                );
+            }
+            else
+            {
+                SparsePathBuilderEmitter.Append(code, modelType, members, patchDialect);
+            }
             SparseTemporaryKeyReconcileEmitter.AppendReconcileHelpers(
                 code,
                 modelType,

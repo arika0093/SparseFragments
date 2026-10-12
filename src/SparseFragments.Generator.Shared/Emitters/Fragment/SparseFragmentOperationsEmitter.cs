@@ -23,13 +23,15 @@ internal static class SparseFragmentOperationsEmitter
     /// <param name="pocoCloneModels">POCO clone helpers to relocate.</param>
     /// <param name="operationsCore">Core emitter bound to operations qualifiers.</param>
     /// <param name="isRootModel">Whether the projection constructor applies.</param>
+    /// <param name="operationsAccessibility">Type accessibility; file-scoped when the consumer language allows it.</param>
     internal static void AppendOperations(
         SharedIndentedBuilder code,
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<SparsePocoCloneModel> pocoCloneModels,
         SparseFragmentCoreEmitter operationsCore,
-        bool isRootModel = true
+        bool isRootModel = true,
+        string operationsAccessibility = "internal"
     )
     {
         var modelType = model.ModelTypeName;
@@ -42,7 +44,7 @@ internal static class SparseFragmentOperationsEmitter
             1,
             "/// <summary>Per-model Fragment conversion, merge, diff, and clone operations.</summary>"
         );
-        code.AppendLineAt(1, "internal static class " + operationsName);
+        code.AppendLineAt(1, operationsAccessibility + " static class " + operationsName);
         code.AppendLineAt(1, "{");
         // Public-first order: public operations precede internal bridges,
         // with private Diff helpers last.

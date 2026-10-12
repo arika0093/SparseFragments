@@ -10,7 +10,7 @@
    component proves the Razor shape around it compiles: EditForm bound to the
    session model, an InputText adapter that edits through Observable while
    validation tracks the original model, and explicit conflict choices.
-   The session type names its generator-assigned container because
+   The session type names the model-nested session because
    a field declaration requires it; handler code elsewhere prefers var.
    The EditForm carries a @key tied to an explicit session generation (#219):
    adopting a new session/EditContext tears down and recreates the input
@@ -42,8 +42,8 @@
 @code {
     private BlazorEditFormOrder live = new() { Number = "ORD-1", Version = 7 };
 
-    // Generator-assigned per-model container; stable for this model identity.
-    private global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession session = null!;
+    // Model-nested session; stable for this model identity.
+    private global::BlazorEditFormOrder.EditSession session = null!;
     private EditContext editContext = null!;
     private ValidationMessageStore store = null!;
     private BlazorEditFormOrder? latestServer;
@@ -159,7 +159,7 @@
         conflictNotice = null;
     }
 
-    private void AdoptSession(global::SparseFragments.Generated.BlazorEditFormOrder_98CE7559.EditSession next)
+    private void AdoptSession(global::BlazorEditFormOrder.EditSession next)
     {
         // Detach from the previous context first: the named handler closes over
         // these fields, so a lingering subscription would clear the new store.

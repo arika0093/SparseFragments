@@ -100,15 +100,16 @@ namespace SparseFragments.Tests.Shared
             implementation.ShouldContain("class PatchOperations");
             implementation.ShouldContain("class ChangeSetOperations");
 
-            // Surface and implementation hints stay stable and distinct (union:
-            // reloc-1 UI/session family plus the combined reloc-2 payload/
-            // Fragment-operations and reloc-3 Patch/ChangeSet implementation).
+            // Single-file emission: the model owns one merged hint carrying
+            // the surface plus implementations.
             var hints = sources
                 .Keys.Where(static key => key.Contains("ProbeRoot", StringComparison.Ordinal))
                 .ToArray();
-            hints.Length.ShouldBe(6);
+            hints.Length.ShouldBe(1);
             hints
-                .Count(static key => key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal))
+                .Count(static key =>
+                    key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
+                )
                 .ShouldBe(1);
             surface.ShouldContain("sealed class Patch");
         }
@@ -140,12 +141,14 @@ namespace SparseFragments.Tests.Shared
             surface.ShouldContain("PatchOperations.");
             surface.ShouldContain("ChangeSetOperations.");
 
-            // Heavyweight bodies no longer live under the model.
-            surface.ShouldNotContain("ApplyMembers(Patch self");
-            surface.ShouldNotContain("ToPatch(ChangeSet self");
-            surface.ShouldNotContain("EnumerateChanges(ChangeSet self");
+            // Single-file emission: the heavyweight bodies share the merged
+            // file with the facades.
+            surface.ShouldBe(implementation);
+            surface.ShouldContain("ApplyMembers(Patch self");
+            surface.ShouldContain("ToPatch(ChangeSet self");
+            surface.ShouldContain("EnumerateChanges(ChangeSet self");
 
-            // The algorithms live in the implementation source instead.
+            // The algorithms live in the implementation section instead.
             implementation.ShouldContain("ApplyMembers(Patch self");
             implementation.ShouldContain("ToPatch(ChangeSet self");
             implementation.ShouldContain("EnumerateChanges(ChangeSet self");

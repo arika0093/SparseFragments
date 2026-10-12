@@ -66,14 +66,13 @@ public sealed class BlazorEditFormRenderedTests
     // Mirrors the OrderEditForm.razor handler logic (keyed adopt with handler
     // detach, explicit server-value discard, disjoint-merge notice) so the
     // rendered tests drive the same flow the Razor component runs. The session
-    // field names its generator-assigned container, just like the Razor file
-    // does, because a field declaration requires it.
+    // field names the model-nested session, just like the Razor file does,
+    // because a field declaration requires it.
     private sealed class OrderFormDriver
     {
         public OrderDto Live = Order();
 
-        public global::SparseFragments.Generated.SparseFragments_Blazor_Tests_OrderDto_19983FDA.EditSession Session =
-            null!;
+        public OrderDto.EditSession Session = null!;
 
         public EditContext Context = null!;
 
@@ -174,9 +173,7 @@ public sealed class BlazorEditFormRenderedTests
             Notice = null;
         }
 
-        private void Adopt(
-            global::SparseFragments.Generated.SparseFragments_Blazor_Tests_OrderDto_19983FDA.EditSession next
-        )
+        private void Adopt(OrderDto.EditSession next)
         {
             if (Context is not null)
             {

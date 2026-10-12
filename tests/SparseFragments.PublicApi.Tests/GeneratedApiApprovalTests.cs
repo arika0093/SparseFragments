@@ -56,18 +56,19 @@ public sealed class GeneratedApiApprovalTests
                     "Patch",
                     "ChangeSet",
                     "ChangePayload",
-                    "FragmentBuilder",
+                    "Observable",
+                    "ReadOnlyView",
+                    "EditSession",
                 }
             )
                 AssertNested(model, nested);
 
-            // Relocated stage (#190): UI/editing types live outside the model.
-            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("Observable");
+            // Builders and paths live in the per-model Generated container.
             model
                 .GetNestedTypes()
                 .Select(static type => type.Name)
-                .ShouldNotContain("ReadOnlyView");
-            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("EditSession");
+                .ShouldNotContain("FragmentBuilder");
+            model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("SparsePaths");
 
             var changeSet = AssertNested(model, "ChangeSet");
             AssertMethods(
@@ -137,7 +138,7 @@ public sealed class GeneratedApiApprovalTests
     {
         var session = new CatalogScalar().CreateEditSession();
 
-        session.GetType().Namespace.ShouldStartWith("SparseFragments.Generated");
+        session.GetType().Namespace.ShouldBe("SparseFragments.GeneratedApiFixtures");
         session.GetType().Name.ShouldBe("EditSession");
         session
             .GetType()

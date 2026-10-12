@@ -281,19 +281,21 @@ the legacy per-model copies — then re-tighten this section.
 per-model generated implementations live. All placement decisions flow through
 `SparseGeneratedPlacement`: the per-model container derives from the stable
 fully qualified model identity (never filesystem paths or emission ordering),
-UI type names dodge source member collisions, and surface/implementation hint
-names stay stable and unique. The namespace is explicit with no Shared fallback;
-null keeps the single-file emission. `SparseGenerationResult.AdditionalSources`
-carries the implementation files with the surface file so per-model incremental
-isolation covers both.
+UI/session/builder/paths names dodge source member collisions, and
+surface/implementation hint names stay stable and unique. The namespace is
+explicit with no Shared fallback; null keeps the single-file emission.
+`SparseGenerationResult.AdditionalSources` carries the implementation files
+with the surface file so per-model incremental isolation covers both.
 
-With an explicit namespace, per-model `Observable`, `ReadOnlyView`, and
-`EditSession` types live in that namespace inside the model container. They are
-emitted as separate additional sources (`.Observable.g.cs`, `.ReadOnlyView.g.cs`,
-`.EditSession.g.cs`). The annotated model keeps no nested copy and no
-compatibility alias. Child references resolve to the child container. Private
-member attributes are read through an internal model bridge so the relocated
-code never names a private type.
+With an explicit namespace, the UI/editing types (`Observable`,
+`ReadOnlyView`, `EditSession`) nest in the annotated model; only operation,
+payload, builder, paths, and descriptor-factory machinery lives in the
+per-model container. Child observable/view references stay model-nested, so
+no cross-container rewrite applies to them. Private member attributes are
+read through an internal model bridge so the factory never names a private
+type. A same-named member pushes the generated type behind a `Sparse`
+prefix (`SparseObservable`, `SparseEditSession`); a user-nested
+`EditSession` still collides and fails compilation.
 
 With an explicit namespace, each model also emits a payload/operations
 implementation source, `<sanitized>_<hash>.Implementation.g.cs`, in that
@@ -307,12 +309,18 @@ references use the qualified `global::<ns>.__Internal_<hash>` form. The
 `JsonIgnore` rules are unchanged.
 
 The same implementation file carries the per-model `Fragment` operations
-class (`<container>FragmentOperations`, `internal static`). It owns the
-model-specific conversion (`From`, `ToModel`, projection), merge, diff, and
-deep-clone bodies plus POCO clone helpers; the model keeps one-line facades
-on `Fragment`/`FragmentBuilder` and the root projection bridge. Reference
-cycles, comparers, merge modes, and presence semantics are unchanged, and
-collection kernels stay compilation-scoped under issue #182.
+class (`<container>FragmentOperations`). It owns the model-specific
+conversion (`From`, `ToModel`, projection), merge, diff, and deep-clone
+bodies plus POCO clone helpers; the model keeps one-line facades on
+`Fragment` and the root projection bridge. The class is `file`-scoped when
+`SparseGeneratorConfig.AllowFileScopedTypes` is set (consumer language C#
+11+; the owning generator derives it from the compilation), otherwise
+`internal static`, because only the owning model file references it.
+Reference cycles, comparers, merge modes, and presence semantics are
+unchanged, and collection kernels stay compilation-scoped under issue #182.
+The container also hosts the relocated `FragmentBuilder` and
+`SparsePaths<TRoot>` classes; the model keeps the `ToBuilder()` facade and
+the static `SparsePath` entry point forwarding to them.
 per-model generated implementations live once facade/implementation separation
 lands. All placement decisions flow through `SparseGeneratedPlacement`: the
 per-model container derives from the stable fully qualified model identity
@@ -374,7 +382,7 @@ projection, collection/value helpers) with validated prerequisites
 cached once per model and shared across accesses; generic implementations
 stay shared once per compilation where contract identity permits (today via
 the shared runtime). Per-model live bindings live in a `DescriptorFactory`
-(`.DescriptorFactory.g.cs`) inside the model container. The relocated
+(`.DescriptorFactory.g.cs`) inside the model container. The model-nested
 `Observable` keeps a thin internal bridge delegating to its factory, so child
 `current.__SparseGet_X(path)` call sites keep working without naming private
 state.

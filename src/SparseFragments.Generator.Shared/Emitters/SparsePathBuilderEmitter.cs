@@ -20,8 +20,24 @@ internal static class SparsePathBuilderEmitter
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
     )
     {
+        AppendEntryPoint(code, modelType, dialect);
+        AppendPathsClass(code, modelType, members, dialect);
+    }
+
+    /// <summary>Emits the model-facing entry point forwarding to the paths class.</summary>
+    /// <param name="code">Model partial target builder.</param>
+    /// <param name="modelType">Qualified model type name.</param>
+    /// <param name="dialect">Product patch dialect.</param>
+    /// <param name="pathsTypePrefix">Qualified prefix of the relocated paths class, or null when nested in the model.</param>
+    internal static void AppendEntryPoint(
+        SharedIndentedBuilder code,
+        string modelType,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? pathsTypePrefix = null
+    )
+    {
         var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
-        var rootBuilder = "SparsePaths<" + modelType + ">";
+        var rootBuilder = (pathsTypePrefix ?? "") + "SparsePaths<" + modelType + ">";
         code.AppendLineAt(
             1,
             "/// <summary>Typed path navigation for '" + modelType + "'.</summary>"
@@ -42,6 +58,23 @@ internal static class SparsePathBuilderEmitter
                 + modelType
                 + ")));"
         );
+    }
+
+    /// <summary>Emits the paths navigation class, nested or relocated.</summary>
+    /// <param name="code">Target builder (model partial or implementation container).</param>
+    /// <param name="modelType">Qualified model type name.</param>
+    /// <param name="members">Analyzed members.</param>
+    /// <param name="dialect">Product patch dialect.</param>
+    /// <param name="qualifyChildPaths">Maps a child qualified name to its relocated paths prefix, or null for model-nested references.</param>
+    internal static void AppendPathsClass(
+        SharedIndentedBuilder code,
+        string modelType,
+        ImmutableArray<SparseMemberModel> members,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        System.Func<string, string>? qualifyChildPaths = null
+    )
+    {
+        var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
         code.AppendLineAt(1, "/// <summary>Root path builder for typed navigation.</summary>");
         code.AppendLineAt(
             1,
@@ -71,7 +104,7 @@ internal static class SparsePathBuilderEmitter
         };
         foreach (var member in members)
         {
-            AppendMemberNavigation(navigations, member, pathType, dialect);
+            AppendMemberNavigation(navigations, member, pathType, dialect, qualifyChildPaths);
         }
 
         code.Append(navigations.ToString());
@@ -84,7 +117,8 @@ internal static class SparsePathBuilderEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string pathType,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        System.Func<string, string>? qualifyChildPaths = null
     )
     {
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -98,7 +132,9 @@ internal static class SparsePathBuilderEmitter
             var child = member.ChildModel!.Value;
             if (child.IsFragmentModel && !member.ChildIsStructural)
             {
-                var builder = child.NonNullableName + ".SparsePaths<TRoot>";
+                var builder =
+                    (qualifyChildPaths?.Invoke(child.NonNullableName) ?? child.NonNullableName)
+                    + ".SparsePaths<TRoot>";
                 code.AppendLineAt(
                     2,
                     "/// <summary>Gets the path builder for '" + name + "'.</summary>"
@@ -120,7 +156,7 @@ internal static class SparsePathBuilderEmitter
             || SparseChangeSetBasicsEmitter.IsSet(member)
         )
         {
-            AppendCollectionNavigation(code, member, pathType, dialect);
+            AppendCollectionNavigation(code, member, pathType, dialect, qualifyChildPaths);
             return;
         }
 
@@ -147,7 +183,8 @@ internal static class SparsePathBuilderEmitter
         SharedIndentedBuilder code,
         SparseMemberModel member,
         string pathType,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        System.Func<string, string>? qualifyChildPaths = null
     )
     {
         var name = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -214,14 +251,18 @@ internal static class SparsePathBuilderEmitter
             AppendKeyMethod(
                 entries,
                 member.Collection.ElementType.Name,
-                ElementNavigation(member.Collection.ValueType!.Value, dialect)
+                ElementNavigation(member.Collection.ValueType!.Value, dialect, qualifyChildPaths)
             );
         }
         else
         {
             // Only keyed sequences reach here: dictionaries and sets return
             // above, and other shapes stay scalar leaves.
-            var navigation = ElementNavigation(member.Collection.ElementType, dialect);
+            var navigation = ElementNavigation(
+                member.Collection.ElementType,
+                dialect,
+                qualifyChildPaths
+            );
             AppendKeyMethod(entries, member.Collection.KeyTypeName ?? "object?", navigation);
             if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
             {
@@ -295,12 +336,14 @@ internal static class SparsePathBuilderEmitter
 
     private static string ElementNavigation(
         SparseTypeModel element,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        System.Func<string, string>? qualifyChildPaths = null
     )
     {
         if (element.IsFragmentModel)
         {
-            return element.NonNullableName + ".SparsePaths<TRoot>";
+            return (qualifyChildPaths?.Invoke(element.NonNullableName) ?? element.NonNullableName)
+                + ".SparsePaths<TRoot>";
         }
 
         return SparseFragmentPatchEmitter.GetTypedPathType(dialect, "TRoot", element.Name);

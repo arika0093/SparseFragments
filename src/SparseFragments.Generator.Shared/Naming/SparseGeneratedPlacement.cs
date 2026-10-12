@@ -244,36 +244,29 @@ internal static class SparseGeneratedPlacement
         return char.IsLetter(container[0]) || container[0] == '_' ? container : "_" + container;
     }
 
-    /// <summary>Gets the qualified observable reference, relocating when enabled.</summary>
+    /// <summary>Gets the model-nested observable reference.</summary>
+    /// <remarks>
+    /// UI/editing types nest in the annotated model; only operation, payload,
+    /// and descriptor-factory machinery lives in the implementation namespace.
+    /// </remarks>
     /// <param name="model">Owning model.</param>
     /// <param name="simpleName">Collision-resolved simple name.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="cancellationToken">Cooperative cancellation.</param>
-    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    /// <param name="config">Owning generator configuration (reserved).</param>
+    /// <param name="cancellationToken">Cooperative cancellation (reserved).</param>
+    /// <returns>Model-nested reference.</returns>
     public static string GetObservableReference(
         SparseModelInfo model,
         string simpleName,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
-    )
-    {
-        var root = TryGetImplementationNamespace(config);
-        return root is null
-            ? model.ModelTypeName + "." + simpleName
-            : "global::"
-                + root
-                + "."
-                + GetImplementationContainer(model, cancellationToken)
-                + "."
-                + simpleName;
-    }
+    ) => model.ModelTypeName + "." + simpleName;
 
-    /// <summary>Gets the qualified read-only-view reference, relocating when enabled.</summary>
+    /// <summary>Gets the model-nested read-only-view reference.</summary>
     /// <param name="model">Owning model.</param>
     /// <param name="simpleName">Collision-resolved simple name.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="cancellationToken">Cooperative cancellation.</param>
-    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    /// <param name="config">Owning generator configuration (reserved).</param>
+    /// <param name="cancellationToken">Cooperative cancellation (reserved).</param>
+    /// <returns>Model-nested reference.</returns>
     public static string GetReadOnlyViewReference(
         SparseModelInfo model,
         string simpleName,
@@ -281,22 +274,22 @@ internal static class SparseGeneratedPlacement
         CancellationToken cancellationToken
     ) => GetObservableReference(model, simpleName, config, cancellationToken);
 
-    /// <summary>Gets the qualified edit-session reference, relocating when enabled.</summary>
+    /// <summary>Gets the model-nested edit-session reference.</summary>
     /// <param name="model">Owning model.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="cancellationToken">Cooperative cancellation.</param>
-    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    /// <param name="config">Owning generator configuration (reserved).</param>
+    /// <param name="cancellationToken">Cooperative cancellation (reserved).</param>
+    /// <returns>Model-nested reference.</returns>
     public static string GetEditSessionReference(
         SparseModelInfo model,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
     ) => GetObservableReference(model, "EditSession", config, cancellationToken);
 
-    /// <summary>Gets the qualified child observable reference.</summary>
+    /// <summary>Gets the model-nested child observable reference.</summary>
     /// <param name="child">Child type model.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="cancellationToken">Cooperative cancellation.</param>
-    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    /// <param name="config">Owning generator configuration (reserved).</param>
+    /// <param name="cancellationToken">Cooperative cancellation (reserved).</param>
+    /// <returns>Model-nested reference.</returns>
     public static string GetChildObservableReference(
         SparseTypeModel child,
         SparseGeneratorConfig config,
@@ -304,22 +297,14 @@ internal static class SparseGeneratedPlacement
     )
     {
         var simple = child.ObservableTypeName ?? "Observable";
-        var root = TryGetImplementationNamespace(config);
-        return root is null
-            ? child.NonNullableName + "." + simple
-            : "global::"
-                + root
-                + "."
-                + GetContainerForQualifiedName(child.NonNullableName, cancellationToken)
-                + "."
-                + simple;
+        return child.NonNullableName + "." + simple;
     }
 
-    /// <summary>Gets the qualified child read-only-view reference.</summary>
+    /// <summary>Gets the model-nested child read-only-view reference.</summary>
     /// <param name="child">Child type model.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="cancellationToken">Cooperative cancellation.</param>
-    /// <returns>Nested reference for single-file emission, qualified otherwise.</returns>
+    /// <param name="config">Owning generator configuration (reserved).</param>
+    /// <param name="cancellationToken">Cooperative cancellation (reserved).</param>
+    /// <returns>Model-nested reference.</returns>
     public static string GetChildReadOnlyViewReference(
         SparseTypeModel child,
         SparseGeneratorConfig config,
@@ -327,18 +312,14 @@ internal static class SparseGeneratedPlacement
     )
     {
         var simple = child.ReadOnlyViewTypeName ?? "ReadOnlyView";
-        var root = TryGetImplementationNamespace(config);
-        return root is null
-            ? child.NonNullableName + "." + simple
-            : "global::"
-                + root
-                + "."
-                + GetContainerForQualifiedName(child.NonNullableName, cancellationToken)
-                + "."
-                + simple;
+        return child.NonNullableName + "." + simple;
     }
 
     /// <summary>Gets the qualified descriptor-factory reference for a model.</summary>
+    /// <remarks>
+    /// Unlike UI types, the factory stays in the implementation namespace when
+    /// relocation is enabled.
+    /// </remarks>
     /// <param name="model">Owning model.</param>
     /// <param name="config">Owning generator configuration.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
@@ -347,7 +328,17 @@ internal static class SparseGeneratedPlacement
         SparseModelInfo model,
         SparseGeneratorConfig config,
         CancellationToken cancellationToken
-    ) => GetObservableReference(model, "DescriptorFactory", config, cancellationToken);
+    )
+    {
+        var root = TryGetImplementationNamespace(config);
+        return root is null
+            ? model.ModelTypeName + ".DescriptorFactory"
+            : "global::"
+                + root
+                + "."
+                + GetImplementationContainer(model, cancellationToken)
+                + ".DescriptorFactory";
+    }
 
     /// <summary>Gets the qualified child descriptor-factory reference.</summary>
     /// <param name="childQualifiedName">Child <c>NonNullableName</c>.</param>

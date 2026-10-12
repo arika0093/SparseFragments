@@ -12,39 +12,41 @@ public sealed class AotEmissionDefaultsTests
     [Test]
     public async Task StandaloneDefaults_ExposeEveryFamily()
     {
-        // Compile-time presence: fragment families stay nested; UI/editing
-        // types live in the configured generated namespace (issue #190).
+        // Compile-time presence: fragment families and UI/editing types stay
+        // nested; builders, paths, and operation implementations live in the
+        // configured generated namespace.
         _ = typeof(PayloadRoot.Fragment);
         _ = typeof(PayloadRoot.Patch);
         _ = typeof(PayloadRoot.ChangeSet);
         _ = typeof(PayloadRoot.ChangePayload);
-        _ = typeof(PayloadRoot.FragmentBuilder);
+        _ = typeof(PayloadRoot.Observable);
+        _ = typeof(PayloadRoot.ReadOnlyView);
+        _ = typeof(PayloadRoot.EditSession);
+        var probeBuilder = PayloadRoot.Fragment.From(new PayloadRoot { Label = "a" }).ToBuilder();
+        await Assert
+            .That(
+                probeBuilder
+                    .GetType()
+                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
+            )
+            .IsTrue();
         // NOTE: no typeof(PayloadRoot).GetNestedTypes() enumeration here.
         // Enumerating nested types roots every nested type (including the
         // fragment JSON converter and ChangePayload enum converters) and
         // surfaces transitive IL2026/IL3050 diagnostics under PublishAot.
         var session = new PayloadRoot { Label = "a" }.CreateEditSession();
         await Assert
-            .That(
-                session
-                    .Observable.GetType()
-                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
+            .That(session.Observable.GetType().Namespace!.StartsWith("SparseFragments"))
             .IsTrue();
         await Assert
-            .That(
-                session
-                    .Current.GetType()
-                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
-            .IsTrue();
+            .That(session.Observable.GetType().DeclaringType)
+            .IsEqualTo(typeof(PayloadRoot));
         await Assert
-            .That(
-                session
-                    .GetType()
-                    .Namespace!.StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
+            .That(session.Current.GetType().Namespace!.StartsWith("SparseFragments"))
             .IsTrue();
+        await Assert.That(session.Current.GetType().DeclaringType).IsEqualTo(typeof(PayloadRoot));
+        await Assert.That(session.GetType().Namespace!.StartsWith("SparseFragments")).IsTrue();
+        await Assert.That(session.GetType().DeclaringType).IsEqualTo(typeof(PayloadRoot));
         await Assert.That(typeof(PayloadRoot.Fragment).Name).IsEqualTo("Fragment");
     }
 

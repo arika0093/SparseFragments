@@ -5,7 +5,7 @@ generated-to-runtime seam as of that change, before the #190–#195
 relocation landed. For the current placement, see the
 [architecture overview](README.md); the landed per-model surface is
 pinned by `ModelFacingSurfaceTests` and described for users in
-[Relocated generated types](../ui-frameworks.md#relocated-generated-types).
+[Generated type placement](../ui-frameworks.md#generated-type-placement).
 Line and byte counts in the cost report below are historical measurements
 from that base commit, not current benchmarks.
 

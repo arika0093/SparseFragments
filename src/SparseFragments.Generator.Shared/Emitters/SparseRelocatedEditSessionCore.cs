@@ -3,14 +3,15 @@ using System.Collections.Immutable;
 
 namespace SparseFragments.Generator.Shared;
 
-/// <summary>Emits the relocated per-model edit-session class inside its container.</summary>
+/// <summary>Emits the per-model edit-session class nested in the model.</summary>
 /// <remarks>
-/// Mirrors <see cref="SparseEditSessionEmitter"/> but references the relocated
-/// observable and read-only-view types directly instead of <c>Model.X</c>.
+/// Mirrors <see cref="SparseEditSessionEmitter"/> but takes the model-nested
+/// observable and read-only-view references explicitly; only the descriptor
+/// factory still resolves to the implementation container.
 /// </remarks>
 internal static class SparseRelocatedEditSessionCore
 {
-    /// <summary>Appends the relocated edit-session class.</summary>
+    /// <summary>Appends the model-nested edit-session class.</summary>
     /// <param name="code">Target builder.</param>
     /// <param name="model">Owning model.</param>
     /// <param name="members">Analyzed members.</param>
@@ -105,6 +106,12 @@ internal static class SparseRelocatedEditSessionCore
                 + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
         var conflictType = patchDialect.ConflictType;
         var rebaseResultType = patchDialect.RebaseResult(modelType + ".ChangeSet");
+        // A same-named member pushes the session behind a Sparse prefix,
+        // mirroring observable/view collision resolution.
+        var sessionSimple = SparseGeneratedPlacement.ResolveUiTypeName(
+            "EditSession",
+            members.Select(static member => member.Property.Name)
+        );
 
         code.AppendLineAt(1, "/// <summary>A typed edit session for this model.</summary>");
         var sessionBases = sessionInterface + "<" + modelType + ", " + modelType + ".ChangeSet>";
@@ -113,7 +120,7 @@ internal static class SparseRelocatedEditSessionCore
             sessionBases +=
                 ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
         }
-        code.AppendLineAt(1, "public sealed class EditSession : " + sessionBases);
+        code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
         // Public surface first; internal constructors and private state follow.
         code.AppendLineAt(2, "/// <summary>Gets the bindable proxy over the live model.</summary>");
@@ -138,6 +145,11 @@ internal static class SparseRelocatedEditSessionCore
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
+            var factoryRef = SparseGeneratedPlacement.GetDescriptorFactoryReference(
+                model,
+                config,
+                code.CancellationToken
+            );
             code.AppendLineAt(
                 2,
                 "/// <summary>Gets descriptors bound to this session's observable model.</summary>"
@@ -146,7 +158,9 @@ internal static class SparseRelocatedEditSessionCore
                 2,
                 "public "
                     + descriptorDialect.DescriptorSetInterface
-                    + " Descriptors => __descriptors ?? (__descriptors = DescriptorFactory.Create(Observable, "
+                    + " Descriptors => __descriptors ?? (__descriptors = "
+                    + factoryRef
+                    + ".Create(Observable, "
                     + descriptorDialect.EffectivePathType(
                         config.RuntimeDialect?.Namespace ?? patchDialect.RuntimeNamespace
                     )
@@ -349,16 +363,20 @@ internal static class SparseRelocatedEditSessionCore
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType);
+        SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType, sessionSimple);
         code.AppendLineAt(
             2,
-            "internal EditSession("
+            "internal "
+                + sessionSimple
+                + "("
                 + modelType
                 + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
         );
         code.AppendLineAt(
             2,
-            "internal EditSession("
+            "internal "
+                + sessionSimple
+                + "("
                 + modelType
                 + " baseline, "
                 + modelType

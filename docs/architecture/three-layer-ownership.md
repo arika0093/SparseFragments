@@ -164,11 +164,13 @@ which change landed each row, not pending work.
 | `SparseCollectionMerger`, `SparseCollectionRebase`, `SparseCollectionProvenance`, `SparseKeyedCollection` | Runtime | Runtime, with Generated-Once candidates per audit | C2, C3, C4 | #186 audited; #181–#183 landed |
 | Clone/cycle contexts, keyed primitives behind `SparseFragmentRuntime` | Runtime facade over Runtime implementations | Runtime seam, narrowed; generic bodies are Generated-Once candidates | C2, C3 | #186 landed |
 | `SparseFragmentRuntime` itself | Runtime (public facade) | Runtime, narrowed to the required generated-to-runtime contract | C2 | #186 landed |
-| Generic clone/collection helpers emitted per model (`__Clone*`, materializers) | Generated-Once (`CloneKernels.g.cs`, read-only adapters, removal index) | Generated-Once | C3, C4 | #178, #176 landed (#190–#195) |
+| Generic clone/collection helpers emitted per model (`__Clone*`, materializers) | Generated-Once (`Generated.CloneKernels.g.cs`, read-only adapters, removal index) | Generated-Once | C3, C4 | #178, #176 landed (#190–#195) |
 | Payload Core/Root/Change/item DTOs | Generated-Once implementation containers (`__Internal_<hash>`, E1 stays public) | Generated-Once implementation containers (E1 stays public) | C4, C6 | #176 landed (#192) |
-| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model operations delegating to Generated-Once generics where C3 applies; bodies in `<Container>FragmentOperations`, `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194) |
+| `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model operations delegating to Generated-Once generics where C3 applies; bodies in `<Container>FragmentOperations` (`file`-scoped on C# 11+), `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal) | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194) |
 | JSON converters, descriptor factories | Per-Model facades over implementation-namespace bodies | Per-Model, under implementation namespace | C5 | #176 landed (#191, #192) |
-| `Observable`, `ReadOnlyView`, `EditSession`, descriptor graphs | Implementation-namespace Per-Model types in `SparseFragments.Generated` | Generated-Once or implementation-namespace Per-Model types per #176 | C2, C5 | #176 landed (#190, #191) |
+| `Observable`, `ReadOnlyView`, `EditSession` | Model-nested types in the annotated model | Model-nested types | C2, C5 | UI/session return (builders/paths move the other way) |
+| `FragmentBuilder`, `SparsePaths<TRoot>` | Implementation-namespace Per-Model types in `SparseFragments.Generated` | Implementation-namespace Per-Model types | C2, C5 | Builder/paths relocation (with `Model.SparsePath` entry point) |
+| Descriptor graphs | Implementation-namespace `DescriptorFactory` per model | Implementation-namespace Per-Model types per #176 | C2, C5 | #176 landed (#191) |
 | `ChangePayload` envelope facade | Per-Model public facade over Generated-Once DTOs | Per-Model public facade over Generated-Once DTOs | C2 | #176 landed (#192) |
 | EditSession core helpers | Compilation-scoped generated source | Generated-Once | C4, C5 | #178 landed |
 
@@ -178,7 +180,8 @@ Later tracks reference these names exactly as written. Renames go
 through a deliberate Shared-surface change with a README update.
 
 - `SparseGeneratorConfig.GeneratedImplementationNamespace` (explicit,
-  no fallback) and `SparseGeneratorConfig.RuntimeDialect`,
+  no fallback), `SparseGeneratorConfig.AllowFileScopedTypes` (C# 11+
+  narrowing, default off) and `SparseGeneratorConfig.RuntimeDialect`,
   `PatchDialect`, `EditSessionDialect`, `DescriptorDialect`,
   `EmissionFeatures`.
 - `SparseRuntimeDialect` members: `Namespace`, `OptionalType`,
@@ -195,7 +198,8 @@ through a deliberate Shared-surface change with a README update.
   `ResolveUiTypeName`, `SurfaceHintName`, `ImplementationHintName`.
 - `SparseGenerationResult.AdditionalSources` carries implementation
   files alongside the surface file within per-model incremental
-  isolation.
+  isolation. The in-repo generator merges them into one file per model;
+  only compilation-wide helpers keep separate `Generated.*` files.
 - `SparseEmissionFeatures` and its dependency validation select which
   families a product emits.
 

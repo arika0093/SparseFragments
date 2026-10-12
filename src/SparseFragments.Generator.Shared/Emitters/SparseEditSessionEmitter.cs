@@ -204,6 +204,12 @@ internal static class SparseEditSessionEmitter
                 + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
         var conflictType = patchDialect.ConflictType;
         var rebaseResultType = patchDialect.RebaseResult(modelType + ".ChangeSet");
+        // A same-named member pushes the session behind a Sparse prefix,
+        // mirroring observable/view collision resolution.
+        var sessionSimple = SparseGeneratedPlacement.ResolveUiTypeName(
+            "EditSession",
+            members.Select(static member => member.Property.Name)
+        );
 
         code.AppendLineAt(0, accessibility + " " + declaration + modelName);
         code.AppendLineAt(0, "{");
@@ -214,7 +220,7 @@ internal static class SparseEditSessionEmitter
             sessionBases +=
                 ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
         }
-        code.AppendLineAt(1, "public sealed class EditSession : " + sessionBases);
+        code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
         // Public surface first; internal constructors and private state follow.
         code.AppendLineAt(2, "/// <summary>Gets the bindable proxy over the live model.</summary>");
@@ -458,16 +464,20 @@ internal static class SparseEditSessionEmitter
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        AppendForkMergeMembers(code, core, conflictType);
+        AppendForkMergeMembers(code, core, conflictType, sessionSimple);
         code.AppendLineAt(
             2,
-            "internal EditSession("
+            "internal "
+                + sessionSimple
+                + "("
                 + modelType
                 + " model, global::System.Action? onChanged) : this(model, model, onChanged) { }"
         );
         code.AppendLineAt(
             2,
-            "internal EditSession("
+            "internal "
+                + sessionSimple
+                + "("
                 + modelType
                 + " baseline, "
                 + modelType
@@ -525,7 +535,8 @@ internal static class SparseEditSessionEmitter
     internal static void AppendForkMergeMembers(
         SharedIndentedBuilder code,
         string core,
-        string conflictType
+        string conflictType,
+        string sessionSimple = "EditSession"
     )
     {
         // Public facade first; the internal core-backed ctor trails with the
@@ -542,7 +553,10 @@ internal static class SparseEditSessionEmitter
             2,
             "/// <returns>A new session with its own live model, baseline, and bindings.</returns>"
         );
-        code.AppendLineAt(2, "public EditSession Fork() => new EditSession(_session.Fork());");
+        code.AppendLineAt(
+            2,
+            "public " + sessionSimple + " Fork() => new " + sessionSimple + "(_session.Fork());"
+        );
         code.AppendLineAt(
             2,
             "/// <summary>Attempts to merge a fork created by <see cref=\"Fork\"/> without modifying either session.</summary>"
@@ -569,7 +583,11 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             2,
-            "public bool TryMergeFrom(EditSession fork, out EditSession? merged, out global::System.Collections.Generic.IReadOnlyList<"
+            "public bool TryMergeFrom("
+                + sessionSimple
+                + " fork, out "
+                + sessionSimple
+                + "? merged, out global::System.Collections.Generic.IReadOnlyList<"
                 + conflictType
                 + ">? conflicts)"
         );
@@ -580,12 +598,17 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             3,
-            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new EditSession(mergedCore); return true; }"
+            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new "
+                + sessionSimple
+                + "(mergedCore); return true; }"
         );
         code.AppendLineAt(3, "merged = null;");
         code.AppendLineAt(3, "return false;");
         code.AppendLineAt(2, "}");
-        code.AppendLineAt(2, "internal EditSession(" + core + " session) { _session = session; }");
+        code.AppendLineAt(
+            2,
+            "internal " + sessionSimple + "(" + core + " session) { _session = session; }"
+        );
     }
 
     private static string ReadTemplate(string resourceName)

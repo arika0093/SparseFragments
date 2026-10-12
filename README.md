@@ -266,9 +266,10 @@ Generated fragments use this distinction while exposing model-shaped members, so
 ### Source generation
 
 <!-- illustrative: simplified names; does not compile as written -->
-`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state and
-operation families stay nested in the model; per-model UI and editing types
-live in a stable `SparseFragments.Generated` container:
+`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state,
+operation, and UI/editing families stay nested in the model; builders,
+paths, and operation machinery live in a stable per-model
+`SparseFragments.Generated` container:
 
 ```csharp
 partial class Settings
@@ -279,20 +280,22 @@ partial class Settings
     public sealed class Patch;
     public sealed class ChangeSet;
     public sealed class ChangePayload;
-    public sealed class FragmentBuilder;
+    public sealed class EditSession;
+    public sealed class Observable;
+    public sealed class ReadOnlyView;
 }
 
 // In namespace SparseFragments.Generated, one container per model:
-// <Container>.Observable, <Container>.ReadOnlyView, <Container>.EditSession.
+// <Container>.FragmentBuilder, <Container>.SparsePaths<TRoot>,
+// <Container>.DescriptorFactory, operation implementations.
 ```
 
-Previously these UI and editing types were nested in the model
-(`Settings.EditSession`, `Settings.Observable`, `Settings.ReadOnlyView`).
-Update explicit references to the container paths, or use `var` with
-`CreateEditSession()` and `ToObservable()` instead of naming the types.
-There are no backwards-compatibility aliases. See
-[Relocated generated types](docs/ui-frameworks.md#relocated-generated-types)
-for the full old-to-new mapping.
+Each model is emitted into one file; only compilation-wide helpers keep
+separate `Generated.*` files. Prefer `var` with `CreateEditSession()` and
+`ToObservable()` instead of naming the types. There are no
+backwards-compatibility aliases. See
+[Generated type placement](docs/ui-frameworks.md#generated-type-placement)
+for the full mapping.
 
 Reachable eligible `partial` nested types receive the corresponding generated APIs as well. See [Model shapes](docs/model-shapes.md) for the supported shapes and constructor rules.
 

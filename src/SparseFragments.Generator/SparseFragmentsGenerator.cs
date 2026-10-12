@@ -476,14 +476,35 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             )
             .WithComparer(EqualityComparer<(bool ReadOnlySet, bool Capacity)>.Default)
             .WithTrackingName("SparseFragmentsGenerator.BclSetSupport");
+        // Consumer language version drives file-scoped narrowing: file-local
+        // helpers require C# 11+, older consumers keep internal helpers.
+        // Numeric comparison keeps building against older Roslyn packages
+        // that lack the CSharp11 enum member (1100 = C# 11).
+        var allowFileScopedTypes = context
+            .CompilationProvider.Select(
+                static (compilation, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (compilation is Microsoft.CodeAnalysis.CSharp.CSharpCompilation csharp)
+                    {
+                        return (int)csharp.LanguageVersion >= 1100;
+                    }
+
+                    return false;
+                }
+            )
+            .WithComparer(EqualityComparer<bool>.Default)
+            .WithTrackingName("SparseFragmentsGenerator.FileScopedTypes");
         var generated = analyzed
             .Combine(bclSetSupport)
+            .Combine(allowFileScopedTypes)
             .Select(
                 static (input, cancellationToken) =>
                     Render(
-                        input.Left,
-                        input.Right.ReadOnlySet,
-                        input.Right.Capacity,
+                        input.Left.Left,
+                        input.Left.Right.ReadOnlySet,
+                        input.Left.Right.Capacity,
+                        input.Right,
                         cancellationToken
                     )
             )
@@ -526,12 +547,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             .WithTrackingName("SparseFragmentsGenerator.PromotedDistinct");
         var promotedSources = distinctPromoted
             .Combine(bclSetSupport)
+            .Combine(allowFileScopedTypes)
             .Select(
                 static (input, cancellationToken) =>
                     RenderSinglePromoted(
-                        input.Left,
-                        input.Right.ReadOnlySet,
-                        input.Right.Capacity,
+                        input.Left.Left,
+                        input.Left.Right.ReadOnlySet,
+                        input.Left.Right.Capacity,
+                        input.Right,
                         cancellationToken
                     )
             )
@@ -818,6 +841,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         SparseGenerationAnalysis analysis,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
+        bool allowFileScopedTypes,
         CancellationToken cancellationToken
     )
     {
@@ -828,6 +852,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
+        var configuration = Configuration with { AllowFileScopedTypes = allowFileScopedTypes };
         // Per-model single-file emission: the surface, the reloc-2/reloc-3
         // implementation plus the reloc-1 UI/session family merge into one
         // hint so a model owns exactly one file. Only compilation-scoped
@@ -843,16 +868,16 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
             cancellationToken,
-            Configuration,
+            configuration,
             (code, generatedModel, members) =>
-                SparseModelExtensionsEmitter.Append(code, generatedModel, members, Configuration)
+                SparseModelExtensionsEmitter.Append(code, generatedModel, members, configuration)
         );
         var additional = SparsePerModelEmitter.BuildImplementationSources(
             model,
             analysis.Members,
             analysis.ReadOnlyViewModels,
             cancellationToken,
-            Configuration
+            configuration
         );
         if (implementation.HasValue)
             additional = additional.Add(implementation.Value);
@@ -902,6 +927,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         SparsePromotedModel promoted,
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
+        bool allowFileScopedTypes,
         CancellationToken cancellationToken
     )
     {
@@ -932,17 +958,18 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             Configuration.PromotedHintNameSuffix,
             cancellationToken
         );
+        var configuration = Configuration with { AllowFileScopedTypes = allowFileScopedTypes };
         var (surface, implementation) = SparsePerModelEmitter.BuildPromotedSplitSurface(
             promoted,
             bclHashSetImplementsReadOnlySet,
             bclHashSetSupportsCapacity,
             cancellationToken,
-            Configuration
+            configuration
         );
         var additional = SparsePerModelEmitter.BuildPromotedImplementationSources(
             promoted,
             cancellationToken,
-            Configuration
+            configuration
         );
         if (implementation.HasValue)
             additional = additional.Add(implementation.Value);

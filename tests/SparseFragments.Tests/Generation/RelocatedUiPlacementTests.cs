@@ -70,20 +70,17 @@ public sealed class RelocatedUiPlacementTests
         var model = compilation.GetTypeByMetadataName("Reloc.Probe.CollisionModel");
         model.ShouldNotBeNull();
         var nested = model!.GetTypeMembers().Select(static type => type.Name).ToList();
+        // The colliding member pushes the generated proxy behind a Sparse
+        // prefix, nested in the model.
         nested.ShouldNotContain("Observable");
-        nested.ShouldNotContain("SparseObservable");
-        nested.ShouldNotContain("ReadOnlyView");
-        nested.ShouldNotContain("EditSession");
-        // Relocated collision-safe observable exists in the generated namespace.
-        compilation
-            .GetSymbolsWithName("SparseObservable")
-            .OfType<INamedTypeSymbol>()
-            .Where(static symbol =>
-                symbol
-                    .ContainingNamespace.ToDisplayString()
-                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
-            .ShouldHaveSingleItem();
+        nested.ShouldContain("SparseObservable");
+        nested.ShouldContain("ReadOnlyView");
+        nested.ShouldContain("EditSession");
+        model!
+            .GetTypeMembers("SparseObservable")
+            .ShouldHaveSingleItem()
+            .ContainingType.ToDisplayString()
+            .ShouldBe("Reloc.Probe.CollisionModel");
     }
 
     [Test]
@@ -100,21 +97,11 @@ public sealed class RelocatedUiPlacementTests
             """;
         var (_, _, all) = Generate(source);
         var hints = all.Keys.Where(static key => key.Contains("HintModel")).ToArray();
-        // Surface plus implementations (observable, view, session, factory).
+        // Single-file emission: one merged hint carries the surface plus
+        // implementations (observable, view, session, factory).
+        hints.Length.ShouldBe(1);
         hints
             .Count(static key => key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal))
-            .ShouldBe(1);
-        hints
-            .Count(static key => key.EndsWith(".Observable.g.cs", StringComparison.Ordinal))
-            .ShouldBe(1);
-        hints
-            .Count(static key => key.EndsWith(".ReadOnlyView.g.cs", StringComparison.Ordinal))
-            .ShouldBe(1);
-        hints
-            .Count(static key => key.EndsWith(".EditSession.g.cs", StringComparison.Ordinal))
-            .ShouldBe(1);
-        hints
-            .Count(static key => key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal))
             .ShouldBe(1);
     }
 
@@ -142,19 +129,10 @@ public sealed class RelocatedUiPlacementTests
             .ShouldBeEmpty();
         var internalModel = compilation.GetTypeByMetadataName("Reloc.Probe.InternalModel");
         internalModel.ShouldNotBeNull();
-        internalModel!.GetTypeMembers("Observable").ShouldBeEmpty();
-        internalModel.GetTypeMembers("EditSession").ShouldBeEmpty();
-        // Internal container stays internal; session still resolves.
-        compilation
-            .GetSymbolsWithName("EditSession")
-            .OfType<INamedTypeSymbol>()
-            .Where(static symbol =>
-                symbol
-                    .ContainingNamespace.ToDisplayString()
-                    .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
-            )
-            .Count()
-            .ShouldBeGreaterThanOrEqualTo(1);
+        // UI/editing types nest in the model with model-level accessibility.
+        internalModel!.GetTypeMembers("Observable").ShouldHaveSingleItem();
+        internalModel.GetTypeMembers("EditSession").ShouldHaveSingleItem();
+        internalModel.GetTypeMembers("ReadOnlyView").ShouldHaveSingleItem();
     }
 
     [Test]
@@ -180,14 +158,13 @@ public sealed class RelocatedUiPlacementTests
         create.Length.ShouldBe(2);
         foreach (var method in create.OfType<IMethodSymbol>())
         {
-            method
-                .ReturnType.ContainingNamespace.ToDisplayString()
-                .ShouldStartWith("SparseFragments.Generated");
+            // Sessions nest in the model; the return type stays model-scoped.
+            method.ReturnType.ToDisplayString().ShouldContain("EntryModel.EditSession");
         }
         var toObservable = extensions.GetMembers("ToObservable").ShouldHaveSingleItem();
         ((IMethodSymbol)toObservable)
             .ReturnType.ToDisplayString()
-            .ShouldContain("SparseFragments.Generated");
+            .ShouldContain("EntryModel.Observable");
     }
 
     [Test]
@@ -270,8 +247,10 @@ public sealed class RelocatedUiPlacementTests
                     .StartsWith("SparseFragments.Generated", StringComparison.Ordinal)
             )
             .ShouldHaveSingleItem();
+        // Single-file emission: the factory shares the merged model hint.
         all.Keys.Count(static key =>
-                key.EndsWith(".DescriptorFactory.g.cs", StringComparison.Ordinal)
+                key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
+                && key.Contains("FactoryModel", StringComparison.Ordinal)
             )
             .ShouldBe(1);
     }

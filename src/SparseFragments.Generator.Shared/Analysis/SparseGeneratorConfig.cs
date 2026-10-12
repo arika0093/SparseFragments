@@ -33,7 +33,8 @@ internal sealed record SparseGeneratorConfig
         string? GeneratedImplementationNamespace = null,
         SparseFamilyNames? FamilyNames = null,
         string? GeneratedImplementationSuffix = null,
-        string? TemporaryKeyAttributeMetadataName = null
+        string? TemporaryKeyAttributeMetadataName = null,
+        bool AllowFileScopedTypes = false
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -66,6 +67,7 @@ internal sealed record SparseGeneratorConfig
         this.FamilyNames = FamilyNames;
         this.GeneratedImplementationSuffix = GeneratedImplementationSuffix;
         this.TemporaryKeyAttributeMetadataName = TemporaryKeyAttributeMetadataName;
+        this.AllowFileScopedTypes = AllowFileScopedTypes;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -161,6 +163,14 @@ internal sealed record SparseGeneratorConfig
     /// the attribute keep byte-identical output.
     /// </remarks>
     public string? TemporaryKeyAttributeMetadataName { get; init; }
+
+    /// <summary>Whether the consumer language version allows file-scoped types.</summary>
+    /// <remarks>
+    /// False keeps the legacy <c>internal</c> helpers so downstream products
+    /// without C# 11 keep byte-identical output. True narrows same-file-only
+    /// helpers (per-model Fragment operations) to <c>file</c>.
+    /// </remarks>
+    public bool AllowFileScopedTypes { get; init; }
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 

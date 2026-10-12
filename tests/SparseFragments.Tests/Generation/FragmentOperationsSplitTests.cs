@@ -82,64 +82,83 @@ public sealed class FragmentOperationsSplitTests
     }
 
     [Test]
-    public void SurfaceKeepsFacadesAndBridgesWithoutAlgorithms()
+    public void MergedFileKeepsFacadesAndBridgesWithAlgorithms()
     {
         var sources = Sources();
-        // Union: the surface file is the per-model .SparseFragments.g.cs hint;
-        // reloc-1 UI/session implementations share the model name too.
-        var surfaceHint = sources.Keys.Single(key =>
+        // Single-file emission: one merged hint per model carries the surface
+        // plus implementations.
+        var mergedHint = sources.Keys.Single(key =>
             key.Contains("OpsParent", StringComparison.Ordinal)
             && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
         );
-        var surface = sources[surfaceHint];
+        sources
+            .Keys.Count(key =>
+                key.Contains("OpsParent", StringComparison.Ordinal)
+                && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+            )
+            .ShouldBe(0);
+        var merged = sources[mergedHint];
 
         // Facades delegate to the relocated operations class.
-        surface.ShouldContain("FragmentOperations.From(value)");
-        surface.ShouldContain("FragmentOperations.ToModel(this");
-        surface.ShouldContain("FragmentOperations.Merge(this, higherPriority)");
-        surface.ShouldContain("FragmentOperations.ApplyChanges(this, changes)");
-        surface.ShouldContain("FragmentOperations.Diff(before, after)");
-        surface.ShouldContain("FragmentOperations.DeepClone(this)");
+        merged.ShouldContain("FragmentOperations.From(value)");
+        merged.ShouldContain("FragmentOperations.ToModel(this");
+        merged.ShouldContain("FragmentOperations.Merge(this, higherPriority)");
+        merged.ShouldContain("FragmentOperations.ApplyChanges(this, changes)");
+        merged.ShouldContain("FragmentOperations.Diff(before, after)");
+        merged.ShouldContain("FragmentOperations.DeepClone(this)");
         // Ergonomic state and builders stay model-facing.
-        surface.ShouldContain("public sealed class Fragment");
-        surface.ShouldContain("public sealed class FragmentBuilder");
-        surface.ShouldContain("public static Fragment Empty");
+        merged.ShouldContain("public sealed class Fragment");
+        merged.ShouldContain("public sealed class FragmentBuilder");
+        merged.ShouldContain("public static Fragment Empty");
         // Narrow CLR-mandated bridges stay: init-only storage with cycle
         // registration, the writable writer, and per-member equality shims.
-        surface.ShouldContain("private Fragment(Fragment source,");
-        surface.ShouldContain("__SparseWriteWritableTo");
-        surface.ShouldContain("__SparseAreEqual");
-        // Heavy algorithms and helper families are gone from the model.
-        surface.ShouldNotContain("__SparseDiffCore");
-        surface.ShouldNotContain("__Diff_");
-        surface.ShouldNotContain(".Add(this, clone)");
-        surface.ShouldNotContain("public static Fragment Merge(Fragment self,");
-        surface.ShouldNotContain("public static Fragment ApplyChanges(Fragment self,");
+        merged.ShouldContain("private Fragment(Fragment source,");
+        merged.ShouldContain("__SparseWriteWritableTo");
+        merged.ShouldContain("__SparseAreEqual");
+        // Heavy algorithms live in the same merged file.
+        merged.ShouldContain("__SparseDiffCore");
+        merged.ShouldContain("__Diff_");
+        merged.ShouldContain("public static Fragment Merge(Fragment self,");
+        merged.ShouldContain("public static Fragment ApplyChanges(Fragment self,");
     }
 
     [Test]
-    public void ImplementationCarriesOperationsAndPocoHelpers()
+    public void MergedFileCarriesOperationsAndPocoHelpers()
     {
         var sources = Sources();
-        var implementationHint = sources.Keys.Single(key =>
+        var mergedHint = sources.Keys.Single(key =>
             key.Contains("OpsParent", StringComparison.Ordinal)
-            && key.EndsWith(".Implementation.g.cs", StringComparison.Ordinal)
+            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
         );
-        var implementation = sources[implementationHint];
+        var merged = sources[mergedHint];
 
-        implementation.ShouldContain("internal static class ");
-        implementation.ShouldContain("FragmentOperations");
-        implementation.ShouldContain("public static Fragment From(");
-        implementation.ShouldContain("public static Fragment Merge(Fragment self,");
-        implementation.ShouldContain("public static Fragment ApplyChanges(Fragment self,");
-        implementation.ShouldContain("public static Fragment Diff(");
-        implementation.ShouldContain("__SparseDiffCore");
-        implementation.ShouldContain("__Diff_");
-        implementation.ShouldContain("ToModel(Fragment fragment");
-        implementation.ShouldContain(".Add(value, clone)");
+        // Same-file-only helpers narrow to file-scoped types on C# 11+.
+        merged.ShouldContain(" static class ");
+        merged.ShouldContain("FragmentOperations");
+        merged.ShouldContain("public static Fragment From(");
+        merged.ShouldContain("public static Fragment Merge(Fragment self,");
+        merged.ShouldContain("public static Fragment ApplyChanges(Fragment self,");
+        merged.ShouldContain("public static Fragment Diff(");
+        merged.ShouldContain("__SparseDiffCore");
+        merged.ShouldContain("__Diff_");
+        merged.ShouldContain("ToModel(Fragment fragment");
+        merged.ShouldContain(".Add(value, clone)");
         // POCO clone specialization moved out of the annotated model.
-        implementation.ShouldContain("__Clone_");
+        merged.ShouldContain("__Clone_");
         // Nested models recurse through their own facades.
-        implementation.ShouldContain(".ToModel()");
+        merged.ShouldContain(".ToModel()");
+    }
+
+    [Test]
+    public void OperationsAccessibilityFollowsLanguageVersion()
+    {
+        var sources = Sources();
+        var mergedHint = sources.Keys.Single(key =>
+            key.Contains("OpsParent", StringComparison.Ordinal)
+            && key.EndsWith(".SparseFragments.g.cs", StringComparison.Ordinal)
+        );
+        // Driver compilations default to the latest stable language (C# 11+),
+        // so the same-file-only operations class narrows to file-scoped.
+        sources[mergedHint].ShouldContain("file static class ");
     }
 }
