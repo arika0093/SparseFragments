@@ -186,24 +186,7 @@ internal static class SparseChangeSetDictBetweenEmitter
                     + id
                     + "[__kv.Key] = __kv.Value; continue; }"
             );
-            code.AppendLineAt(
-                6,
-                "var __nested = "
-                    + valueCs
-                    + ".Between("
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__b!)), "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__kv.Value)));"
-            );
+            code.AppendLineAt(6, "var __nested = " + valueCs + ".Between(__b!, __kv.Value);");
             code.AppendLineAt(6, "if (!__nested.IsEmpty) __edited" + id + "[__kv.Key] = __nested;");
             code.AppendLineAt(5, "}");
             code.AppendLineAt(

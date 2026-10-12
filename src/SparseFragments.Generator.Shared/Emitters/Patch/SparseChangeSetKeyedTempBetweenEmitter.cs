@@ -139,12 +139,10 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
     internal static void AppendTempEditedLoop(
         SharedIndentedBuilder code,
         SparseMemberModel member,
-        string runtime,
         int id
     )
     {
         var elementCs = SparseChangeSetBasicsEmitter.ElementChangeSetOf(member);
-        var elementFrag = SparseChangeSetBasicsEmitter.ElementFragmentOf(member);
         // Temporary-identity edits: correlated by Guid, never by sentinel.
         // Assigned-key precedence means these pairs are always unassigned
         // on both sides; the nested diff ignores the identity itself.
@@ -165,21 +163,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         code.AppendLineAt(6, "var __beforeTempItem = __bT" + id + "[__tk];");
         code.AppendLineAt(
             6,
-            "var __nestedTemp = "
-                + elementCs
-                + ".Between("
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__beforeTempItem)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__afterTempItem)));"
+            "var __nestedTemp = " + elementCs + ".Between(__beforeTempItem, __afterTempItem);"
         );
         code.AppendLineAt(
             6,

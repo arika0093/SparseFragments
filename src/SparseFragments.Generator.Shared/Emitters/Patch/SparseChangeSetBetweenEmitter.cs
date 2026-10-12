@@ -283,8 +283,10 @@ internal static class SparseChangeSetBetweenEmitter
 
     internal static void AppendModelBetween(
         SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members,
         string modelType,
         string optionalFragment,
+        string runtime,
         SparseOperationTarget? target = null
     )
     {
@@ -357,14 +359,16 @@ internal static class SparseChangeSetBetweenEmitter
             );
         }
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "return Between("
-                + optionalFragment
-                + ".Present(Fragment.From(before)), "
-                + optionalFragment
-                + ".Present(Fragment.From(after)));"
-        );
+        if (SparseChangeSetModelBetweenEmitter.CanCompareDirectly(members))
+            SparseChangeSetModelBetweenEmitter.AppendBody(
+                code,
+                members,
+                modelType,
+                runtime,
+                optionalFragment
+            );
+        else
+            SparseChangeSetModelBetweenEmitter.AppendProjectedReturn(code, optionalFragment, 3);
         code.AppendLineAt(2, "}");
     }
 }

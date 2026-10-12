@@ -89,8 +89,10 @@ internal static class SparseChangeSetEmitter
         {
             SparseChangeSetBetweenEmitter.AppendModelBetween(
                 code,
+                members,
                 modelType,
                 optionalFragment,
+                runtime,
                 target
             );
         }

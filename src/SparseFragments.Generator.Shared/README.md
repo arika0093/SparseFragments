@@ -85,6 +85,12 @@ emitters require an explicit patch dialect; Shared provides no implicit
 SparseFragments runtime fallback. The product generator owns and supplies its
 runtime defaults.
 
+Structural collection values and keyed sequence elements must expose
+`ChangeSet.Between(TModel before, TModel after)`. Shared emits this overload
+when the model type is supplied. Collection comparisons call it directly so
+models whose members need no cloning can avoid intermediate fragments. Models
+that need projection or cloning retain the fragment-based comparison path.
+
 Each model emits a unified `ChangePayload` envelope carrying baseline-aware
 transitions and baseline-free commands side by side, with `missing`, `null`,
 `value`, and `redacted` endpoint states. `ToChangeSet()` accepts only complete

@@ -240,27 +240,13 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(6, "var __beforeItem = __beforeMap" + id + "[__k];");
         code.AppendLineAt(
             6,
-            "var __nested = "
-                + elementCs
-                + ".Between("
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__beforeItem)), "
-                + runtime
-                + "Optional<"
-                + elementFrag
-                + "?>.Present("
-                + elementFrag
-                + ".From(__afterItem)));"
+            "var __nested = " + elementCs + ".Between(__beforeItem, __afterItem);"
         );
         code.AppendLineAt(6, "if (!__nested.IsEmpty) __edited" + id + "[__k] = __nested;");
         code.AppendLineAt(5, "}");
         if (hasTemp)
         {
-            SparseChangeSetKeyedTempBetweenEmitter.AppendTempEditedLoop(code, member, runtime, id);
+            SparseChangeSetKeyedTempBetweenEmitter.AppendTempEditedLoop(code, member, id);
         }
         code.AppendLineAt(
             5,
