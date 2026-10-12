@@ -393,6 +393,28 @@ public class SparsePathTraversalBenchmarks
         }
     }
 
+    [Benchmark]
+    public int Segments_Indexed()
+    {
+        var checksum = 0;
+        for (var index = 0; index < _nested3.Path.Segments.Count; index++)
+        {
+            checksum += (int)_nested3.Path.Segments[index].Kind;
+        }
+        return checksum;
+    }
+
+    [Benchmark]
+    public int Segments_Foreach()
+    {
+        var checksum = 0;
+        foreach (var segment in _nested3.Path.Segments)
+        {
+            checksum += (int)segment.Kind;
+        }
+        return checksum;
+    }
+
     [Benchmark(Description = "Construct root path")]
     public SparsePath Construct_Root() => SparsePath.Root<BenchPathSingle>();
 

@@ -57,8 +57,42 @@ public sealed class SparsePathValueTests
         child.ToString().ShouldBe("Name.Child");
         child.Parent.ShouldBe(path);
         prefixed.ToString().ShouldBe("Parent.Name");
-        Should.Throw<NotSupportedException>(() =>
-            ((IList<SparsePathSegment>)path.Segments)[0] = SparsePathSegment.Member("Changed")
-        );
+        ((object)path.Segments).ShouldNotBeOfType<IList<SparsePathSegment>>();
+    }
+
+    [Test]
+    public void SegmentViewsSupportDefaultAndIndependentEnumeration()
+    {
+        var empty = default(SparsePathSegments);
+        empty.Count.ShouldBe(0);
+        empty.ToArray().ShouldBeEmpty();
+        Should.Throw<IndexOutOfRangeException>(() => empty[0]);
+
+        var path = SparsePath.Root<Settings>().Member("Parent").Member("Name");
+        var view = path.Segments;
+        var names = new List<string>();
+        foreach (var segment in view)
+        {
+            names.Add(segment.Name);
+        }
+        names.ShouldBe(new[] { "Parent", "Name" });
+        ((IReadOnlyList<SparsePathSegment>)view)[1].Name.ShouldBe("Name");
+        ((System.Collections.IEnumerable)view).Cast<SparsePathSegment>().Count().ShouldBe(2);
+
+        using var first = view.GetEnumerator();
+        using var second = view.GetEnumerator();
+        Should.Throw<InvalidOperationException>(() => first.Current);
+        first.MoveNext().ShouldBeTrue();
+        first.Current.Name.ShouldBe("Parent");
+        second.MoveNext().ShouldBeTrue();
+        first.MoveNext().ShouldBeTrue();
+        first.Current.Name.ShouldBe("Name");
+        second.Current.Name.ShouldBe("Parent");
+        first.MoveNext().ShouldBeFalse();
+        first.MoveNext().ShouldBeFalse();
+        Should.Throw<InvalidOperationException>(() => first.Current);
+        first.Reset();
+        first.MoveNext().ShouldBeTrue();
+        first.Current.Name.ShouldBe("Parent");
     }
 }

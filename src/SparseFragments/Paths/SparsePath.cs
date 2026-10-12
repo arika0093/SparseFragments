@@ -56,7 +56,7 @@ public readonly struct SparsePath : IEquatable<SparsePath>
     public Type RootType => _rootType ?? typeof(object);
 
     /// <summary>Gets the ordered segments from the root.</summary>
-    public IReadOnlyList<SparsePathSegment> Segments => Array.AsReadOnly(SegmentsArray);
+    public SparsePathSegments Segments => new(SegmentsArray);
 
     /// <summary>Gets whether this path addresses the whole root contribution.</summary>
     public bool IsRoot => SegmentsArray.Length == 0;

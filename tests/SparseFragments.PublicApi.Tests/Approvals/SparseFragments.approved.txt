@@ -451,7 +451,7 @@ namespace SparseFragments
         public bool IsRoot { get; }
         public SparseFragments.SparsePath? Parent { get; }
         public System.Type RootType { get; }
-        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePathSegment> Segments { get; }
+        public SparseFragments.SparsePathSegments Segments { get; }
         public SparseFragments.SparsePath Append(SparseFragments.SparsePath suffix) { }
         public SparseFragments.SparsePath Append(SparseFragments.SparsePathSegment segment) { }
         public SparseFragments.SparsePath At(int index) { }
@@ -506,6 +506,19 @@ namespace SparseFragments
         Key = 1,
         Index = 2,
         TemporaryKey = 3,
+    }
+    public readonly struct SparsePathSegments : System.Collections.Generic.IEnumerable<SparseFragments.SparsePathSegment>, System.Collections.Generic.IReadOnlyCollection<SparseFragments.SparsePathSegment>, System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePathSegment>, System.Collections.IEnumerable
+    {
+        public int Count { get; }
+        public SparseFragments.SparsePathSegment this[int index] { get; }
+        public SparseFragments.SparsePathSegments.Enumerator GetEnumerator() { }
+        public struct Enumerator : System.Collections.Generic.IEnumerator<SparseFragments.SparsePathSegment>, System.Collections.IEnumerator, System.IDisposable
+        {
+            public SparseFragments.SparsePathSegment Current { get; }
+            public void Dispose() { }
+            public bool MoveNext() { }
+            public void Reset() { }
+        }
     }
     public readonly struct SparsePath<TModel, TValue> : System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
     {
