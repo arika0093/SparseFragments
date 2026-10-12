@@ -230,6 +230,7 @@ else if (Section == 5)
             public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
             {
                 map.Member(dto => dto.Customer, entity => entity.CustomerName);
+                map.Member(dto => dto.Notes, entity => entity.Note!.Text);
                 map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
                     dto => dto.Lines,
                     entity => entity.Lines,
@@ -245,7 +246,7 @@ else if (Section == 5)
                     });
             }
         }
-        // Notes, Sku, Product, Qty, and UnitPrice map automatically.
+        // Total, Product, and Qty map automatically via generated defaults.
         // The int Key and TemporaryId ride the keyed transition, never scalars.
         """;
 

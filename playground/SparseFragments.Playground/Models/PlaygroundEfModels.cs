@@ -36,14 +36,27 @@ public partial class PlaygroundOrderLineDto
     [SparseTemporaryKey]
     public Guid? TemporaryId { get; set; }
 
-    /// <summary>Gets or sets the stock-keeping unit.</summary>
-    public string Sku { get; set; } = string.Empty;
-
     /// <summary>Gets or sets the product name.</summary>
     public string Product { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
+}
+
+/// <summary>Separate relational note entity (1:1 with the order).</summary>
+public sealed class PlaygroundNoteEntity
+{
+    /// <summary>Gets or sets the database-generated identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the note text.</summary>
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the owning order identity.</summary>
+    public int OrderId { get; set; }
+
+    /// <summary>Gets or sets the owning order.</summary>
+    public PlaygroundOrderEntity? Order { get; set; }
 }
 
 /// <summary>Tracked order entity. Carries no mapping attributes.</summary>
@@ -61,6 +74,9 @@ public sealed class PlaygroundOrderEntity
     /// <summary>Gets or sets the order total.</summary>
     public decimal Total { get; set; }
 
+    /// <summary>Gets or sets the separate note.</summary>
+    public PlaygroundNoteEntity? Note { get; set; }
+
     /// <summary>Gets or sets the keyed order lines.</summary>
     public List<PlaygroundOrderLineEntity> Lines { get; set; } = [];
 }
@@ -70,9 +86,6 @@ public sealed class PlaygroundOrderLineEntity
 {
     /// <summary>Gets or sets the database-generated identity.</summary>
     public int Id { get; set; }
-
-    /// <summary>Gets or sets the stock-keeping unit.</summary>
-    public string Sku { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the product name.</summary>
     public string Product { get; set; } = string.Empty;
@@ -115,6 +128,12 @@ public sealed class PlaygroundEfContext : DbContext
         {
             entity.HasKey(order => order.Id);
             entity
+                .HasOne(order => order.Note)
+                .WithOne(note => note.Order)
+                .HasForeignKey<PlaygroundNoteEntity>(note => note.OrderId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+            entity
                 .HasMany(order => order.Lines)
                 .WithOne(line => line.Order)
                 .HasForeignKey(line => line.OrderId)
@@ -140,6 +159,7 @@ public sealed class PlaygroundOrderMapper
     public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
     {
         map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        map.Member(dto => dto.Notes, entity => entity.Note!.Text);
         map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,

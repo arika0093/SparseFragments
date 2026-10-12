@@ -25,7 +25,11 @@
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>3. Edit draft</h3>
-                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetDraft">Reset draft</FluentButton>
+                <div class="pg-actions">
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="ResetDraft">Reset draft</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                        Disabled="@(_changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
+                </div>
             </div>
             <div class="pg-stack pg-edit-fields">
                 <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Customer)) ? "pg-changed" : "")">
@@ -49,17 +53,11 @@
             </div>
             <div class="pg-row pg-session-field pg-task-field">
                 <span class="pg-name notranslate" translate="no">Lines <small>List&lt;Line&gt;</small></span>
-                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddLine">Add line</FluentButton>
             </div>
             <div class="pg-task-line-ef" aria-label="New line">
                 <div class="pg-roster-field">
                     <span class="pg-mini notranslate" translate="no">Id <small>new</small></span>
                     <FluentTextInput Placeholder="(auto)" Style="width: 100%;" Disabled="true" />
-                </div>
-                <div class="pg-roster-field">
-                    <span class="pg-mini notranslate" translate="no">Sku</span>
-                    <FluentTextInput Placeholder="sku" Style="width: 100%;"
-                        Value="@_newSku" ValueChanged="@(v => _newSku = v ?? string.Empty)" />
                 </div>
                 <div class="pg-roster-field">
                     <span class="pg-mini notranslate" translate="no">Product</span>
@@ -70,6 +68,9 @@
                     <span class="pg-mini notranslate" translate="no">Qty</span>
                     <FluentNumberInput TValue="int" Style="width: 100%;"
                         Value="@_newQty" ValueChanged="@(v => _newQty = v)" />
+                </div>
+                <div class="pg-roster-actions pg-task-actions">
+                    <FluentButton Appearance="ButtonAppearance.Primary" Title="Add line" @onclick="AddLine">Add</FluentButton>
                 </div>
             </div>
             <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
@@ -82,12 +83,6 @@
                                 <FluentNumberInput TValue="int?"
                                     Value="@line.Id"
                                     ValueChanged="@(v => EditDraft(_ => line.Id = v))" />
-                            </div>
-                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Sku)) ? "pg-changed" : "")">
-                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Sku)))Sku</span>
-                                <FluentTextInput
-                                    Value="@line.Sku"
-                                    ValueChanged="@(v => EditDraft(_ => line.Sku = v ?? string.Empty))" />
                             </div>
                             <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
                                 <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)))Product</span>
@@ -127,7 +122,7 @@
     <div class="pg-grid pg-grid-trio pg-grid-trio-wide">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
-                <h3>4. ChangeSet</h3>
+                <h3>4. Save Entity</h3>
                 <span class="pg-has-changes-badge @(_changes?.IsChanged == true ? "pg-has-changes" : "pg-no-changes")">
                     <span aria-hidden="true"></span>@(_changes?.IsChanged == true ? "Changes" : "No changes")
                 </span>
@@ -136,47 +131,15 @@
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_changesError</FluentMessageBar>
             }
-            else if (_changeRows.Count == 0)
-            {
-                <p class="pg-hint">No changes.</p>
-            }
-            else
-            {
-                <div class="pg-change-table-wrap">
-                    <table class="pg-change-table" aria-label="Order ChangeSet">
-                        <thead>
-                            <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in _changeRows)
-                            {
-                                <tr>
-                                    <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                    <td><span class="pg-change-value">@row.Path</span></td>
-                                    <td><span class="pg-change-value">@row.Before</span></td>
-                                    <td><span class="pg-change-value">@row.After</span></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </FluentCard>
-        <FluentCard Class="pg-fluent-card">
-            <div class="pg-card-head">
-                <h3>5. Apply, save &amp; re-fetch</h3>
-                <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                    Disabled="@(_changes?.IsChanged != true)" @onclick="ApplyAndSave">Apply &amp; Save</FluentButton>
-            </div>
             @if (_applyError is not null)
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_applyError</FluentMessageBar>
             }
-            else if (!_applied)
+            @if (!_applied && _applyError is null)
             {
-                <p class="pg-hint">Applies the ChangeSet to the tracked entity, persists with <em>SaveChanges</em>, then re-reads from a fresh context. Untouched properties stay unmodified.</p>
+                <p class="pg-hint">Save the draft to apply its ChangeSet to the tracked entity and persist. Untouched properties stay unmodified.</p>
             }
-            else
+            @if (_applied)
             {
                 <div class="pg-change-table-wrap">
                     <table class="pg-change-table" aria-label="Modified EF properties">
@@ -202,15 +165,49 @@
                 {
                     <FluentMessageBar Intent="MessageBarIntent.Error">@_saveError</FluentMessageBar>
                 }
-                else if (_refetchedJson is not null)
-                {
-                    <p class="pg-hint">Fresh context, re-read after <em>SaveChanges</em>. Matches the applied state above.</p>
-                    <MonacoView Content="@_refetchedJson" Language="json" Height="270px" />
-                }
             }
         </FluentCard>
     </div>
 </div>
+
+<FluentDialog @ref="_saveDialog" Hidden="@_saveDialogHidden" Modal="true" TrapFocus="true"
+    Class="pg-submit-preview-dialog" AriaLabel="Confirm save changes">
+    <div class="pg-dialog-heading">
+        <h3>Save changes</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p class="pg-hint">Review the ChangeSet, then confirm to apply it to the tracked entity and persist.</p>
+        @if (_changeRows.Count == 0)
+        {
+            <p class="pg-hint">No changes.</p>
+        }
+        else
+        {
+            <div class="pg-change-table-wrap">
+                <table class="pg-change-table" aria-label="Order ChangeSet">
+                    <thead>
+                        <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _changeRows)
+                        {
+                            <tr>
+                                <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                <td><span class="pg-change-value">@row.Path</span></td>
+                                <td><span class="pg-change-value">@row.Before</span></td>
+                                <td><span class="pg-change-value">@row.After</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ConfirmSave">Save</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="CloseSaveDialog">Cancel</FluentButton>
+    </div>
+</FluentDialog>
 
 @code {
     private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
@@ -227,12 +224,12 @@
     private string? _changesError;
     private string? _applyError;
     private string? _saveError;
-    private string _newSku = string.Empty;
     private string _newProduct = string.Empty;
     private int _newQty = 1;
     private bool _applied;
     private string _entityJsonBeforeApply = string.Empty;
-    private string? _refetchedJson;
+    private FluentDialog? _saveDialog;
+    private bool _saveDialogHidden = true;
     private List<(string Operation, string Path, string Before, string After)> _changeRows = [];
     private List<(string Entity, string State, string Property, string Before, string After)> _modifiedRows = [];
 
@@ -241,7 +238,11 @@
     private string DraftJson => Try(WriteDraftJson);
 
     /// <summary>Reseeds the store and resets the whole pipeline. Called by the page too.</summary>
-    public void Reset() => Seed();
+    public void Reset()
+    {
+        _saveDialogHidden = true;
+        Seed();
+    }
 
     protected override void OnInitialized() => Seed();
 
@@ -257,20 +258,18 @@
             new PlaygroundOrderEntity
             {
                 CustomerName = "Cafe Vienna",
-                Notes = "first order",
                 Total = 13.75m,
+                Note = new PlaygroundNoteEntity { Text = "first order" },
                 Lines =
                 [
                     new PlaygroundOrderLineEntity
                     {
-                        Sku = "espresso",
                         Product = "Espresso",
                         Qty = 2,
                         SortOrder = 0,
                     },
                     new PlaygroundOrderLineEntity
                     {
-                        Sku = "croissant",
                         Product = "Croissant",
                         Qty = 3,
                         SortOrder = 1,
@@ -287,11 +286,10 @@
         _baseline = Project(_tracked);
         _draft = Clone(_baseline);
         _applied = false;
-        _refetchedJson = null;
         _modifiedRows = [];
-        _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
+        _saveDialogHidden = true;
         RefreshChanges();
     }
 
@@ -299,7 +297,6 @@
     {
         _draft = Clone(_baseline);
         _applied = false;
-        _refetchedJson = null;
         _modifiedRows = [];
         RefreshChanges();
     }
@@ -308,7 +305,6 @@
     {
         edit(_draft);
         _applied = false;
-        _refetchedJson = null;
         _modifiedRows = [];
         RefreshChanges();
     }
@@ -318,12 +314,10 @@
         EditDraft(draft => draft.Lines.Add(
             new PlaygroundOrderLineDto
             {
-                Sku = _newSku.Trim(),
                 Product = _newProduct.Trim(),
                 Qty = _newQty,
                 TemporaryId = Guid.NewGuid(),
             }));
-        _newSku = string.Empty;
         _newProduct = string.Empty;
         _newQty = 1;
     }
@@ -395,7 +389,6 @@
         return property switch
         {
             nameof(PlaygroundOrderLineDto.Id) => line.Id != baseline.Id,
-            nameof(PlaygroundOrderLineDto.Sku) => line.Sku != baseline.Sku,
             nameof(PlaygroundOrderLineDto.Product) => line.Product != baseline.Product,
             nameof(PlaygroundOrderLineDto.Qty) => line.Qty != baseline.Qty,
             _ => false,
@@ -485,12 +478,40 @@
         }
     }
 
+    private async Task OpenSaveDialog()
+    {
+        _saveDialogHidden = false;
+        if (_saveDialog is null)
+        {
+            throw new InvalidOperationException("The save dialog is not initialized.");
+        }
+
+        await _saveDialog.ShowAsync();
+    }
+
+    private async Task CloseSaveDialog()
+    {
+        _saveDialogHidden = true;
+        if (_saveDialog is null)
+        {
+            throw new InvalidOperationException("The save dialog is not initialized.");
+        }
+
+        await _saveDialog.HideAsync();
+    }
+
+    private async Task ConfirmSave()
+    {
+        await CloseSaveDialog();
+        ApplyAndSave();
+    }
+
     private void ApplyAndSave()
     {
         ApplyChanges();
         if (_applied)
         {
-            SaveAndRefetch();
+            SaveEntity();
         }
     }
 
@@ -520,7 +541,7 @@
         }
     }
 
-    private void SaveAndRefetch()
+    private void SaveEntity()
     {
         _saveError = null;
         if (_db is null || _tracked is null)
@@ -531,16 +552,15 @@
         try
         {
             _db.SaveChanges();
-            using var fresh = new PlaygroundEfContext(SharedOptions);
-            var reloaded = fresh.Orders
-                .Include(static order => order.Lines)
-                .Single(order => order.Id == _tracked.Id);
-            _refetchedJson = WriteOrderEntity(reloaded);
+            // Refresh the pipeline from the persisted entity: new rows carry
+            // real identities now, so their temporary keys are dropped.
+            _baseline = Project(_tracked);
+            _draft = Clone(_baseline);
+            RefreshChanges();
         }
         catch (Exception ex)
         {
             _saveError = $"{ex.GetType().Name}: {ex.Message}. The tracked graph is left as-is; fix the draft or reseed to recover.";
-            _refetchedJson = null;
         }
     }
 
@@ -548,14 +568,13 @@
         new()
         {
             Customer = order.CustomerName,
-            Notes = order.Notes,
+            Notes = order.Note?.Text ?? string.Empty,
             Total = order.Total,
             Lines = order
                 .Lines.OrderBy(static line => line.SortOrder)
                 .Select(static line => new PlaygroundOrderLineDto
                 {
                     Id = line.Id,
-                    Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
                 })
@@ -573,7 +592,6 @@
                 {
                     Id = line.Id,
                     TemporaryId = line.TemporaryId,
-                    Sku = line.Sku,
                     Product = line.Product,
                     Qty = line.Qty,
                 })
@@ -665,7 +683,6 @@
             writer.WriteNull("Id");
         }
 
-        writer.WriteString("Sku", line.Sku);
         writer.WriteString("Product", line.Product);
         writer.WriteNumber("Qty", line.Qty);
         writer.WriteEndObject();
@@ -690,14 +707,23 @@
             writer.WriteStartObject();
             writer.WriteNumber("Id", order.Id);
             writer.WriteString("CustomerName", order.CustomerName);
-            writer.WriteString("Notes", order.Notes);
+            if (order.Note is null)
+            {
+                writer.WriteNull("Note");
+            }
+            else
+            {
+                writer.WriteStartObject("Note");
+                writer.WriteString("Text", order.Note.Text);
+                writer.WriteEndObject();
+            }
+
             writer.WriteNumber("Total", order.Total);
             writer.WriteStartArray("Lines");
             foreach (var line in order.Lines.OrderBy(static item => item.SortOrder))
             {
                 writer.WriteStartObject();
                 writer.WriteNumber("Id", line.Id);
-                writer.WriteString("Sku", line.Sku);
                 writer.WriteString("Product", line.Product);
                 writer.WriteNumber("Qty", line.Qty);
                 writer.WriteNumber("SortOrder", line.SortOrder);
