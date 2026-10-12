@@ -7,7 +7,6 @@
 @implements IDisposable
 
 <div class="pg-stack">
-    <p class="pg-hint">Entity → DTO → edit → ChangeSet → tracked-entity Apply (watch which EF properties turn modified) → SaveChanges → fresh-context re-fetch. The store is EF Core InMemory; integer keys are generated on save, while constraint checks stay covered by the test suite.</p>
     <div class="pg-grid pg-grid-duo">
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
@@ -688,6 +687,7 @@
             else
             {
                 writer.WriteStartObject("Note");
+                writer.WriteNumber("Id", order.Note.Id);
                 writer.WriteString("Text", order.Note.Text);
                 writer.WriteEndObject();
             }

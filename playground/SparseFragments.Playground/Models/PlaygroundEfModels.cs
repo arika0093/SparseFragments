@@ -22,7 +22,7 @@ public partial class PlaygroundOrderDto
     public List<PlaygroundOrderLineDto> Lines { get; set; } = [];
 }
 
-/// <summary>Order line DTO keyed by its editable identity.</summary>
+/// <summary>Order line DTO keyed by its store-assigned identity.</summary>
 public partial class PlaygroundOrderLineDto
 {
     /// <summary>Gets or sets the persisted identity. Null means unassigned.</summary>
@@ -67,9 +67,6 @@ public sealed class PlaygroundOrderEntity
 
     /// <summary>Gets or sets the customer name.</summary>
     public string CustomerName { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the notes.</summary>
-    public string Notes { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the order total.</summary>
     public decimal Total { get; set; }
@@ -117,9 +114,9 @@ public sealed class PlaygroundEfContext : DbContext
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Note: Sku is a plain business column on purpose. The stable key is
-        // Id, so declaring an alternate key here would protect Sku writes
-        // and reject the generated same-name default at mapper creation.
+        // The stable key is Id, so no alternate keys are declared: they would
+        // protect those writes and reject the generated same-name defaults
+        // at mapper creation.
         modelBuilder.Entity<PlaygroundOrderLineEntity>(entity =>
         {
             entity.HasKey(line => line.Id);

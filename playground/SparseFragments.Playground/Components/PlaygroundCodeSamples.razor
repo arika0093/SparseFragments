@@ -59,8 +59,14 @@ else if (Section == 5)
             <FluentTab Header="Mapper" Id="code-5-mapper">
                 <MonacoView Content="@EfMapperCode" Language="csharp" Height="330px" />
             </FluentTab>
+            <FluentTab Header="Shapes" Id="code-5-shapes">
+                <MonacoView Content="@EfShapesCode" Language="csharp" Height="360px" />
+            </FluentTab>
             <FluentTab Header="Apply flow" Id="code-5-flow">
                 <MonacoView Content="@EfFlowCode" Language="csharp" Height="330px" />
+            </FluentTab>
+            <FluentTab Header="Inspect changes" Id="code-5-inspect">
+                <MonacoView Content="@EfInspectCode" Language="csharp" Height="330px" />
             </FluentTab>
         </FluentTabs>
     </div>
@@ -262,5 +268,59 @@ else if (Section == 5)
             .Where(static property => property.IsModified);
 
         await db.SaveChangesAsync(); // Explicit persistence stays application-owned.
+        """;
+
+    private const string EfShapesCode = """
+        [SparseFragmentModel]
+        public partial class PlaygroundOrderDto
+        {
+            public string Customer { get; set; } = string.Empty;
+            public string Notes { get; set; } = string.Empty; // Flattened onto Note.Text.
+            public decimal Total { get; set; }
+            public List<PlaygroundOrderLineDto> Lines { get; set; } = [];
+        }
+
+        public partial class PlaygroundOrderLineDto
+        {
+            public int? Id { get; set; } // Null means unassigned.
+            [SparseKey(Unassigned = 0)]
+            public int Key => Id ?? 0;
+            [SparseTemporaryKey]
+            public Guid? TemporaryId { get; set; }
+            public string Product { get; set; } = string.Empty;
+            public int Qty { get; set; }
+        }
+
+        public sealed class PlaygroundOrderEntity
+        {
+            public int Id { get; set; }
+            public string CustomerName { get; set; } = string.Empty;
+            public decimal Total { get; set; }
+            public PlaygroundNoteEntity? Note { get; set; } // Required 1:1.
+            public List<PlaygroundOrderLineEntity> Lines { get; set; } = [];
+        }
+
+        public sealed class PlaygroundNoteEntity
+        {
+            public int Id { get; set; }
+            public string Text { get; set; } = string.Empty;
+            public int OrderId { get; set; }
+        }
+        """;
+
+    private const string EfInspectCode = """
+        var changes = baseline.CreateChangeSet(draft); // Typed before-to-after transition.
+        if (!changes.IsChanged)
+        {
+            return; // The Save button stays disabled, like the draft card.
+        }
+
+        foreach (var change in changes.EnumerateChanges())
+        {
+            // Kind: Changed / Added / Removed / Order.
+            // PathText: e.g. Customer, Lines[3].Qty. Before/After are
+            // Optional<object?>; missing renders as — in the dialog table.
+            Console.WriteLine($"{change.Kind} {change.PathText}");
+        }
         """;
 }
