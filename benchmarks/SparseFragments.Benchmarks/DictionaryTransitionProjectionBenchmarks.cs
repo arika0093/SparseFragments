@@ -6,7 +6,11 @@ public class DictionaryTransitionProjectionBenchmarks
     [Params(16, 2048)]
     public int Size { get; set; }
 
-    [ParamsAllValues]
+    [Params(
+        DictionaryChangeSetBetweenShape.NoOp,
+        DictionaryChangeSetBetweenShape.OneEdit,
+        DictionaryChangeSetBetweenShape.AllEdits
+    )]
     public DictionaryChangeSetBetweenShape Shape { get; set; }
 
     [Params(false, true)]

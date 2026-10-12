@@ -1,20 +1,5 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using static SparseFragments.Generator.Shared.SparseChangeSetBasicsEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetBetweenEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetComposeEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetDictComposeEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetDictRebaseEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetDictTransitionEmitter;
 using static SparseFragments.Generator.Shared.SparseChangeSetEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetKeyedBetweenEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetKeyedComposeEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetKeyedRebaseEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetKeyedTransitionEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetMatchEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetPatchSyncEmitter;
-using static SparseFragments.Generator.Shared.SparseChangeSetRebaseEmitter;
 using static SparseFragments.Generator.Shared.SparseChangeSetTransitionEmitter;
 
 namespace SparseFragments.Generator.Shared;
@@ -35,13 +20,6 @@ internal static class SparseChangeSetDictBetweenEmitter
         var opt = runtime + "Optional<" + FragmentValueType(member) + ">";
         var keyType = KeyTypeOf(member);
         var valueType = ValueTypeOf(member);
-        var optValue = runtime + "Optional<" + valueType + ">";
-        var comparer =
-            "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
-        var facade = dialect.RuntimeFacade;
-        var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
-        var valueCs = hasPatch ? ValueChangeSetOf(member) : null;
-        var valueFrag = hasPatch ? ValueFragmentOf(member) : null;
         ComputePublicNames(
             System.Collections.Immutable.ImmutableArray.Create(member),
             out _,
@@ -127,320 +105,184 @@ internal static class SparseChangeSetDictBetweenEmitter
             keyType,
             valueType
         );
-        if (hasPatch)
+        AppendItemAssembly(code, member, trans, dialect);
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+    }
+
+    private static void AppendItemAssembly(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string trans,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+    )
+    {
+        var id = member.Id;
+        var itemList = "global::System.Collections.Generic.List<" + trans + ".Item>";
+        var optValue = dialect.RuntimeNamespace + "Optional<" + ValueTypeOf(member) + ">";
+        code.AppendLineAt(
+            5,
+            itemList
+                + "? __added"
+                + id
+                + " = null, __removed"
+                + id
+                + " = null, __edited"
+                + id
+                + " = null;"
+        );
+        code.AppendLineAt(5, "foreach (var __kv in __beforeDict" + id + ")");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "if (__afterDict" + id + ".ContainsKey(__kv.Key)) continue;");
+        AppendPresenceItem(code, member, trans, dialect, isAdded: false, indent: 6);
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(5, "foreach (var __kv in __afterDict" + id + ")");
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "if (!__beforeDict" + id + ".TryGetValue(__kv.Key, out var __b))");
+        code.AppendLineAt(6, "{");
+        AppendPresenceItem(code, member, trans, dialect, isAdded: true, indent: 7);
+        code.AppendLineAt(7, "continue;");
+        code.AppendLineAt(6, "}");
+        if (member.Collection.ValueType?.IsFragmentModel == true)
         {
             code.AppendLineAt(
-                5,
-                "var __edited"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueCs
-                    + ">("
-                    + comparer
-                    + ");"
+                6,
+                "var __nested = " + ValueChangeSetOf(member) + ".Between(__b!, __kv.Value);"
             );
-            code.AppendLineAt(
-                5,
-                "var __added"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueType
-                    + ">("
-                    + comparer
-                    + ");"
-            );
-            code.AppendLineAt(
-                5,
-                "var __removed"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueType
-                    + ">("
-                    + comparer
-                    + ");"
-            );
-            code.AppendLineAt(5, "foreach (var __k in __beforeDict" + id + ".Keys)");
-            code.AppendLineAt(
-                5,
-                "{ if (!__afterDict"
-                    + id
-                    + ".ContainsKey(__k)) __removed"
-                    + id
-                    + "[__k] = __beforeDict"
-                    + id
-                    + "[__k]; }"
-            );
-            code.AppendLineAt(5, "foreach (var __kv in __afterDict" + id + ")");
-            code.AppendLineAt(5, "{");
             code.AppendLineAt(
                 6,
-                "if (!__beforeDict"
+                "if (!__nested.IsEmpty) (__edited"
                     + id
-                    + ".TryGetValue(__kv.Key, out var __b)) { __added"
-                    + id
-                    + "[__kv.Key] = __kv.Value; continue; }"
-            );
-            code.AppendLineAt(6, "var __nested = " + valueCs + ".Between(__b!, __kv.Value);");
-            code.AppendLineAt(6, "if (!__nested.IsEmpty) __edited" + id + "[__kv.Key] = __nested;");
-            code.AppendLineAt(5, "}");
-            code.AppendLineAt(
-                5,
-                "if (__added"
-                    + id
-                    + ".Count == 0 && __removed"
-                    + id
-                    + ".Count == 0 && __edited"
-                    + id
-                    + ".Count == 0) { }"
-            );
-            code.AppendLineAt(5, "else");
-            code.AppendLineAt(5, "{");
-            code.AppendLineAt(6, "__h" + id + " = true;");
-            code.AppendLineAt(
-                6,
-                "var __list"
-                    + id
-                    + " = new global::System.Collections.Generic.List<"
+                    + " ??= new "
+                    + itemList
+                    + "()).Add(new "
                     + trans
-                    + ".Item>(__added"
-                    + id
-                    + ".Count + __removed"
-                    + id
-                    + ".Count + __edited"
-                    + id
-                    + ".Count);"
+                    + ".Item(__kv.Key, default, default, false, false, true, __nested, false));"
             );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __added"
-                    + id
-                    + ") { var __a = "
-                    + optValue
-                    + ".Present(__kv.Value); "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?> __ea = "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__kv.Value!)); var __edit = "
-                    + valueCs
-                    + ".Between(default, __ea); __list"
-                    + id
-                    + ".Add(new "
-                    + trans
-                    + ".Item(__kv.Key, default, __a, true, false, false, __edit, false)); }"
-            );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __removed"
-                    + id
-                    + ") { var __b = "
-                    + optValue
-                    + ".Present(__kv.Value); "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?> __eb = "
-                    + runtime
-                    + "Optional<"
-                    + valueFrag
-                    + "?>.Present("
-                    + valueFrag
-                    + ".From(__kv.Value!)); var __edit = "
-                    + valueCs
-                    + ".Between(__eb, default); __list"
-                    + id
-                    + ".Add(new "
-                    + trans
-                    + ".Item(__kv.Key, __b, default, false, true, false, __edit, false)); }"
-            );
-            if (hasPatch)
-            {
-                code.AppendLineAt(
-                    6,
-                    "foreach (var __kv in __edited"
-                        + id
-                        + ") __list"
-                        + id
-                        + ".Add(new "
-                        + trans
-                        + ".Item(__kv.Key, default, default, false, false, true, __kv.Value, false));"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    6,
-                    "foreach (var __kv in __edited"
-                        + id
-                        + ") { var __b = "
-                        + optValue
-                        + ".Present(__beforeDict"
-                        + id
-                        + "[__kv.Key]); var __a = "
-                        + optValue
-                        + ".Present(__afterDict"
-                        + id
-                        + "[__kv.Key]); __list"
-                        + id
-                        + ".Add(new "
-                        + trans
-                        + ".Item(__kv.Key, __b, __a, false, false, true, __kv.Value, false)); }"
-                );
-            }
-            code.AppendLineAt(6, "__items" + id + " = __list" + id + ";");
-            code.AppendLineAt(5, "}");
         }
         else
         {
             code.AppendLineAt(
-                5,
-                "var __added"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueType
-                    + ">("
-                    + comparer
-                    + ");"
-            );
-            code.AppendLineAt(
-                5,
-                "var __removed"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueType
-                    + ">("
-                    + comparer
-                    + ");"
-            );
-            code.AppendLineAt(
-                5,
-                "var __edited"
-                    + id
-                    + " = new global::System.Collections.Generic.Dictionary<"
-                    + keyType
-                    + ", "
-                    + valueType
-                    + ">("
-                    + comparer
-                    + ");"
-            );
-            code.AppendLineAt(5, "foreach (var __k in __beforeDict" + id + ".Keys)");
-            code.AppendLineAt(
-                5,
-                "{ if (!__afterDict"
-                    + id
-                    + ".ContainsKey(__k)) __removed"
-                    + id
-                    + "[__k] = __beforeDict"
-                    + id
-                    + "[__k]; }"
-            );
-            code.AppendLineAt(5, "foreach (var __kv in __afterDict" + id + ")");
-            code.AppendLineAt(5, "{");
-            code.AppendLineAt(
-                6,
-                "if (!__beforeDict"
-                    + id
-                    + ".TryGetValue(__kv.Key, out var __b)) { __added"
-                    + id
-                    + "[__kv.Key] = __kv.Value; continue; }"
-            );
-            code.AppendLineAt(
                 6,
                 "if (!"
-                    + facade
-                    + ".AreEqual(__b, __kv.Value)) __edited"
+                    + dialect.RuntimeFacade
+                    + ".AreEqual(__b, __kv.Value)) (__edited"
                     + id
-                    + "[__kv.Key] = __kv.Value;"
-            );
-            code.AppendLineAt(5, "}");
-            code.AppendLineAt(
-                5,
-                "if (__added"
-                    + id
-                    + ".Count == 0 && __removed"
-                    + id
-                    + ".Count == 0 && __edited"
-                    + id
-                    + ".Count == 0) { }"
-            );
-            code.AppendLineAt(5, "else");
-            code.AppendLineAt(5, "{");
-            code.AppendLineAt(6, "__h" + id + " = true;");
-            code.AppendLineAt(
-                6,
-                "var __list"
-                    + id
-                    + " = new global::System.Collections.Generic.List<"
-                    + trans
-                    + ".Item>(__added"
-                    + id
-                    + ".Count + __removed"
-                    + id
-                    + ".Count + __edited"
-                    + id
-                    + ".Count);"
-            );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __added"
-                    + id
-                    + ") __list"
-                    + id
-                    + ".Add(new "
-                    + trans
-                    + ".Item(__kv.Key, default, "
-                    + optValue
-                    + ".Present(__kv.Value), true, false, false, false));"
-            );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __removed"
-                    + id
-                    + ") __list"
-                    + id
-                    + ".Add(new "
+                    + " ??= new "
+                    + itemList
+                    + "()).Add(new "
                     + trans
                     + ".Item(__kv.Key, "
                     + optValue
-                    + ".Present(__kv.Value), default, false, true, false, false));"
-            );
-            code.AppendLineAt(
-                6,
-                "foreach (var __kv in __edited"
-                    + id
-                    + ") __list"
-                    + id
-                    + ".Add(new "
-                    + trans
-                    + ".Item(__kv.Key, "
-                    + optValue
-                    + ".Present(__beforeDict"
-                    + id
-                    + "[__kv.Key]), "
+                    + ".Present(__b), "
                     + optValue
                     + ".Present(__kv.Value), false, false, true, false));"
             );
-            code.AppendLineAt(6, "__items" + id + " = __list" + id + ";");
-            code.AppendLineAt(5, "}");
         }
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(3, "}");
+        code.AppendLineAt(5, "}");
+        code.AppendLineAt(
+            5,
+            "if (__added"
+                + id
+                + " is not null || __removed"
+                + id
+                + " is not null || __edited"
+                + id
+                + " is not null)"
+        );
+        code.AppendLineAt(5, "{");
+        code.AppendLineAt(6, "__h" + id + " = true;");
+        // Reuse the first group while preserving the established added/removed/edited order.
+        code.AppendLineAt(
+            6,
+            "var __list = __added" + id + " ?? __removed" + id + " ?? __edited" + id + "!;"
+        );
+        code.AppendLineAt(
+            6,
+            "int __count = (__added"
+                + id
+                + "?.Count ?? 0) + (__removed"
+                + id
+                + "?.Count ?? 0) + (__edited"
+                + id
+                + "?.Count ?? 0);"
+        );
+        code.AppendLineAt(6, "if (__list.Capacity < __count) __list.Capacity = __count;");
+        code.AppendLineAt(
+            6,
+            "if (__removed"
+                + id
+                + " is not null && !global::System.Object.ReferenceEquals(__list, __removed"
+                + id
+                + ")) __list.AddRange(__removed"
+                + id
+                + ");"
+        );
+        code.AppendLineAt(
+            6,
+            "if (__edited"
+                + id
+                + " is not null && !global::System.Object.ReferenceEquals(__list, __edited"
+                + id
+                + ")) __list.AddRange(__edited"
+                + id
+                + ");"
+        );
+        code.AppendLineAt(6, "__items" + id + " = __list;");
+        code.AppendLineAt(5, "}");
+    }
+
+    private static void AppendPresenceItem(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string trans,
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        bool isAdded,
+        int indent
+    )
+    {
+        var runtime = dialect.RuntimeNamespace;
+        var optValue = runtime + "Optional<" + ValueTypeOf(member) + ">";
+        var group = (isAdded ? "__added" : "__removed") + member.Id;
+        var itemList = "global::System.Collections.Generic.List<" + trans + ".Item>";
+        code.AppendLineAt(indent, "var __value = " + optValue + ".Present(__kv.Value);");
+        var editArgument = string.Empty;
+        if (member.Collection.ValueType?.IsFragmentModel == true)
+        {
+            var valueFrag = ValueFragmentOf(member);
+            code.AppendLineAt(
+                indent,
+                "var __fragment = "
+                    + runtime
+                    + "Optional<"
+                    + valueFrag
+                    + "?>.Present("
+                    + valueFrag
+                    + ".From(__kv.Value!));"
+            );
+            var endpoints = isAdded ? "default, __fragment" : "__fragment, default";
+            code.AppendLineAt(
+                indent,
+                "var __edit = " + ValueChangeSetOf(member) + ".Between(" + endpoints + ");"
+            );
+            editArgument = ", __edit";
+        }
+        var valuesAndFlags = isAdded
+            ? "default, __value, true, false, false"
+            : "__value, default, false, true, false";
+        code.AppendLineAt(
+            indent,
+            "("
+                + group
+                + " ??= new "
+                + itemList
+                + "()).Add(new "
+                + trans
+                + ".Item(__kv.Key, "
+                + valuesAndFlags
+                + editArgument
+                + ", false));"
+        );
     }
 
     private static void AppendNormalizedInput(

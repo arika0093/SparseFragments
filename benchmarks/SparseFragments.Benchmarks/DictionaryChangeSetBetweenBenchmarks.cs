@@ -6,6 +6,10 @@ public enum DictionaryChangeSetBetweenShape
     NoOp,
     OneEdit,
     AllEdits,
+    AddLast,
+    RemoveFirst,
+    ReplaceAll,
+    Mixed,
 }
 
 [MemoryDiagnoser]
@@ -32,9 +36,36 @@ public class DictionaryChangeSetBetweenBenchmarks
         var scalar = ScalarBetween();
         var structural = StructuralBetween();
         var empty = Shape == DictionaryChangeSetBetweenShape.NoOp;
+        var added =
+            Shape == DictionaryChangeSetBetweenShape.ReplaceAll ? Size
+            : Shape
+                is DictionaryChangeSetBetweenShape.AddLast
+                    or DictionaryChangeSetBetweenShape.Mixed
+                ? 1
+            : 0;
+        var removed =
+            Shape == DictionaryChangeSetBetweenShape.ReplaceAll ? Size
+            : Shape
+                is DictionaryChangeSetBetweenShape.RemoveFirst
+                    or DictionaryChangeSetBetweenShape.Mixed
+                ? 1
+            : 0;
+        var edited =
+            Shape == DictionaryChangeSetBetweenShape.AllEdits ? Size
+            : Shape
+                is DictionaryChangeSetBetweenShape.OneEdit
+                    or DictionaryChangeSetBetweenShape.Mixed
+                ? 1
+            : 0;
         if (
             scalar.IsEmpty != empty
             || structural.IsEmpty != empty
+            || scalar.Scores.Added.Count != added
+            || scalar.Scores.Removed.Count != removed
+            || scalar.Scores.Edited.Count != edited
+            || structural.Servers.Added.Count != added
+            || structural.Servers.Removed.Count != removed
+            || structural.Servers.Edited.Count != edited
             || !BenchScalarDictHolder
                 .Patch.Between(scalar.ToPatch().Apply(_scalarBefore), _scalarAfter)
                 .IsEmpty
@@ -63,6 +94,7 @@ public class DictionaryChangeSetBetweenBenchmarks
             && (
                 Shape == DictionaryChangeSetBetweenShape.AllEdits
                 || (Shape == DictionaryChangeSetBetweenShape.OneEdit && index == 0)
+                || (Shape == DictionaryChangeSetBetweenShape.Mixed && index == 1)
             )
                 ? 1
                 : 0
@@ -73,10 +105,9 @@ public class DictionaryChangeSetBetweenBenchmarks
             BenchScalarDictHolder.Fragment.From(
                 new()
                 {
-                    Scores = Enumerable
-                        .Range(0, Size)
+                    Scores = Indices(after)
                         .ToDictionary(
-                            index => "key-" + index,
+                            index => Key(index, after),
                             index => Value(index, after),
                             StringComparer.Ordinal
                         ),
@@ -89,10 +120,9 @@ public class DictionaryChangeSetBetweenBenchmarks
             BenchStructuralDictHolder.Fragment.From(
                 new()
                 {
-                    Servers = Enumerable
-                        .Range(0, Size)
+                    Servers = Indices(after)
                         .ToDictionary(
-                            index => "key-" + index,
+                            index => Key(index, after),
                             index => new BenchKeyedServer
                             {
                                 Id = "srv-" + index,
@@ -104,6 +134,39 @@ public class DictionaryChangeSetBetweenBenchmarks
                 }
             )
         );
+
+    private IEnumerable<int> Indices(bool after)
+    {
+        var start =
+            after
+            && Shape
+                is DictionaryChangeSetBetweenShape.RemoveFirst
+                    or DictionaryChangeSetBetweenShape.Mixed
+                ? 1
+                : 0;
+        var end =
+            Size
+            + (
+                after
+                && Shape
+                    is DictionaryChangeSetBetweenShape.AddLast
+                        or DictionaryChangeSetBetweenShape.Mixed
+                    ? 1
+                    : 0
+            );
+        return Enumerable.Range(start, end - start);
+    }
+
+    private string Key(int index, bool after) =>
+        (after && Shape == DictionaryChangeSetBetweenShape.ReplaceAll ? "replacement-" : "key-")
+        + index;
+
+    public static void ValidateInputs()
+    {
+        foreach (var size in new[] { 16, 2048 })
+        foreach (var shape in Enum.GetValues<DictionaryChangeSetBetweenShape>())
+            new DictionaryChangeSetBetweenBenchmarks { Size = size, Shape = shape }.Setup();
+    }
 
     [Benchmark]
     public BenchScalarDictHolder.ChangeSet ScalarBetween() =>
