@@ -658,6 +658,11 @@
 
         writer.WriteString("Product", line.Product);
         writer.WriteNumber("Qty", line.Qty);
+        if (line.TemporaryId.HasValue)
+        {
+            writer.WriteString("TemporaryId", line.TemporaryId.Value);
+        }
+
         writer.WriteEndObject();
     }
 
