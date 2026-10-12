@@ -341,14 +341,15 @@ aliases, so emitters carry no product-specific qualification. A null
 namespace keeps the legacy single-file emission for downstream dialects.
 
 Compilation-scoped helpers live in the same namespace with stable hint names
-(`ReadOnlyAdapters.g.cs`, `CloneKernels.g.cs`, `RemovalIndex.g.cs`).
+(`Generated.ReadOnlyAdapters.g.cs`, `Generated.CloneKernels.g.cs`,
+`Generated.RemovalIndex.g.cs`).
 `SparseGeneratedOnceNames` pins those identities; per-model output with an
 explicit namespace instantiates them instead of redefining the generic
 code. The product generator aggregates capabilities across explicit and
 promoted models through the capability-driven plane and emits each family
 once (single wiring; the interim manual aggregation was removed at merge
 time). The clone family keeps the track-3 identity (`SparseCloneKernels`,
-`<ns>.CloneKernels.g.cs`); track-2's `SparseCloneHelpers`/`CloneHelpers.g.cs`
+`Generated.CloneKernels.g.cs`); track-2's `SparseCloneHelpers`/`CloneHelpers.g.cs`
 was renamed to match.
 
 ## Descriptor configuration

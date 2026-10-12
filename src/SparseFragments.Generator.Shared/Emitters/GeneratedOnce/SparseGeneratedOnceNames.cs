@@ -63,22 +63,22 @@ internal static class SparseGeneratedOnceNames
         "global::" + implementationNamespace + "." + RemovalIndex;
 
     /// <summary>Stable hint name for the shared read-only adapter source.</summary>
-    /// <param name="implementationNamespace">Explicit generated namespace.</param>
-    /// <returns>Deterministic hint name.</returns>
+    /// <param name="implementationNamespace">Explicit generated namespace (reserved for future product disambiguation).</param>
+    /// <returns>Deterministic hint name under the shared Generated prefix.</returns>
     public static string ReadOnlyAdaptersHintName(string implementationNamespace) =>
-        implementationNamespace + ".ReadOnlyAdapters.g.cs";
+        "Generated.ReadOnlyAdapters.g.cs";
 
     /// <summary>Stable hint name for the shared clone kernel source.</summary>
-    /// <param name="implementationNamespace">Explicit generated namespace.</param>
-    /// <returns>Deterministic hint name.</returns>
+    /// <param name="implementationNamespace">Explicit generated namespace (reserved for future product disambiguation).</param>
+    /// <returns>Deterministic hint name under the shared Generated prefix.</returns>
     public static string CloneKernelsHintName(string implementationNamespace) =>
-        implementationNamespace + ".CloneKernels.g.cs";
+        "Generated.CloneKernels.g.cs";
 
     /// <summary>Stable hint name for the shared removal-index source.</summary>
-    /// <param name="implementationNamespace">Explicit generated namespace.</param>
-    /// <returns>Deterministic hint name.</returns>
+    /// <param name="implementationNamespace">Explicit generated namespace (reserved for future product disambiguation).</param>
+    /// <returns>Deterministic hint name under the shared Generated prefix.</returns>
     public static string RemovalIndexHintName(string implementationNamespace) =>
-        implementationNamespace + ".RemovalIndex.g.cs";
+        "Generated.RemovalIndex.g.cs";
 
     /// <summary>Opens a block-scoped generated namespace compatible with C# 9.</summary>
     /// <param name="code">Target builder.</param>

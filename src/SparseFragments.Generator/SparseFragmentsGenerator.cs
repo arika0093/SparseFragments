@@ -828,10 +828,12 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        // Union of both relocations: the surface plus the reloc-2 split
-        // implementation file share one result, and the reloc-1 UI/session
-        // family joins AdditionalSources under distinct hints so per-model
-        // incremental isolation covers all of them.
+        // Per-model single-file emission: the surface, the reloc-2/reloc-3
+        // implementation plus the reloc-1 UI/session family merge into one
+        // hint so a model owns exactly one file. Only compilation-scoped
+        // Generated-Once helpers keep separate Generated.* files. Merging
+        // keeps one compilation unit so cross-references can later narrow
+        // from internal to file-scoped without cross-file visibility gaps.
         var (surface, implementation) = SparsePerModelEmitter.BuildSplitSurface(
             model,
             analysis.Members,
@@ -854,11 +856,12 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         );
         if (implementation.HasValue)
             additional = additional.Add(implementation.Value);
+        var merged = MergePerModelSources(surface, additional);
         return new SparseGenerationResult(
             model.HintName,
-            surface,
+            merged,
             analysis.Diagnostics,
-            additional
+            ImmutableArray<SparseGeneratedSource>.Empty
         );
     }
 
@@ -943,11 +946,17 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         );
         if (implementation.HasValue)
             additional = additional.Add(implementation.Value);
+        var merged = MergePerModelSources(surface, additional);
         return new SparseGenerationResult(
             hint,
-            surface,
+            merged,
             ImmutableArray<SparseGeneratorDiagnostic>.Empty,
-            additional
+            ImmutableArray<SparseGeneratedSource>.Empty
         );
     }
+
+    private static string MergePerModelSources(
+        string surface,
+        ImmutableArray<SparseGeneratedSource> additional
+    ) => SparseFragmentsSingleFileMerger.Merge(surface, additional);
 }

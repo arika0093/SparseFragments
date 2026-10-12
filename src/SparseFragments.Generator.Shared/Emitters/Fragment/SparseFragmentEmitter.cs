@@ -733,6 +733,10 @@ internal static class SparseFragmentEmitter
             );
             implementationBuilder.AppendLineAt(
                 1,
+                "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+            );
+            implementationBuilder.AppendLineAt(
+                1,
                 containerAccessibility + " static partial class " + operationContainer
             );
             implementationBuilder.AppendLineAt(1, "{");

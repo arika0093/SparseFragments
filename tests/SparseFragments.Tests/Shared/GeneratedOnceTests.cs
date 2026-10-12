@@ -233,7 +233,11 @@ public sealed class GeneratedOnceTests
     {
         var first = SparseGeneratedOnceEmitter.CloneKernelsHintName("Acme.Generated");
         var second = SparseGeneratedOnceEmitter.CloneKernelsHintName("Other.Generated");
-        first.ShouldNotBe(second);
+        first.ShouldBe(second);
+        first.ShouldBe("Generated.CloneKernels.g.cs");
+        SparseGeneratedOnceEmitter
+            .ReadOnlyAdaptersHintName("Acme.Generated")
+            .ShouldBe("Generated.ReadOnlyAdapters.g.cs");
         SparseGeneratedOnceEmitter
             .ReadOnlyAdaptersHintName("Acme.Generated")
             .ShouldNotBe(SparseGeneratedOnceEmitter.RemovalIndexHintName("Acme.Generated"));

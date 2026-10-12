@@ -200,6 +200,9 @@ internal static class SparseModelImplementationEmitter
         code.AppendLine("#nullable enable");
         code.Append("namespace ").Append(root).AppendLine();
         code.AppendLine("{");
+        // The EditorBrowsable(Never) marker lives on the operation-container
+        // partial in the merged implementation file; repeating it on every
+        // relocated partial would duplicate a non-AllowMultiple attribute.
         code.AppendLineAt(1, "/// <summary>Relocated per-model implementations.</summary>");
         code.AppendLineAt(1, accessibility + " partial class " + container);
         code.AppendLineAt(1, "{");

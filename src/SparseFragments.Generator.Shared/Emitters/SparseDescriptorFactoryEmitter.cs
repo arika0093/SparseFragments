@@ -87,6 +87,8 @@ internal static class SparseDescriptorFactoryEmitter
         var accessibility = model.IsPublic ? "public" : "internal";
         code.Append("namespace ").Append(root).AppendLine();
         code.AppendLine("{");
+        // EditorBrowsable(Never) stays on the operation-container partial;
+        // see SparseModelImplementationEmitter for the duplicate-attribute note.
         code.AppendLineAt(1, "/// <summary>Live descriptor bindings for one model.</summary>");
         code.AppendLineAt(1, accessibility + " partial class " + container);
         code.AppendLineAt(1, "{");

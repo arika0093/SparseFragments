@@ -138,9 +138,10 @@ public sealed class GeneratedOnceConformanceTests
         CompileAndRun("Other.Product.Generated", false, true);
         SparseGeneratedOnceEmitter
             .CloneKernelsHintName("Acme.Product.Generated")
-            .ShouldNotBe(
-                SparseGeneratedOnceEmitter.CloneKernelsHintName("Other.Product.Generated")
-            );
+            .ShouldBe("Generated.CloneKernels.g.cs");
+        SparseGeneratedOnceEmitter
+            .CloneKernelsHintName("Acme.Product.Generated")
+            .ShouldBe(SparseGeneratedOnceEmitter.CloneKernelsHintName("Other.Product.Generated"));
     }
 
     [Test]

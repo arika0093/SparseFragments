@@ -70,6 +70,10 @@ internal static class SparseModelOperationFileEmitter
                 + modelType
                 + "'. Backs the model-facing Patch and ChangeSet facades.</summary>"
         );
+        code.AppendLineAt(
+            1,
+            "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
+        );
         code.AppendLineAt(1, accessibility + " static partial class " + container);
         code.AppendLineAt(1, "{");
     }
