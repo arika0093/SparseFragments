@@ -1,0 +1,174 @@
+@page "/case-2"
+@using System.Text.Json
+@using SparseFragments
+@using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
+
+<PageTitle>02 Typed patch — SparseFragments Playground</PageTitle>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">02</span>
+        <h2>Typed patch applied to the merged fragment</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal">
+        <FluentTab Header="Playground" Id="section-2-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">A patch carries <em>Set / Remove / Keep</em> edits (plus <em>set null</em> for nullable members). The original fragment is never mutated.</p>
+                <div class="pg-grid pg-two-pane">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Patch edits</h3>
+                            <div class="pg-actions">
+                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OpenImport">Import ChangePayload…</FluentButton>
+                                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetPatch">Reset</FluentButton>
+                            </div>
+                        </div>
+                        <PatchEditor State="PatchState" OnChanged="Refresh" />
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Result</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Diff (JSON)" Id="patched-fragment-json">
+                                <MonacoDiffView Original="@MergedFragmentJson" Modified="@PatchedFragmentJson" Language="json" Height="300px" />
+                            </FluentTab>
+                            <FluentTab Header="Patch (C#)" Id="patch-csharp">
+                                <MonacoView Content="@PatchCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="ChangePayload" Id="patch-changeset-json">
+                                <MonacoView Content="@ChangeSetExportText" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (C#)" Id="patched-model-csharp">
+                                <MonacoDiffView Original="@MergedModelCSharp" Modified="@PatchedModelCSharp" Language="csharp" Height="300px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (JSON)" Id="patched-model-json">
+                                <MonacoDiffView Original="@MergedModelJson" Modified="@PatchedModelJson" Language="json" Height="300px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                </div>
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-2-codes">
+            <PlaygroundCodeSamples Section="2" />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
+<CasePager PrevHref="/case-1" PrevLabel="01 Layers merge" NextHref="/case-3" NextLabel="03 Keyed list" />
+
+<FluentDialog @ref="_importDialog" Hidden="@_importHidden" Modal="true" TrapFocus="true"
+    Class="pg-import-dialog" AriaLabel="Import ChangePayload">
+    <div class="pg-dialog-heading">
+        <h3>Import ChangePayload</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p class="pg-hint">Paste a ChangePayload JSON document exported from the merged baseline and preview its applied result.</p>
+        @if (!_importHidden)
+        {
+            <MonacoEditor Value="@_importText"
+                ValueChanged="@(v => _importText = v)"
+                Language="json" Height="380px" />
+        }
+        @if (_importError is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error" Style="margin-top: 0.5rem;">@_importError</FluentMessageBar>
+        }
+        @if (_importResult is not null && !_importHidden)
+        {
+            <div style="margin-top: 0.5rem;">
+                <MonacoView Content="@_importResult" Language="json" Height="270px" />
+            </div>
+        }
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ApplyImport">Apply to merged baseline</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="CloseImport">Close</FluentButton>
+    </div>
+</FluentDialog>
+
+@code {
+    private FragmentEditState Lower = FragmentEditState.LowerDefaults();
+    private FragmentEditState Higher = FragmentEditState.HigherDefaults();
+    private PatchEditState PatchState = PatchEditState.Defaults();
+    private bool _importHidden = true;
+    private FluentDialog? _importDialog;
+    private string _importText = """{"version":"0.1","changes":[]}""";
+    private string? _importError;
+    private string? _importResult;
+
+    private PlaygroundSettings.Fragment LowerFragment => Lower.Build();
+    private PlaygroundSettings.Fragment HigherFragment => Higher.Build();
+    private PlaygroundSettings.Fragment MergedFragment => LowerFragment.Merge(HigherFragment);
+    private PlaygroundSettings.Patch TypedPatch => PatchState.Build();
+    private PlaygroundSettings.Fragment PatchedFragment => MergedFragment.Apply(TypedPatch);
+
+    private string PatchCSharp => PlaygroundSnippets.PatchCSharp("patch", PatchState);
+
+    private string MergedFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(MergedFragment));
+    private string MergedModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
+    private string MergedModelCSharp => PlaygroundPageHelper.Try(() => PlaygroundSnippets.ModelCSharp("model", MergedFragment.ToModel()));
+    private string PatchedFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(PatchedFragment));
+    private string PatchedModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteModel(PatchedFragment.ToModel()));
+    private string PatchedModelCSharp => PlaygroundPageHelper.Try(() => PlaygroundSnippets.ModelCSharp("model", PatchedFragment.ToModel()));
+
+    private string ChangeSetExportText => PlaygroundPageHelper.Try(() =>
+    {
+        var baseline = Optional<PlaygroundSettings.Fragment?>.Present(MergedFragment);
+        var changes = PlaygroundSettings.ChangeSet.FromPatch(baseline, TypedPatch);
+        return PlaygroundJson.WriteSettingsChangeSet(changes);
+    });
+
+    private void Refresh() => StateHasChanged();
+
+    private void ResetPatch() => PatchState = PatchEditState.Defaults();
+
+    private async Task OpenImport()
+    {
+        _importText = ChangeSetExportText;
+        _importError = null;
+        _importResult = null;
+        _importHidden = false;
+        if (_importDialog is null)
+        {
+            throw new InvalidOperationException("The import dialog is not initialized.");
+        }
+
+        await _importDialog.ShowAsync();
+    }
+
+    private async Task CloseImport()
+    {
+        _importHidden = true;
+        if (_importDialog is null)
+        {
+            throw new InvalidOperationException("The import dialog is not initialized.");
+        }
+
+        await _importDialog.HideAsync();
+    }
+
+    private void ApplyImport()
+    {
+        _importError = null;
+        _importResult = null;
+        try
+        {
+            var changes = PlaygroundJson.ReadSettingsChangeSet(_importText);
+            if (changes is null)
+            {
+                throw new JsonException("The ChangePayload JSON deserialized to null.");
+            }
+
+            var applied = MergedFragment.Apply(changes.ToPatch());
+            _importResult =
+                $"IsEmpty: {changes.IsEmpty}\nChangePayload JSON:\n{PlaygroundJson.WriteSettingsChangeSet(changes)}\nApplied fragment:\n{PlaygroundJson.WriteFragment(applied)}\nApplied model:\n{PlaygroundJson.WriteModel(applied.ToModel())}";
+        }
+        catch (Exception ex)
+        {
+            _importError = $"{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+}

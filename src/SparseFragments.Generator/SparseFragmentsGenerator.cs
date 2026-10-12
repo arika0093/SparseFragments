@@ -317,6 +317,36 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf010-incompatible-promoted-fragment-model"
     );
 
+    private static readonly DiagnosticDescriptor IncompatibleEntityDefaultMapping = new(
+        SparseFragmentsDiagnosticIds.IncompatibleEntityDefaultMapping,
+        "Incompatible entity default mapping",
+        "Incompatible conventional entity mapping: {0}",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf033-incompatible-entity-default-mapping"
+    );
+
+    private static readonly DiagnosticDescriptor InvalidEntityMapperDeclaration = new(
+        SparseFragmentsDiagnosticIds.InvalidEntityMapperDeclaration,
+        "Invalid entity mapper declaration",
+        "Entity mapper '{0}' must implement IEntityModelMapping<TEntity, TDto>",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf034-invalid-entity-mapper-declaration"
+    );
+
+    private static readonly DiagnosticDescriptor UnsupportedEntityMemberShape = new(
+        SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+        "Unsupported entity member shape",
+        "Unsupported conventional entity member shape: {0}",
+        "SparseFragments",
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: "https://github.com/arika0093/SparseFragments/blob/main/docs/analyzer.md#spf035-unsupported-entity-member-shape"
+    );
+
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
         SparseFragmentsDiagnosticIds.UnkeyedStructuralSequence,
         "Structural sequence without usable key",
@@ -785,6 +815,27 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                     );
             }
         );
+
+        // EntityFrameworkCore mapper defaults (#228): discover
+        // [SparseFragmentMapper] types (DTOs may live in a referenced Contracts
+        // assembly) and emit the external RegisterDefaults companion plus
+        // incompatible-default diagnostics. No EF model access happens here;
+        // protection and relationship validation stay runtime plan-build work.
+        var entityMappers = context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                SparseEntityMapperEmitter.MapperAttributeMetadataName,
+                static (node, _) => node is TypeDeclarationSyntax,
+                static (attributeContext, cancellationToken) =>
+                    SparseEntityMapperEmitter.RenderMapper(
+                        (INamedTypeSymbol)attributeContext.TargetSymbol,
+                        cancellationToken
+                    )
+            )
+            .WithTrackingName("SparseFragmentsGenerator.EntityMappers");
+        context.RegisterSourceOutput(
+            entityMappers,
+            static (productionContext, result) => Emit(productionContext, result)
+        );
     }
 
     private static bool IsExternalInitEmissionEnabled(AnalyzerConfigOptionsProvider options) =>
@@ -920,6 +971,12 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             SparseFragmentsDiagnosticIds.InPlaceWriteUnavailable => InPlaceWriteUnavailable,
             SparseFragmentsDiagnosticIds.InvalidEmissionPlan => InvalidEmissionPlan,
             SparseFragmentsDiagnosticIds.UnknownProductMember => UnknownProductMember,
+            SparseFragmentsDiagnosticIds.IncompatibleEntityDefaultMapping =>
+                IncompatibleEntityDefaultMapping,
+            SparseFragmentsDiagnosticIds.InvalidEntityMapperDeclaration =>
+                InvalidEntityMapperDeclaration,
+            SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape =>
+                UnsupportedEntityMemberShape,
             _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, null),
         };
 

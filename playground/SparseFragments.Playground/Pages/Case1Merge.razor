@@ -1,0 +1,115 @@
+@page "/case-1"
+@using SparseFragments
+@using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
+
+<PageTitle>01 Layers merge — SparseFragments Playground</PageTitle>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">01</span>
+        <h2>Layers: merge Lower + Higher</h2>
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal">
+        <FluentTab Header="Playground" Id="section-1-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins uses append-merge.</p>
+                <div class="pg-grid pg-grid-trio">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Lower (baseline)</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetLower">Reset</FluentButton>
+                        </div>
+                        <FragmentEditor State="Lower" OnChanged="Refresh" />
+                        <FluentTabs ActiveTabId="@LowerTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+                            <FluentTab Header="C#" Id="lower-csharp">
+                                <MonacoView Content="@LowerCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="JSON" Id="lower-json">
+                                <MonacoView Content="@LowerFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Higher (overlay)</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetHigher">Reset</FluentButton>
+                        </div>
+                        <FragmentEditor State="Higher" OnChanged="Refresh" />
+                        <FluentTabs ActiveTabId="@HigherTabId" ActiveTabIdChanged="@OnLayerTabChanged">
+                            <FluentTab Header="C#" Id="higher-csharp">
+                                <MonacoView Content="@HigherCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="JSON" Id="higher-json">
+                                <MonacoView Content="@HigherFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card pg-span-full">
+                        <div class="pg-card-head">
+                            <h3>Merged result</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
+                                <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (C#)" Id="merged-model-csharp">
+                                <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Model (JSON)" Id="merged-model-json">
+                                <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Diff Lower→Merged (JSON)" Id="merged-diff-json">
+                                <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                </div>
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-1-codes">
+            <PlaygroundCodeSamples Section="1" />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
+<CasePager PrevHref="/" PrevLabel="Overview" NextHref="/case-2" NextLabel="02 Typed patch" />
+
+@code {
+    private FragmentEditState Lower = FragmentEditState.LowerDefaults();
+    private FragmentEditState Higher = FragmentEditState.HigherDefaults();
+    private string LowerTabId = "lower-csharp";
+    private string HigherTabId = "higher-csharp";
+
+    private PlaygroundSettings.Fragment LowerFragment => Lower.Build();
+    private PlaygroundSettings.Fragment HigherFragment => Higher.Build();
+    private PlaygroundSettings.Fragment MergedFragment => LowerFragment.Merge(HigherFragment);
+
+    private string LowerCSharp => PlaygroundSnippets.FragmentCSharp("lower", Lower);
+    private string HigherCSharp => PlaygroundSnippets.FragmentCSharp("higher", Higher);
+
+    private string LowerFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(LowerFragment));
+    private string HigherFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(HigherFragment));
+    private string MergedFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(MergedFragment));
+    private string MergedModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
+    private string MergedModelCSharp => PlaygroundPageHelper.Try(() => PlaygroundSnippets.ModelCSharp("model", MergedFragment.ToModel()));
+    private string MergeDiffJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(
+        PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
+
+    private void Refresh() => StateHasChanged();
+
+    private void OnLayerTabChanged(string? id)
+    {
+        if (id is null)
+        {
+            return;
+        }
+        var language = id.EndsWith("csharp", StringComparison.Ordinal) ? "csharp" : "json";
+        LowerTabId = $"lower-{language}";
+        HigherTabId = $"higher-{language}";
+    }
+
+    private void ResetLower() => Lower = FragmentEditState.LowerDefaults();
+
+    private void ResetHigher() => Higher = FragmentEditState.HigherDefaults();
+}

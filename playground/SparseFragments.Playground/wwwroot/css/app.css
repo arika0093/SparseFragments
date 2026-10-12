@@ -156,8 +156,17 @@ a, .btn-link {
 
 .pg-title h1 {
     font-weight: 700;
+    font-size: 2rem;
     min-width: 0;
     margin-bottom: 0;
+}
+
+.pg-home-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: inherit;
+    text-decoration: none;
 }
 
 .pg-brand {
@@ -199,6 +208,30 @@ a, .btn-link {
    column, exactly like .pg-grid. */
 .pg-grid-trio {
     grid-template-columns: repeat(auto-fit, minmax(min(28.5rem, 100%), 1fr));
+}
+
+/* Wide three-card sections (05 EF mapping): the edit table carries many
+   columns, so each card takes a wider minimum track and the trio folds back
+   to fewer columns sooner than .pg-grid-trio. */
+.pg-grid-trio-wide {
+    grid-template-columns: repeat(auto-fit, minmax(min(36rem, 100%), 1fr));
+}
+
+/* Two-card rows (05 EF mapping cards 1-2): 2 x 28rem + gap needs ~920px of
+   content width, so the pair stays side by side at a 1000px viewport and
+   folds to one column below that. */
+.pg-grid-duo {
+    grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
+}
+
+/* Third card in a trio (01 Merged result, 03 Before->After diff): at
+   two-column widths it would dangle half-width on its own row, so it spans
+   the full row below the trio breakpoint. At trio width the normal three
+   columns apply. */
+@media (max-width: 1450px) {
+    .pg-grid-trio > .pg-span-full {
+        grid-column: 1 / -1;
+    }
 }
 
 .pg-stack {
@@ -691,6 +724,34 @@ a, .btn-link {
     max-width: 100%;
 }
 
+.pg-task-add {
+    justify-self: end;
+}
+
+/* Overview sample links and per-case prev/next pager: plain anchors so the
+   Blazor router handles navigation (FluentButton has no Href in v5). */
+.pg-case-link,
+.pg-page-link {
+    display: inline-block;
+    padding: 0.45rem 1rem;
+    border-radius: 4px;
+    background: var(--accent-fill-rest);
+    color: #fff;
+    text-decoration: none;
+}
+
+.pg-case-link:hover,
+.pg-page-link:hover {
+    color: #fff;
+}
+
+.pg-pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
 .pg-session-legend {
     justify-content: flex-start;
     margin: 0.75rem 0 0;
@@ -711,6 +772,26 @@ a, .btn-link {
 .pg-task-line .pg-roster-field > fluent-text-input,
 .pg-task-line .pg-roster-field > fluent-number-input,
 .pg-task-line .pg-roster-field > input {
+    width: 100%;
+}
+
+/* EF order-line rows (section 05): Id / Sku / Product / Qty plus actions,
+   mirroring the case-4 task row language on a wider track. */
+.pg-task-line-ef {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.7fr) minmax(8rem, 1.5fr) minmax(5rem, 0.7fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-task-line-ef > * {
+    min-width: 0;
+}
+
+.pg-task-line-ef .pg-roster-field > fluent-text-input,
+.pg-task-line-ef .pg-roster-field > fluent-number-input,
+.pg-task-line-ef .pg-roster-field > input {
     width: 100%;
 }
 
@@ -831,6 +912,10 @@ a, .btn-link {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
+    .pg-task-line-ef {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
     .pg-task-actions {
         grid-column: 1 / -1;
         justify-content: flex-start;
@@ -929,6 +1014,13 @@ fluent-dialog::part(dialog) {
 .pg-roster-change-table-wrap {
     height: 270px;
     max-height: 270px;
+}
+
+/* Wide input tables (05 EF draft editor): keep the card width and scroll the
+   table horizontally instead of clipping it like the default wrap does. */
+.pg-change-table-wrap-scroll {
+    width: 100%;
+    overflow-x: auto;
 }
 
 .pg-change-table {

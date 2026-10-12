@@ -18,11 +18,13 @@
       Version="10.0.12"
       PrivateAssets="all"
     />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference Include="../../src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj" />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"

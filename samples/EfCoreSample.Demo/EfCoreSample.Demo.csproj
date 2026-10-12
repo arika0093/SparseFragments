@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>EfCoreSample.Demo</AssemblyName>
+    <RootNamespace>EfCoreSample.Demo</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+    <!-- Explicit pin lifts the transitive SQLitePCLRaw.lib.e_sqlite3 past GHSA-2m69-gcr7-jv3q (NU1903). -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
+    <ProjectReference Include="../EfCoreSample.Server/EfCoreSample.Server.csproj" />
+    <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference Include="../../src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+</Project>
