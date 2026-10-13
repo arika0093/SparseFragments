@@ -35,13 +35,33 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     public Func<TChangeSet, IReadOnlyList<SparsePath>> EnumerateChangedPaths { get; init; } = null!;
 
     /// <summary>
-    /// Gets a readiness error, or <see langword="null"/> when the section may be submitted.
+    /// Gets a live-session readiness error, or <see langword="null"/> when the section may be submitted.
     /// </summary>
+    /// <remarks>
+    /// This readiness hook may inspect the current mutable session, open drafts, UI state,
+    /// or permission to submit. It does not receive the captured submission and must not
+    /// be used as validation of an earlier immutable change set. Use
+    /// <see cref="ValidateChanges"/> or <see cref="ValidateAsync"/> to validate the captured data.
+    /// </remarks>
     public Func<string?>? Validate { get; init; }
+
+    /// <summary>
+    /// Validates the captured change set, returning an error when it cannot be submitted.
+    /// </summary>
+    /// <remarks>
+    /// Receives the exact immutable <typeparamref name="TChangeSet"/> placed in the eventual
+    /// submission. It must not inspect the live session; post-capture edits remain pending
+    /// and do not change the value observed here.
+    /// </remarks>
+    public Func<TChangeSet, string?>? ValidateChanges { get; init; }
 
     /// <summary>
     /// Asynchronously validates the captured change set, returning an error when it cannot be submitted.
     /// </summary>
+    /// <remarks>
+    /// Receives the exact immutable <typeparamref name="TChangeSet"/> placed in the eventual
+    /// submission. Edits made while validation awaits do not change the value observed here.
+    /// </remarks>
     public Func<TChangeSet, CancellationToken, Task<string?>>? ValidateAsync { get; init; }
 
     /// <summary>

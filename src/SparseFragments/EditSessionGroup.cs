@@ -136,13 +136,21 @@ public sealed class EditSessionGroup
     }
 
     /// <summary>Captures an immutable submission and validates registered sections synchronously.</summary>
+    /// <remarks>
+    /// Preparation runs in order: capture immutable change sets, then evaluate the live-session
+    /// readiness hook, then validate the captured change sets. Submission validators observe only
+    /// the captured <c>TChangeSet</c> placed in the eventual submission; later session edits remain
+    /// pending and do not alter what validators observe. The group never holds its internal gate
+    /// across user callbacks. Validators must not open drafts; drafts are reported as readiness failures.
+    /// </remarks>
     /// <exception cref="EditSessionGroupValidationException">A section is unready, has an open draft, or cannot be captured.</exception>
     public EditSessionGroupSubmission Prepare()
     {
         var captures = CaptureSections();
         var issues = new List<EditSessionGroupValidationIssue>();
-        foreach (var section in captures.Select(static capture => capture.Section))
+        foreach (var capture in captures)
         {
+            var section = capture.Section;
             if (section.HasAsyncValidation)
             {
                 issues.Add(
@@ -154,8 +162,10 @@ public sealed class EditSessionGroup
                 continue;
             }
 
-            if (!section.TryValidate(out var error))
-                issues.Add(new EditSessionGroupValidationIssue(section.SectionId, error!));
+            if (!section.TryValidate(out var readinessError))
+                issues.Add(new EditSessionGroupValidationIssue(section.SectionId, readinessError!));
+            if (!section.TryValidateChanges(capture.Changes, out var changesError))
+                issues.Add(new EditSessionGroupValidationIssue(section.SectionId, changesError!));
         }
 
         ThrowIfInvalid(issues);
@@ -165,6 +175,19 @@ public sealed class EditSessionGroup
     /// <summary>
     /// Captures all registered change sets synchronously, then validates the immutable capture asynchronously.
     /// </summary>
+    /// <remarks>
+    /// Preparation runs in order: synchronously capture immutable change sets, evaluate the live-session
+    /// readiness hook and synchronous captured validators, then await asynchronous validators that each
+    /// receive the captured change set. Post-capture edits remain pending and do not retroactively alter
+    /// what validators observe. After awaits the group re-evaluates only the open-draft policy, whether a
+    /// section was unregistered or replaced, and whether its baseline revision advanced; such changes fail
+    /// validation. Ordinary local edits do not invalidate the captured submission, and the live readiness
+    /// hook is not re-evaluated after awaits. The group never holds its internal gate across user callbacks
+    /// or awaits, so validators may call back into the group without deadlocking; structural changes made
+    /// during validation fail the in-flight preparation. Synchronous validator exceptions (other than
+    /// cancellation) become validation issues; asynchronous validator exceptions become validation issues
+    /// while cancellation propagates as <see cref="OperationCanceledException"/>.
+    /// </remarks>
     /// <param name="cancellationToken">The token used to cancel asynchronous validation.</param>
     /// <returns>The immutable submission after all section validation succeeds.</returns>
     /// <exception cref="EditSessionGroupValidationException">A section is unready, has an open draft, or fails validation.</exception>
@@ -283,27 +306,31 @@ public sealed class EditSessionGroup
 
     private IReadOnlyList<EditSessionGroupCapture> CaptureSections()
     {
+        IEditSessionGroupSection[] registeredSections;
         lock (_gate)
         {
-            var captures = new List<EditSessionGroupCapture>(_sections.Count);
-            var issues = new List<EditSessionGroupValidationIssue>();
-            var registeredSections = _sections
+            // Snapshot identities only; user capture delegates run outside the gate
+            // so re-entrant group calls from those delegates cannot deadlock.
+            registeredSections = _sections
                 .Values.OrderBy(value => value.SectionId, StringComparer.Ordinal)
                 .ToArray();
-            foreach (var section in registeredSections)
-            {
-                if (!section.TryCapture(out var capture, out var error))
-                {
-                    issues.Add(new EditSessionGroupValidationIssue(section.SectionId, error!));
-                    continue;
-                }
+        }
 
-                captures.Add(capture!);
+        var captures = new List<EditSessionGroupCapture>(registeredSections.Length);
+        var issues = new List<EditSessionGroupValidationIssue>();
+        foreach (var section in registeredSections)
+        {
+            if (!section.TryCapture(out var capture, out var error))
+            {
+                issues.Add(new EditSessionGroupValidationIssue(section.SectionId, error!));
+                continue;
             }
 
-            ThrowIfInvalid(issues);
-            return Array.AsReadOnly(captures.ToArray());
+            captures.Add(capture!);
         }
+
+        ThrowIfInvalid(issues);
+        return Array.AsReadOnly(captures.ToArray());
     }
 
     private EditSessionGroupSubmission CreateSubmission(
@@ -323,7 +350,7 @@ public sealed class EditSessionGroup
             throw new EditSessionGroupValidationException(Array.AsReadOnly(issues.ToArray()));
     }
 
-    private static async Task<EditSessionGroupSubmission> ValidateAsynchronously(
+    private async Task<EditSessionGroupSubmission> ValidateAsynchronously(
         IReadOnlyList<EditSessionGroupCapture> captures,
         EditSessionGroupSubmission submission,
         CancellationToken cancellationToken
@@ -331,14 +358,24 @@ public sealed class EditSessionGroup
     {
         cancellationToken.ThrowIfCancellationRequested();
         var issues = new List<EditSessionGroupValidationIssue>();
+        // Phase 1: readiness (live session) and synchronous captured validation, no gate held.
         foreach (var capture in captures)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!capture.Section.TryValidate(out var syncError))
+            if (!capture.Section.TryValidate(out var readinessError))
                 issues.Add(
-                    new EditSessionGroupValidationIssue(capture.Section.SectionId, syncError!)
+                    new EditSessionGroupValidationIssue(capture.Section.SectionId, readinessError!)
                 );
+            if (!capture.Section.TryValidateChanges(capture.Changes, out var changesError))
+                issues.Add(
+                    new EditSessionGroupValidationIssue(capture.Section.SectionId, changesError!)
+                );
+        }
 
+        // Phase 2: asynchronous captured validation, no gate held across awaits.
+        foreach (var capture in captures)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!capture.Section.HasAsyncValidation)
                 continue;
             try
@@ -368,7 +405,44 @@ public sealed class EditSessionGroup
             }
         }
 
-        foreach (var section in captures.Select(static capture => capture.Section))
+        // Phase 3: re-evaluate after awaits. Structural checks snapshot under the gate
+        // without invoking user code; draft checks run outside the gate.
+        List<EditSessionGroupCapture> liveCaptures;
+        lock (_gate)
+        {
+            liveCaptures = new List<EditSessionGroupCapture>(captures.Count);
+            foreach (var capture in captures)
+            {
+                if (
+                    !_sections.TryGetValue(capture.Section.SectionId, out var current)
+                    || !ReferenceEquals(current, capture.Section)
+                )
+                {
+                    issues.Add(
+                        new EditSessionGroupValidationIssue(
+                            capture.Section.SectionId,
+                            $"Section '{capture.Section.SectionId}' was unregistered or replaced during validation."
+                        )
+                    );
+                    continue;
+                }
+
+                if (current.BaselineRevision != capture.BaselineRevision)
+                {
+                    issues.Add(
+                        new EditSessionGroupValidationIssue(
+                            capture.Section.SectionId,
+                            $"Section '{capture.Section.SectionId}' baseline changed during validation."
+                        )
+                    );
+                    continue;
+                }
+
+                liveCaptures.Add(capture);
+            }
+        }
+
+        foreach (var section in liveCaptures.Select(static capture => capture.Section))
         {
             if (
                 !section.TryValidateOpenDrafts(out var draftError)
@@ -593,7 +667,7 @@ public sealed class EditSessionGroup
 
                 if (Registration.IsEmpty(changes))
                 {
-                    capture = new EditSessionGroupCapture(this, changes, null);
+                    capture = new EditSessionGroupCapture(this, changes, BaselineRevision, null);
                     return true;
                 }
 
@@ -611,7 +685,7 @@ public sealed class EditSessionGroup
                     changes,
                     Array.AsReadOnly(changedPaths.ToArray())
                 );
-                capture = new EditSessionGroupCapture(this, changes, submission);
+                capture = new EditSessionGroupCapture(this, changes, BaselineRevision, submission);
                 return true;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
@@ -621,6 +695,10 @@ public sealed class EditSessionGroup
             }
         }
 
+        /// <summary>Evaluates the live-session readiness hook and open drafts.</summary>
+        /// <remarks>
+        /// May inspect the current mutable session. It does not observe the captured submission.
+        /// </remarks>
         public bool TryValidate(out string? error)
         {
             if (!TryValidateOpenDrafts(out error))
@@ -629,6 +707,28 @@ public sealed class EditSessionGroup
             try
             {
                 var validationError = Registration.Validate?.Invoke();
+                if (!string.IsNullOrWhiteSpace(validationError))
+                {
+                    error = validationError;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                error = exception.Message;
+                return false;
+            }
+        }
+
+        /// <summary>Validates the captured change set without inspecting live session state.</summary>
+        public bool TryValidateChanges(object changes, out string? error)
+        {
+            error = null;
+            try
+            {
+                var validationError = Registration.ValidateChanges?.Invoke((TChangeSet)changes);
                 if (!string.IsNullOrWhiteSpace(validationError))
                 {
                     error = validationError;
@@ -738,7 +838,11 @@ internal interface IEditSessionGroupSection
 
     bool TryCapture(out EditSessionGroupCapture? capture, out string? error);
 
+    /// <summary>Evaluates the live-session readiness hook and open drafts.</summary>
     bool TryValidate(out string? error);
+
+    /// <summary>Validates the captured change set without inspecting live session state.</summary>
+    bool TryValidateChanges(object changes, out string? error);
 
     bool TryValidateOpenDrafts(out string? error);
 
@@ -763,17 +867,21 @@ internal sealed class EditSessionGroupCapture
     public EditSessionGroupCapture(
         IEditSessionGroupSection section,
         object changes,
+        long baselineRevision,
         EditSessionSubmittedSection? submissionEntry
     )
     {
         Section = section;
         Changes = changes;
+        BaselineRevision = baselineRevision;
         SubmissionEntry = submissionEntry;
     }
 
     public IEditSessionGroupSection Section { get; }
 
     public object Changes { get; }
+
+    public long BaselineRevision { get; }
 
     public EditSessionSubmittedSection? SubmissionEntry { get; }
 }
