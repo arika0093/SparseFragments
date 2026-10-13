@@ -99,9 +99,14 @@ public class EditScopeCloneBenchmarks
                 throw new InvalidOperationException("Scope harness must commit cleanly.");
         }
 
+        var observable =
+            session.Observable
+            ?? throw new InvalidOperationException(
+                "Scope harness must expose an observable model."
+            );
         if (
-            session.Observable.Target.Name != "edited"
-            || session.Observable.Siblings.Count != SiblingCount
+            observable.Target!.Name != "edited"
+            || observable.Siblings.Count != SiblingCount
             || check.Target.Name != "edited"
             || _prototype.Target.Name != "target"
         )
