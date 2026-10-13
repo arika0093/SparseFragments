@@ -75,6 +75,39 @@ public sealed class KeyedCollectionMappingTests
     }
 
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public void CollectionApplyPreservesChangeDetectionSettingOnSuccessAndFailure(
+        bool detectChanges
+    )
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = CreateSample(connection, new QueryCounter());
+        var entity = SeedOrder(context);
+        var before = ReadOrderDto(entity);
+        var after = ReadOrderDto(entity);
+        after.Lines[0].Quantity++;
+        var changes = before.CreateChangeSet(after);
+        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
+            new OrderMapper(),
+            context.Model
+        );
+        context.ChangeTracker.AutoDetectChangesEnabled = detectChanges;
+        entity.Lines[1].Quantity = 88;
+        mapper.Apply(context, entity, changes);
+        context.ChangeTracker.AutoDetectChangesEnabled.ShouldBe(detectChanges);
+        context.ChangeTracker.AutoDetectChangesEnabled = false;
+        context
+            .Entry(entity.Lines[1])
+            .Property(line => line.Quantity)
+            .IsModified.ShouldBe(detectChanges);
+        context.Entry(entity).Collection(order => order.Lines).IsLoaded = false;
+        context.ChangeTracker.AutoDetectChangesEnabled = detectChanges;
+        Should.Throw<SparseEntityMappingException>(() => mapper.Apply(context, entity, changes));
+        context.ChangeTracker.AutoDetectChangesEnabled.ShouldBe(detectChanges);
+    }
+
+    [Test]
     public async Task KeyedAddEditRemovePreservesTrackedIdentity()
     {
         using var connection = TestDatabases.OpenMemory();

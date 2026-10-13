@@ -316,6 +316,9 @@ public class EfCoreKeyedCollectionApplyBenchmarks
     [Params(16, 128)]
     public int CollectionSize { get; set; }
 
+    [Params(true, false)]
+    public bool AutoDetectChanges { get; set; }
+
     [ParamsAllValues]
     public EfCoreKeyedMutation Mutation { get; set; }
 
@@ -329,6 +332,7 @@ public class EfCoreKeyedCollectionApplyBenchmarks
     public void SetupInvocation()
     {
         (_context, _entity) = _fixture.CreateTrackedOrder(CollectionSize);
+        _context.ChangeTracker.AutoDetectChangesEnabled = AutoDetectChanges;
         var before = EfCoreApplyBenchmarkFixture.ToDto(_entity);
         var after = EfCoreApplyBenchmarkFixture.ToDto(_entity);
         var middle = CollectionSize / 2;

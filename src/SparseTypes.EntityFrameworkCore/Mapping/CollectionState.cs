@@ -44,7 +44,8 @@ internal static class CollectionState
             );
         }
 
-        if (collection.CurrentValue is null && runtime.CollectionSetter is not null)
+        var current = collection.CurrentValue;
+        if (current is null && runtime.CollectionSetter is not null)
         {
             // Read-only preflight stand-in: execution assigns the real list via
             // EnsureList. Removals and edits resolve against the empty set and
@@ -52,7 +53,7 @@ internal static class CollectionState
             return new List<TEntityChild>();
         }
 
-        return PeekList(runtime, state.Context, state.Entity, state.DisplayPath(runtime.DtoName));
+        return PeekList(runtime, current, state.DisplayPath(runtime.DtoName));
     }
 
     /// <summary>
@@ -60,14 +61,12 @@ internal static class CollectionState
     /// </summary>
     public static IList PeekList<TDtoChild, TEntityChild>(
         CollectionRuntime<TDtoChild, TEntityChild> runtime,
-        DbContext context,
-        object parent,
+        IEnumerable? current,
         string displayPath
     )
         where TDtoChild : class
         where TEntityChild : class
     {
-        var current = context.Entry(parent).Collection(runtime.NavigationName).CurrentValue;
         if (current is IList list)
         {
             return list;
@@ -103,7 +102,9 @@ internal static class CollectionState
         where TDtoChild : class
         where TEntityChild : class
     {
-        var current = context.Entry(parent).Collection(runtime.NavigationName).CurrentValue;
+        var current = CollectionEntryAccess
+            .Read(context, parent, runtime.NavigationName)
+            .CurrentValue;
         if (current is IList list)
         {
             return list;

@@ -50,7 +50,11 @@ internal static class CollectionSync
             return;
         }
 
-        var collection = state.Context.Entry(state.Entity).Collection(runtime.NavigationName);
+        var collection = CollectionEntryAccess.Read(
+            state.Context,
+            state.Entity,
+            runtime.NavigationName
+        );
         // Preflight is read-only: PeekList never assigns a null navigation.
         var list = CollectionState.ReadTrackedList(runtime, state, collection);
         var tracked = CollectionState.IndexTracked(runtime, state, list);
