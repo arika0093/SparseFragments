@@ -313,6 +313,31 @@ var didClashMerge = clashingSession.TryMergeFrom(
 
 Conflicts carry the same member paths as change-set rebase, so per-field resolution follows the [rebase](rebase.md) flow. The fork shares its origin session's lineage: merging an unrelated session throws `InvalidOperationException`, as does merging a session into itself. Branching differs from the neighboring calls. `BatchEdit` groups notifications for edits already in the session. `AcceptChanges` acknowledges a saved transition. `Reload` rebases pending edits onto authoritative server state in place. Branching stays in process: it assigns no temporary keys and performs no transport.
 
+### Edit child models in an isolated scope
+
+Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope exposes its draft through `Observable` and merges it into the parent session with `TryCommit`.
+
+<!-- sample: ui-child-scope -->
+```csharp
+var child = new UiWidgetChild { Name = "before" };
+var model = new UiWidget { Title = "before", Child = child };
+var session = model.CreateEditSession();
+using var scope = session.OpenScope(UiWidget.SparsePath.Child);
+
+scope.Observable!.Name = "draft";
+session.Observable.Title = "parent edit";
+
+var committed = scope.TryCommit(out var conflicts);
+// committed == true
+// conflicts is null
+// model.Title == "parent edit"
+// model.Child.Name == "draft"
+// ReferenceEquals(model.Child, child) == true
+```
+<!-- /sample -->
+
+`TryCommit` rebases the child draft against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the scope open. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, the scope enters `TargetMissing`. Call `Cancel()` or dispose an open scope to discard its draft.
+
 ### Discard pending edits
 
 `RevertChanges()` writes the retained baseline back into the live model in place. It discards unsaved edits; it does not contact a server and does not advance the baseline. `Current` always reflects the live model, so it shows the reverted values immediately.

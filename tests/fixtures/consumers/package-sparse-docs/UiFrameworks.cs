@@ -20,6 +20,7 @@ public static class UiFrameworksSamples
         ReloadConflictLeavesSessionUntouched();
         ForkMergesIndependentEdits();
         ForkConflictLeavesBothSessionsUntouched();
+        ChildScopeCommitsDisjointParentEdits();
         RevertRestoresBaseline();
         DescriptorFirst();
         DescriptorChanges();
@@ -307,6 +308,36 @@ public static class UiFrameworksSamples
         DocsCheck.Require(
             clashingSession.Current.Title == "local" && clashingDraft.Current.Title == "remote",
             "failed merge leaves both sessions unchanged"
+        );
+    }
+
+    private static void ChildScopeCommitsDisjointParentEdits()
+    {
+        // sample: ui-child-scope
+        var child = new UiWidgetChild { Name = "before" };
+        var model = new UiWidget { Title = "before", Child = child };
+        var session = model.CreateEditSession();
+        using var scope = session.OpenScope(UiWidget.SparsePath.Child);
+
+        scope.Observable!.Name = "draft";
+        session.Observable.Title = "parent edit";
+
+        var committed = scope.TryCommit(out var conflicts);
+        // committed == true
+        // conflicts is null
+        // model.Title == "parent edit"
+        // model.Child.Name == "draft"
+        // ReferenceEquals(model.Child, child) == true
+        // /sample
+        DocsCheck.Require(committed, "child scope commits without conflict");
+        DocsCheck.Require(conflicts is null, "disjoint parent edit reports no conflict");
+        DocsCheck.Require(
+            model.Title == "parent edit" && model.Child!.Name == "draft",
+            "child scope preserves the parent edit and commits its draft"
+        );
+        DocsCheck.Require(
+            ReferenceEquals(model.Child, child),
+            "child scope writes into the existing child instance"
         );
     }
 

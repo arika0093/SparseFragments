@@ -84,6 +84,7 @@ docs/ui-frameworks.md	ui-reload-conflict	tests/fixtures/consumers/package-sparse
 docs/ui-frameworks.md	ui-revert	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-fork-merge	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-fork-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/ui-frameworks.md	ui-child-scope	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
