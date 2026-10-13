@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +13,14 @@ namespace SparseFragments;
 /// continue after preparation; acknowledging the captured change set advances only
 /// that transition, leaving later edits pending. The group does not provide a
 /// transaction across sessions or an implicit transport or persistence layer.
+/// A session instance backs at most one live section: registering the same instance
+/// twice is rejected because the two sections would share one session baseline.
+/// Acknowledgement should flow through the group. External acknowledgement of a
+/// registered session (direct <c>AcceptChanges</c>, <c>TryReconcile</c>, or reload)
+/// moves the session baseline without moving group revisions; the next group
+/// acknowledgement detects the outcome, preserves the original session error, and
+/// resynchronizes revisions, but callers must re-prepare afterwards. Prefer
+/// <c>Unregister</c> or <c>Replace</c> before acknowledging a session outside the group.
 /// </remarks>
 public sealed class EditSessionGroup
 {
@@ -20,12 +29,13 @@ public sealed class EditSessionGroup
         StringComparer.Ordinal
     );
     private readonly Dictionary<string, long> _baselineRevisions = new(StringComparer.Ordinal);
+    private readonly HashSet<object> _sessions = new(ReferenceIdentityComparer.Instance);
 
     /// <summary>Registers a unique stable section identifier and its typed session.</summary>
     /// <param name="sectionId">A non-empty identifier, compared with ordinal case-sensitive rules.</param>
     /// <param name="registration">Typed operations and readiness checks for the session.</param>
     /// <returns>A typed handle used to read and acknowledge submitted changes.</returns>
-    /// <exception cref="ArgumentException">The identifier is invalid or already registered.</exception>
+    /// <exception cref="ArgumentException">The identifier is invalid, already registered, or the session instance already backs another live section.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="registration"/> is null.</exception>
     public EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(
         string sectionId,
@@ -42,6 +52,12 @@ public sealed class EditSessionGroup
                 throw new ArgumentException(
                     $"Section '{sectionId}' is already registered. Use Replace to replace it explicitly.",
                     nameof(sectionId)
+                );
+
+            if (!_sessions.Add(registration.Session))
+                throw new ArgumentException(
+                    $"The session is already registered as section '{FindSectionId(registration.Session)}'. A session instance cannot back multiple live sections.",
+                    nameof(registration)
                 );
 
             var revision = _baselineRevisions.TryGetValue(sectionId, out var previousRevision)
@@ -73,6 +89,7 @@ public sealed class EditSessionGroup
             var section = GetCurrentSection(handle);
             EnsureRemovalAllowed(section, policy);
             _sections.Remove(section.SectionId);
+            _sessions.Remove(section.Session);
         }
     }
 
@@ -81,6 +98,7 @@ public sealed class EditSessionGroup
     /// <param name="registration">The replacement session and its typed operations.</param>
     /// <param name="policy">Whether replacement must reject dirty state or discard the registration.</param>
     /// <returns>A new typed handle; the previous handle and its submissions become invalid.</returns>
+    /// <exception cref="ArgumentException">The replacement session instance already backs another live section.</exception>
     public EditSessionSectionHandle<TModel, TChangeSet> Replace<TModel, TChangeSet>(
         EditSessionSectionHandle<TModel, TChangeSet> handle,
         EditSessionGroupRegistration<TModel, TChangeSet> registration,
@@ -94,6 +112,17 @@ public sealed class EditSessionGroup
         {
             var previous = GetCurrentSection(handle);
             EnsureRemovalAllowed(previous, policy);
+            // Release first so replacing a section with its own session stays valid.
+            _sessions.Remove(previous.Session);
+            if (!_sessions.Add(registration.Session))
+            {
+                _sessions.Add(previous.Session);
+                throw new ArgumentException(
+                    $"The session is already registered as section '{FindSectionId(registration.Session)}'. A session instance cannot back multiple live sections.",
+                    nameof(registration)
+                );
+            }
+
             var revision = checked(previous.BaselineRevision + 1);
             var replacement = new EditSessionGroupSection<TModel, TChangeSet>(
                 previous.SectionId,
@@ -172,6 +201,18 @@ public sealed class EditSessionGroup
             }
             catch (InvalidOperationException exception)
             {
+                if (section.IsTransitionAcknowledged(entry))
+                {
+                    // The session committed before failing (a post-commit
+                    // notification handler threw, or the baseline moved
+                    // outside the group): the submitted transition no longer
+                    // pends, so the group revision must follow the session
+                    // instead of reporting a stale submission. The original
+                    // error is preserved untouched.
+                    AdvanceBaselineRevision(section);
+                    throw;
+                }
+
                 throw new EditSessionStaleSubmissionException(
                     $"The submitted transition for section '{section.SectionId}' no longer matches its session baseline.",
                     exception
@@ -439,6 +480,22 @@ public sealed class EditSessionGroup
         _baselineRevisions[section.SectionId] = revision;
     }
 
+    private string FindSectionId(object session) =>
+        _sections
+            .Values.Where(section => ReferenceEquals(section.Session, session))
+            .Select(section => section.SectionId)
+            .FirstOrDefault()
+        ?? "?";
+
+    private sealed class ReferenceIdentityComparer : IEqualityComparer<object>
+    {
+        public static readonly ReferenceIdentityComparer Instance = new ReferenceIdentityComparer();
+
+        bool IEqualityComparer<object>.Equals(object x, object y) => ReferenceEquals(x, y);
+
+        int IEqualityComparer<object>.GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
+    }
+
     private static void ValidateSectionId(string sectionId)
     {
         if (
@@ -622,6 +679,29 @@ public sealed class EditSessionGroup
             Registration.Session.AcceptChanges(typed.Changes);
         }
 
+        public bool IsTransitionAcknowledged(EditSessionSubmittedSection entry)
+        {
+            try
+            {
+                var fresh = Registration.CreateChangeSet();
+                if (fresh is null)
+                    return false;
+                if (Registration.IsEmpty(fresh))
+                    return true;
+                var freshPaths = Registration.EnumerateChangedPaths(fresh);
+                if (freshPaths is null)
+                    return false;
+                var pending = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var path in freshPaths)
+                    pending.Add(path.ToString());
+                return entry.ChangedPaths.All(path => !pending.Contains(path.ToString()));
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                return false;
+            }
+        }
+
         public bool TryReconcile(
             EditSessionSubmittedSection submission,
             object persisted,
@@ -665,6 +745,15 @@ internal interface IEditSessionGroupSection
     Task<string?> ValidateAsync(object changes, CancellationToken cancellationToken);
 
     void AcceptChanges(EditSessionSubmittedSection submission);
+
+    /// <summary>Tests whether a submitted transition no longer pends on the live session.</summary>
+    /// <remarks>
+    /// Used to tell a rejected acknowledgement (the transition still pends)
+    /// from a post-commit failure (the session baseline advanced and only a
+    /// later step, such as a notification handler, threw). Probes through the
+    /// registration delegates and reports unknown as not acknowledged.
+    /// </remarks>
+    bool IsTransitionAcknowledged(EditSessionSubmittedSection entry);
 
     bool TryReconcile(EditSessionSubmittedSection submission, object persisted, out string? error);
 }

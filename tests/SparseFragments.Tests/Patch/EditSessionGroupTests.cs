@@ -110,6 +110,173 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
+    public void DuplicateSessionRegistrationIsRejected()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+
+        var failure = Should.Throw<ArgumentException>(() =>
+            group.Register("backup", Registration(session))
+        );
+        failure.Message.ShouldContain("profile");
+        failure.ParamName.ShouldBe("registration");
+
+        // The rejected registration leaves the group usable.
+        var other = new NeutralSessionModel { Name = "other" }.CreateEditSession();
+        var otherHandle = group.Register("backup", Registration(other));
+        otherHandle.SectionId.ShouldBe("backup");
+        handle.SectionId.ShouldBe("profile");
+    }
+
+    [Test]
+    public void EqualContentSessionsRegisterIndependently()
+    {
+        var first = new NeutralSessionModel { Name = "same" }.CreateEditSession();
+        var second = new NeutralSessionModel { Name = "same" }.CreateEditSession();
+        var group = new EditSessionGroup();
+
+        var firstHandle = group.Register("first", Registration(first));
+        var secondHandle = group.Register("second", Registration(second));
+
+        firstHandle.Session.ShouldNotBeSameAs(secondHandle.Session);
+        first.Observable.Name = "one";
+        second.Observable.Name = "two";
+        var submission = group.Prepare();
+        submission.Get(firstHandle).Changes.Name.After.Value.ShouldBe("one");
+        submission.Get(secondHandle).Changes.Name.After.Value.ShouldBe("two");
+    }
+
+    [Test]
+    public void ReplaceWithLiveSessionIsRejectedAndOwnSessionIsAllowed()
+    {
+        var first = new NeutralSessionModel { Name = "first" }.CreateEditSession();
+        var second = new NeutralSessionModel { Name = "second" }.CreateEditSession();
+        var group = new EditSessionGroup();
+        var firstHandle = group.Register("first", Registration(first));
+        group.Register("second", Registration(second));
+
+        var collision = Should.Throw<ArgumentException>(() =>
+            group.Replace(
+                firstHandle,
+                Registration(second),
+                EditSessionGroupRemovalPolicy.DetachWithPendingChanges
+            )
+        );
+        collision.Message.ShouldContain("second");
+
+        // Replacing a section with its own session stays valid.
+        var renewed = group.Replace(
+            firstHandle,
+            Registration(first),
+            EditSessionGroupRemovalPolicy.DetachWithPendingChanges
+        );
+        renewed.SectionId.ShouldBe("first");
+        renewed.Session.ShouldBeSameAs(first);
+    }
+
+    [Test]
+    public void UnregisterReleasesSessionIdentity()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+
+        group.Unregister(handle, EditSessionGroupRemovalPolicy.DetachWithPendingChanges);
+
+        var again = group.Register("backup", Registration(session));
+        again.SectionId.ShouldBe("backup");
+        again.Session.ShouldBeSameAs(session);
+    }
+
+    [Test]
+    public void SameSubmissionCannotBeAcknowledgedTwice()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+        session.Observable.Name = "submitted";
+        var submission = group.Prepare();
+
+        group.AcceptChanges(submission, handle);
+
+        // The consumed submission no longer matches the advanced group
+        // revision, so the repeat is rejected as stale before reaching the
+        // session. The group stays convergent for later submissions.
+        Should.Throw<EditSessionStaleSubmissionException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+
+        session.Observable.Name = "next";
+        var fresh = group.Prepare();
+        fresh.Get(handle).BaselineRevision.ShouldBe(1);
+        group.AcceptChanges(fresh, handle);
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void ExternalAcceptChangesResynchronizesRevisions()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+        session.Observable.Name = "submitted";
+        var submission = group.Prepare();
+
+        // Acknowledging outside the group moves the session baseline without
+        // moving group revisions. The next group acknowledgement surfaces the
+        // session outcome instead of a stale wrapper.
+        session.AcceptChanges();
+        var outcome = Should.Throw<InvalidOperationException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+        outcome.ShouldNotBeOfType<EditSessionStaleSubmissionException>();
+
+        session.Observable.Name = "next";
+        var fresh = group.Prepare();
+        fresh.Get(handle).BaselineRevision.ShouldBe(1);
+        group.AcceptChanges(fresh, handle);
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void NotificationFailurePreservesOriginalErrorAndAdvancesRevision()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var failNotifications = false;
+        var session = model.CreateEditSession();
+        session.PropertyChanged += (_, _) =>
+        {
+            if (failNotifications)
+                throw new InvalidOperationException("Notification handler failed.");
+        };
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+        session.Observable.Name = "submitted";
+        var submission = group.Prepare();
+        failNotifications = true;
+
+        // The session commits the baseline before notifying, so the handler
+        // failure must propagate untouched (not as a stale submission) while
+        // the group revision follows the session.
+        var failure = Should.Throw<InvalidOperationException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+        failure.ShouldNotBeOfType<EditSessionStaleSubmissionException>();
+        failure.Message.ShouldBe("Notification handler failed.");
+        session.HasChanges.ShouldBeFalse();
+        failNotifications = false;
+
+        session.Observable.Name = "next";
+        var fresh = group.Prepare();
+        fresh.Get(handle).BaselineRevision.ShouldBe(1);
+    }
+
+    [Test]
     public void DuplicateAndDirtyReplacementRequireExplicitPolicy()
     {
         var model = new NeutralSessionModel { Name = "before" };
