@@ -205,6 +205,7 @@
     private PlaygroundEfContext? _db;
     private PlaygroundOrderEntity? _tracked;
     private SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>? _mapper;
+    private SparseEntityApplyResult? _applyResult;
     private PlaygroundOrderDto _baseline = new();
     private PlaygroundOrderDto _draft = new();
     private PlaygroundOrderDto.ChangeSet? _changes;
@@ -290,6 +291,7 @@
         _baseline = Project(_tracked);
         _draft = Clone(_baseline);
         _applied = false;
+        _applyResult = null;
         _simulateConflict = false;
         _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
@@ -303,6 +305,7 @@
     {
         _draft = Clone(_baseline);
         _applied = false;
+        _applyResult = null;
         _modifiedRows = [];
         RefreshChanges();
     }
@@ -311,6 +314,7 @@
     {
         edit(_draft);
         _applied = false;
+        _applyResult = null;
         _modifiedRows = [];
         RefreshChanges();
     }
@@ -462,6 +466,7 @@
         _baseline = Clone(submittedDraft);
         _savePending = true;
         _applied = false;
+        _applyResult = null;
         _modifiedRows = [];
         RefreshChanges();
     }
@@ -502,6 +507,7 @@
     {
         _applyError = null;
         _applied = false;
+        _applyResult = null;
         _modifiedRows = [];
         if (_db is null || _tracked is null || _mapper is null)
         {
@@ -512,7 +518,9 @@
         _entityJsonBeforeApply = EntityJson;
         try
         {
-            _mapper.Apply(_db, _tracked, changes);
+            // ApplyWithResult correlates created child entities by temporary
+            // identity so generated keys can be written back after SaveChanges.
+            _applyResult = _mapper.ApplyWithResult(_db, _tracked, changes);
             _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
             _applied = true;
         }
@@ -520,6 +528,7 @@
         {
             _applyError = $"{ex.GetType().Name}: {ex.Message}";
             _applied = false;
+            _applyResult = null;
             _modifiedRows = [];
         }
     }
@@ -557,7 +566,17 @@
                 .Include(static order => order.Lines)
                 .Single(order => order.Id == orderId);
             var persistedBaseline = Project(_tracked);
-            RetargetNewLineIds(submittedDraft, persistedBaseline, _draft);
+            if (_mapper is null || _applyResult is null)
+            {
+                throw new InvalidOperationException("The EF Core mapper result is not available.");
+            }
+
+            // Write generated keys and preserved temporary identities onto the
+            // authoritative projection, then correlate the live draft by
+            // temporary identity instead of list position.
+            _mapper.AssignTemporaryKeys(_db, _applyResult, submittedDraft, persistedBaseline);
+            PlaygroundLineIdentity.RetargetNewLineIds(submittedDraft, persistedBaseline, _draft);
+            _applyResult = null;
             _baseline = persistedBaseline;
             RefreshChanges();
         }
@@ -572,6 +591,7 @@
         catch (Exception ex)
         {
             _applied = false;
+            _applyResult = null;
             _modifiedRows = [];
             RefreshChanges();
             _saveError = $"{ex.GetType().Name}: {ex.Message}. The submitted snapshot may have persisted, but the fresh entity could not be reconciled; reseed to recover.";
@@ -612,6 +632,7 @@
             ];
             _conflictSummary = "Strict handling rejected the submitted changes because the order revision changed. The draft remains available for another save.";
             _applied = false;
+            _applyResult = null;
             _modifiedRows = [];
             RefreshChanges();
             _conflictVisible = true;
@@ -628,7 +649,8 @@
             throw new InvalidOperationException("The EF Core mapper is not initialized.");
         }
 
-        _mapper.Apply(_db, _tracked, submittedRebase.Rebased);
+        var conflictResult = _mapper.ApplyWithResult(_db, _tracked, submittedRebase.Rebased);
+        _applyResult = conflictResult;
         _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
         if (_db.ChangeTracker.HasChanges())
         {
@@ -642,9 +664,17 @@
             .Include(static order => order.Lines)
             .Single(order => order.Id == orderId);
         var mergedSubmitted = Project(_tracked);
+        _mapper.AssignTemporaryKeys(_db, conflictResult, submittedDraft, mergedSubmitted);
+        _applyResult = null;
         var submittedBaselineAfterSave = Clone(submittedDraft);
-        RetargetNewLineIds(submittedDraft, mergedSubmitted, submittedBaselineAfterSave);
-        RetargetNewLineIds(submittedDraft, mergedSubmitted, localDraftBeforeRebase);
+        PlaygroundLineIdentity.RetargetNewLineIds(
+            submittedDraft,
+            mergedSubmitted,
+            submittedBaselineAfterSave);
+        PlaygroundLineIdentity.RetargetNewLineIds(
+            submittedDraft,
+            mergedSubmitted,
+            localDraftBeforeRebase);
         var postSubmitChanges = submittedBaselineAfterSave.CreateChangeSet(localDraftBeforeRebase);
         var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted);
         var mergedFragment = postSubmitRebase.Rebased.ToPatch().Apply(
@@ -671,39 +701,6 @@
     }
 
     private void CloseConflictDialog() => _conflictVisible = false;
-
-    private static void RetargetNewLineIds(
-        PlaygroundOrderDto submittedDraft,
-        PlaygroundOrderDto persistedBaseline,
-        PlaygroundOrderDto localDraft
-    )
-    {
-        if (submittedDraft.Lines.Count != persistedBaseline.Lines.Count)
-        {
-            throw new InvalidOperationException("The persisted line order does not match the submitted snapshot.");
-        }
-
-        for (var index = 0; index < submittedDraft.Lines.Count; index++)
-        {
-            var submittedLine = submittedDraft.Lines[index];
-            if (submittedLine.Id.HasValue || !submittedLine.TemporaryId.HasValue)
-            {
-                continue;
-            }
-
-            var localLine = localDraft.Lines.FirstOrDefault(line => line.TemporaryId == submittedLine.TemporaryId);
-            if (localLine is null)
-            {
-                continue;
-            }
-
-            // The mapper's Order configuration persists lines in this same order.
-            var persistedLine = persistedBaseline.Lines[index];
-            localLine.Id = persistedLine.Id
-                ?? throw new InvalidOperationException("A saved line did not receive a database identity.");
-            localLine.TemporaryId = null;
-        }
-    }
 
     private static PlaygroundOrderDto Project(PlaygroundOrderEntity order) =>
         new()
