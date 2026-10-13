@@ -15,9 +15,7 @@ namespace SparseFragments.Generator.Shared;
 /// </remarks>
 internal static class SparseEditSessionStateEmitter
 {
-    internal static bool HasStateSurface(
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
-    ) =>
+    internal static bool HasStateSurface(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>
         dialect.StateContracts is not null
         && dialect.TransitionContracts is not null
         && dialect.TypedPathInterfaceType is { Length: > 0 };
@@ -50,11 +48,7 @@ internal static class SparseEditSessionStateEmitter
     {
         // The concrete path struct (like ChangeSet.Find) keeps overload
         // resolution unambiguous against the model-agnostic overload.
-        var typedPath = SparseFragmentPatchEmitter.GetTypedPathType(
-            dialect,
-            modelType,
-            "TValue"
-        );
+        var typedPath = SparseFragmentPatchEmitter.GetTypedPathType(dialect, modelType, "TValue");
         code.AppendLineAt(
             2,
             "/// <summary>Queries the semantic field state at a typed path against the current baseline.</summary>"
@@ -64,14 +58,21 @@ internal static class SparseEditSessionStateEmitter
             "/// <remarks>Live query: derives a fresh change set from the retained baseline on each call and never retains subscriptions or per-field caches. Snapshot <see cref=\"CreateChangeSet\"/> for repeated point-in-time lookups.</remarks>"
         );
         code.AppendLineAt(2, "/// <param name=\"path\">The typed path to inspect.</param>");
-        code.AppendLineAt(2, "/// <typeparam name=\"TValue\">The addressed value type.</typeparam>");
+        code.AppendLineAt(
+            2,
+            "/// <typeparam name=\"TValue\">The addressed value type.</typeparam>"
+        );
         code.AppendLineAt(
             2,
             "/// <returns>The live field state with presence-aware endpoints.</returns>"
         );
         code.AppendLineAt(
             2,
-            "public " + states.FieldStateType + "<TValue> FieldState<TValue>(" + typedPath + " path)"
+            "public "
+                + states.FieldStateType
+                + "<TValue> FieldState<TValue>("
+                + typedPath
+                + " path)"
         );
         code.AppendLineAt(2, "{");
         if (!dialect.PathIsValueType)
@@ -100,10 +101,7 @@ internal static class SparseEditSessionStateEmitter
             "/// <remarks>Covers paths without a compile-time typed form, such as nested-model builders and missing or deleted members. Unknown paths report a clean state. See the typed overload for the exact/ancestor/descendant contract.</remarks>"
         );
         code.AppendLineAt(2, "/// <param name=\"path\">The path to inspect.</param>");
-        code.AppendLineAt(
-            2,
-            "/// <returns>The live field state with boxed endpoints.</returns>"
-        );
+        code.AppendLineAt(2, "/// <returns>The live field state with boxed endpoints.</returns>");
         code.AppendLineAt(
             2,
             "public " + states.FieldStateType + "<object?> FieldState(" + pathType + " path)"
@@ -144,10 +142,7 @@ internal static class SparseEditSessionStateEmitter
             2,
             "/// <param name=\"collectionPath\">The root collection member path.</param>"
         );
-        code.AppendLineAt(
-            2,
-            "/// <returns>The live collection state view.</returns>"
-        );
+        code.AppendLineAt(2, "/// <returns>The live collection state view.</returns>");
         code.AppendLineAt(
             2,
             "/// <exception cref=\"global::System.ArgumentException\">The path does not address a root keyed or dictionary collection member.</exception>"
