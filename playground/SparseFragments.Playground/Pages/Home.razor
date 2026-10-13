@@ -105,14 +105,15 @@
     private const string ModelCode = """
         using SparseFragments;
 
-        [SparseFragmentModel]
-        public partial class Settings
+        [SparseFragmentModel]         // add this attribute
+        public partial class Settings // mark the class as partial
         {
             public string? Theme { get; set; }
             public List<NestedClass> Items { get; set; } = [];
         }
 
-        public class NestedClass
+        // Nested class should also be marked as partial.
+        public partial class NestedClass
         {
             public string? Name { get; set; }
         }
