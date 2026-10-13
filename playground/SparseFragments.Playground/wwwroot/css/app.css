@@ -728,23 +728,6 @@ a, .btn-link {
     justify-self: end;
 }
 
-/* Overview sample links and per-case prev/next pager: plain anchors so the
-   Blazor router handles navigation (FluentButton has no Href in v5). */
-.pg-case-link,
-.pg-page-link {
-    display: inline-block;
-    padding: 0.45rem 1rem;
-    border-radius: 4px;
-    background: var(--accent-fill-rest);
-    color: #fff;
-    text-decoration: none;
-}
-
-.pg-case-link:hover,
-.pg-page-link:hover {
-    color: #fff;
-}
-
 .pg-pager {
     display: flex;
     justify-content: space-between;

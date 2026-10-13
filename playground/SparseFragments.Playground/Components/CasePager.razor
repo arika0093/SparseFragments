@@ -1,8 +1,8 @@
-@* Prev/Next pager for the per-case pages. Plain anchors so Blazor client-side routing handles them. *@
+@* Prev/Next pager for the per-case pages. *@
 <nav class="pg-pager" aria-label="Sample pages">
     @if (PrevHref is not null)
     {
-        <a class="pg-page-link" href="@PrevHref">← @PrevLabel</a>
+        <FluentAnchorButton Appearance="ButtonAppearance.Primary" Href="@PrevHref">← @PrevLabel</FluentAnchorButton>
     }
     else
     {
@@ -10,7 +10,7 @@
     }
     @if (NextHref is not null)
     {
-        <a class="pg-page-link" href="@NextHref">@NextLabel →</a>
+        <FluentAnchorButton Appearance="ButtonAppearance.Primary" Href="@NextHref">@NextLabel →</FluentAnchorButton>
     }
     else
     {
