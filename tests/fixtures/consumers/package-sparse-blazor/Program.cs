@@ -2,13 +2,13 @@ using System.ComponentModel.DataAnnotations;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Forms;
-using SparseFragments;
-using SparseFragments.Blazor;
+using SparseTypes;
+using SparseTypes.Blazor;
 
 // Canonical compile-checked mirror of docs/ui-frameworks.md (#45, #48) and the
 // Blazor candidate-consumer gate (#46). Exercises the generated
-// CreateEditSession() workflow against the packed SparseFragments.Blazor
-// package (no ProjectReference fallback when SparseFragmentsPackageVersion is
+// CreateEditSession() workflow against the packed SparseTypes.Blazor
+// package (no ProjectReference fallback when SparseTypesPackageVersion is
 // set): baseline-relative HasChanges, semantic CreatePatch, AcceptChanges
 // re-baselining, edit-then-restore, and EditContext validation integration.
 
@@ -114,7 +114,7 @@ DocsCheck.Require(!uiSession.HasChanges, "re-baselined");
 
 await UiDocSamples.RunAsync();
 
-Console.WriteLine("SparseFragments Blazor consumer passed.");
+Console.WriteLine("SparseTypes Blazor consumer passed.");
 
 static void Require(bool condition, string capability)
 {
@@ -552,7 +552,7 @@ public static class UiDocSamples
 }
 
 // sample: ui-session-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;
@@ -560,7 +560,7 @@ public partial class UiOrder
     public List<UiOrderItem> Items { get; set; } = new();
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrderItem
 {
     [SparseKey]
@@ -571,7 +571,7 @@ public partial class UiOrderItem
 
 // /sample
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class BlazorDocsOrderLine
 {
     [SparseKey]
@@ -583,7 +583,7 @@ public partial class BlazorDocsOrderLine
 }
 
 // sample: blazor-form-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class BlazorEditFormOrder
 {
     [Required]
@@ -651,7 +651,7 @@ public sealed class FakeOrderSaveService
 
 // /sample
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class BlazorDocsOrder
 {
     public string Number { get; set; } = string.Empty;

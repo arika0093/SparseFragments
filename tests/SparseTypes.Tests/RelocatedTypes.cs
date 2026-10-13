@@ -1,0 +1,16 @@
+global using ChildProxy = global::SparseTypes.Tests.ObservableChild.SparseObservable;
+global using ChildView = global::SparseTypes.Tests.ObservableChild.ReadOnlyView;
+global using CollisionProxy = global::SparseTypes.Tests.ObservableCollision.SparseObservable;
+global using DuplicateItemObservable = global::SparseTypes.Tests.DuplicateKeySessionItem.Observable;
+global using HolderObservable = global::SparseTypes.Tests.ObservableHolder.Observable;
+global using HolderView = global::SparseTypes.Tests.ObservableHolder.ReadOnlyView;
+global using IgnoreObservable = global::SparseTypes.Tests.SparseIgnoreModel.Observable;
+global using ListChildProxy = global::SparseTypes.Tests.ObservableListChild.SparseObservable;
+global using NeutralObservable = global::SparseTypes.Tests.NeutralSessionModel.Observable;
+global using NeutralView = global::SparseTypes.Tests.NeutralSessionModel.ReadOnlyView;
+global using NodeObservable = global::SparseTypes.Tests.ObservableNode.Observable;
+global using RawObservable = global::SparseTypes.Tests.RawMutableHolder.Observable;
+global using RawView = global::SparseTypes.Tests.RawMutableHolder.ReadOnlyView;
+global using StaleGroupObservable = global::SparseTypes.Tests.StaleGroup.Observable;
+global using StaleItemObservable = global::SparseTypes.Tests.StaleItem.Observable;
+global using StreamingView = global::SparseTypes.Tests.StreamingSessionModel.ReadOnlyView;

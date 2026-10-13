@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/how-to/partial-updates.md.
 // One endpoint with two legitimate inputs: a baseline-free Patch command and
@@ -134,7 +134,7 @@ public static class PartialUpdateSamples
 }
 
 // sample: partial-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class PartialProfile
 {
     public string? DisplayName { get; set; }

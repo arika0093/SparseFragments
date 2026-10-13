@@ -1,4 +1,4 @@
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/keyed-collections.md (#45).
 // Covers the representative element-identity mechanisms users are expected to
@@ -381,7 +381,7 @@ public partial class DocsServer
     public int Port { get; set; }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsInventory
 {
     public List<DocsServer> Servers { get; set; } = new();
@@ -400,7 +400,7 @@ public partial class DocsTenantServer
     public (string TenantId, string Id) Key => (TenantId, Id);
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsTenantInventory
 {
     public List<DocsTenantServer> Servers { get; set; } = new();
@@ -422,7 +422,7 @@ public partial class DocsNormalizedServer
     public DocsNormalizedKey Key => new(Tenant.ToUpperInvariant(), Id);
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsNormalizedInventory
 {
     public List<DocsNormalizedServer> Servers { get; set; } = new();
@@ -431,7 +431,7 @@ public partial class DocsNormalizedInventory
 // Temporary identity: an opt-in Guid? property beside a property-level
 // [SparseKey] with unassigned semantics. New rows are built with object
 // initializers; the property itself carries no initializer.
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsTempOrder
 {
     public List<DocsTempLine> Lines { get; set; } = new();

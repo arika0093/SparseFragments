@@ -20,9 +20,9 @@ Editing a `Fragment` and constructing an operation are different acts. `ToBuilde
 
 <!-- sample: core-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class CounterSettings
 {
     public string? Label { get; set; }
@@ -54,7 +54,7 @@ var sparse = new CounterSettings.Fragment
 
 Direct sparse construction keeps assigned reference values unless explicitly cloned (see [Clone & ownership](cloning-and-ownership.md)).
 
-SparseFragments distinguishes missing members from present values, including present `null` or type defaults. Because missing never equals a present value, transitions between missing, present null, and present defaults are all distinct, observable states.
+SparseTypes distinguishes missing members from present values, including present `null` or type defaults. Because missing never equals a present value, transitions between missing, present null, and present defaults are all distinct, observable states.
 
 ## Layer Overrides with Merge
 
@@ -199,9 +199,9 @@ Nested members recurse through the same typed shape:
 
 <!-- sample: core-nested-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsOrder
 {
     public string? Name { get; set; }
@@ -251,7 +251,7 @@ The root `ChangeSet` itself is not a generic enumerable. Model members are heter
 
 ## Inspect Transitions Through Shared Contracts
 
-The typed members above are the fastest path for application code. Code that works across models without naming generated types, such as a persistence mapper that applies a `ChangeSet` to tracked entities, uses the read-only contracts in the `SparseFragments` namespace instead. Every generated `ChangeSet` implements `ISparseChangeSet`. Scalar and set transitions implement `ISparseValueChange<T>`; keyed transitions implement `ISparseKeyedChange<TKey, TElement, TElementChange>`; dictionary transitions implement `ISparseDictionaryChange<TKey, TValue, TEdited>`. The `TryGet*` entry points resolve members by CLR name with exact type matching, and `EnumerateChangeRecords()` replays the same projection as `EnumerateChanges()` with model-independent values:
+The typed members above are the fastest path for application code. Code that works across models without naming generated types, such as a persistence mapper that applies a `ChangeSet` to tracked entities, uses the read-only contracts in the `SparseTypes` namespace instead. Every generated `ChangeSet` implements `ISparseChangeSet`. Scalar and set transitions implement `ISparseValueChange<T>`; keyed transitions implement `ISparseKeyedChange<TKey, TElement, TElementChange>`; dictionary transitions implement `ISparseDictionaryChange<TKey, TValue, TEdited>`. The `TryGet*` entry points resolve members by CLR name with exact type matching, and `EnumerateChangeRecords()` replays the same projection as `EnumerateChanges()` with model-independent values:
 
 <!-- sample: core-transition-contracts -->
 ```csharp
@@ -408,7 +408,7 @@ var restored = JsonSerializer
 ```
 <!-- /sample -->
 
-NativeAOT source-generated metadata for generated ChangePayload types is exercised by the `SparseFragments.NativeAotSmoke` tests.
+NativeAOT source-generated metadata for generated ChangePayload types is exercised by the `SparseTypes.NativeAotSmoke` tests.
 
 Typed projections such as `IsChanged`, keyed `Added`, `Removed`, and `Edited`, and `BeforeOrder` and `AfterOrder` are not duplicated in the payload; `ToChangeSet()` reconstructs them.
 
@@ -420,9 +420,9 @@ The full wire contract, exact JSON, endpoint states, version validation, and con
 
 <!-- sample: core-change-payload-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class LoginSettings
 {
     public string? DisplayName { get; set; }

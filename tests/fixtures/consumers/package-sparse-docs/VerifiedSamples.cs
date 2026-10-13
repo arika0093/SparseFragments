@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Compile-checked mirrors of annotated Markdown samples (#68).
 // Each `// sample: <id>` region matches the same-id fenced block in docs/*.md
@@ -944,7 +944,7 @@ public static class VerifiedSamples
 }
 
 // sample: core-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class CounterSettings
 {
     public string? Label { get; set; }
@@ -955,7 +955,7 @@ public partial class CounterSettings
 // /sample
 
 // sample: core-change-payload-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class LoginSettings
 {
     public string? DisplayName { get; set; }
@@ -967,7 +967,7 @@ public partial class LoginSettings
 // /sample
 
 // sample: keyed-first-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class Fleet
 {
     public List<Server> Servers { get; set; } = new();
@@ -984,7 +984,7 @@ public partial class Server
 // /sample
 
 // sample: keyed-unassigned-model
-[SparseFragmentModel]
+[SparseModel]
 public partial class PendingFleet
 {
     public List<PendingServer> Servers { get; set; } = new();
@@ -1001,7 +1001,7 @@ public partial class PendingServer
 // /sample
 
 // sample: keyed-composite-model
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedOrder
 {
     public List<KeyedOrderLine> Lines { get; set; } = new();
@@ -1034,7 +1034,7 @@ public partial class KeyedProduct
     public KeyedSku Key => new() { Code = RawCode.ToUpperInvariant() };
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedCatalog
 {
     public List<KeyedProduct> Products { get; set; } = new();
@@ -1043,7 +1043,7 @@ public partial class KeyedCatalog
 // /sample
 
 // sample: keyed-temporary-model
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedOrderBook
 {
     public List<KeyedOrderLineDto> Lines { get; set; } = new();
@@ -1075,7 +1075,7 @@ public sealed class KeyedLineEntity
 // /sample
 
 // sample: core-nested-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class DocsOrder
 {
     public string? Name { get; set; }
@@ -1091,7 +1091,7 @@ public partial class DocsCustomer
 // /sample
 
 // sample: rebase-first-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class RebaseSettings
 {
     public string? Label { get; set; }
@@ -1102,7 +1102,7 @@ public partial class RebaseSettings
 // /sample
 
 // sample: rebase-policy-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class RebasePolicySettings
 {
     public string? Label { get; set; }

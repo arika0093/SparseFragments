@@ -1,11 +1,11 @@
-using SparseFragments;
+using SparseTypes;
 
 namespace EfCoreSample.Contracts;
 
 /// <summary>
 /// The address DTO. Knows nothing about EF Core.
 /// </summary>
-[SparseFragmentModel]
+[SparseModel]
 public partial class AddressDto
 {
     /// <summary>Gets or sets the street.</summary>
@@ -18,7 +18,7 @@ public partial class AddressDto
 /// <summary>
 /// The order DTO. The change set over this type is the write mask.
 /// </summary>
-[SparseFragmentModel]
+[SparseModel]
 public partial class OrderDto
 {
     /// <summary>Gets or sets the customer name. Renamed from the entity member.</summary>

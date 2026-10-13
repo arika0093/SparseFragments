@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/rebase.md.
 // Covers the ChangeSet model: disjoint edits replaying cleanly onto the
@@ -262,7 +262,7 @@ public static class RebaseSamples
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class RebaseDocsSettings
 {
     public int RetryCount { get; set; }

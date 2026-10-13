@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/merge-strategies.md (#45).
 // Covers the built-in modes users configure per member (explicit Replace,
@@ -86,7 +86,7 @@ public static class MergeStrategiesSamples
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class MergeDocsSettings
 {
     public string? Label { get; set; }
@@ -120,7 +120,7 @@ public sealed class DocsLastWriteStrategy : FragmentMergeStrategy<string?>
     public override bool AreEqual(string? left, string? right) => left == right;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class MergeDocsPolicy
 {
     [SparseMerge(typeof(DocsLastWriteStrategy))]
@@ -145,7 +145,7 @@ public sealed class MergeTokenComparer : IEqualityComparer<MergeToken>
 }
 
 [SparseCompare(typeof(MergeToken), typeof(MergeTokenComparer))]
-[SparseFragmentModel]
+[SparseModel]
 public partial class MergeDocsCompareSettings
 {
     public MergeToken Token { get; set; }

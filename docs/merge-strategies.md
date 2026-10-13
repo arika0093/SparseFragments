@@ -15,7 +15,7 @@
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }                    // Replace (default for scalars)
@@ -92,7 +92,7 @@ public sealed class LastWriteStrategy : FragmentMergeStrategy<string?>
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Policy
 {
     [SparseMerge(typeof(LastWriteStrategy))]
@@ -153,7 +153,7 @@ public sealed class MergeTokenComparer : IEqualityComparer<MergeToken>
 }
 
 [SparseCompare(typeof(MergeToken), typeof(MergeTokenComparer))]
-[SparseFragmentModel]
+[SparseModel]
 public partial class MergeDocsCompareSettings
 {
     public MergeToken Token { get; set; }

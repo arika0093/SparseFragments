@@ -12,15 +12,15 @@
   <!-- No System.Text.Json reference by design (issues #242/#243): this
     fixture proves the serializer-independent core compiles and works without
     any JSON API surface. Do not add one here. -->
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
-    <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseTypes/SparseTypes.csproj" />
     <ProjectReference
-      Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      Include="../../../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false"
     />
   </ItemGroup>
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
-    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' != ''">
+    <PackageReference Include="SparseTypes" Version="$(SparseTypesPackageVersion)" />
   </ItemGroup>
 </Project>

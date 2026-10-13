@@ -1,0 +1,200 @@
+@page "/case-3"
+@using SparseTypes
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+
+<PageTitle>03 Keyed list — SparseTypes Playground</PageTitle>
+
+<section class="pg-section">
+    <div class="pg-section-heading">
+        <span class="pg-section-number">03</span>
+        <h2>Keyed list: List&lt;Quest&gt;</h2>
+        <GitHubLink Href="https://github.com/arika0093/SparseTypes/tree/main/playground/SparseTypes.Playground/Pages/Case3" Label="Case 3 source on GitHub" />
+    </div>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
+        <FluentTab Header="Playground" Id="section-3-playground">
+            <div class="pg-section-content">
+                <p class="pg-hint">Outer <em>List&lt;Quest&gt;</em> patches by <em>Id</em> key; inner <em>Scores</em> replaces the whole list.</p>
+                <div class="pg-legend" aria-label="Edit highlight legend">
+                    <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+                    <span class="pg-lg"><span class="pg-sw pg-sw-del"></span>removed</span>
+                    <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+                    <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+                </div>
+                <div class="pg-grid pg-grid-trio">
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>Before</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterBefore">Reset</FluentButton>
+                        </div>
+                        <RosterEditor Model="RosterBefore" AllowReorder="false" Changes="RosterEditorChanges" RemovedOnly="true" OnChanged="Refresh" />
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card">
+                        <div class="pg-card-head">
+                            <h3>After</h3>
+                            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ResetRosterAfter">Reset</FluentButton>
+                        </div>
+                        <RosterEditor Model="RosterAfter" Changes="RosterEditorChanges" OnChanged="Refresh" />
+                    </FluentCard>
+                    <FluentCard Class="pg-fluent-card pg-span-full">
+                        <div class="pg-card-head">
+                            <h3>Before → After keyed diff</h3>
+                        </div>
+                        <FluentTabs>
+                            <FluentTab Header="Patch (C#)" Id="roster-patch-manual">
+                                <MonacoView Content="@RosterManualCSharp" Language="csharp" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="ChangeSet" Id="roster-changeset">
+                                @{
+                                    var changeRows = BuildRosterChangeRows();
+                                }
+                                @if (_rosterChanges is null)
+                                {
+                                    <p class="pg-hint">Cannot calculate changes: @_rosterChangesError</p>
+                                }
+                                else if (changeRows.Count == 0)
+                                {
+                                    <p class="pg-hint">No changes.</p>
+                                }
+                                else
+                                {
+                                    <div class="pg-change-table-wrap pg-roster-change-table-wrap">
+                                        <table class="pg-change-table" aria-label="Roster ChangeSet">
+                                            <thead>
+                                                <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var row in changeRows)
+                                                {
+                                                    <tr>
+                                                        <td><span class="@PlaygroundPageHelper.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                                        <td><span class="pg-change-value">@row.PathText</span></td>
+                                                        <td><span class="pg-change-value">@row.BeforeText</span></td>
+                                                        <td><span class="pg-change-value">@row.AfterText</span></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </FluentTab>
+                            <FluentTab Header="ChangePayload" Id="roster-changeset-json">
+                                <MonacoView Content="@RosterChangeSetJson" Language="json" Height="270px" />
+                            </FluentTab>
+                            <FluentTab Header="Applied (JSON)" Id="roster-applied-json">
+                                <MonacoDiffView Original="@RosterBeforeModelJson" Modified="@RosterAppliedModelJson" Language="json" Height="300px" />
+                            </FluentTab>
+                        </FluentTabs>
+                    </FluentCard>
+                </div>
+            </div>
+        </FluentTab>
+        <FluentTab Header="Codes" Id="section-3-codes">
+            <CodeSamples />
+        </FluentTab>
+    </FluentTabs>
+</section>
+
+<CasePager PrevHref="case-2" PrevLabel="02 Typed patch" NextHref="case-4" NextLabel="04 Undo / Redo" />
+
+@code {
+    private PlaygroundRoster RosterBefore = RosterDefaults.Before();
+    private PlaygroundRoster RosterAfter = RosterDefaults.After();
+    private PlaygroundRoster.ChangeSet? _rosterChanges;
+    private string? _rosterChangesError;
+    private static readonly PlaygroundRoster.ChangeSet EmptyRosterChangeSet =
+        PlaygroundRoster.ChangeSet.Between(
+            Optional<PlaygroundRoster.Fragment?>.Missing,
+            Optional<PlaygroundRoster.Fragment?>.Missing);
+
+    private string RosterBeforeModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteRosterModel(RosterBefore));
+    private string RosterManualCSharp => PlaygroundPageHelper.Try(RosterManualPatchText);
+    private PlaygroundRoster.ChangeSet.QuestsTransition RosterEditorChanges =>
+        (_rosterChanges ?? EmptyRosterChangeSet).Quests;
+
+    private string RosterChangeSetJson => PlaygroundPageHelper.Try(() =>
+    {
+        if (_rosterChanges is null)
+        {
+            throw new InvalidOperationException("Cannot diff roster state.");
+        }
+
+        return PlaygroundJson.WriteRosterChangeSet(_rosterChanges);
+    });
+
+    private string RosterAppliedModelJson => PlaygroundPageHelper.Try(() =>
+    {
+        if (_rosterChanges is null)
+        {
+            throw new InvalidOperationException("Cannot diff roster state.");
+        }
+
+        if (!_rosterChanges.TryApplyTo(RosterBefore, out var applied))
+        {
+            throw new InvalidOperationException("The roster changes conflict with the baseline.");
+        }
+
+        return PlaygroundJson.WriteRosterModel(applied);
+    });
+
+    private string RosterManualPatchText()
+    {
+        if (_rosterChanges is null)
+        {
+            return "// Cannot diff: duplicate keys or invalid state. See the ChangePayload tab for the error.";
+        }
+
+        return PlaygroundSnippets.RosterManualPatchCSharp("patch", _rosterChanges);
+    }
+
+    private IReadOnlyList<SparseChangeRow> BuildRosterChangeRows()
+    {
+        if (_rosterChanges is null)
+        {
+            return [];
+        }
+
+        return SparseChangeRowProjection.Project(
+            _rosterChanges,
+            new SparseChangeRowOptions
+            {
+                FormatOperation = PlaygroundPageHelper.ChangeOperation,
+                FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
+            }
+        );
+    }
+
+    private void RefreshRosterChanges()
+    {
+        try
+        {
+            _rosterChanges = RosterBefore.CreateChangeSet(RosterAfter);
+            _rosterChangesError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _rosterChanges = null;
+            _rosterChangesError = exception.Message;
+        }
+    }
+
+    protected override void OnInitialized() => RefreshRosterChanges();
+
+    private void Refresh()
+    {
+        RefreshRosterChanges();
+        StateHasChanged();
+    }
+
+    private void ResetRosterBefore()
+    {
+        RosterBefore = RosterDefaults.Before();
+        RefreshRosterChanges();
+    }
+
+    private void ResetRosterAfter()
+    {
+        RosterAfter = RosterDefaults.After();
+        RefreshRosterChanges();
+    }
+}

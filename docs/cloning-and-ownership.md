@@ -63,7 +63,7 @@ clone.Child!.Count = 42;                     // the original is untouched
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     [SparseCloneReferenceSafe]

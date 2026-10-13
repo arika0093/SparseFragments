@@ -61,7 +61,7 @@ resolver. Emitted patch, change-set, keyed-sequence, and dictionary
 output then names only the product vocabulary and the product runtime
 namespace. The `SemanticReferenceTests` fixture pins this: custom
 family output contains no `.Fragment`, `.Patch`, or `.ChangeSet`
-references and no `global::SparseFragments` token.
+references and no `global::SparseTypes` token.
 
 ## Migrated assumptions
 
@@ -104,7 +104,7 @@ product call sites passing the configured `EffectiveFamilyNames` and the
 standalone family kept as the default; the emission-infrastructure track
 (#178) is landed. The current configuration surface,
 including `EmissionFeatures` and the dialect members, is documented in
-the [Shared README](../../src/SparseFragments.Generator.Shared/README.md)
+the [Shared README](../../src/SparseTypes.Generator.Shared/README.md)
 and verified by the downstream dialect fixture tests and
 `SemanticReferenceTests`.
 
@@ -112,6 +112,6 @@ Generated-Once generic algorithms already obtain runtime types through
 generic parameters or explicit dialect contracts rather than fixed
 product names: equality, merge, clone-context, optional, comparer, and
 rebase helpers arrive as injected type-name strings at every emitter
-call site, and Shared sources contain no `global::SparseFragments`
+call site, and Shared sources contain no `global::SparseTypes`
 literal. The downstream dialect fixture tests verify this property for
 patch, change-set, keyed, dictionary, rebase, and payload paths.

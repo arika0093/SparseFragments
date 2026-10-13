@@ -20,25 +20,25 @@ Guidance for AI agents working in this repository. Always follow it, and consult
   - If necessary, create and run benchmarks to improve performance.
 - Format C# changes with CSharpier and verify them with `dotnet csharpier check`.
 
-## SparseFragments.Generator.Shared
+## SparseTypes.Generator.Shared
 ### Position
 the generator's standalone, independently reusable code.
 It is a **source-only package** compiled into the consuming generator, and downstream products (e.g. Configlue) consume it from outside this repository.
 
 ### Rules
-- **Must not depend on `SparseFragments`** (the runtime package, its namespaces, or its type names).
-  - Never hard-code names such as `global::SparseFragments.Optional<...>`, `RebaseResult`, or `CompilerServices.SparseFragmentRuntime` in shared emitters/analyzers.
+- **Must not depend on `SparseTypes`** (the runtime package, its namespaces, or its type names).
+  - Never hard-code names such as `global::SparseTypes.Optional<...>`, `RebaseResult`, or `CompilerServices.SparseFragmentRuntime` in shared emitters/analyzers.
 - **Customizability is required.**
   - Anything product-specific must be injected through the configuration layer: `SparseGeneratorConfig` (attribute/interface metadata names, merge enum values, reserved generated names, diagnostic IDs, hint/structural-host suffixes), `SparseRuntimeDialect` and `SparsePatchDialect` (runtime/facade types, result/conflict types, member names).
-  - Dialects are explicit; there is no implicit SparseFragments fallback.
+  - Dialects are explicit; there is no implicit SparseTypes fallback.
 - Shared owns the product-neutral semantics: analysis, Fragment/Patch/ChangeSet emission (storage, Between/FromPatch/ToPatch/Invert/Compose/Rebase, typed transitions), and STJ/AOT serialization mechanics. One implementation, no forks downstream.
-- `SparseFragments.Generator` is just one consumer: it provides its own config and dialects. Product-specific behavior belongs there, not in Shared.
+- `SparseTypes.Generator` is just one consumer: it provides its own config and dialects. Product-specific behavior belongs there, not in Shared.
 - Treat Shared's public/emitted surface as an external API: 
   - Always emit XML docs for any `public` code.
   - changes alter downstream generator binaries, so keep them deliberate. 
   - Prefer extending the existing dialect/policy infrastructure over inventing parallel abstractions.
-- When changing Shared, verify with the isolated package consumer probe (a consumer with no SparseFragments runtime reference), not only the in-repo generator.
-- Update `src/SparseFragments.Generator.Shared/README.md` when consumer-facing requirements change.
+- When changing Shared, verify with the isolated package consumer probe (a consumer with no SparseTypes runtime reference), not only the in-repo generator.
+- Update `src/SparseTypes.Generator.Shared/README.md` when consumer-facing requirements change.
 
 ## Writing documentation
 
@@ -49,7 +49,7 @@ It is a **source-only package** compiled into the consuming generator, and downs
   - Do not paraphrase it into this file; follow the original.
 - Apply it to every documentation, apply the same principles.
 - Existing docs are English. Keep the language of the file you edit.
-- Code samples in `README.md` and `docs/*.md` are guarded by `verify-docs-samples.sh` and `verify-sparsefragments-readme.sh` against compile-checked fixtures in `tests/fixtures/consumers/package-sparse-*/`. The single mapping lives in `.github/workflows/scripts/docs-samples-registry.tsv`; discovery covers `README.md` and every `docs/**/*.md`, so a new guide needs no shell edit.
+- Code samples in `README.md` and `docs/*.md` are guarded by `verify-docs-samples.sh` and `verify-sparsetypes-readme.sh` against compile-checked fixtures in `tests/fixtures/consumers/package-sparse-*/`. The single mapping lives in `.github/workflows/scripts/docs-samples-registry.tsv`; discovery covers `README.md` and every `docs/**/*.md`, so a new guide needs no shell edit.
   - To add a checked sample: 1. wrap the fenced block in `<!-- sample: name -->` ... `<!-- /sample -->`; 2. add the matching `// sample: name` ... `// /sample` region to the canonical fixture and execute it from `Run()` with a `DocsCheck.Require` assertion, so the documented result runs instead of only compiling; 3. add one registry row (`<markdown> TAB <name> TAB <fixture>`). Ids ending in `-model`/`-models` declare shapes and ids ending in `-store` declare supporting stores; both are exercised through the constructing or consuming samples, so every other region needs its own assertion body. JSON wire specimens use `<!-- json-specimen: id -->` ... `<!-- /json-specimen -->` with `// json-specimen: id` regions holding the serializer output in `"""..."""` literals plus a fourth `json-specimen` registry column; they compare as deep JSON (array order significant).
   - When changing a sample, update the matching fixture too. Unregistered markers, missing fixture regions, unused registry rows, duplicate ids in one file, and changed code all fail the build.
   - Every ```csharp fence needs a guard: a registered sample marker, or a preceding `<!-- illustrative: reason -->` with a non-empty reason (one marker covers the next runnable fence only). Use the illustrative marker for snippets that must not compile: error illustrations, ellipsized shapes, and excerpts using names defined elsewhere.

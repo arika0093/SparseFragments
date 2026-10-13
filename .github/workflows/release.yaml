@@ -62,13 +62,13 @@ jobs:
         run: echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
 
       - name: Restore dependencies
-        run: dotnet restore SparseFragments.slnx
+        run: dotnet restore SparseTypes.slnx
 
       - name: Build
-        run: dotnet build SparseFragments.slnx --no-restore --configuration Release
+        run: dotnet build SparseTypes.slnx --no-restore --configuration Release
 
       - name: Pack NuGet packages
-        run: dotnet pack SparseFragments.slnx --no-build --no-restore --configuration Release --output artifacts
+        run: dotnet pack SparseTypes.slnx --no-build --no-restore --configuration Release --output artifacts
 
       - name: Verify release candidate packages
         run: bash ./.github/workflows/scripts/verify-packages.sh artifacts
@@ -85,11 +85,11 @@ jobs:
     uses: ./.github/workflows/test.yaml
 
   # Consumes the already-packed release candidate exactly as users would:
-  # fixtures install the candidate SparseFragments (and Blazor, #46) packages
+  # fixtures install the candidate SparseTypes (and Blazor, #46) packages
   # from a local feed (no ProjectReference fallback, no second pack), the
   # Shared source-only package (#70) is consumed package-only with no sibling
   # fallback, the README fixture runs through
-  # verify-sparsefragments-readme.sh, and the docs guides run through
+  # verify-sparsetypes-readme.sh, and the docs guides run through
   # verify-docs-samples.sh (#45). Publishing below is blocked unless these
   # checks pass on the same candidate bytes.
   candidate-consumers:
@@ -136,7 +136,7 @@ jobs:
         run: bash ./.github/workflows/scripts/verify-package-shared-consumer.sh artifacts
 
       - name: Verify README samples against release candidate
-        run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
+        run: bash ./.github/workflows/scripts/verify-sparsetypes-readme.sh artifacts
 
       - name: Verify docs samples against release candidate
         run: bash ./.github/workflows/scripts/verify-docs-samples.sh artifacts

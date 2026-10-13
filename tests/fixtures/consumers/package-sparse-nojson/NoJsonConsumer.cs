@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SparseFragments;
+using SparseTypes;
 
 // Serializer-free consumer (issues #242/#243): a netstandard2.0 class library
 // with no System.Text.Json reference. Build-only (netstandard2.0 has no
@@ -10,7 +10,7 @@ using SparseFragments;
 // Fragment, Patch, ChangeSet, and the ChangePayload CLR projections
 // (ToPayload/FromPatch/ToPatch/ToChangeSet); JSON transport
 // (JsonSerializer, Fragment.JsonConverter) is unavailable by design.
-[SparseFragmentModel]
+[SparseModel]
 public partial class NoJsonSettings
 {
     public string? Label { get; set; }
@@ -18,7 +18,7 @@ public partial class NoJsonSettings
     public int RetryCount { get; set; }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class NoJsonFleet
 {
     public List<NoJsonServer> Servers { get; set; } = new();
@@ -83,7 +83,7 @@ public static class NoJsonConsumerCheck
             "keyed payload round-trips without JSON"
         );
 
-        return "SparseFragments serializer-free consumer passed.";
+        return "SparseTypes serializer-free consumer passed.";
     }
 
     private static void Require(bool condition, string message)

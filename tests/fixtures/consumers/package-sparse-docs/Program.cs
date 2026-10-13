@@ -3,7 +3,7 @@
 // API tokens in sync with the guides: verify-docs-samples.sh fails when a
 // documented sample drifts from its fixture. This project consumes the packed
 // release-candidate packages (no ProjectReference fallback when
-// SparseFragmentsPackageVersion is set), so CI fails when the public
+// SparseTypesPackageVersion is set), so CI fails when the public
 // generated API breaks a documented sample.
 
 KeyedCollectionsSamples.Run();
@@ -18,7 +18,7 @@ TutorialFirstEditSamples.Run();
 LayeredSettingsSamples.Run();
 PartialUpdateSamples.Run();
 
-Console.WriteLine("SparseFragments docs consumer passed.");
+Console.WriteLine("SparseTypes docs consumer passed.");
 
 internal static class DocsCheck
 {

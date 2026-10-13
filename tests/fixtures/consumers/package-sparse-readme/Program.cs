@@ -1,12 +1,12 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of the root README.md.
 // The `// sample: <id>` regions below match the same-id fenced blocks in
-// README.md exactly after normalization; verify-sparsefragments-readme.sh
+// README.md exactly after normalization; verify-sparsetypes-readme.sh
 // fails on drift. Regions execute as top-level statements so documented
 // results are verified, not just compiled. Keep the model shapes (Settings
-// with [SparseFragmentModel], reachable partial DatabaseSettings) in sync
+// with [SparseModel], reachable partial DatabaseSettings) in sync
 // with the README so CI fails when the public generated API drifts from the
 // documented samples.
 
@@ -69,7 +69,7 @@ Require(incoming.Label.IsChanged, "ChangeSet payload JSON round-trip preserves t
 var rebased = incoming.RebaseOnto(updated);
 Require(!rebased.HasConflicts, "rebase onto current has no conflicts");
 
-Console.WriteLine("SparseFragments README consumer passed.");
+Console.WriteLine("SparseTypes README consumer passed.");
 
 static void Require(bool condition, string capability)
 {
@@ -83,7 +83,7 @@ static void Require(bool condition, string capability)
 // auto-generate Fragment/Patch, so DatabaseSettings stays undecorated but
 // partial because the samples construct DatabaseSettings.Fragment directly.
 // sample: readme-quickstart
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }

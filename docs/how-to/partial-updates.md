@@ -18,9 +18,9 @@ redacts its before-state on the wire, which matters in the last section.
 <!-- sample: partial-models -->
 ```csharp
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class PartialProfile
 {
     public string? DisplayName { get; set; }

@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using SparseFragments.Generator.Shared;
+using SparseTypes.Generator.Shared;
 
 namespace PackageShared.Generator;
 
@@ -12,8 +12,8 @@ namespace PackageShared.Generator;
 /// infrastructure, emitter/helpers, and the downstream policy/config surface
 /// (#121: feature selection, member transport and rebase policies, write
 /// contracts). All Shared sources arrive via the
-/// SparseFragments.Generator.Shared NuGet package (contentFiles +
-/// build/SparseFragments.Generator.Shared.props); there is no sibling-source
+/// SparseTypes.Generator.Shared NuGet package (contentFiles +
+/// build/SparseTypes.Generator.Shared.props); there is no sibling-source
 /// fallback in PackageShared.Generator.csproj.
 /// </summary>
 [Generator]
@@ -99,7 +99,7 @@ internal static class ProbeSurface
         // Rebase policy surface (Emitters/Patch/, Analysis/). Referencing the
         // options/policy emitters and the rebase field default proves a
         // downstream generator can configure rebase semantics from the package
-        // without a SparseFragments runtime reference.
+        // without a SparseTypes runtime reference.
         var rebaseTypes = new[]
         {
             typeof(SparseRebaseOptionEmitter),
@@ -306,7 +306,7 @@ internal static class ProbeSurface
             !sessionSources.Core.Contains(
                 "global::PackageShared.Optional",
                 StringComparison.Ordinal
-            ) || sessionSources.Core.Contains("global::SparseFragments", StringComparison.Ordinal)
+            ) || sessionSources.Core.Contains("global::SparseTypes", StringComparison.Ordinal)
         )
         {
             throw new InvalidOperationException("The edit-session dialect was not applied.");

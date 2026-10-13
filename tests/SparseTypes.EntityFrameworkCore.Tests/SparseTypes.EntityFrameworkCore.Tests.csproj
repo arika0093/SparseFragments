@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SparseTypes.EntityFrameworkCore.Tests</RootNamespace>
+    <AssemblyName>SparseTypes.EntityFrameworkCore.Tests</AssemblyName>
+    <NuGetAuditLevel>critical</NuGetAuditLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <!-- Explicit pin lifts the transitive SQLitePCLRaw.lib.e_sqlite3 past GHSA-2m69-gcr7-jv3q (NU1903). -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SparseTypes/SparseTypes.csproj" />
+    <ProjectReference Include="../../src/SparseTypes.EntityFrameworkCore/SparseTypes.EntityFrameworkCore.csproj" />
+    <ProjectReference
+      Include="../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"
+    />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="SparseTypes" />
+    <Using Include="SparseTypes.EntityFrameworkCore" />
+  </ItemGroup>
+</Project>

@@ -10,7 +10,7 @@
 # check-docs-samples.py --registry discovers README.md plus all
 # docs/**/*.md from the filesystem, so adding a guide needs no shell edit:
 # an unregistered marker fails the build. verify-docs-samples.sh covers the
-# docs scope and verify-sparsefragments-readme.sh covers README.md, both
+# docs scope and verify-sparsetypes-readme.sh covers README.md, both
 # from this file; the id lists must not be duplicated anywhere else.
 README.md	readme-quickstart	tests/fixtures/consumers/package-sparse-readme/Program.cs
 README.md	readme-optional-states	tests/fixtures/consumers/package-sparse-readme/Program.cs

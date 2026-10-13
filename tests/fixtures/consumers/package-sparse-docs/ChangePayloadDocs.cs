@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Compile-checked mirrors of docs/change-payload.md (#198).
 // Each `// sample: <id>` region matches the same-id fenced block in the guide
@@ -516,7 +516,7 @@ public static class ChangePayloadDocsSamples
 }
 
 // sample: payload-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireSettings
 {
     public string? Label { get; set; }
@@ -524,7 +524,7 @@ public partial class WireSettings
     public int RetryCount { get; set; }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireOrder
 {
     public string? Name { get; set; }
@@ -537,7 +537,7 @@ public partial class WireCustomer
     public string Name { get; set; } = string.Empty;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireFleet
 {
     public List<WireServer> Servers { get; set; } = new();
@@ -551,7 +551,7 @@ public partial class WireServer
     public string Host { get; set; } = string.Empty;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireSecret
 {
     public string? DisplayName { get; set; }
@@ -561,7 +561,7 @@ public partial class WireSecret
 }
 // /sample
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireScores
 {
     public Dictionary<string, int> Scores { get; set; } = new();

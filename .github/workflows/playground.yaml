@@ -48,13 +48,13 @@ jobs:
             ${{ runner.os }}-playground-nuget-
 
       - name: Publish playground
-        run: dotnet publish playground/SparseFragments.Playground/SparseFragments.Playground.csproj --configuration Release --output dist
+        run: dotnet publish playground/SparseTypes.Playground/SparseTypes.Playground.csproj --configuration Release --output dist
 
       - name: Prepare Pages site
         shell: bash
         run: |
           set -euo pipefail
-          sed -i 's|<base href="/" />|<base href="/SparseFragments/" />|' dist/wwwroot/index.html
+          sed -i 's|<base href="/" />|<base href="/SparseTypes/" />|' dist/wwwroot/index.html
           cp dist/wwwroot/index.html dist/wwwroot/404.html
           touch dist/wwwroot/.nojekyll
 

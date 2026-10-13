@@ -1,7 +1,7 @@
 using EfCoreSample.Contracts;
 using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
-using SparseFragments.EntityFrameworkCore;
+using SparseTypes.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://0.0.0.0:5000");

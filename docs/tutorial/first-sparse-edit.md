@@ -7,12 +7,12 @@ command, then observe the change as a typed transition. Each step shows the
 values it produces, so a mismatch means something went wrong on that step.
 
 Run it with a .NET 8 SDK or later. Create a console project that targets
-`net8.0`, add the `SparseFragments` package, and paste each block below into
+`net8.0`, add the `SparseTypes` package, and paste each block below into
 `Program.cs` in order. Top-level statements work: no `Main` method is needed.
 
 ```shell
 dotnet new console -o SparseTutorial
-dotnet add SparseTutorial package SparseFragments
+dotnet add SparseTutorial package SparseTypes
 ```
 
 ## Define one settings model
@@ -23,9 +23,9 @@ generation rules stay in the [model shapes reference](../model-shapes.md).
 
 <!-- sample: tutorial-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class TutorialSiteSettings
 {
     public string? Theme { get; set; }

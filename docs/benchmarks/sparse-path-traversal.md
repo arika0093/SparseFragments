@@ -5,7 +5,7 @@ allocation or regression in representative traversal benchmarks.
 Issue #222 adds the dedicated path-specific measurement that the
 descriptor-access and ChangeSet-enumeration benchmarks did not isolate.
 The cases live in
-benchmarks/SparseFragments.Benchmarks/SparsePathTraversalBenchmarks.cs
+benchmarks/SparseTypes.Benchmarks/SparsePathTraversalBenchmarks.cs
 and run through the default BenchmarkSwitcher with a filter. They are
 outside the 45-case pinned baseline, which selects its classes
 explicitly.
@@ -16,14 +16,14 @@ Full certification numbers need the standard warmed profile on an idle
 pinned machine, not the Dry smoke below:
 
 ```powershell
-dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --filter "*SparsePathTraversalBenchmarks*"
+dotnet run -c Release --project benchmarks/SparseTypes.Benchmarks -- --filter "*SparsePathTraversalBenchmarks*"
 ```
 
 Smoke check used for this note (separate profile, not comparable with
 full runs):
 
 ```powershell
-dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --filter "*SparsePathTraversalBenchmarks*" --job dry
+dotnet run -c Release --project benchmarks/SparseTypes.Benchmarks -- --filter "*SparsePathTraversalBenchmarks*" --job dry
 ```
 
 ## Coverage

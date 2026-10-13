@@ -25,10 +25,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Forms;
-using SparseFragments;
-using SparseFragments.Blazor;
+using SparseTypes;
+using SparseTypes.Blazor;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class BlazorEditFormOrder
 {
     [Required]

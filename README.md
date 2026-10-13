@@ -1,14 +1,14 @@
 <img src="./assets/hero2.png" />
 
-# SparseFragments
+# SparseTypes
 
-[![NuGet Version](https://img.shields.io/nuget/v/SparseFragments?style=flat-square&logo=NuGet&color=0080CC)](https://www.nuget.org/packages/SparseFragments/) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/arika0093/SparseFragments/test.yaml?branch=main&label=Test&style=flat-square) [![DeepWiki](https://img.shields.io/badge/DeepWiki-SparseFragments-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/arika0093/SparseFragments)
+[![NuGet Version](https://img.shields.io/nuget/v/SparseTypes?style=flat-square&logo=NuGet&color=0080CC)](https://www.nuget.org/packages/SparseTypes/) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/arika0093/SparseTypes/test.yaml?branch=main&label=Test&style=flat-square) [![DeepWiki](https://img.shields.io/badge/DeepWiki-SparseTypes-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/arika0093/SparseTypes)
 
-*Source-generated partial state and typed changes for C#.*
+*A unified change model for .NET.*
 
-SparseFragments generates typed APIs around ordinary C# models for partial values, edits, and before to after changes.
+Ordinary C# models gain multiple source-generated types for partial state, editing, and typed changes.
 
-Add `[SparseFragmentModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
+Add `[SparseModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
 
 It helps when:
 
@@ -18,12 +18,12 @@ It helps when:
 * a UI needs notifications and must distinguish a touched field from a value that is still changed;
 * a collection needs to track edits by item identity rather than by array position.
 
-Try these cases live in the browser: [*SparseFragments Playground*](https://arika0093.github.io/SparseFragments/).
+Try these cases live in the browser: [*SparseTypes Playground*](https://arika0093.github.io/SparseTypes/).
 
 ## Install
 
 ```shell
-dotnet add package SparseFragments
+dotnet add package SparseTypes
 ```
 
 The package contains the source generator, so no additional generation step is required.
@@ -34,9 +34,9 @@ With the .NET 10 SDK or later, the whole example fits in a single file. It layer
 
 <!-- sample: readme-quickstart -->
 ```csharp
-#:package SparseFragments@*
+#:package SparseTypes@*
 
-using SparseFragments;
+using SparseTypes;
 
 var defaults = Settings.Fragment.From(new Settings
 {
@@ -63,7 +63,7 @@ Console.WriteLine(changes.Label.IsChanged); // True
 Console.WriteLine(changes.Database.Port.Before.Value); // 6432
 Console.WriteLine(changes.Database.Port.After.Value); // 7432
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }
@@ -136,7 +136,7 @@ patch.Database.Port = 6432;
 var updated = current.Apply(patch);
 ```
 
-This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseFragments is useful when the edit arrives from elsewhere.
+This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseTypes is useful when the edit arrives from elsewhere.
 
 See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
 
@@ -177,7 +177,7 @@ See [ChangeSet rebase](docs/rebase.md) for the client and server flow and confli
 
 Change notification and "there is still something to save" are different questions. A field can be touched and then restored to its original value.
 
-An edit session (the per-model `EditSession` in `SparseFragments.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
+An edit session (the per-model `EditSession` in `SparseTypes.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
 
 <!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
 ```csharp
@@ -245,7 +245,7 @@ changes.Quests.Edited;
 changes.Quests.OrderChanged;
 ```
 
-See [Keyed collections](docs/keyed-collections.md) for key rules, per-item transitions, and the temporary-key save workflow. The [Playground](https://arika0093.github.io/SparseFragments/) shows the behavior interactively.
+See [Keyed collections](docs/keyed-collections.md) for key rules, per-item transitions, and the temporary-key save workflow. The [Playground](https://arika0093.github.io/SparseTypes/) shows the behavior interactively.
 
 ## Generated API
 
@@ -266,10 +266,10 @@ Generated fragments use this distinction while exposing model-shaped members, so
 ### Source generation
 
 <!-- illustrative: simplified names; does not compile as written -->
-`[SparseFragmentModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state,
+`[SparseModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state,
 operation, and UI/editing families stay nested in the model; builders,
 paths, and operation machinery live in a stable per-model
-`SparseFragments.Generated` container:
+`SparseTypes.Generated` container:
 
 ```csharp
 partial class Settings
@@ -285,7 +285,7 @@ partial class Settings
     public sealed class ReadOnlyView;
 }
 
-// In namespace SparseFragments.Generated, one container per model:
+// In namespace SparseTypes.Generated, one container per model:
 // <Container>.FragmentBuilder, <Container>.SparsePaths<TRoot>,
 // <Container>.DescriptorFactory, operation implementations.
 ```
@@ -325,7 +325,7 @@ are API references to look things up.
 
 ## Packages and Compatibility
 
-### SparseFragments
+### SparseTypes
 
 * Released as `netstandard2.0`.
   * .NET Framework 4.6.1 or later
@@ -339,7 +339,7 @@ are API references to look things up.
   * JetBrains Rider: 2023.1 or later
   * Unity: 6 or later
 
-### SparseFragments.Blazor
+### SparseTypes.Blazor
 
 Requires `net8.0` or later.
 

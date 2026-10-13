@@ -1,4 +1,4 @@
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/tutorial/first-sparse-edit.md.
 // One annotated model and one continuous sequence: baseline snapshot, sparse
@@ -79,7 +79,7 @@ public static class TutorialFirstEditSamples
 }
 
 // sample: tutorial-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class TutorialSiteSettings
 {
     public string? Theme { get; set; }

@@ -25,7 +25,7 @@ types only through `SparseRuntimeDialect` (`Namespace`, `OptionalType`,
 `MergeStrategyType`, `ReferenceComparer`, `ValueComparer`,
 `CollectionMerger`, `CollectionRebase`) and `SparsePatchDialect`
 (`RuntimeNamespace`, `RuntimeFacade`, conflict/result types). Shared
-sources contain no `global::SparseFragments` literal. The downstream
+sources contain no `global::SparseTypes` literal. The downstream
 dialect fixtures prove emitted patch, change-set, keyed, dictionary,
 rebase, payload, equality, merge, clone-context, and UI-adjacent output
 with a foreign runtime namespace names only that namespace.

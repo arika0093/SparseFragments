@@ -1,5 +1,5 @@
-using SparseFragments;
-using SparseFragments.Generated;
+using SparseTypes;
+using SparseTypes.Generated;
 
 // Canonical compile-checked mirror of docs/ui-frameworks.md (#48).
 // Covers the shared UI editing model: bind the session's generated Observable
@@ -433,13 +433,13 @@ public static class UiFrameworksSamples
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiWidgetChild
 {
     public string Name { get; set; } = string.Empty;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiWidget
 {
     public string Title { get; set; } = string.Empty;
@@ -449,7 +449,7 @@ public partial class UiWidget
     public List<UiWidgetItem> Items { get; set; } = [];
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiWidgetItem
 {
     [SparseKey]
@@ -459,7 +459,7 @@ public partial class UiWidgetItem
 }
 
 // sample: ui-descriptor-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;

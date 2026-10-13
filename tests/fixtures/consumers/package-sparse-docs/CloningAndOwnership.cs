@@ -1,4 +1,4 @@
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/cloning-and-ownership.md (#45).
 // Covers the ownership rule of thumb (assignment shares; construction from a
@@ -88,7 +88,7 @@ public static class CloningAndOwnershipSamples
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class CloneDocsSettings
 {
     public string? Label { get; set; }
@@ -111,7 +111,7 @@ public sealed class DocsSharedService
     public void Touch() { }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class CloneDocsServiceSettings
 {
     // Non-partial nested types stay atomic whole values: Replace keeps that

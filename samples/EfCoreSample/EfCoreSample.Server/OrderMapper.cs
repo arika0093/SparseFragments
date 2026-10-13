@@ -1,5 +1,5 @@
 using EfCoreSample.Contracts;
-using SparseFragments.EntityFrameworkCore;
+using SparseTypes.EntityFrameworkCore;
 
 namespace EfCoreSample.Server;
 

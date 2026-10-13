@@ -1,14 +1,14 @@
-# SparseFragments Analyzer Diagnostics (SPF001–SPF035)
+# SparseTypes Analyzer Diagnostics (SPF001–SPF035)
 
-Diagnostics reported by the source generator `SparseFragments.Generator`.
+Diagnostics reported by the source generator `SparseTypes.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
 IDs `SPF012`, `SPF015`, `SPF016`, `SPF018`, `SPF020`, and `SPF025` were retired
 when keys became property-only (#206) and are not reused.
 
 | ID | Title | Severity |
 | --- | --- | --- |
-| [SPF001](#spf001-sparse-fragment-model-must-be-partial) | Sparse fragment model must be partial | Error |
-| [SPF002](#spf002-unsupported-sparse-fragment-model) | Unsupported sparse fragment model | Error |
+| [SPF001](#spf001-sparse-model-must-be-partial) | Sparse model must be partial | Error |
+| [SPF002](#spf002-unsupported-sparse-model) | Unsupported sparse model | Error |
 | [SPF003](#spf003-model-needs-a-supported-constructor) | Model needs a supported constructor | Error |
 | [SPF004](#spf004-invalid-custom-merge-strategy) | Invalid custom merge strategy | Error |
 | [SPF005](#spf005-unsupported-merge-mode) | Unsupported merge mode | Error |
@@ -37,25 +37,25 @@ when keys became property-only (#206) and are not reused.
 | [SPF034](#spf034-invalid-entity-mapper-declaration) | Invalid entity mapper declaration | Error |
 | [SPF035](#spf035-unsupported-entity-member-shape) | Unsupported entity member shape | Error |
 
-## SPF001: Sparse fragment model must be partial
+## SPF001: Sparse model must be partial
 
 * Message: `Model '{0}' must be declared partial`
-* Cause: A type annotated with `[SparseFragmentModel]` is not declared `partial`.
+* Cause: A type annotated with `[SparseModel]` is not declared `partial`.
   The generator appends members such as `Fragment` / `Patch` to the same type, so `partial` is required.
 * Fix: Add `partial` to the type declaration.
 
 <!-- illustrative: error illustration; the first shape does not compile by design -->
 ```csharp
 // Does not compile
-[SparseFragmentModel]
+[SparseModel]
 public class Settings { ... }
 
 // OK
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings { ... }
 ```
 
-## SPF002: Unsupported sparse fragment model
+## SPF002: Unsupported sparse model
 
 * Message: `Model '{0}' must be a top-level, non-generic, non-abstract class or struct`
 * Cause: The model is not a top-level, non-generic, non-`abstract` class or struct
@@ -72,7 +72,7 @@ public partial class Settings { ... }
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public Settings() { }
@@ -99,7 +99,7 @@ public sealed class SumMergeStrategy : FragmentMergeStrategy<List<int>>
     public override bool AreEqual(List<int>? left, List<int>? right) => left == right;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class StrategySettings
 {
     [SparseMerge(typeof(SumMergeStrategy))]
@@ -117,7 +117,7 @@ public partial class StrategySettings
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     [SparseMerge(MergeMode.Append)] // OK for IReadOnlyList<string>, not for ISet<string>
@@ -143,7 +143,7 @@ public partial class Settings
   member-level APIs, which need the nested type to be `partial` (or an explicit
   fragment model). The member also lacks an explicit `Replace` opt-in, so the
   generator refuses to guess.
-* Fix: Declare the nested type `partial`, annotate it with `[SparseFragmentModel]`,
+* Fix: Declare the nested type `partial`, annotate it with `[SparseModel]`,
   or mark the member `[SparseMerge(MergeMode.Replace)]`. See [Model shapes](model-shapes.md).
 
 ## SPF008: Unsupported deep clone member
@@ -157,7 +157,7 @@ public partial class Settings
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     [SparseCloneReferenceSafe]
@@ -174,7 +174,7 @@ public partial class Settings
   generated member/method names (`Empty`, `IsEmpty`, `Merge`, `ApplyChanges`,
   `Diff`, `DeepClone`, `From`, `ToModel`, `ToBuilder`, `Build`, `ApplyTo`,
   `TryApplyTo`, `WriteTo`, `ApplyInPlace`, `ApplyInPlaceResult`).
-  Names that exist only in the per-model `SparseFragments.Generated`
+  Names that exist only in the per-model `SparseTypes.Generated`
   container (`SparsePaths`, `DescriptorFactory`, operation helpers, payload
   DTOs, converter bodies) are not reserved. A member named `Observable`,
   `ReadOnlyView`, or `EditSession` pushes the generated nested type behind
@@ -188,7 +188,7 @@ public partial class Settings
 * Cause: The same nested type is reached from multiple roots whose member sets or
   merge settings disagree, so one shared generated API cannot satisfy both.
 * Fix: Unify the definitions and settings, or annotate the nested type itself
-  with `[SparseFragmentModel]` to make it an explicit root.
+  with `[SparseModel]` to make it an explicit root.
 
 ## SPF011: Structural sequence without usable key
 
@@ -262,7 +262,7 @@ cannot be excluded.
 <!-- illustrative: error illustration; the shape does not compile by design -->
 ```csharp
 // Does not compile: both members serialize as "dup"
-[SparseFragmentModel]
+[SparseModel]
 public partial class Widget
 {
     [JsonPropertyName("dup")]
@@ -315,7 +315,7 @@ public sealed class LabelPolicy : FragmentRebasePolicy<string?>
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class PolicySettings
 {
     [SparseRebasePolicy(typeof(LabelPolicy))]

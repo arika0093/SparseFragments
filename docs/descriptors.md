@@ -6,7 +6,7 @@ Start from a session. `session.Descriptors.TryGet` looks a member up by its CLR 
 
 <!-- sample: ui-descriptor-models -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;

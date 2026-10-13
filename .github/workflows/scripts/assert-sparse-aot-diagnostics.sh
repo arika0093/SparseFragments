@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# SparseFragments NativeAOT diagnostic gate (#317).
+# SparseTypes NativeAOT diagnostic gate (#317).
 #
 # Usage: assert-sparse-aot-diagnostics.sh <publish-log>
 #
 # Fails on any IL trimming/AOT diagnostic in the publish log. The standalone
-# SparseFragments consumer is expected to be fully warning-clean (generated
+# SparseTypes consumer is expected to be fully warning-clean (generated
 # fragment converters plus an explicit source-generated resolver path with no
 # reflection fallback), so there is intentionally no allowlist here: any
-# diagnostic — including any SparseFragments-origin (SparseFragments.*,
+# diagnostic — including any SparseTypes-origin (SparseTypes.*,
 # or consumer code) diagnostic — fails the gate.
 set -euo pipefail
 
@@ -25,4 +25,4 @@ if [[ -n "$unexpected_diagnostics" ]]; then
   echo "$unexpected_diagnostics" >&2
   exit 1
 fi
-echo "SparseFragments NativeAOT diagnostics are clean."
+echo "SparseTypes NativeAOT diagnostics are clean."

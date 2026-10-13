@@ -32,11 +32,11 @@ package_directory="${1:-}"
 docs_fixture_dir="tests/fixtures/consumers/package-sparse-docs"
 docs_fixture_csproj="${docs_fixture_dir}/PackageSparse.Docs.Consumer.csproj"
 docs_fixture_dll="PackageSparse.Docs.Consumer.dll"
-docs_success_marker="SparseFragments docs consumer passed."
+docs_success_marker="SparseTypes docs consumer passed."
 blazor_fixture_dir="tests/fixtures/consumers/package-sparse-blazor"
 blazor_fixture_csproj="${blazor_fixture_dir}/PackageSparse.Blazor.Consumer.csproj"
 blazor_fixture_dll="PackageSparse.Blazor.Consumer.dll"
-blazor_success_marker="SparseFragments Blazor consumer passed."
+blazor_success_marker="SparseTypes Blazor consumer passed."
 
 if [[ -z "${package_directory}" ]]; then
     echo "Usage: $(basename "$0") <package-directory>" >&2
@@ -117,7 +117,7 @@ check_sample "cloning-and-ownership" "docs/cloning-and-ownership.md" "${docs_fix
     '.Apply(patch)'
 
 check_sample "model-shapes" "docs/model-shapes.md" "${docs_fixture_dir}/ModelShapes.cs" \
-    '[SparseFragmentModel]' \
+    '[SparseModel]' \
     'public partial class' \
     'IReadOnlyList<string> Plugins' \
     'Diff'
@@ -163,20 +163,20 @@ fi
 
 # 2. Compile and run the canonical fixtures against the packed packages.
 # The core glob pins the version digit so the Blazor package
-# (SparseFragments.Blazor.*.nupkg, #46) never resolves here.
-package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
+# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
-    echo "No SparseFragments package found in '${package_directory}'." >&2
+    echo "No SparseTypes package found in '${package_directory}'." >&2
     exit 1
 fi
-version="$(basename "${package}" | sed -E 's/^SparseFragments\.(.+)\.nupkg$/\1/')"
+version="$(basename "${package}" | sed -E 's/^SparseTypes\.(.+)\.nupkg$/\1/')"
 if [[ -z "${version}" ]]; then
     echo "Could not resolve package version from '$(basename "${package}")'." >&2
     exit 1
 fi
-blazor_package="$(ls "${package_directory}"/SparseFragments.Blazor.*.nupkg 2>/dev/null | head -n 1 || true)"
+blazor_package="$(ls "${package_directory}"/SparseTypes.Blazor.*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${blazor_package}" ]]; then
-    echo "No SparseFragments.Blazor package found in '${package_directory}'." >&2
+    echo "No SparseTypes.Blazor package found in '${package_directory}'." >&2
     exit 1
 fi
 feed="$(realpath "${package_directory}")"
@@ -215,9 +215,9 @@ assert_candidate_resolved() {
 for framework in net8.0 net10.0; do
     dotnet build "${docs_fixture_csproj}" \
         --configuration Release --framework "${framework}" \
-        -p:SparseFragmentsPackageVersion="${version}" \
+        -p:SparseTypesPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
-    assert_candidate_resolved "${docs_fixture_dir}/obj/project.assets.json" "SparseFragments" "sparsefragments"
+    assert_candidate_resolved "${docs_fixture_dir}/obj/project.assets.json" "SparseTypes" "sparsetypes"
     output="$(dotnet "${docs_fixture_dir}/bin/Release/${framework}/${docs_fixture_dll}" 2>&1)"
     echo "${output}"
     if [[ "${output}" != *"${docs_success_marker}"* ]]; then
@@ -229,10 +229,10 @@ done
 for framework in net8.0 net10.0; do
     dotnet build "${blazor_fixture_csproj}" \
         --configuration Release --framework "${framework}" \
-        -p:SparseFragmentsPackageVersion="${version}" \
+        -p:SparseTypesPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
-    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseFragments" "sparsefragments"
-    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseFragments.Blazor" "sparsefragments.blazor"
+    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseTypes" "sparsetypes"
+    assert_candidate_resolved "${blazor_fixture_dir}/obj/project.assets.json" "SparseTypes.Blazor" "sparsetypes.blazor"
     output="$(dotnet "${blazor_fixture_dir}/bin/Release/${framework}/${blazor_fixture_dll}" 2>&1)"
     echo "${output}"
     if [[ "${output}" != *"${blazor_success_marker}"* ]]; then
@@ -241,4 +241,4 @@ for framework in net8.0 net10.0; do
     fi
 done
 
-echo "Docs samples verified (SparseFragments ${version})."
+echo "Docs samples verified (SparseTypes ${version})."

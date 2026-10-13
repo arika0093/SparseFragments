@@ -1,4 +1,4 @@
-using SparseFragments;
+using SparseTypes;
 
 var original = Settings.Fragment.From(
     new Settings
@@ -65,7 +65,7 @@ Require(
 );
 var mergedUpstream = original.Merge(upstream.Build()).ToModel();
 Require(mergedUpstream.Label == "upstream", "layered merge");
-Console.WriteLine("SparseFragments packed consumer passed.");
+Console.WriteLine("SparseTypes packed consumer passed.");
 
 static void Require(bool condition, string capability)
 {
@@ -73,7 +73,7 @@ static void Require(bool condition, string capability)
         throw new InvalidOperationException("Failed: " + capability);
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }

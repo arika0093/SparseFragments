@@ -15,9 +15,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT = ROOT / "benchmarks/SparseFragments.Benchmarks"
-DLL = PROJECT / "bin/Release/net10.0/SparseFragments.Benchmarks.dll"
-EXPECTED_CASES = 45
+PROJECT = ROOT / "benchmarks/SparseTypes.Benchmarks"
+DLL = PROJECT / "bin/Release/net10.0/SparseTypes.Benchmarks.dll"
+EXPECTED_CASES = 49
 MODEL_COUNTS = {1, 4, 16}
 PAYLOAD_SHAPES = {"ScalarDictionary", "ModelDictionary", "ModelKeyed"}
 
@@ -280,7 +280,7 @@ def main():
             "runtime_variables": {key: value for key, value in sorted(os.environ.items()) if key.startswith(("DOTNET_GC", "DOTNET_Tiered", "DOTNET_ReadyToRun", "DOTNET_Enable", "COMPlus_"))},
         }
         (output / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
-        run(output / "build.log", "dotnet", "build", "-c", "Release", str(PROJECT / "SparseFragments.Benchmarks.csproj"),
+        run(output / "build.log", "dotnet", "build", "-c", "Release", str(PROJECT / "SparseTypes.Benchmarks.csproj"),
             "-m:1", "--disable-build-servers", "/p:UseSharedCompilation=false", "-v", "quiet")
         run(output / "inputs.log", "dotnet", str(DLL), "--baseline-validate-inputs")
         run(output / "sizes.log", "dotnet", str(DLL), "--baseline-sizes", str(output / "sizes.json"))
@@ -299,7 +299,7 @@ def main():
     validate_sizes(payload_sizes, True)
     current = {
         "schema": 3,
-        "suite": "sparsefragments-v1",
+        "suite": "sparsetypes-v1",
         "profile": provenance["profile"],
         "captured_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "commit": provenance["commit"],

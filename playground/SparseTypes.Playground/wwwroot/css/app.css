@@ -1,0 +1,1317 @@
+:root {
+    --spacingVerticalS: 6px !important;
+    --spacingVerticalM: 8px !important;
+    --spacingVerticalL: 12px !important;
+}
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    max-width: 100%;
+}
+
+html {
+    overflow-x: clip;
+}
+
+body {
+    height: auto !important;
+    min-height: 100vh;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+}
+
+#app {
+    max-width: 100%;
+    min-width: 0;
+}
+
+h1:focus {
+    outline: none;
+}
+
+a, .btn-link {
+    color: #0071c1;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+.content {
+    padding-top: 1.1rem;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred."
+    }
+
+.loading-progress {
+    position: absolute;
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    inset: 20vh 0 auto 0;
+    margin: 0 auto 0 auto;
+}
+
+    .loading-progress circle {
+        fill: none;
+        stroke: #e0e0e0;
+        stroke-width: 0.6rem;
+        transform-origin: 50% 50%;
+        transform: rotate(-90deg);
+    }
+
+        .loading-progress circle:last-child {
+            stroke: #1b6ec2;
+            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+            transition: stroke-dasharray 0.05s ease-in-out;
+        }
+
+.loading-progress-text {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+}
+
+    .loading-progress-text:after {
+        content: var(--blazor-load-percentage-text, "Loading");
+    }
+
+.fluent-tabs {
+    align-items: flex-start;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+    text-align: start;
+}
+
+/* SparseTypes Playground (Fluent + Monaco) */
+.pg-shell {
+    max-width: 110rem;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 3rem;
+}
+
+.pg-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    min-width: 0;
+    margin-bottom: 2ex;
+}
+
+.pg-title h1 {
+    font-weight: 700;
+    font-size: 2rem;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.pg-home-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.pg-brand {
+    flex-shrink: 0;
+    border-radius: 6px;
+}
+
+.pg-gh {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: inherit;
+    align-items: center;
+}
+
+.pg-gh svg {
+    width: 1.75rem;
+}
+
+.pg-theme {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Three-card sections (01 Layers, 03 keyed list): same auto-fit behavior as
+   .pg-grid, but with a wider minimum track so three columns only kick in on
+   wide viewports. 3 x 28.5rem + 2 x 1rem gap needs ~1400px of content width,
+   i.e. roughly a 1450px viewport once .pg-shell padding is included. Below
+   that it folds back to two columns plus a full-width third card, then one
+   column, exactly like .pg-grid. */
+.pg-grid-trio {
+    grid-template-columns: repeat(auto-fit, minmax(min(28.5rem, 100%), 1fr));
+}
+
+/* Wide three-card sections (05 EF mapping): the edit table carries many
+   columns, so each card takes a wider minimum track and the trio folds back
+   to fewer columns sooner than .pg-grid-trio. */
+.pg-grid-trio-wide {
+    grid-template-columns: repeat(auto-fit, minmax(min(36rem, 100%), 1fr));
+}
+
+/* Two-card rows (05 EF mapping cards 1-2): 2 x 28rem + gap needs ~920px of
+   content width, so the pair stays side by side at a 1000px viewport and
+   folds to one column below that. */
+.pg-grid-duo {
+    grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
+}
+
+/* Third card in a trio (01 Merged result, 03 Before->After diff): at
+   two-column widths it would dangle half-width on its own row, so it spans
+   the full row below the trio breakpoint. At trio width the normal three
+   columns apply. */
+@media (max-width: 1450px) {
+    .pg-grid-trio > .pg-span-full {
+        grid-column: 1 / -1;
+    }
+}
+
+.pg-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.pg-fluent-card {
+    padding: 0.75rem 1rem;
+    min-width: 0;
+}
+
+.pg-section-card {
+    margin-bottom: 1rem;
+}
+
+.pg-section {
+    margin: 1.5rem 0 2rem;
+}
+
+.pg-intro > p {
+    max-width: 70rem;
+}
+
+.pg-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.pg-badges img {
+    display: block;
+}
+
+.pg-intro-code-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+@media (max-width: 1000px) {
+    .pg-intro-code-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.pg-generation-arrow {
+    color: var(--colorBrandForeground1, #0078d4);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.pg-intro-code-grid h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    background: #0080FF40;
+    padding: 0 1ex;
+}
+
+.pg-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-left: 0.35rem solid var(--colorBrandForeground1, #0078d4);
+    background: rgba(127, 127, 127, 0.08);
+}
+
+.pg-section-heading > .pg-gh-link {
+    margin-left: auto;
+    flex-shrink: 0;
+    color: inherit;
+    align-items: center;
+}
+
+.pg-section-number {
+    flex: 0 0 auto;
+    color: var(--colorBrandForeground1, #0078d4);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.pg-section-heading h2 {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+}
+
+.pg-section-content,
+.pg-code-samples {
+    padding-top: 0.5rem;
+}
+
+.pg-section-tabs-inline {
+    display: flex;
+    flex-direction: column !important;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.pg-section-tabs-inline > fluent-tablist {
+    flex: 0 0 auto;
+}
+
+.pg-section-tabs-inline > .fluent-tab-panel {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.pg-code-samples > .pg-hint {
+    margin-bottom: 0.75rem;
+}
+
+.pg-code-sample-subheading {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.pg-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.pg-card-head h3 {
+    font-size: 1.05rem;
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pg-card-head .pg-hint {
+    flex: 1 1 12rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pg-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+}
+
+.pg-row {
+    display: grid;
+    grid-template-columns: 12rem 12rem auto;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-nested .pg-row {
+    grid-template-columns: 10rem 12rem auto;
+}
+
+.pg-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-controls > * {
+    min-width: 0;
+}
+
+.pg-code-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.25rem;
+}
+
+.pg-name {
+    min-width: 10rem;
+    font-weight: 600;
+}
+
+.pg-name small {
+    font-weight: 400;
+    color: var(--colorNeutralForeground3, #6c757d);
+}
+
+.pg-name-check {
+    min-width: 10rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.pg-name-check label {
+    font-weight: 600;
+}
+
+.pg-name-check small {
+    font-weight: 400;
+    color: var(--colorNeutralForeground3, #6c757d);
+}
+
+.pg-op {
+    width: 9.5rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Breakpoint strategy (desktop-first; 1rem = 16px at default root size):
+   - base (> 48rem / 768px): desktop two-column .pg-grid, fixed editor
+     columns (.pg-row 12rem 12rem auto), multi-column roster rows.
+   - max-width 48rem (tablets / narrow landscape): header and card heads
+     wrap, keyed-list summary drops to its own line, roster rows stack
+     (Id / Title / Points / Scores / Order / actions), dialog footer wraps.
+   - max-width 40rem (phones): tighter shell/card padding, field editors
+     reflow (name + op on line 1, controls full-width on line 2).
+   - max-width 24rem (small phones 320-384px): editors stack fully
+     (op select full-width), padding and title type tighten further.
+   The desktop two-column grid itself is untouched: .pg-grid auto-fit
+   collapses to one column on its own below ~56rem of content width. */
+@media (max-width: 48rem) {
+    .pg-intro-code-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-generation-arrow {
+        justify-self: center;
+        transform: rotate(90deg);
+    }
+
+    .pg-title h1 {
+        flex: 1 1 auto;
+        font-size: 1.5rem;
+    }
+
+    .pg-card-head .pg-hint {
+        flex-basis: 100%;
+    }
+
+    .pg-rline1 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-rline2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    fluent-dialog-footer,
+    .fluent-dialog-footer {
+        flex-wrap: wrap;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 40rem) {
+    .pg-shell {
+        padding: 0.75rem 0.75rem 2rem;
+    }
+
+    .pg-fluent-card {
+        padding: 0.5rem 0.625rem;
+    }
+
+    .pg-name {
+        min-width: 0;
+    }
+
+    .pg-name-check {
+        min-width: 0;
+    }
+
+    .pg-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .pg-nested .pg-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .pg-row > .pg-controls {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        flex-wrap: wrap;
+    }
+
+    .pg-row > .pg-op {
+        grid-column: 2;
+        grid-row: 1;
+    }
+}
+
+.pg-nested {
+    margin-left: 1rem;
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--colorNeutralStroke1, #e9ecef);
+}
+
+.pg-legend {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: -0.25rem 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--colorNeutralForeground3, #495057);
+}
+
+.pg-lg {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.pg-sw {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 0.2rem;
+}
+
+.pg-sw-add {
+    background: #2da44e;
+}
+
+.pg-sw-del {
+    background: #cf222e;
+}
+
+.pg-sw-move {
+    background: #0969da;
+}
+
+.pg-roster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pg-roster-list.fluent-sortable-list {
+    border: 0;
+    padding: 0;
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-item {
+    display: block;
+    height: auto !important;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+}
+
+.pg-roster-row {
+    padding: 0.4rem 0.5rem 0.5rem 0.6rem;
+    border-left: 3px solid var(--colorNeutralStroke1, #e9ecef);
+    margin-left: 0.25rem;
+    border-radius: 0.25rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-roster-row.pg-added {
+    border-left-color: #2da44e;
+    background: rgba(45, 164, 78, 0.07);
+}
+
+.pg-roster-row.pg-removed {
+    border-left-color: #cf222e;
+    background: rgba(207, 34, 46, 0.07);
+}
+
+.pg-roster-row.pg-moved {
+    border-left-color: #0969da;
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-ghost {
+    opacity: 0.4;
+    background: rgba(9, 105, 218, 0.08);
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-chosen {
+    outline: 2px solid #0969da;
+    outline-offset: 2px;
+}
+
+.pg-rline1 {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr) 6.5rem;
+    gap: 0.35rem 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.pg-rline2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.5rem auto;
+    gap: 0.35rem 0.5rem;
+    align-items: end;
+}
+
+.pg-roster-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.pg-roster-field.pg-changed {
+    background: rgba(130, 80, 223, 0.12);
+    border-radius: 0.25rem;
+}
+
+.pg-roster-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding-bottom: 1px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.pg-save-snackbar {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    max-width: min(34rem, calc(100vw - 2rem));
+    padding: 1rem;
+    border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+    border-radius: 0.5rem;
+    background: var(--colorNeutralBackground1, #fff);
+    color: var(--colorNeutralForeground1, #242424);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
+}
+
+.pg-save-snackbar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.pg-save-snackbar p {
+    margin: 0.25rem 0 0;
+}
+
+.pg-save-progress {
+    height: 0.25rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--colorNeutralBackground2, #e5e5e5);
+}
+
+.pg-save-progress-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+    background: var(--colorBrandForeground1, #0078d4);
+    animation: pg-save-progress-fill var(--pg-save-duration) linear forwards;
+}
+
+@keyframes pg-save-progress-fill {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+.pg-case5-conflict-toggle {
+    margin-top: 0.75rem;
+}
+
+.pg-case5-rebase-options {
+    margin-top: 0.75rem;
+}
+
+.pg-case5-rebase-select {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.pg-case5-rebase-select fluent-select {
+    width: min(100%, 20rem);
+}
+
+@media (max-width: 32rem) {
+    .pg-save-snackbar {
+        right: 1rem;
+        left: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pg-save-snackbar-content {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
+.pg-roster-actions fluent-button {
+    width: 2.25rem;
+    min-width: 2.25rem;
+}
+
+.pg-drag {
+    cursor: grab;
+    padding: 0.2rem 0.35rem;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.375rem;
+    user-select: none;
+}
+
+.pg-roster-list.fluent-sortable-list .sortable-grab {
+    position: static;
+    left: auto;
+    right: auto;
+}
+
+.pg-roster-actions .pg-drag {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem !important;
+    min-height: 2rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.pg-drag:active {
+    cursor: grabbing;
+}
+
+.pg-order {
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.375rem;
+    text-align: center;
+    padding: 0.3rem 0;
+    color: var(--colorNeutralForeground3, #6c757d);
+    background: transparent;
+}
+
+.pg-order.pg-moved-num {
+    border-color: #0969da;
+    color: #0969da;
+    font-weight: 700;
+}
+
+.pg-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #8250df;
+    margin-right: 0.25rem;
+}
+
+.pg-mini {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pg-mini small {
+    font-weight: 400;
+    color: var(--colorNeutralForeground3, #6c757d);
+}
+
+/* Roster stacking lives in the max-width: 48rem block above. */
+
+.pg-hint {
+    color: var(--colorNeutralForeground2, #495057);
+}
+
+.pg-two-pane {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+}
+
+.pg-edit-history {
+    justify-content: flex-end;
+}
+
+.pg-edit-history .pg-history-button {
+    min-width: 8.5rem;
+    --colorNeutralBackground1: var(--colorBrandBackground2);
+    --colorNeutralBackground1Hover: var(--colorBrandBackground2Hover);
+    --colorNeutralBackground1Pressed: var(--colorBrandBackground2Pressed);
+    --colorNeutralForeground1: var(--colorBrandForeground1);
+}
+
+.pg-edit-fields {
+    gap: 0.35rem;
+}
+
+.pg-action-icon {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.25rem;
+    fill: currentColor;
+    vertical-align: -0.15rem;
+}
+
+.pg-task-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 1rem;
+}
+
+.pg-task-field fluent-button {
+    justify-self: end;
+    width: max-content;
+    max-width: 100%;
+}
+
+.pg-task-add {
+    justify-self: end;
+}
+
+.pg-pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.pg-session-legend {
+    justify-content: flex-start;
+    margin: 0.75rem 0 0;
+}
+
+.pg-task-line {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.8fr) minmax(8rem, 1.8fr) minmax(5rem, 0.7fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-task-line > * {
+    min-width: 0;
+}
+
+.pg-task-line .pg-roster-field > fluent-text-input,
+.pg-task-line .pg-roster-field > fluent-number-input,
+.pg-task-line .pg-roster-field > input {
+    width: 100%;
+}
+
+/* EF order-line rows (section 05): Id / Sku / Product / Qty plus actions,
+   mirroring the case-4 task row language on a wider track. */
+.pg-task-line-ef {
+    display: grid;
+    grid-template-columns: minmax(5rem, 0.7fr) minmax(8rem, 1.5fr) minmax(5rem, 0.7fr) auto;
+    align-items: end;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pg-task-line-ef > * {
+    min-width: 0;
+}
+
+.pg-task-line-ef .pg-roster-field > fluent-text-input,
+.pg-task-line-ef .pg-roster-field > fluent-number-input,
+.pg-task-line-ef .pg-roster-field > input {
+    width: 100%;
+}
+
+.pg-task-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.pg-session-field {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+}
+
+.pg-session-field.pg-changed,
+.pg-roster-field.pg-changed {
+    background: rgba(130, 80, 223, 0.12);
+}
+
+.pg-session-actions {
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.pg-submit-button {
+    --colorBrandBackground: #218739;
+    --colorBrandBackgroundHover: #1b7430;
+    --colorBrandBackgroundPressed: #155f27;
+    --colorNeutralForegroundOnBrand: #fff;
+}
+
+.pg-session-result {
+    min-height: 100%;
+}
+
+.pg-has-changes-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pg-has-changes-badge > span {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.pg-has-changes {
+    background: #fff4ce;
+    color: #6b4f00;
+}
+
+.pg-has-changes > span {
+    background: #b78103;
+}
+
+.pg-no-changes {
+    background: #f1f3f5;
+    color: #6c757d;
+}
+
+.pg-no-changes > span {
+    background: #adb5bd;
+}
+
+.pg-session-result fluent-tabs,
+.pg-session-result .fluent-tabs {
+    display: block;
+    min-height: 23rem;
+}
+
+.pg-edit-log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 12rem;
+    overflow-y: auto;
+}
+
+.pg-edit-log li {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--colorNeutralStroke1, #e9ecef);
+}
+
+.pg-edit-log li.pg-edit-log-empty {
+    display: block;
+    white-space: nowrap;
+}
+
+.pg-edit-log time {
+    color: var(--colorNeutralForeground3, #6c757d);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.pg-edit-log code {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 1200px) {
+    .pg-two-pane {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 48rem) {
+    .pg-task-line {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .pg-task-line-ef {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .pg-task-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+}
+
+.pg-monaco {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 160px;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.pg-monaco-editor {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+}
+
+/* Fluent tabs: keep the tab strip scroll inside the card, never the page.
+   (Fluent renders the strip in shadow DOM; these light-DOM guards constrain
+   the host elements while html overflow-x: clip prevents horizontal overflow.) */
+.pg-fluent-card fluent-tabs,
+.pg-fluent-card .fluent-tabs {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-fluent-card [role="tablist"] {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.pg-fluent-card fluent-tab {
+    flex-shrink: 0;
+}
+
+.pg-fluent-card div[role="tabpanel"] {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Grid items default to min-width: auto, which lets Monaco/tab content force
+   the grid (and page) wider. Constrain them; desktop layout is unaffected. */
+.pg-grid > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Dialog: keep the overlay panel inside the viewport; footer buttons may
+   wrap on narrow screens (flex-wrap only, no display change). */
+fluent-dialog [role="dialog"] {
+    max-width: calc(100vw - 2rem);
+}
+
+fluent-dialog::part(dialog) {
+    padding: 1.25rem;
+}
+
+.pg-dialog-heading h3 {
+    margin: 0 0 0.75rem;
+}
+
+.pg-dialog-body p {
+    margin: 0 0 0.75rem;
+}
+
+.pg-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.pg-submit-preview-dialog::part(dialog) {
+    width: min(88rem, calc(100vw - 2rem));
+}
+
+.pg-import-dialog::part(dialog) {
+    width: min(72rem, calc(100vw - 2rem));
+}
+
+.pg-change-table-wrap {
+    max-width: 100%;
+    width: fit-content;
+    max-height: min(55vh, 32rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.5rem;
+}
+
+.pg-roster-change-table-wrap {
+    height: 270px;
+    max-height: 270px;
+}
+
+.pg-case5-results-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pg-change-table.pg-case5-results-table {
+    display: table;
+    width: max-content;
+    max-width: none;
+}
+
+.pg-case5-results-table th,
+.pg-case5-results-table td {
+    overflow-wrap: normal;
+    white-space: nowrap;
+}
+
+.pg-case5-results-table .pg-change-value {
+    overflow-wrap: normal;
+    white-space: nowrap;
+}
+
+/* Wide input tables (05 EF draft editor): keep the card width and scroll the
+   table horizontally instead of clipping it like the default wrap does. */
+.pg-change-table-wrap-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pg-change-table {
+    display: inline-table;
+    width: auto;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.pg-change-table th,
+.pg-change-table td {
+    padding: 0.3rem 0.45rem;
+    border-bottom: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.pg-change-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--colorNeutralBackground1, #fff);
+    color: var(--colorNeutralForeground2, #495057);
+    font-size: 0.8rem;
+}
+
+.pg-change-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.pg-change-value {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.pg-change-operation {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.35rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pg-change-add {
+    color: #2da44e;
+    background: rgba(45, 164, 78, 0.12);
+}
+
+.pg-change-remove {
+    color: #cf222e;
+    background: rgba(207, 34, 46, 0.12);
+}
+
+.pg-change-edit {
+    color: #8250df;
+    background: rgba(130, 80, 223, 0.12);
+}
+
+.pg-change-order {
+    color: #0969da;
+    background: rgba(9, 105, 218, 0.12);
+}
+
+.pg-grid > .pg-fluent-card {
+    height: 100%;
+}
+
+.pg-stretch {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.pg-stretch .fluent-tabs {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-stretch .fluent-tabs > div[role="tabpanel"] {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.pg-stretch .pg-monaco {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.pg-stretch .pg-monaco > .pg-monaco-editor {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+}
+
+@media (max-width: 24rem) {
+    .pg-shell {
+        padding: 0.5rem 0.5rem 1.5rem;
+    }
+
+    .pg-title h1 {
+        font-size: 1.25rem;
+    }
+
+    .pg-fluent-card {
+        padding: 0.5rem;
+    }
+
+    .pg-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-nested .pg-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-row > .pg-controls {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .pg-row > .pg-op {
+        grid-column: 1;
+        grid-row: auto;
+        width: 100%;
+    }
+
+    .pg-nested {
+        margin-left: 0.5rem;
+        padding-left: 0.5rem;
+    }
+}

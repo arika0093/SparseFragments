@@ -1,14 +1,14 @@
 # UI Framework Integration
 
-SparseFragments derives semantic changes by comparing a retained baseline with the current model. UI dirty flags and change notifications may drive binding, validation, or UI state, but they do not define the Patch itself.
+SparseTypes derives semantic changes by comparing a retained baseline with the current model. UI dirty flags and change notifications may drive binding, validation, or UI state, but they do not define the Patch itself.
 
 This guide starts with the framework-neutral edit session lifecycle. Framework adapters come after: Blazor helpers bind an `EditContext` to the session model, and desktop frameworks bind the generated observable proxy. The session API is identical in both cases.
 
 <!-- sample: ui-session-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrder
 {
     public string Number { get; set; } = string.Empty;
@@ -16,7 +16,7 @@ public partial class UiOrder
     public List<UiOrderItem> Items { get; set; } = new();
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class UiOrderItem
 {
     [SparseKey]
@@ -386,12 +386,12 @@ When added rows carry `[SparseTemporaryKey]` Guids, the form has a second option
 
 ## Generated type placement
 
-`Model.Fragment`, `Model.Patch`, `Model.ChangeSet`, `Model.ChangePayload`, `Model.EditSession`, `Model.Observable` (`Model.SparseObservable` on collision), and `Model.ReadOnlyView` are nested in the annotated model, and the `CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` entry points are unchanged. Operation, transport, and builder machinery lives in a stable per-model container in `SparseFragments.Generated`:
+`Model.Fragment`, `Model.Patch`, `Model.ChangeSet`, `Model.ChangePayload`, `Model.EditSession`, `Model.Observable` (`Model.SparseObservable` on collision), and `Model.ReadOnlyView` are nested in the annotated model, and the `CreateEditSession()`, `ToObservable()`, and `CreateChangeSet()` entry points are unchanged. Operation, transport, and builder machinery lives in a stable per-model container in `SparseTypes.Generated`:
 
 | Nested in the model | Per-model container (`<Container>`) |
 | --- | --- |
 | `Model.Fragment` (plus `Model.SparsePath` entry point) | `<Container>.FragmentBuilder`, `<Container>.SparsePaths<TRoot>` builders |
-| `Model.Patch`, `Model.ChangeSet`, `Model.ChangePayload` | Payload DTOs as `global::SparseFragments.Generated.__Internal_<hash>` |
+| `Model.Patch`, `Model.ChangeSet`, `Model.ChangePayload` | Payload DTOs as `global::SparseTypes.Generated.__Internal_<hash>` |
 | `Model.EditSession` (`Model.SparseEditSession` on collision) | `<Container>.DescriptorFactory` (internal) |
 | `Model.Observable`, `Model.ReadOnlyView` | Fragment JSON converter body as `<Container>FragmentJsonConverter` (`Model.Fragment.FragmentJsonConverter` stays as a private shell) |
 | | Fragment/Patch/ChangeSet operation bodies as `<Container>FragmentOperations`, `<Container>.PatchOperations`, `<Container>.ChangeSetOperations` (internal, `file`-scoped when the consumer language allows it) |
@@ -400,14 +400,14 @@ When added rows carry `[SparseTemporaryKey]` Guids, the form has a second option
 
 <!-- illustrative: playground-specific alias; resolves only inside the playground assembly -->
 ```csharp
-using SettingsSession = global::SparseFragments.Playground.Models.PlaygroundSettings.EditSession;
+using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
 ```
 
 There are no backwards-compatibility aliases: update explicit type references, or drop them in favor of `var` and the extension entry points. A model member named `Observable` or `EditSession` pushes the generated type behind a `Sparse` prefix instead of colliding; members named `ChangeSet` or `ChangePayload` are reported as SPF009 instead of failing with a raw compiler error (see [SPF009](analyzer.md#spf009-member-conflicts-with-generated-api)). A nested type named `EditSession` still collides with the generated session and fails compilation.
 
 ## Blazor
 
-The `SparseFragments.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers for the framework-neutral edit session. The session retains a baseline and derives semantic changes by comparing it with the current model:
+The `SparseTypes.Blazor` package (`net8.0` / `net10.0`) adds Blazor helpers for the framework-neutral edit session. The session retains a baseline and derives semantic changes by comparing it with the current model:
 
 <!-- sample: ui-session -->
 ```csharp
@@ -503,11 +503,11 @@ editContext.OnValidationRequested += (sender, _) =>
 
 Errors obtained elsewhere (for example structured rebase conflicts) surface the same way with `uiSession.AddValidationError(store, uiSession.Field(nameof(UiOrder.Number)), message)`. Fields resolved from the session keep working when they point at nested members, list elements, or dictionary values: the error is accepted as long as the field model is still reachable from the session model. Fields built from another model graph stay rejected. The `fieldPath` overload covers the same paths without passing a `FieldIdentifier` between graphs. The model type must be a reference type.
 
-A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.
+A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseTypes provides no transport abstraction. Transport configuration stays with the application.
 
 ### Session scope and refresh
 
-The `SparseFragments.Blazor` package also provides `SparseSessionScope`, an
+The `SparseTypes.Blazor` package also provides `SparseSessionScope`, an
 appearance-free component that cascades the active session to its subtree and
 re-renders that subtree once per session notification. This replaces the
 manual `TransitionObserved` subscription plus `InvokeAsync(StateHasChanged)`
@@ -524,7 +524,7 @@ session and a fresh `EditContext` from the persisted model and key the
 
 ### Toolkit-neutral consumption in the playground
 
-The playground references `SparseFragments.Blazor` as an ordinary third-party
+The playground references `SparseTypes.Blazor` as an ordinary third-party
 package and keeps its existing Fluent UI controls. The library has no
 Fluent-specific integration and no dependency on Fluent, MudBlazor, or any
 other vendor component set; the same binding, state, and history members serve

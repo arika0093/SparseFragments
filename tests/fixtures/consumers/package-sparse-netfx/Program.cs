@@ -1,9 +1,9 @@
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Canonical .NET Framework 4.8 compatibility consumer (#49).
-// Consumes the packed SparseFragments release candidate (no ProjectReference
-// fallback when SparseFragmentsPackageVersion is set) and executes
+// Consumes the packed SparseTypes release candidate (no ProjectReference
+// fallback when SparseTypesPackageVersion is set) and executes
 // representative generated/runtime behavior inside a real .NET Framework
 // process: fragments, nested patches, merge, deep clone, collections, and a
 // ChangeSet payload JSON round-trip (so System.Text.Json is loaded and exercised too).
@@ -107,7 +107,7 @@ Require(
     "rebase structured conflict"
 );
 
-Console.WriteLine("SparseFragments net48 consumer passed.");
+Console.WriteLine("SparseTypes net48 consumer passed.");
 
 static bool Same(Optional<NetFxSettings.Fragment?> left, Optional<NetFxSettings.Fragment?> right) =>
     NetFxSettings.Patch.Between(left, right).IsEmpty;
@@ -120,7 +120,7 @@ static void Require(bool condition, string capability)
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class NetFxSettings
 {
     public string? Label { get; set; }

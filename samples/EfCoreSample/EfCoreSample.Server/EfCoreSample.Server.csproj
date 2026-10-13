@@ -15,9 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
-    <ProjectReference Include="../../../src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../../src/SparseTypes.EntityFrameworkCore/SparseTypes.EntityFrameworkCore.csproj" />
     <ProjectReference
-      Include="../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      Include="../../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false"
     />

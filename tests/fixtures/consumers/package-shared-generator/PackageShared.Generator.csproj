@@ -12,9 +12,9 @@
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
     <!-- Package-only probe (#70): no sibling-source fallback. This project must
-      restore SparseFragments.Generator.Shared from the packed local feed via
+      restore SparseTypes.Generator.Shared from the packed local feed via
       SparseSharedPackageVersion. Do not add a ProjectReference or a relative
-      Compile glob to src/SparseFragments.Generator.Shared. -->
+      Compile glob to src/SparseTypes.Generator.Shared. -->
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Remove="TUnit;Shouldly" />
@@ -24,6 +24,6 @@
     <PackageReference Include="System.Memory" Version="4.6.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.1" PrivateAssets="all" />
     <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="all" />
-    <PackageReference Include="SparseFragments.Generator.Shared" Version="$(SparseSharedPackageVersion)" PrivateAssets="all" />
+    <PackageReference Include="SparseTypes.Generator.Shared" Version="$(SparseSharedPackageVersion)" PrivateAssets="all" />
   </ItemGroup>
 </Project>

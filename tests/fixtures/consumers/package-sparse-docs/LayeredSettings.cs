@@ -1,4 +1,4 @@
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/how-to/layered-settings.md.
 // Library, application, and user fragments share one model: precedence,
@@ -124,7 +124,7 @@ public static class LayeredSettingsSamples
 }
 
 // sample: layered-models
-[SparseFragmentModel]
+[SparseModel]
 public partial class LayeredAppSettings
 {
     public string? Theme { get; set; }

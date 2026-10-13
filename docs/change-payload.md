@@ -6,9 +6,9 @@ The current format token is `"version": "0.1"`. Treat it as the documented curre
 
 <!-- sample: payload-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireSettings
 {
     public string? Label { get; set; }
@@ -16,7 +16,7 @@ public partial class WireSettings
     public int RetryCount { get; set; }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireOrder
 {
     public string? Name { get; set; }
@@ -29,7 +29,7 @@ public partial class WireCustomer
     public string Name { get; set; } = string.Empty;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireFleet
 {
     public List<WireServer> Servers { get; set; } = new();
@@ -43,7 +43,7 @@ public partial class WireServer
     public string Host { get; set; } = string.Empty;
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class WireSecret
 {
     public string? DisplayName { get; set; }

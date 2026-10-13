@@ -15,9 +15,9 @@ why one layer can rename the panel without touching its page size.
 
 <!-- sample: layered-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class LayeredAppSettings
 {
     public string? Theme { get; set; }

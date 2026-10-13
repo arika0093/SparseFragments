@@ -1,12 +1,12 @@
 # Model Shapes
 
-For the common case, add `[SparseFragmentModel]` to a top-level `partial` class or struct. Nested models should also be `partial` when you want SparseFragments to merge and patch their members independently.
+For the common case, add `[SparseModel]` to a top-level `partial` class or struct. Nested models should also be `partial` when you want SparseTypes to merge and patch their members independently.
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }
@@ -18,8 +18,8 @@ public partial class Settings
 
 The root model must be:
 
-* declared `partial` (the generator appends `Fragment` / `Patch` members to the same type; [`SPF001`](analyzer.md#spf001-sparse-fragment-model-must-be-partial));
-* a top-level, non-generic, non-`abstract` class or struct. Nested types, generic types, `abstract` types, interfaces, `ref` structs, and `file`-local types are unsupported ([`SPF002`](analyzer.md#spf002-unsupported-sparse-fragment-model));
+* declared `partial` (the generator appends `Fragment` / `Patch` members to the same type; [`SPF001`](analyzer.md#spf001-sparse-model-must-be-partial));
+* a top-level, non-generic, non-`abstract` class or struct. Nested types, generic types, `abstract` types, interfaces, `ref` structs, and `file`-local types are unsupported ([`SPF002`](analyzer.md#spf002-unsupported-sparse-model));
 * constructible: a class model needs a parameterless constructor or a constructor whose parameters match the public readable properties by name and type (a corresponding setter, when present, must be `public`) ([`SPF003`](analyzer.md#spf003-model-needs-a-supported-constructor)).
 
 Members may be readable/writable or init-only as applicable. A `required` member must be assignable by the generated constructor path: either through a public setter or a matching constructor parameter. Otherwise generation fails ([`SPF006`](analyzer.md#spf006-required-member-cannot-be-constructed)).
@@ -28,7 +28,7 @@ Mark a property with `[SparseIgnore]` to remove it from the generated surface en
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string Name { get; set; } = "";
@@ -44,7 +44,7 @@ Most members need no merge configuration: `MergeMode.Default` resolves to `Deep`
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     public string? Label { get; set; }
@@ -58,7 +58,7 @@ public partial class Settings
 
 To patch a nested model's members independently, declare the nested type `partial`. To treat a nested value atomically instead, mark the member with `[SparseMerge(MergeMode.Replace)]`.
 
-Reachable `partial` nested types automatically receive generated Fragment/Patch support without their own `[SparseFragmentModel]` annotation; the generator refers to this as promotion:
+Reachable `partial` nested types automatically receive generated Fragment/Patch support without their own `[SparseModel]` annotation; the generator refers to this as promotion:
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
@@ -81,7 +81,7 @@ public class Child
     public string? Name { get; set; }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class Parent
 {
     public Child Child { get; set; } = new(); // SPF007
@@ -99,7 +99,7 @@ public partial class Child { ... } // promoted nested model
 public Child Child { get; set; } = new(); // explicit atomic replacement
 ```
 
-* `Shared nested types must agree.` A nested type without its own explicit `[SparseFragmentModel]` root that is referenced from multiple roots with different member sets or merge settings is an error ([`SPF010`](analyzer.md#spf010-incompatible-promoted-fragment-model)): unify the definitions and settings, or annotate the nested type itself with `[SparseFragmentModel]` to promote it to an explicit root.
+* `Shared nested types must agree.` A nested type without its own explicit `[SparseModel]` root that is referenced from multiple roots with different member sets or merge settings is an error ([`SPF010`](analyzer.md#spf010-incompatible-promoted-fragment-model)): unify the definitions and settings, or annotate the nested type itself with `[SparseModel]` to promote it to an explicit root.
 * `Collection element types are discovered the same way.` A `List<T>` member whose `T` is a fragment model (or a reachable `partial` type) is patched element by element and needs key identity (see [Keyed collections](keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
 
 Element identity for element-patched collections is declared with exactly one property-level `[SparseKey]` per element type, including tuple and value-object keys through a single computed property. Declaration problems surface as `SPF011`, `SPF013`, `SPF014`, `SPF017`, `SPF019`, `SPF022`, or `SPF024`, and temporary-identity problems as `SPF031` or `SPF032` (see [the analyzer reference](analyzer.md#spf011-structural-sequence-without-usable-key) and [Keyed collections](keyed-collections.md)).

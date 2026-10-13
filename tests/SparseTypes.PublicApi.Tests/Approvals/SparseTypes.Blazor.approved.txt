@@ -1,0 +1,95 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseTypes")]
+namespace SparseTypes.Blazor
+{
+    public enum SparseConflictFallbackMode
+    {
+        NearestParent = 0,
+        Model = 1,
+    }
+    public static class SparseConflictValidationExtensions
+    {
+        public static int AddConflicts<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.EditContext editContext, System.Collections.Generic.IEnumerable<SparseTypes.SparseConflict> conflicts, SparseTypes.Blazor.SparseConflictValidationOptions? options = null)
+            where TModel :  class { }
+        public static void ClearConflicts<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.EditContext ReplaceEditContext<TModel>(this SparseTypes.ISparseEditSession<TModel> freshSession, Microsoft.AspNetCore.Components.Forms.EditContext staleContext)
+            where TModel :  class { }
+    }
+    public sealed class SparseConflictValidationOptions : System.IEquatable<SparseTypes.Blazor.SparseConflictValidationOptions>
+    {
+        public SparseConflictValidationOptions() { }
+        public bool ClearStoreFirst { get; init; }
+        public SparseTypes.Blazor.SparseConflictFallbackMode Fallback { get; init; }
+        public System.Func<SparseTypes.SparseConflict, string>? MessageFactory { get; init; }
+        public string GetMessage(SparseTypes.SparseConflict conflict) { }
+    }
+    public static class SparseEditSessionExtensions
+    {
+        public static void AcceptChanges<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class { }
+        public static void AcceptChanges<TModel, TChangeSet>(this SparseTypes.ISparseEditSession<TModel, TChangeSet> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext, TChangeSet changes)
+            where TModel :  class
+            where TChangeSet :  class { }
+        public static void AddValidationError<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.FieldIdentifier field, string message)
+            where TModel :  class { }
+        public static void AddValidationError<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, SparseTypes.SparsePath fieldPath, string message)
+            where TModel :  class { }
+        public static void AddValidationError<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, string fieldPath, string message)
+            where TModel :  class { }
+        public static void AddValidationError<TModel, TValue>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, SparseTypes.SparsePath<TModel, TValue> fieldPath, string message)
+            where TModel :  class { }
+        public static SparseTypes.Blazor.SparseFieldBinding<TModel, object?> Bind<TModel>(this SparseTypes.ISparseEditSession<TModel> session, SparseTypes.SparsePath path, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseTypes.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
+        public static SparseTypes.Blazor.SparseFieldBinding<TModel, object?> Bind<TModel>(this SparseTypes.ISparseEditSession<TModel> session, string fieldPath, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseTypes.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
+        public static SparseTypes.Blazor.SparseFieldBinding<TModel, TValue> Bind<TModel, TValue>(this SparseTypes.ISparseEditSession<TModel> session, SparseTypes.SparsePath<TModel, TValue> path, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseTypes.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.EditContext CreateEditContext<TModel>(this SparseTypes.ISparseEditSession<TModel> session)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.ValidationMessageStore CreateValidationStore<TModel>(this SparseTypes.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel>(this SparseTypes.ISparseEditSession<TModel> session, SparseTypes.SparsePath path)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel>(this SparseTypes.ISparseEditSession<TModel> session, string fieldName)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel, TValue>(this SparseTypes.ISparseEditSession<TModel> session, SparseTypes.SparsePath<TModel, TValue> path)
+            where TModel :  class { }
+    }
+    public sealed class SparseFieldBindingOptions : System.IEquatable<SparseTypes.Blazor.SparseFieldBindingOptions>
+    {
+        public SparseFieldBindingOptions() { }
+        public bool Disabled { get; init; }
+        public bool UseBatchEdit { get; init; }
+    }
+    public sealed class SparseFieldBinding<TModel, TValue>
+        where TModel :  class
+    {
+        public bool Disabled { get; set; }
+        public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
+        public Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field { get; }
+        public bool IsNullable { get; }
+        public bool IsReadOnly { get; }
+        public bool IsStale { get; }
+        public SparseTypes.SparsePath<TModel, TValue> TypedPath { get; }
+        public SparseTypes.SparsePath UntypedPath { get; }
+        public TValue Value { get; }
+        public System.Linq.Expressions.Expression<System.Func<TValue>>? ValueExpression { get; }
+        public void Set(TValue? value) { }
+        public System.Threading.Tasks.Task SetAsync(TValue? value) { }
+        public bool TryGetField(out Microsoft.AspNetCore.Components.Forms.FieldIdentifier fieldId, out string? error) { }
+        public bool TryGetValue(out TValue? value, out string? error) { }
+        public bool TrySet(TValue? value, out string? error) { }
+    }
+    public sealed class SparseSessionScope<TModel> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+        where TModel :  class
+    {
+        public SparseSessionScope() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.ISparseEditSession<TModel>? Session { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        public void Dispose() { }
+        protected override void OnParametersSet() { }
+    }
+}

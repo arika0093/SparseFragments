@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Verifies the packed SparseFragments NuGet package as users consume it (#11).
+# Verifies the packed SparseTypes NuGet package as users consume it (#11).
 #
 # Builds and runs tests/fixtures/consumers/package-sparse against the packed
-# packages via a local feed: the fixture resolves SparseFragments from
+# packages via a local feed: the fixture resolves SparseTypes from
 # RestoreAdditionalProjectSources instead of falling back to ProjectReference,
 # for net8.0 and net10.0, and must reach its success marker. It also builds
 # tests/fixtures/consumers/package-sparse-netstandard, a netstandard2.0 class
@@ -16,7 +16,7 @@ package_directory="${1:-}"
 fixture_dir="tests/fixtures/consumers/package-sparse"
 fixture_csproj="${fixture_dir}/PackageSparse.Consumer.csproj"
 fixture_dll="PackageSparse.Consumer.dll"
-success_marker="SparseFragments packed consumer passed."
+success_marker="SparseTypes packed consumer passed."
 
 if [[ -z "${package_directory}" ]]; then
     echo "Usage: $(basename "$0") <package-directory>" >&2
@@ -28,13 +28,13 @@ if [[ ! -f "${fixture_csproj}" ]]; then
 fi
 
 # The core glob pins the version digit so the Blazor package
-# (SparseFragments.Blazor.*.nupkg, #46) never resolves here.
-package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
+# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
-    echo "No SparseFragments package found in '${package_directory}'." >&2
+    echo "No SparseTypes package found in '${package_directory}'." >&2
     exit 1
 fi
-version="$(basename "${package}" | sed -E 's/^SparseFragments\.(.+)\.nupkg$/\1/')"
+version="$(basename "${package}" | sed -E 's/^SparseTypes\.(.+)\.nupkg$/\1/')"
 if [[ -z "${version}" ]]; then
     echo "Could not resolve package version from '$(basename "${package}")'." >&2
     exit 1
@@ -60,12 +60,12 @@ assert_candidate_resolved() {
         echo "Restore did not produce '${assets_file}'." >&2
         exit 1
     fi
-    if ! grep -F -q "SparseFragments/${version}" "${assets_file}"; then
-        echo "Isolated restore did not resolve 'SparseFragments/${version}' (see '${assets_file}')." >&2
+    if ! grep -F -q "SparseTypes/${version}" "${assets_file}"; then
+        echo "Isolated restore did not resolve 'SparseTypes/${version}' (see '${assets_file}')." >&2
         exit 1
     fi
-    if [[ ! -d "${isolated_packages}/sparsefragments/${lower_version}" ]]; then
-        echo "Isolated global-packages has no 'sparsefragments/${lower_version}': restore did not extract the candidate nupkg." >&2
+    if [[ ! -d "${isolated_packages}/sparsetypes/${lower_version}" ]]; then
+        echo "Isolated global-packages has no 'sparsetypes/${lower_version}': restore did not extract the candidate nupkg." >&2
         exit 1
     fi
 }
@@ -73,7 +73,7 @@ assert_candidate_resolved() {
 for framework in net8.0 net10.0; do
     dotnet build "${fixture_csproj}" \
         --configuration Release --framework "${framework}" \
-        -p:SparseFragmentsPackageVersion="${version}" \
+        -p:SparseTypesPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
     assert_candidate_resolved "${fixture_dir}/obj/project.assets.json"
     output="$(dotnet "${fixture_dir}/bin/Release/${framework}/${fixture_dll}" 2>&1)"
@@ -91,7 +91,7 @@ if [[ ! -f "${netstandard_csproj}" ]]; then
 fi
 dotnet build "${netstandard_csproj}" \
     --configuration Release \
-    -p:SparseFragmentsPackageVersion="${version}" \
+    -p:SparseTypesPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 assert_candidate_resolved "tests/fixtures/consumers/package-sparse-netstandard/obj/project.assets.json"
 
@@ -116,7 +116,7 @@ if grep -r -F "using System.Text.Json" "${nojson_dir}" --include='*.cs' >/dev/nu
 fi
 dotnet build "${nojson_csproj}" \
     --configuration Release \
-    -p:SparseFragmentsPackageVersion="${version}" \
+    -p:SparseTypesPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 assert_candidate_resolved "${nojson_dir}/obj/project.assets.json"
 if grep -F -q "System.Text.Json" "${nojson_dir}/obj/project.assets.json"; then
@@ -124,4 +124,4 @@ if grep -F -q "System.Text.Json" "${nojson_dir}/obj/project.assets.json"; then
     exit 1
 fi
 
-echo "SparseFragments packed package consumer verified (SparseFragments ${version})."
+echo "SparseTypes packed package consumer verified (SparseTypes ${version})."

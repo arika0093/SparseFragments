@@ -2,7 +2,7 @@
 # Verifies the C# 9.0 minimum language version for generated-code consumers (#116).
 #
 # Builds tests/fixtures/consumers/package-sparse-langversion against the freshly
-# packed SparseFragments package from a local feed (no ProjectReference fallback)
+# packed SparseTypes package from a local feed (no ProjectReference fallback)
 # with an isolated global-packages directory (no stale cache). The fixture pins
 # <LangVersion>9.0</LangVersion> explicitly instead of inheriting preview from
 # tests/Directory.Build.props, covers ordinary and nested partial models,
@@ -21,7 +21,7 @@ set -euo pipefail
 package_directory="${1:-}"
 fixture_dir="tests/fixtures/consumers/package-sparse-langversion"
 fixture_csproj="${fixture_dir}/PackageSparse.LangVersion.Consumer.csproj"
-success_marker="SparseFragments C# 9.0 consumer passed."
+success_marker="SparseTypes C# 9.0 consumer passed."
 
 if [[ -z "${package_directory}" ]]; then
     echo "Usage: $(basename "$0") <package-directory>" >&2
@@ -47,13 +47,13 @@ fi
 echo "Language-version fixture pins LangVersion=9.0 (effective: ${effective_langversion})."
 
 # The core glob pins the version digit so the Blazor package
-# (SparseFragments.Blazor.*.nupkg, #46) never resolves here.
-package="$(ls "${package_directory}"/SparseFragments.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
+# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
-    echo "No SparseFragments package found in '${package_directory}'." >&2
+    echo "No SparseTypes package found in '${package_directory}'." >&2
     exit 1
 fi
-version="$(basename "${package}" | sed -E 's/^SparseFragments\.(.+)\.nupkg$/\1/')"
+version="$(basename "${package}" | sed -E 's/^SparseTypes\.(.+)\.nupkg$/\1/')"
 if [[ -z "${version}" ]]; then
     echo "Could not resolve package version from '$(basename "${package}")'." >&2
     exit 1
@@ -79,12 +79,12 @@ assert_candidate_resolved() {
         echo "Restore did not produce '${assets_file}'." >&2
         exit 1
     fi
-    if ! grep -F -q "SparseFragments/${version}" "${assets_file}"; then
-        echo "Isolated restore did not resolve 'SparseFragments/${version}' (see '${assets_file}')." >&2
+    if ! grep -F -q "SparseTypes/${version}" "${assets_file}"; then
+        echo "Isolated restore did not resolve 'SparseTypes/${version}' (see '${assets_file}')." >&2
         exit 1
     fi
-    if [[ ! -d "${isolated_packages}/sparsefragments/${lower_version}" ]]; then
-        echo "Isolated global-packages has no 'sparsefragments/${lower_version}': restore did not extract the candidate nupkg." >&2
+    if [[ ! -d "${isolated_packages}/sparsetypes/${lower_version}" ]]; then
+        echo "Isolated global-packages has no 'sparsetypes/${lower_version}': restore did not extract the candidate nupkg." >&2
         exit 1
     fi
 }
@@ -92,7 +92,7 @@ assert_candidate_resolved() {
 for framework in netstandard2.0 net48 net8.0 net10.0; do
     dotnet build "${fixture_csproj}" \
         --configuration Release --framework "${framework}" \
-        -p:SparseFragmentsPackageVersion="${version}" \
+        -p:SparseTypesPackageVersion="${version}" \
         -p:RestoreAdditionalProjectSources="${feed}"
     assert_candidate_resolved "${fixture_dir}/obj/project.assets.json"
 done
@@ -129,7 +129,7 @@ esac
 set +e
 negative_output="$(dotnet build "${fixture_csproj}" \
     --configuration Release --framework net8.0 \
-    -p:SparseFragmentsPackageVersion="${version}" \
+    -p:SparseTypesPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}" \
     -p:LangVersion=8.0 2>&1)"
 negative_status=$?
@@ -145,4 +145,4 @@ if ! grep -F -q "9.0" <<<"${negative_output}"; then
 fi
 echo "Negative probe: LangVersion=8.0 fails as expected (names language version 9.0)."
 
-echo "SparseFragments C# 9.0 language-version consumer verified (SparseFragments ${version})."
+echo "SparseTypes C# 9.0 language-version consumer verified (SparseTypes ${version})."

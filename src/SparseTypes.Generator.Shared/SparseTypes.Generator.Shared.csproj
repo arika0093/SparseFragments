@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      Source-only package (#70): ships the generator-shared sources, not a binary.
+      External/downstream generators compile these sources directly into their own
+      analyzer assembly via build/SparseTypes.Generator.Shared.props.
+      SparseTypes.Generator itself keeps compiling the sibling sources
+      directly in-repo; the package exists for downstream generators, not for
+      in-repo restores. Keep the TFM surface minimal (netstandard2.0) so the
+      contentFiles path is stable across consumers.
+    -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SparseTypes.Generator.Shared</AssemblyName>
+    <RootNamespace>SparseTypes.Generator.Shared</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageId>SparseTypes.Generator.Shared</PackageId>
+    <PackageDescription>Shared source-only generator infrastructure for SparseTypes-based source generators. Compile-time sources only; no runtime assembly.</PackageDescription>
+    <PackageTags>source-generator;shared;sparsetypes;source-only</PackageTags>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- Source-only: no lib/ assets by design. Silence the empty-lib pack error
+      for this project only; do not weaken unrelated NuGet warnings. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <!-- Pack every shared source under contentFiles (restored per-TFM), preserving
+    the recursive directory structure so future same-named files cannot collide.
+    No legacy content/ copy and no buildTransitive/ propagation: the package is
+    referenced privately (PrivateAssets="all") and build/ applies to the direct
+    consumer only. -->
+  <ItemGroup>
+    <Content
+      Include="**/*.cs"
+      Exclude="obj/**/*.cs;bin/**/*.cs"
+      Pack="true"
+      PackagePath="contentFiles/cs/netstandard2.0/%(RecursiveDir)%(Filename)%(Extension)"
+    >
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content
+      Include="Sessions/**/*.template"
+      Pack="true"
+      PackagePath="contentFiles/cs/netstandard2.0/Sessions/%(Filename)%(Extension)"
+    />
+    <None Remove="Sessions/**/*.template" />
+    <None Include="build/SparseTypes.Generator.Shared.props" Pack="true" PackagePath="build/" />
+  </ItemGroup>
+</Project>

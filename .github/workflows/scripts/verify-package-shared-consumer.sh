@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Verifies the packed SparseFragments.Generator.Shared source-only package (#70).
+# Verifies the packed SparseTypes.Generator.Shared source-only package (#70).
 #
 # Builds tests/fixtures/consumers/package-shared-generator (a small Roslyn
 # generator using representative Shared APIs) against the packed Shared nupkg
 # from a local feed. The fixture has no sibling-source fallback: it restores
-# SparseFragments.Generator.Shared only via SparseSharedPackageVersion, and the
+# SparseTypes.Generator.Shared only via SparseSharedPackageVersion, and the
 # isolated rebuild runs in a temp directory with no access to the sibling
-# src/SparseFragments.Generator.Shared source tree. Build success therefore
+# src/SparseTypes.Generator.Shared source tree. Build success therefore
 # proves the Shared sources are compiled from the package (contentFiles +
-# build/SparseFragments.Generator.Shared.props) rather than from a
+# build/SparseTypes.Generator.Shared.props) rather than from a
 # repository-relative fallback. The probe touches representative categories
 # (model/collection analysis, IR/model types, naming, emitter/helpers) so a
 # missing Shared source fails compilation.
@@ -32,12 +32,12 @@ if [[ ! -f "${fixture_csproj}" || ! -f "${fixture_source}" || ! -f "${consumer_c
     exit 1
 fi
 
-package="$(ls "${package_directory}"/SparseFragments.Generator.Shared.*.nupkg 2>/dev/null | head -n 1 || true)"
+package="$(ls "${package_directory}"/SparseTypes.Generator.Shared.*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
-    echo "No SparseFragments.Generator.Shared package found in '${package_directory}'." >&2
+    echo "No SparseTypes.Generator.Shared package found in '${package_directory}'." >&2
     exit 1
 fi
-version="$(basename "${package}" | sed -E 's/^SparseFragments\.Generator\.Shared\.(.+)\.nupkg$/\1/')"
+version="$(basename "${package}" | sed -E 's/^SparseTypes\.Generator\.Shared\.(.+)\.nupkg$/\1/')"
 if [[ -z "${version}" ]]; then
     echo "Could not resolve package version from '$(basename "${package}")'." >&2
     exit 1
@@ -46,17 +46,17 @@ feed="$(realpath "${package_directory}")"
 
 # 1. The fixture must be package-only: no sibling csproj fallback and no
 # repository-relative Compile glob. This keeps the in-repo direct-Compile path
-# canonical for SparseFragments.Generator while the package serves downstream.
-if grep -F -q 'SparseFragments.Generator.Shared.csproj' "${fixture_csproj}"; then
+# canonical for SparseTypes.Generator while the package serves downstream.
+if grep -F -q 'SparseTypes.Generator.Shared.csproj' "${fixture_csproj}"; then
     echo "Shared consumer fixture must not reference the sibling Shared csproj; it is package-only." >&2
     exit 1
 fi
-if grep -E -q 'SparseFragments\.Generator\.Shared[/\\]' "${fixture_csproj}"; then
+if grep -E -q 'SparseTypes\.Generator\.Shared[/\\]' "${fixture_csproj}"; then
     echo "Shared consumer fixture must not contain a repository-relative Shared path; it is package-only." >&2
     exit 1
 fi
-if ! grep -F -q 'PackageReference Include="SparseFragments.Generator.Shared"' "${fixture_csproj}"; then
-    echo "Shared consumer fixture must restore 'SparseFragments.Generator.Shared' via PackageReference." >&2
+if ! grep -F -q 'PackageReference Include="SparseTypes.Generator.Shared"' "${fixture_csproj}"; then
+    echo "Shared consumer fixture must restore 'SparseTypes.Generator.Shared' via PackageReference." >&2
     exit 1
 fi
 if ! grep -F -q 'PrivateAssets="all"' "${fixture_csproj}"; then
@@ -133,7 +133,7 @@ dotnet build "${work}/PackageShared.Generator.csproj" \
 
 # Run the packaged generator in a consumer compilation. The probe requests the
 # embedded session templates and asserts its custom runtime dialect without a
-# SparseFragments runtime reference.
+# SparseTypes runtime reference.
 dotnet build "${work}/consumer/PackageShared.Consumer.csproj" \
     --configuration Release \
     -p:SparseSharedPackageVersion="${version}" \
@@ -149,14 +149,14 @@ fi
 # sibling fallback): the generated assets file records the exact version, and
 # the fresh global-packages dir must contain the extracted candidate (proves
 # the nupkg was consumed, not a stale cache entry).
-if ! grep -F -q "SparseFragments.Generator.Shared/${version}" "${work}/obj/project.assets.json"; then
-    echo "Isolated restore did not resolve 'SparseFragments.Generator.Shared/${version}' from the local feed." >&2
+if ! grep -F -q "SparseTypes.Generator.Shared/${version}" "${work}/obj/project.assets.json"; then
+    echo "Isolated restore did not resolve 'SparseTypes.Generator.Shared/${version}' from the local feed." >&2
     exit 1
 fi
 lower_version="$(printf '%s' "${version}" | tr '[:upper:]' '[:lower:]')"
-if [[ ! -d "${isolated_packages}/sparsefragments.generator.shared/${lower_version}" ]]; then
-    echo "Isolated global-packages has no 'sparsefragments.generator.shared/${lower_version}': restore did not extract the candidate nupkg." >&2
+if [[ ! -d "${isolated_packages}/sparsetypes.generator.shared/${lower_version}" ]]; then
+    echo "Isolated global-packages has no 'sparsetypes.generator.shared/${lower_version}': restore did not extract the candidate nupkg." >&2
     exit 1
 fi
 
-echo "SparseFragments.Generator.Shared packed package consumer verified (${version})."
+echo "SparseTypes.Generator.Shared packed package consumer verified (${version})."

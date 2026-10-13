@@ -36,15 +36,15 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <Compile Remove="Program.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
-    <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseTypes/SparseTypes.csproj" />
     <ProjectReference
-      Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      Include="../../../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false"
     />
   </ItemGroup>
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
-    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' != ''">
+    <PackageReference Include="SparseTypes" Version="$(SparseTypesPackageVersion)" />
   </ItemGroup>
 </Project>

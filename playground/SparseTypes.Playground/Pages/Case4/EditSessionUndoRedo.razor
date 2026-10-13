@@ -1,0 +1,514 @@
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using SparseTypes
+@using SparseTypes.Blazor
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
+@implements IDisposable
+<SparseSessionScope TModel="PlaygroundSettings" Session="_session">
+<div class="pg-grid pg-two-pane">
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head">
+            <h3>Edit</h3>
+            <div class="pg-actions pg-edit-history">
+            <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Undo"
+                    Disabled="@(!_history.CanUndo)" @onclick="Undo">
+                    <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1.03-6.8 2.7L2 7v9h9l-3.65-3.65c1.32-1.25 3.12-2.02 5.15-2.02 3.23 0 5.96 2.07 6.94 4.95l2.4-.8C20.5 10.6 16.82 8 12.5 8Z" /></svg>
+                    Undo (@_history.UndoCount)
+            </FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Redo"
+                    Disabled="@(!_history.CanRedo)" @onclick="Redo">
+                    <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c2.65 0 5.05 1.03 6.8 2.7L23 7v9h-9l3.65-3.65c-1.32-1.25-3.12-2.02-5.15-2.02-3.23 0-5.96 2.07-6.94 4.95l-2.4-.8C4.5 10.6 8.18 8 12.5 8Z" /></svg>
+                    Redo (@_history.RedoCount)
+            </FluentButton>
+            </div>
+        </div>
+
+        <div class="pg-stack pg-edit-fields">
+            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Enabled) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Enabled))Enabled <small>bool</small></span>
+                <FluentCheckbox Value="@_enabled.Value"
+                    ValueChanged="@_enabled.SetAsync" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.RetryCount) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.RetryCount))RetryCount <small>int</small></span>
+                <FluentNumberInput TValue="int" Style="width: 10rem;"
+                    Value="@_retryCount.Value" ValueChanged="@_retryCount.SetAsync" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Label) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Label))Label <small>string</small></span>
+                <FluentTextInput Placeholder="label" Style="flex: 1 1 12rem;"
+                    Value="@_label.Value"
+                    ValueChanged="@_label.SetAsync" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Nested.Host) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Nested.Host))Nested.Host <small>string</small></span>
+                <FluentTextInput Placeholder="host" Style="flex: 1 1 12rem;"
+                    Value="@_host.Value"
+                    ValueChanged="@_host.SetAsync" />
+            </div>
+            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Nested.Port) ? "pg-changed" : "")">
+                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Nested.Port))Nested.Port <small>int</small></span>
+                <FluentNumberInput TValue="int" Style="width: 10rem;"
+                    Value="@_port.Value" ValueChanged="@_port.SetAsync" />
+            </div>
+        </div>
+
+        <TaskListEditor Session="_session" BaselineTasks="_baselineModel.Tasks" Changes="SessionChanges" EditContext="_editContext" />
+        <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+            <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+            <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
+            <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+        </div>
+        @if (_editError is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_editError</FluentMessageBar>
+        }
+        <div class="pg-actions pg-session-actions">
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_session.HasChanges)"
+                @onclick="Reset">Reset</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                Disabled="@(!_session.HasChanges)" @onclick="RequestSubmit">Submit</FluentButton>
+        </div>
+    </FluentCard>
+
+    <div class="pg-stack">
+        <FluentCard Class="pg-fluent-card pg-session-result">
+            <div class="pg-card-head">
+                <h3>Result</h3>
+                <span class="pg-has-changes-badge @(_session.HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(_session.HasChanges ? "Changes" : "No changes")
+                </span>
+            </div>
+            <FluentTabs ActiveTabId="@_activeTab" ActiveTabIdChanged="@(id => _activeTab = id ?? "current")">
+                <FluentTab Header="Diff" Id="diff">
+                    <MonacoDiffView Original="@_baselineJson" Modified="@CurrentJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Header="Current" Id="current">
+                    <MonacoView Content="@CurrentJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Header="Baseline" Id="baseline">
+                    <MonacoView Content="@_baselineJson" Language="json" Height="320px" />
+                </FluentTab>
+            </FluentTabs>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Changelog</h3></div>
+            <ol class="pg-edit-log">
+                @foreach (var entry in _log)
+                {
+                    <li><time>@entry.Time</time><code>@entry.Change</code></li>
+                }
+                @if (_log.Count == 0)
+                {
+                    <li class="pg-edit-log-empty pg-hint">No changes yet</li>
+                }
+            </ol>
+        </FluentCard>
+    </div>
+</div>
+</SparseSessionScope>
+
+<FluentDialog @ref="_submitDialog" Hidden="@_submitDialogHidden" Modal="true" TrapFocus="true"
+    Class="pg-submit-preview-dialog" AriaLabel="Confirm submit changes">
+    <div class="pg-dialog-heading">
+        <h3>Confirm submit</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p>The following changes will be submitted. Continue?</p>
+        @if (_submitChanges.Count == 0)
+        {
+            <p class="pg-hint">No changes to submit.</p>
+        }
+        else
+        {
+            <div class="pg-change-table-wrap pg-submit-change-table-wrap">
+                <table class="pg-change-table pg-submit-change-table" aria-label="Changes to submit">
+                    <thead>
+                        <tr><th>Operation</th><th>Property</th><th>Before</th><th>After</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var change in _submitChanges)
+                        {
+                            <tr>
+                                <td><span class="@ChangeOperationClass(change.Operation)">@change.Operation</span></td>
+                                <td>@change.Target</td>
+                                <td><span class="pg-change-value">@change.Before</span></td>
+                                <td><span class="pg-change-value">@change.After</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="CancelSubmit">Cancel</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ConfirmSubmit">Submit</FluentButton>
+    </div>
+</FluentDialog>
+
+<FluentDialog @ref="_completionDialog" Hidden="@_completionHidden" Modal="true" TrapFocus="true"
+    AriaLabel="Edit session action completed">
+    <div class="pg-dialog-heading">
+        <h3>@_completionTitle</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p>@_completionMessage</p>
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CloseCompletion">Close</FluentButton>
+    </div>
+</FluentDialog>
+
+@code {
+    private const int MaximumLogEntries = 20;
+    private readonly List<LogEntry> _log = [];
+    private readonly PlaygroundSettings _model = new()
+    {
+        Enabled = true,
+        RetryCount = 3,
+        Label = "Draft",
+        Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
+        Plugins = ["base-plugin"],
+        Tasks =
+        [
+            new PlaygroundTask { Id = "t1", Title = "Find the key", Points = 10 },
+            new PlaygroundTask { Id = "t2", Title = "Open the gate", Points = 25 },
+            new PlaygroundTask { Id = "t3", Title = "Clear the trial", Points = 40 },
+            new PlaygroundTask { Id = "t4", Title = "Return to camp", Points = 5 },
+        ],
+    };
+
+    private SettingsSession _session = null!;
+    private SparseEditHistory<PlaygroundSettings.ChangeSet> _history = null!;
+    private EditContext _editContext = null!;
+    private SparseFieldBinding<PlaygroundSettings, bool> _enabled = null!;
+    private SparseFieldBinding<PlaygroundSettings, int> _retryCount = null!;
+    private SparseFieldBinding<PlaygroundSettings, string?> _label = null!;
+    private SparseFieldBinding<PlaygroundSettings, string> _host = null!;
+    private SparseFieldBinding<PlaygroundSettings, int> _port = null!;
+    private PlaygroundSettings _baselineModel = null!;
+    private string _baselineJson = string.Empty;
+    private string _activeTab = "diff";
+    private string? _editError;
+    private bool _submitDialogHidden = true;
+    private bool _completionHidden = true;
+    private string _completionTitle = string.Empty;
+    private string _completionMessage = string.Empty;
+    private readonly List<(string Target, string Operation, string Before, string After)> _submitChanges = [];
+    private FluentDialog? _submitDialog;
+    private FluentDialog? _completionDialog;
+
+    private string CurrentJson => PlaygroundJson.WriteModel(_model);
+
+    // One point-in-time snapshot per render, shared by the task rows so each
+    // row probes state without re-diffing the live model.
+    private PlaygroundSettings.ChangeSet SessionChanges => _session.CreateChangeSet();
+
+    protected override void OnInitialized()
+    {
+        _session = _model.CreateEditSession();
+        // Opt-in history: the session retains no history until this call. The
+        // history subscribes to transitions itself and clears on successful
+        // accept/revert, so no manual stacks or replay guards remain here.
+        _history = _session.CreateHistory();
+        _editContext = _session.CreateEditContext();
+        _enabled = _session.Bind(PlaygroundSettings.SparsePath.Enabled, _editContext);
+        _retryCount = _session.Bind(PlaygroundSettings.SparsePath.RetryCount, _editContext);
+        _label = _session.Bind(PlaygroundSettings.SparsePath.Label, _editContext);
+        _host = _session.Bind(PlaygroundSettings.SparsePath.Nested.Host, _editContext);
+        _port = _session.Bind(PlaygroundSettings.SparsePath.Nested.Port, _editContext);
+        // The subscription below only appends changelog entries. Refresh is
+        // owned by the session scope, which re-renders on notifications.
+        _session.TransitionObserved += OnTransitionObserved;
+        CaptureBaseline();
+    }
+
+    private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition) => AppendChanges(transition);
+
+    // Semantic highlight queries over the live baseline diff. Unknown paths
+    // report clean, so these replace the hand-rolled model comparisons.
+    private bool IsChanged<TValue>(SparsePath<PlaygroundSettings, TValue> path) =>
+        _session.FieldState(path).IsChanged;
+
+    private static RenderFragment ChangedDot(bool changed) => builder =>
+    {
+        if (changed)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "pg-dot");
+            builder.AddAttribute(2, "title", "edited");
+            builder.CloseElement();
+        }
+    };
+
+    private PlaygroundSettings CloneModel() =>
+        JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)
+        ?? throw new JsonException("The current model JSON deserialized to null.");
+
+    private void CaptureBaseline()
+    {
+        _baselineModel = CloneModel();
+        _baselineJson = PlaygroundJson.WriteModel(_baselineModel);
+    }
+
+    private async Task RequestSubmit()
+    {
+        if (!_session.HasChanges)
+        {
+            return;
+        }
+
+        _submitChanges.Clear();
+        _submitChanges.AddRange(BuildSubmitChanges());
+        if (_submitDialog is null)
+        {
+            throw new InvalidOperationException("The submit confirmation dialog is not initialized.");
+        }
+
+        _submitDialogHidden = false;
+        await _submitDialog.ShowAsync();
+    }
+
+    // Audit (#256): this preview intentionally stays a live-model diff instead
+    // of projecting ChangeSet records. It renders bespoke task summaries and
+    // groups operations (Add, Remove, Edit, Order) with unquoted key targets
+    // such as Tasks[t1].Title, which differ from the wire PathText the shared
+    // projection reports. Keep the duplication; do not "unify" it.
+    private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
+    {
+        var changes = new List<(string Target, string Operation, string Before, string After)>();
+        var current = _model;
+        AddSubmitChange(changes, nameof(PlaygroundSettings.Enabled), "Edit", _baselineModel.Enabled, current.Enabled);
+        AddSubmitChange(changes, nameof(PlaygroundSettings.RetryCount), "Edit", _baselineModel.RetryCount, current.RetryCount);
+        AddSubmitChange(changes, nameof(PlaygroundSettings.Label), "Edit", _baselineModel.Label, current.Label);
+        AddSubmitChange(
+            changes,
+            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Host)}",
+            "Edit",
+            _baselineModel.Nested?.Host,
+            current.Nested?.Host
+        );
+        AddSubmitChange(
+            changes,
+            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Port)}",
+            "Edit",
+            _baselineModel.Nested?.Port,
+            current.Nested?.Port
+        );
+
+        var presentBaselines = new HashSet<PlaygroundTask>();
+        foreach (var task in _session.Observable.Tasks)
+        {
+            var currentTask = task.Model;
+            var baselineTask = _baselineModel.Tasks.FirstOrDefault(item => item.Id == currentTask.Id);
+            if (baselineTask is null)
+            {
+                changes.Add(($"Tasks[{currentTask.Id}]", "Add", "—", FormatTask(currentTask)));
+                continue;
+            }
+
+            presentBaselines.Add(baselineTask);
+            var target = $"Tasks[{baselineTask.Id}]";
+            AddSubmitChange(changes, $"{target}.Id", "Edit", baselineTask.Id, currentTask.Id);
+            AddSubmitChange(changes, $"{target}.Title", "Edit", baselineTask.Title, currentTask.Title);
+            AddSubmitChange(changes, $"{target}.Points", "Edit", baselineTask.Points, currentTask.Points);
+        }
+
+        foreach (var task in _baselineModel.Tasks)
+        {
+            if (!presentBaselines.Contains(task))
+            {
+                changes.Add(($"Tasks[{task.Id}]", "Remove", FormatTask(task), "—"));
+            }
+        }
+
+        var beforeOrder = _baselineModel.Tasks.Select(static task => task.Id).ToArray();
+        var afterOrder = _session.Observable.Tasks.Select(static task => task.Id);
+        if (!beforeOrder.SequenceEqual(afterOrder, StringComparer.Ordinal))
+        {
+            changes.Add(("Tasks", "Order", FormatOrder(beforeOrder), FormatOrder(afterOrder)));
+        }
+
+        return changes.OrderBy(change => SubmitOperationOrder(change.Operation)).ToList();
+    }
+
+    private static int SubmitOperationOrder(string operation) => operation switch
+    {
+        "Add" => 0,
+        "Remove" => 1,
+        "Edit" => 2,
+        "Order" => 3,
+        _ => 4,
+    };
+
+    private static void AddSubmitChange<T>(
+        List<(string Target, string Operation, string Before, string After)> changes,
+        string target,
+        string operation,
+        T before,
+        T after
+    )
+    {
+        if (!EqualityComparer<T>.Default.Equals(before, after))
+        {
+            changes.Add((target, operation, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+        }
+    }
+
+    private static string FormatTask(PlaygroundTask task) =>
+        $"{{ Title = {JsonSerializer.Serialize(task.Title)}, Points = {task.Points} }}";
+
+    private static string FormatOrder(IEnumerable<string> ids) => $"[{string.Join(", ", ids)}]";
+
+    private static string ChangeOperationClass(string operation) =>
+        $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
+
+    private async Task CancelSubmit()
+    {
+        if (_submitDialog is null)
+        {
+            throw new InvalidOperationException("The submit confirmation dialog is not initialized.");
+        }
+
+        _submitDialogHidden = true;
+        await _submitDialog.HideAsync();
+    }
+
+    private async Task ConfirmSubmit()
+    {
+        await CancelSubmit();
+        try
+        {
+            _session.AcceptChanges(_editContext);
+            CaptureBaseline();
+            ClearHistory();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+            return;
+        }
+
+        await ShowCompletion("Changes submitted", "The current state is now the baseline. The change history was cleared.");
+    }
+
+    private async Task ShowCompletion(string title, string message)
+    {
+        if (_completionDialog is null)
+        {
+            throw new InvalidOperationException("The completion dialog is not initialized.");
+        }
+
+        _completionTitle = title;
+        _completionMessage = message;
+        _completionHidden = false;
+        await _completionDialog.ShowAsync();
+    }
+
+    private async Task CloseCompletion()
+    {
+        _completionHidden = true;
+        if (_completionDialog is null)
+        {
+            throw new InvalidOperationException("The completion dialog is not initialized.");
+        }
+
+        await _completionDialog.HideAsync();
+    }
+
+    private async Task Reset()
+    {
+        try
+        {
+            _session.RevertChanges();
+            _editContext.MarkAsUnmodified();
+            ClearHistory();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+            return;
+        }
+
+        await ShowCompletion("Changes reset", "All unsubmitted changes were reverted to the current baseline.");
+    }
+
+    // Accept/revert already clear the opt-in history; only the demo log remains.
+    private void ClearHistory() => _log.Clear();
+
+    private void Undo()
+    {
+        try
+        {
+            _history.Undo();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+        }
+    }
+
+    private void Redo()
+    {
+        try
+        {
+            _history.Redo();
+            _editError = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _editError = exception.Message;
+        }
+    }
+
+    private void AppendChanges(PlaygroundSettings.ChangeSet changes)
+    {
+        var entries = SparseChangeRowProjection.Project(
+                changes,
+                new SparseChangeRowOptions
+                {
+                    // The log predates the shared table and marks gaps
+                    // "(missing)"; keep its wording instead of unifying on "—".
+                    MissingText = "(missing)",
+                    FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
+                })
+            .Select(static row => (
+                Path: row.PathText,
+                Before: OneLine(row.BeforeText),
+                After: OneLine(row.AfterText)
+            ))
+            .OrderBy(static entry => entry.Path, StringComparer.Ordinal)
+            .ToArray();
+        if (entries.Length == 0) return;
+
+        var change = string.Join(
+            "\n",
+            entries.Select(static entry => $"{entry.Path}: {entry.Before} → {entry.After}")
+        );
+        _log.Insert(0, new LogEntry(DateTimeOffset.Now.ToString("HH:mm:ss"), change));
+        if (_log.Count > MaximumLogEntries) _log.RemoveRange(MaximumLogEntries, _log.Count - MaximumLogEntries);
+    }
+
+    public void Dispose()
+    {
+        if (_session is not null)
+        {
+            _session.TransitionObserved -= OnTransitionObserved;
+        }
+
+        _history?.Dispose();
+    }
+
+    private static string OneLine(string value) =>
+        value.Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\t", "\\t", StringComparison.Ordinal);
+
+    private sealed record LogEntry(string Time, string Change);
+}

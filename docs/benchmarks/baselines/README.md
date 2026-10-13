@@ -8,7 +8,7 @@ generated source bytes, file counts, source fingerprints and assembly bytes.
 
 The [Linux x64 baseline](linux-x64.json) records the full 45-case CI capture of
 `e015e8f` on Ubuntu 24.04.5 with an AMD EPYC 9V74, the same SDK and runtime.
-The [successful CI run](https://github.com/arika0093/SparseFragments/actions/runs/38023044656)
+The [successful CI run](https://github.com/arika0093/SparseTypes/actions/runs/38023044656)
 retains its raw reports and logs as the `performance-baseline` artifact.
 
 These observations apply to that machine and workload. Some time intervals are

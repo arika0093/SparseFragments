@@ -6,9 +6,9 @@ The old baseline is never supplied at rebase time because the ChangeSet already 
 
 <!-- sample: rebase-first-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class RebaseSettings
 {
     public string? Label { get; set; }
@@ -259,9 +259,9 @@ A member-level policy selects rebase behavior without requiring a custom merge s
 
 <!-- sample: rebase-policy-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class RebasePolicySettings
 {
     public string? Label { get; set; }
@@ -370,7 +370,7 @@ Downstream generators formalize the same redaction as a transport policy: the in
 
 ## No Revision History Required
 
-Semantic rebase does not require SparseFragments to retain a Git-like revision history. Three things stay distinct:
+Semantic rebase does not require SparseTypes to retain a Git-like revision history. Three things stay distinct:
 
 ```text
 ChangeSet before-state
@@ -383,7 +383,7 @@ historical snapshots
     not required for ordinary ChangeSet rebase
 ```
 
-The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection (a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id). Those tokens are application and envelope metadata, not members of the ChangeSet itself. SparseFragments prescribes neither the token type nor the persistence technology.
+The server in the disconnected-editing flow loads only the current state and still rebases correctly, because the incoming ChangeSet already carries the before-state its own transitions need. Persistence still needs its normal race protection (a concurrency token such as an EF `rowversion`, a `Version` column, an `UpdatedAt` marker, an ETag, or an operation id). Those tokens are application and envelope metadata, not members of the ChangeSet itself. SparseTypes prescribes neither the token type nor the persistence technology.
 
 ## Mixed Requests With Redacted Members
 
@@ -497,7 +497,7 @@ else
 ```
 <!-- /sample -->
 
-The transport in the middle can be HTTP, SignalR, or any message bus the application already uses. SparseFragments only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base, local, and current values without saving.
+The transport in the middle can be HTTP, SignalR, or any message bus the application already uses. SparseTypes only requires that the serialized payload arrives intact. The two terminal branches stay the same everywhere: no conflicts means save the updated model under the application's concurrency token; conflicts mean surface their paths, kinds, and base, local, and current values without saving.
 
 ### Save under a concurrency token
 

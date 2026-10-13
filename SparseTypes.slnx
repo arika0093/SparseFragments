@@ -1,0 +1,31 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SparseTypes/SparseTypes.csproj" />
+    <Project Path="src/SparseTypes.Blazor/SparseTypes.Blazor.csproj" />
+    <Project Path="src/SparseTypes.Generator/SparseTypes.Generator.csproj" />
+    <Project Path="src/SparseTypes.Generator.Shared/SparseTypes.Generator.Shared.csproj" />
+    <Project Path="src/SparseTypes.EntityFrameworkCore/SparseTypes.EntityFrameworkCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SparseTypes.Tests/SparseTypes.Tests.csproj" />
+    <Project Path="tests/SparseTypes.DesktopBinding.Tests/SparseTypes.DesktopBinding.Tests.csproj" />
+    <Project Path="tests/SparseTypes.EntityFrameworkCore.Tests/SparseTypes.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="tests/SparseTypes.Blazor.Tests/SparseTypes.Blazor.Tests.csproj" />
+    <Project Path="tests/SparseTypes.NativeAotSmoke/SparseTypes.NativeAotSmoke.csproj" />
+    <Project Path="tests/SparseTypes.NativeAotFixtures/SparseTypes.NativeAotFixtures.csproj" />
+    <Project Path="tests/SparseTypes.PublicApi.Tests/SparseTypes.PublicApi.Tests.csproj" />
+    <Project Path="tests/SparseTypes.GeneratedApiFixtures/SparseTypes.GeneratedApiFixtures.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/playground/">
+    <Project Path="playground/SparseTypes.Playground/SparseTypes.Playground.csproj" />
+  </Folder>
+  <Folder Name="/samples/EfCoreSample/">
+    <Project Path="samples/EfCoreSample/EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.Server/EfCoreSample.Server.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.Client/EfCoreSample.Client.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.AppHost/EfCoreSample.AppHost.csproj" />
+  </Folder>
+</Solution>

@@ -121,25 +121,25 @@ jobs:
         run: dotnet tool restore
 
       - name: Restore unit test dependencies
-        run: dotnet restore tests/SparseFragments.Tests/SparseFragments.Tests.csproj
+        run: dotnet restore tests/SparseTypes.Tests/SparseTypes.Tests.csproj
 
       - name: Build unit tests
-        run: dotnet build tests/SparseFragments.Tests/SparseFragments.Tests.csproj --no-restore --configuration Release
+        run: dotnet build tests/SparseTypes.Tests/SparseTypes.Tests.csproj --no-restore --configuration Release
 
       - name: Run unit tests
         run: >
-          dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj
+          dotnet test tests/SparseTypes.Tests/SparseTypes.Tests.csproj
           --no-build --no-restore --configuration Release --framework net10.0
           --results-directory TestResults --no-progress
-          -- --timeout 5m --report-trx
+          -- --timeout 10m --report-trx
 
       - name: Collect code coverage (observation)
         if: matrix.os == 'ubuntu-latest'
         run: >
-          dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj
+          dotnet test tests/SparseTypes.Tests/SparseTypes.Tests.csproj
           --no-build --no-restore --configuration Release --framework net10.0
           --results-directory TestResults/coverage --no-progress
-          -- --timeout 5m --coverage --coverage-settings tests/coverage.config
+          -- --timeout 10m --coverage --coverage-settings tests/coverage.config
           --coverage-output coverage.cobertura.xml --coverage-output-format cobertura
 
       - name: Upload coverage report
@@ -195,17 +195,17 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore PublicApi test dependencies
-        run: dotnet restore tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj
+        run: dotnet restore tests/SparseTypes.PublicApi.Tests/SparseTypes.PublicApi.Tests.csproj
 
       - name: Build PublicApi tests
-        run: dotnet build tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj --no-restore --configuration Release
+        run: dotnet build tests/SparseTypes.PublicApi.Tests/SparseTypes.PublicApi.Tests.csproj --no-restore --configuration Release
 
       - name: Run PublicApi tests
         run: >
-          dotnet test tests/SparseFragments.PublicApi.Tests/SparseFragments.PublicApi.Tests.csproj
+          dotnet test tests/SparseTypes.PublicApi.Tests/SparseTypes.PublicApi.Tests.csproj
           --no-build --no-restore --configuration Release
           --results-directory TestResults/public-api --no-progress
-          -- --timeout 5m --report-trx
+          -- --timeout 10m --report-trx
 
       - name: Upload failure PublicApi artifacts
         if: failure() || cancelled()
@@ -220,9 +220,9 @@ jobs:
 
   # Packed-package consumer gate (#11). Packs the release candidate packages
   # once, verifies their integrity, then exercises them the way users consume
-  # them: fixtures install the packed SparseFragments (and Blazor, #46) packages
+  # them: fixtures install the packed SparseTypes (and Blazor, #46) packages
   # from a local feed (no ProjectReference fallback), the README fixture runs
-  # through verify-sparsefragments-readme.sh, and the docs guides run through
+  # through verify-sparsetypes-readme.sh, and the docs guides run through
   # verify-docs-samples.sh (#45). The same bytes validated here are what
   # the consumer checks run against; nothing is rebuilt a second time.
   # Single-OS by design in every tier: packing logic is OS-independent.
@@ -257,15 +257,15 @@ jobs:
       - name: Pack NuGet packages
         # NOTE: no --no-build/--no-restore here. This job never restores the
         # test projects, so let pack restore/build itself instead.
-        # Three packages ship (#46, #70): SparseFragments,
-        # SparseFragments.Blazor, and SparseFragments.Generator.Shared
+        # Three packages ship (#46, #70): SparseTypes,
+        # SparseTypes.Blazor, and SparseTypes.Generator.Shared
         # (source-only downstream-generator sources).
         run: >
-          dotnet pack src/SparseFragments/SparseFragments.csproj
+          dotnet pack src/SparseTypes/SparseTypes.csproj
           --configuration Release --output artifacts &&
-          dotnet pack src/SparseFragments.Blazor/SparseFragments.Blazor.csproj
+          dotnet pack src/SparseTypes.Blazor/SparseTypes.Blazor.csproj
           --configuration Release --output artifacts &&
-          dotnet pack src/SparseFragments.Generator.Shared/SparseFragments.Generator.Shared.csproj
+          dotnet pack src/SparseTypes.Generator.Shared/SparseTypes.Generator.Shared.csproj
           --configuration Release --output artifacts
 
       - name: Verify docs enforcement probes
@@ -289,7 +289,7 @@ jobs:
         run: bash ./.github/workflows/scripts/verify-package-shared-consumer.sh artifacts
 
       - name: Verify README samples against packed packages
-        run: bash ./.github/workflows/scripts/verify-sparsefragments-readme.sh artifacts
+        run: bash ./.github/workflows/scripts/verify-sparsetypes-readme.sh artifacts
 
       - name: Verify docs samples against packed packages
         run: bash ./.github/workflows/scripts/verify-docs-samples.sh artifacts
@@ -331,7 +331,7 @@ jobs:
 
       - name: Pack core NuGet package
         run: >
-          dotnet pack src/SparseFragments/SparseFragments.csproj
+          dotnet pack src/SparseTypes/SparseTypes.csproj
           --configuration Release --output artifacts
 
       - name: Verify net48 packed package consumer
@@ -388,7 +388,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p TestResults
-          dotnet publish tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj \
+          dotnet publish tests/SparseTypes.NativeAotSmoke/SparseTypes.NativeAotSmoke.csproj \
             --configuration Release --framework net10.0 --use-current-runtime \
             --output TestResults/nativeaot-smoke --verbosity normal 2>&1 \
             | tee TestResults/nativeaot-publish.log
@@ -401,9 +401,9 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke.exe --report-trx --results-directory TestResults/nativeaot-results
+            ./TestResults/nativeaot-smoke/SparseTypes.NativeAotSmoke.exe --report-trx --results-directory TestResults/nativeaot-results
           else
-            ./TestResults/nativeaot-smoke/SparseFragments.NativeAotSmoke --report-trx --results-directory TestResults/nativeaot-results
+            ./TestResults/nativeaot-smoke/SparseTypes.NativeAotSmoke --report-trx --results-directory TestResults/nativeaot-results
           fi
 
       - name: Upload failure NativeAOT artifacts

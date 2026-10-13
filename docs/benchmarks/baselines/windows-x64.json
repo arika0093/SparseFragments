@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "suite": "sparsefragments-v1",
+  "suite": "sparsetypes-v1",
   "profile": "baseline",
   "captured_utc": "2026-10-10T04:23:06.455750+00:00",
   "commit": "3b0d68fed16621e0924e419bff86663764f85e21",

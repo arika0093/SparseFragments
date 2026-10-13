@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // Lowest-shipped-TFM consumer (#27): a netstandard2.0 class library that
-// references the packed SparseFragments package and compiles generated
+// references the packed SparseTypes package and compiles generated
 // Fragment/Patch code. Build-only (netstandard2.0 has no runnable host), so
 // compilation success is the gate: it fails if generated code references APIs
 // unavailable to netstandard2.0.
@@ -195,7 +195,7 @@ public static class NetStandardConsumerCheck
         Require(conflictedModel is null, "conflicted application has no model");
         Require(modelConflicts.Count > 0, "model application returns conflict details");
 
-        return "SparseFragments netstandard2.0 consumer passed.";
+        return "SparseTypes netstandard2.0 consumer passed.";
     }
 
     private static void Require(bool condition, string capability)
@@ -207,7 +207,7 @@ public static class NetStandardConsumerCheck
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class NetStandardSettings
 {
     public string? Label { get; set; }

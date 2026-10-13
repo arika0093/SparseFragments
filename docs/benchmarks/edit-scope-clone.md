@@ -2,9 +2,9 @@
 
 Scope: cost of opening path-addressed child drafts (`EditSession.OpenScope`),
 which forks the session. Issue: #239. Benchmarks:
-`benchmarks/SparseFragments.Benchmarks/EditScopeCloneBenchmarks.cs`.
+`benchmarks/SparseTypes.Benchmarks/EditScopeCloneBenchmarks.cs`.
 Validation tests:
-`tests/SparseFragments.Tests/Patch/EditSessionScopeTests.cs`.
+`tests/SparseTypes.Tests/Patch/EditSessionScopeTests.cs`.
 
 All timing numbers below are machine-dependent and are not asserted by
 tests. Allocation behavior for invalid inputs is pinned by
@@ -13,8 +13,8 @@ tests. Allocation behavior for invalid inputs is pinned by
 ## Reproduce
 
 ```powershell
-dotnet run --project benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj --configuration Release -- --filter "*EditScopeCloneBenchmarks.OpenSmallChildScope*" --job short
-dotnet run --project benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj --configuration Release -- --filter "*EditScopeClone*" --job Dry
+dotnet run --project benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj --configuration Release -- --filter "*EditScopeCloneBenchmarks.OpenSmallChildScope*" --job short
+dotnet run --project benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj --configuration Release -- --filter "*EditScopeClone*" --job Dry
 ```
 
 Environment for the numbers below: Windows 11, Intel Core i7-14700F,

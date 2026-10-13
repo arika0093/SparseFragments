@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <AssemblyName>SparseTypes.Blazor</AssemblyName>
+    <RootNamespace>SparseTypes.Blazor</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageDescription>Blazor edit sessions for SparseTypes with semantic change tracking.</PackageDescription>
+    <PackageTags>blazor;forms;patch;dotnet</PackageTags>
+    <!-- Dedicated package README (#52): concise first-use page, not the core README. -->
+    <PackageReadmeFile>README.Blazor.md</PackageReadmeFile>
+  </PropertyGroup>
+  <!-- Package (not Framework) reference so Blazor WebAssembly consumers can use
+       this library as an ordinary third-party package: a FrameworkReference
+       demands the Microsoft.AspNetCore.App runtime pack, which browser-wasm
+       has none of, while the Components.Web package resolves from NuGet on
+       every host (server, wasm, tests). Same established pattern as the
+       FluentUI/MudBlazor component packages; no vendor dependency added. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.29" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.Blazor.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SparseTypes/SparseTypes.csproj" />
+  </ItemGroup>
+</Project>

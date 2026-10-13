@@ -17,7 +17,7 @@ when BenchmarkDotNet exits successfully.
 Use `--smoke` to check the harness with one launch and one measured iteration.
 Smoke results have a separate profile and cannot be compared with full runs.
 A full run uses two launches, fifteen measured iterations, and
-a 250 ms target iteration duration. The suite contains 45 cases.
+a 250 ms target iteration duration. The suite contains 49 cases.
 
 The v2 jobs use twenty warmups for single operations and edit workflows, fifty
 for fresh and incremental generation, and an adaptive range of 100–250 for
@@ -74,7 +74,7 @@ captures all nine shape/count size records in `payload-sizes.json` and includes
 them in `baseline.json` and the comparison report. To capture those sizes alone:
 
 ```powershell
-dotnet run -c Release --project benchmarks/SparseFragments.Benchmarks -- --payload-sizes artifacts/payload-sizes.json
+dotnet run -c Release --project benchmarks/SparseTypes.Benchmarks -- --payload-sizes artifacts/payload-sizes.json
 ```
 
 The output identifies the shape and parent model count alongside the same byte

@@ -9,9 +9,9 @@ Scope: end-to-end benchmark and certification for the Runtime,
 Generated-Once, and Per-Model layers defined in
 [three-layer-ownership.md](../architecture/three-layer-ownership.md).
 Issue: #189. The executable gates live in
-`tests/SparseFragments.Tests/Shared/ThreeLayerCertificationTests.cs`;
+`tests/SparseTypes.Tests/Shared/ThreeLayerCertificationTests.cs`;
 the operation and generator matrices live in
-`benchmarks/SparseFragments.Benchmarks/ThreeLayerCertificationBenchmarks.cs`.
+`benchmarks/SparseTypes.Benchmarks/ThreeLayerCertificationBenchmarks.cs`.
 
 All timing numbers below are machine-dependent and are not asserted by
 tests. Byte counts, hint sets, and compilation results are deterministic
@@ -20,11 +20,11 @@ and are pinned by the certification tests.
 ## Reproduce
 
 ```powershell
-dotnet build SparseFragments.slnx --configuration Release
-dotnet test tests/SparseFragments.Tests/SparseFragments.Tests.csproj --configuration Release
-dotnet run --project benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj --configuration Release -- --filter "*ThreeLayerOps*"
-dotnet run --project benchmarks/SparseFragments.Benchmarks/SparseFragments.Benchmarks.csproj --configuration Release -- --filter "*ThreeLayerGenerator*" --job short
-dotnet publish tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj --configuration Release --framework net10.0
+dotnet build SparseTypes.slnx --configuration Release
+dotnet test tests/SparseTypes.Tests/SparseTypes.Tests.csproj --configuration Release
+dotnet run --project benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj --configuration Release -- --filter "*ThreeLayerOps*"
+dotnet run --project benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj --configuration Release -- --filter "*ThreeLayerGenerator*" --job short
+dotnet publish tests/SparseTypes.NativeAotSmoke/SparseTypes.NativeAotSmoke.csproj --configuration Release --framework net10.0
 ```
 
 Environment for the numbers below: Windows 11, Intel Core i7-14700F,
@@ -113,7 +113,7 @@ Readings:
   the owning namespace plus BCL types. No runtime or dialect token
   appears in them.
 - Per-model call sites are live on the explicit-namespace path: the
-  product generator sets `SparseFragments.Generated`, and per-model
+  product generator sets `SparseTypes.Generated`, and per-model
   output calls the qualified shared helpers with no legacy
   per-model copies left behind.
 - The null-namespace single-file path keeps legacy per-model private
@@ -128,7 +128,7 @@ Readings:
 
 - The same clone, adapter, and removal behavior executes identically
   under a standard-shaped and a renamed downstream namespace with no
-  `SparseFragments` reference
+  `SparseTypes` reference
   (`StandardAndDownstream_DialectsAgreeOnSemantics`).
 - An external assembly consumes `ChangeSet.Between`, `ToPatch`,
   `ApplyTo`, `CreateEditSession`, `Descriptors`, and `IDescriptorSet`
@@ -141,7 +141,7 @@ Readings:
   netstandard2.0 consumer, net48 consumer, and the minimum-language
   consumer. The netstandard2.0 and net48 lanes are the behavioral
   compatibility gates for the old-TFM fallback.
-- NativeAOT publish of `SparseFragments.NativeAotSmoke` succeeds with
+- NativeAOT publish of `SparseTypes.NativeAotSmoke` succeeds with
   no trim or AOT analyzer warnings; the native binary runs 29 of 29
   tests. The Windows executable is 21.54 MB.
 

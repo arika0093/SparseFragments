@@ -1,0 +1,82 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
+@using TaskObservable = global::SparseTypes.Playground.Models.PlaygroundTask.Observable;
+
+<div class="pg-row pg-session-field pg-task-field">
+    <span class="pg-name notranslate" translate="no">Tasks <small>List&lt;Task&gt;</small></span>
+    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTask">Add task</FluentButton>
+</div>
+<SortableList Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
+    OnUpdate="OnSortableUpdate" Context="task">
+    <SortableItemTemplate>
+        <TaskRow Task="task" Session="Session" Changes="Changes" EditContext="EditContext" OnError="SetTaskError" />
+    </SortableItemTemplate>
+</SortableList>
+@if (_taskError is not null)
+{
+    <FluentMessageBar Intent="MessageBarIntent.Error">@_taskError</FluentMessageBar>
+}
+
+@code {
+    private static readonly string[] TaskTitles =
+        ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
+
+    [Parameter, EditorRequired]
+    public SettingsSession Session { get; set; } = null!;
+
+    // Retained only so Add avoids reusing an id from the submitted baseline,
+    // which would read as an edit of the removed row instead of an addition.
+    [Parameter, EditorRequired]
+    public List<PlaygroundTask> BaselineTasks { get; set; } = [];
+
+    // Point-in-time snapshot from the parent render, shared by all rows.
+    [Parameter, EditorRequired]
+    public PlaygroundSettings.ChangeSet Changes { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EditContext EditContext { get; set; } = null!;
+
+    private string? _taskError;
+
+    private void AddTask()
+    {
+        var existing = Session.Observable.Tasks.Select(task => task.Id)
+            .Concat(BaselineTasks.Select(task => task.Id))
+            .ToHashSet(StringComparer.Ordinal);
+        string id;
+        do
+        {
+            id = $"t{Random.Shared.Next(1, 1000)}";
+        }
+        while (!existing.Add(id));
+
+        Session.BatchEdit(() => Session.Observable.Tasks.AddModel(new PlaygroundTask
+        {
+            Id = id,
+            Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
+            Points = Random.Shared.Next(1, 100),
+        }));
+    }
+
+    private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
+    {
+        var (oldIndex, newIndex) = indices;
+        var tasks = Session.Observable.Tasks;
+        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= tasks.Count || newIndex < 0 || newIndex > tasks.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        Session.BatchEdit(() =>
+        {
+            var task = tasks[oldIndex];
+            tasks.RemoveAt(oldIndex);
+            tasks.Insert(Math.Min(newIndex, tasks.Count), task);
+        });
+        return Task.CompletedTask;
+    }
+
+    private void SetTaskError(string? error) => _taskError = error;
+}

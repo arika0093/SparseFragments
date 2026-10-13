@@ -20,7 +20,7 @@ issue recorded the deviation and its reason.
 
 Runtime holds assembly-level public contracts and reusable
 implementations that consumers reference across assemblies. It ships in
-the compiled `SparseFragments` assembly. Examples: `Optional<T>`,
+the compiled `SparseTypes` assembly. Examples: `Optional<T>`,
 `FragmentOperation<T>`, `MergeMode`, conflict and rebase-result types,
 `SparseValueComparer`, `SparseCollectionMerger`,
 `SparseCollectionRebase`, `SparseCollectionProvenance`,
@@ -98,10 +98,10 @@ Runtime never references generated types. Generated code names runtime
 types only through configuration: `SparseRuntimeDialect` for optional,
 comparer, merger, and rebase helpers, and `SparsePatchDialect` for the
 patch facade, conflict/result types, and payload versioning. Shared
-emitters contain no `global::SparseFragments` literals; the product
+emitters contain no `global::SparseTypes` literals; the product
 generator supplies its own namespace and type names. The downstream
 dialect fixture tests pin this rule by asserting emitted output with a
-foreign runtime namespace contains no `global::SparseFragments` token.
+foreign runtime namespace contains no `global::SparseTypes` token.
 
 Generated-Once algorithms obtain runtime behavior through generic
 parameters or explicit supported contracts rather than fixed product
@@ -133,16 +133,16 @@ Generated-Once visibility silently.
 ## Naming
 
 Compilation-scoped helpers live under one product-chosen namespace. The
-standalone default is `SparseFragments.Generated`. The namespace is
+standalone default is `SparseTypes.Generated`. The namespace is
 configured, not inferred: `SparseGeneratorConfig` carries
-`GeneratedImplementationNamespace`, `SparseFragmentsGenerator` sets it
+`GeneratedImplementationNamespace`, `SparseTypesGenerator` sets it
 to the default, and Shared provides no implicit fallback. A null or
 empty value keeps single-file emission. All placement decisions flow
 through `SparseGeneratedPlacement`: the per-model container derives from
 the stable fully qualified model identity plus a stable hash, UI type
 names dodge source member collisions, and surface/implementation hint
 names stay stable and unique. The isolated consumer probe (a downstream
-generator with no `SparseFragments` runtime reference) verifies that
+generator with no `SparseTypes` runtime reference) verifies that
 Shared never assumes the default namespace.
 
 Multi-generator coexistence falls out of this scheme. Each product sets
@@ -176,7 +176,7 @@ Payload DTOs stay public under E1.
 | `Fragment`/`Patch`/`ChangeSet` algorithms (Between, Compose, Invert, Rebase, Apply, Enumerate) | Per-Model state-bound bodies in private nested `Patch.__Core` / `ChangeSet.__Core` with direct private-state access; pure/shared kernels stay in Generated-Once or `file`-scoped helpers where C3 applies. The per-model container hosts only public `FragmentBuilder`/`SparsePaths` | Per-Model operations, delegating to Generated-Once generics where C3 applies | C3, C4 | #176 landed (#193, #194); #230 moved state-bound bodies to private nested cores |
 | JSON converters, descriptor factories | Per-Model facades over implementation-namespace bodies | Per-Model, under implementation namespace | C5 | #176 landed (#191, #192) |
 | `Observable`, `ReadOnlyView`, `EditSession` | Model-nested types in the annotated model | Model-nested types | C2, C5 | UI/session return (builders/paths move the other way) |
-| `FragmentBuilder`, `SparsePaths<TRoot>` | Implementation-namespace Per-Model types in `SparseFragments.Generated` | Implementation-namespace Per-Model types | C2, C5 | Builder/paths relocation (with `Model.SparsePath` entry point) |
+| `FragmentBuilder`, `SparsePaths<TRoot>` | Implementation-namespace Per-Model types in `SparseTypes.Generated` | Implementation-namespace Per-Model types | C2, C5 | Builder/paths relocation (with `Model.SparsePath` entry point) |
 | Descriptor graphs | Implementation-namespace `DescriptorFactory` per model | Implementation-namespace Per-Model types per #176 | C2, C5 | #176 landed (#191) |
 | `ChangePayload` envelope facade | Per-Model public facade over Generated-Once DTOs | Per-Model public facade over Generated-Once DTOs | C2 | #176 landed (#192) |
 | EditSession core helpers | Compilation-scoped generated source | Generated-Once | C4, C5 | #178 landed |
@@ -215,10 +215,10 @@ through a deliberate Shared-surface change with a README update.
 A runtime-facing interface with a Generated-Once implementation and a
 Per-Model caller, using standalone names:
 
-- Runtime: `global::SparseFragments.Optional<T>` (C1) and
+- Runtime: `global::SparseTypes.Optional<T>` (C1) and
   `CompilerServices.SparseFragmentRuntime.AreEqual` (C2) stay public in
   the compiled assembly.
-- Generated-Once: `SparseFragments.Generated.<Model>_<hash>` holds an
+- Generated-Once: `SparseTypes.Generated.<Model>_<hash>` holds an
   internal generic equality helper parameterized by a delegate, emitted
   once per compilation and callable from every model in it.
 - Per-Model: `Order.Fragment.__SparseAreEqual` calls the Generated-Once

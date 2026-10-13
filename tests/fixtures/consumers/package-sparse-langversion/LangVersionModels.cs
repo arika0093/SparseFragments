@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using SparseFragments;
+using SparseTypes;
 
 // C# 9.0 minimum-language gate (#116). This source must stay C# 9-compatible:
 // block-scoped namespace, explicit usings, no collection expressions, no
@@ -188,7 +188,7 @@ namespace LangVersionProbe
             }
             Require(updatedModel.Label == "after", "ChangeSet model application");
 
-            return "SparseFragments C# 9.0 consumer passed.";
+            return "SparseTypes C# 9.0 consumer passed.";
         }
 
         private static void Require(bool condition, string capability)
@@ -200,7 +200,7 @@ namespace LangVersionProbe
         }
     }
 
-    [SparseFragmentModel]
+    [SparseModel]
     public partial class ProbeSettings
     {
         public string? Label { get; set; }

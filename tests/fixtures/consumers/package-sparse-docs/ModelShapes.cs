@@ -1,7 +1,7 @@
-using SparseFragments;
+using SparseTypes;
 
 // Canonical compile-checked mirror of docs/model-shapes.md (#45).
-// Covers the root model requirements ([SparseFragmentModel] on a partial
+// Covers the root model requirements ([SparseModel] on a partial
 // class) and nested structural promotion: reachable partial nested types
 // automatically receive generated Fragment/Patch APIs without their own
 // annotation.
@@ -58,7 +58,7 @@ public static class ModelShapesSamples
     }
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class ShapeDocsSettings
 {
     public string? Label { get; set; }

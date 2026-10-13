@@ -1,12 +1,12 @@
 # Keyed Collections
 
-SparseFragments can patch a structural list element by element only when each element has a stable key. Array positions are not stable identity: inserting an item at the front changes every later index even though those existing items are still the same logical objects.
+SparseTypes can patch a structural list element by element only when each element has a stable key. Array positions are not stable identity: inserting an item at the front changes every later index even though those existing items are still the same logical objects.
 
 <!-- sample: keyed-first-models -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class Fleet
 {
     public List<Server> Servers { get; set; } = new();
@@ -64,7 +64,7 @@ The collection kind determines how patches apply to its elements:
 
 An explicit `[SparseMerge(MergeMode.Replace)]` always selects whole-value semantics, even for a keyed list or a dictionary. This changes the generated Patch/ChangeSet shape and serialized wire format from per-key operations to a replacement value. The implicit `Default` still uses keyed operations when key metadata is available; key declarations continue to be validated even when explicit replacement is selected.
 
-A structural element is an element SparseFragments can patch through its generated member-level Fragment and Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
+A structural element is an element SparseTypes can patch through its generated member-level Fragment and Patch API. This includes explicit fragment models and eligible reachable `partial` types. A sequence of scalars is never structural, no matter what merge mode is configured.
 
 Choose keyed patching when clients edit, add, remove, or reorder individual items and the server must reconcile those edits against concurrent state: the change set carries per-key operations that rebase element-wise. Choose whole replacement (`Replace`, `Append`, `SetUnion`, or a custom strategy) when the collection is written as one value, such as an append-only history or a computed snapshot. Whole replacement gives up per-item tracking for that member: merges combine whole values and payloads carry one replacement instead of granular entries.
 
@@ -72,7 +72,7 @@ When no key is available and per-element patching is not needed, select whole-co
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class Settings
 {
     [SparseMerge(MergeMode.Append)]
@@ -108,9 +108,9 @@ A composite identity is one computed property whose type holds every component. 
 
 <!-- sample: keyed-composite-model -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedOrder
 {
     public List<KeyedOrderLine> Lines { get; set; } = new();
@@ -143,7 +143,7 @@ public partial class KeyedProduct
     public KeyedSku Key => new() { Code = RawCode.ToUpperInvariant() };
 }
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedCatalog
 {
     public List<KeyedProduct> Products { get; set; } = new();
@@ -196,7 +196,7 @@ Concretely:
 
 ### Avoiding unintended order changes
 
-Because SparseFragments tracks element order as part of collection state, reordering items in a collection produces a non-empty change set with `OrderChanged == true`, even when individual elements are unchanged.
+Because SparseTypes tracks element order as part of collection state, reordering items in a collection produces a non-empty change set with `OrderChanged == true`, even when individual elements are unchanged.
 
 When UI sorting should not be recorded as a persisted data change, use either of two strategies:
 
@@ -218,7 +218,7 @@ property-level sentinel:
 
 <!-- sample: keyed-unassigned-model -->
 ```csharp
-[SparseFragmentModel]
+[SparseModel]
 public partial class PendingFleet
 {
     public List<PendingServer> Servers { get; set; } = new();
@@ -310,9 +310,9 @@ opt-in nullable Guid beside it.
 
 <!-- sample: keyed-temporary-model -->
 ```csharp
-using SparseFragments;
+using SparseTypes;
 
-[SparseFragmentModel]
+[SparseModel]
 public partial class KeyedOrderBook
 {
     public List<KeyedOrderLineDto> Lines { get; set; } = new();
@@ -618,7 +618,7 @@ endpoint re-queries after `SaveChanges`, it retains the
 composite keys the pair carries the full assigned key, such as
 `(TenantId, Number)`. A normal GET maps the same DTO shape with
 `TemporaryId == null`. No special key-mapping response envelope and no
-EF-specific SparseFragments API take part: the client correlates through the
+EF-specific SparseTypes API take part: the client correlates through the
 ordinary persisted DTO.
 
 Persistence policy stays application-owned. Validation, optimistic concurrency

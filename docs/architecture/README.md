@@ -1,7 +1,7 @@
 # Generator architecture
 
 Audience: contributors to the generator and maintainers of downstream
-generators built on `SparseFragments.Generator.Shared`. End users of the
+generators built on `SparseTypes.Generator.Shared`. End users of the
 library start at the repository [README](../../README.md) instead; nothing
 here is needed to use the generated APIs.
 
@@ -9,7 +9,7 @@ here is needed to use the generated APIs.
 
 The generator is organized in three layers:
 
-* `Runtime` ships in the compiled `SparseFragments` assembly: public
+* `Runtime` ships in the compiled `SparseTypes` assembly: public
   contracts such as `Optional<T>`, `FragmentOperation<T>`, `MergeMode`,
   conflict and rebase-result types, plus the generic comparison, merge,
   rebase, provenance, keyed-collection, and clone helpers behind the
@@ -31,7 +31,7 @@ the `ChangePayload` facade, and the UI/editing types (`Observable`,
 `CreateEditSession()`, `ToObservable()`, `CreateChangeSet()`, and the
 `SparsePath` entry point as the entries. Builders, paths, and operation,
 payload, and descriptor machinery live in a stable per-model container in
-`SparseFragments.Generated` (see
+`SparseTypes.Generated` (see
 [Generated type placement](../ui-frameworks.md#generated-type-placement)).
 There are no backwards-compatibility aliases. The surface is pinned by
 `ModelFacingSurfaceTests` and `FragmentOperationsSplitTests`.
@@ -40,9 +40,9 @@ Shared emitters stay product-neutral: anything product-specific arrives
 through `SparseGeneratorConfig` (including `FamilyNames`,
 `GeneratedImplementationNamespace`, and `EmissionFeatures`) and the
 `SparseRuntimeDialect` / `SparsePatchDialect` (/ session, descriptor,
-and edit-session dialects). There is no implicit SparseFragments
+and edit-session dialects). There is no implicit SparseTypes
 fallback. The full contract lives in
-[`src/SparseFragments.Generator.Shared/README.md`](../../src/SparseFragments.Generator.Shared/README.md),
+[`src/SparseTypes.Generator.Shared/README.md`](../../src/SparseTypes.Generator.Shared/README.md),
 which is the reference for downstream consumers.
 
 ## Documents and their status

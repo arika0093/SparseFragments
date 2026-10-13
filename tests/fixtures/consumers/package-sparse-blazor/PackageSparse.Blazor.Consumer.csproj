@@ -15,20 +15,20 @@
   </ItemGroup>
   <!-- Both packages ship from this repository at one shared version (#46), so a
     single version property pins the whole candidate set under test. -->
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' == ''">
-    <ProjectReference Include="../../../../src/SparseFragments/SparseFragments.csproj" />
-    <ProjectReference Include="../../../../src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseTypes/SparseTypes.csproj" />
+    <ProjectReference Include="../../../../src/SparseTypes.Blazor/SparseTypes.Blazor.csproj" />
     <ProjectReference
-      Include="../../../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      Include="../../../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false"
     />
   </ItemGroup>
-  <ItemGroup Condition="'$(SparseFragmentsPackageVersion)' != ''">
-    <PackageReference Include="SparseFragments" Version="$(SparseFragmentsPackageVersion)" />
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' != ''">
+    <PackageReference Include="SparseTypes" Version="$(SparseTypesPackageVersion)" />
     <PackageReference
-      Include="SparseFragments.Blazor"
-      Version="$(SparseFragmentsPackageVersion)"
+      Include="SparseTypes.Blazor"
+      Version="$(SparseTypesPackageVersion)"
     />
   </ItemGroup>
 </Project>
