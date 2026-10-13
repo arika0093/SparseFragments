@@ -85,7 +85,7 @@
                         Disabled="@(!_simulateConflict || _savePending)"
                         aria-label="Conflict handling" />
                 </div>
-                <p class="pg-hint">Standard uses the default three-way rebase. Strict rejects the whole save when the revision changes. Reject field conflicts keeps the current value for overlapping edits and saves unrelated changes.</p>
+                <p class="pg-hint">Standard uses per-field three-way rebase: overlapping edits are reported, and unrelated edits are saved. Strict rejects the whole save when the revision changes.</p>
             </div>
         </FluentCard>
         <FluentCard Class="pg-fluent-card">
@@ -195,7 +195,6 @@
     {
         Standard,
         Strict,
-        RejectFieldConflicts,
     }
 
     private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
@@ -230,8 +229,7 @@
     private ConflictHandlingMode _conflictHandlingMode = ConflictHandlingMode.Standard;
     private ConflictHandlingMode? _pendingConflictHandlingMode;
 
-    private static readonly string[] ConflictHandlingOptions =
-        ["Standard", "Strict", "Reject field conflicts"];
+    private static readonly string[] ConflictHandlingOptions = ["Standard", "Strict"];
 
     private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
     private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baseline));
@@ -375,7 +373,6 @@
     {
         ConflictHandlingMode.Standard => "Standard",
         ConflictHandlingMode.Strict => "Strict",
-        ConflictHandlingMode.RejectFieldConflicts => "Reject field conflicts",
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
 
@@ -385,18 +382,9 @@
         {
             "Standard" => ConflictHandlingMode.Standard,
             "Strict" => ConflictHandlingMode.Strict,
-            "Reject field conflicts" => ConflictHandlingMode.RejectFieldConflicts,
             _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
         };
     }
-
-    private static ChangePayloadRebaseOptions RebaseOptions(ConflictHandlingMode mode) =>
-        new()
-        {
-            DefaultRebaseMode = mode == ConflictHandlingMode.RejectFieldConflicts
-                ? SparseRebaseMode.FailOnConflict
-                : SparseRebaseMode.Default,
-        };
 
     private void RefreshChanges()
     {
@@ -579,8 +567,7 @@
                 submittedChanges,
                 submittedDraft,
                 expectedRevision,
-                conflictHandlingMode,
-                RebaseOptions(conflictHandlingMode));
+                conflictHandlingMode);
         }
         catch (Exception ex)
         {
@@ -595,8 +582,7 @@
         PlaygroundOrderDto.ChangeSet submittedChanges,
         PlaygroundOrderDto submittedDraft,
         int expectedRevision,
-        ConflictHandlingMode conflictHandlingMode,
-        ChangePayloadRebaseOptions rebaseOptions
+        ConflictHandlingMode conflictHandlingMode
     )
     {
         if (_db is null || _tracked is null)
@@ -634,7 +620,7 @@
 
         var localDraftBeforeRebase = Clone(_draft);
         _entityJsonBeforeApply = EntityJson;
-        var submittedRebase = submittedChanges.RebaseOnto(currentBaseline, rebaseOptions);
+        var submittedRebase = submittedChanges.RebaseOnto(currentBaseline);
         var currentFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
             PlaygroundOrderDto.Fragment.From(currentBaseline));
         if (_mapper is null)
@@ -660,7 +646,7 @@
         RetargetNewLineIds(submittedDraft, mergedSubmitted, submittedBaselineAfterSave);
         RetargetNewLineIds(submittedDraft, mergedSubmitted, localDraftBeforeRebase);
         var postSubmitChanges = submittedBaselineAfterSave.CreateChangeSet(localDraftBeforeRebase);
-        var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted, rebaseOptions);
+        var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted);
         var mergedFragment = postSubmitRebase.Rebased.ToPatch().Apply(
             Optional<PlaygroundOrderDto.Fragment?>.Present(PlaygroundOrderDto.Fragment.From(mergedSubmitted)));
         _draft = mergedFragment.Value!.ToModel();
