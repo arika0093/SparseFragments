@@ -1,10 +1,8 @@
+@using SparseFragments
 @using SparseFragments.Playground.Models
 
 @{
     var change = GetRowChange();
-    var titleChanged = change?.IsEdited == true && change.Edit.Title.IsChanged;
-    var pointsChanged = change?.IsEdited == true && change.Edit.Points.IsChanged;
-    var scoresChanged = change?.IsEdited == true && change.Edit.Scores.IsChanged;
 }
 
 <div class="@RowClass(change)">
@@ -15,9 +13,9 @@
                 Value="@Quest.Id"
                 ValueChanged="@(async value => { Quest.Id = value; await NotifyAsync(); })" />
         </div>
-        <div class="pg-roster-field @(titleChanged ? "pg-changed" : "")">
+        <div class="pg-roster-field @(TitleChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (titleChanged)
+                @if (TitleChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
@@ -27,9 +25,9 @@
                 Value="@Quest.Title"
                 ValueChanged="@(async value => { Quest.Title = value; await NotifyAsync(); })" />
         </div>
-        <div class="pg-roster-field @(pointsChanged ? "pg-changed" : "")">
+        <div class="pg-roster-field @(PointsChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (pointsChanged)
+                @if (PointsChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
@@ -41,9 +39,9 @@
         </div>
     </div>
     <div class="pg-rline2">
-        <div class="pg-roster-field @(scoresChanged ? "pg-changed" : "")">
+        <div class="pg-roster-field @(ScoresChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (scoresChanged)
+                @if (ScoresChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
@@ -90,13 +88,24 @@
 
     private int Index => Model.Quests.IndexOf(Quest);
 
-    private PlaygroundRoster.ChangeSet.QuestsTransition.Item? GetRowChange()
+    // Row highlights read the shared keyed-collection state built from the
+    // typed transition, so added/removed/reordered reuse the canonical item
+    // semantics. Per-field dots read the typed member transitions directly.
+    private SparseCollectionState QuestStates =>
+        Changes.KeyedState(PlaygroundRoster.SparsePath.Quests);
+
+    private PlaygroundRoster.ChangeSet.QuestsTransition.Item TypedItem =>
+        Changes.GetChange(Quest.Id);
+
+    private bool TitleChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Title.IsChanged;
+
+    private bool PointsChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Points.IsChanged;
+
+    private bool ScoresChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Scores.IsChanged;
+
+    private SparseCollectionItemState? GetRowChange()
     {
-        if (!Changes.IsChanged)
-        {
-            return null;
-        }
-        var change = Changes.GetChange(Quest.Id);
+        var change = QuestStates.GetItemState(Quest.Id);
         if (change.IsEmpty || (RemovedOnly && !change.IsRemoved))
         {
             return null;
@@ -104,10 +113,10 @@
         return change;
     }
 
-    private static bool IsMoved(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change) =>
-        change is not null && !change.IsAdded && !change.IsRemoved && change.IsReordered;
+    private static bool IsMoved(SparseCollectionItemState? change) =>
+        change.HasValue && !change.Value.IsAdded && !change.Value.IsRemoved && change.Value.IsReordered;
 
-    private static string RowClass(PlaygroundRoster.ChangeSet.QuestsTransition.Item? change)
+    private static string RowClass(SparseCollectionItemState? change)
     {
         var cls = "pg-roster-row";
         if (change?.IsAdded == true)

@@ -32,20 +32,20 @@
                 </div>
             </div>
             <div class="pg-stack pg-edit-fields">
-                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Customer)) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Customer)))Customer <small>string</small></span>
+                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Customer) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Customer))Customer <small>string</small></span>
                     <FluentTextInput Style="flex: 1 1 12rem;"
                         Value="@_draft.Customer"
                         ValueChanged="@(v => EditDraft(d => d.Customer = v ?? string.Empty))" />
                 </div>
-                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Notes)) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Notes)))Notes <small>string</small></span>
+                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Notes) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Notes))Notes <small>string</small></span>
                     <FluentTextInput Style="flex: 1 1 12rem;"
                         Value="@_draft.Notes"
                         ValueChanged="@(v => EditDraft(d => d.Notes = v ?? string.Empty))" />
                 </div>
-                <div class="pg-row pg-session-field @(IsScalarChanged(nameof(PlaygroundOrderDto.Total)) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsScalarChanged(nameof(PlaygroundOrderDto.Total)))Total <small>decimal</small></span>
+                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Total) ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Total))Total <small>decimal</small></span>
                     <FluentNumberInput TValue="decimal" Style="width: 10rem;"
                         Value="@_draft.Total"
                         ValueChanged="@(v => EditDraft(d => d.Total = v))" />
@@ -60,7 +60,7 @@
             <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                 OnUpdate="OnLinesReordered" Context="line">
                 <SortableItemTemplate>
-                    <OrderLineRow Line="line" Draft="_draft" Baseline="_baseline" OnEditDraft="EditDraft" />
+                    <OrderLineRow Line="line" Draft="_draft" Changes="_changes ?? EmptyOrderChangeSet" OnEditDraft="EditDraft" />
                 </SortableItemTemplate>
             </SortableList>
             <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
@@ -232,6 +232,12 @@
 
     private static readonly string[] ConflictHandlingOptions = ["Standard", "Strict"];
 
+    // Empty snapshot for rows while the draft cannot be diffed; rows then render clean.
+    private static readonly PlaygroundOrderDto.ChangeSet EmptyOrderChangeSet =
+        PlaygroundOrderDto.ChangeSet.Between(
+            Optional<PlaygroundOrderDto.Fragment?>.Missing,
+            Optional<PlaygroundOrderDto.Fragment?>.Missing);
+
     private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
     private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baseline));
     private string DraftJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_draft));
@@ -365,13 +371,10 @@
         }
     };
 
-    private bool IsScalarChanged(string property) => property switch
-    {
-        nameof(PlaygroundOrderDto.Customer) => _draft.Customer != _baseline.Customer,
-        nameof(PlaygroundOrderDto.Notes) => _draft.Notes != _baseline.Notes,
-        nameof(PlaygroundOrderDto.Total) => _draft.Total != _baseline.Total,
-        _ => false,
-    };
+    // Scalar highlights read the retained ChangeSet through the shared field
+    // queries instead of hand-rolled draft comparisons.
+    private bool IsChanged<TValue>(SparsePath<PlaygroundOrderDto, TValue> path) =>
+        _changes?.FieldState(path).IsChanged == true;
 
     private static string ConflictHandlingName(ConflictHandlingMode mode) => mode switch
     {

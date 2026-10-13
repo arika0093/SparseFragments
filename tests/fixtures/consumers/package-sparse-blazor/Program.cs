@@ -144,6 +144,7 @@ public static class UiDocSamples
         await BlazorFormSaveAsync();
         BlazorFormConflict();
         await BlazorFormTransportAsync();
+        await BlazorToolkitBindingsAsync();
     }
 
     private static void BlazorFormInput()
@@ -420,6 +421,102 @@ public static class UiDocSamples
             "retry carries the original pending change"
         );
         DocsCheck.Require(!retrySession.HasChanges, "retry from persisted state is clean");
+    }
+
+    // Toolkit-neutral bindings through the packaged Blazor helpers: standard
+    // inputs and custom components share Bind, FieldState, CollectionState,
+    // opt-in history, and session-replacement context handling. Plain probe
+    // code, not a docs sample.
+    private static async Task BlazorToolkitBindingsAsync()
+    {
+        var order = new UiOrder
+        {
+            Number = "ORD-1",
+            Items = [new UiOrderItem { Id = "line-1", Name = "First item" }],
+        };
+        var session = order.CreateEditSession();
+        var context = session.CreateEditContext();
+        using var history = session.CreateHistory();
+
+        // Standard-input wiring: value, the change delegate the renderer
+        // wraps in ValueChanged, and the original-model value expression.
+        var number = session.Bind(UiOrder.SparsePath.Number, context);
+        DocsCheck.Require(number.Value == "ORD-1", "binding reads the live value");
+        DocsCheck.Require(
+            number.ValueExpression is not null,
+            "member path exposes a value expression"
+        );
+        await number.SetAsync("ORD-2");
+        DocsCheck.Require(order.Number == "ORD-2", "binding writes through the session");
+        DocsCheck.Require(context.IsModified(), "binding write marks the field modified");
+        DocsCheck.Require(
+            session.FieldState(UiOrder.SparsePath.Number).IsChanged,
+            "scalar field state reports the edit"
+        );
+
+        // Custom-component wiring over a keyed path: value and callback only,
+        // since keyed paths expose no value expression.
+        var name = session.Bind(UiOrder.SparsePath.Items.Key("line-1").Name, context);
+        DocsCheck.Require(name.ValueExpression is null, "keyed path exposes no expression");
+        await name.SetAsync("Renamed item");
+        DocsCheck.Require(
+            order.Items.Single(item => item.Id == "line-1").Name == "Renamed item",
+            "keyed binding writes through the session"
+        );
+        DocsCheck.Require(
+            session.FieldState(UiOrder.SparsePath.Items.Key("line-1").Name).IsChanged,
+            "keyed field state reports the edit"
+        );
+        DocsCheck.Require(
+            session.CollectionState(UiOrder.SparsePath.Items).GetItemState("line-1").IsEdited,
+            "collection state reports the edited row"
+        );
+        DocsCheck.Require(history.UndoCount == 2, "history retains one entry per action");
+
+        // Undo replays newest-first: the name edit reverts before the number edit.
+        history.Undo();
+        DocsCheck.Require(
+            order.Items.Single(item => item.Id == "line-1").Name == "First item",
+            "undo restores the newest keyed edit"
+        );
+        DocsCheck.Require(order.Number == "ORD-2", "older scalar edit still pending");
+        history.Undo();
+        DocsCheck.Require(order.Number == "ORD-1", "second undo restores the scalar edit");
+        history.Redo();
+        history.Redo();
+        DocsCheck.Require(
+            order.Number == "ORD-2"
+                && order.Items.Single(item => item.Id == "line-1").Name == "Renamed item",
+            "redo reapplies both edits"
+        );
+
+        session.AcceptChanges(context);
+        DocsCheck.Require(!session.HasChanges, "accepted session is clean");
+        DocsCheck.Require(!context.IsModified(), "accept clears the modified flags");
+        DocsCheck.Require(history.UndoCount == 0, "accept clears the opt-in history");
+
+        // Session replacement: the stale context cannot back the fresh
+        // session, and the replacement context binds the persisted model.
+        var persisted = new UiOrder { Number = "SAVED" };
+        var fresh = persisted.CreateEditSession();
+        var staleRejected = false;
+        try
+        {
+            fresh.Bind(UiOrder.SparsePath.Number, context);
+        }
+        catch (ArgumentException)
+        {
+            staleRejected = true;
+        }
+
+        DocsCheck.Require(staleRejected, "stale context rejected by the fresh session");
+        var freshContext = fresh.ReplaceEditContext(context);
+        DocsCheck.Require(
+            ReferenceEquals(freshContext.Model, persisted),
+            "replacement context binds the persisted model"
+        );
+        var freshBinding = fresh.Bind(UiOrder.SparsePath.Number, freshContext);
+        DocsCheck.Require(freshBinding.Value == "SAVED", "fresh binding reads persisted state");
     }
 
     private static void WpfObservableBinding()

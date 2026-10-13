@@ -1,3 +1,6 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using SparseFragments
+@using SparseFragments.Blazor
 @using SparseFragments.Playground.Models
 @using SettingsSession = global::SparseFragments.Playground.Models.PlaygroundSettings.EditSession;
 @using TaskObservable = global::SparseFragments.Playground.Models.PlaygroundTask.Observable;
@@ -11,27 +14,27 @@
                 ValueChanged="@(value => _idDraft = value ?? string.Empty)"
                 @onfocusout="CommitTaskId" />
         </div>
-        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundTask.Title)) ? "pg-changed" : "")">
+        <div class="pg-roster-field @(TitleChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (IsChanged(nameof(PlaygroundTask.Title)))
+                @if (TitleChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
                 Title
             </span>
-            <FluentTextInput Value="@Task.Title"
-                ValueChanged="@(value => Edit(() => Task.Title = value ?? string.Empty))" />
+            <FluentTextInput Value="@_title.Value"
+                ValueChanged="@_title.SetAsync" />
         </div>
-        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundTask.Points)) ? "pg-changed" : "")">
+        <div class="pg-roster-field @(PointsChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (IsChanged(nameof(PlaygroundTask.Points)))
+                @if (PointsChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
                 Points
             </span>
-            <FluentNumberInput TValue="int" Style="width: 100%;" Value="@Task.Points"
-                ValueChanged="UpdatePoints" />
+            <FluentNumberInput TValue="int" Style="width: 100%;" Value="@_points.Value"
+                ValueChanged="@_points.SetAsync" />
         </div>
         <div class="pg-roster-actions pg-task-actions">
             <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
@@ -53,91 +56,59 @@
     [Parameter, EditorRequired]
     public TaskObservable Task { get; set; } = null!;
 
+    // Point-in-time snapshot from the parent render; row and field lookups
+    // probe it without re-diffing the live model per row.
     [Parameter, EditorRequired]
-    public List<PlaygroundTask> BaselineTasks { get; set; } = [];
+    public PlaygroundSettings.ChangeSet Changes { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public Func<TaskObservable, PlaygroundTask?> GetBaseline { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Action<TaskObservable> ForgetBaseline { get; set; } = null!;
-
-    [Parameter]
-    public int DraftVersion { get; set; }
+    public EditContext EditContext { get; set; } = null!;
 
     [Parameter]
     public EventCallback<string?> OnError { get; set; }
 
     private TaskObservable? _lastTask;
-    private int _lastDraftVersion = -1;
+    private string? _lastBoundId;
     private string _idDraft = string.Empty;
+    private SparseFieldBinding<PlaygroundSettings, string> _title = null!;
+    private SparseFieldBinding<PlaygroundSettings, int> _points = null!;
     private int Index => Session.Observable.Tasks.IndexOf(Task);
-    private string RowClass => Baseline is null ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
-    private PlaygroundTask? Baseline => GetBaseline(Task);
+
+    // Row highlights reuse the canonical keyed semantics instead of a
+    // hand-rolled baseline map: added rows report IsAdded, surviving rows
+    // report IsReordered on relative-rank changes.
+    private SparseCollectionItemState RowState =>
+        Changes.Tasks.KeyedState(PlaygroundSettings.SparsePath.Tasks).GetItemState(Task.Id);
+
+    private bool TitleChanged =>
+        Changes.FieldState(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Title).IsChanged;
+
+    private bool PointsChanged =>
+        Changes.FieldState(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Points).IsChanged;
+
+    private string RowClass =>
+        RowState.IsAdded
+            ? "pg-roster-row pg-added"
+            : !RowState.IsRemoved && RowState.IsReordered
+                ? "pg-roster-row pg-moved"
+                : "pg-roster-row";
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_lastTask, Task) || _lastDraftVersion != DraftVersion)
+        if (!ReferenceEquals(_lastTask, Task) || !string.Equals(_lastBoundId, Task.Id, StringComparison.Ordinal))
         {
             _lastTask = Task;
-            _lastDraftVersion = DraftVersion;
+            _lastBoundId = Task.Id;
             _idDraft = Task.Id;
+            // Toolkit-neutral bindings over the keyed path: reads resolve live
+            // and writes notify the shared EditContext. Keyed paths expose no
+            // value expression, so Fluent inputs bind value and callback only.
+            _title = Session.Bind(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Title, EditContext);
+            _points = Session.Bind(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Points, EditContext);
         }
     }
-
-    private bool IsChanged(string property)
-    {
-        var baseline = Baseline;
-        if (baseline is null)
-        {
-            return false;
-        }
-
-        return property switch
-        {
-            nameof(PlaygroundTask.Title) => Task.Title != baseline.Title,
-            nameof(PlaygroundTask.Points) => Task.Points != baseline.Points,
-            _ => false,
-        };
-    }
-
-    private bool IsMoved
-    {
-        get
-        {
-            var baseline = Baseline;
-            var baselineIndex = baseline is null ? -1 : BaselineTasks.IndexOf(baseline);
-            if (baselineIndex < 0)
-            {
-                return false;
-            }
-
-            var currentRank = 0;
-            for (var i = 0; i < Index; i++)
-            {
-                if (FindBaseline(Session.Observable.Tasks[i]) is not null)
-                {
-                    currentRank++;
-                }
-            }
-
-            var baselineRank = BaselineTasks.Take(baselineIndex)
-                .Count(item => Session.Observable.Tasks.Any(task => task.Id == item.Id));
-            return currentRank != baselineRank;
-        }
-    }
-
-    private PlaygroundTask? FindBaseline(TaskObservable task) => GetBaseline(task);
 
     private void Edit(Action edit) => Session.BatchEdit(edit);
-
-    private void UpdatePoints(int value)
-    {
-        if (value != Task.Points)
-        {
-            Edit(() => Task.Points = value);
-        }
-    }
 
     private async Task CommitTaskId()
     {
@@ -169,7 +140,6 @@
             tasks.RemoveAt(index);
             tasks.InsertModel(index, new PlaygroundTask { Id = value, Title = title, Points = points });
         });
-        ForgetBaseline(Task);
         _idDraft = value;
     }
 

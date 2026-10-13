@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference Include="../../src/SparseFragments.Blazor/SparseFragments.Blazor.csproj" />
     <ProjectReference Include="../../src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj" />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"

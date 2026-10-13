@@ -1,9 +1,9 @@
 @using SparseFragments.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Create an EditSession to track model changes, then observe transitions and use them to implement logging, undo, and redo.</p>
+    <p class="pg-hint">Create an EditSession to track model changes, bind Fluent inputs through the toolkit-neutral Blazor helpers, and rely on opt-in history plus a session scope for undo, redo, and refresh.</p>
     <FluentTabs Orientation="Orientation.Vertical">
-        <FluentTab Header="Session / BatchEdit" Id="code-4-session">
+        <FluentTab Header="Session / Bind" Id="code-4-session">
             <MonacoView Content="@SessionCode" Language="csharp" Height="390px" />
         </FluentTab>
         <FluentTab Header="Monitor / Undo / Redo" Id="code-4-history">
@@ -21,61 +21,59 @@
         var observable = session.Observable; // Bind input controls to this observable.
         var shown = session.Current.RetryCount; // Read display state from the read-only view.
 
-        session.BatchEdit(() =>
+        // Toolkit-neutral Blazor bindings: the same API serves standard inputs
+        // and third-party components such as the Fluent inputs below.
+        var editContext = session.CreateEditContext();
+        var retryCount = session.Bind(Model.SparsePath.RetryCount, editContext);
+        // FluentNumberInput Value="@retryCount.Value" ValueChanged="@retryCount.SetAsync"
+
+        if (session.FieldState(Model.SparsePath.RetryCount).IsChanged)
         {
-            session.Observable.RetryCount = 5;
-            session.Observable.Label = "updated";
-        }); // Group these changes into one transition.
+            // Highlight the edited field; no handwritten baseline compare.
+        }
 
         if (session.HasChanges)
         {
             var pending = session.CreateChangeSet(); // Typed before-to-after transition for save.
-            session.AcceptChanges(); // Submit: keep the current state as the new baseline.
+            session.AcceptChanges(editContext); // Submit and clear the context modified flags.
         }
-        void Reset() => session.RevertChanges(); // Discard pending edits and restore the baseline.
+        void Reset()
+        {
+            session.RevertChanges(); // Discard pending edits and restore the baseline.
+            editContext.MarkAsUnmodified();
+        }
         """;
 
     private const string MonitorCode = """
-        // Each stack stores one ChangeSet per observed transition.
-        var undo = new Stack<PlaygroundSettings.ChangeSet>();
-        var redo = new Stack<PlaygroundSettings.ChangeSet>();
-        var applyingHistory = false; // Prevent replayed transitions from being recorded again.
+        // Opt-in history: without CreateHistory the session retains nothing.
+        // The history subscribes to transitions itself; replayed operations
+        // are never re-recorded and BatchEdit stores one entry per action.
+        var history = session.CreateHistory();
 
         session.TransitionObserved += transition =>
         {
-            if (!applyingHistory)
-            {
-                undo.Push(transition);
-                redo.Clear();
-            }
-
             logger.LogInformation(
                 "Observed edit: {ChangedPaths}",
                 string.Join(", ", transition.EnumerateChangedPaths()));
         };
+
+        // Appearance-free refresh: the scope cascades the session and
+        // re-renders its subtree once per session notification.
+        // <SparseSessionScope TModel="Model" Session="@session"> ... </SparseSessionScope>
         """;
 
     private const string HistoryCode = """
         void Undo()
         {
-            if (undo.Count == 0) return;
-            var transition = undo.Peek();
-            applyingHistory = true;
-            try { session.ApplyInPlace(transition.Invert()); }
-            finally { applyingHistory = false; }
-            undo.Pop();
-            redo.Push(transition);
+            history.Undo(); // Applies the inverted ChangeSet; throws when empty or conflicting.
         }
 
         void Redo()
         {
-            if (redo.Count == 0) return;
-            var transition = redo.Peek();
-            applyingHistory = true;
-            try { session.ApplyInPlace(transition); }
-            finally { applyingHistory = false; }
-            redo.Pop();
-            undo.Push(transition);
+            history.Redo(); // Reapplies the undone ChangeSet.
         }
+
+        // Accept/revert clear registered histories on success, so submit and
+        // reset need no manual stack handling.
         """;
 }

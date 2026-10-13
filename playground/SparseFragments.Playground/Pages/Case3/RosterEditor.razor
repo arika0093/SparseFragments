@@ -36,10 +36,11 @@
     public EventCallback OnChanged { get; set; }
 
     /// <summary>
-    /// Gets or sets the typed keyed quest transition consumed directly via
-    /// <c>GetChange</c>. Pass an empty transition when the roster state is invalid.
+    /// Gets or sets the typed keyed quest transition consumed through the
+    /// shared collection state and the typed per-field transitions. Pass an
+    /// empty transition when the roster state is invalid.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public PlaygroundRoster.ChangeSet.QuestsTransition Changes { get; set; } = null!;
 
     /// <summary>Gets or sets whether reorder controls (handle, up/down) are shown.</summary>

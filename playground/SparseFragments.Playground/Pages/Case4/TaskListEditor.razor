@@ -1,3 +1,4 @@
+@using Microsoft.AspNetCore.Components.Forms
 @using SparseFragments.Playground.Models
 @using SparseFragments.Playground.Components
 @using SettingsSession = global::SparseFragments.Playground.Models.PlaygroundSettings.EditSession;
@@ -10,8 +11,7 @@
 <SortableList Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
     OnUpdate="OnSortableUpdate" Context="task">
     <SortableItemTemplate>
-        <TaskRow Task="task" Session="Session" BaselineTasks="BaselineTasks" DraftVersion="DraftVersion"
-            GetBaseline="GetBaseline" ForgetBaseline="ForgetBaseline" OnError="SetTaskError" />
+        <TaskRow Task="task" Session="Session" Changes="Changes" EditContext="EditContext" OnError="SetTaskError" />
     </SortableItemTemplate>
 </SortableList>
 @if (_taskError is not null)
@@ -26,17 +26,17 @@
     [Parameter, EditorRequired]
     public SettingsSession Session { get; set; } = null!;
 
+    // Retained only so Add avoids reusing an id from the submitted baseline,
+    // which would read as an edit of the removed row instead of an addition.
     [Parameter, EditorRequired]
     public List<PlaygroundTask> BaselineTasks { get; set; } = [];
 
-    [Parameter]
-    public int DraftVersion { get; set; }
+    // Point-in-time snapshot from the parent render, shared by all rows.
+    [Parameter, EditorRequired]
+    public PlaygroundSettings.ChangeSet Changes { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public Func<TaskObservable, PlaygroundTask?> GetBaseline { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Action<TaskObservable> ForgetBaseline { get; set; } = null!;
+    public EditContext EditContext { get; set; } = null!;
 
     private string? _taskError;
 

@@ -1,12 +1,12 @@
 @using SparseFragments.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Create a ChangeSet from Before and After, inspect changes by quest Id, summarize its collections, then apply it to the model.</p>
+    <p class="pg-hint">Create a ChangeSet from Before and After, inspect rows through the shared collection and field state, summarize its collections, then apply it to the model.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Create ChangeSet" Id="code-3-create">
             <MonacoView Content="@RosterChangeSetCode" Language="csharp" Height="230px" />
         </FluentTab>
-        <FluentTab Header="GetChange per row" Id="code-3-row">
+        <FluentTab Header="State per row" Id="code-3-row">
             <MonacoView Content="@RosterRowCode" Language="csharp" Height="340px" />
         </FluentTab>
         <FluentTab Header="Build a summary" Id="code-3-summary">
@@ -29,19 +29,21 @@
         """;
 
     private const string RosterRowCode = """
+        var quests = changes.Quests.KeyedState(PlaygroundRoster.SparsePath.Quests);
         foreach (var quest in after.Quests)
         {
-            var change = changes.Quests.GetChange(quest.Id);
+            var change = quests.GetItemState(quest.Id);
+            var typed = changes.Quests.GetChange(quest.Id);
 
             if (change.IsAdded) Console.WriteLine($"{quest.Id}: added");
-            if (change.IsEdited && change.Edit.Title.IsChanged)
+            if (!typed.IsEmpty && typed.IsEdited && typed.Edit.Title.IsChanged)
                 Console.WriteLine($"{quest.Id}: title changed");
             if (change.IsReordered) Console.WriteLine($"{quest.Id}: reordered");
         }
 
         foreach (var quest in before.Quests)
         {
-            var change = changes.Quests.GetChange(quest.Id);
+            var change = quests.GetItemState(quest.Id);
             if (change.IsRemoved) Console.WriteLine($"{quest.Id}: removed");
         }
         """;

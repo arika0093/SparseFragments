@@ -1,3 +1,4 @@
+@using SparseFragments
 @using SparseFragments.Playground.Models
 
 <div class="@RowClass pg-task-row">
@@ -6,9 +7,9 @@
             <span class="pg-mini notranslate" translate="no">Id <small>@(Line.Id.HasValue ? "int" : "new")</small></span>
             <FluentTextInput Value="@(Line.Id.HasValue ? $"#{Line.Id.Value}" : "#new")" ReadOnly="true" />
         </div>
-        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
+        <div class="pg-roster-field @(ProductChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (IsChanged(nameof(PlaygroundOrderLineDto.Product)))
+                @if (ProductChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
@@ -17,9 +18,9 @@
             <FluentTextInput Value="@Line.Product"
                 ValueChanged="@(value => EditDraft(draft => draft.Lines[Index].Product = value ?? string.Empty))" />
         </div>
-        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundOrderLineDto.Qty)) ? "pg-changed" : "")">
+        <div class="pg-roster-field @(QtyChanged ? "pg-changed" : "")">
             <span class="pg-mini notranslate" translate="no">
-                @if (IsChanged(nameof(PlaygroundOrderLineDto.Qty)))
+                @if (QtyChanged)
                 {
                     <span class="pg-dot" title="edited"></span>
                 }
@@ -47,60 +48,41 @@
     [Parameter, EditorRequired]
     public PlaygroundOrderDto Draft { get; set; } = null!;
 
+    // Point-in-time draft transition for highlights. The parent passes the
+    // empty snapshot while the draft cannot be diffed; rows then render clean.
     [Parameter, EditorRequired]
-    public PlaygroundOrderDto Baseline { get; set; } = null!;
+    public PlaygroundOrderDto.ChangeSet Changes { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public EventCallback<Action<PlaygroundOrderDto>> OnEditDraft { get; set; }
 
     private int Index => Draft.Lines.IndexOf(Line);
-    private PlaygroundOrderLineDto? BaselineLine => GetLineBaseline(Line);
-    private string RowClass => BaselineLine is null ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
 
-    private bool IsChanged(string property)
-    {
-        var baselineLine = BaselineLine;
-        if (baselineLine is null)
-        {
-            return false;
-        }
+    // New rows carry no store identity, exactly as before: they render added.
+    private bool IsAdded => !Line.Id.HasValue;
 
-        return property switch
-        {
-            nameof(PlaygroundOrderLineDto.Product) => Line.Product != baselineLine.Product,
-            nameof(PlaygroundOrderLineDto.Qty) => Line.Qty != baselineLine.Qty,
-            _ => false,
-        };
-    }
+    // Row and field highlights reuse the shared collection and field state.
+    // Moved observes surviving-key relative rank, matching the old manual
+    // rank comparison. Added rows never query per-field state.
+    private SparseCollectionState LineStates =>
+        Changes.Lines.KeyedState(PlaygroundOrderDto.SparsePath.Lines);
 
-    private bool IsMoved
-    {
-        get
-        {
-            var baselineLine = BaselineLine;
-            var baselineIndex = baselineLine is null ? -1 : Baseline.Lines.IndexOf(baselineLine);
-            if (baselineIndex < 0)
-            {
-                return false;
-            }
+    private bool ProductChanged =>
+        !IsAdded
+        && Line.Id is int productId
+        && Changes.FieldState(PlaygroundOrderDto.SparsePath.Lines.Key(productId).Product).IsChanged;
 
-            var currentRank = 0;
-            for (var i = 0; i < Index; i++)
-            {
-                if (GetLineBaseline(Draft.Lines[i]) is not null)
-                {
-                    currentRank++;
-                }
-            }
+    private bool QtyChanged =>
+        !IsAdded
+        && Line.Id is int qtyId
+        && Changes.FieldState(PlaygroundOrderDto.SparsePath.Lines.Key(qtyId).Qty).IsChanged;
 
-            var baselineRank = Baseline.Lines.Take(baselineIndex)
-                .Count(item => Draft.Lines.Any(line => line.Id == item.Id));
-            return currentRank != baselineRank;
-        }
-    }
+    private bool IsMoved =>
+        !IsAdded
+        && Line.Id is int movedId
+        && LineStates.GetItemState(movedId) is { IsRemoved: false, IsReordered: true };
 
-    private PlaygroundOrderLineDto? GetLineBaseline(PlaygroundOrderLineDto line) =>
-        line.Id.HasValue ? Baseline.Lines.FirstOrDefault(item => item.Id == line.Id) : null;
+    private string RowClass => IsAdded ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
 
     private Task EditDraft(Action<PlaygroundOrderDto> edit) => OnEditDraft.InvokeAsync(edit);
 

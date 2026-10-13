@@ -522,6 +522,20 @@ of the session. After the server returns authoritative state, adopt a fresh
 session and a fresh `EditContext` from the persisted model and key the
 `EditForm` so Blazor rebuilds the inputs against the new context.
 
+### Toolkit-neutral consumption in the playground
+
+The playground references `SparseFragments.Blazor` as an ordinary third-party
+package and keeps its existing Fluent UI controls. The library has no
+Fluent-specific integration and no dependency on Fluent, MudBlazor, or any
+other vendor component set; the same binding, state, and history members serve
+standard inputs and custom components alike. Its undo and redo demo builds on
+the opt-in history factory, the session scope, typed bindings, and the field
+and collection state queries, with no handwritten baseline maps or history
+stacks. The keyed-list and mapping demos read their added, removed, moved,
+and edited highlights from the same state queries. The mapping demo keeps its
+delayed submit, post-submit edits, and temporary-identity correlation, which
+the session acknowledgement paths do not replace.
+
 ## WPF, WinForms, .NET MAUI, WinUI, and Avalonia
 
 These frameworks bind the generated observable wrapper (the model-nested `Observable` type). The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.
