@@ -313,7 +313,7 @@ public class EfCoreKeyedCollectionApplyBenchmarks
     private EfApplyOrderEntity _entity = null!;
     private EfApplyOrderDto.ChangeSet _changes = null!;
 
-    [Params(16, 128)]
+    [Params(16, 128, 1024)]
     public int CollectionSize { get; set; }
 
     [Params(true, false)]
