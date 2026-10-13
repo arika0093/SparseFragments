@@ -505,6 +505,23 @@ Errors obtained elsewhere (for example structured rebase conflicts) surface the 
 
 A session ChangeSet is sent through its generated `T.ChangePayload`: call `ToPayload()` before transport, then call `ToChangeSet()` on receipt before reconciling with `RebaseOnto` (see [ChangeSet rebase](rebase.md)). SparseFragments provides no transport abstraction. Transport configuration stays with the application.
 
+### Session scope and refresh
+
+The `SparseFragments.Blazor` package also provides `SparseSessionScope`, an
+appearance-free component that cascades the active session to its subtree and
+re-renders that subtree once per session notification. This replaces the
+manual `TransitionObserved` subscription plus `InvokeAsync(StateHasChanged)`
+pair that each form otherwise repeats, including its `Dispose` unhook. The
+scope subscribes through `INotifyPropertyChanged`, which every generated
+session implements, and marshals through the Blazor synchronization context.
+Replacing the cascaded session unsubscribes the old one first; disposing the
+scope unsubscribes entirely. Refresh stays session-level: group one user
+action with `BatchEdit` so it notifies once, and read field or collection
+state on demand where a subtree updates at high frequency and only needs part
+of the session. After the server returns authoritative state, adopt a fresh
+session and a fresh `EditContext` from the persisted model and key the
+`EditForm` so Blazor rebuilds the inputs against the new context.
+
 ## WPF, WinForms, .NET MAUI, WinUI, and Avalonia
 
 These frameworks bind the generated observable wrapper (the model-nested `Observable` type). The wrapper writes through to the same underlying model and raises `INotifyPropertyChanged` notifications for binding.

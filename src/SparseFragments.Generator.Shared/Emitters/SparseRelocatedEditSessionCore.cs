@@ -134,6 +134,10 @@ internal static class SparseRelocatedEditSessionCore
         {
             sessionBases += ", global::" + openDraftStateInterfaceMetadataName;
         }
+        // Sessions already raise PropertyChanged with the standard signature; declaring the
+        // interface lets framework-neutral subscribers (such as the Blazor session scope)
+        // attach without reflection or a ChangeSet-typed event.
+        sessionBases += ", global::System.ComponentModel.INotifyPropertyChanged";
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
         // Public surface first; internal constructors and private state follow.

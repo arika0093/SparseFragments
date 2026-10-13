@@ -58,4 +58,17 @@ namespace SparseFragments.Blazor
         public bool TryGetValue(out TValue? value, out string? error) { }
         public bool TrySet(TValue? value, out string? error) { }
     }
+    public sealed class SparseSessionScope<TModel> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+        where TModel :  class
+    {
+        public SparseSessionScope() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseFragments.ISparseEditSession<TModel>? Session { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        public void Dispose() { }
+        protected override void OnParametersSet() { }
+    }
+    }
 }

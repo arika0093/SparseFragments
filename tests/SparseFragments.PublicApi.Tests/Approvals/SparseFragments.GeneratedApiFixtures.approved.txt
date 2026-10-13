@@ -1343,7 +1343,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -1607,7 +1607,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogImmutable, SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -1839,7 +1839,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -2079,7 +2079,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet? resolved, out string? failureReason) { }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -2341,7 +2341,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseFragments.ResolvedChoice> choices, out SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet? resolved, out string? failureReason) { }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogNested, SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -2608,7 +2608,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
@@ -2865,7 +2865,7 @@ namespace SparseFragments.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>
+        public sealed class EditSession : SparseFragments.ISparseEditSessionModelAccessor<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar>, SparseFragments.ISparseEditSession<SparseFragments.GeneratedApiFixtures.CatalogScalar, SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ReadOnlyView Current { get; }
             public SparseFragments.Generated.IDescriptorSet Descriptors { get; }
