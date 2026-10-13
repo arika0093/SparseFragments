@@ -896,6 +896,55 @@ namespace SparseFragments
     {
         public SparseTemporaryKeyAttribute() { }
     }
+    public sealed class SparseValidationConflictOptions : System.IEquatable<SparseFragments.SparseValidationConflictOptions>
+    {
+        public SparseValidationConflictOptions() { }
+        public System.Func<SparseFragments.SparseConflict, string>? MessageFactory { get; init; }
+        public string Origin { get; init; }
+        public bool ReplaceOriginFirst { get; init; }
+        public string GetMessage(SparseFragments.SparseConflict conflict) { }
+    }
+    public readonly struct SparseValidationError : System.IEquatable<SparseFragments.SparseValidationError>
+    {
+        public SparseValidationError() { }
+        public object? Error { get; init; }
+        public string Origin { get; init; }
+        public SparseFragments.SparsePath Path { get; init; }
+        public string PathText { get; }
+    }
+    public static class SparseValidationOrigins
+    {
+        public const string LocalValidation = "local";
+        public const string RebaseConflict = "conflict";
+        public const string ServerValidation = "server";
+    }
+    public sealed class SparseValidationStore<TModel> : System.ComponentModel.INotifyDataErrorInfo, System.IDisposable
+    {
+        public SparseValidationStore() { }
+        public bool HasErrors { get; }
+        public bool IsDisposed { get; }
+        public System.Type RootType { get; }
+        public event System.EventHandler<System.ComponentModel.DataErrorsChangedEventArgs>? ErrorsChanged;
+        public int AddConflicts(System.Collections.Generic.IEnumerable<SparseFragments.SparseConflict> conflicts, SparseFragments.SparseValidationConflictOptions? options = null) { }
+        public void Clear() { }
+        public void ClearErrors(SparseFragments.Generated.IDescriptor descriptor, string? origin = null) { }
+        public void ClearErrors(SparseFragments.SparsePath path, string? origin = null) { }
+        public void ClearErrors<TValue>(SparseFragments.SparsePath<TModel, TValue> path, string? origin = null) { }
+        public void ClearOrigin(string origin) { }
+        public void Dispose() { }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparseValidationError> GetAllErrors() { }
+        public System.Collections.IEnumerable GetErrors(string? propertyName) { }
+        public System.Collections.Generic.IReadOnlyList<object?> GetPathErrors(SparseFragments.SparsePath path) { }
+        public System.Collections.Generic.IReadOnlyList<object?> GetPathErrors<TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public bool HasPathErrors(SparseFragments.SparsePath path) { }
+        public bool HasPathErrors<TValue>(SparseFragments.SparsePath<TModel, TValue> path) { }
+        public void SetErrors(SparseFragments.Generated.IDescriptor descriptor, string origin, System.Collections.Generic.IEnumerable<object?> errors) { }
+        public void SetErrors(SparseFragments.Generated.IDescriptor descriptor, string origin, string message) { }
+        public void SetErrors(SparseFragments.SparsePath path, string origin, System.Collections.Generic.IEnumerable<object?> errors) { }
+        public void SetErrors(SparseFragments.SparsePath path, string origin, string message) { }
+        public void SetErrors<TValue>(SparseFragments.SparsePath<TModel, TValue> path, string origin, System.Collections.Generic.IEnumerable<object?> errors) { }
+        public void SetErrors<TValue>(SparseFragments.SparsePath<TModel, TValue> path, string origin, string message) { }
+    }
 }
 namespace SparseFragments.CompilerServices
 {
