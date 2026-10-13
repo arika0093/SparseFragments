@@ -12,7 +12,9 @@ internal static class PlaygroundConcurrency
     {
         using var otherUserDb = new PlaygroundEfContext(options);
         var otherUserOrder = otherUserDb.Orders.Single(order => order.Id == orderId);
-        otherUserOrder.CustomerName = $"{otherUserOrder.CustomerName} (edited by another user)";
+        otherUserOrder.CustomerName = PlaygroundRandom.CreateDifferentCustomerName(
+            otherUserOrder.CustomerName
+        );
         otherUserOrder.Revision++;
         otherUserDb.SaveChanges();
     }

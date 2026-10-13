@@ -55,6 +55,12 @@
 
         var mapper = SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>.Create(
             new PlaygroundOrderMapper(), db.Model);
+        var rebaseOptions = new ChangePayloadRebaseOptions
+        {
+            DefaultRebaseMode = selectedMode == ConflictHandlingMode.RejectFieldConflicts
+                ? SparseRebaseMode.FailOnConflict
+                : SparseRebaseMode.Default,
+        };
         // Apply now, or when the 10-second snackbar expires.
         mapper.Apply(db, tracked, accepted); // No query, no SaveChanges.
         var modified = db.ChangeTracker.Entries()
@@ -75,18 +81,32 @@
         }
         catch (DbUpdateConcurrencyException)
         {
-            var current = Project(await ReloadOrderAsync(tracked.Id));
-            var rebase = accepted.RebaseOnto(current);
-            var currentFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
-                PlaygroundOrderDto.Fragment.From(current));
-            var merged = rebase.Rebased.ToPatch().Apply(currentFragment).Value!.ToModel();
+            db.ChangeTracker.Clear();
+            var currentEntity = await ReloadOrderAsync(tracked.Id);
+            var current = Project(currentEntity);
+            if (selectedMode == ConflictHandlingMode.Strict)
+            {
+                baseline = current;
+                ShowRevisionConflict(tracked.Revision, currentEntity.Revision);
+                return; // Reject every submitted field when the order revision changed.
+            }
+
+            var rebase = accepted.RebaseOnto(current, rebaseOptions);
+            mapper.Apply(db, currentEntity, rebase.Rebased);
+            if (db.ChangeTracker.HasChanges())
+            {
+                currentEntity.Revision++;
+                await db.SaveChangesAsync();
+            }
+
+            var persisted = Project(await ReloadOrderAsync(tracked.Id));
             var editsWhileWaiting = submittedDraft.CreateChangeSet(draft);
             var mergedFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
-                PlaygroundOrderDto.Fragment.From(merged));
-            draft = editsWhileWaiting.RebaseOnto(merged).Rebased.ToPatch()
+                PlaygroundOrderDto.Fragment.From(persisted));
+            draft = editsWhileWaiting.RebaseOnto(persisted, rebaseOptions).Rebased.ToPatch()
                 .Apply(mergedFragment).Value!.ToModel();
-            baseline = current;
-            ShowConflictDialog(rebase.Conflicts);
+            baseline = persisted;
+            if (rebase.HasConflicts) ShowConflictDialog(rebase.Conflicts);
         }
         """;
 

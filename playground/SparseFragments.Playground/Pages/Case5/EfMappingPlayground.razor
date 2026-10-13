@@ -69,6 +69,24 @@
                 <span class="pg-lg"><span class="pg-dot"></span>edited</span>
             </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
+            <div class="pg-case5-rebase-options">
+                <FluentCheckbox Value="@_simulateConflict"
+                    ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
+                    Simulate another user editing before save
+                </FluentCheckbox>
+                <div class="pg-case5-rebase-select">
+                    <span class="pg-name">Conflict handling</span>
+                    <FluentSelect TOption="string" TValue="string"
+                        Items="@ConflictHandlingOptions"
+                        OptionValue="@(value => value)"
+                        OptionText="@(value => value)"
+                        Value="@ConflictHandlingName(_conflictHandlingMode)"
+                        ValueChanged="OnConflictHandlingChanged"
+                        Disabled="@(!_simulateConflict || _savePending)"
+                        aria-label="Conflict handling" />
+                </div>
+                <p class="pg-hint">Standard uses the default three-way rebase. Strict rejects the whole save when the revision changes. Reject field conflicts keeps the current value for overlapping edits and saves unrelated changes.</p>
+            </div>
         </FluentCard>
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
@@ -77,13 +95,7 @@
                     <span aria-hidden="true"></span>@(_changes?.IsChanged == true ? "Changes" : "No changes")
                 </span>
             </div>
-            <div class="pg-case5-conflict-toggle">
-                <FluentCheckbox Value="@_simulateConflict"
-                    ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
-                    Simulate another user editing before save
-                </FluentCheckbox>
-            </div>
-            <p class="pg-hint">When enabled, a concurrent update changes the order revision. The submitted save is rejected and its changes are rebased onto the latest entity.</p>
+            <p class="pg-hint">Saving checks the order revision. The simulation increments it to demonstrate each conflict handling mode.</p>
             @if (_changesError is not null)
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_changesError</FluentMessageBar>
@@ -102,25 +114,32 @@
             }
             @if (_applied)
             {
-                <div class="pg-change-table-wrap">
-                    <table class="pg-change-table" aria-label="Modified EF properties">
-                        <thead>
-                            <tr><th>Entity</th><th>Operation</th><th>Property</th><th>Before</th><th>After</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in _modifiedRows)
-                            {
-                                <tr>
-                                    <td><span class="pg-change-value">@row.Entity</span></td>
-                                    <td><span class="@ChangeOperationClass(EfStateOperation(row.State))">@EfStateOperation(row.State)</span></td>
-                                    <td><span class="pg-change-value">@row.Property</span></td>
-                                    <td><span class="pg-change-value">@row.Before</span></td>
-                                    <td><span class="pg-change-value">@row.After</span></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @if (_modifiedRows.Count == 0)
+                {
+                    <p class="pg-hint">No EF Core properties changed.</p>
+                }
+                else
+                {
+                    <div class="pg-change-table-wrap pg-case5-results-wrap">
+                        <table class="pg-change-table pg-case5-results-table" aria-label="Modified EF properties">
+                            <thead>
+                                <tr><th>Entity</th><th>Operation</th><th>Property</th><th>Before</th><th>After</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in _modifiedRows)
+                                {
+                                    <tr>
+                                        <td><span class="pg-change-value">@row.Entity</span></td>
+                                        <td><span class="@PlaygroundEfPresentation.ChangeOperationClass(PlaygroundEfPresentation.EfStateOperation(row.State))">@PlaygroundEfPresentation.EfStateOperation(row.State)</span></td>
+                                        <td><span class="pg-change-value">@row.Property</span></td>
+                                        <td><span class="pg-change-value">@row.Before</span></td>
+                                        <td><span class="pg-change-value">@row.After</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
                 <MonacoDiffView Original="@_entityJsonBeforeApply" Modified="@EntityJson" Language="json" Height="240px" />
             }
         </FluentCard>
@@ -151,7 +170,7 @@
                         @foreach (var row in _changeRows)
                         {
                             <tr>
-                                <td><span class="@ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                <td><span class="@PlaygroundEfPresentation.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
                                 <td><span class="pg-change-value">@row.Path</span></td>
                                 <td><span class="pg-change-value">@row.Before</span></td>
                                 <td><span class="pg-change-value">@row.After</span></td>
@@ -172,6 +191,13 @@
     Conflicts="_conflictRows" OnClose="CloseConflictDialog" />
 
 @code {
+    private enum ConflictHandlingMode
+    {
+        Standard,
+        Strict,
+        RejectFieldConflicts,
+    }
+
     private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
         new DbContextOptionsBuilder<PlaygroundEfContext>()
             .UseInMemoryDatabase("pg-ef-demo")
@@ -201,10 +227,15 @@
     private PlaygroundOrderDto? _pendingBaseline;
     private bool _pendingSimulateConflict;
     private List<(string Path, string Baseline, string Local, string Current, string Kind)> _conflictRows = [];
+    private ConflictHandlingMode _conflictHandlingMode = ConflictHandlingMode.Standard;
+    private ConflictHandlingMode? _pendingConflictHandlingMode;
 
-    private string EntityJson => Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
-    private string BaselineJson => Try(() => PlaygroundOrderJson.WriteDto(_baseline));
-    private string DraftJson => Try(() => PlaygroundOrderJson.WriteDto(_draft));
+    private static readonly string[] ConflictHandlingOptions =
+        ["Standard", "Strict", "Reject field conflicts"];
+
+    private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
+    private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baseline));
+    private string DraftJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_draft));
 
     /// <summary>Reseeds the store and resets the whole pipeline. Called by the page too.</summary>
     public void Reset()
@@ -223,6 +254,7 @@
         _pendingChanges = null;
         _pendingDraft = null;
         _pendingBaseline = null;
+        _pendingConflictHandlingMode = null;
         _pendingSimulateConflict = false;
         _db?.Dispose();
         _db = new PlaygroundEfContext(SharedOptions);
@@ -261,6 +293,7 @@
         _draft = Clone(_baseline);
         _applied = false;
         _simulateConflict = false;
+        _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
         _saveDialogHidden = true;
         _conflictVisible = false;
@@ -338,6 +371,33 @@
         _ => false,
     };
 
+    private static string ConflictHandlingName(ConflictHandlingMode mode) => mode switch
+    {
+        ConflictHandlingMode.Standard => "Standard",
+        ConflictHandlingMode.Strict => "Strict",
+        ConflictHandlingMode.RejectFieldConflicts => "Reject field conflicts",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
+    };
+
+    private void OnConflictHandlingChanged(string? value)
+    {
+        _conflictHandlingMode = value switch
+        {
+            "Standard" => ConflictHandlingMode.Standard,
+            "Strict" => ConflictHandlingMode.Strict,
+            "Reject field conflicts" => ConflictHandlingMode.RejectFieldConflicts,
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
+        };
+    }
+
+    private static ChangePayloadRebaseOptions RebaseOptions(ConflictHandlingMode mode) =>
+        new()
+        {
+            DefaultRebaseMode = mode == ConflictHandlingMode.RejectFieldConflicts
+                ? SparseRebaseMode.FailOnConflict
+                : SparseRebaseMode.Default,
+        };
+
     private void RefreshChanges()
     {
         _changesError = null;
@@ -351,10 +411,10 @@
             _changeRows = _changes
                 .EnumerateChanges()
                 .Select(static change => (
-                    Operation: ChangeOperation(change.Kind),
+                    Operation: PlaygroundEfPresentation.ChangeOperation(change.Kind),
                     Path: change.PathText,
-                    Before: FormatChangeValue(change.Before),
-                    After: FormatChangeValue(change.After)))
+                    Before: PlaygroundEfPresentation.FormatChangeValue(change.Before),
+                    After: PlaygroundEfPresentation.FormatChangeValue(change.After)))
                 .ToList();
         }
         catch (Exception ex)
@@ -404,10 +464,12 @@
         var submittedDraft = Clone(_draft);
         var submittedBaseline = Clone(_baseline);
         var simulateConflict = _simulateConflict;
+        var conflictHandlingMode = _conflictHandlingMode;
         await CloseSaveDialog();
         _pendingChanges = changes;
         _pendingDraft = submittedDraft;
         _pendingBaseline = submittedBaseline;
+        _pendingConflictHandlingMode = conflictHandlingMode;
         _pendingSimulateConflict = simulateConflict;
         _baseline = Clone(submittedDraft);
         _savePending = true;
@@ -418,7 +480,7 @@
 
     private async Task ApplyPendingSave()
     {
-        if (!_savePending || _pendingChanges is null || _pendingDraft is null || _pendingBaseline is null)
+        if (!_savePending || _pendingChanges is null || _pendingDraft is null || _pendingBaseline is null || _pendingConflictHandlingMode is null)
         {
             return;
         }
@@ -426,16 +488,18 @@
         var changes = _pendingChanges;
         var submittedDraft = _pendingDraft;
         var submittedBaseline = _pendingBaseline;
+        var conflictHandlingMode = _pendingConflictHandlingMode.Value;
         var simulateConflict = _pendingSimulateConflict;
         _savePending = false;
         _pendingChanges = null;
         _pendingDraft = null;
         _pendingBaseline = null;
+        _pendingConflictHandlingMode = null;
         _pendingSimulateConflict = false;
         ApplyChanges(changes);
         if (_applied)
         {
-            await SaveEntity(changes, submittedDraft, submittedBaseline, simulateConflict);
+            await SaveEntity(changes, submittedDraft, simulateConflict, conflictHandlingMode);
         }
         else
         {
@@ -461,7 +525,7 @@
         try
         {
             _mapper.Apply(_db, _tracked, changes);
-            _modifiedRows = CollectModifiedRows(_db);
+            _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
             _applied = true;
         }
         catch (Exception ex)
@@ -475,8 +539,8 @@
     private async Task SaveEntity(
         PlaygroundOrderDto.ChangeSet submittedChanges,
         PlaygroundOrderDto submittedDraft,
-        PlaygroundOrderDto submittedBaseline,
-        bool simulateConflict
+        bool simulateConflict,
+        ConflictHandlingMode conflictHandlingMode
     )
     {
         _saveError = null;
@@ -486,10 +550,10 @@
             return;
         }
 
+        var orderId = _tracked.Id;
+        var expectedRevision = _tracked.Revision;
         try
         {
-            var orderId = _tracked.Id;
-            var expectedRevision = _tracked.Revision;
             if (simulateConflict)
             {
                 PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, orderId);
@@ -511,7 +575,12 @@
         }
         catch (DbUpdateConcurrencyException)
         {
-            await RecoverFromConflict(submittedChanges, submittedDraft, submittedBaseline);
+            await RecoverFromConflict(
+                submittedChanges,
+                submittedDraft,
+                expectedRevision,
+                conflictHandlingMode,
+                RebaseOptions(conflictHandlingMode));
         }
         catch (Exception ex)
         {
@@ -525,7 +594,9 @@
     private async Task RecoverFromConflict(
         PlaygroundOrderDto.ChangeSet submittedChanges,
         PlaygroundOrderDto submittedDraft,
-        PlaygroundOrderDto submittedBaseline
+        int expectedRevision,
+        ConflictHandlingMode conflictHandlingMode,
+        ChangePayloadRebaseOptions rebaseOptions
     )
     {
         if (_db is null || _tracked is null)
@@ -540,45 +611,77 @@
             .Include(static order => order.Lines)
             .Single(order => order.Id == orderId);
         var currentBaseline = Project(_tracked);
+        if (conflictHandlingMode == ConflictHandlingMode.Strict)
+        {
+            _baseline = currentBaseline;
+            _conflictRows =
+            [
+                (
+                    "Revision",
+                    expectedRevision.ToString(),
+                    "Submitted changes",
+                    _tracked.Revision.ToString(),
+                    "Strict rejection"
+                ),
+            ];
+            _conflictSummary = "Strict handling rejected the submitted changes because the order revision changed. The draft remains available for another save.";
+            _applied = false;
+            _modifiedRows = [];
+            RefreshChanges();
+            _conflictVisible = true;
+            return;
+        }
+
         var localDraftBeforeRebase = Clone(_draft);
-        var submittedRebase = submittedChanges.RebaseOnto(currentBaseline);
+        _entityJsonBeforeApply = EntityJson;
+        var submittedRebase = submittedChanges.RebaseOnto(currentBaseline, rebaseOptions);
         var currentFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
             PlaygroundOrderDto.Fragment.From(currentBaseline));
-        var mergedSubmitted = submittedRebase.Rebased.ToPatch().Apply(currentFragment).Value!.ToModel();
-        var postSubmitChanges = submittedDraft.CreateChangeSet(_draft);
-        var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted);
+        if (_mapper is null)
+        {
+            throw new InvalidOperationException("The EF Core mapper is not initialized.");
+        }
+
+        _mapper.Apply(_db, _tracked, submittedRebase.Rebased);
+        _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
+        if (_db.ChangeTracker.HasChanges())
+        {
+            _tracked.Revision++;
+            _db.SaveChanges();
+        }
+
+        _db.ChangeTracker.Clear();
+        _tracked = _db.Orders
+            .Include(static order => order.Note)
+            .Include(static order => order.Lines)
+            .Single(order => order.Id == orderId);
+        var mergedSubmitted = Project(_tracked);
+        var submittedBaselineAfterSave = Clone(submittedDraft);
+        RetargetNewLineIds(submittedDraft, mergedSubmitted, submittedBaselineAfterSave);
+        RetargetNewLineIds(submittedDraft, mergedSubmitted, localDraftBeforeRebase);
+        var postSubmitChanges = submittedBaselineAfterSave.CreateChangeSet(localDraftBeforeRebase);
+        var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted, rebaseOptions);
         var mergedFragment = postSubmitRebase.Rebased.ToPatch().Apply(
             Optional<PlaygroundOrderDto.Fragment?>.Present(PlaygroundOrderDto.Fragment.From(mergedSubmitted)));
         _draft = mergedFragment.Value!.ToModel();
-        _baseline = currentBaseline;
+        _baseline = mergedSubmitted;
 
         _conflictRows = submittedRebase.Conflicts
             .Concat(postSubmitRebase.Conflicts)
             .Select(static conflict => (
                 Path: conflict.PathText,
-                Baseline: FormatChangeValue(conflict.BaseValue),
-                Local: FormatChangeValue(conflict.LocalValue),
-                Current: FormatChangeValue(conflict.CurrentValue),
+                Baseline: PlaygroundEfPresentation.FormatChangeValue(conflict.BaseValue),
+                Local: PlaygroundEfPresentation.FormatChangeValue(conflict.LocalValue),
+                Current: PlaygroundEfPresentation.FormatChangeValue(conflict.CurrentValue),
                 Kind: conflict.Kind.ToString()))
             .ToList();
         var hasFieldConflicts = submittedRebase.HasConflicts || postSubmitRebase.HasConflicts;
-        if (!_conflictRows.Any(static row => row.Path == nameof(PlaygroundOrderDto.Customer)))
-        {
-            _conflictRows.Add((
-                nameof(PlaygroundOrderDto.Customer),
-                submittedBaseline.Customer,
-                localDraftBeforeRebase.Customer,
-                currentBaseline.Customer,
-                "Concurrent update"));
-        }
-
         _conflictSummary = hasFieldConflicts
-            ? "Another user updated this order while the save was pending. Conflicting values reverted to the latest entity; other changes were rebased."
-            : "Another user updated this order while the save was pending. The draft was rebased onto the latest entity.";
-        _applied = false;
-        _modifiedRows = [];
+            ? "Another user updated this order while the save was pending. Conflicting fields use the selected policy; non-conflicting submitted changes were saved."
+            : "Another user updated this order while the save was pending. The submitted changes were saved on top of the latest entity.";
+        _applied = true;
         RefreshChanges();
-        _conflictVisible = true;
+        _conflictVisible = hasFieldConflicts;
     }
 
     private void CloseConflictDialog() => _conflictVisible = false;
@@ -650,86 +753,4 @@
                 .ToList(),
         };
 
-    private static List<(string Entity, string State, string Property, string Before, string After)> CollectModifiedRows(
-        PlaygroundEfContext db)
-    {
-        var rows = new List<(string Entity, string State, string Property, string Before, string After)>();
-        foreach (var entry in db.ChangeTracker.Entries())
-        {
-            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
-            {
-                continue;
-            }
-
-            var name = entry.Entity.GetType().Name;
-            var key = string.Join(
-                ",",
-                entry.Properties
-                    .Where(static property => property.Metadata.IsPrimaryKey())
-                    .Select(static property => PlaygroundOrderJson.FormatValue(property.CurrentValue)));
-            if (entry.State == EntityState.Added)
-            {
-                var values = string.Join(
-                    ", ",
-                    entry.Properties.Select(static property =>
-                        $"{property.Metadata.Name}={PlaygroundOrderJson.FormatValue(property.CurrentValue)}"));
-                rows.Add((name, "Added", $"#{key}", "—", values));
-                continue;
-            }
-
-            if (entry.State == EntityState.Deleted)
-            {
-                rows.Add((name, "Deleted", $"#{key}", $"#{key}", "—"));
-                continue;
-            }
-
-            foreach (var property in entry.Properties.Where(static property => property.IsModified))
-            {
-                rows.Add((
-                    name,
-                    "Modified",
-                    property.Metadata.Name,
-                    PlaygroundOrderJson.FormatValue(property.OriginalValue),
-                    PlaygroundOrderJson.FormatValue(property.CurrentValue)));
-            }
-        }
-
-        return rows;
-    }
-
-    private static string ChangeOperation(PlaygroundOrderDto.ChangeSet.ChangeKind kind) =>
-        kind switch
-        {
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Changed => "Edit",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Added => "Add",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Removed => "Remove",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Order => "Order",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-        };
-
-    private static string ChangeOperationClass(string operation) =>
-        $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
-
-    private static string FormatChangeValue(Optional<object?> value) =>
-        value.IsPresent ? PlaygroundOrderJson.FormatValue(value.Value) : "—";
-
-    private static string EfStateOperation(string state) => state switch
-    {
-        "Added" => "Add",
-        "Deleted" => "Remove",
-        "Modified" => "Edit",
-        _ => state,
-    };
-
-    private static string Try(Func<string> render)
-    {
-        try
-        {
-            return render();
-        }
-        catch (Exception ex)
-        {
-            return $"Error: {ex.GetType().Name}: {ex.Message}";
-        }
-    }
 }

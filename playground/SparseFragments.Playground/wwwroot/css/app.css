@@ -723,6 +723,21 @@ a, .btn-link {
     margin-top: 0.75rem;
 }
 
+.pg-case5-rebase-options {
+    margin-top: 0.75rem;
+}
+
+.pg-case5-rebase-select {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.pg-case5-rebase-select fluent-select {
+    width: min(100%, 20rem);
+}
+
 @media (max-width: 32rem) {
     .pg-save-snackbar {
         right: 1rem;
@@ -1125,6 +1140,28 @@ fluent-dialog::part(dialog) {
 .pg-roster-change-table-wrap {
     height: 270px;
     max-height: 270px;
+}
+
+.pg-case5-results-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pg-change-table.pg-case5-results-table {
+    display: table;
+    width: max-content;
+    max-width: none;
+}
+
+.pg-case5-results-table th,
+.pg-case5-results-table td {
+    overflow-wrap: normal;
+    white-space: nowrap;
+}
+
+.pg-case5-results-table .pg-change-value {
+    overflow-wrap: normal;
+    white-space: nowrap;
 }
 
 /* Wide input tables (05 EF draft editor): keep the card width and scroll the

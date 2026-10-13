@@ -5,25 +5,28 @@
     </div>
     <div class="pg-dialog-body">
         <p class="pg-hint">@Summary</p>
-        <div class="pg-change-table-wrap">
-            <table class="pg-change-table" aria-label="Concurrent save details">
-                <thead>
-                    <tr><th>Path</th><th>Base</th><th>Local value</th><th>Current value</th><th>Conflict</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Conflicts)
-                    {
-                        <tr>
-                            <td><span class="pg-change-value">@row.Path</span></td>
-                            <td><span class="pg-change-value">@row.Baseline</span></td>
-                            <td><span class="pg-change-value">@row.Local</span></td>
-                            <td><span class="pg-change-value">@row.Current</span></td>
-                            <td><span class="pg-change-value">@row.Kind</span></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+        @if (Conflicts.Count > 0)
+        {
+            <div class="pg-change-table-wrap">
+                <table class="pg-change-table" aria-label="Concurrent save details">
+                    <thead>
+                        <tr><th>Path</th><th>Base</th><th>Local value</th><th>Current value</th><th>Conflict</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Conflicts)
+                        {
+                            <tr>
+                                <td><span class="pg-change-value">@row.Path</span></td>
+                                <td><span class="pg-change-value">@row.Baseline</span></td>
+                                <td><span class="pg-change-value">@row.Local</span></td>
+                                <td><span class="pg-change-value">@row.Current</span></td>
+                                <td><span class="pg-change-value">@row.Kind</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
     <div class="pg-dialog-footer">
         <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OnClose">Continue editing</FluentButton>
