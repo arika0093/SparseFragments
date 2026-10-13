@@ -260,6 +260,10 @@ internal static class SparseChangeSetEnumeratorEmitter
                 member.Property.Name,
                 true
             );
+            var changed = IsNested(member) ? "!" + property + ".IsEmpty" : property + ".IsChanged";
+            code.AppendLineAt(3, "if (" + changed + ")");
+            code.AppendLineAt(3, "{");
+            code.IndentOffset++;
             code.AppendLineAt(
                 3,
                 "var " + memberPath + " = __sparse_prefix.Member(" + literal + ");"
@@ -284,6 +288,8 @@ internal static class SparseChangeSetEnumeratorEmitter
             {
                 AppendValueChange(code, property, memberPath, "value" + member.Id);
             }
+            code.IndentOffset--;
+            code.AppendLineAt(3, "}");
         }
 
         code.AppendLineAt(3, "return changes;");

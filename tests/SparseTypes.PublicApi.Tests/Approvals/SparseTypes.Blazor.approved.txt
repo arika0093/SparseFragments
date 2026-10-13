@@ -1,6 +1,12 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseTypes")]
 namespace SparseTypes.Blazor
 {
+    public interface ISparseEditScope<out TModel>
+        where out TModel :  class
+    {
+        Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
+        SparseTypes.ISparseEditSession<TModel> Session { get; }
+    }
     public enum SparseConflictFallbackMode
     {
         NearestParent = 0,
@@ -22,6 +28,22 @@ namespace SparseTypes.Blazor
         public SparseTypes.Blazor.SparseConflictFallbackMode Fallback { get; init; }
         public System.Func<SparseTypes.SparseConflict, string>? MessageFactory { get; init; }
         public string GetMessage(SparseTypes.SparseConflict conflict) { }
+    }
+    public sealed class SparseEditContext<TModel, TPaths> : SparseTypes.Blazor.ISparseEditScope<TModel>
+        where TModel :  class
+        where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+    {
+        public bool CanRedo { get; }
+        public bool CanUndo { get; }
+        public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
+        public bool HasChanges { get; }
+        public SparseTypes.ISparseEditHistory? History { get; }
+        public TPaths Path { get; }
+        public SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths> Session { get; }
+        public void Redo() { }
+        public bool TryRedo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
+        public bool TryUndo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
+        public void Undo() { }
     }
     public static class SparseEditSessionExtensions
     {
@@ -55,6 +77,19 @@ namespace SparseTypes.Blazor
         public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel, TValue>(this SparseTypes.ISparseEditSession<TModel> session, SparseTypes.SparsePath<TModel, TValue> path)
             where TModel :  class { }
     }
+    public sealed class SparseEdit<TModel, TPaths> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+        where TModel :  class
+        where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+    {
+        public SparseEdit() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment<SparseTypes.Blazor.SparseEditContext<TModel, TPaths>>? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>? Session { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        public void Dispose() { }
+        protected override void OnParametersSet() { }
+    }
     public sealed class SparseFieldBindingOptions : System.IEquatable<SparseTypes.Blazor.SparseFieldBindingOptions>
     {
         public SparseFieldBindingOptions() { }
@@ -79,6 +114,46 @@ namespace SparseTypes.Blazor
         public bool TryGetField(out Microsoft.AspNetCore.Components.Forms.FieldIdentifier fieldId, out string? error) { }
         public bool TryGetValue(out TValue? value, out string? error) { }
         public bool TrySet(TValue? value, out string? error) { }
+    }
+    public sealed class SparseFieldContext<TModel, TValue>
+        where TModel :  class
+    {
+        public SparseTypes.Optional<TValue> After { get; }
+        public SparseTypes.Optional<TValue> Before { get; }
+        public SparseTypes.Blazor.SparseFieldBinding<TModel, TValue> Binding { get; }
+        public Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field { get; }
+        public bool IsChanged { get; }
+        public bool IsModified { get; }
+        public bool IsReadOnly { get; }
+        public bool IsStale { get; }
+        public SparseTypes.ISparseTypedPath<TModel, TValue> Path { get; }
+        public SparseTypes.SparseFieldState<TValue> State { get; }
+        public System.Collections.Generic.IEnumerable<string> ValidationMessages { get; }
+        public TValue Value { get; set; }
+        public Microsoft.AspNetCore.Components.EventCallback<TValue> ValueChanged { get; }
+        public System.Linq.Expressions.Expression<System.Func<TValue>>? ValueExpression { get; }
+        public SparseTypes.SparsePath<TModel, TChild> At<TElement, TChild>(int index, System.Linq.Expressions.Expression<System.Func<TElement, TChild>> selector) { }
+        public SparseTypes.SparsePath<TModel, TChild> Key<TKey, TElement, TChild>(TKey key, System.Linq.Expressions.Expression<System.Func<TElement, TChild>> selector) { }
+        public SparseTypes.SparsePath<TModel, TChild> Select<TChild>(System.Linq.Expressions.Expression<System.Func<TValue, TChild>> selector) { }
+        public System.Threading.Tasks.Task SetAsync(TValue? value) { }
+        public SparseTypes.SparsePath<TModel, TChild> TemporaryKey<TElement, TChild>(System.Guid temporaryKey, System.Linq.Expressions.Expression<System.Func<TElement, TChild>> selector) { }
+        public bool TryGetCollectionState(out SparseTypes.SparseCollectionState? state) { }
+        public bool TryGetValue(out TValue? value, out string? error) { }
+        public bool TrySet(TValue? value, out string? error) { }
+    }
+    public sealed class SparseField<TModel, TValue> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+        where TModel :  class
+    {
+        public SparseField() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment<SparseTypes.Blazor.SparseFieldContext<TModel, TValue>>? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.ISparseTypedPath<TModel, TValue>? Path { get; set; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.Blazor.ISparseEditScope<TModel>? Scope { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        public void Dispose() { }
+        protected override void OnParametersSet() { }
     }
     public sealed class SparseSessionScope<TModel> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
         where TModel :  class

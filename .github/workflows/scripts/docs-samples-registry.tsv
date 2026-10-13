@@ -115,3 +115,4 @@ docs/how-to/blazor-edit-form.md	blazor-form-input	tests/fixtures/consumers/packa
 docs/how-to/blazor-edit-form.md	blazor-form-save	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/how-to/blazor-edit-form.md	blazor-form-conflict	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/how-to/blazor-edit-form.md	blazor-form-transport	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/blazor-headless-components.md	blazor-headless	tests/fixtures/consumers/package-sparse-blazor/Program.cs

@@ -1,0 +1,113 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using SparseTypes
+@using SparseTypes.Blazor
+
+@* Compile-only Razor proof for issue #271 (Stage 3 headless components).
+   Proves Session-only and Path-only generic inference: no Paths parameter,
+   no explicit TValue, and no per-model Blazor context. Covers nested member
+   navigation, keyed/temporary-key/indexed navigation (direct and through a
+   nested field context), third-party @bind-Value, the explicit InputBase
+   triple against the original model, and session-owned history buttons.
+   Runtime behavior is asserted by SparseHeadlessComponentTests and the
+   blazor-headless docs sample in Program.cs; this file only proves the
+   Razor shape compiles. *@
+<SparseEdit Session="session" Context="edit">
+    <EditForm EditContext="edit.EditContext">
+        <DataAnnotationsValidator />
+        <SparseField Path="edit.Path.Number" Context="number">
+            <VendorInput @bind-Value="number.Value" />
+            <InputText Value="number.Value"
+                       ValueChanged="number.ValueChanged"
+                       ValueExpression="number.ValueExpression" />
+            <ValidationMessage For="number.ValueExpression" />
+            @if (number.IsChanged)
+            {
+                <span>Edited</span>
+            }
+        </SparseField>
+        <SparseField Path="edit.Path.Version" Context="version">
+            <InputNumber Value="version.Value"
+                         ValueChanged="version.ValueChanged"
+                         ValueExpression="version.ValueExpression" />
+        </SparseField>
+        <SparseField Path="edit.Path.Customer" Context="customer">
+            <SparseField Path="customer.Select(c => c.Email)" Context="email">
+                <VendorInput @bind-Value="email.Value" />
+            </SparseField>
+            <SparseField Path="edit.Path.Customer.Name" Context="name">
+                <InputText Value="name.Value"
+                           ValueChanged="name.ValueChanged"
+                           ValueExpression="name.ValueExpression" />
+            </SparseField>
+        </SparseField>
+        <SparseField Path="edit.Path.Lines" Context="lines">
+            <SparseField Path="@(lines.Key("b", (HeadlessOrderLine l) => l.Price))" Context="price">
+                @* Keyed paths expose no value expression, and InputBase
+                   rejects a null expression, so keyed values edit through
+                   value/callback inputs with explicit error display. *@
+                <VendorInput @bind-Value="price.Value" />
+                @foreach (var message in price.ValidationMessages)
+                {
+                    <span>@message</span>
+                }
+            </SparseField>
+            <SparseField Path="@(lines.At(0, (HeadlessOrderLine f) => f.Sku))" Context="sku">
+                <VendorInput @bind-Value="sku.Value" />
+            </SparseField>
+            @foreach (var message in lines.ValidationMessages)
+            {
+                <span>@message</span>
+            }
+        </SparseField>
+        <SparseField Path="@(edit.Path.Lines.Key("b").Price)" Context="direct">
+            <span>@direct.Value</span>
+            @if (direct.IsChanged)
+            {
+                <span>Edited</span>
+            }
+        </SparseField>
+        <SparseField Path="@(edit.Path.Contacts.Key("billing").Name)" Context="contact">
+            <VendorInput @bind-Value="contact.Value" />
+            @foreach (var message in contact.ValidationMessages)
+            {
+                <span>@message</span>
+            }
+        </SparseField>
+        <SparseField Path="edit.Path.Drafts" Context="drafts">
+            <SparseField Path="@(drafts.TemporaryKey(temporaryId, (HeadlessDraft d) => d.Title))" Context="title">
+                <VendorInput @bind-Value="title.Value" />
+            </SparseField>
+        </SparseField>
+    </EditForm>
+    <button disabled="@(!edit.CanUndo)" @onclick="edit.Undo">Undo</button>
+    <button disabled="@(!edit.CanRedo)" @onclick="edit.Redo">Redo</button>
+    <span>@(edit.HasChanges ? "changed" : "clean")</span>
+</SparseEdit>
+
+@code {
+    private HeadlessOrder order = new()
+    {
+        Number = "ORD-1",
+        Customer = new HeadlessCustomer { Name = "Ada", Email = "ada@example.com" },
+        Lines = new List<HeadlessOrderLine>
+        {
+            new() { Sku = "a", Quantity = 1, Price = 10m },
+            new() { Sku = "b", Quantity = 2, Price = 20m },
+        },
+        Contacts = new Dictionary<string, HeadlessCustomer>
+        {
+            ["billing"] = new HeadlessCustomer { Name = "Ada" },
+        },
+    };
+    private HeadlessOrder.EditSession session = null!;
+    private Guid temporaryId = Guid.NewGuid();
+
+    protected override void OnInitialized()
+    {
+        order.Drafts.Add(
+            new HeadlessDraft { Id = 0, Title = "draft", TemporaryId = temporaryId }
+        );
+        session = order.CreateEditSession();
+        session.EnableHistory();
+    }
+}

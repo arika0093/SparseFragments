@@ -1,0 +1,30 @@
+@using System.Globalization
+@using System.Linq.Expressions
+@using Microsoft.AspNetCore.Components
+
+@typeparam TValue
+
+@* Third-party-style input for the headless proof: value/callback only,
+   with an optional expression it never requires. No vendor package. *@
+<input value="@Value" @onchange="OnChange" />
+
+@code {
+    [Parameter]
+    public TValue? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<TValue?> ValueChanged { get; set; }
+
+    [Parameter]
+    public Expression<Func<TValue?>>? ValueExpression { get; set; }
+
+    private Task OnChange(ChangeEventArgs args)
+    {
+        var text = args.Value?.ToString();
+        var target = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+        object? converted = target == typeof(string)
+            ? text
+            : Convert.ChangeType(text, target, CultureInfo.InvariantCulture);
+        return ValueChanged.InvokeAsync((TValue?)converted);
+    }
+}

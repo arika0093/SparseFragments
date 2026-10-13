@@ -78,3 +78,40 @@ collection state on demand around explicit actions rather than re-rendering
 on every keystroke. The `SessionScopeRefreshBenchmarks` workload shows the
 cost difference between individual edits and one `BatchEdit`; it runs with a
 dry job for a quick check.
+
+Headless components
+
+`SparseEdit` and `SparseField` render a form without imposing markup,
+styling, or a component vendor. `SparseEdit` takes only `Session`, and each
+`SparseField` takes only `Path`; the model, value, and concrete path
+builder types infer from those two arguments.
+
+```razor
+<SparseEdit Session="session" Context="edit">
+    <EditForm EditContext="edit.EditContext">
+        <SparseField Path="edit.Path.Number" Context="number">
+            <MyInput @bind-Value="number.Value" />
+        </SparseField>
+    </EditForm>
+    <button disabled="@(!edit.CanUndo)" @onclick="edit.Undo">Undo</button>
+</SparseEdit>
+```
+
+The edit context exposes the concrete `Path` builder, the original-model
+`EditContext`, live `HasChanges`, and the session-owned history. History
+stays owned and configured by the session: enable it with
+`EnableHistory` before rendering, and the components only read and observe
+it, never dispose it. Each field context exposes the live typed `Value`
+with a setter into the binding, `SetAsync`, `IsChanged`, presence
+endpoints, `IsModified`, validation messages, and root-preserving
+navigation (`Select`, `Key`, `At`, `TemporaryKey`).
+
+Use `@bind-Value="field.Value"` on controls that only need value and
+change notification. For `InputText`, `InputNumber`, and other
+`InputBase<TValue>` controls, pass `Value`, `ValueChanged`, and
+`ValueExpression` explicitly so validation targets the original model; do
+not use `@bind-Value` there, since its generated expression would target
+the field context. Keyed, temporary-key, and indexed paths expose a null
+`ValueExpression`, and `InputBase` rejects a null expression, so those
+paths edit through value and callback inputs with errors surfaced
+explicitly. Full guidance: [Blazor headless components](https://github.com/arika0093/SparseTypes/blob/main/docs/how-to/blazor-headless-components.md).
