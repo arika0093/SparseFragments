@@ -79,13 +79,13 @@ public sealed class NkContext : DbContext
     }
 }
 
-[SparseFragmentMapper]
-public sealed class NkMapper : IEntityModelMapping<NkOrderEntity, NkOrderDto>
+[SparseFragmentMapper<NkOrderEntity, NkOrderDto>]
+public sealed partial class NkMapper
 {
-    public void Configure(SparseEntityMapBuilder<NkOrderEntity, NkOrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Customer, entity => entity.CustomerName);
-        map.Collection<NkLineDto, NkLineEntity>(
+        Map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        Map.Collection<NkLineDto, NkLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

@@ -5,7 +5,7 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>SQLite-backed keyed add/edit/remove over the Contracts+Server order sample.</summary>
-public sealed class KeyedCollectionMappingTests
+public sealed partial class KeyedCollectionMappingTests
 {
     internal static OrderDto ReadOrderDto(OrderEntity entity) =>
         new()
@@ -530,13 +530,12 @@ public sealed class KeyedCollectionMappingTests
     }
 
     /// <summary>Same element pair, distinct path-scoped child mappings and removal policies.</summary>
-    [SparseFragmentMapper]
-    public sealed class DuoDivergentMapper : IEntityModelMapping<DuoEntity, DuoDto>
+    [SparseFragmentMapper<DuoEntity, DuoDto>]
+    public sealed partial class DuoDivergentMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<DuoEntity, DuoDto> map)
+        private void Configure()
         {
-            map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Collection<DuoLineDto, DuoLineEntity>(
                 dto => dto.Actives,
                 entity => entity.Actives,
                 lines =>
@@ -550,7 +549,7 @@ public sealed class KeyedCollectionMappingTests
                     lines.Delete();
                 }
             );
-            map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Collection<DuoLineDto, DuoLineEntity>(
                 dto => dto.Archived,
                 entity => entity.Archived,
                 lines =>
@@ -654,21 +653,20 @@ public sealed class KeyedCollectionMappingTests
     }
 
     /// <summary>Order mapping without an order setter: membership syncs, pure reorder fails.</summary>
-    [SparseFragmentMapper]
-    public sealed class OrderNoOrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class OrderNoOrderMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -676,7 +674,7 @@ public sealed class KeyedCollectionMappingTests
                     child.Ignore(address => address.City);
                 }
             );
-            map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection<OrderLineDto, OrderLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

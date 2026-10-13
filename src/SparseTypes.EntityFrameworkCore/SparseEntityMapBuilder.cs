@@ -8,8 +8,9 @@ namespace SparseTypes.EntityFrameworkCore;
 /// </summary>
 /// <remarks>
 /// Source-generated defaults (emitted by the ordinary generator for
-/// <c>[SparseFragmentMapper]</c> types) are applied before
-/// <c>Configure</c>; this builder registers overrides (Member overloads),
+/// <c>[SparseFragmentMapper{TEntity, TDto}]</c> types) are applied before
+/// the generated bridge invokes the optional parameterless <c>Configure</c>;
+/// this builder registers overrides (Member overloads),
 /// specialized writers (Write), nested scopes (Object), keyed collections
 /// (Collection), ignores (Ignore), and policies (OnMissing, AllowWrite,
 /// MissingDefault). An explicitly configured DTO path replaces its generated

@@ -354,7 +354,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor InvalidEntityMapperDeclaration = new(
         SparseTypesDiagnosticIds.InvalidEntityMapperDeclaration,
         "Invalid entity mapper declaration",
-        "Entity mapper '{0}' must implement IEntityModelMapping<TEntity, TDto>",
+        "Invalid entity mapper declaration: {0}",
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
@@ -852,9 +852,11 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             }
         );
 
-        // EntityFrameworkCore mapper defaults (#228): discover
-        // [SparseFragmentMapper] types (DTOs may live in a referenced Contracts
-        // assembly) and emit the external RegisterDefaults companion plus
+        // EntityFrameworkCore mapper defaults (#228) and bridges (#273):
+        // discover [SparseFragmentMapper<TEntity, TDto>] types (DTOs may live
+        // in a referenced Contracts assembly) and emit the external
+        // RegisterDefaults companion, the partial-mapper bridge
+        // (IEntityModelMapping impl plus Map scope), and
         // incompatible-default diagnostics. No EF model access happens here;
         // protection and relationship validation stay runtime plan-build work.
         var entityMappers = context

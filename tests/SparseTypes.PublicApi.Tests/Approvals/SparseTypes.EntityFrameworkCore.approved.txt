@@ -182,9 +182,13 @@ namespace SparseTypes.EntityFrameworkCore
         Custom = 3,
     }
     [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=false)]
-    public sealed class SparseFragmentMapperAttribute : System.Attribute
+    public sealed class SparseFragmentMapperAttribute<TEntity, TDto> : System.Attribute
+        where TEntity :  class
+        where TDto :  class
     {
         public SparseFragmentMapperAttribute() { }
+        public System.Type DtoType { get; }
+        public System.Type EntityType { get; }
     }
 }
 namespace SparseTypes.EntityFrameworkCore.Mapping

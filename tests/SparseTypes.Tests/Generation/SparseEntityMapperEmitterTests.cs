@@ -17,7 +17,20 @@ public sealed class SparseEntityMapperEmitterTests
         namespace SparseTypes.EntityFrameworkCore
         {
             [AttributeUsage(AttributeTargets.Class)]
-            public sealed class SparseFragmentMapperAttribute : Attribute { }
+            public sealed class SparseFragmentMapperAttribute<TEntity, TDto> : Attribute
+                where TEntity : class where TDto : class
+            {
+                public Type EntityType => typeof(TEntity);
+                public Type DtoType => typeof(TDto);
+            }
+            public sealed class SparseEntityMapper<TEntity, TDto>
+                where TEntity : class where TDto : class
+            {
+                public static SparseEntityMapper<TEntity, TDto> Create<TMapping>(
+                    TMapping mapping, global::Microsoft.EntityFrameworkCore.Metadata.IModel model)
+                    where TMapping : IEntityModelMapping<TEntity, TDto>
+                    => new SparseEntityMapper<TEntity, TDto>();
+            }
             public interface IEntityModelMapping<TEntity, TDto>
             {
                 void Configure(SparseEntityMapBuilder<TEntity, TDto> map);
@@ -75,6 +88,10 @@ public sealed class SparseEntityMapperEmitterTests
                     Action<SparseTypes.EntityFrameworkCore.SparseEntityMapBuilder<TEntity, TDto>> registerDefaults)
                     where TEntity : class where TDto : class { }
             }
+        }
+        namespace Microsoft.EntityFrameworkCore.Metadata
+        {
+            public interface IModel { }
         }
         """;
 
@@ -181,10 +198,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public AddressEntity? Address { get; set; }
                     public List<LineEntity> Lines { get; set; } = new();
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -239,10 +256,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -271,10 +288,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public int Count { get; set; }
                     public string Label { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -317,10 +334,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public List<LineEntity> Lines { get; set; } = new();
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -356,10 +373,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public string Own { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -391,12 +408,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        map.Member(dto => dto.Code, entity => entity.Code, code => code == null ? 0 : int.Parse(code));
+                        Map.Member(dto => dto.Code, entity => entity.Code, code => code == null ? 0 : int.Parse(code));
                     }
                 }
             }
@@ -423,12 +440,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        map.Ignore(dto => dto.Code);
+                        Map.Ignore(dto => dto.Code);
                     }
                 }
             }
@@ -455,12 +472,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        map.OnMissing(dto => dto.Code, SparseEntityMissingPolicy.Ignore);
+                        Map.OnMissing(dto => dto.Code, SparseEntityMissingPolicy.Ignore);
                     }
                 }
             }
@@ -483,12 +500,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        map.AllowWrite(dto => dto.Code);
+                        Map.AllowWrite(dto => dto.Code);
                     }
                 }
             }
@@ -515,12 +532,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        map.Member(dto => dto.Code, entity => entity.Code);
+                        Map.Member(dto => dto.Code, entity => entity.Code);
                     }
                 }
             }
@@ -547,12 +564,12 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public int Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    private void Configure()
                     {
-                        Setup(map);
+                        Setup(Map);
                     }
                     private static void Setup(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
                     {
@@ -585,10 +602,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public string @event { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -619,10 +636,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public System.DateOnly Due { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -667,10 +684,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public List<LineEntity> Lines { get; set; } = new();
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -706,10 +723,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public string Notes { get; set; } = string.Empty;
                     public string Secret { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -744,10 +761,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public string Notes { get; set; } = string.Empty;
                     private string Secret { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -807,10 +824,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public string Secret { get; set; } = string.Empty;
                     public AddressEntity? Address { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -865,10 +882,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public CustomValue Code { get; set; }
                 }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -900,6 +917,10 @@ public sealed class SparseEntityMapperEmitterTests
                 OutputKind.DynamicallyLinkedLibrary
             ).WithNullableContextOptions(NullableContextOptions.Enable)
         );
+        var errors = compilation
+            .GetDiagnostics()
+            .Where(static d => d.Severity == DiagnosticSeverity.Error)
+            .ToArray();
         compilation
             .GetDiagnostics()
             .Where(static d => d.Severity == DiagnosticSeverity.Error)
@@ -907,13 +928,13 @@ public sealed class SparseEntityMapperEmitterTests
     }
 
     [Test]
-    public void MapperWithoutInterfaceReportsSpf034()
+    public void NonPartialMapperReportsSpf034()
     {
         const string source = """
             using SparseTypes.EntityFrameworkCore;
             namespace Probe
             {
-                [SparseFragmentMapper]
+                [SparseFragmentMapper<object, object>]
                 public sealed class OrderMapper
                 {
                 }
@@ -923,6 +944,260 @@ public sealed class SparseEntityMapperEmitterTests
         var match = diagnostics.Single(static d => d.Id == "SPF034");
         match.Severity.ShouldBe(DiagnosticSeverity.Error);
         match.GetMessage().ShouldContain("OrderMapper");
+        match.GetMessage().ShouldContain("partial");
+        match.Location.IsInSource.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ManualInterfaceImplReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("must not implement IEntityModelMapping manually");
+    }
+
+    [Test]
+    public void MapCollisionReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    public string Map { get; set; } = string.Empty;
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("'Map'");
+    }
+
+    [Test]
+    public void LegacyConfigureSignatureReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+                    {
+                    }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("unsupported Configure signature");
+    }
+
+    [Test]
+    public void DuplicateConfigureReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    private void Configure()
+                    {
+                    }
+                    public void Configure(int unused)
+                    {
+                    }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("Configure");
+    }
+
+    [Test]
+    public void GenericMapperReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper<T>
+                {
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("must not be generic");
+    }
+
+    [Test]
+    public void NestedMapperUnderNonPartialReportsSpf034()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class Outer
+                {
+                    [SparseFragmentMapper<OrderEntity, OrderDto>]
+                    public sealed partial class OrderMapper
+                    {
+                    }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF034");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("partial");
+    }
+
+    [Test]
+    public void DefaultsOnlyMapperEmitsWithoutConfigure()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Notes, static entity => entity.Notes);"
+        );
+        // The bridge keeps the defaults-only scope inert without calling Configure.
+        emitted.ShouldContain("_ = builder;");
+        emitted.ShouldNotContain("Configure();");
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
+    public void BridgeImplementsMappingWithMapScopeAndCompiles()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Code { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public int Code { get; set; }
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    private void Configure()
+                    {
+                        Map.Ignore(dto => dto.Code);
+                    }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain(
+            "IEntityModelMapping<global::Probe.OrderEntity, global::Probe.OrderDto>.Configure"
+        );
+        emitted.ShouldContain("__sparse_map_scope");
+        emitted.ShouldContain("lock (__sparse_map_lock)");
+        emitted.ShouldContain("Configure();");
+        emitted.ShouldContain("__sparse_map_scope = null;");
+        emitted.ShouldContain("exposes Map only during Configure");
+        emitted.ShouldContain("DynamicDependency");
+        CompileEmitted(source, emitted);
     }
 
     [Test]
@@ -940,10 +1215,10 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public string Notes { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -953,32 +1228,13 @@ public sealed class SparseEntityMapperEmitterTests
             "public static global::SparseTypes.EntityFrameworkCore.SparseEntityMapper<global::Probe.OrderEntity, global::Probe.OrderDto> Create(global::Microsoft.EntityFrameworkCore.Metadata.IModel model)"
         );
         sources.ShouldContain("var mapping = new OrderMapper();");
-    }
-
-    [Test]
-    public void NonPartialMapperOmitsCreateShorthand()
-    {
-        const string source = """
-            using SparseTypes.EntityFrameworkCore;
-            namespace Probe
-            {
-                public sealed class OrderDto
-                {
-                    public string Notes { get; set; } = string.Empty;
-                }
-                public sealed class OrderEntity
-                {
-                    public string Notes { get; set; } = string.Empty;
-                }
-                [SparseFragmentMapper]
-                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
-                {
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
-                }
-            }
-            """;
-        var sources = RenderDirect(source, "Probe.OrderMapper");
-        sources.ShouldNotContain("SparseEntityMapper<");
+        // The generated bridge owns the mapping contract and Map scope.
+        sources.ShouldContain(
+            "IEntityModelMapping<global::Probe.OrderEntity, global::Probe.OrderDto>"
+        );
+        sources.ShouldContain(
+            "private global::SparseTypes.EntityFrameworkCore.SparseEntityMapBuilder<global::Probe.OrderEntity, global::Probe.OrderDto> Map"
+        );
     }
 
     [Test]
@@ -996,11 +1252,11 @@ public sealed class SparseEntityMapperEmitterTests
                 {
                     public string Notes { get; set; } = string.Empty;
                 }
-                [SparseFragmentMapper]
-                public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
                 {
                     public OrderMapper(string name) { }
-                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                    private void Configure() { }
                 }
             }
             """;
@@ -1056,10 +1312,10 @@ public sealed class SparseEntityMapperEmitterTests
                     public PlaygroundNoteEntity? Note { get; set; }
                     public List<PlaygroundOrderLineEntity> Lines { get; set; } = new();
                 }
-                [SparseFragmentMapper]
-                public sealed partial class PlaygroundOrderMapper : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
+                [SparseFragmentMapper<PlaygroundOrderEntity, PlaygroundOrderDto>]
+                public sealed partial class PlaygroundOrderMapper
                 {
-                    public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+                    private void Configure()
                     {
                     }
                 }
@@ -1069,24 +1325,6 @@ public sealed class SparseEntityMapperEmitterTests
         sources.ShouldContain(
             "> Create(global::Microsoft.EntityFrameworkCore.Metadata.IModel model)"
         );
-
-        const string factoryStubs = """
-            namespace SparseTypes.EntityFrameworkCore
-            {
-                public sealed class SparseEntityMapper<TEntity, TDto>
-                    where TEntity : class where TDto : class
-                {
-                    public static SparseEntityMapper<TEntity, TDto> Create<TMapping>(
-                        TMapping mapping, global::Microsoft.EntityFrameworkCore.Metadata.IModel model)
-                        where TMapping : IEntityModelMapping<TEntity, TDto>
-                        => new SparseEntityMapper<TEntity, TDto>();
-                }
-            }
-            namespace Microsoft.EntityFrameworkCore.Metadata
-            {
-                public interface IModel { }
-            }
-            """;
-        CompileEmitted(source, factoryStubs + sources);
+        CompileEmitted(source, sources);
     }
 }

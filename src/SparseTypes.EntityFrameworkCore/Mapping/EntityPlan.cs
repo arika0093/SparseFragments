@@ -197,7 +197,7 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.MetadataMismatch,
                 null,
-                $"The mapper for '{typeof(TEntity).Name}' and '{typeof(TDto).Name}' has no source-generated defaults registration. Add [SparseFragmentMapper] and reference SparseTypes.Generator as an analyzer; runtime member inference is not supported."
+                $"The mapper for '{typeof(TEntity).Name}' and '{typeof(TDto).Name}' has no source-generated defaults registration. Add [SparseFragmentMapper<TEntity, TDto>] and reference SparseTypes.Generator as an analyzer; runtime member inference is not supported."
             );
         }
 

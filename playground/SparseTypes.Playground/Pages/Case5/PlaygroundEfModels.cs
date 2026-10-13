@@ -144,24 +144,14 @@ public sealed class PlaygroundEfContext : DbContext
 }
 
 /// <summary>Maps order DTO changes onto the tracked order entity.</summary>
-[SparseFragmentMapper]
+[SparseFragmentMapper<PlaygroundOrderEntity, PlaygroundOrderDto>]
 public sealed partial class PlaygroundOrderMapper
-    : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
 {
-    /// <inheritdoc />
-    /// <remarks>
-    /// The <c>typeof</c> reference roots the source-generated companion for
-    /// trimmed builds; the generator emits it into this same compilation.
-    /// </remarks>
-    [DynamicDependency(
-        DynamicallyAccessedMemberTypes.All,
-        typeof(PlaygroundOrderMapper_SparseEfDefaults)
-    )]
-    public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Customer, entity => entity.CustomerName);
-        map.Member(dto => dto.Notes, entity => entity.Note!.Text);
-        map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
+        Map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        Map.Member(dto => dto.Notes, entity => entity.Note!.Text);
+        Map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

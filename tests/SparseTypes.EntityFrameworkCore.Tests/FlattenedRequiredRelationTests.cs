@@ -96,14 +96,14 @@ public sealed class ReqNoteContext : DbContext
     }
 }
 
-[SparseFragmentMapper]
-public sealed class ReqNoteMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteOrderDto>
+[SparseFragmentMapper<ReqNoteOrderEntity, ReqNoteOrderDto>]
+public sealed partial class ReqNoteMapper
 {
-    public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteOrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Customer, entity => entity.CustomerName);
-        map.Member(dto => dto.Notes, entity => entity.Note!.Text);
-        map.Collection<ReqNoteLineDto, ReqNoteLineEntity>(
+        Map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        Map.Member(dto => dto.Notes, entity => entity.Note!.Text);
+        Map.Collection<ReqNoteLineDto, ReqNoteLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -134,13 +134,13 @@ public partial class ReqNoteObjectDto
     public ReqNoteDto? Note { get; set; }
 }
 
-[SparseFragmentMapper]
-public sealed class ReqNoteObjectMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteObjectDto>
+[SparseFragmentMapper<ReqNoteOrderEntity, ReqNoteObjectDto>]
+public sealed partial class ReqNoteObjectMapper
 {
-    public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteObjectDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Customer, entity => entity.CustomerName);
-        map.Object(
+        Map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        Map.Object(
             dto => dto.Note,
             entity => entity.Note,
             note => note.Member(child => child.Text, entity => entity.Text)
@@ -154,12 +154,12 @@ public partial class ReqNoteFlatDto
     public string Notes { get; set; } = string.Empty;
 }
 
-[SparseFragmentMapper]
-public sealed class ReqNoteFlatMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteFlatDto>
+[SparseFragmentMapper<ReqNoteOrderEntity, ReqNoteFlatDto>]
+public sealed partial class ReqNoteFlatMapper
 {
-    public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteFlatDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Notes, entity => entity.Note!.Text);
+        Map.Member(dto => dto.Notes, entity => entity.Note!.Text);
     }
 }
 

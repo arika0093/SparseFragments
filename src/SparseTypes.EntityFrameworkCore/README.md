@@ -12,17 +12,21 @@ stays application-owned.
 
 How it works:
 
-- Implement `IEntityModelMapping<TEntity, TDto>` in a dedicated
-  `[SparseFragmentMapper]` class and declare overrides in `Configure`. The
-  ordinary generator emits conventional defaults (same-name scalars, nested
-  objects, collection markers) into an external companion; explicit entries
-  replace each default exactly once. Neither the mapper nor the entity needs to
-  be partial (partial mappers with a parameterless constructor additionally
-  gain an `OrderMapper.Create(db.Model)` shorthand). Keyed child collections
+- Declare `[SparseFragmentMapper<TEntity, TDto>]` on a dedicated partial
+  mapper class with an optional parameterless `Configure()` that uses the
+  generated `Map` member. The ordinary generator emits conventional defaults
+  (same-name scalars, nested objects, collection markers) into an external
+  companion, implements `IEntityModelMapping<TEntity, TDto>` on the mapper,
+  and backs `Map` with the builder active for the current plan build;
+  explicit entries replace each default exactly once. Mappers with a
+  parameterless constructor additionally gain an
+  `OrderMapper.Create(db.Model)` shorthand. Keyed child collections
   use `Collection` with path-scoped `Element` child overrides (omitted when
   the conventional child mappings suffice) plus explicit key, factory,
   removal (`Delete`/`Detach`/`SoftDelete`/`Remove`), and opt-in `Order`
-  policies.
+  policies. `Map` is usable only during the synchronous `Configure` call;
+  overlapping builds on one (singleton) instance serialize and leave nothing
+  retained.
 - Build with `OrderMapper.Create(model)` for partial mappers, or
   `SparseEntityMapper<TEntity, TDto>.Create(mapping, model)` otherwise.
   Creation validates the full coverage manifest against the EF `IModel`, so a

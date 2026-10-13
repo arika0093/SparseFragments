@@ -1,14 +1,17 @@
 namespace SparseTypes.EntityFrameworkCore;
 
 /// <summary>
-/// Declares the ChangeSet-aware mapping between one entity and one DTO type.
+/// Infrastructure contract implemented by generated mapper bridges.
 /// </summary>
 /// <remarks>
-/// The entire mapping lives in <see cref="Configure" />: compatible same-name
-/// scalars arrive from the source-generated conventional defaults, and only
-/// overrides, ignores, nested scopes, and specialized operations are
-/// registered explicitly. Entity types are never annotated, and no mapping is
-/// passed as a factory-creation argument.
+/// Consumers declare <see cref="SparseFragmentMapperAttribute{TEntity, TDto}" />
+/// on a partial mapper class with an optional parameterless
+/// <c>Configure()</c> that uses the generated <c>Map</c> member; the generator
+/// implements this interface. Do not implement it manually: the generated
+/// bridge owns the thread-safe builder scope (defaults first, then explicit
+/// overrides once per DTO path) and the trimming-safe companion rooting.
+/// The interface stays public so cross-assembly generated code and public
+/// generic method constraints can name it.
 /// </remarks>
 /// <typeparam name="TEntity">The tracked EF Core entity type.</typeparam>
 /// <typeparam name="TDto">The DTO (fragment model) type carrying the change set.</typeparam>

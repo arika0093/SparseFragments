@@ -135,8 +135,9 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// <c>Configure</c> runs now and the resulting plan is validated against
     /// the model, so dormant unmapped members fail here even when the first
     /// ChangeSet never edits them. Source-generated defaults (emitted by the
-    /// ordinary generator for <c>[SparseFragmentMapper]</c> types) are applied
-    /// before <c>Configure</c>, and explicit registrations replace them at the
+    /// ordinary generator for <c>[SparseFragmentMapper{TEntity, TDto}]</c> types) are applied
+    /// before the generated bridge invokes the optional parameterless
+    /// <c>Configure()</c>, and explicit registrations replace them at the
     /// exact scoped DTO member path. Partial mapper classes with a
     /// parameterless constructor also gain a <c>Mapper.Create(model)</c>
     /// shorthand for this factory.
@@ -349,7 +350,7 @@ public sealed class SparseEntityMapper<TEntity, TDto>
                 throw new SparseEntityMappingException(
                     SparseEntityMappingFailure.MetadataMismatch,
                     null,
-                    $"The mapper '{mapperName}' is marked [SparseFragmentMapper] but {reason}. Reference SparseTypes.Generator as an analyzer in the mapper compilation so conventional defaults generate; mappings without the marker keep the scoped runtime inference fallback."
+                    $"The mapper '{mapperName}' is marked [SparseFragmentMapper<TEntity, TDto>] but {reason}. Reference SparseTypes.Generator as an analyzer in the mapper compilation so conventional defaults generate."
                 );
             }
 

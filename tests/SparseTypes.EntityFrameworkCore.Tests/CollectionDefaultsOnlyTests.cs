@@ -29,7 +29,7 @@ public partial class DefaultsOnlyLineDto
 }
 
 /// <summary>Collections relying on generated child defaults without an explicit Element mapping.</summary>
-public sealed class CollectionDefaultsOnlyTests
+public sealed partial class CollectionDefaultsOnlyTests
 {
     /// <summary>Entity holding the lines.</summary>
     public sealed class DefaultsOnlyEntity
@@ -84,14 +84,12 @@ public sealed class CollectionDefaultsOnlyTests
     }
 
     /// <summary>Mapping without Element: same-name Qty resolves via generated defaults.</summary>
-    [SparseFragmentMapper]
-    public sealed class DefaultsOnlyMapper
-        : IEntityModelMapping<DefaultsOnlyEntity, DefaultsOnlyDto>
+    [SparseFragmentMapper<DefaultsOnlyEntity, DefaultsOnlyDto>]
+    public sealed partial class DefaultsOnlyMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<DefaultsOnlyEntity, DefaultsOnlyDto> map)
+        private void Configure()
         {
-            map.Collection<DefaultsOnlyLineDto, DefaultsOnlyLineEntity>(
+            Map.Collection<DefaultsOnlyLineDto, DefaultsOnlyLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
