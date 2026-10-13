@@ -547,6 +547,11 @@ namespace __SESSION_NAMESPACE__
         /// duplicated, or inconsistent temporary identities) fail without mutating
         /// either the live model or the retained baseline. Only one unacknowledged
         /// submission should be reconciled at a time.
+        /// Idempotency is by submission identity, not by state: retrying the same
+        /// verified submission reference while the live model agrees with the
+        /// authority succeeds (even after the baseline moved on), but an
+        /// unrelated or stale change set never succeeds merely because the live
+        /// model happens to equal the persisted model.
         /// </remarks>
         /// <param name="submitted">The submitted transition to acknowledge.</param>
         /// <param name="persisted">The authoritative persisted model.</param>
@@ -588,12 +593,16 @@ namespace __SESSION_NAMESPACE__
             error = null;
             var persistedBaseline = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(persisted));
 
-            // Re-acknowledging an already-reconciled state is a no-op success:
-            // the live model already matches the authority, so adopting it
-            // as the baseline changes nothing observable. A live model that
-            // cannot even diff falls through to the normal path instead.
-            // This check precedes the stale-submission guard: an acknowledged
-            // submission stays acknowledged even after the baseline moved on.
+            // Re-acknowledging an already-reconciled state is a no-op success
+            // only for a verified submission: the same reference returned as
+            // reconciled before, or a submission that advances against the
+            // retained baseline and already describes the live model. The live
+            // model agreeing with the authority alone proves nothing about the
+            // supplied change set, so foreign or stale submissions fall
+            // through to the normal path (which rejects them) instead of
+            // succeeding here. A live model that cannot even diff falls
+            // through as well. An acknowledged submission stays acknowledged
+            // even after the baseline moved on, via the reference slot below.
             try
             {
                 var reconcileCurrent = _between(
@@ -602,11 +611,41 @@ namespace __SESSION_NAMESPACE__
                 );
                 if (_isEmpty(reconcileCurrent))
                 {
-                    _baseline = persistedBaseline;
-                    _lastObserved = persistedBaseline;
-                    RefreshAfterModelMutation();
-                    error = null;
-                    return true;
+                    if (ReferenceEquals(submitted, _lastReconciledSubmission))
+                    {
+                        _baseline = persistedBaseline;
+                        _lastObserved = persistedBaseline;
+                        RefreshAfterModelMutation();
+                        error = null;
+                        return true;
+                    }
+
+                    var verifiedAdvanced = _advanceBaseline(submitted, _baseline);
+                    if (verifiedAdvanced.IsPresent)
+                    {
+                        var verifiedValue = verifiedAdvanced.Value;
+                        if (verifiedValue is null)
+                        {
+                            error =
+                                "Advancing the baseline did not produce a valid model state.";
+                            return false;
+                        }
+
+                        var verifiedAfter = _baselineToModel(verifiedValue);
+                        var verifiedPending = _between(
+                            __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(verifiedAfter)),
+                            __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                        );
+                        if (_isEmpty(verifiedPending))
+                        {
+                            _baseline = persistedBaseline;
+                            _lastObserved = persistedBaseline;
+                            _lastReconciledSubmission = submitted;
+                            RefreshAfterModelMutation();
+                            error = null;
+                            return true;
+                        }
+                    }
                 }
             }
             catch (InvalidOperationException) { }
@@ -731,6 +770,7 @@ namespace __SESSION_NAMESPACE__
             // Observe post-submit edits from the persisted baseline so the
             // published transition spans exactly what remains pending.
             _lastObserved = persistedBaseline;
+            _lastReconciledSubmission = submitted;
             RefreshAfterModelMutation();
             return true;
         }
@@ -1134,6 +1174,12 @@ namespace __SESSION_NAMESPACE__
         private bool _hasChangesSnapshotPending;
         private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
+        // Last submission returned as reconciled by TryReconcile, by reference.
+        // A verified retry stays a success while the live model agrees with the
+        // authority, even after the baseline moved on; identical state alone
+        // never proves a submission was acknowledged. A single slot keeps the
+        // mechanism explicitly bounded.
+        private TChangeSet? _lastReconciledSubmission;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
         private int _batchDepth;
         private bool _batchDirty;

@@ -616,4 +616,120 @@ public sealed class TemporaryKeyReconcileRegressionTests
         baseline.Lines.Count.ShouldBe(3);
         session.HasChanges.ShouldBeTrue();
     }
+
+    // Issue #245: a foreign submission must not succeed merely because the
+    // live model happens to equal the persisted model.
+    [Test]
+    public void ForeignSubmissionWithMatchingLiveAndPersistedFailsWithoutMutation()
+    {
+        var baseline = new TempOrderHolder { Lines = [Assigned(1, "one")] };
+        var session = baseline.CreateEditSession();
+        var liveReference = baseline.Lines;
+        var liveRow = baseline.Lines[0];
+
+        var foreignHolder = new TempOrderHolder { Lines = [Assigned(9, "other")] };
+        var foreignSession = foreignHolder.CreateEditSession();
+        foreignHolder.Lines.Add(Pending("foreign"));
+        var foreign = foreignSession.CreateChangeSet();
+
+        // Live and authority agree on B, which the foreign submission never described.
+        baseline.Lines[0].Name = "b-live";
+        var persisted = new TempOrderHolder { Lines = [Assigned(1, "b-live")] };
+
+        session.TryReconcile(foreign, persisted, out var error).ShouldBeFalse();
+        error.ShouldNotBeNullOrEmpty();
+
+        object.ReferenceEquals(baseline.Lines, liveReference).ShouldBeTrue();
+        object.ReferenceEquals(baseline.Lines[0], liveRow).ShouldBeTrue();
+        baseline.Lines.Count.ShouldBe(1);
+        baseline.Lines[0].Name.ShouldBe("b-live");
+        session.HasChanges.ShouldBeTrue();
+        session.CreateChangeSet().Lines.GetChange(1).IsEdited.ShouldBeTrue();
+    }
+
+    // Issue #245: a stale submission (baseline moved past its before-state,
+    // with a reorder) must not succeed when live equals persisted.
+    [Test]
+    public void StaleSubmissionWithMatchingLiveAndPersistedFailsWithoutMutation()
+    {
+        var baseline = new TempOrderHolder { Lines = [Assigned(1, "one"), Assigned(2, "two")] };
+        var session = baseline.CreateEditSession();
+        baseline.Lines[0].Name = "c1";
+        var stale = session.CreateChangeSet();
+
+        baseline.Lines[0].Name = "d1";
+        var reordered = baseline.Lines[0];
+        baseline.Lines.RemoveAt(0);
+        baseline.Lines.Add(reordered);
+        session.AcceptChanges();
+        var liveReference = baseline.Lines;
+
+        // Live and authority agree on the reordered D state.
+        var persisted = new TempOrderHolder { Lines = [Assigned(2, "two"), Assigned(1, "d1")] };
+
+        session.TryReconcile(stale, persisted, out var error).ShouldBeFalse();
+        error.ShouldNotBeNullOrEmpty();
+
+        object.ReferenceEquals(baseline.Lines, liveReference).ShouldBeTrue();
+        baseline.Lines.Count.ShouldBe(2);
+        baseline.Lines[0].Id.ShouldBe(2);
+        baseline.Lines[1].Name.ShouldBe("d1");
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    // Issue #245: retrying the same verified submission reference while live
+    // agrees with the authority stays a success, including after the baseline
+    // moved on. Identity is by submission reference, never by state equality.
+    [Test]
+    public void VerifiedRetryAfterBaselineMovementSucceeds()
+    {
+        var temp = Guid.NewGuid();
+        var baseline = new TempOrderHolder { Lines = [Assigned(1, "one")] };
+        var session = baseline.CreateEditSession();
+        baseline.Lines.Add(new TempOrderLine { Name = "new", TemporaryId = temp });
+        var submitted = session.CreateChangeSet();
+        var persisted = new TempOrderHolder
+        {
+            Lines =
+            [
+                Assigned(1, "one"),
+                new TempOrderLine
+                {
+                    Id = 5,
+                    Name = "new",
+                    TemporaryId = temp,
+                },
+            ],
+        };
+
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+        baseline.Lines.Single(item => item.TemporaryId == temp).Id.ShouldBe(5);
+
+        // Immediate retry with live agreeing with the authority succeeds.
+        session.TryReconcile(submitted, persisted, out error).ShouldBeTrue();
+        error.ShouldBeNull();
+
+        // Move the baseline on, then retry the same reference with a fresh
+        // authority snapshot that matches live.
+        baseline.Lines[0].Name = "one-v2";
+        session.AcceptChanges();
+        var moved = new TempOrderHolder
+        {
+            Lines =
+            [
+                Assigned(1, "one-v2"),
+                new TempOrderLine
+                {
+                    Id = 5,
+                    Name = "new",
+                    TemporaryId = temp,
+                },
+            ],
+        };
+
+        session.TryReconcile(submitted, moved, out error).ShouldBeTrue();
+        error.ShouldBeNull();
+        session.HasChanges.ShouldBeFalse();
+    }
 }
