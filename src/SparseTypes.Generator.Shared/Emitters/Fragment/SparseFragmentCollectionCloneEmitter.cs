@@ -165,6 +165,12 @@ internal static class SparseFragmentCollectionCloneEmitter
             2,
             "if (source is global::System.Collections.Generic.HashSet<T>) return __CloneSet<T, TCollection>(source, context, cloneElement);"
         );
+        code.AppendLineAt(2, "if (cloneElement is null)");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var copy = global::System.Linq.Enumerable.ToArray(source);");
+        code.AppendLineAt(3, "context.Add(source, copy);");
+        code.AppendLineAt(3, "return (TCollection)(object)copy;");
+        code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
             "var values = source as T[] ?? global::System.Linq.Enumerable.ToArray(source);"
@@ -173,15 +179,8 @@ internal static class SparseFragmentCollectionCloneEmitter
         code.AppendLineAt(2, "context.Add(source, clone);");
         code.AppendLineAt(
             2,
-            "if (cloneElement is null) global::System.Array.Copy(values, clone, values.Length);"
-        );
-        code.AppendLineAt(2, "else");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
             "for (var index = 0; index < values.Length; index++) clone[index] = cloneElement(values[index], context);"
         );
-        code.AppendLineAt(2, "}");
         code.AppendLineAt(2, "return (TCollection)(object)clone;");
         code.AppendLineAt(1, "}");
         code.AppendLineAt(

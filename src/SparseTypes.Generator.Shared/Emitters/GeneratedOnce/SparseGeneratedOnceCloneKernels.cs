@@ -194,6 +194,12 @@ internal static class SparseGeneratedOnceCloneKernels
             3,
             "if (source is global::System.Collections.Generic.HashSet<T>) return __CloneSet<T, TCollection>(source, context, cloneElement);"
         );
+        code.AppendLineAt(3, "if (cloneElement is null)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "var copy = global::System.Linq.Enumerable.ToArray(source);");
+        code.AppendLineAt(4, "context.Add(source, copy);");
+        code.AppendLineAt(4, "return (TCollection)(object)copy;");
+        code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
             "var values = source as T[] ?? global::System.Linq.Enumerable.ToArray(source);"
@@ -202,15 +208,8 @@ internal static class SparseGeneratedOnceCloneKernels
         code.AppendLineAt(3, "context.Add(source, clone);");
         code.AppendLineAt(
             3,
-            "if (cloneElement is null) global::System.Array.Copy(values, clone, values.Length);"
-        );
-        code.AppendLineAt(3, "else");
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
             "for (var index = 0; index < values.Length; index++) clone[index] = cloneElement(values[index], context);"
         );
-        code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "return (TCollection)(object)clone;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(

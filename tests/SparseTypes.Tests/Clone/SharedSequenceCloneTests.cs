@@ -15,6 +15,23 @@ public partial class SharedSequenceSettings
 public sealed class SharedSequenceCloneTests
 {
     [Test]
+    public void ReadOnlyCollectionSnapshotsPreserveAliasesAndDetachFromBackingArray()
+    {
+        var values = new[] { 1, 2 };
+        var view = Array.AsReadOnly(values);
+        var model = new SharedSequenceSettings { AArrayView = view, AListView = view };
+        var clone = model.DeepClone();
+        var fragment = SharedSequenceSettings.Fragment.From(model);
+        ReferenceEquals(clone.AArrayView, clone.AListView).ShouldBeTrue();
+        ReferenceEquals(fragment.AArrayView.Value, fragment.AListView.Value).ShouldBeTrue();
+        ReferenceEquals(clone.AArrayView, view).ShouldBeFalse();
+        ReferenceEquals(fragment.AArrayView.Value, view).ShouldBeFalse();
+        values[0] = 9;
+        clone.AArrayView.ShouldBe([1, 2]);
+        fragment.AArrayView.Value.ShouldBe([1, 2]);
+    }
+
+    [Test]
     public void ClonePreservesSharedCollectionsAcrossConcreteAndInterfaceViews()
     {
         var array = new[] { 1, 2 };
