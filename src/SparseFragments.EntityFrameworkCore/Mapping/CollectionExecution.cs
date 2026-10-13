@@ -23,7 +23,9 @@ internal static class CollectionExecution
         string path,
         Dictionary<string, Dictionary<Guid, object>>? correlation,
         List<SparseEntityAppliedPath>? appliedPaths,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys,
+        Dictionary<string, NestedScopeTable>? nestedScopes = null,
+        CollectionScopeIdentity parentScope = default
     )
         where TDtoChild : class
         where TEntityChild : class
@@ -49,25 +51,48 @@ internal static class CollectionExecution
                     correlation[path] = scope;
                 }
 
-                if (
-                    scope.TryGetValue(addition.TemporaryKey.Value, out var existing)
-                    && !ReferenceEquals(existing, addition.Entity)
-                )
+                if (nestedScopes is null || parentScope.Kind == CollectionScopeKind.Unscoped)
                 {
-                    throw new SparseEntityMappingException(
-                        SparseEntityMappingFailure.CollectionKeyConflict,
-                        path,
-                        $"Two created children under '{path}' share one temporary identity. Temporary identities must be unique within one collection scope."
-                    );
-                }
+                    if (
+                        scope.TryGetValue(addition.TemporaryKey.Value, out var existing)
+                        && !ReferenceEquals(existing, addition.Entity)
+                    )
+                    {
+                        throw new SparseEntityMappingException(
+                            SparseEntityMappingFailure.CollectionKeyConflict,
+                            path,
+                            $"Two created children under '{path}' share one temporary identity. Temporary identities must be unique within one collection scope."
+                        );
+                    }
 
-                scope[addition.TemporaryKey.Value] = addition.Entity;
+                    scope[addition.TemporaryKey.Value] = addition.Entity;
+                }
+                else
+                {
+                    // Legacy bucket keeps its contents for compatible reads;
+                    // precise duplicate detection runs on the parent-scoped record.
+                    scope[addition.TemporaryKey.Value] = addition.Entity;
+                    if (!nestedScopes.TryGetValue(path, out var table))
+                    {
+                        table = new NestedScopeTable(parentScope.KeyComparer);
+                        nestedScopes.Add(path, table);
+                    }
+
+                    table.Record(path, parentScope, addition.TemporaryKey.Value, addition.Entity);
+                }
             }
 
             context.Add(addition.Entity);
             var entry = PlanApplyState.AttachSingle(context, addition.Entity);
             var scopeKey = addition.ScopeKey;
-            RecordCollectionScope(collectionScopeKeys, path, addition.Entity, scopeKey);
+            RecordCollectionScope(
+                collectionScopeKeys,
+                nestedScopes,
+                path,
+                addition.Entity,
+                scopeKey,
+                parentScope
+            );
             if (appliedPaths is not null)
             {
                 appliedPaths.Add(
@@ -91,7 +116,14 @@ internal static class CollectionExecution
                 $"{path}[{scopeKey}]",
                 correlation,
                 appliedPaths,
-                collectionScopeKeys
+                collectionScopeKeys,
+                nestedScopes,
+                CollectionScopeIdentity.ForElement(
+                    addition.AssignedKey,
+                    addition.AssignedKey is not null,
+                    addition.TemporaryKey,
+                    runtime.KeyComparer
+                )
             );
             var subs = new List<Action>();
             runtime.ChildPlan.WriteAll(sub, subs);
@@ -148,9 +180,11 @@ internal static class CollectionExecution
 
     private static void RecordCollectionScope(
         Dictionary<string, Dictionary<object, string>>? collectionScopeKeys,
+        Dictionary<string, NestedScopeTable>? nestedScopes,
         string path,
         object entity,
-        string scopeKey
+        string scopeKey,
+        CollectionScopeIdentity scope
     )
     {
         if (collectionScopeKeys is null)
@@ -165,6 +199,19 @@ internal static class CollectionExecution
         }
 
         scopes[entity] = scopeKey;
+
+        if (nestedScopes is null || scope.Kind == CollectionScopeKind.Unscoped)
+        {
+            return;
+        }
+
+        if (!nestedScopes.TryGetValue(path, out var table))
+        {
+            table = new NestedScopeTable(scope.KeyComparer);
+            nestedScopes.Add(path, table);
+        }
+
+        table.RecordEntity(scope, entity);
     }
 
     private static void ApplyRemoval<TDtoChild, TEntityChild>(

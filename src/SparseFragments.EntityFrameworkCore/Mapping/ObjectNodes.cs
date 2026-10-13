@@ -301,7 +301,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 isNested: true,
                 sharedCorrelation: state.Correlation,
                 appliedPaths: state.AppliedPaths,
-                collectionScopeKeys: state.CollectionScopeKeys
+                collectionScopeKeys: state.CollectionScopeKeys,
+                nestedScopes: state.NestedScopes,
+                parentScope: state.ParentScope
             );
             _childPlan.Prepare(sub, actions);
             return;
@@ -323,7 +325,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 isNested: true,
                 sharedCorrelation: state.Correlation,
                 appliedPaths: state.AppliedPaths,
-                collectionScopeKeys: state.CollectionScopeKeys
+                collectionScopeKeys: state.CollectionScopeKeys,
+                nestedScopes: state.NestedScopes,
+                parentScope: state.ParentScope
             );
             var nestedActions = new List<Action>();
             _childPlan.Prepare(sub, nestedActions);
@@ -500,7 +504,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 state.DisplayPath(DtoName),
                 state.Correlation,
                 state.AppliedPaths,
-                state.CollectionScopeKeys
+                state.CollectionScopeKeys,
+                state.NestedScopes,
+                state.ParentScope
             );
             _childPlan.WriteAll(sub, actions);
             return;
@@ -508,7 +514,12 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
 
         // Validate wholesale content preflight on a detached instance so a
         // later failure leaves the graph untouched; create for real at execution.
-        ValidateWholesaleOnProspective(state.Context, state.DisplayPath(DtoName), snapshot);
+        ValidateWholesaleOnProspective(
+            state.Context,
+            state.DisplayPath(DtoName),
+            snapshot,
+            state.ParentScope
+        );
         actions.Add(() =>
         {
             var target = MaterializeTarget(state.Context, state.Entity);
@@ -521,7 +532,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 state.DisplayPath(DtoName),
                 state.Correlation,
                 state.AppliedPaths,
-                state.CollectionScopeKeys
+                state.CollectionScopeKeys,
+                state.NestedScopes,
+                state.ParentScope
             );
             var nestedActions = new List<Action>();
             _childPlan.WriteAll(sub, nestedActions);
@@ -537,7 +550,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         object? baseline,
         object authoritative,
         SparseEntityApplyResult result,
-        string path
+        string path,
+        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
         var prior = baseline is TDto priorParent ? _dtoGetter(priorParent) : null;
@@ -548,7 +562,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         var childPath = string.IsNullOrEmpty(path) ? DtoName : $"{path}.{DtoName}";
-        _childPlan.AssignTemporaryKeys(context, prior, current, result, childPath);
+        _childPlan.AssignTemporaryKeys(context, prior, current, result, childPath, parentScopes);
     }
 
     private void WriteAdded(
@@ -601,13 +615,20 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 state.DisplayPath(DtoName),
                 state.Correlation,
                 state.AppliedPaths,
-                state.CollectionScopeKeys
+                state.CollectionScopeKeys,
+                state.NestedScopes,
+                state.ParentScope
             );
             _childPlan.WriteAll(sub, actions);
             return;
         }
 
-        ValidateWholesaleOnProspective(state.Context, state.DisplayPath(DtoName), added);
+        ValidateWholesaleOnProspective(
+            state.Context,
+            state.DisplayPath(DtoName),
+            added,
+            state.ParentScope
+        );
         actions.Add(() =>
         {
             var target = MaterializeTarget(state.Context, state.Entity);
@@ -620,7 +641,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 state.DisplayPath(DtoName),
                 state.Correlation,
                 state.AppliedPaths,
-                state.CollectionScopeKeys
+                state.CollectionScopeKeys,
+                state.NestedScopes,
+                state.ParentScope
             );
             var nestedActions = new List<Action>();
             _childPlan.WriteAll(sub, nestedActions);
@@ -650,7 +673,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 isNested: true,
                 sharedCorrelation: state.Correlation,
                 appliedPaths: state.AppliedPaths,
-                collectionScopeKeys: state.CollectionScopeKeys
+                collectionScopeKeys: state.CollectionScopeKeys,
+                nestedScopes: state.NestedScopes,
+                parentScope: state.ParentScope
             );
             _childPlan.Prepare(sub, actions);
             return;
@@ -670,7 +695,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 isNested: true,
                 sharedCorrelation: state.Correlation,
                 appliedPaths: state.AppliedPaths,
-                collectionScopeKeys: state.CollectionScopeKeys
+                collectionScopeKeys: state.CollectionScopeKeys,
+                nestedScopes: state.NestedScopes,
+                parentScope: state.ParentScope
             );
             var nestedActions = new List<Action>();
             _childPlan.Prepare(sub, nestedActions);
@@ -738,7 +765,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             isNested: true,
             sharedCorrelation: new Dictionary<string, Dictionary<Guid, object>>(
                 StringComparer.Ordinal
-            )
+            ),
+            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            parentScope: state.ParentScope
         );
         _childPlan.Prepare(probe, new List<Action>());
     }
@@ -746,7 +775,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
     private void ValidateWholesaleOnProspective(
         DbContext context,
         string displayPath,
-        TDtoChild snapshot
+        TDtoChild snapshot,
+        CollectionScopeIdentity parentScope
     )
     {
         var prospective =
@@ -762,7 +792,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             context.Entry(prospective),
             snapshot,
             displayPath,
-            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal)
+            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
+            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            parentScope: parentScope
         );
         _childPlan.WriteAll(probe, new List<Action>());
     }

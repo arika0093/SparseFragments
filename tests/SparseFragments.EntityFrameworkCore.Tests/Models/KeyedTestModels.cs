@@ -693,6 +693,9 @@ public sealed class KeyedMappingContext : DbContext
     /// <summary>Gets the parcel owners.</summary>
     public DbSet<ParcelEntity> Parcels => Set<ParcelEntity>();
 
+    /// <summary>Gets the struct-keyed bin holders.</summary>
+    public DbSet<BinHolderEntity> BinHolders => Set<BinHolderEntity>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -820,6 +823,28 @@ public sealed class KeyedMappingContext : DbContext
         modelBuilder.Entity<ParcelTagEntity>(entity =>
         {
             entity.HasKey(tag => tag.Id);
+        });
+        modelBuilder.Entity<BinHolderEntity>(entity =>
+        {
+            entity.HasKey(holder => holder.Id);
+            entity
+                .HasMany(holder => holder.Bins)
+                .WithOne(bin => bin.Holder)
+                .HasForeignKey(bin => bin.HolderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<BinEntity>(entity =>
+        {
+            entity.HasKey(bin => bin.Id);
+            entity
+                .HasMany(bin => bin.Lines)
+                .WithOne(line => line.Bin)
+                .HasForeignKey(line => line.BinId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<BinLineEntity>(entity =>
+        {
+            entity.HasKey(line => line.Id);
         });
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
+using SparseFragments.EntityFrameworkCore.Mapping;
 
 namespace SparseFragments.EntityFrameworkCore;
 
@@ -85,12 +86,16 @@ public sealed record SparseEntityAppliedPath
 /// its DTO <c>[SparseTemporaryKey]</c> value so the application can correlate
 /// database-generated permanent keys across <c>SaveChanges</c>. Correlations
 /// are scoped by DTO collection path: the same temporary value reused under a
-/// different collection resolves independently there.
+/// different collection resolves independently there. Nested scopes additionally
+/// resolve by parent scope (stable key or temporary identity), so parents
+/// whose display keys collide still correlate independently; direct nested
+/// path-string lookups keep their merged legacy view.
 /// </remarks>
 public sealed class SparseEntityApplyResult
 {
     private Dictionary<Guid, IReadOnlyList<object>>? _byTemporaryKey;
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<Guid, object>> _createdByPath;
+    private readonly IReadOnlyDictionary<string, NestedScopeTable> _nestedScopes;
     private readonly IReadOnlyList<SparseEntityAppliedPath> _appliedPaths;
     private readonly IReadOnlyDictionary<
         string,
@@ -100,10 +105,16 @@ public sealed class SparseEntityApplyResult
     internal SparseEntityApplyResult(
         Dictionary<string, Dictionary<Guid, object>> byPath,
         IEnumerable<SparseEntityAppliedPath>? appliedPaths = null,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null,
+        IReadOnlyDictionary<string, NestedScopeTable>? nestedScopes = null
     )
     {
         ArgumentNullException.ThrowIfNull(byPath);
+        _nestedScopes =
+            nestedScopes
+            ?? new ReadOnlyDictionary<string, NestedScopeTable>(
+                new Dictionary<string, NestedScopeTable>()
+            );
         var pathViews = new Dictionary<string, IReadOnlyDictionary<Guid, object>>(
             byPath.Count,
             StringComparer.Ordinal
@@ -143,6 +154,46 @@ public sealed class SparseEntityApplyResult
 
     internal IReadOnlyDictionary<object, string> GetCreatedScopeKeys(string collectionPath) =>
         _collectionScopeKeys.TryGetValue(collectionPath, out var scopes) ? scopes : EmptyScopeKeys;
+
+    /// <summary>Collects recorded members known to belong to sibling scopes.</summary>
+    /// <param name="collectionPath">The dotted DTO collection path.</param>
+    /// <param name="mine">The parent scopes of the current item.</param>
+    /// <returns>Members recorded under other scopes; empty when unknown.</returns>
+    internal HashSet<object> ForeignMembers(
+        string collectionPath,
+        IReadOnlyList<CollectionScopeIdentity> mine
+    )
+    {
+        ArgumentNullException.ThrowIfNull(collectionPath);
+        ArgumentNullException.ThrowIfNull(mine);
+        if (!_nestedScopes.TryGetValue(collectionPath, out var table))
+        {
+            return [];
+        }
+
+        return table.ForeignMembers(mine);
+    }
+
+    /// <summary>Looks up created children for one nested collection path and parent scope.</summary>
+    /// <param name="collectionPath">The dotted DTO collection path.</param>
+    /// <param name="scope">The parent element scope.</param>
+    /// <returns>The temporary-to-entity map, or null when nothing was recorded.</returns>
+    internal IReadOnlyDictionary<Guid, object>? GetCreated(
+        string collectionPath,
+        CollectionScopeIdentity scope
+    )
+    {
+        ArgumentNullException.ThrowIfNull(collectionPath);
+        if (
+            scope.Kind == CollectionScopeKind.Unscoped
+            || !_nestedScopes.TryGetValue(collectionPath, out var table)
+        )
+        {
+            return null;
+        }
+
+        return table.TryGet(scope);
+    }
 
     /// <summary>Gets whether any child entity was created by this apply.</summary>
     public bool HasCreatedEntities => _createdByPath.Count > 0;
