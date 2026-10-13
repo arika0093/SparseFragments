@@ -22,6 +22,7 @@ public static class UiFrameworksSamples
         ForkConflictLeavesBothSessionsUntouched();
         ChildScopeCommitsDisjointParentEdits();
         RevertRestoresBaseline();
+        CollectionConsumerEditsThroughTypedPath();
         DescriptorFirst();
         DescriptorChanges();
     }
@@ -359,6 +360,40 @@ public static class UiFrameworksSamples
         DocsCheck.Require(
             revertModel.Number == "a" && !revertSession.HasChanges,
             "revert restores the baseline value"
+        );
+    }
+
+    private static void CollectionConsumerEditsThroughTypedPath()
+    {
+        // sample: ui-collection-consumer
+        var shelfModel = new UiOrder
+        {
+            Items =
+            [
+                new UiOrderItem { Id = "a", Name = "Alpha" },
+                new UiOrderItem { Id = "b", Name = "Beta" },
+            ],
+        };
+        var shelfSession = shelfModel.CreateEditSession();
+        var shelf = shelfSession.EditCollection<UiOrderItem, string>(UiOrder.SparsePath.Items);
+        var shelfTransitions = 0;
+        shelfSession.TransitionObserved += _ => shelfTransitions++;
+
+        shelf.TryAdd(new UiOrderItem { Id = "c", Name = "Gamma" }, out _);
+        // shelfTransitions == 1
+        shelf.TryMoveByKey("a", 2, out _);
+        // shelfModel.Items ids == ["b", "c", "a"]
+        shelf.TryRemoveByKey("b", out _);
+        // shelfSession.CreateChangeSet().Items.AfterOrder == ["c", "a"]
+        // /sample
+        DocsCheck.Require(shelfTransitions == 3, "one transition per consumer action");
+        DocsCheck.Require(
+            shelfModel.Items.Select(static item => item.Id).SequenceEqual(["c", "a"]),
+            "keyed add, move, and remove land in order"
+        );
+        DocsCheck.Require(
+            shelfSession.CreateChangeSet().Items.AfterOrder.SequenceEqual(["c", "a"]),
+            "typed change set reports the edited order"
         );
     }
 

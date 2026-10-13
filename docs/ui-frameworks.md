@@ -112,6 +112,36 @@ Keyed operations look the index up on every call, so rows keep their identity ac
 
 Omitted on purpose: throwing variants of the Try operations (callers throw on the reported error where a throw fits), move-to-key helpers (compose `IndexOfKey` with `TryMove`), whole-collection clear and replace (no descriptor route exists; replace the member through the observable), dictionary and set members, and collections nested under list items (root members only, so resolution never depends on a positional index). Change-state reads stay out as well; the typed ChangeSet projections report what changed.
 
+A consumer edits through the typed path and reads state back from the typed change set:
+
+<!-- sample: ui-collection-consumer -->
+```csharp
+var shelfModel = new UiOrder
+{
+    Items =
+    [
+        new UiOrderItem { Id = "a", Name = "Alpha" },
+        new UiOrderItem { Id = "b", Name = "Beta" },
+    ],
+};
+var shelfSession = shelfModel.CreateEditSession();
+var shelf = shelfSession.EditCollection<UiOrderItem, string>(UiOrder.SparsePath.Items);
+var shelfTransitions = 0;
+shelfSession.TransitionObserved += _ => shelfTransitions++;
+
+shelf.TryAdd(new UiOrderItem { Id = "c", Name = "Gamma" }, out _);
+// shelfTransitions == 1
+shelf.TryMoveByKey("a", 2, out _);
+// shelfModel.Items ids == ["b", "c", "a"]
+shelf.TryRemoveByKey("b", out _);
+// shelfSession.CreateChangeSet().Items.AfterOrder == ["c", "a"]
+```
+<!-- /sample -->
+
+The positional operations (`TryAdd`, `TryInsert`, `TryReplace`, `TryRemoveAt`, `TryMove`) forward to the same-named `IArrayDescriptor` operations with batching, live resolution, and deterministic errors included. Handwritten code that resolves the member descriptor, checks the index, and wraps the call in `BatchEdit` repeats the facade and should call it instead. The keyed operations (`TryGetByKey`, `TryRemoveByKey`, `TryReplaceByKey`, `TryMoveByKey`, `TryGetKeyAt`, `IndexOfKey`, `ContainsKey`, and the temporary-identity operations) have no single-call Descriptor equivalent: the descriptor mutates by index and only looks keys up, so hand-rolled lookup-then-mutate sequences belong on the facade, which pins identity per operation. Descriptors remain the route for member metadata and inspection, nested collection paths, dictionary and set members, and flattened change enumeration.
+
+The Case 3 roster editor keeps direct list mutation because it edits the raw model with a manual change callback and owns no session. The facade needs session descriptors plus the batch runner, so adopting it there would mean adopting a session first. That migration stays out of scope; Case 3 remains the session-less baseline.
+
 ### Advanced inspection: Descriptors and flattened changes
 
 Ordinary editing needs only `Observable`, `Current`, and `CreateChangeSet()`. Two further seams exist for generic UI and diagnostics code:
