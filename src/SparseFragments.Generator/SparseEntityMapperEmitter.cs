@@ -338,6 +338,21 @@ internal static class SparseEntityMapperEmitter
                                 .Append(EscapeIdentifier(temporaryProperty.Name));
                         }
 
+                        code.Append(", ");
+                        if (
+                            temporaryProperty?.SetMethod?.DeclaredAccessibility
+                            != Accessibility.Public
+                        )
+                        {
+                            code.Append("null");
+                        }
+                        else
+                        {
+                            code.Append("static (__dto, __value) => __dto.")
+                                .Append(EscapeIdentifier(temporaryProperty.Name))
+                                .Append(" = __value");
+                        }
+
                         code.Append(", new string[] { ");
                         for (var keyIndex = 0; keyIndex < keyMemberNames.Length; keyIndex++)
                         {

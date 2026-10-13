@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -155,16 +154,6 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         ApplyCore(context, entity, changes, trackResult: false);
     }
 
-    /// <summary>Applies a change set through the runtime-checked compatibility overload.</summary>
-    /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
-    /// <param name="entity">The tracked entity to update.</param>
-    /// <param name="changes">The accepted/rebased change set; its model type must be <typeparamref name="TDto"/>.</param>
-    [EditorBrowsable(EditorBrowsableState.Advanced)]
-    public void Apply(DbContext context, TEntity entity, ISparseChangeSet changes)
-    {
-        Apply(context, entity, RequireDtoChangeSet(changes));
-    }
-
     /// <summary>
     /// Applies the accepted change set to a tracked entity and correlates created children.
     /// </summary>
@@ -186,21 +175,6 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     )
     {
         return ApplyCore(context, entity, changes, trackResult: true)!;
-    }
-
-    /// <summary>Applies a change set through the runtime-checked compatibility overload.</summary>
-    /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
-    /// <param name="entity">The tracked entity to update.</param>
-    /// <param name="changes">The accepted/rebased change set; its model type must be <typeparamref name="TDto"/>.</param>
-    /// <returns>The path-scoped temporary-identity correlation for created child entities.</returns>
-    [EditorBrowsable(EditorBrowsableState.Advanced)]
-    public SparseEntityApplyResult ApplyWithResult(
-        DbContext context,
-        TEntity entity,
-        ISparseChangeSet changes
-    )
-    {
-        return ApplyWithResult(context, entity, RequireDtoChangeSet(changes));
     }
 
     private SparseEntityApplyResult? ApplyCore(
@@ -286,16 +260,6 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         return trackResult
             ? new SparseEntityApplyResult(correlation!, appliedPaths, collectionScopeKeys)
             : null;
-    }
-
-    private static ISparseChangeSet<TDto> RequireDtoChangeSet(ISparseChangeSet changes)
-    {
-        ArgumentNullException.ThrowIfNull(changes);
-        return changes as ISparseChangeSet<TDto>
-            ?? throw new ArgumentException(
-                $"The change set must describe DTO type '{typeof(TDto).FullName}'.",
-                nameof(changes)
-            );
     }
 
     private SparseEntityMappingException ScopeToMapper(SparseEntityMappingException exception)

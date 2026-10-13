@@ -15,6 +15,7 @@ internal sealed class GeneratedCollectionElementDefaults
         object? unassignedKeyValue = null,
         bool hasUnassignedKeyValue = false,
         Delegate? temporaryKeySelector = null,
+        Delegate? temporaryKeySetter = null,
         string[]? keyMemberNames = null
     )
     {
@@ -24,6 +25,7 @@ internal sealed class GeneratedCollectionElementDefaults
         UnassignedKeyValue = unassignedKeyValue;
         HasUnassignedKeyValue = hasUnassignedKeyValue;
         TemporaryKeySelector = temporaryKeySelector;
+        TemporaryKeySetter = temporaryKeySetter;
         KeyMemberNames = keyMemberNames ?? [];
     }
 
@@ -38,6 +40,8 @@ internal sealed class GeneratedCollectionElementDefaults
     public bool HasUnassignedKeyValue { get; }
 
     public Delegate? TemporaryKeySelector { get; }
+
+    public Delegate? TemporaryKeySetter { get; }
 
     public string[] KeyMemberNames { get; }
 }
@@ -613,26 +617,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         {
             TemporaryDeclared = true;
             TemporaryGetter = (Func<TDtoChild, Guid?>)generated.TemporaryKeySelector;
-            TemporarySetter = CreateTemporarySetter();
+            TemporarySetter = generated.TemporaryKeySetter as Action<TDtoChild, Guid?>;
         }
-    }
-
-    private static Action<TDtoChild, Guid?>? CreateTemporarySetter()
-    {
-        var property = typeof(TDtoChild)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .SingleOrDefault(static property =>
-                property.IsDefined(typeof(SparseTemporaryKeyAttribute), inherit: true)
-            );
-        if (property?.PropertyType != typeof(Guid?) || property.SetMethod is null)
-        {
-            return null;
-        }
-
-        var dto = Expression.Parameter(typeof(TDtoChild), "dto");
-        var value = Expression.Parameter(typeof(Guid?), "value");
-        var assign = Expression.Assign(Expression.Property(dto, property), value);
-        return Expression.Lambda<Action<TDtoChild, Guid?>>(assign, dto, value).Compile();
     }
 
     private void SetTemporaryKey(TDtoChild dto, Guid temporaryKey, string collectionPath)

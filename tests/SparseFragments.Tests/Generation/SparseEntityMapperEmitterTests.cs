@@ -53,6 +53,17 @@ public sealed class SparseEntityMapperEmitterTests
                 public SparseEntityMapBuilder<TEntity, TDto> DeclareCollection<TDtoValue, TEntityValue>(
                     Expression<Func<TDto, TDtoValue?>> dto,
                     Expression<Func<TEntity, TEntityValue?>> entity) => this;
+                public SparseEntityMapBuilder<TEntity, TDto> DeclareCollectionElement<
+                    TDtoChild, TEntityChild, TKey>(
+                    Expression<Func<TDto, IEnumerable<TDtoChild>?>> dto,
+                    Expression<Func<TDtoChild, TKey>> key,
+                    object? unassignedKeyValue,
+                    bool hasUnassignedKeyValue,
+                    Expression<Func<TDtoChild, Guid?>>? temporaryKey,
+                    Action<TDtoChild, Guid?>? temporaryKeySetter,
+                    string[] keyMemberNames,
+                    Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> configure)
+                    where TDtoChild : class where TEntityChild : class => this;
             }
         }
         namespace SparseFragments.EntityFrameworkCore.Mapping
@@ -144,10 +155,16 @@ public sealed class SparseEntityMapperEmitterTests
                 }
                 public sealed class LineDto
                 {
+                    [SparseFragments.SparseKey(Unassigned = 0)]
+                    public int Id { get; set; }
+                    [SparseFragments.SparseTemporaryKey]
+                    public Guid? TemporaryId { get; set; }
                     public int Qty { get; set; }
                 }
                 public sealed class LineEntity
                 {
+                    public int Id { get; set; }
+                    public Guid? TemporaryId { get; set; }
                     public int Qty { get; set; }
                 }
                 public sealed class OrderDto
@@ -190,6 +207,8 @@ public sealed class SparseEntityMapperEmitterTests
         // Path-scoped conventional element defaults ride alongside the marker.
         sources.ShouldContain("builder.DeclareCollectionElement<");
         sources.ShouldContain("LineDto,");
+        sources.ShouldContain("static __key => __key.TemporaryId");
+        sources.ShouldContain("static (__dto, __value) => __dto.TemporaryId = __value");
         sources.ShouldContain("child.Member(static dto => dto.Qty, static entity => entity.Qty);");
         // Renamed/flattened pairs stay explicit-only: no guessed default.
         sources.ShouldNotContain("Renamed");

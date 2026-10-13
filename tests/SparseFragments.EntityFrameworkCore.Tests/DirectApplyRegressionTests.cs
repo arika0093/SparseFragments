@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using SparseFragments.EntityFrameworkCore.Mapping;
 using SparseFragments.EntityFrameworkCore.Tests.Sample;
@@ -113,7 +111,7 @@ public sealed class DirectApplyRegressionTests
     }
 
     [Test]
-    public void ApplySurfaceHasTypedOverloadsAndHidesUntypedCompatibilityOverloads()
+    public void ApplySurfaceExposesOnlyTypedChangeSetOverloads()
     {
         var mapperType = typeof(SparseEntityMapper<OrderEntity, OrderDto>);
         foreach (var methodName in new[] { "Apply", "ApplyWithResult" })
@@ -124,14 +122,12 @@ public sealed class DirectApplyRegressionTests
             );
             typed.ShouldNotBeNull();
 
-            var untyped = mapperType.GetMethod(
-                methodName,
-                [typeof(DbContext), typeof(OrderEntity), typeof(ISparseChangeSet)]
-            );
-            untyped.ShouldNotBeNull();
-            untyped!
-                .GetCustomAttribute<EditorBrowsableAttribute>()
-                ?.State.ShouldBe(EditorBrowsableState.Advanced);
+            mapperType
+                .GetMethod(
+                    methodName,
+                    [typeof(DbContext), typeof(OrderEntity), typeof(ISparseChangeSet)]
+                )
+                .ShouldBeNull();
         }
     }
 
@@ -231,26 +227,6 @@ public sealed class DirectApplyRegressionTests
             .Operation.ShouldBe(SparseEntityApplyOperationKind.MissingIgnored);
         entity.Code.ShouldBe("ABC");
         counter.Commands.ShouldBe(0);
-    }
-
-    [Test]
-    public void UntypedCompatibilityApplyRejectsChangeSetFromAnotherDto()
-    {
-        using var connection = TestDatabases.OpenMemory();
-        using var context = TestDatabases.CreateSample(connection, new QueryCounter());
-        var entity = context.Orders.Add(new OrderEntity()).Entity;
-        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
-            new OrderMapper(),
-            context.Model
-        );
-        var unrelated = new AddressDto { City = "Kyoto" }.CreateChangeSet(new AddressDto());
-
-        var error = Should.Throw<ArgumentException>(() =>
-            mapper.Apply(context, entity, (ISparseChangeSet)unrelated)
-        );
-
-        error.ParamName.ShouldBe("changes");
-        context.Entry(entity).State.ShouldBe(EntityState.Added);
     }
 
     [Test]
@@ -776,7 +752,7 @@ public sealed class DirectApplyRegressionTests
                     ? null
                     : new AddressDto { Street = order.Address.Street, City = order.Address.City },
             };
-        static global::SparseFragments.ISparseChangeSet MissingNotes(OrderDto current)
+        static global::SparseFragments.ISparseChangeSet<OrderDto> MissingNotes(OrderDto current)
         {
             var basis = Present(OrderDto.Fragment.From(current));
             var builder = basis.Value!.ToBuilder();
@@ -1402,7 +1378,7 @@ public sealed class DirectApplyRegressionTests
         await context.SaveChangesAsync();
         counter.Reset();
 
-        static global::SparseFragments.ISparseChangeSet MissingStreet(OrderDto current)
+        static global::SparseFragments.ISparseChangeSet<OrderDto> MissingStreet(OrderDto current)
         {
             var basis = Present(OrderDto.Fragment.From(current));
             var builder = basis.Value!.ToBuilder();

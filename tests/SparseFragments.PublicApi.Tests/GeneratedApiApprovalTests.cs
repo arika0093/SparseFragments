@@ -21,6 +21,8 @@ public sealed class GeneratedApiApprovalTests
         where T : class => session.Model;
 
     private const string BlazorApprovalFile = "SparseFragments.Blazor.approved.txt";
+    private const string EntityFrameworkCoreApprovalFile =
+        "SparseFragments.EntityFrameworkCore.approved.txt";
 
     private static readonly Type[] FixtureModels =
     [
@@ -39,6 +41,13 @@ public sealed class GeneratedApiApprovalTests
         PublicApiCheck.CheckAssembly(
             typeof(SparseEditSessionExtensions).Assembly,
             BlazorApprovalFile
+        );
+
+    [Test]
+    public void EntityFrameworkCoreSurface() =>
+        PublicApiCheck.CheckAssembly(
+            typeof(SparseFragments.EntityFrameworkCore.SparseEntityMapper<,>).Assembly,
+            EntityFrameworkCoreApprovalFile
         );
 
     [Test]

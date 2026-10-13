@@ -395,6 +395,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     /// <param name="unassignedKeyValue">The declared unassigned-key sentinel.</param>
     /// <param name="hasUnassignedKeyValue">Whether a sentinel was declared.</param>
     /// <param name="temporaryKey">Selects the generated temporary key, when present.</param>
+    /// <param name="temporaryKeySetter">Assigns the generated temporary key, when present.</param>
     /// <param name="keyMemberNames">DTO members that contribute to stable identity.</param>
     /// <param name="configure">Registers the generated child defaults.</param>
     /// <typeparam name="TDtoChild">The DTO element type.</typeparam>
@@ -412,6 +413,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         object? unassignedKeyValue,
         bool hasUnassignedKeyValue,
         Expression<Func<TDtoChild, Guid?>>? temporaryKey,
+        Action<TDtoChild, Guid?>? temporaryKeySetter,
         string[] keyMemberNames,
         Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> configure
     )
@@ -431,6 +433,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
             unassignedKeyValue,
             hasUnassignedKeyValue,
             temporaryKey?.Compile(),
+            temporaryKeySetter,
             keyMemberNames
         );
         return this;
