@@ -924,4 +924,169 @@ public sealed class SparseEntityMapperEmitterTests
         match.Severity.ShouldBe(DiagnosticSeverity.Error);
         match.GetMessage().ShouldContain("OrderMapper");
     }
+
+    [Test]
+    public void PartialMapperEmitsCreateShorthand()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var sources = RenderDirect(source, "Probe.OrderMapper");
+        sources.ShouldContain("partial class OrderMapper");
+        sources.ShouldContain(
+            "public static global::SparseTypes.EntityFrameworkCore.SparseEntityMapper<global::Probe.OrderEntity, global::Probe.OrderDto> Create(global::Microsoft.EntityFrameworkCore.Metadata.IModel model)"
+        );
+        sources.ShouldContain("var mapping = new OrderMapper();");
+    }
+
+    [Test]
+    public void NonPartialMapperOmitsCreateShorthand()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var sources = RenderDirect(source, "Probe.OrderMapper");
+        sources.ShouldNotContain("SparseEntityMapper<");
+    }
+
+    [Test]
+    public void InjectedMapperOmitsCreateShorthand()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public OrderMapper(string name) { }
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var sources = RenderDirect(source, "Probe.OrderMapper");
+        sources.ShouldNotContain("SparseEntityMapper<");
+    }
+
+    [Test]
+    public void EmittedFactoryCompiles()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            using System.Collections.Generic;
+            namespace Probe
+            {
+                public sealed class PlaygroundOrderLineDto
+                {
+                    public int? Id { get; set; }
+                    [SparseTypes.SparseKey(Unassigned = 0)]
+                    public int Key => Id ?? 0;
+                    [SparseTypes.SparseTemporaryKey]
+                    public Guid? TemporaryId { get; set; }
+                    public string Product { get; set; } = string.Empty;
+                    public int Qty { get; set; }
+                }
+                public sealed class PlaygroundOrderDto
+                {
+                    public string Customer { get; set; } = string.Empty;
+                    public string Notes { get; set; } = string.Empty;
+                    public decimal Total { get; set; }
+                    public List<PlaygroundOrderLineDto> Lines { get; set; } = new();
+                }
+                public sealed class PlaygroundNoteEntity
+                {
+                    public int Id { get; set; }
+                    public string Text { get; set; } = string.Empty;
+                    public int OrderId { get; set; }
+                }
+                public sealed class PlaygroundOrderLineEntity
+                {
+                    public int Id { get; set; }
+                    public string Product { get; set; } = string.Empty;
+                    public int Qty { get; set; }
+                    public int SortOrder { get; set; }
+                    public int OrderId { get; set; }
+                }
+                public sealed class PlaygroundOrderEntity
+                {
+                    public int Id { get; set; }
+                    public int Revision { get; set; }
+                    public string CustomerName { get; set; } = string.Empty;
+                    public decimal Total { get; set; }
+                    public PlaygroundNoteEntity? Note { get; set; }
+                    public List<PlaygroundOrderLineEntity> Lines { get; set; } = new();
+                }
+                [SparseFragmentMapper]
+                public sealed partial class PlaygroundOrderMapper : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+                    {
+                    }
+                }
+            }
+            """;
+        var sources = RenderDirect(source, "Probe.PlaygroundOrderMapper");
+        sources.ShouldContain(
+            "> Create(global::Microsoft.EntityFrameworkCore.Metadata.IModel model)"
+        );
+
+        const string factoryStubs = """
+            namespace SparseTypes.EntityFrameworkCore
+            {
+                public sealed class SparseEntityMapper<TEntity, TDto>
+                    where TEntity : class where TDto : class
+                {
+                    public static SparseEntityMapper<TEntity, TDto> Create<TMapping>(
+                        TMapping mapping, global::Microsoft.EntityFrameworkCore.Metadata.IModel model)
+                        where TMapping : IEntityModelMapping<TEntity, TDto>
+                        => new SparseEntityMapper<TEntity, TDto>();
+                }
+            }
+            namespace Microsoft.EntityFrameworkCore.Metadata
+            {
+                public interface IModel { }
+            }
+            """;
+        CompileEmitted(source, factoryStubs + sources);
+    }
 }

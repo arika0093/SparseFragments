@@ -24,7 +24,9 @@ namespace SparseTypes.Generator;
 /// <c>Configure</c> entries replace each default exactly once at runtime.
 /// Same-name members whose types differ produce SPF033 instead of a deferred
 /// reflection failure. Members without a same-name entity counterpart stay
-/// explicit-only and fail fast at mapper creation when unconfigured.
+/// explicit-only and fail fast at mapper creation when unconfigured. Partial
+/// mapper classes with a parameterless constructor additionally gain a
+/// <c>Create(IModel)</c> shorthand on the mapper itself.
 /// </remarks>
 internal static class SparseEntityMapperEmitter
 {
@@ -144,6 +146,10 @@ internal static class SparseEntityMapperEmitter
             .AppendLine("), RegisterDefaults);");
         AppendIndent(code, indent + 1).AppendLine("}");
         AppendIndent(code, indent).AppendLine("}");
+        // Mapper shorthand: partial mappers with a parameterless
+        // constructor also get OrderMapper.Create(db.Model). Non-partial
+        // mappers keep the generic factory only.
+        SparseEntityMapperFactoryEmitter.AppendFactory(code, indent, mapper, entityType, dtoType);
         if (mapperNamespace is not null)
         {
             code.AppendLine("}");
