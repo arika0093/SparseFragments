@@ -226,6 +226,43 @@ public sealed class EditSessionScopeTests
     }
 
     [Test]
+    public void OpenDraftStateTracksRootAndNestedScopeLifetimes()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        ISparseEditSessionOpenDraftState rootDraftState = session;
+        rootDraftState.HasOpenDrafts.ShouldBeFalse();
+
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        ISparseEditSessionOpenDraftState groupDraftState = groupScope;
+        rootDraftState.HasOpenDrafts.ShouldBeTrue();
+        groupDraftState.HasOpenDrafts.ShouldBeFalse();
+
+        using var serverScope = groupScope.OpenScope(ServerGroup.SparsePath.Servers.Key("server"));
+        groupDraftState.HasOpenDrafts.ShouldBeTrue();
+        rootDraftState.HasOpenDrafts.ShouldBeTrue();
+
+        serverScope.Cancel();
+
+        groupDraftState.HasOpenDrafts.ShouldBeFalse();
+        rootDraftState.HasOpenDrafts.ShouldBeTrue();
+
+        groupScope.Cancel();
+
+        rootDraftState.HasOpenDrafts.ShouldBeFalse();
+    }
+
+    [Test]
     public void NestedScopesCommitIntoTheirParentDraft()
     {
         var model = new ClusterHolder
@@ -246,9 +283,12 @@ public sealed class EditSessionScopeTests
 
         serverScope.AcceptChanges();
         serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.Committed);
+        groupScope.HasOpenDrafts.ShouldBeFalse();
+        session.HasOpenDrafts.ShouldBeTrue();
         groupScope.HasChanges.ShouldBeTrue();
         groupScope.AcceptChanges();
 
+        session.HasOpenDrafts.ShouldBeFalse();
         session.Observable.Groups[0].Servers[0].Name.ShouldBe("nested");
     }
 
@@ -275,6 +315,9 @@ public sealed class EditSessionScopeTests
         Should.Throw<InvalidOperationException>(() => serverScope.TryCommit(out _));
 
         serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.ParentInvalidated);
+        serverScope.HasOpenDrafts.ShouldBeFalse();
+        groupScope.HasOpenDrafts.ShouldBeFalse();
+        session.HasOpenDrafts.ShouldBeFalse();
         session.Observable.Groups[0].Servers[0].Name.ShouldBe("before");
     }
 
@@ -301,6 +344,9 @@ public sealed class EditSessionScopeTests
         Should.Throw<InvalidOperationException>(() => serverScope.TryCommit(out _));
 
         serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.ParentInvalidated);
+        serverScope.HasOpenDrafts.ShouldBeFalse();
+        groupScope.HasOpenDrafts.ShouldBeFalse();
+        session.HasOpenDrafts.ShouldBeFalse();
         session.Observable.Groups[0].Servers[0].Name.ShouldBe("before");
     }
 

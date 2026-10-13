@@ -251,6 +251,11 @@ implements a trusted model-accessor interface on each generated session, so
 framework integrations can read the live model without invalidating the
 session's observable-change cache. Consumers without that interface keep the
 previous behavior: framework helpers fall back to the raw model.
+Set `OpenDraftStateInterfaceMetadataName` to the consumer-owned interface
+metadata name when generated sessions should report open child drafts. Shared
+implements that contract on both sessions and scopes; a session reports its
+active root and nested scopes, while a scope reports its active descendants.
+Closing or invalidating a scope removes it and its descendants from that state.
 
 Outside `BatchEdit`, observable edits validate and publish their transitions
 immediately; a batch publishes its net transition at exit. The baseline

@@ -169,40 +169,42 @@ internal static class ProbeSurface
             hasCollections: true,
             hasChangeProjection: true
         );
-        var descriptorErrors = SparseDescriptorCapabilities.ValidatePrerequisites(
-            new SparseGeneratorConfig(
-                ModelAttributeMetadataName: "ModelAttribute",
-                IgnoreAttributeMetadataName: "IgnoreAttribute",
-                RedactBeforeAttributeMetadataName: "RedactBeforeAttribute",
-                MergeAttributeMetadataName: "MergeAttribute",
-                MergeStrategyBaseMetadataName: "MergeStrategyBase",
-                CloneReferenceSafeAttributeMetadataName: "CloneSafeAttribute",
-                KeyAttributeMetadataName: "KeyAttribute",
-                MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
-                DiagnosticIds: new SparseDiagnosticIdMap(
-                    "T001",
-                    "T002",
-                    "T003",
-                    "T004",
-                    "T005",
-                    "T006",
-                    "T007",
-                    "T008",
-                    "T009",
-                    "T010",
-                    "T011",
-                    "T013",
-                    "T014",
-                    "T017",
-                    "T019",
-                    "T021",
-                    "T022",
-                    "T023"
-                ),
-                HintNameSuffix: ".Probe.g.cs",
-                PromotedHintNameSuffix: ".ProbePromoted.g.cs",
-                StructuralHostPrefix: "__ProbeHost_"
+        var downstreamConfig = new SparseGeneratorConfig(
+            ModelAttributeMetadataName: "ModelAttribute",
+            IgnoreAttributeMetadataName: "IgnoreAttribute",
+            RedactBeforeAttributeMetadataName: "RedactBeforeAttribute",
+            MergeAttributeMetadataName: "MergeAttribute",
+            MergeStrategyBaseMetadataName: "MergeStrategyBase",
+            CloneReferenceSafeAttributeMetadataName: "CloneSafeAttribute",
+            KeyAttributeMetadataName: "KeyAttribute",
+            MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
+            DiagnosticIds: new SparseDiagnosticIdMap(
+                "T001",
+                "T002",
+                "T003",
+                "T004",
+                "T005",
+                "T006",
+                "T007",
+                "T008",
+                "T009",
+                "T010",
+                "T011",
+                "T013",
+                "T014",
+                "T017",
+                "T019",
+                "T021",
+                "T022",
+                "T023"
             ),
+            HintNameSuffix: ".Probe.g.cs",
+            PromotedHintNameSuffix: ".ProbePromoted.g.cs",
+            StructuralHostPrefix: "__ProbeHost_",
+            OpenDraftStateInterfaceMetadataName: "PackageShared.ISessionOpenDraftState"
+        );
+        var descriptorErrors = SparseDescriptorCapabilities.ValidatePrerequisites(
+            downstreamConfig,
             descriptorCapability
         );
         var kernelKinds = SparsePatchKernelCapabilities.ForCompilation(true, true, true);
@@ -276,6 +278,8 @@ internal static class ProbeSurface
                 + descriptorCapability
                 + " descriptor-errors="
                 + descriptorErrors.Length
+                + " open-draft-state="
+                + downstreamConfig.OpenDraftStateInterfaceMetadataName
                 + " kernels="
                 + kernelKinds
                 + " kernel-bytes="

@@ -315,7 +315,7 @@ Conflicts carry the same member paths as change-set rebase, so per-field resolut
 
 ### Edit child models in an isolated scope
 
-Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope implements `ISparseEditSession<TChild>` and exposes its draft through `Model`, `Observable`, and `Current`. Call `AcceptChanges()` or `TryCommit` to merge the draft into its parent session. A scope can open another scope with a path relative to its child draft.
+Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope implements `ISparseEditSession<TChild>` and exposes its draft through `Model`, `Observable`, and `Current`. Call `AcceptChanges()` or `TryCommit` to merge the draft into its parent session. A scope can open another scope with a path relative to its child draft. Generated sessions and scopes implement `ISparseEditSessionOpenDraftState`; `HasOpenDrafts` reports open scopes and their descendants.
 
 <!-- sample: ui-child-scope -->
 ```csharp

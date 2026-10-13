@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Threading;
 using SparseFragments.Generator.Shared;
 
 namespace SparseFragments.Tests.Shared;
@@ -70,5 +72,74 @@ public sealed class SparseEditSessionEmitterTests
         current.ShouldContain("Fork()");
         current.ShouldContain("TryMergeFrom");
         current.ShouldNotContain("SparseFragments.");
+    }
+
+    [Test]
+    public void ModelSessionUsesConfiguredOpenDraftStateInterface()
+    {
+        var model = new SparseModelInfo(
+            "Order",
+            "global::Downstream.Order",
+            "Downstream",
+            IsGlobalNamespace: false,
+            IsStruct: false,
+            IsRecord: false,
+            HintName: "Order.g.cs",
+            Constructor: null
+        );
+        var config = new SparseGeneratorConfig(
+            ModelAttributeMetadataName: "ModelAttribute",
+            IgnoreAttributeMetadataName: "IgnoreAttribute",
+            RedactBeforeAttributeMetadataName: "RedactBeforeAttribute",
+            MergeAttributeMetadataName: "MergeAttribute",
+            MergeStrategyBaseMetadataName: "MergeStrategyBase",
+            CloneReferenceSafeAttributeMetadataName: "CloneSafeAttribute",
+            KeyAttributeMetadataName: "KeyAttribute",
+            MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
+            DiagnosticIds: new SparseDiagnosticIdMap(
+                "T001",
+                "T002",
+                "T003",
+                "T004",
+                "T005",
+                "T006",
+                "T007",
+                "T008",
+                "T009",
+                "T010",
+                "T011",
+                "T013",
+                "T014",
+                "T017",
+                "T019",
+                "T021",
+                "T022",
+                "T023"
+            ),
+            HintNameSuffix: ".Downstream.g.cs",
+            PromotedHintNameSuffix: ".DownstreamPromoted.g.cs",
+            StructuralHostPrefix: "__DownstreamHost_",
+            PatchDialect: PatchDialect(),
+            EditSessionInterfaceMetadataName: "PackageShared.ISparseEditSession",
+            EditSessionDialect: new SparseEditSessionDialect("Downstream.Generated"),
+            OpenDraftStateInterfaceMetadataName: "PackageShared.ISessionOpenDraftState"
+        );
+        using var code = new SharedIndentedBuilder(CancellationToken.None);
+
+        SparseEditSessionEmitter.AppendModelEditSession(
+            code,
+            model,
+            model.ModelTypeName,
+            "public",
+            "Observable",
+            "ReadOnlyView",
+            ImmutableArray<SparseMemberModel>.Empty,
+            config
+        );
+
+        var source = code.ToString();
+        source.ShouldContain("global::PackageShared.ISessionOpenDraftState");
+        source.ShouldContain("HasOpenDrafts => __sparse_open_draft_count > 0");
+        source.ShouldNotContain("SparseFragments.");
     }
 }

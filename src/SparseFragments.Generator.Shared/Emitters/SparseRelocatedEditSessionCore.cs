@@ -50,6 +50,10 @@ internal static class SparseRelocatedEditSessionCore
             );
         var modelAccessorInterfaceMetadataName =
             config.EditSessionModelAccessorInterfaceMetadataName;
+        var openDraftStateInterfaceMetadataName = config.OpenDraftStateInterfaceMetadataName
+            is { Length: > 0 } openDraftInterface
+            ? openDraftInterface
+            : null;
         var sessionDialect =
             config.EditSessionDialect
             ?? throw new ArgumentException("An edit-session dialect is required.", nameof(config));
@@ -120,6 +124,10 @@ internal static class SparseRelocatedEditSessionCore
             sessionBases +=
                 ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
         }
+        if (openDraftStateInterfaceMetadataName is not null)
+        {
+            sessionBases += ", global::" + openDraftStateInterfaceMetadataName;
+        }
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
         // Public surface first; internal constructors and private state follow.
@@ -174,6 +182,14 @@ internal static class SparseRelocatedEditSessionCore
             "/// <summary>Gets a value indicating whether the session has pending changes.</summary>"
         );
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
+        if (openDraftStateInterfaceMetadataName is not null)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets whether this session has any open child drafts.</summary>"
+            );
+            code.AppendLineAt(2, "public bool HasOpenDrafts => __sparse_open_draft_count > 0;");
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Occurs when the session state or current view changes.</summary>"
@@ -368,6 +384,7 @@ internal static class SparseRelocatedEditSessionCore
             modelType,
             sessionSimple,
             sessionInterfaceMetadataName,
+            openDraftStateInterfaceMetadataName,
             patchDialect,
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null
         );
@@ -423,6 +440,15 @@ internal static class SparseRelocatedEditSessionCore
                 "private " + descriptorsDialect.DescriptorSetInterface + "? __descriptors;"
             );
         }
+        code.AppendLineAt(2, "private int __sparse_open_draft_count;");
+        code.AppendLineAt(
+            2,
+            "private void __SparseRegisterOpenDraft() => __sparse_open_draft_count++;"
+        );
+        code.AppendLineAt(
+            2,
+            "private void __SparseUnregisterOpenDraft() => __sparse_open_draft_count--;"
+        );
         code.AppendLineAt(1, "}");
     }
 }

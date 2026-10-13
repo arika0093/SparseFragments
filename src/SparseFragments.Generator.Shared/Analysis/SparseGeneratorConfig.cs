@@ -34,7 +34,8 @@ internal sealed record SparseGeneratorConfig
         SparseFamilyNames? FamilyNames = null,
         string? GeneratedImplementationSuffix = null,
         string? TemporaryKeyAttributeMetadataName = null,
-        bool AllowFileScopedTypes = false
+        bool AllowFileScopedTypes = false,
+        string? OpenDraftStateInterfaceMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -68,6 +69,7 @@ internal sealed record SparseGeneratorConfig
         this.GeneratedImplementationSuffix = GeneratedImplementationSuffix;
         this.TemporaryKeyAttributeMetadataName = TemporaryKeyAttributeMetadataName;
         this.AllowFileScopedTypes = AllowFileScopedTypes;
+        this.OpenDraftStateInterfaceMetadataName = OpenDraftStateInterfaceMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -127,6 +129,9 @@ internal sealed record SparseGeneratorConfig
     /// Trusted model-accessor interface implemented by generated model sessions, or null when disabled.
     /// </summary>
     public string? EditSessionModelAccessorInterfaceMetadataName { get; init; }
+
+    /// <summary>Open-draft state interface implemented by generated sessions, or null when disabled.</summary>
+    public string? OpenDraftStateInterfaceMetadataName { get; init; }
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }
