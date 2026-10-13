@@ -41,6 +41,12 @@ public class EditSessionBatchBenchmarks
                 .Select(index => new BenchBatchChild { Id = "id-" + index, Name = "n-" + index })
                 .ToList(),
         };
+        if (CreateSession() != Size || RootScalarEdits() != "odd".Length)
+        {
+            throw new InvalidOperationException(
+                "Session benchmarks must retain all items and apply edits."
+            );
+        }
     }
 
     private BenchBatchParent Fresh() =>
@@ -63,6 +69,26 @@ public class EditSessionBatchBenchmarks
         }
 
         return model.Items.Count + model.Title.Length;
+    }
+
+    [Benchmark]
+    public int CreateSession()
+    {
+        var session = Fresh().CreateEditSession();
+        return session.Observable.Items.Count;
+    }
+
+    [Benchmark]
+    public int RootScalarEdits()
+    {
+        var model = Fresh();
+        var session = model.CreateEditSession();
+        for (var index = 0; index < EditCount; index++)
+        {
+            session.Observable.Title = (index & 1) == 0 ? "even" : "odd";
+        }
+
+        return model.Title.Length;
     }
 
     [Benchmark(Description = "64 nested edits in one BatchEdit")]
