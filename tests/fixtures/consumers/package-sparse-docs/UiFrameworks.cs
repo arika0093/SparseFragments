@@ -21,6 +21,7 @@ public static class UiFrameworksSamples
         ForkMergesIndependentEdits();
         ForkConflictLeavesBothSessionsUntouched();
         ChildScopeCommitsDisjointParentEdits();
+        SessionPathsNavigateFromSession();
         RevertRestoresBaseline();
         CollectionConsumerEditsThroughTypedPath();
         DescriptorFirst();
@@ -341,6 +342,45 @@ public static class UiFrameworksSamples
             "child scope writes into the existing child instance"
         );
     }
+
+    private static void SessionPathsNavigateFromSession()
+    {
+        // sample: ui-session-paths
+        var orderModel = new UiOrder { Number = "ORD-1" };
+        var orderSession = orderModel.CreateEditSession();
+
+        SparsePath<UiOrder, string> numberPath = orderSession.Paths.Number;
+        // numberPath.ToString() == "Number"
+
+        var widgetModel = new UiWidget
+        {
+            Title = "w",
+            Items = [new UiWidgetItem { Id = "a", Name = "first" }],
+        };
+        var widgetSession = widgetModel.CreateEditSession();
+        SparsePath<UiWidget, string> itemNamePath = widgetSession.Paths.Items.Key("a").Name;
+        // itemNamePath.ToString() == "Items[\"a\"].Name"
+
+        var itemState = widgetSession.FieldState(widgetSession.Paths.Items.Key("a").Name);
+        // itemState.HasChanges == false
+        // /sample
+        DocsCheck.Require(numberPath.ToString() == "Number", "session path addresses the scalar");
+        DocsCheck.Require(
+            itemNamePath.ToString() == "Items[\"a\"].Name",
+            "session path addresses the keyed leaf"
+        );
+        DocsCheck.Require(!itemState.HasChanges, "session path drives field state");
+        DocsCheck.Require(
+            ReadSessionRoot(orderSession) == "$root",
+            "generic consumers keep the concrete builder"
+        );
+    }
+
+    private static string ReadSessionRoot<TModel, TPaths>(
+        ISparseEditSessionWithPaths<TModel, TPaths> session
+    )
+        where TModel : class
+        where TPaths : ISparseTypedPath<TModel, TModel> => session.Paths.UntypedPath.ToString();
 
     private static void RevertRestoresBaseline()
     {

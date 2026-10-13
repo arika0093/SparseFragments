@@ -129,6 +129,13 @@ internal static class SparseRelocatedEditSessionCore
         {
             sessionBases += ", global::" + openDraftStateInterfaceMetadataName;
         }
+        sessionBases += SparseEditSessionPathsEmitter.GetPathsInterfaceBase(
+            model,
+            modelType,
+            config,
+            patchDialect,
+            code.CancellationToken
+        );
         // Sessions already raise PropertyChanged with the standard signature; declaring the
         // interface lets framework-neutral subscribers (such as the Blazor session scope)
         // attach without reflection or a ChangeSet-typed event.
@@ -187,6 +194,13 @@ internal static class SparseRelocatedEditSessionCore
             "/// <summary>Gets a value indicating whether the session has pending changes.</summary>"
         );
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
+        SparseEditSessionPathsEmitter.AppendPathsProperty(
+            code,
+            model,
+            modelType,
+            config,
+            patchDialect
+        );
         if (openDraftStateInterfaceMetadataName is not null)
         {
             code.AppendLineAt(
@@ -350,6 +364,13 @@ internal static class SparseRelocatedEditSessionCore
                 + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
         );
         code.AppendLineAt(2, "private readonly " + core + " _session;");
+        SparseEditSessionPathsEmitter.AppendPathsField(
+            code,
+            model,
+            modelType,
+            config,
+            patchDialect
+        );
         SparseEditSessionHistoryEmitter.AppendHistoryFields(
             code,
             modelType,

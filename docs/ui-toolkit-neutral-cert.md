@@ -57,4 +57,4 @@ This issue adds test and documentation files only and changes no runtime behavio
 
 ## Related work
 
-Semantic field and collection state comes from issue #250, opt-in observable field subscriptions from issue #260, and the validation error store from issue #261. Blazor form integration around the same session is covered by issues #253 through #255, whose suites keep passing unchanged.
+Semantic field and collection state comes from issue #250, opt-in observable field subscriptions from issue #260, and the validation error store from issue #261. Session-owned typed path navigation (`session.Paths`, `ISparseEditSessionWithPaths`) comes from issue #270. Blazor form integration around the same session is covered by issues #253 through #255, whose suites keep passing unchanged.

@@ -167,6 +167,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             HistoryContractType: "global::SparseTypes.ISparseEditHistory"
         ),
         EditSessionModelAccessorInterfaceMetadataName: "SparseTypes.ISparseEditSessionModelAccessor",
+        EditSessionWithPathsInterfaceMetadataName: "SparseTypes.ISparseEditSessionWithPaths",
         OpenDraftStateInterfaceMetadataName: "SparseTypes.ISparseEditSessionOpenDraftState",
         DescriptorDialect: new SparseDescriptorDialect(
             "global::SparseTypes.Generated.IDescriptor",
