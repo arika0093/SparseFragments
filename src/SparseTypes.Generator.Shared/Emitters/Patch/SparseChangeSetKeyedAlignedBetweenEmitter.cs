@@ -66,13 +66,9 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
             );
         code.AppendLineAt(7, "if (!comparer.Equals(k, " + keyOf + "(a[i]))) return false;");
         code.AppendLineAt(6, "}");
-        code.AppendLineAt(6, "var keys = new " + order + "(count);");
         if (dialect.KeyValidationScopeFactory is not null)
         {
-            code.AppendLineAt(
-                6,
-                "static void ValidateKeys(" + indexed + " b, " + order + " keys, int count)"
-            );
+            code.AppendLineAt(6, "static void ValidateKeys(" + indexed + " b, int count)");
             code.AppendLineAt(6, "{");
             code.AppendLineAt(
                 7,
@@ -93,7 +89,7 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
             AppendValidation(code, keyOf, true, 8);
             code.AppendLineAt(7, "}");
             code.AppendLineAt(6, "}");
-            code.AppendLineAt(6, "ValidateKeys(b, keys, count);");
+            code.AppendLineAt(6, "ValidateKeys(b, count);");
         }
         else
         {
@@ -112,11 +108,17 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
             7,
             "items.Add(new "
                 + transition
-                + ".Item(keys[i], null, default, default, i, i, false, false, true, false, edit, false));"
+                + ".Item("
+                + keyOf
+                + "(b[i]), null, default, default, i, i, false, false, true, false, edit, false));"
         );
         code.AppendLineAt(6, "}");
-        // Canonical orders are immutable; equal orders can share their key-only storage.
-        code.AppendLineAt(6, "if (items is not null) order = keys;");
+        // Unchanged collections need validation, but no retained order storage.
+        code.AppendLineAt(6, "if (items is not null)");
+        code.AppendLineAt(6, "{");
+        code.AppendLineAt(7, "order = new " + order + "(count);");
+        code.AppendLineAt(7, "for (var i = 0; i < count; i++) order.Add(" + keyOf + "(b[i]));");
+        code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "return true;");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(
@@ -173,7 +175,6 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
                 ? "if (!seen.Add(k)) throw new global::System.InvalidOperationException(\"Duplicate key in keyed collection.\");"
                 : SparseKeyedCollectionEmitter.AddUniqueEntry("seen", "k", "0")
         );
-        code.AppendLineAt(indent + 1, "keys.Add(k);");
         code.AppendLineAt(indent, "}");
     }
 
