@@ -280,44 +280,54 @@ public readonly struct SparsePath : IEquatable<SparsePath>
             return "$root";
         }
 
-        var builder = new StringBuilder();
-        foreach (var segment in SegmentsArray)
+        var builder = SparsePathTextBuilderPool.Rent();
+        try
         {
-            switch (segment.Kind)
+            foreach (var segment in SegmentsArray)
             {
-                case SparsePathSegmentKind.Member:
-                    if (builder.Length > 0)
-                    {
-                        builder.Append('.');
-                    }
+                switch (segment.Kind)
+                {
+                    case SparsePathSegmentKind.Member:
+                        if (builder.Length > 0)
+                        {
+                            builder.Append('.');
+                        }
 
-                    builder.Append(segment.Name);
-                    break;
-                case SparsePathSegmentKind.Index:
-                    builder.Append('[');
-                    builder.Append(segment.Index.ToString(CultureInfo.InvariantCulture));
-                    builder.Append(']');
-                    break;
-                case SparsePathSegmentKind.TemporaryKey:
-                    builder.Append("[temp:\"");
-                    builder.Append(
-                        EscapeKey(
-                            KeyText(
-                                segment.TemporaryKey?.ToString("D", CultureInfo.InvariantCulture)
+                        builder.Append(segment.Name);
+                        break;
+                    case SparsePathSegmentKind.Index:
+                        builder.Append('[');
+                        builder.Append(segment.Index.ToString(CultureInfo.InvariantCulture));
+                        builder.Append(']');
+                        break;
+                    case SparsePathSegmentKind.TemporaryKey:
+                        builder.Append("[temp:\"");
+                        builder.Append(
+                            EscapeKey(
+                                KeyText(
+                                    segment.TemporaryKey?.ToString(
+                                        "D",
+                                        CultureInfo.InvariantCulture
+                                    )
+                                )
                             )
-                        )
-                    );
-                    builder.Append("\"]");
-                    break;
-                default:
-                    builder.Append("[\"");
-                    builder.Append(EscapeKey(KeyText(segment.Key)));
-                    builder.Append("\"]");
-                    break;
+                        );
+                        builder.Append("\"]");
+                        break;
+                    default:
+                        builder.Append("[\"");
+                        builder.Append(EscapeKey(KeyText(segment.Key)));
+                        builder.Append("\"]");
+                        break;
+                }
             }
-        }
 
-        return builder.ToString();
+            return builder.ToString();
+        }
+        finally
+        {
+            SparsePathTextBuilderPool.Return(builder);
+        }
     }
 
     /// <summary>Parses wire-compatible path text for a root model type.</summary>
