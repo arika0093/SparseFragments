@@ -141,7 +141,7 @@ internal static class CollectionState
         where TDtoChild : class
         where TEntityChild : class
     {
-        var tracked = new Dictionary<object, TEntityChild>(runtime.KeyComparer);
+        var tracked = new Dictionary<object, TEntityChild>(list.Count, runtime.KeyComparer);
         foreach (var entry in list)
         {
             if (entry is not TEntityChild child)
