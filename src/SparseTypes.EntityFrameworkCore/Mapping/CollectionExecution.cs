@@ -30,6 +30,10 @@ internal static class CollectionExecution
         where TDtoChild : class
         where TEntityChild : class
     {
+        // Child edits already have queued writes; an edits-only plan changes no collection state.
+        if (plan.Added.Count == 0 && plan.Removed.Count == 0 && !plan.OrderChanged)
+            return;
+
         var list = CollectionState.EnsureList<TDtoChild, TEntityChild>(
             runtime,
             context,
