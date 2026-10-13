@@ -31,8 +31,6 @@ Keep a separate reference for each environment. Comparisons across the Windows
 and Linux environments are unavailable.
 
 See [Measure and compare performance](../performance-baseline.md) for workload
-boundaries, the fixed job configuration and CI artifact retention. Full raw
+boundaries and the fixed job configuration. Full raw
 reports from the initial local capture are in
-`BenchmarkDotNet.Artifacts/baseline-v1` in the performance worktree. Subsequent
-CI captures are available as the `performance-baseline` artifact of each
-Performance baseline workflow run.
+`BenchmarkDotNet.Artifacts/baseline-v1` in the performance worktree.

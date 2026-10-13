@@ -32,7 +32,8 @@ the first three and last three measured iterations for each process. The ratio
 is early time divided by late time. Inspect changes alongside the raw log:
 runtime compilation, caches and machine load can all affect them. Use the ratio
 to identify runs that need investigation. Runs with fewer than six measurements,
-including smoke runs, report no ratio. CI publishes the table in its summary.
+including smoke runs, report no ratio. The runner writes the table to
+`measurement-quality.md` in the output directory.
 
 The same table records each process's allocated bytes and normalized GC counts
 from its raw GC log. Allocation can differ between processes even when their
@@ -125,10 +126,11 @@ measurements and rerun unexpected changes under the same machine load before
 attributing them to a code change. Hosted CI machines can change CPU or runtime;
 those runs start a new baseline.
 
-The Performance baseline workflow runs on relevant main pushes, weekly, and
-manual dispatch. It downloads the previous successful run's artifact, compares
-compatible results, publishes the report in the job summary, and retains each
-run for 90 days. Download artifacts you need to keep longer. The workflow records
+The runner compares the current output against the `--previous` baseline when
+the schema, suite, profile, benchmark digest, host environment and case set
+agree, writes the report to `comparison.md` in the output directory, and keeps
+each output directory as the retained record. Download or copy artifacts you
+need to keep longer. The runner records
 performance changes without a percentage-based pass/fail threshold; benchmark
 execution and result completeness are required.
 
