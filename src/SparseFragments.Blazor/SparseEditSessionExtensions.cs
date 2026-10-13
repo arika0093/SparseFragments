@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.AspNetCore.Components.Forms;
 using SparseFragments;
@@ -206,6 +207,237 @@ public static class SparseEditSessionExtensions
 
         store.Add(session.Field(fieldPath), message);
     }
+
+    /// <summary>Creates a typed-path-first binding over the session observable and original-model context.</summary>
+    /// <remarks>
+    /// Reads resolve live so nested replacement is followed; removed keyed entries
+    /// report stale. Writes go through the generated descriptor when available,
+    /// then notify the captured original-model <see cref="EditContext"/>.
+    /// </remarks>
+    /// <param name="session">The edit session.</param>
+    /// <param name="path">The typed path, for example <c>Order.SparsePath.Name</c>.</param>
+    /// <param name="editContext">The original-model edit context.</param>
+    /// <param name="options">Optional batching and disabled state.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    /// <typeparam name="TValue">The addressed value type.</typeparam>
+    public static SparseFieldBinding<TModel, TValue> Bind<TModel, TValue>(
+        this ISparseEditSession<TModel> session,
+        SparsePath<TModel, TValue> path,
+        EditContext editContext,
+        SparseFieldBindingOptions? options = null
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(editContext);
+        ValidateEditContext(session, editContext);
+        if (path.Path.IsRoot)
+        {
+            throw new ArgumentException("The path must address a model member.", nameof(path));
+        }
+
+        ValidateBindPath(typeof(TModel), path.Path, nameof(path));
+
+        return new SparseFieldBinding<TModel, TValue>(session, editContext, path, options);
+    }
+
+    /// <summary>Creates a model-agnostic binding over a canonical typed path.</summary>
+    /// <param name="session">The edit session.</param>
+    /// <param name="path">The canonical path.</param>
+    /// <param name="editContext">The original-model edit context.</param>
+    /// <param name="options">Optional batching and disabled state.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    public static SparseFieldBinding<TModel, object?> Bind<TModel>(
+        this ISparseEditSession<TModel> session,
+        SparsePath path,
+        EditContext editContext,
+        SparseFieldBindingOptions? options = null
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(editContext);
+        ValidateEditContext(session, editContext);
+        if (path.RootType != typeof(TModel))
+        {
+            throw new ArgumentException(
+                "The path root does not match the session model.",
+                nameof(path)
+            );
+        }
+
+        if (path.IsRoot)
+        {
+            throw new ArgumentException("The path must address a model member.", nameof(path));
+        }
+
+        ValidateBindPath(typeof(TModel), path, nameof(path));
+
+        return new SparseFieldBinding<TModel, object?>(session, editContext, path, options);
+    }
+
+    /// <summary>Creates a model-agnostic binding from a wire-compatible field path.</summary>
+    /// <remarks>String paths parse once; prefer the typed overload for the trim-friendly path.</remarks>
+    /// <param name="session">The edit session.</param>
+    /// <param name="fieldPath">The field path text.</param>
+    /// <param name="editContext">The original-model edit context.</param>
+    /// <param name="options">Optional batching and disabled state.</param>
+    /// <typeparam name="TModel">The session model type.</typeparam>
+    public static SparseFieldBinding<TModel, object?> Bind<TModel>(
+        this ISparseEditSession<TModel> session,
+        string fieldPath,
+        EditContext editContext,
+        SparseFieldBindingOptions? options = null
+    )
+        where TModel : class
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentException.ThrowIfNullOrEmpty(fieldPath);
+        ArgumentNullException.ThrowIfNull(editContext);
+        ValidateEditContext(session, editContext);
+        if (!SparsePath.TryParse(typeof(TModel), fieldPath, out var path))
+        {
+            throw new ArgumentException(
+                $"The field path '{fieldPath}' does not resolve to a public model member.",
+                nameof(fieldPath)
+            );
+        }
+
+        try
+        {
+            ValidateBindPath(typeof(TModel), path, nameof(fieldPath));
+        }
+        catch (ArgumentException exception) when (exception.ParamName == "path")
+        {
+            throw new ArgumentException(
+                $"The field path '{fieldPath}' does not resolve to a public model member.",
+                nameof(fieldPath)
+            );
+        }
+
+        return new SparseFieldBinding<TModel, object?>(session, editContext, path, options);
+    }
+
+    private static void ValidateBindPath(Type root, SparsePath path, string paramName)
+    {
+        // Static shape check: unknown members fail at bind time, while missing
+        // keys and null ancestors stay stale-but-bindable (live resolution decides).
+        var current = root;
+        foreach (var segment in path.Segments)
+        {
+            switch (segment.Kind)
+            {
+                case SparsePathSegmentKind.Member:
+                    var property = current.GetProperty(
+                        segment.Name,
+                        BindingFlags.Instance | BindingFlags.Public
+                    );
+                    if (property is null || property.GetIndexParameters().Length > 0)
+                    {
+                        throw new ArgumentException(
+                            $"The field path '{path}' does not resolve to a public model member.",
+                            paramName
+                        );
+                    }
+
+                    current =
+                        Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                    break;
+                case SparsePathSegmentKind.Key:
+                case SparsePathSegmentKind.TemporaryKey:
+                    current = StepBindCollection(current, path, paramName, keyed: true);
+                    break;
+                default:
+                    current = StepBindCollection(current, path, paramName, keyed: false);
+                    break;
+            }
+        }
+    }
+
+    private static Type StepBindCollection(
+        Type current,
+        SparsePath path,
+        string paramName,
+        bool keyed
+    )
+    {
+        if (current == typeof(string))
+        {
+            throw InvalidBindPath(path, paramName);
+        }
+
+        foreach (var candidate in current.GetInterfaces())
+        {
+            if (!candidate.IsGenericType)
+            {
+                continue;
+            }
+
+            var definition = candidate.GetGenericTypeDefinition();
+            if (
+                definition == typeof(IDictionary<,>)
+                || definition == typeof(IReadOnlyDictionary<,>)
+            )
+            {
+                return Nullable.GetUnderlyingType(candidate.GetGenericArguments()[1])
+                    ?? candidate.GetGenericArguments()[1];
+            }
+        }
+
+        var element = SequenceElementType(current);
+        if (element is null)
+        {
+            if (current.IsArray)
+            {
+                return current.GetElementType()!;
+            }
+
+            throw InvalidBindPath(path, paramName);
+        }
+
+        if (keyed && !HasSparseKey(element))
+        {
+            throw InvalidBindPath(path, paramName);
+        }
+
+        return Nullable.GetUnderlyingType(element) ?? element;
+    }
+
+    private static Type? SequenceElementType(Type current)
+    {
+        foreach (var candidate in current.GetInterfaces())
+        {
+            if (
+                candidate.IsGenericType
+                && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>)
+            )
+            {
+                return candidate.GetGenericArguments()[0];
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasSparseKey(Type element)
+    {
+        foreach (var property in element.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            if (
+                property.CanRead
+                && property.GetIndexParameters().Length == 0
+                && property.GetCustomAttribute<SparseKeyAttribute>(inherit: true) is not null
+            )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static ArgumentException InvalidBindPath(SparsePath path, string paramName) =>
+        new($"The field path '{path}' does not resolve to a public model member.", paramName);
 
     private static void ValidateEditContext<TModel>(
         ISparseEditSession<TModel> session,

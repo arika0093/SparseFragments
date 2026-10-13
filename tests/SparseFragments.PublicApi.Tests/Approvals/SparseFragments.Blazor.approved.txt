@@ -16,6 +16,12 @@ namespace SparseFragments.Blazor
             where TModel :  class { }
         public static void AddValidationError<TModel, TValue>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, SparseFragments.SparsePath<TModel, TValue> fieldPath, string message)
             where TModel :  class { }
+        public static SparseFragments.Blazor.SparseFieldBinding<TModel, object?> Bind<TModel>(this SparseFragments.ISparseEditSession<TModel> session, SparseFragments.SparsePath path, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseFragments.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
+        public static SparseFragments.Blazor.SparseFieldBinding<TModel, object?> Bind<TModel>(this SparseFragments.ISparseEditSession<TModel> session, string fieldPath, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseFragments.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
+        public static SparseFragments.Blazor.SparseFieldBinding<TModel, TValue> Bind<TModel, TValue>(this SparseFragments.ISparseEditSession<TModel> session, SparseFragments.SparsePath<TModel, TValue> path, Microsoft.AspNetCore.Components.Forms.EditContext editContext, SparseFragments.Blazor.SparseFieldBindingOptions? options = null)
+            where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.EditContext CreateEditContext<TModel>(this SparseFragments.ISparseEditSession<TModel> session)
             where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.ValidationMessageStore CreateValidationStore<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
@@ -26,5 +32,30 @@ namespace SparseFragments.Blazor
             where TModel :  class { }
         public static Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field<TModel, TValue>(this SparseFragments.ISparseEditSession<TModel> session, SparseFragments.SparsePath<TModel, TValue> path)
             where TModel :  class { }
+    }
+    public sealed class SparseFieldBindingOptions : System.IEquatable<SparseFragments.Blazor.SparseFieldBindingOptions>
+    {
+        public SparseFieldBindingOptions() { }
+        public bool Disabled { get; init; }
+        public bool UseBatchEdit { get; init; }
+    }
+    public sealed class SparseFieldBinding<TModel, TValue>
+        where TModel :  class
+    {
+        public bool Disabled { get; set; }
+        public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
+        public Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field { get; }
+        public bool IsNullable { get; }
+        public bool IsReadOnly { get; }
+        public bool IsStale { get; }
+        public SparseFragments.SparsePath<TModel, TValue> TypedPath { get; }
+        public SparseFragments.SparsePath UntypedPath { get; }
+        public TValue Value { get; }
+        public System.Linq.Expressions.Expression<System.Func<TValue>>? ValueExpression { get; }
+        public void Set(TValue? value) { }
+        public System.Threading.Tasks.Task SetAsync(TValue? value) { }
+        public bool TryGetField(out Microsoft.AspNetCore.Components.Forms.FieldIdentifier fieldId, out string? error) { }
+        public bool TryGetValue(out TValue? value, out string? error) { }
+        public bool TrySet(TValue? value, out string? error) { }
     }
 }
