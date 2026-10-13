@@ -455,6 +455,32 @@ uiSession.AcceptChanges();
 ```
 <!-- /sample -->
 
+Undo and redo use the session-owned history. The session retains nothing
+until `EnableHistory` runs; `History` stays null before that call and after
+`DisableHistory`:
+
+<!-- sample: ui-history -->
+```csharp
+var historyOrder = new UiOrder { Number = "ORD-1" };
+var historySession = historyOrder.CreateEditSession();
+
+// historySession.History == null
+var history = historySession.EnableHistory(new EditHistoryOptions { MaxEntries = 20 });
+
+historySession.Observable.Number = "ORD-2";
+// history.CanUndo == true
+
+history.Undo();
+// historyOrder.Number == "ORD-1"
+
+history.Redo();
+// historyOrder.Number == "ORD-2"
+
+historySession.DisableHistory();
+// historySession.History == null
+```
+<!-- /sample -->
+
 Create an `EditContext` with the Blazor extensions and pass it to the form:
 
 <!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
@@ -559,7 +585,7 @@ package and keeps its existing Fluent UI controls. The library has no
 Fluent-specific integration and no dependency on Fluent, MudBlazor, or any
 other vendor component set; the same binding, state, and history members serve
 standard inputs and custom components alike. Its undo and redo demo builds on
-the opt-in history factory, the session scope, typed bindings, and the field
+the session-owned history, the session scope, typed bindings, and the field
 and collection state queries, with no handwritten baseline maps or history
 stacks. The keyed-list and mapping demos read their added, removed, moved,
 and edited highlights from the same state queries. The mapping demo keeps its

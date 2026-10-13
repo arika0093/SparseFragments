@@ -233,6 +233,22 @@ namespace SparseTypes
         bool IsRemoved { get; }
         TKey Key { get; }
     }
+    public interface ISparseEditHistory
+    {
+        bool CanRedo { get; }
+        bool CanUndo { get; }
+        int MaxEntries { get; }
+        int RedoCount { get; }
+        int UndoCount { get; }
+        event System.Action? StateChanged;
+        System.IDisposable BeginGroup();
+        void Clear();
+        void Group(System.Action action);
+        void Redo();
+        bool TryRedo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts);
+        bool TryUndo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts);
+        void Undo();
+    }
     public interface ISparseEditSessionModelAccessor<out TModel>
         where out TModel :  class
     {
@@ -565,7 +581,7 @@ namespace SparseTypes
         public SparseTypes.EditHistoryTryApply<TChangeSet>? TryApply { get; set; }
         public System.Action<System.Action<TChangeSet>>? Unsubscribe { get; set; }
     }
-    public sealed class SparseEditHistory<TChangeSet> : System.IDisposable
+    public sealed class SparseEditHistory<TChangeSet> : SparseTypes.ISparseEditHistory, System.IDisposable
         where TChangeSet :  class
     {
         public SparseEditHistory(SparseTypes.EditHistoryOptions? options, SparseTypes.SparseEditHistoryHooks<TChangeSet> hooks) { }
@@ -575,6 +591,7 @@ namespace SparseTypes
         public int RedoCount { get; }
         public int UndoCount { get; }
         public event System.Action? Disposed;
+        public event System.Action? StateChanged;
         public System.IDisposable BeginGroup() { }
         public void Clear() { }
         public void Dispose() { }

@@ -305,7 +305,25 @@ factory that wires the concrete change set (`IsEmpty`, `Invert`, `Compose`,
 in-place apply, transition subscription) into the reusable history core, plus
 baseline-lifecycle invalidation that clears registered histories only after
 `AcceptChanges`, `Reload`, `TryReconcile`, or `RevertChanges` succeeds. Leave
-any entry null to keep sessions byte-identical without the factory.
+any entry null to keep sessions byte-identical without the factory. The
+factory is an advanced multi-observer escape hatch and is hidden from routine
+IntelliSense; each factory call subscribes an independent disposable history
+owned by its caller.
+
+Setting `HistoryContractType` to a caller-owned non-generic history control
+contract (with a parameterless options type exposing `MaxEntries`) adds the
+single-owned surface on top of that binding: a nullable `History` accessor,
+`EnableHistory` returning the session-owned control, `DisableHistory`
+releasing it, and a `HistoryChanged` availability event. The control exposes
+`CanUndo`, `CanRedo`, `Undo`, `Redo`, `TryUndo`, `TryRedo`, counts, grouping,
+`Clear`, and a `StateChanged` event raised by edits, grouped commits, replays,
+and lifecycle clears; failed replays raise nothing. The view is not
+disposable: only the session releases it. Repeating `EnableHistory` with the
+same options returns the existing history without resetting it; repeating with
+different options throws, so reconfiguration goes through `DisableHistory`
+first. `Fork` and new sessions start without history. Leave
+`HistoryContractType` null to keep the legacy factory only, so existing
+consumers stay byte-identical.
 
 Outside `BatchEdit`, observable edits validate and publish their transitions
 immediately; a batch publishes its net transition at exit. The baseline

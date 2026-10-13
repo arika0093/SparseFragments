@@ -208,12 +208,7 @@ internal static class SparseEditSessionEmitter
                 + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
         var conflictType = patchDialect.ConflictType;
         var rebaseResultType = patchDialect.RebaseResult(modelType + ".ChangeSet");
-        var hasHistory = SparseEditSessionHistoryEmitter.TryGetHistoryTypes(
-            config,
-            out var historyType,
-            out var historyOptionsType,
-            out var historyHooksType
-        );
+        SparseEditSessionHistoryEmitter.TryGetHistoryBinding(config, out var historyBinding);
         // A same-named member pushes the session behind a Sparse prefix,
         // mirroring observable/view collision resolution.
         var sessionSimple = SparseGeneratedPlacement.ResolveUiTypeName(
@@ -399,10 +394,7 @@ internal static class SparseEditSessionEmitter
             modelType,
             conflictType,
             rebaseResultType,
-            hasHistory,
-            historyType,
-            historyOptionsType,
-            historyHooksType
+            historyBinding
         );
         // Raw model access bypasses the change cache, so it is exposed only
         // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
@@ -468,8 +460,8 @@ internal static class SparseEditSessionEmitter
         SparseEditSessionHistoryEmitter.AppendHistoryFields(
             code,
             modelType,
-            hasHistory,
-            historyType
+            conflictType,
+            historyBinding
         );
         if (
             config.DescriptorDialect is { } descriptorsDialect

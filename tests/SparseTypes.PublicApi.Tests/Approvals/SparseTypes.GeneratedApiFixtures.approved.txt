@@ -1350,7 +1350,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -1361,6 +1363,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogDictionaries, TValue> path) { }
@@ -1619,7 +1623,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -1630,6 +1636,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogImmutable, TValue> path) { }
@@ -1856,7 +1864,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -1867,6 +1877,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem, TValue> path) { }
@@ -2101,7 +2113,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -2112,6 +2126,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster, TValue> path) { }
@@ -2368,7 +2384,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -2379,6 +2397,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogNested, TValue> path) { }
@@ -2640,7 +2660,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -2651,6 +2673,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration, TValue> path) { }
@@ -2902,7 +2926,9 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
             public bool HasChanges { get; }
             public bool HasOpenDrafts { get; }
+            public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.Observable Observable { get; }
+            public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet>? TransitionObserved;
             public void AcceptChanges() { }
@@ -2913,6 +2939,8 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
+            public void DisableHistory() { }
+            public SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths() { }
             public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
             public SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<SparseTypes.GeneratedApiFixtures.CatalogScalar, TValue> path) { }

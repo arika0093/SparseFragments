@@ -182,7 +182,7 @@
     };
 
     private SettingsSession _session = null!;
-    private SparseEditHistory<PlaygroundSettings.ChangeSet> _history = null!;
+    private ISparseEditHistory _history = null!;
     private EditContext _editContext = null!;
     private SparseFieldBinding<PlaygroundSettings, bool> _enabled = null!;
     private SparseFieldBinding<PlaygroundSettings, int> _retryCount = null!;
@@ -211,9 +211,9 @@
     {
         _session = _model.CreateEditSession();
         // Opt-in history: the session retains no history until this call. The
-        // history subscribes to transitions itself and clears on successful
-        // accept/revert, so no manual stacks or replay guards remain here.
-        _history = _session.CreateHistory();
+        // session owns the history and clears it on successful accept/revert,
+        // so no manual stacks, replay guards, or disposal remain here.
+        _history = _session.EnableHistory();
         _editContext = _session.CreateEditContext();
         _enabled = _session.Bind(PlaygroundSettings.SparsePath.Enabled, _editContext);
         _retryCount = _session.Bind(PlaygroundSettings.SparsePath.RetryCount, _editContext);
@@ -500,9 +500,8 @@
         if (_session is not null)
         {
             _session.TransitionObserved -= OnTransitionObserved;
+            _session.DisableHistory();
         }
-
-        _history?.Dispose();
     }
 
     private static string OneLine(string value) =>

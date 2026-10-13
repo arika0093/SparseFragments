@@ -145,6 +145,34 @@ public static class UiDocSamples
         BlazorFormConflict();
         await BlazorFormTransportAsync();
         await BlazorToolkitBindingsAsync();
+        UiHistoryFlow();
+    }
+
+    private static void UiHistoryFlow()
+    {
+        // sample: ui-history
+        var historyOrder = new UiOrder { Number = "ORD-1" };
+        var historySession = historyOrder.CreateEditSession();
+
+        // historySession.History == null
+        var history = historySession.EnableHistory(new EditHistoryOptions { MaxEntries = 20 });
+
+        historySession.Observable.Number = "ORD-2";
+        // history.CanUndo == true
+        DocsCheck.Require(history.CanUndo, "edit retained");
+
+        history.Undo();
+        // historyOrder.Number == "ORD-1"
+        DocsCheck.Require(historyOrder.Number == "ORD-1", "undo restores");
+
+        history.Redo();
+        // historyOrder.Number == "ORD-2"
+        DocsCheck.Require(historyOrder.Number == "ORD-2", "redo reapplies");
+
+        historySession.DisableHistory();
+        // historySession.History == null
+        // /sample
+        DocsCheck.Require(historySession.History is null, "disable releases");
     }
 
     private static void BlazorFormInput()
@@ -436,7 +464,7 @@ public static class UiDocSamples
         };
         var session = order.CreateEditSession();
         var context = session.CreateEditContext();
-        using var history = session.CreateHistory();
+        var history = session.EnableHistory();
 
         // Standard-input wiring: value, the change delegate the renderer
         // wraps in ValueChanged, and the original-model value expression.
@@ -494,6 +522,7 @@ public static class UiDocSamples
         DocsCheck.Require(!session.HasChanges, "accepted session is clean");
         DocsCheck.Require(!context.IsModified(), "accept clears the modified flags");
         DocsCheck.Require(history.UndoCount == 0, "accept clears the opt-in history");
+        session.DisableHistory();
 
         // Session replacement: the stale context cannot back the fresh
         // session, and the replacement context binds the persisted model.

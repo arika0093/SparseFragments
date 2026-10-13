@@ -163,7 +163,8 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             "SparseTypes.Generated",
             HistoryType: "global::SparseTypes.SparseEditHistory",
             HistoryOptionsType: "global::SparseTypes.EditHistoryOptions",
-            HistoryHooksType: "global::SparseTypes.SparseEditHistoryHooks"
+            HistoryHooksType: "global::SparseTypes.SparseEditHistoryHooks",
+            HistoryContractType: "global::SparseTypes.ISparseEditHistory"
         ),
         EditSessionModelAccessorInterfaceMetadataName: "SparseTypes.ISparseEditSessionModelAccessor",
         OpenDraftStateInterfaceMetadataName: "SparseTypes.ISparseEditSessionOpenDraftState",

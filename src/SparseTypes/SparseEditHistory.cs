@@ -57,10 +57,14 @@ public sealed class SparseEditHistoryHooks<TChangeSet>
 /// releases retention. Without this object the session retains no history.
 /// The underlying session snapshot and diff work runs regardless of history;
 /// this object only adds retention of observed transitions.
-/// This type is not thread-safe. Use it on the same thread as the session.
+/// A session-owned history is instead exposed through the non-disposable
+/// <see cref="ISparseEditHistory"/> contract returned by the generated
+/// <c>EnableHistory</c> method; dispose such histories only through the
+/// owning session. This type is not thread-safe. Use it on the same thread
+/// as the session.
 /// </remarks>
 /// <typeparam name="TChangeSet">The generated change-set type.</typeparam>
-public sealed class SparseEditHistory<TChangeSet> : IDisposable
+public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposable
     where TChangeSet : class
 {
     private readonly Func<TChangeSet, bool> _isEmpty;
@@ -132,6 +136,13 @@ public sealed class SparseEditHistory<TChangeSet> : IDisposable
     /// <summary>Raised after the history is disposed.</summary>
     /// <remarks>Lets the owning session drop its registration.</remarks>
     public event Action? Disposed;
+
+    /// <summary>Raised after undo/redo stack state changes.</summary>
+    /// <remarks>
+    /// Covers observed edits, grouped commits, successful undo/redo replays,
+    /// and clears. Failed replays leave the stacks untouched and raise nothing.
+    /// </remarks>
+    public event Action? StateChanged;
 
     /// <summary>Gets whether an undo entry is available.</summary>
     public bool CanUndo
@@ -214,6 +225,7 @@ public sealed class SparseEditHistory<TChangeSet> : IDisposable
 
         PushUndo(changes);
         _redo.Clear();
+        RaiseStateChanged();
     }
 
     /// <summary>Begins an explicit group across multiple events.</summary>
@@ -319,6 +331,7 @@ public sealed class SparseEditHistory<TChangeSet> : IDisposable
 
         _undo.RemoveLast();
         _redo.Push(entry);
+        RaiseStateChanged();
         return true;
     }
 
@@ -386,18 +399,31 @@ public sealed class SparseEditHistory<TChangeSet> : IDisposable
 
         _redo.Pop();
         PushUndo(entry);
+        RaiseStateChanged();
         return true;
     }
 
     /// <summary>Clears undo entries, redo entries, and any buffered group.</summary>
+    /// <remarks>
+    /// Raises <see cref="StateChanged"/> only when entries were retained.
+    /// </remarks>
     public void Clear()
     {
         ThrowIfDisposed();
+        bool retained =
+            _undo.Count != 0
+            || _redo.Count != 0
+            || (_groupBuffer != null && _groupBuffer.Count != 0);
         _undo.Clear();
         _redo.Clear();
         if (_groupBuffer != null)
         {
             _groupBuffer.Clear();
+        }
+
+        if (retained)
+        {
+            RaiseStateChanged();
         }
     }
 
@@ -479,17 +505,34 @@ public sealed class SparseEditHistory<TChangeSet> : IDisposable
         {
             PushUndo(composed);
             _redo.Clear();
+            RaiseStateChanged();
             return;
         }
 
         if (_isEmpty(composed))
         {
+            bool redoRetained = _redo.Count != 0;
             _redo.Clear();
+            if (redoRetained)
+            {
+                RaiseStateChanged();
+            }
+
             return;
         }
 
         PushUndo(composed);
         _redo.Clear();
+        RaiseStateChanged();
+    }
+
+    private void RaiseStateChanged()
+    {
+        Action? raised = StateChanged;
+        if (raised != null)
+        {
+            raised();
+        }
     }
 
     private void ThrowIfDisposed()

@@ -394,7 +394,8 @@ internal sealed record SparseEditSessionDialect
         string CurrentCoreHintName = "Generated.EditSessionWithCurrentCore.g.cs",
         string? HistoryType = null,
         string? HistoryOptionsType = null,
-        string? HistoryHooksType = null
+        string? HistoryHooksType = null,
+        string? HistoryContractType = null
     )
     {
         this.Namespace = Namespace;
@@ -403,6 +404,7 @@ internal sealed record SparseEditSessionDialect
         this.HistoryType = HistoryType;
         this.HistoryOptionsType = HistoryOptionsType;
         this.HistoryHooksType = HistoryHooksType;
+        this.HistoryContractType = HistoryContractType;
     }
 
     /// <summary>Namespace containing the generated edit-session helper types.</summary>
@@ -428,11 +430,24 @@ internal sealed record SparseEditSessionDialect
     /// <summary>Optional history hooks type, or null when history is not emitted.</summary>
     public string? HistoryHooksType { get; init; }
 
+    /// <summary>Optional non-generic history control contract, or null for the legacy factory only.</summary>
+    /// <remarks>
+    /// Product-owned framework-neutral contract (for example
+    /// <c>global::SparseTypes.ISparseEditHistory</c>). When set together
+    /// with the history binding, sessions additionally gain the single-owned
+    /// <c>EnableHistory</c> API. Null keeps the legacy <c>CreateHistory</c>
+    /// factory only, so existing consumers stay byte-identical.
+    /// </remarks>
+    public string? HistoryContractType { get; init; }
+
     /// <summary>Whether the dialect carries a complete history binding.</summary>
     public bool HasHistory =>
         HistoryType is { Length: > 0 }
         && HistoryOptionsType is { Length: > 0 }
         && HistoryHooksType is { Length: > 0 };
+
+    /// <summary>Whether the dialect carries the single-owned history contract.</summary>
+    public bool HasOwnedHistory => HasHistory && HistoryContractType is { Length: > 0 };
 }
 
 internal sealed record SparseDescriptorDialect
