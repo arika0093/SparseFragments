@@ -234,9 +234,7 @@
 
     // Empty snapshot for rows while the draft cannot be diffed; rows then render clean.
     private static readonly PlaygroundOrderDto.ChangeSet EmptyOrderChangeSet =
-        PlaygroundOrderDto.ChangeSet.Between(
-            Optional<PlaygroundOrderDto.Fragment?>.Missing,
-            Optional<PlaygroundOrderDto.Fragment?>.Missing);
+        PlaygroundOrderDto.ChangeSet.Empty;
 
     private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
     private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baseline));
@@ -291,9 +289,7 @@
         _db.SaveChanges();
         _db.Entry(seeded).Collection(static order => order.Lines).Load();
         _tracked = seeded;
-        _mapper = SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>.Create(
-            new PlaygroundOrderMapper(),
-            _db.Model);
+        _mapper = PlaygroundOrderMapper.Create(_db.Model);
         _baseline = Project(_tracked);
         _draft = Clone(_baseline);
         _applied = false;
@@ -721,21 +717,6 @@
                 .ToList(),
         };
 
-    private static PlaygroundOrderDto Clone(PlaygroundOrderDto source) =>
-        new()
-        {
-            Customer = source.Customer,
-            Notes = source.Notes,
-            Total = source.Total,
-            Lines = source
-                .Lines.Select(static line => new PlaygroundOrderLineDto
-                {
-                    Id = line.Id,
-                    TemporaryId = line.TemporaryId,
-                    Product = line.Product,
-                    Qty = line.Qty,
-                })
-                .ToList(),
-        };
+    private static PlaygroundOrderDto Clone(PlaygroundOrderDto source) => source.DeepClone();
 
 }

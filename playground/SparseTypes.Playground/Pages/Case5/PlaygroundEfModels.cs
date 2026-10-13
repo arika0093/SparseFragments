@@ -145,7 +145,7 @@ public sealed class PlaygroundEfContext : DbContext
 
 /// <summary>Maps order DTO changes onto the tracked order entity.</summary>
 [SparseFragmentMapper]
-public sealed class PlaygroundOrderMapper
+public sealed partial class PlaygroundOrderMapper
     : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
 {
     /// <inheritdoc />
@@ -166,6 +166,7 @@ public sealed class PlaygroundOrderMapper
             entity => entity.Lines,
             lines =>
             {
+                // Same-name Product/Qty resolve via generated defaults.
                 lines.Delete();
                 lines.Order((entity, index) => entity.SortOrder = index);
             }

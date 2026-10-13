@@ -22,7 +22,7 @@
     private const string EfMapperCode = """
         // Generate defaults for same-name scalar properties.
         [SparseFragmentMapper]
-        public sealed class PlaygroundOrderMapper
+        public sealed partial class PlaygroundOrderMapper
             : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
         {
             public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
@@ -34,6 +34,7 @@
                     entity => entity.Lines, // Apply them to the tracked EF collection.
                     lines =>
                     {
+                        // Same-name Product/Qty resolve via generated defaults.
                         // Mark removed line entities for deletion by EF.
                         lines.Delete();
                         // Persist the collection order.
@@ -43,6 +44,7 @@
         }
         // Total, Product, and Qty map automatically because their names and types match.
         // Key and TemporaryId identify keyed changes, so they need no scalar mapping.
+        // The partial modifier earns the OrderMapper.Create(db.Model) shorthand.
         """;
 
     private const string EfFlowCode = """
@@ -51,8 +53,7 @@
         var submittedDraft = Clone(draft);
         baseline = Clone(submittedDraft); // Clear the submitted changes immediately.
 
-        var mapper = SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>.Create(
-            new PlaygroundOrderMapper(), db.Model);
+        var mapper = PlaygroundOrderMapper.Create(db.Model);
         // Apply now, or when the 10-second snackbar expires.
         // ApplyWithResult correlates created lines by temporary identity.
         var result = mapper.ApplyWithResult(db, tracked, accepted); // No query, no SaveChanges.

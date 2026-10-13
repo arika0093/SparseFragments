@@ -8,7 +8,7 @@
         </FluentTab>
         <FluentTab Header="Monitor / Undo / Redo" Id="code-4-history">
             <h3 class="pg-code-sample-subheading">Monitor changes</h3>
-            <MonacoView Content="@MonitorCode" Language="csharp" Height="280px" />
+            <MonacoView Content="@MonitorCode" Language="csharp" Height="310px" />
             <h3 class="pg-code-sample-subheading">Undo and redo</h3>
             <MonacoView Content="@HistoryCode" Language="csharp" Height="370px" />
         </FluentTab>
@@ -45,17 +45,17 @@
         """;
 
     private const string MonitorCode = """
-        // Opt-in history: without CreateHistory the session retains nothing.
-        // The history subscribes to transitions itself; replayed operations
-        // are never re-recorded and BatchEdit stores one entry per action.
-        var history = session.CreateHistory();
-
+        // TransitionObserved is for custom observers such as logging. It
+        // works with or without a history; creating a history never
+        // requires subscribing here.
         session.TransitionObserved += transition =>
         {
             logger.LogInformation(
                 "Observed edit: {ChangedPaths}",
                 string.Join(", ", transition.EnumerateChangedPaths()));
         };
+        // Unsubscribe with the owner lifetime.
+        // session.TransitionObserved -= handler;
 
         // Appearance-free refresh: the scope cascades the session and
         // re-renders its subtree once per session notification.
@@ -63,17 +63,38 @@
         """;
 
     private const string HistoryCode = """
+        // Opt-in history: without CreateHistory the session retains nothing.
+        // Creating it subscribes to transitions automatically, so Undo and
+        // Redo work with no further wiring. Keep it as a field alongside
+        // the session.
+        private SparseEditHistory<Model.ChangeSet> _history = null!;
+
+        void Setup()
+        {
+            _history = session.CreateHistory();
+            // Bound retention: keep only the newest entries (default 50).
+            // _history = session.CreateHistory(new EditHistoryOptions { MaxEntries = 20 });
+        }
+
         void Undo()
         {
-            history.Undo(); // Applies the inverted ChangeSet; throws when empty or conflicting.
+            _history.Undo(); // Applies the inverted ChangeSet; throws when empty or conflicting.
         }
 
         void Redo()
         {
-            history.Redo(); // Reapplies the undone ChangeSet.
+            _history.Redo(); // Reapplies the undone ChangeSet.
+        }
+
+        // The history is disposable: it unsubscribes and releases retention.
+        // Dispose it with its owner, for example in the component Dispose method.
+        public void Dispose()
+        {
+            _history?.Dispose();
         }
 
         // Accept/revert clear registered histories on success, so submit and
-        // reset need no manual stack handling.
+        // reset need no manual stack handling. Replayed operations are never
+        // re-recorded, and BatchEdit stores one entry per action.
         """;
 }

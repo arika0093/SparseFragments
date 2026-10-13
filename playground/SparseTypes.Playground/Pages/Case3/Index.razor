@@ -103,9 +103,7 @@
     private PlaygroundRoster.ChangeSet? _rosterChanges;
     private string? _rosterChangesError;
     private static readonly PlaygroundRoster.ChangeSet EmptyRosterChangeSet =
-        PlaygroundRoster.ChangeSet.Between(
-            Optional<PlaygroundRoster.Fragment?>.Missing,
-            Optional<PlaygroundRoster.Fragment?>.Missing);
+        PlaygroundRoster.ChangeSet.Empty;
 
     private string RosterBeforeModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteRosterModel(RosterBefore));
     private string RosterManualCSharp => PlaygroundPageHelper.Try(RosterManualPatchText);
