@@ -446,7 +446,7 @@ namespace SparseFragments
         public bool TryGetAt(int index, out TElement? value, out SparseFragments.SparseCollectionEditError error) { }
         public bool TryInsert(int index, TElement? item, out SparseFragments.SparseCollectionEditError error) { }
         public bool TryMove(int oldIndex, int newIndex, out SparseFragments.SparseCollectionEditError error) { }
-        public bool TryRemoveAt(int index, out TElement? item, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryRemoveAt(int index, out SparseFragments.SparseCollectionEditError error) { }
         public bool TryReplace(int index, TElement? item, out SparseFragments.SparseCollectionEditError error) { }
         protected bool TryResolveArray(out SparseFragments.Generated.IArrayDescriptor array, out SparseFragments.SparseCollectionEditError error) { }
     }
