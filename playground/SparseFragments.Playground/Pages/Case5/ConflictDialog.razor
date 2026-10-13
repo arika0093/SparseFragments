@@ -1,0 +1,66 @@
+<FluentDialog @ref="_dialog" Hidden="@(!Visible)" Modal="true" TrapFocus="true"
+    Class="pg-submit-preview-dialog" AriaLabel="Concurrent save conflict">
+    <div class="pg-dialog-heading">
+        <h3>Concurrent update detected</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p class="pg-hint">@Summary</p>
+        <div class="pg-change-table-wrap">
+            <table class="pg-change-table" aria-label="Concurrent save details">
+                <thead>
+                    <tr><th>Path</th><th>Base</th><th>Local value</th><th>Current value</th><th>Conflict</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Conflicts)
+                    {
+                        <tr>
+                            <td><span class="pg-change-value">@row.Path</span></td>
+                            <td><span class="pg-change-value">@row.Baseline</span></td>
+                            <td><span class="pg-change-value">@row.Local</span></td>
+                            <td><span class="pg-change-value">@row.Current</span></td>
+                            <td><span class="pg-change-value">@row.Kind</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OnClose">Continue editing</FluentButton>
+    </div>
+</FluentDialog>
+
+@code {
+    private FluentDialog? _dialog;
+    private bool _dialogVisible;
+
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public string Summary { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<(string Path, string Baseline, string Local, string Current, string Kind)> Conflicts { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public EventCallback OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_dialog is null || _dialogVisible == Visible)
+        {
+            return;
+        }
+
+        _dialogVisible = Visible;
+        if (Visible)
+        {
+            await _dialog.ShowAsync();
+        }
+        else
+        {
+            await _dialog.HideAsync();
+        }
+    }
+}

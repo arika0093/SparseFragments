@@ -31,6 +31,9 @@
     [Parameter]
     public string Height { get; set; } = "360px";
 
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
     /// <summary>Gets or sets whether the editor fills the available card height.</summary>
     [Parameter]
     public bool Fill { get; set; }
@@ -53,8 +56,9 @@
             AutomaticLayout = true,
             Language = MonacoLanguage,
             Value = Value,
-            ReadOnly = false,
+            ReadOnly = ReadOnly,
             Minimap = new EditorMinimapOptions { Enabled = false },
+            Scrollbar = new EditorScrollbarOptions { Vertical = "auto", Horizontal = "auto" },
             StickyScroll = new EditorStickyScrollOptions { Enabled = false },
             ScrollBeyondLastLine = false,
             RenderLineHighlight = "all",

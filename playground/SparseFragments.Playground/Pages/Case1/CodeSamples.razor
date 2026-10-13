@@ -1,0 +1,31 @@
+@using SparseFragments.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">The higher fragment overrides present values, preserves omitted members from Lower, and appends Plugins.</p>
+    <MonacoView Content="@MergeCode" Language="csharp" Height="360px" />
+</div>
+
+@code {
+    private const string MergeCode = """
+        var lower = new PlaygroundSettings.Fragment
+        {
+            Enabled = true,
+            RetryCount = 3,
+            Label = "base",
+            Nested = new PlaygroundNested.Fragment { Host = "localhost", Port = 5432 },
+            Plugins = ["base-plugin"]
+        };
+
+        var higher = new PlaygroundSettings.Fragment
+        {
+            RetryCount = 5,
+            Label = (string?)null,
+            Nested = new PlaygroundNested.Fragment { Port = 8080 },
+            Plugins = ["extra-plugin"]
+        };
+
+        var merged = lower.Merge(higher).ToModel();
+        // Result: Enabled=true, RetryCount=5, Label=null.
+        // Nested.Host=localhost, Nested.Port=8080, Plugins=[base-plugin, extra-plugin].
+        """;
+}

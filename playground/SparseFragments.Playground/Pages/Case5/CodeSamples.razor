@@ -1,0 +1,147 @@
+@using SparseFragments.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">The submit action advances the draft baseline immediately. A progress bar tracks the 10-second delay; concurrent edits are rebased and shown in a conflict dialog.</p>
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Mapper" Id="code-5-mapper">
+            <MonacoView Content="@EfMapperCode" Language="csharp" Height="330px" />
+        </FluentTab>
+        <FluentTab Header="Shapes" Id="code-5-shapes">
+            <MonacoView Content="@EfShapesCode" Language="csharp" Height="360px" />
+        </FluentTab>
+        <FluentTab Header="Apply flow" Id="code-5-flow">
+            <MonacoView Content="@EfFlowCode" Language="csharp" Height="330px" />
+        </FluentTab>
+        <FluentTab Header="Inspect changes" Id="code-5-inspect">
+            <MonacoView Content="@EfInspectCode" Language="csharp" Height="330px" />
+        </FluentTab>
+    </FluentTabs>
+</div>
+
+@code {
+    private const string EfMapperCode = """
+        [SparseFragmentMapper]
+        public sealed class PlaygroundOrderMapper
+            : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
+        {
+            public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+            {
+                map.Member(dto => dto.Customer, entity => entity.CustomerName);
+                map.Member(dto => dto.Notes, entity => entity.Note!.Text);
+                map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
+                    dto => dto.Lines,
+                    entity => entity.Lines,
+                    lines =>
+                    {
+                        lines.Element(child =>
+                        {
+                            child.Ignore(line => line.Id);
+                            child.Ignore(line => line.TemporaryId);
+                        });
+                        lines.Delete();
+                        lines.Order((entity, index) => entity.SortOrder = index);
+                    });
+            }
+        }
+        // Total, Product, and Qty map automatically via generated defaults.
+        // The int Key and TemporaryId ride the keyed transition, never scalars.
+        """;
+
+    private const string EfFlowCode = """
+        var submittedBaseline = Clone(baseline);
+        var accepted = submittedBaseline.CreateChangeSet(draft);
+        var submittedDraft = Clone(draft);
+        baseline = Clone(submittedDraft); // Clear the submitted changes immediately.
+
+        var mapper = SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>.Create(
+            new PlaygroundOrderMapper(), db.Model);
+        // Apply now, or when the 10-second snackbar expires.
+        mapper.Apply(db, tracked, accepted); // No query, no SaveChanges.
+        var modified = db.ChangeTracker.Entries()
+            .SelectMany(static entry => entry.Properties)
+            .Where(static property => property.IsModified);
+
+        try
+        {
+            if (simulateConflict) SimulateConcurrentEdit(tracked.Id);
+            EnsureCurrentRevision(db, tracked.Id, tracked.Revision);
+            tracked.Revision++;
+            await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
+            var persisted = await db.Orders.Include(order => order.Lines)
+                .SingleAsync(order => order.Id == tracked.Id);
+            var newBaseline = Project(persisted);
+            RetargetNewLineIds(submittedDraft, newBaseline, draft);
+            baseline = newBaseline; // Keep edits made after submit.
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            var current = Project(await ReloadOrderAsync(tracked.Id));
+            var rebase = accepted.RebaseOnto(current);
+            var currentFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
+                PlaygroundOrderDto.Fragment.From(current));
+            var merged = rebase.Rebased.ToPatch().Apply(currentFragment).Value!.ToModel();
+            var editsWhileWaiting = submittedDraft.CreateChangeSet(draft);
+            var mergedFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
+                PlaygroundOrderDto.Fragment.From(merged));
+            draft = editsWhileWaiting.RebaseOnto(merged).Rebased.ToPatch()
+                .Apply(mergedFragment).Value!.ToModel();
+            baseline = current;
+            ShowConflictDialog(rebase.Conflicts);
+        }
+        """;
+
+    private const string EfShapesCode = """
+        [SparseFragmentModel]
+        public partial class PlaygroundOrderDto
+        {
+            public string Customer { get; set; } = string.Empty;
+            public string Notes { get; set; } = string.Empty; // Flattened onto Note.Text.
+            public decimal Total { get; set; }
+            public List<PlaygroundOrderLineDto> Lines { get; set; } = [];
+        }
+
+        public partial class PlaygroundOrderLineDto
+        {
+            public int? Id { get; set; } // Null means unassigned.
+            [SparseKey(Unassigned = 0)]
+            public int Key => Id ?? 0;
+            [SparseTemporaryKey]
+            public Guid? TemporaryId { get; set; }
+            public string Product { get; set; } = string.Empty;
+            public int Qty { get; set; }
+        }
+
+        public sealed class PlaygroundOrderEntity
+        {
+            public int Id { get; set; }
+            public int Revision { get; set; } // Optimistic concurrency token.
+            public string CustomerName { get; set; } = string.Empty;
+            public decimal Total { get; set; }
+            public PlaygroundNoteEntity? Note { get; set; } // Required 1:1.
+            public List<PlaygroundOrderLineEntity> Lines { get; set; } = [];
+        }
+
+        public sealed class PlaygroundNoteEntity
+        {
+            public int Id { get; set; }
+            public string Text { get; set; } = string.Empty;
+            public int OrderId { get; set; }
+        }
+        """;
+
+    private const string EfInspectCode = """
+        var changes = baseline.CreateChangeSet(draft); // Typed before-to-after transition.
+        if (!changes.IsChanged)
+        {
+            return; // The Save button stays disabled, like the draft card.
+        }
+
+        foreach (var change in changes.EnumerateChanges())
+        {
+            // Kind: Changed / Added / Removed / Order.
+            // PathText: e.g. Customer, Lines[3].Qty. Before/After are
+            // Optional<object?>; missing renders as — in the dialog table.
+            Console.WriteLine($"{change.Kind} {change.PathText}");
+        }
+        """;
+}

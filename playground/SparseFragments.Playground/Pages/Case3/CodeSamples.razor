@@ -1,0 +1,75 @@
+@using SparseFragments.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">Create a ChangeSet from Before and After, inspect changes by quest Id, summarize its collections, then apply it to the model.</p>
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Create ChangeSet" Id="code-3-create">
+            <MonacoView Content="@RosterChangeSetCode" Language="csharp" Height="230px" />
+        </FluentTab>
+        <FluentTab Header="GetChange per row" Id="code-3-row">
+            <MonacoView Content="@RosterRowCode" Language="csharp" Height="340px" />
+        </FluentTab>
+        <FluentTab Header="Build a summary" Id="code-3-summary">
+            <MonacoView Content="@RosterSummaryCode" Language="csharp" Height="280px" />
+        </FluentTab>
+        <FluentTab Header="Apply to the model" Id="code-3-apply">
+            <MonacoView Content="@RosterApplyCode" Language="csharp" Height="240px" />
+        </FluentTab>
+    </FluentTabs>
+</div>
+
+@code {
+    private const string RosterChangeSetCode = """
+        var before = new PlaygroundRoster { Quests = [ /* before quests */ ] };
+        var after = new PlaygroundRoster { Quests = [ /* after quests */ ] };
+
+        var changes = before.CreateChangeSet(after);
+        var quests = changes.Quests;
+        // Contains keyed adds, removes, field edits, and the final order.
+        """;
+
+    private const string RosterRowCode = """
+        foreach (var quest in after.Quests)
+        {
+            var change = changes.Quests.GetChange(quest.Id);
+
+            if (change.IsAdded) Console.WriteLine($"{quest.Id}: added");
+            if (change.IsEdited && change.Edit.Title.IsChanged)
+                Console.WriteLine($"{quest.Id}: title changed");
+            if (change.IsReordered) Console.WriteLine($"{quest.Id}: reordered");
+        }
+
+        foreach (var quest in before.Quests)
+        {
+            var change = changes.Quests.GetChange(quest.Id);
+            if (change.IsRemoved) Console.WriteLine($"{quest.Id}: removed");
+        }
+        """;
+
+    private const string RosterSummaryCode = """
+        var quests = changes.Quests;
+        if (quests.IsEmpty)
+        {
+            Console.WriteLine("no changes");
+        }
+        else
+        {
+            var added = quests.Added.Select(static quest => quest.Id).ToList();
+            var removed = quests.Removed.Select(static quest => quest.Id).ToList();
+            var edited = quests.Edited.Select(static edit => edit.Key).ToList();
+            var order = quests.AfterOrder.ToList();
+
+            Console.WriteLine($"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]");
+        }
+        // Default Playground data: add: [d] | remove: [a] | edit: [b, c] | order: [b→c→d]
+        """;
+
+    private const string RosterApplyCode = """
+        if (!changes.TryApplyTo(before, out var updated))
+        {
+            throw new InvalidOperationException("The changes could not be applied.");
+        }
+
+        // updated holds ["b", "c", "d"]: "a" removed, "b" retitled, "c" rescored.
+        """;
+}

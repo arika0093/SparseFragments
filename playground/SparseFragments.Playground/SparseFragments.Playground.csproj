@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <!-- Web assets are single-sourced in /assets and copied into wwwroot before asset discovery. -->
-  <Target Name="CopyPlaygroundIconsToWwwroot" BeforeTargets="ResolveStaticWebAssetsInputs">
+  <Target Name="CopyPlaygroundAssetsToWwwroot" BeforeTargets="ResolveStaticWebAssetsInputs">
     <Copy
       SourceFiles="$(MSBuildProjectDirectory)/../../assets/favicon.png;$(MSBuildProjectDirectory)/../../assets/apple-touch-icon.png;$(MSBuildProjectDirectory)/../../assets/icon-192.png"
       DestinationFiles="$(MSBuildProjectDirectory)/wwwroot/favicon.png;$(MSBuildProjectDirectory)/wwwroot/apple-touch-icon.png;$(MSBuildProjectDirectory)/wwwroot/icon-192.png"

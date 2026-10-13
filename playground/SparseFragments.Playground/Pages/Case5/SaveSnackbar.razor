@@ -1,0 +1,84 @@
+@implements IDisposable
+
+@if (Visible)
+{
+    <aside class="pg-save-snackbar" role="status" aria-live="polite">
+        <div class="pg-save-snackbar-content">
+            <div>
+                <strong>Save is pending</strong>
+                <p>The submitted snapshot applies in 10 seconds. New draft edits stay local.</p>
+            </div>
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ApplyNow">Apply now</FluentButton>
+        </div>
+        <div class="pg-save-progress" style="@ProgressStyle" aria-hidden="true">
+            <span class="pg-save-progress-fill"></span>
+        </div>
+    </aside>
+}
+
+@code {
+    private readonly TimeSpan _duration = TimeSpan.FromSeconds(10);
+    private CancellationTokenSource? _timer;
+    private bool _timerActive;
+    private bool _completed;
+    private string ProgressStyle => $"--pg-save-duration: {_duration.TotalSeconds}s";
+
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnApply { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!Visible)
+        {
+            _timer?.Cancel();
+            _timer?.Dispose();
+            _timer = null;
+            _timerActive = false;
+            _completed = false;
+            return;
+        }
+
+        if (_timerActive || _completed)
+        {
+            return;
+        }
+
+        _timer = new CancellationTokenSource();
+        _timerActive = true;
+        _ = ApplyAfterDelayAsync(_timer.Token);
+    }
+
+    private async Task ApplyAfterDelayAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(_duration, cancellationToken);
+            await InvokeAsync(ApplyAsync);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
+
+    private Task ApplyNow() => ApplyAsync();
+
+    private async Task ApplyAsync()
+    {
+        if (!Visible || _completed)
+        {
+            return;
+        }
+
+        _completed = true;
+        _timerActive = false;
+        _timer?.Cancel();
+        await OnApply.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+    }
+}

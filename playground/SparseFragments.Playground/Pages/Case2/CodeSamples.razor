@@ -1,0 +1,20 @@
+@using SparseFragments.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">Start with the merged fragment from Section 1. Unassigned operations stay unchanged; assigning null stores null, while Remove clears this fragment's contribution.</p>
+    <MonacoView Content="@PatchCode" Language="csharp" Height="260px" />
+</div>
+
+@code {
+    private const string PatchCode = """
+        var fragment = lower.Merge(higher);
+
+        var patch = new PlaygroundSettings.Patch();
+        patch.RetryCount = 5;
+        patch.Label = (string?)null;
+        patch.Enabled = FragmentOperation<bool>.Remove;
+
+        var updated = fragment.Apply(patch);
+        // RetryCount=5, Label=null; Enabled is removed from this fragment.
+        """;
+}

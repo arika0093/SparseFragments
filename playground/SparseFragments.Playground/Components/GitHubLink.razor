@@ -1,0 +1,11 @@
+<a class="pg-gh-link" href="@Href" target="_blank" rel="noopener noreferrer" title="@Label" aria-label="@Label">
+    <span>Source on GitHub</span>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Href { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+}

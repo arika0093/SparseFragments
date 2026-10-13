@@ -5,7 +5,7 @@ using SparseFragments.EntityFrameworkCore;
 
 namespace SparseFragments.Playground.Models;
 
-/// <summary>Order DTO edited in playground section 05. Knows nothing about EF Core.</summary>
+/// <summary>Order DTO for Case 5. Knows nothing about EF Core.</summary>
 [SparseFragmentModel]
 public partial class PlaygroundOrderDto
 {
@@ -64,6 +64,9 @@ public sealed class PlaygroundOrderEntity
 {
     /// <summary>Gets or sets the database-generated identity.</summary>
     public int Id { get; set; }
+
+    /// <summary>Gets or sets the optimistic concurrency revision.</summary>
+    public int Revision { get; set; }
 
     /// <summary>Gets or sets the customer name.</summary>
     public string CustomerName { get; set; } = string.Empty;
@@ -124,6 +127,7 @@ public sealed class PlaygroundEfContext : DbContext
         modelBuilder.Entity<PlaygroundOrderEntity>(entity =>
         {
             entity.HasKey(order => order.Id);
+            entity.Property(order => order.Revision).IsConcurrencyToken();
             entity
                 .HasOne(order => order.Note)
                 .WithOne(note => note.Order)

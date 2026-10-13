@@ -1,0 +1,81 @@
+@using SparseFragments.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">Create an EditSession to track model changes, then observe transitions and use them to implement logging, undo, and redo.</p>
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Session / BatchEdit" Id="code-4-session">
+            <MonacoView Content="@SessionCode" Language="csharp" Height="390px" />
+        </FluentTab>
+        <FluentTab Header="Monitor / Undo / Redo" Id="code-4-history">
+            <h3 class="pg-code-sample-subheading">Monitor changes</h3>
+            <MonacoView Content="@MonitorCode" Language="csharp" Height="280px" />
+            <h3 class="pg-code-sample-subheading">Undo and redo</h3>
+            <MonacoView Content="@HistoryCode" Language="csharp" Height="370px" />
+        </FluentTab>
+    </FluentTabs>
+</div>
+
+@code {
+    private const string SessionCode = """
+        var session = model.CreateEditSession(); // Capture the model as the baseline.
+        var observable = session.Observable; // Bind input controls to this observable.
+        var shown = session.Current.RetryCount; // Read display state from the read-only view.
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.RetryCount = 5;
+            session.Observable.Label = "updated";
+        }); // Group these changes into one transition.
+
+        if (session.HasChanges)
+        {
+            var pending = session.CreateChangeSet(); // Typed before-to-after transition for save.
+            session.AcceptChanges(); // Submit: keep the current state as the new baseline.
+        }
+        void Reset() => session.RevertChanges(); // Discard pending edits and restore the baseline.
+        """;
+
+    private const string MonitorCode = """
+        // Each stack stores one ChangeSet per observed transition.
+        var undo = new Stack<PlaygroundSettings.ChangeSet>();
+        var redo = new Stack<PlaygroundSettings.ChangeSet>();
+        var applyingHistory = false; // Prevent replayed transitions from being recorded again.
+
+        session.TransitionObserved += transition =>
+        {
+            if (!applyingHistory)
+            {
+                undo.Push(transition);
+                redo.Clear();
+            }
+
+            logger.LogInformation(
+                "Observed edit: {ChangedPaths}",
+                string.Join(", ", transition.EnumerateChangedPaths()));
+        };
+        """;
+
+    private const string HistoryCode = """
+        void Undo()
+        {
+            if (undo.Count == 0) return;
+            var transition = undo.Peek();
+            applyingHistory = true;
+            try { session.ApplyInPlace(transition.Invert()); }
+            finally { applyingHistory = false; }
+            undo.Pop();
+            redo.Push(transition);
+        }
+
+        void Redo()
+        {
+            if (redo.Count == 0) return;
+            var transition = redo.Peek();
+            applyingHistory = true;
+            try { session.ApplyInPlace(transition); }
+            finally { applyingHistory = false; }
+            redo.Pop();
+            undo.Push(transition);
+        }
+        """;
+}

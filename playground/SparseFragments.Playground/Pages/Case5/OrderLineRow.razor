@@ -1,0 +1,124 @@
+@using SparseFragments.Playground.Models
+
+<div class="@RowClass pg-task-row">
+    <div class="pg-task-line-ef">
+        <div class="pg-roster-field">
+            <span class="pg-mini notranslate" translate="no">Id <small>@(Line.Id.HasValue ? "int" : "new")</small></span>
+            <FluentTextInput Value="@(Line.Id.HasValue ? $"#{Line.Id.Value}" : "#new")" ReadOnly="true" />
+        </div>
+        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
+            <span class="pg-mini notranslate" translate="no">
+                @if (IsChanged(nameof(PlaygroundOrderLineDto.Product)))
+                {
+                    <span class="pg-dot" title="edited"></span>
+                }
+                Product
+            </span>
+            <FluentTextInput Value="@Line.Product"
+                ValueChanged="@(value => EditDraft(draft => draft.Lines[Index].Product = value ?? string.Empty))" />
+        </div>
+        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundOrderLineDto.Qty)) ? "pg-changed" : "")">
+            <span class="pg-mini notranslate" translate="no">
+                @if (IsChanged(nameof(PlaygroundOrderLineDto.Qty)))
+                {
+                    <span class="pg-dot" title="edited"></span>
+                }
+                Qty
+            </span>
+            <FluentNumberInput TValue="int" Value="@Line.Qty"
+                ValueChanged="@(value => EditDraft(draft => draft.Lines[Index].Qty = value))" />
+        </div>
+        <div class="pg-roster-actions pg-task-actions">
+            <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                Disabled="@(Index == 0)" @onclick="() => MoveAsync(-1)">↑</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                Disabled="@(Index == Draft.Lines.Count - 1)" @onclick="() => MoveAsync(1)">↓</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
+                @onclick="RemoveAsync">✕</FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public PlaygroundOrderLineDto Line { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public PlaygroundOrderDto Draft { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public PlaygroundOrderDto Baseline { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<Action<PlaygroundOrderDto>> OnEditDraft { get; set; }
+
+    private int Index => Draft.Lines.IndexOf(Line);
+    private PlaygroundOrderLineDto? BaselineLine => GetLineBaseline(Line);
+    private string RowClass => BaselineLine is null ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
+
+    private bool IsChanged(string property)
+    {
+        var baselineLine = BaselineLine;
+        if (baselineLine is null)
+        {
+            return false;
+        }
+
+        return property switch
+        {
+            nameof(PlaygroundOrderLineDto.Product) => Line.Product != baselineLine.Product,
+            nameof(PlaygroundOrderLineDto.Qty) => Line.Qty != baselineLine.Qty,
+            _ => false,
+        };
+    }
+
+    private bool IsMoved
+    {
+        get
+        {
+            var baselineLine = BaselineLine;
+            var baselineIndex = baselineLine is null ? -1 : Baseline.Lines.IndexOf(baselineLine);
+            if (baselineIndex < 0)
+            {
+                return false;
+            }
+
+            var currentRank = 0;
+            for (var i = 0; i < Index; i++)
+            {
+                if (GetLineBaseline(Draft.Lines[i]) is not null)
+                {
+                    currentRank++;
+                }
+            }
+
+            var baselineRank = Baseline.Lines.Take(baselineIndex)
+                .Count(item => Draft.Lines.Any(line => line.Id == item.Id));
+            return currentRank != baselineRank;
+        }
+    }
+
+    private PlaygroundOrderLineDto? GetLineBaseline(PlaygroundOrderLineDto line) =>
+        line.Id.HasValue ? Baseline.Lines.FirstOrDefault(item => item.Id == line.Id) : null;
+
+    private Task EditDraft(Action<PlaygroundOrderDto> edit) => OnEditDraft.InvokeAsync(edit);
+
+    private Task RemoveAsync()
+    {
+        var index = Index;
+        return index < 0 ? Task.CompletedTask : EditDraft(draft => draft.Lines.RemoveAt(index));
+    }
+
+    private Task MoveAsync(int direction)
+    {
+        var index = Index;
+        var target = index + direction;
+        if (index < 0 || target < 0 || target >= Draft.Lines.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        return EditDraft(draft => (draft.Lines[index], draft.Lines[target]) = (draft.Lines[target], draft.Lines[index]));
+    }
+}

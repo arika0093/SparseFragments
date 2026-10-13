@@ -1,9 +1,8 @@
-@using System.Globalization
-@using System.Text.Json
 @using Microsoft.EntityFrameworkCore
 @using SparseFragments
 @using SparseFragments.EntityFrameworkCore
 @using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
 @implements IDisposable
 
 <div class="pg-stack">
@@ -29,7 +28,7 @@
                 <div class="pg-actions">
                     <FluentButton Appearance="ButtonAppearance.Default" @onclick="ResetDraft">Reset draft</FluentButton>
                     <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                        Disabled="@(_changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
+                        Disabled="@(_savePending || _changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
                 </div>
             </div>
             <div class="pg-stack pg-edit-fields">
@@ -61,37 +60,7 @@
             <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                 OnUpdate="OnLinesReordered" Context="line">
                 <SortableItemTemplate>
-                    <div class="@LineRowClass(line, _draft.Lines.IndexOf(line)) pg-task-row">
-                        <div class="pg-task-line-ef">
-                            <div class="pg-roster-field">
-                                <span class="pg-mini notranslate" translate="no">Id <small>@(line.Id.HasValue ? "int" : "new")</small></span>
-                                <span class="pg-change-value">@(line.Id.HasValue ? $"#{line.Id.Value}" : "#new")</span>
-                            </div>
-                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)) ? "pg-changed" : "")">
-                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Product)))Product</span>
-                                <FluentTextInput
-                                    Value="@line.Product"
-                                    ValueChanged="@(v => EditDraft(_ => line.Product = v ?? string.Empty))" />
-                            </div>
-                            <div class="pg-roster-field @(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Qty)) ? "pg-changed" : "")">
-                                <span class="pg-mini notranslate" translate="no">@ChangedDot(IsLineFieldChanged(line, nameof(PlaygroundOrderLineDto.Qty)))Qty</span>
-                                <FluentNumberInput TValue="int"
-                                    Value="@line.Qty"
-                                    ValueChanged="@(v => EditDraft(_ => line.Qty = v))" />
-                            </div>
-                            <div class="pg-roster-actions pg-task-actions">
-                                <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
-                                <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
-                                    Disabled="@(_draft.Lines.IndexOf(line) == 0)"
-                                    @onclick="@(() => MoveLine(_draft.Lines.IndexOf(line), -1))">↑</FluentButton>
-                                <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                                    Disabled="@(_draft.Lines.IndexOf(line) == _draft.Lines.Count - 1)"
-                                    @onclick="@(() => MoveLine(_draft.Lines.IndexOf(line), 1))">↓</FluentButton>
-                                <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
-                                    @onclick="@(() => EditDraft(d => d.Lines.Remove(line)))">✕</FluentButton>
-                            </div>
-                        </div>
-                    </div>
+                    <OrderLineRow Line="line" Draft="_draft" Baseline="_baseline" OnEditDraft="EditDraft" />
                 </SortableItemTemplate>
             </SortableList>
             <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
@@ -108,6 +77,13 @@
                     <span aria-hidden="true"></span>@(_changes?.IsChanged == true ? "Changes" : "No changes")
                 </span>
             </div>
+            <div class="pg-case5-conflict-toggle">
+                <FluentCheckbox Value="@_simulateConflict"
+                    ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
+                    Simulate another user editing before save
+                </FluentCheckbox>
+            </div>
+            <p class="pg-hint">When enabled, a concurrent update changes the order revision. The submitted save is rejected and its changes are rebased onto the latest entity.</p>
             @if (_changesError is not null)
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_changesError</FluentMessageBar>
@@ -116,9 +92,13 @@
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_applyError</FluentMessageBar>
             }
+            @if (_saveError is not null)
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Error">@_saveError</FluentMessageBar>
+            }
             @if (!_applied && _applyError is null)
             {
-                <p class="pg-hint">Save the draft to apply its ChangeSet to the tracked entity and persist. Untouched properties stay unmodified.</p>
+                <p class="pg-hint">Confirm a ChangeSet to apply its snapshot after 10 seconds. You can keep editing the draft during the delay.</p>
             }
             @if (_applied)
             {
@@ -142,14 +122,12 @@
                     </table>
                 </div>
                 <MonacoDiffView Original="@_entityJsonBeforeApply" Modified="@EntityJson" Language="json" Height="240px" />
-                @if (_saveError is not null)
-                {
-                    <FluentMessageBar Intent="MessageBarIntent.Error">@_saveError</FluentMessageBar>
-                }
             }
         </FluentCard>
     </div>
 </div>
+
+<SaveSnackbar Visible="_savePending" OnApply="ApplyPendingSave" />
 
 <FluentDialog @ref="_saveDialog" Hidden="@_saveDialogHidden" Modal="true" TrapFocus="true"
     Class="pg-submit-preview-dialog" AriaLabel="Confirm save changes">
@@ -157,7 +135,7 @@
         <h3>Save changes</h3>
     </div>
     <div class="pg-dialog-body">
-        <p class="pg-hint">Review the ChangeSet, then confirm to apply it to the tracked entity and persist.</p>
+        <p class="pg-hint">Review the ChangeSet. After confirmation, this snapshot applies in 10 seconds; you can keep editing the draft meanwhile.</p>
         @if (_changeRows.Count == 0)
         {
             <p class="pg-hint">No changes.</p>
@@ -190,6 +168,9 @@
     </div>
 </FluentDialog>
 
+<ConflictDialog Visible="_conflictVisible" Summary="@_conflictSummary"
+    Conflicts="_conflictRows" OnClose="CloseConflictDialog" />
+
 @code {
     private static readonly DbContextOptions<PlaygroundEfContext> SharedOptions =
         new DbContextOptionsBuilder<PlaygroundEfContext>()
@@ -206,15 +187,24 @@
     private string? _applyError;
     private string? _saveError;
     private bool _applied;
+    private bool _savePending;
+    private bool _simulateConflict;
     private string _entityJsonBeforeApply = string.Empty;
     private FluentDialog? _saveDialog;
     private bool _saveDialogHidden = true;
+    private bool _conflictVisible;
+    private string _conflictSummary = string.Empty;
     private List<(string Operation, string Path, string Before, string After)> _changeRows = [];
     private List<(string Entity, string State, string Property, string Before, string After)> _modifiedRows = [];
+    private PlaygroundOrderDto.ChangeSet? _pendingChanges;
+    private PlaygroundOrderDto? _pendingDraft;
+    private PlaygroundOrderDto? _pendingBaseline;
+    private bool _pendingSimulateConflict;
+    private List<(string Path, string Baseline, string Local, string Current, string Kind)> _conflictRows = [];
 
-    private string EntityJson => Try(() => _tracked is null ? "{}" : WriteOrderEntity(_tracked));
-    private string BaselineJson => Try(WriteBaselineJson);
-    private string DraftJson => Try(WriteDraftJson);
+    private string EntityJson => Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
+    private string BaselineJson => Try(() => PlaygroundOrderJson.WriteDto(_baseline));
+    private string DraftJson => Try(() => PlaygroundOrderJson.WriteDto(_draft));
 
     /// <summary>Reseeds the store and resets the whole pipeline. Called by the page too.</summary>
     public void Reset()
@@ -229,6 +219,11 @@
 
     private void Seed()
     {
+        _savePending = false;
+        _pendingChanges = null;
+        _pendingDraft = null;
+        _pendingBaseline = null;
+        _pendingSimulateConflict = false;
         _db?.Dispose();
         _db = new PlaygroundEfContext(SharedOptions);
         _db.Database.EnsureDeleted();
@@ -265,8 +260,11 @@
         _baseline = Project(_tracked);
         _draft = Clone(_baseline);
         _applied = false;
+        _simulateConflict = false;
         _modifiedRows = [];
         _saveDialogHidden = true;
+        _conflictVisible = false;
+        _conflictRows = [];
         RefreshChanges();
     }
 
@@ -301,20 +299,6 @@
                 Qty = NewLineRandom.Next(1, 6),
                 TemporaryId = Guid.NewGuid(),
             }));
-    }
-
-    private void MoveLine(int index, int direction)
-    {
-        var other = index + direction;
-        if (index < 0 || other < 0 || other >= _draft.Lines.Count)
-        {
-            return;
-        }
-
-        EditDraft(draft =>
-        {
-            (draft.Lines[index], draft.Lines[other]) = (draft.Lines[other], draft.Lines[index]);
-        });
     }
 
     private Task OnLinesReordered((int oldIndex, int newIndex) indices)
@@ -354,71 +338,6 @@
         _ => false,
     };
 
-    private PlaygroundOrderLineDto? GetLineBaseline(PlaygroundOrderLineDto line) =>
-        line.Id.HasValue
-            ? _baseline.Lines.FirstOrDefault(item => item.Id == line.Id)
-            : null;
-
-    private bool IsLineFieldChanged(PlaygroundOrderLineDto line, string property)
-    {
-        var baseline = GetLineBaseline(line);
-        if (baseline is null)
-        {
-            return false;
-        }
-
-        return property switch
-        {
-            nameof(PlaygroundOrderLineDto.Product) => line.Product != baseline.Product,
-            nameof(PlaygroundOrderLineDto.Qty) => line.Qty != baseline.Qty,
-            _ => false,
-        };
-    }
-
-    private string LineRowClass(PlaygroundOrderLineDto line, int index)
-    {
-        var baseline = GetLineBaseline(line);
-        if (baseline is null)
-        {
-            return "pg-roster-row pg-added";
-        }
-
-        return IsLineMoved(baseline, index) ? "pg-roster-row pg-moved" : "pg-roster-row";
-    }
-
-    private bool IsLineMoved(PlaygroundOrderLineDto baseline, int index)
-    {
-        var baselineIndex = _baseline.Lines.IndexOf(baseline);
-        if (baselineIndex < 0)
-        {
-            return false;
-        }
-
-        var currentRank = 0;
-        for (var i = 0; i < index; i++)
-        {
-            if (GetLineBaseline(_draft.Lines[i]) is not null)
-            {
-                currentRank++;
-            }
-        }
-
-        var baselineRank = 0;
-        for (var i = 0; i < baselineIndex; i++)
-        {
-            foreach (var currentLine in _draft.Lines)
-            {
-                if (ReferenceEquals(GetLineBaseline(currentLine), _baseline.Lines[i]))
-                {
-                    baselineRank++;
-                    break;
-                }
-            }
-        }
-
-        return currentRank != baselineRank;
-    }
-
     private void RefreshChanges()
     {
         _changesError = null;
@@ -448,6 +367,11 @@
 
     private async Task OpenSaveDialog()
     {
+        if (_savePending)
+        {
+            return;
+        }
+
         _saveDialogHidden = false;
         if (_saveDialog is null)
         {
@@ -470,36 +394,75 @@
 
     private async Task ConfirmSave()
     {
+        var changes = _changes;
+        if (changes?.IsChanged != true)
+        {
+            await CloseSaveDialog();
+            return;
+        }
+
+        var submittedDraft = Clone(_draft);
+        var submittedBaseline = Clone(_baseline);
+        var simulateConflict = _simulateConflict;
         await CloseSaveDialog();
-        ApplyAndSave();
+        _pendingChanges = changes;
+        _pendingDraft = submittedDraft;
+        _pendingBaseline = submittedBaseline;
+        _pendingSimulateConflict = simulateConflict;
+        _baseline = Clone(submittedDraft);
+        _savePending = true;
+        _applied = false;
+        _modifiedRows = [];
+        RefreshChanges();
     }
 
-    private void ApplyAndSave()
+    private async Task ApplyPendingSave()
     {
-        ApplyChanges();
+        if (!_savePending || _pendingChanges is null || _pendingDraft is null || _pendingBaseline is null)
+        {
+            return;
+        }
+
+        var changes = _pendingChanges;
+        var submittedDraft = _pendingDraft;
+        var submittedBaseline = _pendingBaseline;
+        var simulateConflict = _pendingSimulateConflict;
+        _savePending = false;
+        _pendingChanges = null;
+        _pendingDraft = null;
+        _pendingBaseline = null;
+        _pendingSimulateConflict = false;
+        ApplyChanges(changes);
         if (_applied)
         {
-            SaveEntity();
+            await SaveEntity(changes, submittedDraft, submittedBaseline, simulateConflict);
+        }
+        else
+        {
+            var applyError = _applyError;
+            _baseline = submittedBaseline;
+            RefreshChanges();
+            _applyError = applyError;
         }
     }
 
-    private void ApplyChanges()
+    private void ApplyChanges(PlaygroundOrderDto.ChangeSet changes)
     {
         _applyError = null;
-        if (_db is null || _tracked is null || _mapper is null || _changes is null)
+        _applied = false;
+        _modifiedRows = [];
+        if (_db is null || _tracked is null || _mapper is null)
         {
+            _applyError = "The EF Core demo store is not initialized.";
             return;
         }
 
         _entityJsonBeforeApply = EntityJson;
         try
         {
-            _mapper.Apply(_db, _tracked, _changes);
+            _mapper.Apply(_db, _tracked, changes);
             _modifiedRows = CollectModifiedRows(_db);
-            // The entity now matches the draft: rebase the pipeline baseline.
-            _baseline = Clone(_draft);
             _applied = true;
-            RefreshChanges();
         }
         catch (Exception ex)
         {
@@ -509,31 +472,147 @@
         }
     }
 
-    private void SaveEntity()
+    private async Task SaveEntity(
+        PlaygroundOrderDto.ChangeSet submittedChanges,
+        PlaygroundOrderDto submittedDraft,
+        PlaygroundOrderDto submittedBaseline,
+        bool simulateConflict
+    )
     {
         _saveError = null;
         if (_db is null || _tracked is null)
         {
+            _saveError = "The EF Core demo store is not initialized.";
             return;
         }
 
         try
         {
+            var orderId = _tracked.Id;
+            var expectedRevision = _tracked.Revision;
+            if (simulateConflict)
+            {
+                PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, orderId);
+            }
+
+            // Check before SaveChanges because the in-memory provider cannot roll back a partial write.
+            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, orderId, expectedRevision);
+            _tracked.Revision++;
             _db.SaveChanges();
-            // Refresh the pipeline from the persisted entity: new rows carry
-            // real identities now, so their temporary keys are dropped.
-            _baseline = Project(_tracked);
-            _draft = Clone(_baseline);
+            _db.ChangeTracker.Clear();
+            _tracked = _db.Orders
+                .Include(static order => order.Note)
+                .Include(static order => order.Lines)
+                .Single(order => order.Id == orderId);
+            var persistedBaseline = Project(_tracked);
+            RetargetNewLineIds(submittedDraft, persistedBaseline, _draft);
+            _baseline = persistedBaseline;
             RefreshChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await RecoverFromConflict(submittedChanges, submittedDraft, submittedBaseline);
         }
         catch (Exception ex)
         {
-            _saveError = $"{ex.GetType().Name}: {ex.Message}. The tracked graph is left as-is; fix the draft or reseed to recover.";
-            // Drop the applied-but-unsaved view so no stale success UI survives
-            // the failure; the pipeline falls back to draft-vs-baseline below.
             _applied = false;
             _modifiedRows = [];
             RefreshChanges();
+            _saveError = $"{ex.GetType().Name}: {ex.Message}. The submitted snapshot may have persisted, but the fresh entity could not be reconciled; reseed to recover.";
+        }
+    }
+
+    private async Task RecoverFromConflict(
+        PlaygroundOrderDto.ChangeSet submittedChanges,
+        PlaygroundOrderDto submittedDraft,
+        PlaygroundOrderDto submittedBaseline
+    )
+    {
+        if (_db is null || _tracked is null)
+        {
+            throw new InvalidOperationException("The EF Core demo store is not initialized.");
+        }
+
+        var orderId = _tracked.Id;
+        _db.ChangeTracker.Clear();
+        _tracked = _db.Orders
+            .Include(static order => order.Note)
+            .Include(static order => order.Lines)
+            .Single(order => order.Id == orderId);
+        var currentBaseline = Project(_tracked);
+        var localDraftBeforeRebase = Clone(_draft);
+        var submittedRebase = submittedChanges.RebaseOnto(currentBaseline);
+        var currentFragment = Optional<PlaygroundOrderDto.Fragment?>.Present(
+            PlaygroundOrderDto.Fragment.From(currentBaseline));
+        var mergedSubmitted = submittedRebase.Rebased.ToPatch().Apply(currentFragment).Value!.ToModel();
+        var postSubmitChanges = submittedDraft.CreateChangeSet(_draft);
+        var postSubmitRebase = postSubmitChanges.RebaseOnto(mergedSubmitted);
+        var mergedFragment = postSubmitRebase.Rebased.ToPatch().Apply(
+            Optional<PlaygroundOrderDto.Fragment?>.Present(PlaygroundOrderDto.Fragment.From(mergedSubmitted)));
+        _draft = mergedFragment.Value!.ToModel();
+        _baseline = currentBaseline;
+
+        _conflictRows = submittedRebase.Conflicts
+            .Concat(postSubmitRebase.Conflicts)
+            .Select(static conflict => (
+                Path: conflict.PathText,
+                Baseline: FormatChangeValue(conflict.BaseValue),
+                Local: FormatChangeValue(conflict.LocalValue),
+                Current: FormatChangeValue(conflict.CurrentValue),
+                Kind: conflict.Kind.ToString()))
+            .ToList();
+        var hasFieldConflicts = submittedRebase.HasConflicts || postSubmitRebase.HasConflicts;
+        if (!_conflictRows.Any(static row => row.Path == nameof(PlaygroundOrderDto.Customer)))
+        {
+            _conflictRows.Add((
+                nameof(PlaygroundOrderDto.Customer),
+                submittedBaseline.Customer,
+                localDraftBeforeRebase.Customer,
+                currentBaseline.Customer,
+                "Concurrent update"));
+        }
+
+        _conflictSummary = hasFieldConflicts
+            ? "Another user updated this order while the save was pending. Conflicting values reverted to the latest entity; other changes were rebased."
+            : "Another user updated this order while the save was pending. The draft was rebased onto the latest entity.";
+        _applied = false;
+        _modifiedRows = [];
+        RefreshChanges();
+        _conflictVisible = true;
+    }
+
+    private void CloseConflictDialog() => _conflictVisible = false;
+
+    private static void RetargetNewLineIds(
+        PlaygroundOrderDto submittedDraft,
+        PlaygroundOrderDto persistedBaseline,
+        PlaygroundOrderDto localDraft
+    )
+    {
+        if (submittedDraft.Lines.Count != persistedBaseline.Lines.Count)
+        {
+            throw new InvalidOperationException("The persisted line order does not match the submitted snapshot.");
+        }
+
+        for (var index = 0; index < submittedDraft.Lines.Count; index++)
+        {
+            var submittedLine = submittedDraft.Lines[index];
+            if (submittedLine.Id.HasValue || !submittedLine.TemporaryId.HasValue)
+            {
+                continue;
+            }
+
+            var localLine = localDraft.Lines.FirstOrDefault(line => line.TemporaryId == submittedLine.TemporaryId);
+            if (localLine is null)
+            {
+                continue;
+            }
+
+            // The mapper's Order configuration persists lines in this same order.
+            var persistedLine = persistedBaseline.Lines[index];
+            localLine.Id = persistedLine.Id
+                ?? throw new InvalidOperationException("A saved line did not receive a database identity.");
+            localLine.TemporaryId = null;
         }
     }
 
@@ -587,13 +666,13 @@
                 ",",
                 entry.Properties
                     .Where(static property => property.Metadata.IsPrimaryKey())
-                    .Select(static property => FormatValue(property.CurrentValue)));
+                    .Select(static property => PlaygroundOrderJson.FormatValue(property.CurrentValue)));
             if (entry.State == EntityState.Added)
             {
                 var values = string.Join(
                     ", ",
                     entry.Properties.Select(static property =>
-                        $"{property.Metadata.Name}={FormatValue(property.CurrentValue)}"));
+                        $"{property.Metadata.Name}={PlaygroundOrderJson.FormatValue(property.CurrentValue)}"));
                 rows.Add((name, "Added", $"#{key}", "—", values));
                 continue;
             }
@@ -610,111 +689,12 @@
                     name,
                     "Modified",
                     property.Metadata.Name,
-                    FormatValue(property.OriginalValue),
-                    FormatValue(property.CurrentValue)));
+                    PlaygroundOrderJson.FormatValue(property.OriginalValue),
+                    PlaygroundOrderJson.FormatValue(property.CurrentValue)));
             }
         }
 
         return rows;
-    }
-
-    private string WriteBaselineJson() => WriteOrderDto(_baseline);
-
-    private string WriteDraftJson() => WriteOrderDto(_draft);
-
-    private static string WriteOrderDto(PlaygroundOrderDto dto)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-        {
-            writer.WriteStartObject();
-            writer.WriteString("Customer", dto.Customer);
-            writer.WriteString("Notes", dto.Notes);
-            writer.WriteNumber("Total", dto.Total);
-            writer.WriteStartArray("Lines");
-            foreach (var line in dto.Lines)
-            {
-                WriteLineJson(writer, line);
-            }
-
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static void WriteLineJson(Utf8JsonWriter writer, PlaygroundOrderLineDto line)
-    {
-        writer.WriteStartObject();
-        if (line.Id.HasValue)
-        {
-            writer.WriteNumber("Id", line.Id.Value);
-        }
-        else
-        {
-            writer.WriteNull("Id");
-        }
-
-        writer.WriteString("Product", line.Product);
-        writer.WriteNumber("Qty", line.Qty);
-        if (line.TemporaryId.HasValue)
-        {
-            writer.WriteString("TemporaryId", line.TemporaryId.Value);
-        }
-
-        writer.WriteEndObject();
-    }
-
-    private static string WriteLineJson(PlaygroundOrderLineDto line)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            WriteLineJson(writer, line);
-        }
-
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static string WriteOrderEntity(PlaygroundOrderEntity order)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-        {
-            writer.WriteStartObject();
-            writer.WriteNumber("Id", order.Id);
-            writer.WriteString("CustomerName", order.CustomerName);
-            if (order.Note is null)
-            {
-                writer.WriteNull("Note");
-            }
-            else
-            {
-                writer.WriteStartObject("Note");
-                writer.WriteNumber("Id", order.Note.Id);
-                writer.WriteString("Text", order.Note.Text);
-                writer.WriteEndObject();
-            }
-
-            writer.WriteNumber("Total", order.Total);
-            writer.WriteStartArray("Lines");
-            foreach (var line in order.Lines.OrderBy(static item => item.SortOrder))
-            {
-                writer.WriteStartObject();
-                writer.WriteNumber("Id", line.Id);
-                writer.WriteString("Product", line.Product);
-                writer.WriteNumber("Qty", line.Qty);
-                writer.WriteNumber("SortOrder", line.SortOrder);
-                writer.WriteNumber("OrderId", line.OrderId);
-                writer.WriteEndObject();
-            }
-
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static string ChangeOperation(PlaygroundOrderDto.ChangeSet.ChangeKind kind) =>
@@ -731,7 +711,7 @@
         $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
 
     private static string FormatChangeValue(Optional<object?> value) =>
-        value.IsPresent ? FormatValue(value.Value) : "—";
+        value.IsPresent ? PlaygroundOrderJson.FormatValue(value.Value) : "—";
 
     private static string EfStateOperation(string state) => state switch
     {
@@ -740,21 +720,6 @@
         "Modified" => "Edit",
         _ => state,
     };
-
-    private static string FormatValue(object? value) =>
-        value switch
-        {
-            null => "null",
-            string text => text,
-            PlaygroundOrderLineDto line => WriteLineJson(line),
-            System.Collections.IEnumerable sequence => "["
-                + string.Join(
-                    ", ",
-                    sequence.Cast<object?>().Select(static item => FormatValue(item)))
-                + "]",
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? "null",
-        };
 
     private static string Try(Func<string> render)
     {

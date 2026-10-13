@@ -1,0 +1,123 @@
+@using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+    @if (AllowReorder)
+    {
+        <SortableList Items="Model.Quests" Handle=".pg-drag" Class="pg-roster-list"
+            OnUpdate="OnSortableUpdate" Context="quest">
+            <SortableItemTemplate>
+                <QuestRow Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+            </SortableItemTemplate>
+        </SortableList>
+    }
+    else
+    {
+        <div class="pg-roster-list">
+        @foreach (var quest in Model.Quests)
+        {
+            <QuestRow Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+        }
+        </div>
+    }
+    <div>
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddAsync">Add quest</FluentButton>
+    </div>
+</FluentStack>
+
+@code {
+    private static readonly string[] RandomTitles =
+        ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
+
+    [Parameter, EditorRequired]
+    public PlaygroundRoster Model { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the typed keyed quest transition consumed directly via
+    /// <c>GetChange</c>. Pass an empty transition when the roster state is invalid.
+    /// </summary>
+    [Parameter]
+    public PlaygroundRoster.ChangeSet.QuestsTransition Changes { get; set; } = null!;
+
+    /// <summary>Gets or sets whether reorder controls (handle, up/down) are shown.</summary>
+    [Parameter]
+    public bool AllowReorder { get; set; } = true;
+
+    /// <summary>Gets or sets whether only removed rows are highlighted.</summary>
+    [Parameter]
+    public bool RemovedOnly { get; set; }
+
+    internal static PlaygroundRoster CreateBefore() =>
+        new()
+        {
+            Quests =
+            [
+                new() { Id = "a", Title = "First", Points = 10, Scores = [10, 20] },
+                new() { Id = "b", Title = "Second", Points = 20, Scores = [30] },
+                new() { Id = "c", Title = "Third", Points = 30, Scores = [40, 50] },
+            ],
+        };
+
+    internal static PlaygroundRoster CreateAfter() =>
+        new()
+        {
+            Quests =
+            [
+                new() { Id = "b", Title = "Second v2", Points = 20, Scores = [30] },
+                new() { Id = "c", Title = "Third", Points = 30, Scores = [40, 50, 60] },
+                new() { Id = "d", Title = "Fourth", Points = 5, Scores = [60] },
+            ],
+        };
+
+    private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
+    {
+        var (oldIndex, newIndex) = indices;
+        if (oldIndex == newIndex
+            || oldIndex < 0
+            || oldIndex >= Model.Quests.Count
+            || newIndex < 0
+            || newIndex > Model.Quests.Count)
+        {
+            return Task.CompletedTask;
+        }
+        var item = Model.Quests[oldIndex];
+        Model.Quests.RemoveAt(oldIndex);
+        if (newIndex < Model.Quests.Count)
+        {
+            Model.Quests.Insert(newIndex, item);
+        }
+        else
+        {
+            Model.Quests.Add(item);
+        }
+        return NotifyAsync();
+    }
+
+    private Task AddAsync()
+    {
+        var existing = new HashSet<string>(Model.Quests.Select(q => q.Id));
+        string id;
+        do
+        {
+            id = $"q{Random.Shared.Next(1, 100)}";
+        }
+        while (!existing.Add(id));
+        var scoreCount = Random.Shared.Next(0, 3);
+        var scores = Enumerable.Range(0, scoreCount)
+            .Select(_ => Random.Shared.Next(0, 100))
+            .ToList();
+        Model.Quests.Add(new PlaygroundQuest
+        {
+            Id = id,
+            Title = RandomTitles[Random.Shared.Next(RandomTitles.Length)],
+            Points = Random.Shared.Next(0, 100),
+            Scores = scores,
+        });
+        return NotifyAsync();
+    }
+
+    private Task NotifyAsync() => OnChanged.InvokeAsync();
+}

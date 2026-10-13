@@ -3,7 +3,61 @@
 
 <PageTitle>SparseFragments Playground</PageTitle>
 
-<section class="pg-section">
+<section class="pg-section pg-intro">
+    <div class="pg-badges" aria-label="Project badges">
+        <a href="https://www.nuget.org/packages/SparseFragments/" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/nuget/v/SparseFragments?style=flat-square&amp;logo=NuGet&amp;color=0080CC" alt="NuGet Version" />
+        </a>
+        <img src="https://img.shields.io/github/actions/workflow/status/arika0093/SparseFragments/test.yaml?branch=main&amp;label=Test&amp;style=flat-square" alt="GitHub Actions Workflow Status" />
+        <a href="https://deepwiki.com/arika0093/SparseFragments" target="_blank" rel="noopener">
+            <img src="https://img.shields.io/badge/DeepWiki-SparseFragments-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==" alt="DeepWiki" />
+        </a>
+    </div>
+    <p>Source-generated partial state and typed changes for C#.</p>
+    <div class="pg-generation-layout pg-intro-code-grid">
+        <FluentCard Class="pg-fluent-card">
+            <h3>Model</h3>
+            <FluentTabs Orientation="Orientation.Horizontal">
+                <FluentTab Header="Settings.cs" Id="intro-model-settings">
+                    <p class="pg-hint">Add <code>[SparseFragmentModel]</code> to a partial class.</p>
+                    <MonacoEditor Value="@ModelCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+            </FluentTabs>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <h3>Generated API (simplified)</h3>
+            <FluentTabs Orientation="Orientation.Horizontal">
+                <FluentTab Header="Fragment" Id="intro-generated-fragment">
+                    <p class="pg-hint">Stores model values and tracks whether each member is present.</p>
+                    <MonacoEditor Value="@FragmentCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+                <FluentTab Header="Patch" Id="intro-generated-patch">
+                    <p class="pg-hint">Represents member changes as typed operations that can be applied to a model.</p>
+                    <MonacoEditor Value="@PatchCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+                <FluentTab Header="ChangeSet" Id="intro-generated-changeset">
+                    <p class="pg-hint">Describes the transition between two model states and can create a patch or payload.</p>
+                    <MonacoEditor Value="@ChangeSetCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+                <FluentTab Header="EditSession" Id="intro-generated-edit-session">
+                    <p class="pg-hint">Tracks edits against a baseline and supports accepting or reverting them.</p>
+                    <MonacoEditor Value="@EditSessionCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+                <FluentTab Header="Observable" Id="intro-generated-observable">
+                    <p class="pg-hint">Wraps the model and raises property-change notifications as values change.</p>
+                    <MonacoEditor Value="@ObservableCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+                <FluentTab Header="ReadOnlyView" Id="intro-generated-read-only-view">
+                    <p class="pg-hint">Exposes model values through a read-only view.</p>
+                    <MonacoEditor Value="@ReadOnlyViewCode" Language="csharp" Height="360px" ReadOnly="true" />
+                </FluentTab>
+            </FluentTabs>
+        </FluentCard>
+    </div>
+    <p>Install and try it: <a href="https://www.nuget.org/packages/SparseFragments/">NuGet</a></p>
+</section>
+
+<section class="pg-section" id="samples">
     <div class="pg-section-heading">
         <h2>Samples</h2>
     </div>
@@ -46,3 +100,144 @@
         </FluentCard>
     </div>
 </section>
+
+@code {
+    private const string ModelCode = """
+        using SparseFragments;
+
+        [SparseFragmentModel]
+        public partial class Settings
+        {
+            public string? Theme { get; set; }
+            public List<NestedClass> Items { get; set; } = [];
+        }
+
+        public class NestedClass
+        {
+            public string? Name { get; set; }
+        }
+        """;
+
+    private const string FragmentCode = """
+        public partial class Settings
+        {
+            // Stores sparse values together with their presence state.
+            public sealed class Fragment
+            {
+                // Optional values distinguish absent members from explicit values.
+                public Optional<string?> Theme { get; init; }
+                public Optional<List<NestedClass>> Items { get; init; }
+
+                // Copies a model into a fragment.
+                public static Fragment From(Settings value);
+                // Creates a model from this fragment.
+                public Settings ToModel();
+                // Merges a higher-priority fragment over this one.
+                public Fragment Merge(Fragment higher);
+            }
+        }
+        """;
+
+    private const string PatchCode = """
+        public partial class Settings
+        {
+            // Holds typed operations for applying partial updates.
+            public sealed class Patch
+            {
+                // Describes the operations to apply to model members.
+                public FragmentOperation<string?> Theme { get; set; }
+                public FragmentOperation<List<NestedClass>> Items { get; set; }
+
+                // Applies these operations to a model.
+                public Settings ApplyTo(Settings current);
+            }
+        }
+        """;
+
+    private const string ChangeSetCode = """
+        public partial class Settings
+        {
+            // Describes a typed transition between model states.
+            public sealed class ChangeSet
+            {
+                // Indicates whether the transition contains no changes.
+                public bool IsEmpty { get; }
+
+                // Calculates the changes from before to after.
+                public static ChangeSet Between(Settings before, Settings after);
+                // Converts the transition into patch operations.
+                public Patch ToPatch();
+                // The payload carries this transition in a transport-friendly form.
+                public ChangePayload ToPayload();
+                // Reverses this transition.
+                public ChangeSet Invert();
+            }
+        }
+        """;
+
+    private const string EditSessionCode = """
+        public partial class Settings
+        {
+            // Tracks pending edits against a retained baseline.
+            public sealed class EditSession
+            {
+                // The core retains the baseline snapshot and current model.
+                private readonly EditSessionCore<Settings, Fragment, Patch, ChangeSet, Observable, ReadOnlyView> _session;
+                public bool HasChanges { get; }
+                public ReadOnlyView Current { get; }
+
+                // Initializes the session with a model and captures its baseline.
+                internal EditSession(Settings model, Action? onChanged);
+                // Creates a change set for the pending edits.
+                public ChangeSet CreateChangeSet();
+                // Accepts the current model as the new baseline.
+                public void AcceptChanges();
+                // Restores the model to its retained baseline.
+                public void RevertChanges();
+            }
+        }
+        """;
+
+    private const string ObservableCode = """
+        public partial class Settings
+        {
+            // Provides property-change notifications for model edits.
+            public sealed class Observable : INotifyPropertyChanged
+            {
+                // Proxies the model and notifies listeners when a property changes.
+                private readonly Settings _model;
+
+                // Wraps an existing model instance.
+                public Observable(Settings model) => _model = model;
+
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                public string? Theme
+                {
+                    get => _model.Theme;
+                    set
+                    {
+                        if (_model.Theme == value) return;
+                        _model.Theme = value;
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Theme)));
+                    }
+                }
+
+                // Other properties are omitted.
+            }
+        }
+        """;
+
+    private const string ReadOnlyViewCode = """
+        public partial class Settings
+        {
+            // Exposes model values without mutation methods.
+            public sealed class ReadOnlyView
+            {
+                // Exposes model values through a read-only projection.
+                public string? Theme { get; }
+                public IReadOnlyList<NestedClass> Items { get; }
+            }
+        }
+        """;
+}

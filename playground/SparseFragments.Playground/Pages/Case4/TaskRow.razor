@@ -1,0 +1,202 @@
+@using SparseFragments.Playground.Models
+@using SettingsSession = global::SparseFragments.Playground.Models.PlaygroundSettings.EditSession;
+@using TaskObservable = global::SparseFragments.Playground.Models.PlaygroundTask.Observable;
+
+<div class="@RowClass pg-task-row">
+    <div class="pg-task-line">
+        <div class="pg-roster-field">
+            <span class="pg-mini notranslate" translate="no">Id</span>
+            @* focusout (not blur): blur doesn't bubble out of Fluent's inner input, so blur never commits. *@
+            <FluentTextInput Value="@_idDraft"
+                ValueChanged="@(value => _idDraft = value ?? string.Empty)"
+                @onfocusout="CommitTaskId" />
+        </div>
+        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundTask.Title)) ? "pg-changed" : "")">
+            <span class="pg-mini notranslate" translate="no">
+                @if (IsChanged(nameof(PlaygroundTask.Title)))
+                {
+                    <span class="pg-dot" title="edited"></span>
+                }
+                Title
+            </span>
+            <FluentTextInput Value="@Task.Title"
+                ValueChanged="@(value => Edit(() => Task.Title = value ?? string.Empty))" />
+        </div>
+        <div class="pg-roster-field @(IsChanged(nameof(PlaygroundTask.Points)) ? "pg-changed" : "")">
+            <span class="pg-mini notranslate" translate="no">
+                @if (IsChanged(nameof(PlaygroundTask.Points)))
+                {
+                    <span class="pg-dot" title="edited"></span>
+                }
+                Points
+            </span>
+            <FluentNumberInput TValue="int" Style="width: 100%;" Value="@Task.Points"
+                ValueChanged="UpdatePoints" />
+        </div>
+        <div class="pg-roster-actions pg-task-actions">
+            <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                Disabled="@(Index == 0)" @onclick="() => MoveTask(-1)">↑</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                Disabled="@(Index == Session.Observable.Tasks.Count - 1)"
+                @onclick="() => MoveTask(1)">↓</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
+                @onclick="RemoveTask">✕</FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public SettingsSession Session { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TaskObservable Task { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public List<PlaygroundTask> BaselineTasks { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<TaskObservable, PlaygroundTask?> GetBaseline { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action<TaskObservable> ForgetBaseline { get; set; } = null!;
+
+    [Parameter]
+    public int DraftVersion { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> OnError { get; set; }
+
+    private TaskObservable? _lastTask;
+    private int _lastDraftVersion = -1;
+    private string _idDraft = string.Empty;
+    private int Index => Session.Observable.Tasks.IndexOf(Task);
+    private string RowClass => Baseline is null ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
+    private PlaygroundTask? Baseline => GetBaseline(Task);
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_lastTask, Task) || _lastDraftVersion != DraftVersion)
+        {
+            _lastTask = Task;
+            _lastDraftVersion = DraftVersion;
+            _idDraft = Task.Id;
+        }
+    }
+
+    private bool IsChanged(string property)
+    {
+        var baseline = Baseline;
+        if (baseline is null)
+        {
+            return false;
+        }
+
+        return property switch
+        {
+            nameof(PlaygroundTask.Title) => Task.Title != baseline.Title,
+            nameof(PlaygroundTask.Points) => Task.Points != baseline.Points,
+            _ => false,
+        };
+    }
+
+    private bool IsMoved
+    {
+        get
+        {
+            var baseline = Baseline;
+            var baselineIndex = baseline is null ? -1 : BaselineTasks.IndexOf(baseline);
+            if (baselineIndex < 0)
+            {
+                return false;
+            }
+
+            var currentRank = 0;
+            for (var i = 0; i < Index; i++)
+            {
+                if (FindBaseline(Session.Observable.Tasks[i]) is not null)
+                {
+                    currentRank++;
+                }
+            }
+
+            var baselineRank = BaselineTasks.Take(baselineIndex)
+                .Count(item => Session.Observable.Tasks.Any(task => task.Id == item.Id));
+            return currentRank != baselineRank;
+        }
+    }
+
+    private PlaygroundTask? FindBaseline(TaskObservable task) => GetBaseline(task);
+
+    private void Edit(Action edit) => Session.BatchEdit(edit);
+
+    private void UpdatePoints(int value)
+    {
+        if (value != Task.Points)
+        {
+            Edit(() => Task.Points = value);
+        }
+    }
+
+    private async Task CommitTaskId()
+    {
+        var value = _idDraft.Trim();
+        var tasks = Session.Observable.Tasks;
+        var index = tasks.IndexOf(Task);
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(value) || tasks.Any(item => !ReferenceEquals(item, Task) && item.Id == value))
+        {
+            _idDraft = Task.Id;
+            await OnError.InvokeAsync("Task IDs must be non-empty and unique.");
+            return;
+        }
+
+        await OnError.InvokeAsync(null);
+        if (value == Task.Id)
+        {
+            return;
+        }
+
+        var title = Task.Title;
+        var points = Task.Points;
+        Edit(() =>
+        {
+            tasks.RemoveAt(index);
+            tasks.InsertModel(index, new PlaygroundTask { Id = value, Title = title, Points = points });
+        });
+        ForgetBaseline(Task);
+        _idDraft = value;
+    }
+
+    private void RemoveTask()
+    {
+        var index = Index;
+        if (index >= 0)
+        {
+            Edit(() => Session.Observable.Tasks.RemoveAt(index));
+        }
+    }
+
+    private void MoveTask(int delta)
+    {
+        var tasks = Session.Observable.Tasks;
+        var index = Index;
+        var target = index + delta;
+        if (index < 0 || target < 0 || target >= tasks.Count)
+        {
+            return;
+        }
+
+        Edit(() =>
+        {
+            var task = tasks[index];
+            tasks.RemoveAt(index);
+            tasks.Insert(target, task);
+        });
+    }
+}

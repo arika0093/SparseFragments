@@ -1,6 +1,7 @@
 @using System.Text.Json
 @using SparseFragments
 @using SparseFragments.Playground.Models
+@using SparseFragments.Playground.Components
 @using SettingsSession = global::SparseFragments.Playground.Models.PlaygroundSettings.EditSession;
 @using TaskObservable = global::SparseFragments.Playground.Models.PlaygroundTask.Observable;
 @implements IDisposable
@@ -52,16 +53,8 @@
             </div>
         </div>
 
-        <div class="pg-row pg-session-field pg-task-field">
-            <span class="pg-name notranslate" translate="no">Tasks <small>List&lt;Task&gt;</small></span>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTask">Add task</FluentButton>
-        </div>
-        <SortableList Items="_session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
-            OnUpdate="OnSortableUpdate" Context="task">
-            <SortableItemTemplate>
-                @TaskRow((task, _session.Observable.Tasks.IndexOf(task)))
-            </SortableItemTemplate>
-        </SortableList>
+        <TaskListEditor Session="_session" BaselineTasks="_baselineTasks" DraftVersion="_taskEditorDraftVersion"
+            GetBaseline="GetTaskBaseline" ForgetBaseline="ForgetTaskBaseline" />
         <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
             <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
             <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
@@ -169,13 +162,10 @@
 
 @code {
     private const int MaximumLogEntries = 20;
-    private static readonly string[] TaskTitles =
-        ["Raid", "Arena", "Trial", "Hunt", "Siege", "Expedition", "Duel", "Patrol"];
     private readonly Stack<PlaygroundSettings.ChangeSet> _undo = new();
     private readonly Stack<PlaygroundSettings.ChangeSet> _redo = new();
     private readonly List<LogEntry> _log = [];
-    private readonly Dictionary<TaskObservable, int> _pointsDrafts = [];
-    private readonly Dictionary<TaskObservable, string> _idDrafts = [];
+    private readonly Dictionary<TaskObservable, PlaygroundTask> _taskBaselines = [];
     private readonly PlaygroundSettings _model = new()
     {
         Enabled = true,
@@ -202,6 +192,7 @@
     private bool _submitDialogHidden = true;
     private bool _completionHidden = true;
     private bool _applyingHistory;
+    private int _taskEditorDraftVersion;
     private string _completionTitle = string.Empty;
     private string _completionMessage = string.Empty;
     private readonly List<(string Target, string Operation, string Before, string After)> _submitChanges = [];
@@ -209,39 +200,6 @@
     private FluentDialog? _completionDialog;
 
     private string CurrentJson => PlaygroundJson.WriteModel(_model);
-
-    private RenderFragment<(TaskObservable Task, int Index)> TaskRow => item =>
-        @<div class="@TaskRowClass(item.Task, item.Index) pg-task-row">
-            <div class="pg-task-line">
-                <div class="pg-roster-field @(IsTaskIdChanged(item.Task) ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskIdChanged(item.Task))Id</span>
-                    @* focusout (not blur): blur doesn't bubble out of Fluent's inner input, so blur never commits. *@
-                    <FluentTextInput Value="@GetIdDraft(item.Task)"
-                        ValueChanged="@(value => _idDrafts[item.Task] = value ?? string.Empty)"
-                        @onfocusout="() => CommitTaskId(item.Task)" />
-                </div>
-                <div class="pg-roster-field @(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)) ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Title)))Title</span>
-                    <FluentTextInput Value="@item.Task.Title"
-                        ValueChanged="@(value => Edit(() => item.Task.Title = value ?? string.Empty))" />
-                </div>
-                <div class="pg-roster-field @(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Points)) ? "pg-changed" : "")">
-                    <span class="pg-mini notranslate" translate="no">@ChangedDot(IsTaskFieldChanged(item.Task, nameof(PlaygroundTask.Points)))Points</span>
-                    <FluentNumberInput TValue="int" Style="width: 100%;" Value="@GetPointsDraft(item.Task)"
-                        ValueChanged="@(value => UpdatePoints(item.Task, value))" />
-                </div>
-                <div class="pg-roster-actions pg-task-actions">
-                    <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
-                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
-                        Disabled="@(item.Index == 0)" @onclick="() => MoveTask(item.Index, -1)">↑</FluentButton>
-                    <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                        Disabled="@(item.Index == _session.Observable.Tasks.Count - 1)"
-                        @onclick="() => MoveTask(item.Index, 1)">↓</FluentButton>
-                    <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
-                        @onclick="() => RemoveTask(item.Index)">✕</FluentButton>
-                </div>
-            </div>
-        </div>;
 
     protected override void OnInitialized()
     {
@@ -261,209 +219,11 @@
     private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition)
     {
         RecordTransition(transition);
-    }
-
-    private void RecordTransition(PlaygroundSettings.ChangeSet changes)
-    {
-        if (changes.IsEmpty)
-        {
-            return;
-        }
-
-        if (!_applyingHistory)
-        {
-            _undo.Push(changes);
-            _redo.Clear();
-        }
-
-        AppendChanges(changes);
-    }
-
-    private void UpdateRetryCount(int value)
-    {
-        _retryDraft = value;
-        if (value != _model.RetryCount) Edit(() => _session.Observable.RetryCount = value);
-    }
-
-    private void UpdatePort(int value)
-    {
-        _portDraft = value;
-        if (value != _model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
-    }
-
-    private void UpdatePoints(TaskObservable task, int value)
-    {
-        _pointsDrafts[task] = value;
-        if (value != task.Points) Edit(() => task.Points = value);
-    }
-
-    private void CommitTaskId(TaskObservable task)
-    {
-        var value = GetIdDraft(task).Trim();
-        var index = _session.Observable.Tasks.IndexOf(task);
-        if (index < 0)
-        {
-            _idDrafts.Remove(task);
-            _pointsDrafts.Remove(task);
-            _taskBaselines.Remove(task);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(value)
-            || _model.Tasks.Any(item => !ReferenceEquals(item, task.Model) && item.Id == value))
-        {
-            _editError = "Task IDs must be non-empty and unique.";
-            _idDrafts[task] = task.Id;
-            return;
-        }
-
-        if (value != task.Id)
-        {
-            // The Id is the stable key, so a rename is remove-old plus add-new
-            // (never an in-place key mutation): drop the old element and insert
-            // its successor with the same values at the same position.
-            var title = task.Title;
-            var points = task.Points;
-            Edit(() =>
-            {
-                _session.Observable.Tasks.RemoveAt(index);
-                _session.Observable.Tasks.InsertModel(index, new PlaygroundTask
-                {
-                    Id = value,
-                    Title = title,
-                    Points = points,
-                });
-            });
-            _idDrafts.Remove(task);
-            _pointsDrafts.Remove(task);
-            _taskBaselines.Remove(task);
-        }
-    }
-
-    private string GetIdDraft(TaskObservable task) =>
-        _idDrafts.TryGetValue(task, out var value) ? value : task.Id;
-
-    private int GetPointsDraft(TaskObservable task) =>
-        _pointsDrafts.TryGetValue(task, out var value) ? value : task.Points;
-
-    private void AddTask()
-    {
-        var existing = _model.Tasks.Select(task => task.Id)
-            .Concat(_baselineTasks.Select(task => task.Id))
-            .ToHashSet(StringComparer.Ordinal);
-        string id;
-        do
-        {
-            id = $"t{Random.Shared.Next(1, 1000)}";
-        }
-        while (!existing.Add(id));
-
-        Edit(() => _session.Observable.Tasks.AddModel(new PlaygroundTask
-        {
-            Id = id,
-            Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
-            Points = Random.Shared.Next(1, 100),
-        }));
-    }
-
-    private void RemoveTask(int index) => Edit(() => _session.Observable.Tasks.RemoveAt(index));
-
-    private void MoveTask(int index, int delta)
-    {
-        var tasks = _session.Observable.Tasks;
-        var target = index + delta;
-        if (target < 0 || target >= tasks.Count) return;
-
-        Edit(() =>
-        {
-            var task = tasks[index];
-            tasks.RemoveAt(index);
-            tasks.Insert(target, task);
-        });
-    }
-
-    private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
-    {
-        var (oldIndex, newIndex) = indices;
-        var tasks = _session.Observable.Tasks;
-        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= tasks.Count || newIndex < 0 || newIndex > tasks.Count)
-        {
-            return Task.CompletedTask;
-        }
-
-        Edit(() =>
-        {
-            var task = tasks[oldIndex];
-            tasks.RemoveAt(oldIndex);
-            tasks.Insert(Math.Min(newIndex, tasks.Count), task);
-        });
-        return Task.CompletedTask;
-    }
-
-    private bool IsChanged(string property) => property switch
-    {
-        nameof(PlaygroundSettings.Enabled) => _model.Enabled != _baselineModel.Enabled,
-        nameof(PlaygroundSettings.RetryCount) => _model.RetryCount != _baselineModel.RetryCount,
-        nameof(PlaygroundSettings.Label) => _model.Label != _baselineModel.Label,
-        _ => false,
-    };
-
-    private bool IsNestedChanged(string property) => property switch
-    {
-        nameof(PlaygroundNested.Host) => _model.Nested?.Host != _baselineModel.Nested?.Host,
-        nameof(PlaygroundNested.Port) => _model.Nested?.Port != _baselineModel.Nested?.Port,
-        _ => false,
-    };
-
-    private static RenderFragment ChangedDot(bool changed) => builder =>
-    {
-        if (changed)
-        {
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "class", "pg-dot");
-            builder.AddAttribute(2, "title", "edited");
-            builder.CloseElement();
-        }
-    };
-
-    private bool IsTaskIdChanged(TaskObservable task) =>
-        IsTaskFieldChanged(task, nameof(PlaygroundTask.Id));
-
-    private bool IsTaskFieldChanged(TaskObservable task, string property)
-    {
-        var baseline = GetTaskBaseline(task);
-        if (baseline is null)
-        {
-            return false;
-        }
-
-        return property switch
-        {
-            nameof(PlaygroundTask.Id) => task.Id != baseline.Id,
-            nameof(PlaygroundTask.Title) => task.Title != baseline.Title,
-            nameof(PlaygroundTask.Points) => task.Points != baseline.Points,
-            _ => false,
-        };
-    }
-
-    private string TaskRowClass(TaskObservable task, int index)
-    {
-        var baseline = GetTaskBaseline(task);
-        if (baseline is null)
-        {
-            return "pg-roster-row pg-added";
-        }
-
-        return IsTaskMoved(baseline, index) ? "pg-roster-row pg-moved" : "pg-roster-row";
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private PlaygroundTask? GetTaskBaseline(TaskObservable task)
     {
-        // Keyed diff is by Id (see docs/keyed-collections.md "Changing an element's
-        // identity is remove-old plus add-new"). A cached entry whose Id no longer
-        // matches the live task is a renamed identity, so re-resolve by current Id:
-        // unknown Id => new item (null), known Id => edit against that key's baseline
-        // (covers swap/reuse of a freed Id).
         if (_taskBaselines.TryGetValue(task, out var cached))
         {
             if (string.Equals(cached.Id, task.Id, StringComparison.Ordinal))
@@ -493,41 +253,63 @@
         return baseline;
     }
 
-    private bool IsTaskMoved(PlaygroundTask baseline, int index)
+    private void ForgetTaskBaseline(TaskObservable task) => _taskBaselines.Remove(task);
+
+    private void RecordTransition(PlaygroundSettings.ChangeSet changes)
     {
-        var baselineIndex = _baselineTasks.IndexOf(baseline);
-        if (baselineIndex < 0)
+        if (changes.IsEmpty)
         {
-            return false;
+            return;
         }
 
-        var currentRank = 0;
-        for (var i = 0; i < index; i++)
+        if (!_applyingHistory)
         {
-            if (GetTaskBaseline(_session.Observable.Tasks[i]) is not null)
-            {
-                currentRank++;
-            }
+            _undo.Push(changes);
+            _redo.Clear();
         }
 
-        var baselineRank = 0;
-        for (var i = 0; i < baselineIndex; i++)
-        {
-            foreach (var currentTask in _session.Observable.Tasks)
-            {
-                if (ReferenceEquals(GetTaskBaseline(currentTask), _baselineTasks[i]))
-                {
-                    baselineRank++;
-                    break;
-                }
-            }
-        }
-
-        return currentRank != baselineRank;
+        AppendChanges(changes);
     }
 
+    private void UpdateRetryCount(int value)
+    {
+        _retryDraft = value;
+        if (value != _model.RetryCount) Edit(() => _session.Observable.RetryCount = value);
+    }
+
+    private void UpdatePort(int value)
+    {
+        _portDraft = value;
+        if (value != _model.Nested!.Port) Edit(() => _session.Observable.Nested!.Port = value);
+    }
+
+    private bool IsChanged(string property) => property switch
+    {
+        nameof(PlaygroundSettings.Enabled) => _model.Enabled != _baselineModel.Enabled,
+        nameof(PlaygroundSettings.RetryCount) => _model.RetryCount != _baselineModel.RetryCount,
+        nameof(PlaygroundSettings.Label) => _model.Label != _baselineModel.Label,
+        _ => false,
+    };
+
+    private bool IsNestedChanged(string property) => property switch
+    {
+        nameof(PlaygroundNested.Host) => _model.Nested?.Host != _baselineModel.Nested?.Host,
+        nameof(PlaygroundNested.Port) => _model.Nested?.Port != _baselineModel.Nested?.Port,
+        _ => false,
+    };
+
+    private static RenderFragment ChangedDot(bool changed) => builder =>
+    {
+        if (changed)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "pg-dot");
+            builder.AddAttribute(2, "title", "edited");
+            builder.CloseElement();
+        }
+    };
+
     private PlaygroundSettings _baselineModel = null!;
-    private readonly Dictionary<TaskObservable, PlaygroundTask> _taskBaselines = [];
 
     private PlaygroundSettings CloneModel() =>
         JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)
@@ -546,7 +328,7 @@
                 _taskBaselines[task] = baselineTask;
             }
         }
-
+        _taskEditorDraftVersion++;
         _baselineJson = PlaygroundJson.WriteModel(_baselineModel);
     }
 
@@ -722,8 +504,7 @@
             _session.RevertChanges();
             _retryDraft = _model.RetryCount;
             _portDraft = _model.Nested!.Port;
-            _pointsDrafts.Clear();
-            _idDrafts.Clear();
+            _taskEditorDraftVersion++;
             ClearHistory();
             _editError = null;
         }
@@ -781,8 +562,7 @@
     {
         _retryDraft = _model.RetryCount;
         _portDraft = _model.Nested!.Port;
-        _pointsDrafts.Clear();
-        _idDrafts.Clear();
+        _taskEditorDraftVersion++;
     }
 
     private void AppendChanges(PlaygroundSettings.ChangeSet changes)

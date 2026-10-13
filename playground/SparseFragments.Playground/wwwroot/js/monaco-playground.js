@@ -41,9 +41,16 @@
                     [/\b(new)([ \t]+)([A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*)/, ["keyword", "white", "type.identifier"]],
                     [/\bnew\b/, "keyword"],
                     [/\b(class|interface|struct|enum|record|delegate)(\s+)([A-Za-z_]\w*)/, ["keyword", "white", "type.identifier"]],
-                    [/[A-Z][A-Za-z0-9_]*(?=\s*=(?![=>]))/, "property"],
-                    [/[A-Za-z_]\w*(?=\s*\()/, "function"],
-                    [/[A-Z][A-Za-z0-9_]*/, "type.identifier"],
+                    [/[A-Z][A-Za-z0-9_]*(?=\s*\])/, "type.identifier"],
+                    [/[A-Z][A-Za-z0-9_]*(?=\s*<)/, "type.identifier"],
+                    [/[A-Z][A-Za-z0-9_]*(?=\s*[>,?])/, "type.identifier"],
+                    [/[A-Za-z_]\w*(?=\s*\()/, {
+                        cases: {
+                            "@keywords": "keyword",
+                            "@typeKeywords": "type",
+                            "@default": "function"
+                        }
+                    }],
                     [/[A-Za-z_]\w*/, {
                         cases: {
                             "@keywords": "keyword",
@@ -62,15 +69,9 @@
                         }
                     }],
                     [/[{}()\[\]]/, "@brackets"],
-                    [/\./, "delimiter", "@member"],
+                    [/\./, "delimiter"],
                     [/[;,]/, "delimiter"],
                     [/[ \t\r\n]+/, "white"]
-                ],
-                member: [
-                    [/[ \t\r\n]+/, "white"],
-                    [/[A-Za-z_]\w*(?=\s*\()/, "function", "@pop"],
-                    [/[A-Za-z_]\w*/, "property", "@pop"],
-                    [/./, { token: "", next: "@pop" }]
                 ],
                 comment: [
                     [/[^/*]+/, "comment"],
@@ -96,7 +97,6 @@
             rules: [
                 { token: "type.identifier", foreground: "267F99" },
                 { token: "function", foreground: "795E26" },
-                { token: "property", foreground: "001080" },
                 { token: "keyword.directive", foreground: "800000" },
                 { token: "number.hex", foreground: "098658" }
             ],
@@ -108,7 +108,6 @@
             rules: [
                 { token: "type.identifier", foreground: "4EC9B0" },
                 { token: "function", foreground: "DCDCAA" },
-                { token: "property", foreground: "9CDCFE" },
                 { token: "keyword.directive", foreground: "C586C0" },
                 { token: "number.hex", foreground: "B5CEA8" }
             ],
