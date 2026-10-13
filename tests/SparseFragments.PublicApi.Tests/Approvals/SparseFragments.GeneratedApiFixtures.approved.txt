@@ -1365,6 +1365,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogDictionaries serverState) { }
@@ -1373,6 +1375,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogDictionaries persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -1629,6 +1633,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogImmutable serverState) { }
@@ -1637,6 +1643,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogImmutable persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -1861,6 +1869,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem serverState) { }
@@ -1869,6 +1879,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -2101,6 +2113,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster serverState) { }
@@ -2109,6 +2123,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -2363,6 +2379,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogNested, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogNested, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogNested, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogNested serverState) { }
@@ -2371,6 +2389,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogNested persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogNested, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -2630,6 +2650,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration serverState) { }
@@ -2638,6 +2660,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {
@@ -2887,6 +2911,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar GetModelForFrameworkAccess() { }
+            public SparseFragments.SparseObservedField<object?> ObserveField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> ObserveField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TChild> path)
                 where TChild :  class { }
             public SparseFragments.RebaseResult<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> Reload(SparseFragments.GeneratedApiFixtures.CatalogScalar serverState) { }
@@ -2895,6 +2921,8 @@ namespace SparseFragments.GeneratedApiFixtures
             public bool TryMergeFrom(SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession fork, out SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet submitted, SparseFragments.GeneratedApiFixtures.CatalogScalar persisted, out string? error) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+            public SparseFragments.SparseObservedField<object?> WatchField(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseObservedField<TValue> WatchField<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TValue> path) { }
             public sealed class Scope<TChild> : SparseFragments.ISparseEditSessionOpenDraftState, SparseFragments.ISparseEditSession<TChild>, System.IDisposable
                 where TChild :  class
             {

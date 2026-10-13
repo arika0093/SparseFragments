@@ -148,7 +148,11 @@ public sealed partial class SparseFragmentsGenerator : IIncrementalGenerator
                 "global::SparseFragments.SparseFieldState",
                 "global::SparseFragments.SparseCollectionState",
                 "global::SparseFragments.SparseStateQueries"
-            ),
+            )
+            {
+                ObservedFieldType = "global::SparseFragments.SparseObservedField",
+                ObservedFieldHooksType = "global::SparseFragments.SparseObservedFieldHooks",
+            },
         },
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,

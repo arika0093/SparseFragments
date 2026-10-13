@@ -23,4 +23,18 @@ internal sealed record SparseStateContracts(
 
     /// <summary>Static path-first state query type.</summary>
     public string StateQueryType { get; init; } = StateQueryType;
+
+    /// <summary>Opt-in live field-state subscription type (open generic, arity 1).</summary>
+    /// <remarks>
+    /// Empty disables the observe surface while keeping the point-in-time
+    /// queries byte-identical for products without the watcher type.
+    /// </remarks>
+    public string ObservedFieldType { get; init; } = string.Empty;
+
+    /// <summary>Watcher hooks type binding a subscription to one session.</summary>
+    public string ObservedFieldHooksType { get; init; } = string.Empty;
+
+    /// <summary>Whether the observe surface is bound.</summary>
+    public bool HasObservedField =>
+        ObservedFieldType.Length != 0 && ObservedFieldHooksType.Length != 0;
 }

@@ -283,8 +283,13 @@ and the typed-path interface), every generated `EditSession` gains live
 `FieldState` overloads (compile-time typed and model-agnostic paths) plus a
 path-addressed `CollectionState` view over root keyed and dictionary members
 for state inspection only; the surface is named `CollectionState` so a future
-path-addressed editing facade can keep the distinct `Collection` name. Queries
-derive from the session's retained baseline or change set on each call and keep
+path-addressed editing facade can keep the distinct `Collection` name. Setting
+the optional `ObservedFieldType` and `ObservedFieldHooksType` entries adds
+opt-in `ObserveField`/`WatchField` factories returning a disposable
+`INotifyPropertyChanged` watcher per path; the watcher refreshes on the
+session's `PropertyChanged` notification, which covers baseline-only accepts
+that never publish a transition, and notifies only on effective state changes.
+Queries derive from the session's retained baseline or change set on each call and keep
 no per-field caches or subscriptions; change-set queries are point-in-time
 while session queries re-diff the live model. Row states reuse the typed
 keyed/dictionary transitions, and field states project the flattened change

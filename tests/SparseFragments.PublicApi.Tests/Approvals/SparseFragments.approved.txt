@@ -700,6 +700,29 @@ namespace SparseFragments
         public void RemoveAt(int index) { }
         public void SetModel(int index, TModel item) { }
     }
+    public sealed class SparseObservedFieldHooks<T>
+    {
+        public SparseObservedFieldHooks() { }
+        public System.Func<SparseFragments.SparseFieldState<T>>? Query { get; set; }
+        public System.Action<System.ComponentModel.PropertyChangedEventHandler>? Subscribe { get; set; }
+        public System.Action<System.ComponentModel.PropertyChangedEventHandler>? Unsubscribe { get; set; }
+    }
+    public sealed class SparseObservedField<T> : System.ComponentModel.INotifyPropertyChanged, System.IDisposable
+    {
+        public SparseObservedField(SparseFragments.SparsePath path, SparseFragments.SparseObservedFieldHooks<T> hooks) { }
+        public SparseFragments.Optional<T> After { get; }
+        public SparseFragments.Optional<T> Before { get; }
+        public SparseFragments.SparseFieldState<T> Current { get; }
+        public bool HasAncestorChange { get; }
+        public bool HasChanges { get; }
+        public bool HasDescendantChange { get; }
+        public bool IsChanged { get; }
+        public SparseFragments.SparseFieldChangeKind Kind { get; }
+        public SparseFragments.SparsePath Path { get; }
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public void Dispose() { }
+        public void Refresh() { }
+    }
     public static class SparseOperationKernels
     {
         public static void ComposeKeyedSets<TKey>(System.Collections.Generic.IReadOnlyList<TKey> firstAdded, System.Collections.Generic.IReadOnlyList<TKey> firstRemoved, System.Collections.Generic.IReadOnlyList<TKey> secondAdded, System.Collections.Generic.IReadOnlyList<TKey> secondRemoved, out System.Collections.Generic.List<TKey> added, out System.Collections.Generic.List<TKey> removed, out bool orderChanged, System.Collections.Generic.IEqualityComparer<TKey>? comparer = null) { }
