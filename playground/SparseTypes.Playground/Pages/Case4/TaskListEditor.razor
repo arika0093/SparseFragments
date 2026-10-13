@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components.Forms
+@using SparseTypes
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 @using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
@@ -52,31 +53,63 @@
         }
         while (!existing.Add(id));
 
-        Session.BatchEdit(() => Session.Observable.Tasks.AddModel(new PlaygroundTask
+        // Path-addressed add: one batched transition with keyed duplicate
+        // rejection, instead of a handwritten BatchEdit plus AddModel call.
+        var tasks = Session.EditCollection<PlaygroundTask, string>(
+            PlaygroundSettings.SparsePath.Tasks
+        );
+        if (
+            !tasks.TryAdd(
+                new PlaygroundTask
+                {
+                    Id = id,
+                    Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
+                    Points = Random.Shared.Next(1, 100),
+                },
+                out var error
+            )
+        )
         {
-            Id = id,
-            Title = TaskTitles[Random.Shared.Next(TaskTitles.Length)],
-            Points = Random.Shared.Next(1, 100),
-        }));
+            _taskError = DescribeError("add", error);
+        }
     }
 
     private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
     {
         var (oldIndex, newIndex) = indices;
-        var tasks = Session.Observable.Tasks;
-        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= tasks.Count || newIndex < 0 || newIndex > tasks.Count)
+        // The facade re-resolves the live collection per operation, so the
+        // drag never acts on a retained list instance.
+        var tasks = Session.EditCollection<PlaygroundTask, string>(
+            PlaygroundSettings.SparsePath.Tasks
+        );
+        var count = tasks.Count;
+        if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= count || newIndex < 0 || newIndex > count)
         {
             return Task.CompletedTask;
         }
 
-        Session.BatchEdit(() =>
+        // SortableList names the drop position in pre-move coordinates, where
+        // Count addresses the end; facade moves name the final position, so
+        // the end maps to Count - 1. Forward moves need no adjustment: both
+        // spellings land the item at the named position.
+        var target = Math.Min(newIndex, count - 1);
+        if (oldIndex == target)
         {
-            var task = tasks[oldIndex];
-            tasks.RemoveAt(oldIndex);
-            tasks.Insert(Math.Min(newIndex, tasks.Count), task);
-        });
+            return Task.CompletedTask;
+        }
+
+        if (!tasks.TryMove(oldIndex, target, out var error))
+        {
+            _taskError = DescribeError("move", error);
+        }
+
         return Task.CompletedTask;
     }
 
     private void SetTaskError(string? error) => _taskError = error;
+
+    private static string DescribeError(string action, SparseCollectionEditError error) =>
+        error == SparseCollectionEditError.DuplicateKey
+            ? "Task IDs must be non-empty and unique."
+            : $"Could not {action} the task ({error}).";
 }

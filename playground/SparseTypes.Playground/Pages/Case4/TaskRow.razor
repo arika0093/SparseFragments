@@ -108,8 +108,6 @@
         }
     }
 
-    private void Edit(Action edit) => Session.BatchEdit(edit);
-
     private async Task CommitTaskId()
     {
         var value = _idDraft.Trim();
@@ -135,38 +133,67 @@
 
         var title = Task.Title;
         var points = Task.Points;
-        Edit(() =>
+        // Identity change is remove plus add through one keyed replace, so
+        // the row keeps its position without handwritten remove/insert code.
+        var editor = Session.EditCollection<PlaygroundTask, string>(
+            PlaygroundSettings.SparsePath.Tasks
+        );
+        if (
+            !editor.TryReplaceByKey(
+                Task.Id,
+                new PlaygroundTask { Id = value, Title = title, Points = points },
+                out var error
+            )
+        )
         {
-            tasks.RemoveAt(index);
-            tasks.InsertModel(index, new PlaygroundTask { Id = value, Title = title, Points = points });
-        });
+            _idDraft = Task.Id;
+            await OnError.InvokeAsync(
+                error == SparseCollectionEditError.DuplicateKey
+                    ? "Task IDs must be non-empty and unique."
+                    : $"Could not rename the task ({error})."
+            );
+            return;
+        }
+
         _idDraft = value;
     }
 
-    private void RemoveTask()
+    private async Task RemoveTask()
     {
-        var index = Index;
-        if (index >= 0)
+        // Keyed removal resolves the live position per call, so a row kept
+        // across a reorder still removes itself. Unknown keys are stale rows
+        // and stay silent, matching the previous index-based guard.
+        var editor = Session.EditCollection<PlaygroundTask, string>(
+            PlaygroundSettings.SparsePath.Tasks
+        );
+        if (
+            !editor.TryRemoveByKey(Task.Id, out var error)
+            && error
+                is not SparseCollectionEditError.UnknownKey
+                    and not SparseCollectionEditError.UnassignedKey
+        )
         {
-            Edit(() => Session.Observable.Tasks.RemoveAt(index));
+            await OnError.InvokeAsync($"Could not remove the task ({error}).");
         }
     }
 
     private void MoveTask(int delta)
     {
-        var tasks = Session.Observable.Tasks;
-        var index = Index;
+        var editor = Session.EditCollection<PlaygroundTask, string>(
+            PlaygroundSettings.SparsePath.Tasks
+        );
+        // The lookup below pins identity to the current order, so the target
+        // stays valid even when the row moved since the last render.
+        var index = editor.IndexOfKey(Task.Id);
         var target = index + delta;
-        if (index < 0 || target < 0 || target >= tasks.Count)
+        if (index < 0 || target < 0 || target >= editor.Count)
         {
             return;
         }
 
-        Edit(() =>
-        {
-            var task = tasks[index];
-            tasks.RemoveAt(index);
-            tasks.Insert(target, task);
-        });
+        // Keyed move keeps one batched reorder instead of remove/insert.
+        // Stale identity cannot occur here on the UI thread, so a failure
+        // would only mean the row vanished between lookup and move.
+        editor.TryMoveByKey(Task.Id, target, out _);
     }
 }
