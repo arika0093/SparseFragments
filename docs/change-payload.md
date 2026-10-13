@@ -457,7 +457,30 @@ Payload DTOs reject unknown JSON members instead of ignoring them. Depending on 
 
 The base package does not depend on `System.Text.Json`. JSON attributes, converters, and the endpoint bridge are generated only when the consuming compilation references a compatible API set. `Fragment`, `Patch`, `ChangeSet`, and the `ChangePayload` CLR projections (`ToPayload`, `FromPatch`, `ToPatch`, `ToChangeSet`) work without it. A compilation with a partial API set gets the same omission plus a diagnostic that names the missing members.
 
-The endpoint and item-kind mapping lives in generated per-model converters. They write state before value, always include an explicit value, and use the lower-case tokens defined by `ChangePayloadWire`. Serializing `ChangePayloadEndpoint` or the state and kind enums directly no longer produces those tokens on its own; serialize the `ChangePayload` DTOs, which reference the converters, or register a generated endpoint converter for standalone use. For trimming and NativeAOT builds, endpoint values resolve through `JsonSerializerOptions` type metadata, so register the payload and member types in a source-generated `JsonSerializerContext`.
+The v1 contract needs named and ordered properties, null and default omission, polymorphic discriminators, strict unknown-member rejection, endpoint and kind converters, and the UTF-8 reader and writer with options and type metadata. The generator probes for `JsonSerializer` and `JsonConverter<T>` with overridable `Read` and `Write`, the `JsonPropertyName`, `JsonPropertyOrder`, `JsonIgnore`, `JsonPolymorphic`, `JsonDerivedType`, `JsonUnmappedMemberHandling`, and `JsonConverter` attributes, `JsonIgnoreCondition`, `JsonUnmappedMemberHandling.Disallow`, `Utf8JsonReader`, `Utf8JsonWriter`, `JsonTokenType`, `JsonSerializerOptions.GetTypeInfo`, `JsonTypeInfo`, and `JsonException`. A reference that lacks any of these, such as an older `System.Text.Json` version, omits the JSON artifacts and reports [SPF028](analyzer.md#spf028-invalid-downstream-emission-plan) with the missing names; a compilation with no reference at all stays silent and builds the serializer-independent core.
+
+The scalar-set payload from the earlier section serializes through resolver options like this:
+
+<!-- sample: payload-context -->
+```csharp
+var contextOptions = new JsonSerializerOptions
+{
+    TypeInfoResolver = JsonTypeInfoResolver.Combine(
+        WirePayloadContext.Default,
+        new DefaultJsonTypeInfoResolver()
+    ),
+};
+var contextJson = JsonSerializer.Serialize(setPayload, contextOptions);
+var contextRestored = JsonSerializer
+    .Deserialize<WireSettings.ChangePayload>(contextJson, contextOptions)!
+    .ToChangeSet();
+// contextRestored.ToPatch().Apply(setBefore) replays setAfter
+```
+<!-- /sample -->
+
+Register every endpoint value type on the context and combine it with the default reflection resolver. The generated converters resolve values through `JsonSerializerOptions.GetTypeInfo`, so registered value types avoid reflection while the generated payload shape still uses it. A context declared next to the models cannot cover the generated payload DTOs themselves, because those DTOs do not exist until generation runs. A fully trimmed build declares the context in a project that references the models instead, which is how the NativeAOT smoke project registers its fixtures payloads.
+
+The endpoint and item-kind mapping lives in generated per-model converters. They write state before value, always include an explicit value, and use the lower-case tokens defined by `ChangePayloadWire`. Serializing `ChangePayloadEndpoint` or the state and kind enums directly no longer produces those tokens on its own; serialize the `ChangePayload` DTOs, which reference the converters, or register a generated endpoint converter for standalone use.
 
 ## Choosing a conversion
 

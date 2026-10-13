@@ -6,6 +6,23 @@ public partial class PayloadChild
     public string? Name { get; set; }
 
     public int Count { get; set; }
+
+    public AotOrderStatus Status { get; set; } = AotOrderStatus.Unknown;
+}
+
+/// <summary>Enum member shape for the source-generated endpoint codec.</summary>
+/// <remarks>
+/// Endpoint values travel through <c>JsonSerializerOptions.GetTypeInfo</c>
+/// metadata, so enum members prove the AOT path without reflection fallback
+/// once registered on the serializer context.
+/// </remarks>
+public enum AotOrderStatus
+{
+    Unknown,
+
+    Open,
+
+    Closed,
 }
 
 [SparseModel]

@@ -226,6 +226,145 @@ public sealed class AotJsonTests
     }
 
     [Test]
+    public async Task EnumEndpointRoundTripsWithSourceGen()
+    {
+        // Enum endpoint values resolve through GetTypeInfo metadata, so the
+        // member type needs a context entry; the round-trip below runs with
+        // reflection disabled and proves the enum path needs no fallback.
+        Optional<PayloadRoot.Fragment?> EnumState(AotOrderStatus status) =>
+            Optional<PayloadRoot.Fragment?>.Present(
+                PayloadRoot.Fragment.From(
+                    new PayloadRoot
+                    {
+                        Label = "kept",
+                        Child = new PayloadChild
+                        {
+                            Name = "n",
+                            Count = 1,
+                            Status = status,
+                        },
+                    }
+                )
+            );
+
+        var before = EnumState(AotOrderStatus.Open);
+        var after = EnumState(AotOrderStatus.Closed);
+        var json = JsonSerializer.Serialize(
+            PayloadRoot.ChangeSet.Between(before, after).ToPayload(),
+            AotSerializerContext.Default.PayloadRootChangePayload
+        );
+        var restored = JsonSerializer
+            .Deserialize(json, AotSerializerContext.Default.PayloadRootChangePayload)!
+            .ToChangeSet();
+        await Assert
+            .That(PayloadRoot.Patch.Between(restored.ToPatch().Apply(before), after).IsEmpty)
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task KeyedRemovalAndReorderRoundTripWithSourceGen()
+    {
+        Optional<PayloadCollection.Fragment?> ServerState(params PayloadItem[] items) =>
+            Optional<PayloadCollection.Fragment?>.Present(
+                PayloadCollection.Fragment.From(new PayloadCollection { Items = items.ToList() })
+            );
+
+        var before = ServerState(
+            new PayloadItem { Id = "a", Name = "A" },
+            new PayloadItem { Id = "b", Name = "B" }
+        );
+        var removed = ServerState(new PayloadItem { Id = "a", Name = "A" });
+        var removeJson = JsonSerializer.Serialize(
+            PayloadCollection.ChangeSet.Between(before, removed).ToPayload(),
+            AotSerializerContext.Default.PayloadCollectionChangePayload
+        );
+        await Assert.That(removeJson.Contains("\"kind\":\"remove\"")).IsTrue();
+        var removeRestored = JsonSerializer
+            .Deserialize(removeJson, AotSerializerContext.Default.PayloadCollectionChangePayload)!
+            .ToChangeSet();
+        await Assert
+            .That(
+                PayloadCollection
+                    .Patch.Between(removeRestored.ToPatch().Apply(before), removed)
+                    .IsEmpty
+            )
+            .IsTrue();
+
+        // Scalar removals carry the missing state explicitly, unlike keyed
+        // items which omit the unneeded endpoint.
+        var missingBefore = Optional<PayloadRoot.Fragment?>.Present(
+            new PayloadRoot.Fragment { Label = Optional<string?>.Present("gone") }
+        );
+        var missingAfter = Optional<PayloadRoot.Fragment?>.Present(new PayloadRoot.Fragment());
+        var missingJson = JsonSerializer.Serialize(
+            PayloadRoot.ChangeSet.Between(missingBefore, missingAfter).ToPayload(),
+            AotSerializerContext.Default.PayloadRootChangePayload
+        );
+        await Assert.That(missingJson.Contains("\"state\":\"missing\"")).IsTrue();
+        var missingRestored = JsonSerializer
+            .Deserialize(missingJson, AotSerializerContext.Default.PayloadRootChangePayload)!
+            .ToChangeSet();
+        await Assert
+            .That(
+                PayloadRoot.Patch.Between(missingRestored.ToPatch().Apply(missingBefore), missingAfter)
+                    .IsEmpty
+            )
+            .IsTrue();
+
+        var reordered = ServerState(
+            new PayloadItem { Id = "b", Name = "B" },
+            new PayloadItem { Id = "a", Name = "A" }
+        );
+        var reorderJson = JsonSerializer.Serialize(
+            PayloadCollection.ChangeSet.Between(before, reordered).ToPayload(),
+            AotSerializerContext.Default.PayloadCollectionChangePayload
+        );
+        await Assert.That(reorderJson.Contains("\"kind\":\"reorder\"")).IsTrue();
+        var reorderRestored = JsonSerializer
+            .Deserialize(reorderJson, AotSerializerContext.Default.PayloadCollectionChangePayload)!
+            .ToChangeSet();
+        await Assert
+            .That(
+                PayloadCollection
+                    .Patch.Between(reorderRestored.ToPatch().Apply(before), reordered)
+                    .IsEmpty
+            )
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task UnknownKindTokenRejectedWithSourceGen()
+    {
+        Optional<PayloadCollection.Fragment?> ServerState(params PayloadItem[] items) =>
+            Optional<PayloadCollection.Fragment?>.Present(
+                PayloadCollection.Fragment.From(new PayloadCollection { Items = items.ToList() })
+            );
+
+        var before = ServerState(new PayloadItem { Id = "a", Name = "A" });
+        var after = ServerState(new PayloadItem { Id = "a", Name = "A2" });
+        var json = JsonSerializer.Serialize(
+            PayloadCollection.ChangeSet.Between(before, after).ToPayload(),
+            AotSerializerContext.Default.PayloadCollectionChangePayload
+        );
+        await Assert.That(json.Contains("\"kind\":\"edit\"")).IsTrue();
+
+        var rejected = false;
+        try
+        {
+            JsonSerializer.Deserialize(
+                json.Replace("\"kind\":\"edit\"", "\"kind\":\"bogus\""),
+                AotSerializerContext.Default.PayloadCollectionChangePayload
+            );
+        }
+        catch (JsonException)
+        {
+            rejected = true;
+        }
+
+        await Assert.That(rejected).IsTrue();
+    }
+
+    [Test]
     public async Task ObservableCollectionViewsRemainAotSafe()
     {
         var numbers = new List<int> { 1 };
