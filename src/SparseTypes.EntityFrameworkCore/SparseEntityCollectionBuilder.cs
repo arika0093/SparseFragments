@@ -77,7 +77,8 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
     /// Same-name child members are inferred by the generated child plan;
     /// <paramref name="configure" /> registers only path-scoped overrides.
     /// Overrides apply to this parent collection only, never to the same child
-    /// type pair under another path.
+    /// type pair under another path. This call is optional: omit it when the
+    /// source-generated conventional defaults already cover the child members.
     /// </remarks>
     /// <param name="configure">Configures the child mapping.</param>
     /// <returns>This builder.</returns>

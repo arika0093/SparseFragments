@@ -263,7 +263,9 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     /// collection only. Dispatch runs through the typed keyed transition
     /// emitted by the ordinary <c>SparseTypes.Generator</c>; no separate
     /// EF generator exists. An explicitly configured DTO path replaces its
-    /// inferred default instead of running both.
+    /// inferred default instead of running both. The scoped <c>Element</c>
+    /// child mapping is optional: omit it when the source-generated
+    /// conventional defaults already cover the child members.
     /// </remarks>
     /// <param name="dto">Selects the DTO collection member.</param>
     /// <param name="entity">Selects the entity collection navigation.</param>
@@ -294,12 +296,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
                 dto,
                 entity,
                 new CollectionDeclaration<TDtoChild, TEntityChild>(
-                    lines.ElementConfigure
-                        ?? throw new SparseEntityMappingException(
-                            SparseEntityMappingFailure.MetadataMismatch,
-                            dtoName,
-                            "The collection declares no Element() child mapping. Scoped child overrides live in the same parent mapper Configure."
-                        ),
+                    lines.ElementConfigure,
                     lines.CreateFactory,
                     lines.RemoveKind,
                     lines.RemoveHandler,

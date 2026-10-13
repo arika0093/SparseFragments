@@ -57,7 +57,7 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
     where TEntityChild : class
 {
     public CollectionDeclaration(
-        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> elementConfigure,
+        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>? elementConfigure,
         Func<TDtoChild, TEntityChild>? createFactory,
         SparseEntityRemoveKind? removeKind,
         Action<DbContext, TEntityChild>? removeHandler,
@@ -111,7 +111,7 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
             >();
     }
 
-    public Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> ElementConfigure { get; }
+    public Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>? ElementConfigure { get; }
 
     public GeneratedCollectionElementDefaults? GeneratedElementDefaults { get; }
 
@@ -978,7 +978,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             child.GeneratedDefaultsApplied = true;
         }
 
-        declaration.ElementConfigure(child);
+        declaration.ElementConfigure?.Invoke(child);
         var childEntityType = session.Model.FindEntityType(typeof(TEntityChild))!;
         ChildPlan = EntityPlan<TEntityChild, TDtoChild>.Build(
             new PlanBuildSession(session.Model),
