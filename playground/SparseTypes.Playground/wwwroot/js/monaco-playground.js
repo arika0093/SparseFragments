@@ -44,6 +44,13 @@
                     [/[A-Z][A-Za-z0-9_]*(?=\s*\])/, "type.identifier"],
                     [/[A-Z][A-Za-z0-9_]*(?=\s*<)/, "type.identifier"],
                     [/[A-Z][A-Za-z0-9_]*(?=\s*[>,?])/, "type.identifier"],
+                    // Method declaration `TypeName MethodName(`: colors the return type of
+                    // body-less `...;` declarations, which no lookahead above covers.
+                    [/\b([A-Z][A-Za-z0-9_.]*(?:<[^(){}]*>)?(?:\[\])*\?*)(\s+)([A-Za-z_]\w*)(?=\s*\()/,
+                        ["type.identifier", "white", "function"]],
+                    // Field/property/parameter declaration `TypeName name`: colors the type.
+                    [/\b([A-Z][A-Za-z0-9_.]*(?:<[^(){}]*>)?(?:\[\])*\?*)(\s+)([_A-Za-z]\w*)/,
+                        ["type.identifier", "white", "identifier"]],
                     [/[A-Za-z_]\w*(?=\s*\()/, {
                         cases: {
                             "@keywords": "keyword",
