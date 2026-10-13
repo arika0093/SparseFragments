@@ -1,4 +1,4 @@
-using EfCoreSample.Server;
+using SparseFragments.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
 

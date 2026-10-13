@@ -357,6 +357,7 @@ target, the failure category, and a corrective action.
   identity is rejected: the server cannot resolve pending identities to
   persisted rows.
 * The Contracts project (DTOs plus generated change sets) references only
-  `SparseFragments`; EF references live in the Server layer and the mapping
-  package. The `EfCoreSample.Contracts` and `EfCoreSample.Server` projects
-  prove the split builds and runs.
+  `SparseFragments`. Client references Contracts and calls the Server API;
+  Server owns EF and the mapping package. Aspire AppHost starts both projects
+  for the sample. The EF Core tests use their own model fixtures and do not
+  reference the sample projects.

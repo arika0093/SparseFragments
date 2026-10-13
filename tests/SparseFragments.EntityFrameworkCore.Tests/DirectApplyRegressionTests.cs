@@ -1,7 +1,6 @@
-using EfCoreSample.Contracts;
-using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
 using SparseFragments.EntityFrameworkCore.Mapping;
+using SparseFragments.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
 

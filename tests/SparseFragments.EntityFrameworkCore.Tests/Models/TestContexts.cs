@@ -2,6 +2,7 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using SparseFragments.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
 
@@ -177,16 +178,12 @@ public static class TestDatabases
     }
 
     /// <summary>Creates a sample context over an open connection.</summary>
-    public static EfCoreSample.Server.SampleDbContext CreateSample(
-        SqliteConnection connection,
-        QueryCounter counter
-    )
+    public static SampleDbContext CreateSample(SqliteConnection connection, QueryCounter counter)
     {
         return Create(
             connection,
             counter,
-            (DbContextOptions<EfCoreSample.Server.SampleDbContext> options) =>
-                new EfCoreSample.Server.SampleDbContext(options)
+            (DbContextOptions<SampleDbContext> options) => new SampleDbContext(options)
         );
     }
 

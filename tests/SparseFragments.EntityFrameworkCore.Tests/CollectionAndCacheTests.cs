@@ -1,6 +1,5 @@
-using EfCoreSample.Contracts;
-using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
+using SparseFragments.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
 
@@ -201,20 +200,5 @@ public sealed class CollectionAndCacheTests
                 .Orders.Single(order => order.Id == entity.Id)
                 .CustomerName.ShouldBe("Summary Bob");
         }
-    }
-
-    [Test]
-    public void ContractsAssemblyHasNoEntityFrameworkReference()
-    {
-        typeof(OrderDto)
-            .Assembly.GetReferencedAssemblies()
-            .Where(static name => name.Name?.Contains("EntityFramework") == true)
-            .ShouldBeEmpty();
-
-        // The server side (mapper plus context) is the only layer with EF references.
-        typeof(OrderMapper)
-            .Assembly.GetReferencedAssemblies()
-            .Any(static name => name.Name == "Microsoft.EntityFrameworkCore")
-            .ShouldBeTrue();
     }
 }

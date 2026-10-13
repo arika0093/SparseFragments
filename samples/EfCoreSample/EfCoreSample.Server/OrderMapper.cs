@@ -14,6 +14,7 @@ namespace EfCoreSample.Server;
 /// <c>Lines</c> collection whose child mapping, factory, removal, and order
 /// policies are scoped to this parent path.
 /// </remarks>
+// Same-name defaults are generated; keep explicit overrides and policies here.
 [SparseFragmentMapper]
 public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
 {

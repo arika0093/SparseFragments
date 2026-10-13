@@ -17,7 +17,6 @@
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="true"
     />
-    <ProjectReference Include="../../samples/EfCoreSample.Server/EfCoreSample.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="SparseFragments" />

@@ -21,9 +21,10 @@
   <Folder Name="/playground/">
     <Project Path="playground/SparseFragments.Playground/SparseFragments.Playground.csproj" />
   </Folder>
-  <Folder Name="/samples/">
-    <Project Path="samples/EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
-    <Project Path="samples/EfCoreSample.Server/EfCoreSample.Server.csproj" />
-    <Project Path="samples/EfCoreSample.Demo/EfCoreSample.Demo.csproj" />
+  <Folder Name="/samples/EfCoreSample/">
+    <Project Path="samples/EfCoreSample/EfCoreSample.Contracts/EfCoreSample.Contracts.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.Server/EfCoreSample.Server.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.Client/EfCoreSample.Client.csproj" />
+    <Project Path="samples/EfCoreSample/EfCoreSample.AppHost/EfCoreSample.AppHost.csproj" />
   </Folder>
 </Solution>

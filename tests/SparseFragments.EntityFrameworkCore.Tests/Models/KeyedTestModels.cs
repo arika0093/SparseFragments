@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using EfCoreSample.Server;
 using Microsoft.EntityFrameworkCore;
 
 namespace SparseFragments.EntityFrameworkCore.Tests;
