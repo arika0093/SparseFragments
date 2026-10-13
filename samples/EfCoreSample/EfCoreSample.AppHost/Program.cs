@@ -1,7 +1,12 @@
 var builder = DistributedApplication.CreateBuilder(args);
 var server = builder
     .AddProject<Projects.EfCoreSample_Server>("server")
-    .WithHttpEndpoint(targetPort: 5000)
+    .WithHttpEndpoint(port: 5000, isProxied: false)
+    .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
-builder.AddProject<Projects.EfCoreSample_Client>("client").WithReference(server).WaitFor(server);
+builder
+    .AddProject<Projects.EfCoreSample_Client>("client")
+    .WithReference(server)
+    .WaitFor(server)
+    .WithExplicitStart();
 builder.Build().Run();

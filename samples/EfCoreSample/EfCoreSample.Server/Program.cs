@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SparseFragments.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
 builder.Services.AddDbContext<SampleDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("orders") ?? "Data Source=orders.db"
@@ -53,36 +54,60 @@ app.Run();
 static async Task<IResult> GetOrderAsync(
     int id,
     SampleDbContext db,
+    ILogger<Program> logger,
     CancellationToken cancellationToken
 )
 {
-    var entity = await db
-        .Orders.Include(static order => order.Address)
-        .Include(static order => order.Lines)
-        .SingleOrDefaultAsync(order => order.Id == id, cancellationToken);
-    return entity is null ? Results.NotFound() : Results.Ok(ReadOrderDto(entity));
-}
-
-static async Task<IResult> UpdateOrderAsync(
-    int id,
-    OrderDto draft,
-    SampleDbContext db,
-    CancellationToken cancellationToken
-)
-{
+    logger.LogInformation("Loading order {OrderId}", id);
     var entity = await db
         .Orders.Include(static order => order.Address)
         .Include(static order => order.Lines)
         .SingleOrDefaultAsync(order => order.Id == id, cancellationToken);
     if (entity is null)
     {
+        logger.LogWarning("Order {OrderId} was not found", id);
+        return Results.NotFound();
+    }
+
+    logger.LogInformation("Loaded order {OrderId} with {LineCount} lines", id, entity.Lines.Count);
+    return Results.Ok(ReadOrderDto(entity));
+}
+
+static async Task<IResult> UpdateOrderAsync(
+    int id,
+    OrderDto.ChangePayload payload,
+    SampleDbContext db,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken
+)
+{
+    logger.LogInformation("Received change payload for order {OrderId}", id);
+    var entity = await db
+        .Orders.Include(static order => order.Address)
+        .Include(static order => order.Lines)
+        .SingleOrDefaultAsync(order => order.Id == id, cancellationToken);
+    if (entity is null)
+    {
+        logger.LogWarning("Cannot update order {OrderId} because it was not found", id);
         return Results.NotFound();
     }
 
     var current = ReadOrderDto(entity);
-    var accepted = current.CreateChangeSet(draft).RebaseOnto(current);
+    OrderDto.ChangeSet changes;
+    try
+    {
+        changes = payload.ToChangeSet();
+    }
+    catch (ArgumentException exception)
+    {
+        logger.LogWarning(exception, "Rejected invalid change payload for order {OrderId}", id);
+        return Results.BadRequest();
+    }
+
+    var accepted = changes.RebaseOnto(current);
     if (accepted.HasConflicts)
     {
+        logger.LogWarning("Rejected update for order {OrderId} because it has conflicts", id);
         return Results.Conflict();
     }
 
@@ -101,6 +126,11 @@ static async Task<IResult> UpdateOrderAsync(
         }
     }
 
+    logger.LogInformation(
+        "Updated order {OrderId}; {LineCount} lines persisted",
+        id,
+        authoritative.Lines.Count
+    );
     return Results.Ok(authoritative);
 }
 

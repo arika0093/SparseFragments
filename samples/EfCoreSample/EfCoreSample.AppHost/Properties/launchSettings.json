@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "EfCoreSample.AppHost": {
+      "commandName": "Project",
+      "applicationUrl": "http://0.0.0.0:18888",
+      "environmentVariables": {
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
