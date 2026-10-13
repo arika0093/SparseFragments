@@ -25,12 +25,63 @@ internal sealed class PlanBuildSession
     private readonly Dictionary<(IEntityType Type, string Navigation), string> _navigationClaims =
         new();
 
+    private readonly List<SparseEntityMappingError> _errors = [];
+    private int _buildDepth;
+
     public PlanBuildSession(IModel model)
     {
         Model = model;
     }
 
     public IModel Model { get; }
+
+    /// <summary>Captures an independent build check and retains its mapping errors.</summary>
+    public bool TryCollect(Action check)
+    {
+        ArgumentNullException.ThrowIfNull(check);
+        var propertyClaims = new Dictionary<(IEntityType Type, string Property), string>(_claims);
+        var navigationClaims = new Dictionary<(IEntityType Type, string Navigation), string>(
+            _navigationClaims
+        );
+        try
+        {
+            check();
+            return true;
+        }
+        catch (SparseEntityMappingException exception)
+        {
+            _claims.Clear();
+            foreach (var claim in propertyClaims)
+            {
+                _claims.Add(claim.Key, claim.Value);
+            }
+
+            _navigationClaims.Clear();
+            foreach (var claim in navigationClaims)
+            {
+                _navigationClaims.Add(claim.Key, claim.Value);
+            }
+
+            _errors.AddRange(exception.Errors);
+            return false;
+        }
+    }
+
+    /// <summary>Begins a nested build scope and throws accumulated errors at the outermost exit.</summary>
+    public IDisposable BeginBuild()
+    {
+        _buildDepth++;
+        return new BuildScope(this);
+    }
+
+    /// <summary>Throws all mapping errors collected across this plan build.</summary>
+    public void ThrowIfCollectedErrors()
+    {
+        if (_errors.Count > 0)
+        {
+            throw SparseEntityMappingException.FromErrors(_errors);
+        }
+    }
 
     /// <summary>Claims an entity property for a DTO path; throws when already claimed.</summary>
     public void Claim(IEntityType type, string property, string dtoPath)
@@ -46,7 +97,8 @@ internal sealed class PlanBuildSession
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.Ambiguous,
                 dtoPath,
-                $"The DTO paths '{owner}' and '{dtoPath}' target the same entity member '{type.ClrType.Name}.{property}'. Map each entity member once."
+                $"The DTO paths '{owner}' and '{dtoPath}' target the same entity member '{type.ClrType.Name}.{property}'. Map each entity member once.",
+                $"{type.ClrType.Name}.{property}"
             );
         }
 
@@ -62,7 +114,8 @@ internal sealed class PlanBuildSession
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.Ambiguous,
                 dtoPath,
-                $"The DTO paths '{owner}' and '{dtoPath}' target the same entity navigation '{type.ClrType.Name}.{navigation}'. Map each navigation once."
+                $"The DTO paths '{owner}' and '{dtoPath}' target the same entity navigation '{type.ClrType.Name}.{navigation}'. Map each navigation once.",
+                $"{type.ClrType.Name}.{navigation}"
             );
         }
 
@@ -135,5 +188,25 @@ internal sealed class PlanBuildSession
         return type != typeof(string)
             && type != typeof(byte[])
             && typeof(System.Collections.IEnumerable).IsAssignableFrom(type);
+    }
+
+    private sealed class BuildScope(PlanBuildSession session) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            session._buildDepth--;
+            if (session._buildDepth == 0)
+            {
+                session.ThrowIfCollectedErrors();
+            }
+        }
     }
 }

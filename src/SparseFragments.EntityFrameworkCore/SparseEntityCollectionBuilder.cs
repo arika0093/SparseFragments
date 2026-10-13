@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace SparseFragments.EntityFrameworkCore;
@@ -52,7 +54,11 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
 
     internal Func<TEntityChild, bool>? IsDeletedPredicate { get; private set; }
 
+    internal Expression<Func<TEntityChild, bool>>? IsDeletedExpression { get; private set; }
+
     internal Action<TEntityChild, int>? OrderSetter { get; private set; }
+
+    internal LambdaExpression? OrderSelectorExpression { get; private set; }
 
     internal Type? KeyType { get; private set; }
 
@@ -125,6 +131,7 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
         KeyType = typeof(TKey);
         DtoKeySelector = dtoKey.Compile();
         EntityKeySelector = entityKey.Compile();
+        EntityKeySelectorExpressions.Register(EntityKeySelector, entityKey);
         return this;
     }
 
@@ -260,8 +267,10 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
     /// proves that a tracked row omitted from a later transition was already
     /// flagged: only proven rows are retained, while a stale DTO that omits an
     /// active child still fails completeness validation. The predicate runs
-    /// during preflight validation and is expected to be pure. Not valid for
-    /// owned navigations.
+    /// during preflight validation and is expected to be pure. Call
+    /// <see cref="SoftDeleteFilter(Expression{Func{TEntityChild, bool}})" /> with
+    /// a provider-translatable expression when read projections need to omit
+    /// deleted rows. Not valid for owned navigations.
     /// </remarks>
     /// <param name="markDeleted">Flags the removed child (for example a soft-delete column).</param>
     /// <param name="isDeleted">Tests whether a tracked child was already flagged.</param>
@@ -277,6 +286,44 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
         RemoveKind = SparseEntityRemoveKind.SoftDelete;
         SoftDeleteMark = markDeleted;
         IsDeletedPredicate = isDeleted;
+        return this;
+    }
+
+    /// <summary>
+    /// Supplies an expression used to exclude soft-deleted children from DTO projections.
+    /// </summary>
+    /// <remarks>
+    /// The expression also becomes the preflight predicate used to recognize
+    /// previously soft-deleted rows. The EF provider must be able to translate
+    /// it when the projection is used in a query.
+    /// </remarks>
+    /// <param name="isDeleted">Tests whether a child has already been soft-deleted.</param>
+    /// <returns>This builder.</returns>
+    public SparseEntityCollectionBuilder<TEntityChild, TDtoChild> SoftDeleteFilter(
+        Expression<Func<TEntityChild, bool>> isDeleted
+    )
+    {
+        ArgumentNullException.ThrowIfNull(isDeleted);
+        if (RemoveKind != SparseEntityRemoveKind.SoftDelete)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                null,
+                "SoftDeleteFilter() requires a SoftDelete() removal policy."
+            );
+        }
+
+        if (IsDeletedExpression is not null)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.Duplicate,
+                null,
+                "SoftDeleteFilter() is already configured for this collection."
+            );
+        }
+
+        IsDeletedExpression = isDeleted;
+        IsDeletedPredicate = isDeleted.Compile();
         return this;
     }
 
@@ -311,6 +358,89 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
         return this;
     }
 
+    /// <summary>
+    /// Persists collection order through an integer entity member.
+    /// </summary>
+    /// <remarks>
+    /// The selected member supplies the read-side sort key and receives the
+    /// zero-based collection position during keyed synchronization.
+    /// </remarks>
+    /// <param name="order">Selects the writable integer order member.</param>
+    /// <returns>This builder.</returns>
+    public SparseEntityCollectionBuilder<TEntityChild, TDtoChild> Order(
+        Expression<Func<TEntityChild, int>> order
+    )
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        if (OrderSetter is not null)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.Duplicate,
+                null,
+                "Order() is already configured for this collection."
+            );
+        }
+
+        var body = StripConvert(order.Body);
+        if (
+            body is not MemberExpression member
+            || member.Expression != order.Parameters[0]
+            || !CanAssignOrder(member.Member)
+        )
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                null,
+                "The expression-based Order() overload requires a directly selected writable integer property or field."
+            );
+        }
+
+        var index = Expression.Parameter(typeof(int), "index");
+        try
+        {
+            var assignment = Expression.Assign(body, index);
+            OrderSetter = Expression
+                .Lambda<Action<TEntityChild, int>>(assignment, order.Parameters[0], index)
+                .Compile();
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or InvalidOperationException)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                null,
+                $"The selected Order() member cannot be assigned: {exception.Message}"
+            );
+        }
+
+        OrderSelectorExpression = order;
+        return this;
+    }
+
+    private static Expression StripConvert(Expression expression)
+    {
+        while (
+            expression is UnaryExpression unary
+            && (
+                unary.NodeType == ExpressionType.Convert
+                || unary.NodeType == ExpressionType.ConvertChecked
+            )
+        )
+        {
+            expression = unary.Operand;
+        }
+
+        return expression;
+    }
+
+    private static bool CanAssignOrder(MemberInfo member) =>
+        member switch
+        {
+            PropertyInfo property => property.CanWrite,
+            FieldInfo field => !field.IsInitOnly && !field.IsLiteral,
+            _ => false,
+        };
+
     private void EnsureSingleRemovePolicy()
     {
         if (RemoveKind is not null)
@@ -321,5 +451,23 @@ public sealed class SparseEntityCollectionBuilder<TEntityChild, TDtoChild>
                 "A removal policy is already configured for this collection. Declare delete, detach, or soft-delete once."
             );
         }
+    }
+}
+
+internal static class EntityKeySelectorExpressions
+{
+    private static readonly ConditionalWeakTable<Delegate, LambdaExpression> Expressions = new();
+
+    public static void Register(Delegate selector, LambdaExpression expression)
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        ArgumentNullException.ThrowIfNull(expression);
+        Expressions.GetValue(selector, _ => expression);
+    }
+
+    public static bool TryGet(Delegate selector, out LambdaExpression? expression)
+    {
+        ArgumentNullException.ThrowIfNull(selector);
+        return Expressions.TryGetValue(selector, out expression);
     }
 }

@@ -46,6 +46,77 @@ public enum SparseEntityMappingFailure
 }
 
 /// <summary>
+/// Describes one independently detected mapping validation error.
+/// </summary>
+public sealed record SparseEntityMappingError
+{
+    /// <summary>Creates one mapping validation error.</summary>
+    /// <param name="failure">The failure classification.</param>
+    /// <param name="dtoPath">The dotted DTO path that failed, when applicable.</param>
+    /// <param name="message">The human-readable detail.</param>
+    /// <param name="entityTarget">The entity-side target, when known.</param>
+    /// <param name="suggestedAction">A suggested way to correct the mapping.</param>
+    public SparseEntityMappingError(
+        SparseEntityMappingFailure failure,
+        string? dtoPath,
+        string message,
+        string? entityTarget = null,
+        string? suggestedAction = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        Failure = failure;
+        DtoPath = dtoPath;
+        Message = message;
+        EntityTarget = entityTarget;
+        SuggestedAction = suggestedAction ?? SuggestAction(failure);
+    }
+
+    /// <summary>Gets the failure classification.</summary>
+    public SparseEntityMappingFailure Failure { get; init; }
+
+    /// <summary>Gets the dotted DTO path that failed, when applicable.</summary>
+    public string? DtoPath { get; init; }
+
+    /// <summary>Gets the entity-side target, when known.</summary>
+    public string? EntityTarget { get; init; }
+
+    /// <summary>Gets the suggested way to correct the mapping.</summary>
+    public string SuggestedAction { get; init; }
+
+    /// <summary>Gets the human-readable detail.</summary>
+    public string Message { get; init; }
+
+    private static string SuggestAction(SparseEntityMappingFailure failure) =>
+        failure switch
+        {
+            SparseEntityMappingFailure.Duplicate => "Remove the duplicate registration.",
+            SparseEntityMappingFailure.Unmapped => "Map the DTO member explicitly or ignore it.",
+            SparseEntityMappingFailure.Ambiguous =>
+                "Map each entity member from only one DTO path.",
+            SparseEntityMappingFailure.Protected =>
+                "Use AllowWrite only when updating this protected member is intentional.",
+            SparseEntityMappingFailure.CollectionNotSupported =>
+                "Configure keyed collection synchronization or ignore the member.",
+            SparseEntityMappingFailure.MissingNotHandled =>
+                "Configure an OnMissing policy for the member.",
+            SparseEntityMappingFailure.NullNotAllowed =>
+                "Map a non-null value or make the entity member nullable.",
+            SparseEntityMappingFailure.NestedNotCreatable =>
+                "Provide a factory or configure the navigation so the child can be created.",
+            SparseEntityMappingFailure.CollectionNotLoaded =>
+                "Load the mapped collection before applying its changes.",
+            SparseEntityMappingFailure.CollectionKeyNotFound =>
+                "Refresh the tracked collection or correct the child identity.",
+            SparseEntityMappingFailure.CollectionKeyConflict =>
+                "Use unique, resolvable child identities within each collection.",
+            SparseEntityMappingFailure.MetadataMismatch =>
+                "Align the DTO member, mapping, and EF metadata.",
+            _ => "Review the mapping failure detail and correct its cause.",
+        };
+}
+
+/// <summary>
 /// Reports an explicit entity-mapping plan or apply failure.
 /// </summary>
 /// <remarks>
@@ -55,28 +126,43 @@ public enum SparseEntityMappingFailure
 /// </remarks>
 public sealed class SparseEntityMappingException : InvalidOperationException
 {
+    private readonly IReadOnlyList<SparseEntityMappingError> _errors;
+
     /// <summary>Creates a mapping failure without a DTO path.</summary>
     /// <param name="failure">The failure classification.</param>
     /// <param name="message">The human-readable detail.</param>
     public SparseEntityMappingException(SparseEntityMappingFailure failure, string message)
-        : base(message)
-    {
-        Failure = failure;
-    }
+        : this(failure, null, message) { }
 
     /// <summary>Creates a mapping failure for a DTO path.</summary>
     /// <param name="failure">The failure classification.</param>
     /// <param name="dtoPath">The dotted DTO path that failed.</param>
     /// <param name="message">The human-readable detail.</param>
+    /// <param name="entityTarget">The entity-side target, when known.</param>
+    /// <param name="suggestedAction">A suggested way to correct the mapping.</param>
     public SparseEntityMappingException(
         SparseEntityMappingFailure failure,
         string? dtoPath,
-        string message
+        string message,
+        string? entityTarget = null,
+        string? suggestedAction = null
     )
         : base(message)
     {
         Failure = failure;
         DtoPath = dtoPath;
+        _errors = Array.AsReadOnly(
+            new[]
+            {
+                new SparseEntityMappingError(
+                    failure,
+                    dtoPath,
+                    message,
+                    entityTarget,
+                    suggestedAction
+                ),
+            }
+        );
     }
 
     /// <summary>Creates a mapping failure scoped to one mapper type.</summary>
@@ -97,6 +183,23 @@ public sealed class SparseEntityMappingException : InvalidOperationException
         Failure = failure;
         DtoPath = dtoPath;
         Mapper = mapper;
+        _errors = inner is SparseEntityMappingException mappingException
+            ? mappingException.Errors
+            : Array.AsReadOnly(new[] { new SparseEntityMappingError(failure, dtoPath, message) });
+    }
+
+    private SparseEntityMappingException(IReadOnlyList<SparseEntityMappingError> errors)
+        : base(CreateAggregateMessage(errors))
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (errors.Count == 0)
+        {
+            throw new ArgumentException("At least one mapping error is required.", nameof(errors));
+        }
+
+        _errors = Array.AsReadOnly(errors.ToArray());
+        Failure = errors[0].Failure;
+        DtoPath = errors[0].DtoPath;
     }
 
     /// <summary>Gets the failure classification.</summary>
@@ -107,4 +210,65 @@ public sealed class SparseEntityMappingException : InvalidOperationException
 
     /// <summary>Gets the mapper type that failed, when scoped by the entry points.</summary>
     public string? Mapper { get; }
+
+    /// <summary>Gets all independently detected mapping validation errors.</summary>
+    public IReadOnlyList<SparseEntityMappingError> Errors => _errors;
+
+    internal static SparseEntityMappingException FromErrors(
+        IReadOnlyList<SparseEntityMappingError> errors
+    )
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (errors.Count == 1)
+        {
+            var error = errors[0];
+            return new SparseEntityMappingException(
+                error.Failure,
+                error.DtoPath,
+                error.Message,
+                error.EntityTarget,
+                error.SuggestedAction
+            );
+        }
+
+        return new SparseEntityMappingException(errors);
+    }
+
+    private static string CreateAggregateMessage(IReadOnlyList<SparseEntityMappingError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        if (errors.Count == 0)
+        {
+            throw new ArgumentException("At least one mapping error is required.", nameof(errors));
+        }
+
+        if (errors.Count == 1)
+        {
+            return errors[0].Message;
+        }
+
+        var message = new System.Text.StringBuilder()
+            .Append(errors.Count)
+            .Append(" independent entity mapping validation errors were found:");
+        for (var index = 0; index < errors.Count; index++)
+        {
+            var error = errors[index];
+            message.AppendLine().Append(index + 1).Append(". ");
+            if (!string.IsNullOrEmpty(error.DtoPath))
+            {
+                message.Append(error.DtoPath).Append(": ");
+            }
+
+            message.Append(error.Failure).Append(": ");
+            message.Append(error.Message);
+            if (!string.IsNullOrEmpty(error.EntityTarget))
+            {
+                message.Append(" Entity target: ").Append(error.EntityTarget).Append('.');
+            }
+
+            message.Append(" Suggested action: ").Append(error.SuggestedAction);
+        }
+
+        return message.ToString();
+    }
 }

@@ -55,6 +55,16 @@ public sealed class SparseEntityMapperEmitterTests
                     Expression<Func<TEntity, TEntityValue?>> entity) => this;
             }
         }
+        namespace SparseFragments.EntityFrameworkCore.Mapping
+        {
+            public static class GeneratedDefaultsRegistry
+            {
+                public static void Register<TEntity, TDto>(
+                    Type mapperType,
+                    Action<SparseFragments.EntityFrameworkCore.SparseEntityMapBuilder<TEntity, TDto>> registerDefaults)
+                    where TEntity : class where TDto : class { }
+            }
+        }
         """;
 
     private static CSharpCompilation ProbeCompilation(string source)
@@ -180,9 +190,7 @@ public sealed class SparseEntityMapperEmitterTests
         // Path-scoped conventional element defaults ride alongside the marker.
         sources.ShouldContain("builder.DeclareCollectionElement<");
         sources.ShouldContain("LineDto,");
-        sources.ShouldContain(
-            "child.Member(static dto => dto.Qty, static entity => entity.Qty);"
-        );
+        sources.ShouldContain("child.Member(static dto => dto.Qty, static entity => entity.Qty);");
         // Renamed/flattened pairs stay explicit-only: no guessed default.
         sources.ShouldNotContain("Renamed");
         sources.ShouldNotContain("CustomerName");

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 
 namespace SparseFragments.EntityFrameworkCore.Mapping;
 
@@ -16,12 +17,17 @@ internal sealed class IntermediateAccess
     private IntermediateAccess(
         Func<object, object?> getter,
         Action<object, object?> setter,
-        ConstructorInfo constructor
+        ConstructorInfo constructor,
+        string navigationName,
+        bool owned
     )
     {
         Getter = getter;
         Setter = setter;
         Constructor = constructor;
+        NavigationName = navigationName;
+        Owned = owned;
+        TargetType = constructor.DeclaringType ?? throw new InvalidOperationException();
     }
 
     public Func<object, object?> Getter { get; }
@@ -30,8 +36,19 @@ internal sealed class IntermediateAccess
 
     public ConstructorInfo Constructor { get; }
 
+    public string NavigationName { get; }
+
+    public bool Owned { get; }
+
+    public Type TargetType { get; }
+
     /// <summary>Builds accessors for a navigation member on a declaring CLR type.</summary>
-    public static IntermediateAccess Build(Type declaringType, string name, string dtoPath)
+    public static IntermediateAccess Build(
+        Type declaringType,
+        string name,
+        string dtoPath,
+        bool owned = false
+    )
     {
         if (declaringType.IsValueType)
         {
@@ -85,7 +102,42 @@ internal sealed class IntermediateAccess
                 dtoPath,
                 $"The nested entity type '{memberType.Name}' has no public parameterless constructor, so a missing instance cannot be materialized."
             );
-        return new IntermediateAccess(getter, setter, constructor);
+        return new IntermediateAccess(getter, setter, constructor, name, owned);
+    }
+
+    /// <summary>Ensures a non-owned reference navigation is loaded before treating null as absence.</summary>
+    public void EnsureLoaded(DbContext context, object parent, string dtoPath)
+    {
+        EnsureLoaded(context, parent, NavigationName, Owned, dtoPath);
+    }
+
+    /// <summary>Ensures a non-owned reference navigation is loaded before treating null as absence.</summary>
+    public static void EnsureLoaded(
+        DbContext context,
+        object parent,
+        string navigationName,
+        bool owned,
+        string dtoPath
+    )
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(navigationName);
+        ArgumentNullException.ThrowIfNull(dtoPath);
+        if (owned)
+        {
+            return;
+        }
+
+        var entry = context.Entry(parent);
+        if (entry.State != EntityState.Added && !entry.Reference(navigationName).IsLoaded)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                dtoPath,
+                $"The reference navigation '{navigationName}' changed but is not loaded. Apply never auto-loads and never issues queries: load it with Include or Load before applying."
+            );
+        }
     }
 
     /// <summary>Creates a missing intermediate instance.</summary>

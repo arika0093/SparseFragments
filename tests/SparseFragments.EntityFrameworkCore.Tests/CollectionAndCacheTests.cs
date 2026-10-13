@@ -41,7 +41,7 @@ public sealed class CollectionAndCacheTests
     }
 
     [Test]
-    public async Task ScalarSequenceChangeIsDiagnosed()
+    public async Task PrimitiveCollectionChangeReplacesWithFreshCollection()
     {
         using var connection = TestDatabases.OpenMemory();
         var counter = new QueryCounter();
@@ -54,23 +54,82 @@ public sealed class CollectionAndCacheTests
         var incoming = new TagsDto { Tags = ["c"] };
         var accepted = current.CreateChangeSet(incoming);
         accepted.IsChanged.ShouldBeTrue();
+        var original = entity.Tags;
 
-        var error = Should.Throw<SparseEntityMappingException>(() =>
-            SparseEntityMapper<TagsEntity, TagsDto>
-                .Create(new TagsMapper(), context.Model)
-                .Apply(context, entity, accepted)
+        SparseEntityMapper<TagsEntity, TagsDto>
+            .Create(new TagsMapper(), context.Model)
+            .Apply(context, entity, accepted);
+
+        entity.Tags.ShouldBe(["c"]);
+        ReferenceEquals(original, entity.Tags).ShouldBeFalse();
+        context.Entry(entity).Property(static tags => tags.Tags).IsModified.ShouldBeTrue();
+        counter.Commands.ShouldBe(0);
+
+        await context.SaveChangesAsync();
+        var stored = await context.Tags.AsNoTracking().SingleAsync(tags => tags.Id == entity.Id);
+        stored.Tags.ShouldBe(["c"]);
+    }
+
+    [Test]
+    public async Task PrimitiveCollectionNullAndMissingRemainDistinct()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateMapping(connection, counter);
+        var entity = context.Tags.Add(new TagsEntity { Tags = ["keep"] }).Entity;
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        var current = new TagsDto { Tags = ["keep"] };
+        var incoming = new TagsDto { Tags = null };
+        var nullChange = current.CreateChangeSet(incoming);
+        SparseEntityMapper<TagsEntity, TagsDto>
+            .Create(new TagsMapper(), context.Model)
+            .Apply(context, entity, nullChange);
+        entity.Tags.ShouldBeNull();
+        context.Entry(entity).Property(static tags => tags.Tags).IsModified.ShouldBeTrue();
+        counter.Commands.ShouldBe(0);
+        await context.SaveChangesAsync();
+        var storedNull = await context
+            .Tags.AsNoTracking()
+            .SingleAsync(tags => tags.Id == entity.Id);
+        storedNull.Tags.ShouldBeNull();
+
+        entity.Tags = ["keep"];
+        await context.SaveChangesAsync();
+        counter.Reset();
+        var basis = Optional<TagsDto.Fragment?>.Present(TagsDto.Fragment.From(current));
+        var builder = basis.Value!.ToBuilder();
+        builder.Tags = Optional<List<string>?>.Missing;
+        var missingChange = TagsDto.ChangeSet.Between(
+            basis,
+            Optional<TagsDto.Fragment?>.Present(builder.Build())
         );
-        error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionNotSupported);
-        error.DtoPath.ShouldBe("Tags");
+        SparseEntityMapper<TagsEntity, TagsDto>
+            .Create(new TagsIgnoreMissingMapper(), context.Model)
+            .Apply(context, entity, missingChange);
+        entity.Tags.ShouldBe(["keep"]);
+        context.Entry(entity).Property(static tags => tags.Tags).IsModified.ShouldBeFalse();
         counter.Commands.ShouldBe(0);
     }
 
     /// <summary>Whole-value tag mapping, which still diagnoses in this proof of concept.</summary>
+    [SparseFragmentMapper]
     public sealed class TagsMapper : IEntityModelMapping<TagsEntity, TagsDto>
     {
         public void Configure(SparseEntityMapBuilder<TagsEntity, TagsDto> map)
         {
             map.Collection(dto => dto.Tags, entity => entity.Tags);
+        }
+    }
+
+    [SparseFragmentMapper]
+    public sealed class TagsIgnoreMissingMapper : IEntityModelMapping<TagsEntity, TagsDto>
+    {
+        public void Configure(SparseEntityMapBuilder<TagsEntity, TagsDto> map)
+        {
+            map.Collection(dto => dto.Tags, entity => entity.Tags);
+            map.OnMissing(dto => dto.Tags, SparseEntityMissingPolicy.Ignore);
         }
     }
 

@@ -27,6 +27,30 @@ internal abstract class MemberNode
 
     /// <summary>Queues writes for every mapped member from the After snapshot.</summary>
     public abstract void WriteAll(PlanWriteState state, List<Action> actions);
+
+    /// <summary>Collects the Include paths needed to apply one mapped member.</summary>
+    public virtual void CollectIncludes(
+        ISparseChangeSet changes,
+        IncludePathCollector collector,
+        bool writeAll,
+        object? afterSnapshot
+    ) { }
+
+    /// <summary>Builds a read expression for this DTO member when it is invertible.</summary>
+    public virtual Expression? BuildProjection(
+        Expression entity,
+        ReadProjectionBuildContext context,
+        string dtoPath
+    ) => null;
+
+    /// <summary>Copies baseline temporary identities and correlates created entities into the DTO.</summary>
+    public virtual void AssignTemporaryKeys(
+        DbContext context,
+        object? baseline,
+        object authoritative,
+        SparseEntityApplyResult result,
+        string path
+    ) { }
 }
 
 /// <summary>
@@ -43,6 +67,7 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
     private string _entityProperty = string.Empty;
     private bool _entityNullable;
     private SparseEntityMissingPolicy _missing;
+    private bool _skipGeneratedKeyMember;
     private readonly List<IntermediateAccess> _intermediates = [];
 
     public ScalarNode(
@@ -91,10 +116,13 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
         }
 
         var target = level.EntityType;
-        var declarers = new List<(Type Declaring, string Name)>();
+        var declarers = new List<(Type Declaring, string Name, bool Owned)>();
         for (var index = 0; index < _entityChain.Length - 1; index++)
         {
-            declarers.Add((target.ClrType, _entityChain[index]));
+            var navigation = target.FindNavigation(_entityChain[index]);
+            declarers.Add(
+                (target.ClrType, _entityChain[index], navigation?.ForeignKey.IsOwnership == true)
+            );
             target = ResolveNavigation(target, _entityChain[index], DtoName);
         }
 
@@ -114,13 +142,27 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
 
         var (protection, detail) = PlanBuildSession.GetProtection(target, property);
         var allowed = level.Registrations.AllowedWrites.Contains(DtoName);
+        if (
+            !allowed
+            && level.Registrations.IsGeneratedDefault(DtoName)
+            && (
+                level.Registrations.GeneratedKeyMembers.Contains(DtoName)
+                || (level.Registrations.GeneratedKeyDeclared && protection == EntityProtection.Key)
+            )
+        )
+        {
+            _skipGeneratedKeyMember = true;
+            return;
+        }
+
         if (protection != EntityProtection.None && !allowed)
         {
             level.ReportProtected(DtoName, detail);
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.Protected,
                 DtoName,
-                $"The DTO member '{DtoName}' targets {detail} '{target.ClrType.Name}.{property.Name}'. It is never written by default; allow it explicitly with AllowWrite()."
+                $"The DTO member '{DtoName}' targets {detail} '{target.ClrType.Name}.{property.Name}'. It is never written by default; allow it explicitly with AllowWrite().",
+                $"{target.ClrType.Name}.{property.Name}"
             );
         }
 
@@ -142,7 +184,7 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
         foreach (var declarer in declarers)
         {
             _intermediates.Add(
-                IntermediateAccess.Build(declarer.Declaring, declarer.Name, DtoName)
+                IntermediateAccess.Build(declarer.Declaring, declarer.Name, DtoName, declarer.Owned)
             );
         }
 
@@ -161,6 +203,11 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
 
     public override void Prepare(PlanApplyState state, List<Action> actions)
     {
+        if (_skipGeneratedKeyMember)
+        {
+            return;
+        }
+
         var changes = state.Changes;
         if (!changes.TryGetValueChange<TDtoValue>(DtoName, out var change))
         {
@@ -187,6 +234,20 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
             switch (_missing)
             {
                 case SparseEntityMissingPolicy.Ignore:
+                    if (state.TracksAppliedPaths)
+                    {
+                        actions.Add(() =>
+                            state.RecordAppliedPath(
+                                new SparseEntityAppliedPath(
+                                    state.DisplayPath(DtoName),
+                                    SparseEntityApplyOperationKind.MissingIgnored,
+                                    _targetType.ClrType.FullName,
+                                    _entityProperty
+                                )
+                            )
+                        );
+                    }
+
                     return;
                 case SparseEntityMissingPolicy.SetDefault:
                     if (default(TEntityValue) is null && !_entityNullable)
@@ -198,25 +259,89 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
                         );
                     }
 
+                    EnsureIntermediatesLoaded(
+                        state.Context,
+                        state.Entity,
+                        state.DisplayPath(DtoName)
+                    );
                     // Preflight must not mutate the graph: intermediate creation
                     // and tracking happen inside the queued execution action.
-                    actions.Add(() =>
+                    if (state.TracksAppliedPaths)
                     {
-                        var defaultEntry = MaterializeEntry(
-                            state.Context,
-                            state.Entity,
-                            state.Entry
-                        );
-                        defaultEntry.Property(_entityProperty).CurrentValue = default(TEntityValue);
-                    });
+                        actions.Add(() =>
+                        {
+                            var defaultEntry = MaterializeEntry(
+                                state.Context,
+                                state.Entity,
+                                state.Entry
+                            );
+                            defaultEntry.Property(_entityProperty).CurrentValue =
+                                default(TEntityValue);
+                            state.RecordAppliedPath(
+                                AppliedPathFactory.Create(
+                                    state.DisplayPath(DtoName),
+                                    defaultEntry,
+                                    _entityProperty,
+                                    default(TEntityValue) is null
+                                        ? SparseEntityApplyOperationKind.SetNull
+                                        : SparseEntityApplyOperationKind.Set
+                                )
+                            );
+                        });
+                    }
+                    else
+                    {
+                        actions.Add(() =>
+                        {
+                            var defaultEntry = MaterializeEntry(
+                                state.Context,
+                                state.Entity,
+                                state.Entry
+                            );
+                            defaultEntry.Property(_entityProperty).CurrentValue =
+                                default(TEntityValue);
+                        });
+                    }
                     return;
                 case SparseEntityMissingPolicy.SetNull:
                     RequireNullable(state);
-                    actions.Add(() =>
+                    EnsureIntermediatesLoaded(
+                        state.Context,
+                        state.Entity,
+                        state.DisplayPath(DtoName)
+                    );
+                    if (state.TracksAppliedPaths)
                     {
-                        var nullEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
-                        nullEntry.Property(_entityProperty).CurrentValue = null;
-                    });
+                        actions.Add(() =>
+                        {
+                            var nullEntry = MaterializeEntry(
+                                state.Context,
+                                state.Entity,
+                                state.Entry
+                            );
+                            nullEntry.Property(_entityProperty).CurrentValue = null;
+                            state.RecordAppliedPath(
+                                AppliedPathFactory.Create(
+                                    state.DisplayPath(DtoName),
+                                    nullEntry,
+                                    _entityProperty,
+                                    SparseEntityApplyOperationKind.SetNull
+                                )
+                            );
+                        });
+                    }
+                    else
+                    {
+                        actions.Add(() =>
+                        {
+                            var nullEntry = MaterializeEntry(
+                                state.Context,
+                                state.Entity,
+                                state.Entry
+                            );
+                            nullEntry.Property(_entityProperty).CurrentValue = null;
+                        });
+                    }
                     return;
                 default:
                     throw new SparseEntityMappingException(
@@ -254,17 +379,44 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
             );
         }
 
-        actions.Add(() =>
+        EnsureIntermediatesLoaded(state.Context, state.Entity, state.DisplayPath(DtoName));
+        if (state.TracksAppliedPaths)
         {
-            var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
-            targetEntry.Property(_entityProperty).CurrentValue = converted;
-        });
+            actions.Add(() =>
+            {
+                var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
+                targetEntry.Property(_entityProperty).CurrentValue = converted;
+                state.RecordAppliedPath(
+                    AppliedPathFactory.Create(
+                        state.DisplayPath(DtoName),
+                        targetEntry,
+                        _entityProperty,
+                        converted is null
+                            ? SparseEntityApplyOperationKind.SetNull
+                            : SparseEntityApplyOperationKind.Set
+                    )
+                );
+            });
+        }
+        else
+        {
+            actions.Add(() =>
+            {
+                var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
+                targetEntry.Property(_entityProperty).CurrentValue = converted;
+            });
+        }
     }
 
     public override void WriteAll(PlanWriteState state, List<Action> actions)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(actions);
+        if (_skipGeneratedKeyMember)
+        {
+            return;
+        }
+
         // Wholesale writes copy from the explicit After snapshot carried by the
         // ChangeSet transition, never a reconstructed root DTO.
         var dtoValue = _dtoGetter((TDto)state.AfterSnapshot);
@@ -293,11 +445,122 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
             );
         }
 
-        actions.Add(() =>
+        EnsureIntermediatesLoaded(state.Context, state.Entity, state.DisplayPath(DtoName));
+        if (state.AppliedPaths is not null)
         {
-            var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
-            targetEntry.Property(_entityProperty).CurrentValue = converted;
-        });
+            actions.Add(() =>
+            {
+                var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
+                targetEntry.Property(_entityProperty).CurrentValue = converted;
+                state.RecordAppliedPath(
+                    AppliedPathFactory.Create(
+                        state.DisplayPath(DtoName),
+                        targetEntry,
+                        _entityProperty,
+                        converted is null
+                            ? SparseEntityApplyOperationKind.SetNull
+                            : SparseEntityApplyOperationKind.Set
+                    )
+                );
+            });
+        }
+        else
+        {
+            actions.Add(() =>
+            {
+                var targetEntry = MaterializeEntry(state.Context, state.Entity, state.Entry);
+                targetEntry.Property(_entityProperty).CurrentValue = converted;
+            });
+        }
+    }
+
+    public override void CollectIncludes(
+        ISparseChangeSet changes,
+        IncludePathCollector collector,
+        bool writeAll,
+        object? afterSnapshot
+    )
+    {
+        if (_skipGeneratedKeyMember)
+        {
+            return;
+        }
+
+        if (!writeAll)
+        {
+            if (!changes.TryGetValueChange<TDtoValue>(DtoName, out var change) || !change.IsChanged)
+            {
+                return;
+            }
+
+            if (!change.After.IsPresent && _missing == SparseEntityMissingPolicy.Ignore)
+            {
+                return;
+            }
+        }
+
+        var pushed = 0;
+        try
+        {
+            foreach (var intermediate in _intermediates)
+            {
+                collector.PushReference(
+                    intermediate.NavigationName,
+                    intermediate.TargetType,
+                    intermediate.Owned
+                );
+                pushed++;
+                if (!intermediate.Owned)
+                {
+                    collector.IncludeCurrent();
+                }
+            }
+        }
+        finally
+        {
+            while (pushed > 0)
+            {
+                collector.Pop();
+                pushed--;
+            }
+        }
+    }
+
+    public override Expression? BuildProjection(
+        Expression entity,
+        ReadProjectionBuildContext context,
+        string dtoPath
+    )
+    {
+        if (_convert is not null)
+        {
+            return null;
+        }
+
+        return context.TryBuildMemberPath(entity, _entityChain, dtoPath, out var value)
+            ? value
+            : null;
+    }
+
+    private void EnsureIntermediatesLoaded(DbContext context, object entity, string displayPath)
+    {
+        if (_intermediates.Count == 0)
+        {
+            return;
+        }
+
+        object current = entity;
+        foreach (var step in _intermediates)
+        {
+            step.EnsureLoaded(context, current, displayPath);
+            var next = step.Getter(current);
+            if (next is null)
+            {
+                return;
+            }
+
+            current = next;
+        }
     }
 
     private EntityEntry MaterializeEntry(DbContext context, object entity, EntityEntry rootEntry)

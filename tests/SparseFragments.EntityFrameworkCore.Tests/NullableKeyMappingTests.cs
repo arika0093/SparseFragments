@@ -79,6 +79,7 @@ public sealed class NkContext : DbContext
     }
 }
 
+[SparseFragmentMapper]
 public sealed class NkMapper : IEntityModelMapping<NkOrderEntity, NkOrderDto>
 {
     public void Configure(SparseEntityMapBuilder<NkOrderEntity, NkOrderDto> map)

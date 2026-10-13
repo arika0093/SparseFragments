@@ -2,8 +2,45 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using SparseFragments;
 
 namespace SparseFragments.EntityFrameworkCore.Mapping;
+
+internal sealed class GeneratedCollectionElementDefaults
+{
+    public GeneratedCollectionElementDefaults(
+        Action<SparseEntityMapBuilderBase> configure,
+        Type? keyType = null,
+        Delegate? dtoKeySelector = null,
+        object? unassignedKeyValue = null,
+        bool hasUnassignedKeyValue = false,
+        Delegate? temporaryKeySelector = null,
+        string[]? keyMemberNames = null
+    )
+    {
+        Configure = configure;
+        KeyType = keyType;
+        DtoKeySelector = dtoKeySelector;
+        UnassignedKeyValue = unassignedKeyValue;
+        HasUnassignedKeyValue = hasUnassignedKeyValue;
+        TemporaryKeySelector = temporaryKeySelector;
+        KeyMemberNames = keyMemberNames ?? [];
+    }
+
+    public Action<SparseEntityMapBuilderBase> Configure { get; }
+
+    public Type? KeyType { get; }
+
+    public Delegate? DtoKeySelector { get; }
+
+    public object? UnassignedKeyValue { get; }
+
+    public bool HasUnassignedKeyValue { get; }
+
+    public Delegate? TemporaryKeySelector { get; }
+
+    public string[] KeyMemberNames { get; }
+}
 
 /// <summary>
 /// The configured operations for one parent collection path.
@@ -22,14 +59,23 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         Action<DbContext, TEntityChild>? removeHandler,
         Action<TEntityChild>? softDeleteMark,
         Func<TEntityChild, bool>? isDeletedPredicate,
+        Expression<Func<TEntityChild, bool>>? isDeletedExpression,
         Action<TEntityChild, int>? orderSetter,
+        LambdaExpression? orderSelectorExpression,
         Type? keyType,
         Delegate? dtoKeySelector,
         Delegate? entityKeySelector,
         object? unassignedKeyValue = null,
         bool hasUnassignedKeyValue = false,
-        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>? generatedElementConfigure = null,
-        Dictionary<(Type EntityType, Type DtoType, string Member), Delegate>? elementStash = null
+        GeneratedCollectionElementDefaults? generatedElementDefaults = null,
+        Dictionary<
+            (Type EntityType, Type DtoType, string Member),
+            GeneratedCollectionElementDefaults
+        >? elementStash = null,
+        Dictionary<
+            (Type EntityType, Type DtoType, string Member),
+            Action<SparseEntityMapBuilderBase>
+        >? objectStash = null
     )
     {
         ElementConfigure = elementConfigure;
@@ -38,28 +84,42 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
         RemoveHandler = removeHandler;
         SoftDeleteMark = softDeleteMark;
         IsDeletedPredicate = isDeletedPredicate;
+        IsDeletedExpression = isDeletedExpression;
         OrderSetter = orderSetter;
+        OrderSelectorExpression = orderSelectorExpression;
         KeyType = keyType;
         DtoKeySelector = dtoKeySelector;
         EntityKeySelector = entityKeySelector;
         UnassignedKeyValue = unassignedKeyValue;
         HasUnassignedKeyValue = hasUnassignedKeyValue;
-        GeneratedElementConfigure = generatedElementConfigure;
+        GeneratedElementDefaults = generatedElementDefaults;
         ElementStash =
             elementStash
-            ?? new Dictionary<(Type EntityType, Type DtoType, string Member), Delegate>();
+            ?? new Dictionary<
+                (Type EntityType, Type DtoType, string Member),
+                GeneratedCollectionElementDefaults
+            >();
+        ObjectStash =
+            objectStash
+            ?? new Dictionary<
+                (Type EntityType, Type DtoType, string Member),
+                Action<SparseEntityMapBuilderBase>
+            >();
     }
 
     public Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> ElementConfigure { get; }
 
-    public Action<
-        SparseEntityMapBuilder<TEntityChild, TDtoChild>
-    >? GeneratedElementConfigure { get; }
+    public GeneratedCollectionElementDefaults? GeneratedElementDefaults { get; }
 
     public Dictionary<
         (Type EntityType, Type DtoType, string Member),
-        Delegate
+        GeneratedCollectionElementDefaults
     > ElementStash { get; }
+
+    public Dictionary<
+        (Type EntityType, Type DtoType, string Member),
+        Action<SparseEntityMapBuilderBase>
+    > ObjectStash { get; }
 
     public Func<TDtoChild, TEntityChild>? CreateFactory { get; }
 
@@ -71,7 +131,11 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
 
     public Func<TEntityChild, bool>? IsDeletedPredicate { get; }
 
+    public Expression<Func<TEntityChild, bool>>? IsDeletedExpression { get; }
+
     public Action<TEntityChild, int>? OrderSetter { get; }
+
+    public LambdaExpression? OrderSelectorExpression { get; }
 
     public Type? KeyType { get; }
 
@@ -123,6 +187,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
 
     public Func<TDtoChild, Guid?>? TemporaryGetter { get; private set; }
 
+    public Action<TDtoChild, Guid?>? TemporarySetter { get; private set; }
+
     public bool TemporaryDeclared { get; private set; }
 
     public EntityPlanBase ChildPlan { get; private set; } = null!;
@@ -147,6 +213,131 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     public bool ForeignKeyRequired { get; private set; }
 
     public bool Owned { get; private set; }
+
+    public IEntityType ChildEntityType { get; private set; } = null!;
+
+    public Type KeyType { get; private set; } = null!;
+
+    public LambdaExpression? EntityKeySelectorExpression { get; private set; }
+
+    public Expression<Func<TEntityChild, bool>>? IsDeletedExpression { get; private set; }
+
+    public LambdaExpression? OrderSelectorExpression { get; private set; }
+
+    /// <summary>Restores prior identities and assigns keys for created entities in this scope.</summary>
+    public void AssignTemporaryKeys(
+        DbContext context,
+        IEnumerable<TDtoChild>? baseline,
+        IEnumerable<TDtoChild>? authoritative,
+        SparseEntityApplyResult result,
+        string parentPath
+    )
+    {
+        if (authoritative is null)
+        {
+            return;
+        }
+
+        var collectionPath = string.IsNullOrEmpty(parentPath) ? DtoName : $"{parentPath}.{DtoName}";
+        var baselineByKey = new Dictionary<object, TDtoChild>(KeyComparer);
+        if (baseline is not null)
+        {
+            foreach (var item in baseline)
+            {
+                var key = DtoKey(item);
+                if (key is not null)
+                {
+                    baselineByKey.TryAdd(key, item);
+                }
+            }
+        }
+
+        var createdByKey = new Dictionary<object, (TEntityChild Entity, string ScopeKey)>(
+            KeyComparer
+        );
+        foreach (var scope in result.GetCreatedScopeKeys(collectionPath))
+        {
+            if (scope.Key is not TEntityChild entity)
+            {
+                continue;
+            }
+
+            var key = EntityKey(context, entity);
+            if (key is not null)
+            {
+                createdByKey.TryAdd(key, (entity, scope.Value));
+            }
+        }
+
+        var temporaryByEntity = new Dictionary<object, Guid>(ReferenceEqualityComparer.Instance);
+        foreach (var temporary in result.GetCreated(collectionPath))
+        {
+            temporaryByEntity[temporary.Value] = temporary.Key;
+        }
+
+        var index = 0;
+        foreach (var item in authoritative)
+        {
+            var key = DtoKey(item);
+            if (key is not null && baselineByKey.TryGetValue(key, out var prior))
+            {
+                var priorTemporary = TemporaryGetter?.Invoke(prior);
+                if (priorTemporary is not null && priorTemporary != Guid.Empty)
+                {
+                    SetTemporaryKey(item, priorTemporary.Value, collectionPath);
+                }
+            }
+
+            string? createdScopeKey = null;
+            TEntityChild? createdEntity = null;
+            if (key is not null && createdByKey.TryGetValue(key, out var created))
+            {
+                createdEntity = created.Entity;
+                createdScopeKey = created.ScopeKey;
+            }
+
+            if (
+                createdEntity is not null
+                && temporaryByEntity.TryGetValue(createdEntity, out var createdTemporary)
+            )
+            {
+                SetTemporaryKey(item, createdTemporary, collectionPath);
+            }
+
+            TDtoChild? baselineItem = null;
+            if (key is not null)
+            {
+                baselineByKey.TryGetValue(key, out baselineItem);
+            }
+            var temporary = TemporaryGetter?.Invoke(item);
+            string childScopeKey;
+            if (createdScopeKey is not null)
+            {
+                childScopeKey = createdScopeKey;
+            }
+            else if (key is not null && !IsUnassigned(key))
+            {
+                childScopeKey = key.ToString()!;
+            }
+            else if (temporary is not null && temporary != Guid.Empty)
+            {
+                childScopeKey = temporary.Value.ToString();
+            }
+            else
+            {
+                childScopeKey = index.ToString();
+            }
+
+            ChildPlan.AssignTemporaryKeys(
+                context,
+                baselineItem,
+                item,
+                result,
+                $"{collectionPath}[{childScopeKey}]"
+            );
+            index++;
+        }
+    }
 
     /// <summary>Builds and validates the runtime for one parent collection.</summary>
     public static CollectionRuntime<TDtoChild, TEntityChild> Create<TDto, TEntity>(
@@ -176,6 +367,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         runtime.ResolveChildPlan(session, level, declaration);
         runtime.ResolvePolicies(declaration);
         runtime.ResolveCollectionSetter<TEntity>();
+        runtime.IsDeletedExpression = declaration.IsDeletedExpression;
+        runtime.OrderSelectorExpression = declaration.OrderSelectorExpression;
         return runtime;
     }
 
@@ -240,6 +433,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         session.ClaimNavigation(level.EntityType, NavigationName, DtoName);
+        ChildEntityType = navigation.TargetEntityType;
         var foreignKey = navigation.ForeignKey;
         Owned = foreignKey.IsOwnership;
         // Requiredness comes from the relationship (IForeignKey.IsRequired), not
@@ -344,20 +538,26 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         CollectionDeclaration<TDtoChild, TEntityChild> declaration
     )
     {
-        var keyProperty =
-            typeof(TDtoChild)
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(static property =>
-                    property.GetCustomAttributes(typeof(SparseKeyAttribute), inherit: true).Length
-                    > 0
-                )
-            ?? throw new SparseEntityMappingException(
+        KeyType = transitionKeyType;
+        var generated = declaration.GeneratedElementDefaults;
+        if (generated?.KeyType is null || generated.DtoKeySelector is null)
+        {
+            throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.MetadataMismatch,
                 DtoName,
-                $"The DTO element '{typeof(TDtoChild).Name}' declares no [SparseKey]. Keyed synchronization needs stable DTO identity."
+                $"The DTO element '{typeof(TDtoChild).Name}' has no generated key metadata. Mark exactly one readable property with [SparseKey] and reference SparseFragments.Generator as an analyzer."
             );
-        var keyAttribute = (SparseKeyAttribute)
-            keyProperty.GetCustomAttributes(typeof(SparseKeyAttribute), true)[0];
+        }
+
+        if (generated.KeyType != transitionKeyType)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                DtoName,
+                $"The generated DTO key type '{generated.KeyType.Name}' does not match the keyed transition type '{transitionKeyType.Name}'."
+            );
+        }
+
         if (declaration.KeyType is not null)
         {
             if (declaration.KeyType != transitionKeyType)
@@ -372,20 +572,21 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             DtoKey = BoxSelector<TDtoChild>(declaration.DtoKeySelector!);
             var boxedEntityKey = BoxSelector<TEntityChild>(declaration.EntityKeySelector!);
             EntityKey = (_, child) => boxedEntityKey(child);
+            if (
+                EntityKeySelectorExpressions.TryGet(
+                    declaration.EntityKeySelector!,
+                    out var entityKeyExpression
+                )
+            )
+            {
+                EntityKeySelectorExpression = entityKeyExpression;
+            }
+
             KeyComparer = CreateComparer(transitionKeyType);
         }
         else
         {
-            if (keyProperty.PropertyType != transitionKeyType)
-            {
-                throw new SparseEntityMappingException(
-                    SparseEntityMappingFailure.MetadataMismatch,
-                    DtoName,
-                    $"The DTO key '{typeof(TDtoChild).Name}.{keyProperty.Name}' ({keyProperty.PropertyType.Name}) does not match the generated transition key '{transitionKeyType.Name}'. Declare Key() to map a computed or composite DTO key."
-                );
-            }
-
-            DtoKey = ClosePropertyReader<TDtoChild>(keyProperty);
+            DtoKey = BoxSelector<TDtoChild>(generated.DtoKeySelector);
             EntityKey = ResolveDefaultEntityKey(session, transitionKeyType);
             KeyComparer = CreateComparer(transitionKeyType);
         }
@@ -398,9 +599,9 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             UnassignedSentinel = declaration.UnassignedKeyValue;
             HasUnassignedSentinel = true;
         }
-        else if (keyAttribute.Unassigned is not null)
+        else if (generated.HasUnassignedKeyValue)
         {
-            UnassignedSentinel = keyAttribute.Unassigned;
+            UnassignedSentinel = generated.UnassignedKeyValue;
             HasUnassignedSentinel = true;
         }
         else
@@ -408,41 +609,44 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             UnassignedSentinel = null;
             HasUnassignedSentinel = false;
         }
-        var temporaries = typeof(TDtoChild)
+        if (generated.TemporaryKeySelector is not null)
+        {
+            TemporaryDeclared = true;
+            TemporaryGetter = (Func<TDtoChild, Guid?>)generated.TemporaryKeySelector;
+            TemporarySetter = CreateTemporarySetter();
+        }
+    }
+
+    private static Action<TDtoChild, Guid?>? CreateTemporarySetter()
+    {
+        var property = typeof(TDtoChild)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(static property =>
-                property.GetCustomAttributes(typeof(SparseTemporaryKeyAttribute), true).Length > 0
-            )
-            .ToList();
-        if (temporaries.Count > 1)
+            .SingleOrDefault(static property =>
+                property.IsDefined(typeof(SparseTemporaryKeyAttribute), inherit: true)
+            );
+        if (property?.PropertyType != typeof(Guid?) || property.SetMethod is null)
+        {
+            return null;
+        }
+
+        var dto = Expression.Parameter(typeof(TDtoChild), "dto");
+        var value = Expression.Parameter(typeof(Guid?), "value");
+        var assign = Expression.Assign(Expression.Property(dto, property), value);
+        return Expression.Lambda<Action<TDtoChild, Guid?>>(assign, dto, value).Compile();
+    }
+
+    private void SetTemporaryKey(TDtoChild dto, Guid temporaryKey, string collectionPath)
+    {
+        if (TemporarySetter is null)
         {
             throw new SparseEntityMappingException(
                 SparseEntityMappingFailure.MetadataMismatch,
-                DtoName,
-                $"The DTO element '{typeof(TDtoChild).Name}' declares multiple [SparseTemporaryKey] properties."
+                collectionPath,
+                $"The DTO element '{typeof(TDtoChild).Name}' declares [SparseTemporaryKey] but its property has no public setter."
             );
         }
 
-        if (temporaries.Count == 1)
-        {
-            if (temporaries[0].PropertyType != typeof(Guid?))
-            {
-                throw new SparseEntityMappingException(
-                    SparseEntityMappingFailure.MetadataMismatch,
-                    DtoName,
-                    $"The temporary identity '{typeof(TDtoChild).Name}.{temporaries[0].Name}' must be Guid?."
-                );
-            }
-
-            TemporaryDeclared = true;
-            var parameter = Expression.Parameter(typeof(TDtoChild), "dto");
-            TemporaryGetter = Expression
-                .Lambda<Func<TDtoChild, Guid?>>(
-                    Expression.Property(parameter, temporaries[0]),
-                    parameter
-                )
-                .Compile();
-        }
+        TemporarySetter(dto, temporaryKey);
     }
 
     private Func<DbContext, TEntityChild, object?> ResolveDefaultEntityKey(
@@ -458,6 +662,21 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             if (property.ClrType == keyType)
             {
                 var propertyName = property.Name;
+                var parameter = Expression.Parameter(typeof(TEntityChild), "entity");
+                var propertyMethod = typeof(EF)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .Single(method =>
+                        method.Name == nameof(EF.Property)
+                        && method.IsGenericMethodDefinition
+                        && method.GetParameters().Length == 2
+                    )
+                    .MakeGenericMethod(keyType);
+                var body = Expression.Call(
+                    propertyMethod,
+                    Expression.Convert(parameter, typeof(object)),
+                    Expression.Constant(propertyName)
+                );
+                EntityKeySelectorExpression = Expression.Lambda(body, parameter);
                 return (context, child) => context.Entry(child).Property(propertyName).CurrentValue;
             }
         }
@@ -478,11 +697,18 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>
         {
             GeneratedElementConfigurators = declaration.ElementStash,
+            GeneratedObjectConfigurators = declaration.ObjectStash,
+            GeneratedKeyMembers =
+                declaration.GeneratedElementDefaults?.KeyMemberNames.ToHashSet(
+                    StringComparer.Ordinal
+                ) ?? new HashSet<string>(StringComparer.Ordinal),
+            GeneratedKeyDeclared = declaration.GeneratedElementDefaults?.KeyType is not null,
+            IsNestedScope = true,
         };
         child.InheritDefaultMissing(level.Registrations.DefaultMissing);
-        if (declaration.GeneratedElementConfigure is not null)
+        if (declaration.GeneratedElementDefaults is not null)
         {
-            child.RunGenerated(() => declaration.GeneratedElementConfigure(child));
+            child.RunGenerated(() => declaration.GeneratedElementDefaults.Configure(child));
             child.GeneratedDefaultsApplied = true;
         }
 
@@ -621,17 +847,6 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 null,
                 $"The parameterless constructor of '{typeof(TEntityChild).Name}' returned null."
             );
-    }
-
-    private static Func<TElement, object?> ClosePropertyReader<TElement>(PropertyInfo property)
-    {
-        var target = Expression.Parameter(typeof(TElement), "element");
-        return Expression
-            .Lambda<Func<TElement, object?>>(
-                Expression.Convert(Expression.Property(target, property), typeof(object)),
-                target
-            )
-            .Compile();
     }
 
     private static Func<TElement, object?> BoxSelector<TElement>(Delegate selector)

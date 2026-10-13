@@ -64,6 +64,7 @@ public sealed class CompositeLineEntity
 }
 
 /// <summary>Composite-keyed order mapping with an explicit DTO to EF key projection.</summary>
+[SparseFragmentMapper]
 public sealed class CompositeOrderMapper
     : IEntityModelMapping<CompositeOrderEntity, CompositeOrderDto>
 {
@@ -84,6 +85,98 @@ public sealed class CompositeOrderMapper
                     dto => dto.Key,
                     entity => ValueTuple.Create(entity.TenantId, entity.LineNo)
                 );
+                lines.Delete();
+            }
+        );
+    }
+}
+
+/// <summary>DTO line with a projected composite string key.</summary>
+public partial class TemporaryCompositeLineDto
+{
+    /// <summary>Gets or sets the tenant.</summary>
+    public string TenantId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the line number.</summary>
+    public int LineNo { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Qty { get; set; }
+
+    /// <summary>Gets the projected composite identity.</summary>
+    [SparseKey(Unassigned = "")]
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+}
+
+/// <summary>DTO holding projected-composite-key lines.</summary>
+[SparseFragmentModel]
+public partial class TemporaryCompositeOrderDto
+{
+    /// <summary>Gets or sets the lines.</summary>
+    public List<TemporaryCompositeLineDto> Lines { get; set; } = [];
+}
+
+/// <summary>Entity holding projected-composite-key lines.</summary>
+public sealed class TemporaryCompositeOrderEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the lines.</summary>
+    public List<TemporaryCompositeLineEntity> Lines { get; set; } = [];
+}
+
+/// <summary>Line entity with a composite primary key.</summary>
+public sealed class TemporaryCompositeLineEntity
+{
+    /// <summary>Gets or sets the tenant.</summary>
+    public string TenantId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the line number.</summary>
+    public int LineNo { get; set; }
+
+    /// <summary>Gets or sets the quantity.</summary>
+    public int Qty { get; set; }
+
+    /// <summary>Gets or sets the owning order identity.</summary>
+    public int OrderId { get; set; }
+
+    /// <summary>Gets or sets the owning order.</summary>
+    public TemporaryCompositeOrderEntity? Order { get; set; }
+}
+
+/// <summary>Mapping that projects a composite entity key into a stable string key.</summary>
+[SparseFragmentMapper]
+public sealed class TemporaryCompositeOrderMapper
+    : IEntityModelMapping<TemporaryCompositeOrderEntity, TemporaryCompositeOrderDto>
+{
+    /// <inheritdoc />
+    public void Configure(
+        SparseEntityMapBuilder<TemporaryCompositeOrderEntity, TemporaryCompositeOrderDto> map
+    )
+    {
+        map.Collection<TemporaryCompositeLineDto, TemporaryCompositeLineEntity>(
+            dto => dto.Lines,
+            entity => entity.Lines,
+            lines =>
+            {
+                lines.Element(child =>
+                {
+                    child.AllowWrite(line => line.TenantId);
+                    child.AllowWrite(line => line.LineNo);
+                    child.Ignore(line => line.TemporaryId);
+                });
+                lines.Key(dto => dto.Key, entity => entity.TenantId + ":" + entity.LineNo);
+                lines.Create(dto => new TemporaryCompositeLineEntity
+                {
+                    TenantId = dto.TenantId,
+                    LineNo = dto.LineNo,
+                    Qty = dto.Qty,
+                });
                 lines.Delete();
             }
         );
@@ -197,6 +290,7 @@ public sealed class RigidOrderEntity
 }
 
 /// <summary>Natural-key order mapping: the DTO key meets the EF alternate key, not the primary key.</summary>
+[SparseFragmentMapper]
 public sealed class SkuOrderMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
 {
     /// <inheritdoc />
@@ -568,6 +662,10 @@ public sealed class KeyedMappingContext : DbContext
     /// <summary>Gets the composite orders.</summary>
     public DbSet<CompositeOrderEntity> CompositeOrders => Set<CompositeOrderEntity>();
 
+    /// <summary>Gets the projected-composite orders.</summary>
+    public DbSet<TemporaryCompositeOrderEntity> TemporaryCompositeOrders =>
+        Set<TemporaryCompositeOrderEntity>();
+
     /// <summary>Gets the natural-key orders.</summary>
     public DbSet<SkuOrderEntity> SkuOrders => Set<SkuOrderEntity>();
 
@@ -603,6 +701,19 @@ public sealed class KeyedMappingContext : DbContext
             entity.HasKey(line => new { line.TenantId, line.LineNo });
         });
         modelBuilder.Entity<CompositeOrderEntity>(entity =>
+        {
+            entity.HasKey(order => order.Id);
+            entity
+                .HasMany(order => order.Lines)
+                .WithOne(line => line.Order)
+                .HasForeignKey(line => line.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<TemporaryCompositeLineEntity>(entity =>
+        {
+            entity.HasKey(line => new { line.TenantId, line.LineNo });
+        });
+        modelBuilder.Entity<TemporaryCompositeOrderEntity>(entity =>
         {
             entity.HasKey(order => order.Id);
             entity

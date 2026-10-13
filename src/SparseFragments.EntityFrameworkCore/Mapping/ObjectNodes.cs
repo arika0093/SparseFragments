@@ -78,14 +78,50 @@ internal sealed class WriteNode<TDto, TEntity, TDtoValue> : MemberNode
         Optional<TDtoValue?> value = after.IsPresent
             ? Optional<TDtoValue?>.Present(after.Value)
             : Optional<TDtoValue?>.Missing;
-        actions.Add(() => _writer(entity, value));
+        if (state.TracksAppliedPaths)
+        {
+            actions.Add(() =>
+            {
+                _writer(entity, value);
+                state.RecordAppliedPath(
+                    AppliedPathFactory.Create(
+                        state.DisplayPath(DtoName),
+                        state.Context.Entry(entity),
+                        null,
+                        SparseEntityApplyOperationKind.CustomWrite
+                    )
+                );
+            });
+        }
+        else
+        {
+            actions.Add(() => _writer(entity, value));
+        }
     }
 
     public override void WriteAll(PlanWriteState state, List<Action> actions)
     {
         var entity = (TEntity)state.Entity;
         var value = Optional<TDtoValue?>.Present(_dtoGetter((TDto)state.AfterSnapshot));
-        actions.Add(() => _writer(entity, value));
+        if (state.AppliedPaths is not null)
+        {
+            actions.Add(() =>
+            {
+                _writer(entity, value);
+                state.RecordAppliedPath(
+                    AppliedPathFactory.Create(
+                        state.DisplayPath(DtoName),
+                        state.Context.Entry(entity),
+                        null,
+                        SparseEntityApplyOperationKind.CustomWrite
+                    )
+                );
+            });
+        }
+        else
+        {
+            actions.Add(() => _writer(entity, value));
+        }
     }
 }
 
@@ -105,6 +141,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
 
     private EntityPlanBase _childPlan = null!;
     private bool _navigationNullable;
+    private bool _navigationOwned;
     private ConstructorInfo? _childConstructor;
 
     public ObjectNode(
@@ -183,6 +220,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
 
         session.ClaimNavigation(level.EntityType, NavigationName, DtoName);
         _navigationNullable = ReadNavigationNullability(navigation);
+        _navigationOwned = navigation.ForeignKey.IsOwnership;
         _childConstructor = ResolveConstructor(childEntityType.ClrType, DtoName);
         if (!_childRegistrations.HasExplicitDefaultMissing)
         {
@@ -204,6 +242,13 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 return;
             }
 
+            IntermediateAccess.EnsureLoaded(
+                state.Context,
+                state.Entity,
+                NavigationName,
+                _navigationOwned,
+                state.DisplayPath(DtoName)
+            );
             if (whole is not null && !deeper && TryHandleWholeObject(state, actions, whole))
             {
                 return;
@@ -216,6 +261,19 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             );
         }
 
+        if (!deeper && (child is null || child.IsEmpty) && whole is null)
+        {
+            return;
+        }
+
+        IntermediateAccess.EnsureLoaded(
+            state.Context,
+            state.Entity,
+            NavigationName,
+            _navigationOwned,
+            state.DisplayPath(DtoName)
+        );
+
         if (whole is not null && !deeper && whole.After.IsPresent && whole.After.Value is not null)
         {
             WriteAdded(state, actions, whole, child);
@@ -223,11 +281,6 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         if (whole is not null && TryHandleWholeObject(state, actions, whole))
-        {
-            return;
-        }
-
-        if (!deeper && (child is null || child.IsEmpty) && whole is null)
         {
             return;
         }
@@ -246,7 +299,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 child!,
                 state.DisplayPath(DtoName),
                 isNested: true,
-                sharedCorrelation: state.Correlation
+                sharedCorrelation: state.Correlation,
+                appliedPaths: state.AppliedPaths,
+                collectionScopeKeys: state.CollectionScopeKeys
             );
             _childPlan.Prepare(sub, actions);
             return;
@@ -266,7 +321,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 child!,
                 state.DisplayPath(DtoName),
                 isNested: true,
-                sharedCorrelation: state.Correlation
+                sharedCorrelation: state.Correlation,
+                appliedPaths: state.AppliedPaths,
+                collectionScopeKeys: state.CollectionScopeKeys
             );
             var nestedActions = new List<Action>();
             _childPlan.Prepare(sub, nestedActions);
@@ -275,6 +332,140 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 nested();
             }
         });
+    }
+
+    public override void CollectIncludes(
+        ISparseChangeSet changes,
+        IncludePathCollector collector,
+        bool writeAll,
+        object? afterSnapshot
+    )
+    {
+        ISparseChangeSet? child = null;
+        SparseFragments.Generated.SparseChangeRecord? whole = null;
+        if (writeAll)
+        {
+            if (afterSnapshot is not TDto parent)
+            {
+                return;
+            }
+
+            var snapshot = _dtoGetter(parent);
+            if (snapshot is null)
+            {
+                return;
+            }
+
+            PushObjectPath(
+                collector,
+                () =>
+                    _childPlan.CollectIncludes(
+                        changes,
+                        collector,
+                        writeAll: true,
+                        afterSnapshot: snapshot
+                    )
+            );
+            return;
+        }
+
+        var hasRecords = false;
+        foreach (var record in changes.EnumerateChangeRecords())
+        {
+            var segments = record.Path.Segments;
+            if (
+                segments.Count == 0
+                || segments[0].Kind != SparsePathSegmentKind.Member
+                || segments[0].Name != DtoName
+            )
+            {
+                continue;
+            }
+
+            hasRecords = true;
+            if (segments.Count == 1)
+            {
+                whole = record;
+            }
+        }
+
+        if (!hasRecords)
+        {
+            return;
+        }
+
+        changes.TryGetNestedChange(DtoName, out child);
+        PushObjectPath(
+            collector,
+            () =>
+            {
+                if (
+                    whole is not null
+                    && whole.After.IsPresent
+                    && whole.After.Value is not null
+                    && TryResolveAfterSnapshot(whole, out var snapshot)
+                    && snapshot is not null
+                )
+                {
+                    _childPlan.CollectIncludes(
+                        child ?? changes,
+                        collector,
+                        writeAll: true,
+                        snapshot
+                    );
+                }
+                else if (child is not null && !child.IsEmpty)
+                {
+                    _childPlan.CollectIncludes(
+                        child,
+                        collector,
+                        writeAll: false,
+                        afterSnapshot: null
+                    );
+                }
+            }
+        );
+    }
+
+    public override Expression? BuildProjection(
+        Expression entity,
+        ReadProjectionBuildContext context,
+        string dtoPath
+    )
+    {
+        if (!context.TryBuildMemberPath(entity, [NavigationName], dtoPath, out var navigation))
+        {
+            return null;
+        }
+
+        var childEntity =
+            navigation.Type == typeof(TEntityChild)
+                ? navigation
+                : Expression.Convert(navigation, typeof(TEntityChild));
+        var childProjection = _childPlan.BuildProjection(childEntity, context, dtoPath);
+        return Expression.Condition(
+            Expression.Equal(navigation, Expression.Constant(null, navigation.Type)),
+            Expression.Default(typeof(TDtoChild)),
+            childProjection
+        );
+    }
+
+    private void PushObjectPath(IncludePathCollector collector, Action collectChild)
+    {
+        collector.PushReference(NavigationName, typeof(TEntityChild), _navigationOwned);
+        try
+        {
+            if (!_navigationOwned)
+            {
+                collector.IncludeCurrent();
+            }
+
+            collectChild();
+        }
+        finally
+        {
+            collector.Pop();
+        }
     }
 
     public override void WriteAll(PlanWriteState state, List<Action> actions)
@@ -307,7 +498,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 entry,
                 snapshot,
                 state.DisplayPath(DtoName),
-                state.Correlation
+                state.Correlation,
+                state.AppliedPaths,
+                state.CollectionScopeKeys
             );
             _childPlan.WriteAll(sub, actions);
             return;
@@ -326,7 +519,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 entry,
                 snapshot,
                 state.DisplayPath(DtoName),
-                state.Correlation
+                state.Correlation,
+                state.AppliedPaths,
+                state.CollectionScopeKeys
             );
             var nestedActions = new List<Action>();
             _childPlan.WriteAll(sub, nestedActions);
@@ -335,6 +530,25 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 nested();
             }
         });
+    }
+
+    public override void AssignTemporaryKeys(
+        DbContext context,
+        object? baseline,
+        object authoritative,
+        SparseEntityApplyResult result,
+        string path
+    )
+    {
+        var prior = baseline is TDto priorParent ? _dtoGetter(priorParent) : null;
+        var current = _dtoGetter((TDto)authoritative);
+        if (current is null)
+        {
+            return;
+        }
+
+        var childPath = string.IsNullOrEmpty(path) ? DtoName : $"{path}.{DtoName}";
+        _childPlan.AssignTemporaryKeys(context, prior, current, result, childPath);
     }
 
     private void WriteAdded(
@@ -385,7 +599,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 entry,
                 added,
                 state.DisplayPath(DtoName),
-                state.Correlation
+                state.Correlation,
+                state.AppliedPaths,
+                state.CollectionScopeKeys
             );
             _childPlan.WriteAll(sub, actions);
             return;
@@ -402,7 +618,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 entry,
                 added,
                 state.DisplayPath(DtoName),
-                state.Correlation
+                state.Correlation,
+                state.AppliedPaths,
+                state.CollectionScopeKeys
             );
             var nestedActions = new List<Action>();
             _childPlan.WriteAll(sub, nestedActions);
@@ -430,7 +648,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 child,
                 state.DisplayPath(DtoName),
                 isNested: true,
-                sharedCorrelation: state.Correlation
+                sharedCorrelation: state.Correlation,
+                appliedPaths: state.AppliedPaths,
+                collectionScopeKeys: state.CollectionScopeKeys
             );
             _childPlan.Prepare(sub, actions);
             return;
@@ -448,7 +668,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
                 child,
                 state.DisplayPath(DtoName),
                 isNested: true,
-                sharedCorrelation: state.Correlation
+                sharedCorrelation: state.Correlation,
+                appliedPaths: state.AppliedPaths,
+                collectionScopeKeys: state.CollectionScopeKeys
             );
             var nestedActions = new List<Action>();
             _childPlan.Prepare(sub, nestedActions);
@@ -561,11 +783,43 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             switch (_objectMissing)
             {
                 case SparseEntityMissingPolicy.Ignore:
+                    if (state.TracksAppliedPaths)
+                    {
+                        actions.Add(() =>
+                            state.RecordAppliedPath(
+                                new SparseEntityAppliedPath(
+                                    state.DisplayPath(DtoName),
+                                    SparseEntityApplyOperationKind.MissingIgnored,
+                                    typeof(TEntity).FullName,
+                                    NavigationName
+                                )
+                            )
+                        );
+                    }
+
                     return true;
                 case SparseEntityMissingPolicy.SetNull:
                 case SparseEntityMissingPolicy.SetDefault:
                     RequireNavigationNullable(state);
-                    actions.Add(() => _entitySetter((TEntity)state.Entity, null));
+                    if (state.TracksAppliedPaths)
+                    {
+                        actions.Add(() =>
+                        {
+                            _entitySetter((TEntity)state.Entity, null);
+                            state.RecordAppliedPath(
+                                AppliedPathFactory.Create(
+                                    state.DisplayPath(DtoName),
+                                    state.Context.Entry(state.Entity),
+                                    NavigationName,
+                                    SparseEntityApplyOperationKind.SetNull
+                                )
+                            );
+                        });
+                    }
+                    else
+                    {
+                        actions.Add(() => _entitySetter((TEntity)state.Entity, null));
+                    }
                     return true;
                 default:
                     throw new SparseEntityMappingException(
@@ -577,7 +831,25 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         RequireNavigationNullable(state);
-        actions.Add(() => _entitySetter((TEntity)state.Entity, null));
+        if (state.TracksAppliedPaths)
+        {
+            actions.Add(() =>
+            {
+                _entitySetter((TEntity)state.Entity, null);
+                state.RecordAppliedPath(
+                    AppliedPathFactory.Create(
+                        state.DisplayPath(DtoName),
+                        state.Context.Entry(state.Entity),
+                        NavigationName,
+                        SparseEntityApplyOperationKind.SetNull
+                    )
+                );
+            });
+        }
+        else
+        {
+            actions.Add(() => _entitySetter((TEntity)state.Entity, null));
+        }
         return true;
     }
 

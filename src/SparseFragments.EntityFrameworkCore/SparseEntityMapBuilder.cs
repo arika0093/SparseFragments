@@ -104,6 +104,28 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     }
 
     /// <summary>
+    /// Registers an entity expression for reading one DTO member.
+    /// </summary>
+    /// <remarks>
+    /// Use this when a write mapping has no inverse, when a member is ignored
+    /// for writes, or when a value is produced by a custom writer.
+    /// </remarks>
+    /// <param name="dto">Selects the DTO member.</param>
+    /// <param name="entity">Projects the entity value for that DTO member.</param>
+    /// <typeparam name="TValue">The DTO member type.</typeparam>
+    /// <returns>This builder.</returns>
+    public SparseEntityMapBuilder<TEntity, TDto> Read<TValue>(
+        Expression<Func<TDto, TValue?>> dto,
+        Expression<Func<TEntity, TValue?>> entity
+    )
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        ArgumentNullException.ThrowIfNull(entity);
+        AddRead(MemberPath.Parse(dto).SingleName("DTO"), entity);
+        return this;
+    }
+
+    /// <summary>
     /// Handles a DTO member with a specialized writer instead of a property write.
     /// </summary>
     /// <remarks>
@@ -167,12 +189,31 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>
         {
             GeneratedElementConfigurators = GeneratedElementConfigurators,
+            GeneratedObjectConfigurators = GeneratedObjectConfigurators,
             GeneratedRegistrationMode = GeneratedRegistrationMode,
+            IsNestedScope = true,
             // Companion-emitted Object scopes carry their own conventional
             // defaults, so the child plan skips runtime reflection scanning
             // just like element scopes do.
             GeneratedDefaultsApplied = GeneratedRegistrationMode,
         };
+        var dtoName = MemberPath.Parse(dto).SingleName("DTO");
+        if (GeneratedRegistrationMode)
+        {
+            GeneratedObjectConfigurators[(typeof(TEntity), typeof(TDto), dtoName)] = builder =>
+                configure((SparseEntityMapBuilder<TEntityChild, TDtoChild>)builder);
+        }
+        else if (
+            GeneratedObjectConfigurators.TryGetValue(
+                (typeof(TEntity), typeof(TDto), dtoName),
+                out var generatedObject
+            )
+        )
+        {
+            child.RunGenerated(() => generatedObject(child));
+            child.GeneratedDefaultsApplied = true;
+        }
+
         configure(child);
         AddNode(
             new ObjectNode<TDto, TEntity, TDtoChild, TEntityChild>(
@@ -264,14 +305,17 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
                     lines.RemoveHandler,
                     lines.SoftDeleteMark,
                     lines.IsDeletedPredicate,
+                    lines.IsDeletedExpression,
                     lines.OrderSetter,
+                    lines.OrderSelectorExpression,
                     lines.KeyType,
                     lines.DtoKeySelector,
                     lines.EntityKeySelector,
                     lines.UnassignedKeyValue,
                     lines.HasUnassignedKeyValue,
-                    generatedElement as Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>>,
-                    GeneratedElementConfigurators
+                    generatedElement,
+                    GeneratedElementConfigurators,
+                    GeneratedObjectConfigurators
                 )
             )
         );
@@ -336,7 +380,59 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         ArgumentNullException.ThrowIfNull(configure);
         GeneratedElementConfigurators[
             (typeof(TEntity), typeof(TDto), MemberPath.Parse(dto).SingleName("DTO"))
-        ] = configure;
+        ] = new GeneratedCollectionElementDefaults(builder =>
+            configure((SparseEntityMapBuilder<TEntityChild, TDtoChild>)builder)
+        );
+        return this;
+    }
+
+    /// <summary>
+    /// Declares generated child defaults and the key metadata used by keyed
+    /// collection transitions.
+    /// </summary>
+    /// <param name="dto">Selects the DTO collection member.</param>
+    /// <param name="key">Selects the generated stable DTO key.</param>
+    /// <param name="unassignedKeyValue">The declared unassigned-key sentinel.</param>
+    /// <param name="hasUnassignedKeyValue">Whether a sentinel was declared.</param>
+    /// <param name="temporaryKey">Selects the generated temporary key, when present.</param>
+    /// <param name="keyMemberNames">DTO members that contribute to stable identity.</param>
+    /// <param name="configure">Registers the generated child defaults.</param>
+    /// <typeparam name="TDtoChild">The DTO element type.</typeparam>
+    /// <typeparam name="TEntityChild">The entity element type.</typeparam>
+    /// <typeparam name="TKey">The stable DTO key type.</typeparam>
+    /// <returns>This builder.</returns>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public SparseEntityMapBuilder<TEntity, TDto> DeclareCollectionElement<
+        TDtoChild,
+        TEntityChild,
+        TKey
+    >(
+        Expression<Func<TDto, IEnumerable<TDtoChild>?>> dto,
+        Expression<Func<TDtoChild, TKey>> key,
+        object? unassignedKeyValue,
+        bool hasUnassignedKeyValue,
+        Expression<Func<TDtoChild, Guid?>>? temporaryKey,
+        string[] keyMemberNames,
+        Action<SparseEntityMapBuilder<TEntityChild, TDtoChild>> configure
+    )
+        where TDtoChild : class
+        where TEntityChild : class
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(keyMemberNames);
+        ArgumentNullException.ThrowIfNull(configure);
+        GeneratedElementConfigurators[
+            (typeof(TEntity), typeof(TDto), MemberPath.Parse(dto).SingleName("DTO"))
+        ] = new GeneratedCollectionElementDefaults(
+            builder => configure((SparseEntityMapBuilder<TEntityChild, TDtoChild>)builder),
+            typeof(TKey),
+            key.Compile(),
+            unassignedKeyValue,
+            hasUnassignedKeyValue,
+            temporaryKey?.Compile(),
+            keyMemberNames
+        );
         return this;
     }
 
@@ -407,6 +503,7 @@ public abstract class SparseEntityMapBuilderBase
         StringComparer.Ordinal
     );
     private readonly HashSet<string> _allowedWrites = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, LambdaExpression> _reads = new(StringComparer.Ordinal);
 
     /// <summary>Gets or sets the default missing-value policy for this scope.</summary>
     public SparseEntityMissingPolicy DefaultMissing { get; protected set; } =
@@ -422,6 +519,8 @@ public abstract class SparseEntityMapBuilderBase
         _missingOverrides;
 
     internal IReadOnlySet<string> AllowedWrites => _allowedWrites;
+
+    internal IReadOnlyDictionary<string, LambdaExpression> Reads => _reads;
 
     /// <summary>
     /// Gets or sets whether registrations go through as source-generated
@@ -444,8 +543,19 @@ public abstract class SparseEntityMapBuilderBase
     /// </remarks>
     internal Dictionary<
         (Type EntityType, Type DtoType, string Member),
-        Delegate
+        GeneratedCollectionElementDefaults
     > GeneratedElementConfigurators { get; set; } = new();
+
+    internal Dictionary<
+        (Type EntityType, Type DtoType, string Member),
+        Action<SparseEntityMapBuilderBase>
+    > GeneratedObjectConfigurators { get; set; } = new();
+
+    internal HashSet<string> GeneratedKeyMembers { get; set; } = new(StringComparer.Ordinal);
+
+    internal bool GeneratedKeyDeclared { get; set; }
+
+    internal bool IsNestedScope { get; set; }
 
     /// <summary>Runs generated registrations with replacement semantics.</summary>
     internal void RunGenerated(Action action)
@@ -591,6 +701,20 @@ public abstract class SparseEntityMapBuilderBase
     internal void AddAllowedWrite(string dtoName)
     {
         _allowedWrites.Add(dtoName);
+    }
+
+    internal void AddRead(string dtoName, LambdaExpression entity)
+    {
+        ArgumentNullException.ThrowIfNull(dtoName);
+        ArgumentNullException.ThrowIfNull(entity);
+        if (!_reads.TryAdd(dtoName, entity))
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.Duplicate,
+                dtoName,
+                $"The DTO member '{dtoName}' already has a Read() mapping."
+            );
+        }
     }
 
     internal void InheritDefaultMissing(SparseEntityMissingPolicy policy)

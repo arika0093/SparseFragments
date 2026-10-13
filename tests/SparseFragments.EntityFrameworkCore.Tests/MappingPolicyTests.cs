@@ -5,7 +5,126 @@ namespace SparseFragments.EntityFrameworkCore.Tests;
 /// <summary>Failure and policy behavior: missing, null, unmapped, ambiguous, and protected paths.</summary>
 public sealed class MappingPolicyTests
 {
+    public sealed class ValidationErrorsDto
+    {
+        public int Id { get; set; }
+
+        public string WrongType { get; set; } = string.Empty;
+
+        public string Unmapped { get; set; } = string.Empty;
+    }
+
+    [SparseFragmentMapper]
+    public sealed class ValidationErrorsMapper
+        : IEntityModelMapping<WidgetEntity, ValidationErrorsDto>
+    {
+        public void Configure(SparseEntityMapBuilder<WidgetEntity, ValidationErrorsDto> map)
+        {
+            map.Member(dto => dto.Id, entity => entity.Id);
+            map.Member(dto => dto.WrongType, entity => entity.DueDate);
+        }
+    }
+
+    [Test]
+    public void MappingExceptionExposesStructuredErrorWithoutChangingSingleFailureDetails()
+    {
+        var error = new SparseEntityMappingException(
+            SparseEntityMappingFailure.Unmapped,
+            "Address.City",
+            "The member is unmapped.",
+            "AddressEntity.City",
+            "Map or ignore the member."
+        );
+
+        error.Failure.ShouldBe(SparseEntityMappingFailure.Unmapped);
+        error.DtoPath.ShouldBe("Address.City");
+        error.Message.ShouldBe("The member is unmapped.");
+        error.Errors.ShouldHaveSingleItem();
+        error.Errors[0].EntityTarget.ShouldBe("AddressEntity.City");
+        error.Errors[0].SuggestedAction.ShouldBe("Map or ignore the member.");
+        error.Errors[0].Message.ShouldBe(error.Message);
+        ((System.Collections.IList)error.Errors).IsReadOnly.ShouldBeTrue();
+    }
+
+    [Test]
+    public void PlanBuildReportsIndependentValidationErrorsTogether()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateMapping(connection, new QueryCounter());
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<WidgetEntity, ValidationErrorsDto>.Create(
+                new ValidationErrorsMapper(),
+                context.Model
+            )
+        );
+
+        error.Errors.Count.ShouldBe(3);
+        error
+            .Errors.Select(static item => item.Failure)
+            .ShouldContain(SparseEntityMappingFailure.Protected);
+        error
+            .Errors.Select(static item => item.Failure)
+            .ShouldContain(SparseEntityMappingFailure.MetadataMismatch);
+        error
+            .Errors.Select(static item => item.Failure)
+            .ShouldContain(SparseEntityMappingFailure.Unmapped);
+        error.Failure.ShouldBe(error.Errors[0].Failure);
+        error.DtoPath.ShouldBe(error.Errors[0].DtoPath);
+        error.Message.ShouldContain("3 independent");
+        error.Errors.ShouldContain(item => item.EntityTarget == "WidgetEntity.Id");
+        error.Errors.ShouldContain(item => item.SuggestedAction.Length > 0);
+    }
+
+    [Test]
+    public async Task PreflightReportsIndependentValidationErrorsWithoutWriting()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var entity = context
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Notes = "keep",
+                    Code = "ABC",
+                    Address = new AddressEntity { Street = "Old", City = "Osaka" },
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        var current = OrderMappingTests.ReadOrderDto(entity);
+        var basis = Present(OrderDto.Fragment.From(current));
+        var builder = basis.Value!.ToBuilder();
+        builder.Name = Optional<string>.Missing;
+        builder.Notes = Optional<string?>.Missing;
+        var accepted = OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<OrderEntity, OrderDto>
+                .Create(new OrderMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+
+        error.Errors.Count.ShouldBe(2);
+        error.Errors.Select(static item => item.DtoPath).ShouldBe(["Name", "Notes"]);
+        error
+            .Errors.Select(static item => item.Failure)
+            .ShouldAllBe(static failure => failure == SparseEntityMappingFailure.MissingNotHandled);
+        entity.CustomerName.ShouldBe("Ann");
+        entity.Notes.ShouldBe("keep");
+        context
+            .Entry(entity)
+            .Properties.Where(static property => property.IsModified)
+            .ShouldBeEmpty();
+        counter.Commands.ShouldBe(0);
+    }
+
     /// <summary>Order mapping with a per-member missing policy for notes.</summary>
+    [SparseFragmentMapper]
     public sealed class OrderPermissiveMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
@@ -26,11 +145,13 @@ public sealed class MappingPolicyTests
                     child.Ignore(address => address.City);
                 }
             );
+            map.Ignore(dto => dto.Lines);
             map.OnMissing(dto => dto.Notes, SparseEntityMissingPolicy.SetNull);
         }
     }
 
     /// <summary>Order mapping with a lenient global missing default.</summary>
+    [SparseFragmentMapper]
     public sealed class OrderLenientMissingMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
@@ -51,11 +172,13 @@ public sealed class MappingPolicyTests
                     child.Ignore(address => address.City);
                 }
             );
+            map.Ignore(dto => dto.Lines);
             map.MissingDefault(SparseEntityMissingPolicy.SetNull);
         }
     }
 
     /// <summary>Order mapping that ignores a missing nested address.</summary>
+    [SparseFragmentMapper]
     public sealed class OrderLenientNestedMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
@@ -77,6 +200,7 @@ public sealed class MappingPolicyTests
                 },
                 SparseEntityMissingPolicy.Ignore
             );
+            map.Ignore(dto => dto.Lines);
         }
     }
 

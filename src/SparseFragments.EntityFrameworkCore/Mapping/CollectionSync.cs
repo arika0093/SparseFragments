@@ -65,7 +65,9 @@ internal static class CollectionSync
                 edit.Changes,
                 edit.Path,
                 true,
-                state.Correlation
+                state.Correlation,
+                appliedPaths: state.AppliedPaths,
+                collectionScopeKeys: state.CollectionScopeKeys
             );
             runtime.ChildPlan.Prepare(sub, actions);
         }
@@ -85,7 +87,9 @@ internal static class CollectionSync
                 capturedEntity,
                 plan,
                 path,
-                state.Correlation
+                state.Correlation,
+                state.AppliedPaths,
+                state.CollectionScopeKeys
             )
         );
     }
@@ -211,29 +215,45 @@ internal static class CollectionSync
                 // the same temporary value reused under two new siblings
                 // resolves independently instead of falsely conflicting.
                 var key = runtime.DtoKey(dto);
-                string childPath;
+                string scopeKey;
                 if (key is not null && !runtime.IsUnassigned(key))
                 {
-                    childPath = $"{path}[{key}]";
+                    scopeKey = key.ToString()!;
                 }
                 else if (temporaryKey is not null && temporaryKey != Guid.Empty)
                 {
-                    childPath = $"{path}[{temporaryKey}]";
+                    scopeKey = temporaryKey.Value.ToString();
                 }
                 else
                 {
-                    childPath = $"{path}[{index}]";
+                    scopeKey = index.ToString();
                 }
+                var childPath = $"{path}[{scopeKey}]";
 
                 state.Context.Add(entity);
                 var entry = PlanApplyState.AttachSingle(state.Context, entity);
+                state.RecordCollectionScope(path, entity, scopeKey);
+                if (state.AppliedPaths is not null)
+                {
+                    state.RecordAppliedPath(
+                        AppliedPathFactory.Create(
+                            path,
+                            entry,
+                            runtime.NavigationName,
+                            SparseEntityApplyOperationKind.Created
+                        )
+                    );
+                }
+
                 var sub = new PlanWriteState(
                     state.Context,
                     entity,
                     entry,
                     dto,
                     childPath,
-                    state.Correlation
+                    state.Correlation,
+                    state.AppliedPaths,
+                    state.CollectionScopeKeys
                 );
                 var subs = new List<Action>();
                 runtime.ChildPlan.WriteAll(sub, subs);
@@ -264,7 +284,7 @@ internal static class CollectionSync
         where TDtoChild : class
         where TEntityChild : class
     {
-        var plan = new SyncPlan<TDtoChild, TEntityChild>();
+        var plan = new SyncPlan<TDtoChild, TEntityChild> { OrderChanged = view.OrderChanged };
         foreach (var item in view.Items)
         {
             if (item.IsAdded && item.IsRemoved)

@@ -7,6 +7,7 @@ namespace SparseFragments.EntityFrameworkCore.Tests;
 public sealed class KeyedCollectionPolicyTests
 {
     /// <summary>Soft-delete order mapping.</summary>
+    [SparseFragmentMapper]
     public sealed class SoftOrderMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
     {
         /// <inheritdoc />
@@ -28,6 +29,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Detach mapping over the archived duo collection.</summary>
+    [SparseFragmentMapper]
     public sealed class DuoDetachMapper : IEntityModelMapping<DuoEntity, DuoDto>
     {
         /// <inheritdoc />
@@ -51,6 +53,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Custom removal mapping recording the callback.</summary>
+    [SparseFragmentMapper]
     public sealed class SoftCustomMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
     {
         /// <summary>Gets the removed identities observed by the callback.</summary>
@@ -211,6 +214,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Collection mapping without any removal policy.</summary>
+    [SparseFragmentMapper]
     public sealed class PolicyLessMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
     {
         /// <inheritdoc />
@@ -231,6 +235,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Detach mapping over a required relationship.</summary>
+    [SparseFragmentMapper]
     public sealed class RequiredDetachMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
     {
         /// <inheritdoc />
@@ -397,6 +402,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Natural-key mapping used for the collision probe.</summary>
+    [SparseFragmentMapper]
     public sealed class SkuCollisionMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
     {
         /// <inheritdoc />
@@ -456,6 +462,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Collection over a scalar sequence with element configuration.</summary>
+    [SparseFragmentMapper]
     public sealed class TagsElementMapper : IEntityModelMapping<TagsEntity, TagsDto>
     {
         /// <inheritdoc />
@@ -486,6 +493,7 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Key mapping whose type disagrees with the generated transition.</summary>
+    [SparseFragmentMapper]
     public sealed class KeyMismatchMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
     {
         /// <inheritdoc />

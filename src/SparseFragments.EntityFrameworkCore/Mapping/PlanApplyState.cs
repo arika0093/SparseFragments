@@ -10,6 +10,9 @@ namespace SparseFragments.EntityFrameworkCore.Mapping;
 internal sealed class PlanApplyState
 {
     private const string RootMarker = "$root";
+    private readonly List<SparseEntityMappingError> _validationErrors;
+    private readonly List<SparseEntityAppliedPath>? _appliedPaths;
+    private readonly Dictionary<string, Dictionary<object, string>>? _collectionScopeKeys;
 
     public PlanApplyState(
         DbContext context,
@@ -28,7 +31,10 @@ internal sealed class PlanApplyState
         ISparseChangeSet changes,
         string path,
         bool isNested,
-        Dictionary<string, Dictionary<Guid, object>>? sharedCorrelation
+        Dictionary<string, Dictionary<Guid, object>>? sharedCorrelation,
+        List<SparseEntityMappingError>? sharedValidationErrors = null,
+        List<SparseEntityAppliedPath>? appliedPaths = null,
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -41,9 +47,10 @@ internal sealed class PlanApplyState
         Entry = entry;
         Changes = changes;
         Path = path;
-        Correlation =
-            sharedCorrelation
-            ?? new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal);
+        Correlation = sharedCorrelation;
+        _validationErrors = sharedValidationErrors ?? [];
+        _appliedPaths = appliedPaths;
+        _collectionScopeKeys = collectionScopeKeys;
         Groups = Group(changes, path, isNested);
     }
 
@@ -64,15 +71,85 @@ internal sealed class PlanApplyState
     /// <summary>
     /// Gets the shared temporary-identity correlation for this apply, scoped by
     /// collection path. The same Guid reused under a different path resolves
-    /// independently there; duplicates within one path fail.
+    /// independently there; duplicates within one path fail. It is null when
+    /// Apply does not need a result.
     /// </summary>
-    public Dictionary<string, Dictionary<Guid, object>> Correlation { get; }
+    public Dictionary<string, Dictionary<Guid, object>>? Correlation { get; }
+
+    /// <summary>Gets whether this apply is collecting execution-path details.</summary>
+    public bool TracksAppliedPaths => _appliedPaths is not null;
+
+    /// <summary>Gets the shared validation errors collected during preflight.</summary>
+    public List<SparseEntityMappingError> ValidationErrors => _validationErrors;
+
+    /// <summary>Gets the shared applied-path list, when requested.</summary>
+    public List<SparseEntityAppliedPath>? AppliedPaths => _appliedPaths;
+
+    /// <summary>Gets created-entity scope keys, when result tracking is enabled.</summary>
+    public Dictionary<string, Dictionary<object, string>>? CollectionScopeKeys =>
+        _collectionScopeKeys;
+
+    /// <summary>Collects a validation failure without executing queued writes.</summary>
+    public bool CollectValidation(Action validate)
+    {
+        ArgumentNullException.ThrowIfNull(validate);
+        try
+        {
+            validate();
+            return true;
+        }
+        catch (SparseEntityMappingException exception)
+        {
+            _validationErrors.AddRange(exception.Errors);
+            return false;
+        }
+    }
+
+    /// <summary>Throws the collected preflight errors without running queued writes.</summary>
+    public void ThrowIfValidationErrors()
+    {
+        if (_validationErrors.Count > 0)
+        {
+            throw SparseEntityMappingException.FromErrors(_validationErrors);
+        }
+    }
+
+    /// <summary>Queues a write and records its applied-path detail after success.</summary>
+    public void QueueWrite(List<Action> actions, SparseEntityAppliedPath appliedPath, Action write)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
+        ArgumentNullException.ThrowIfNull(appliedPath);
+        ArgumentNullException.ThrowIfNull(write);
+        if (_appliedPaths is null)
+        {
+            actions.Add(write);
+            return;
+        }
+
+        actions.Add(() =>
+        {
+            write();
+            _appliedPaths.Add(appliedPath);
+        });
+    }
+
+    /// <summary>Appends an operation after its write completes successfully.</summary>
+    public void RecordAppliedPath(SparseEntityAppliedPath appliedPath)
+    {
+        ArgumentNullException.ThrowIfNull(appliedPath);
+        _appliedPaths?.Add(appliedPath);
+    }
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
     public void RecordTemporary(string path, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(entity);
+        if (Correlation is null)
+        {
+            return;
+        }
+
         if (!Correlation.TryGetValue(path, out var scope))
         {
             scope = new Dictionary<Guid, object>();

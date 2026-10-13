@@ -76,7 +76,6 @@ internal static class SparseEntityMapperEmitter
 
         // Nested mapper classes share their namespace: join enclosing type
         // names so two nested mappers with the same leaf name cannot collide.
-        // GeneratedDefaults.TryApply replicates this rule for lookup.
         var nesting = new List<string>();
         for (
             var declaring = mapper.ContainingType;
@@ -121,11 +120,27 @@ internal static class SparseEntityMapperEmitter
             "child",
             0,
             string.Empty,
+            false,
             covered,
             visited,
             diagnostics,
             location
         );
+        AppendIndent(code, indent + 1).AppendLine("}");
+        AppendIndent(code, indent + 1)
+            .AppendLine("[global::System.Runtime.CompilerServices.ModuleInitializer]");
+        AppendIndent(code, indent + 1).AppendLine("internal static void RegisterWithRuntime()");
+        AppendIndent(code, indent + 1).AppendLine("{");
+        AppendIndent(code, indent + 2)
+            .Append(
+                "global::SparseFragments.EntityFrameworkCore.Mapping.GeneratedDefaultsRegistry.Register<"
+            )
+            .Append(entityType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+            .Append(", ")
+            .Append(dtoType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+            .Append(">(typeof(")
+            .Append(mapper.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+            .AppendLine("), RegisterDefaults);");
         AppendIndent(code, indent + 1).AppendLine("}");
         AppendIndent(code, indent).AppendLine("}");
         if (mapperNamespace is not null)
@@ -187,6 +202,7 @@ internal static class SparseEntityMapperEmitter
         string childParameter,
         int depth,
         string scope,
+        bool collectionElement,
         HashSet<(string Scope, string Member)>? covered,
         HashSet<string> visited,
         ImmutableArray<SparseGeneratorDiagnostic>.Builder diagnostics,
@@ -201,14 +217,38 @@ internal static class SparseEntityMapperEmitter
         foreach (var dtoProperty in ListSettableProperties(dtoType))
         {
             var name = dtoProperty.Name;
-            var entityMember = FindEntityMember(entityType, name);
+            var entityMember = SparseEntityMapperSymbolHelpers.FindEntityMember(entityType, name);
+            var isKey = HasAttribute(dtoProperty, "SparseKeyAttribute");
+            var isTemporaryKey = HasAttribute(dtoProperty, "SparseTemporaryKeyAttribute");
+            var sameNameEntityType = entityMember is null
+                ? null
+                : SparseEntityMapperSymbolHelpers.GetMemberType(entityMember);
+            var sameNameScalar =
+                sameNameEntityType is not null
+                && SparseEntityMapperSymbolHelpers.IsScalarType(dtoProperty.Type)
+                && SparseEntityMapperSymbolHelpers.IsScalarType(sameNameEntityType)
+                && SparseEntityMapperSymbolHelpers.SameType(dtoProperty.Type, sameNameEntityType);
+            if (isTemporaryKey || (isKey && (!collectionElement || !sameNameScalar)))
+            {
+                AppendIndent(code, indent)
+                    .Append(builder)
+                    .Append(".Ignore(static ")
+                    .Append(dtoParameter)
+                    .Append(" => ")
+                    .Append(dtoParameter)
+                    .Append('.')
+                    .Append(EscapeIdentifier(name))
+                    .AppendLine(");");
+                continue;
+            }
+
             if (entityMember is null)
             {
                 continue;
             }
 
             var dtoPropertyType = dtoProperty.Type;
-            if (IsCollectionType(dtoPropertyType))
+            if (SparseEntityMapperSymbolHelpers.IsCollectionType(dtoPropertyType))
             {
                 AppendIndent(code, indent)
                     .Append(builder)
@@ -225,18 +265,29 @@ internal static class SparseEntityMapperEmitter
                     .Append('.')
                     .Append(EscapeIdentifier(name))
                     .AppendLine(");");
-                var dtoElement = CollectionElementType(dtoPropertyType);
+                var dtoElement = SparseEntityMapperSymbolHelpers.CollectionElementType(
+                    dtoPropertyType
+                );
                 var entityElement = entityMember is not null
-                    ? CollectionElementType(GetMemberType(entityMember))
+                    ? SparseEntityMapperSymbolHelpers.CollectionElementType(
+                        SparseEntityMapperSymbolHelpers.GetMemberType(entityMember)
+                    )
                     : null;
                 if (
                     dtoElement is INamedTypeSymbol dtoElementNamed
                     && dtoElementNamed.TypeKind == TypeKind.Class
-                    && !IsScalarType(dtoElement)
+                    && !SparseEntityMapperSymbolHelpers.IsScalarType(dtoElement)
                     && entityElement is INamedTypeSymbol entityElementNamed
                     && entityElementNamed.TypeKind == TypeKind.Class
                 )
                 {
+                    var hasKey = TryGetKeyDeclaration(
+                        dtoElementNamed,
+                        out var keyProperty,
+                        out var temporaryProperty,
+                        out var unassignedKeyExpression,
+                        out var keyMemberNames
+                    );
                     // Path-scoped conventional element defaults: the explicit
                     // Collection(..., lines => lines.Element(...)) composes
                     // these underneath its own overrides, which replace each
@@ -250,16 +301,60 @@ internal static class SparseEntityMapperEmitter
                         .Append(", ")
                         .Append(
                             entityElement.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                        )
-                        .Append(">(static ")
+                        );
+                    if (hasKey)
+                    {
+                        code.Append(", ")
+                            .Append(
+                                keyProperty!.Type.ToDisplayString(
+                                    SymbolDisplayFormat.FullyQualifiedFormat
+                                )
+                            );
+                    }
+
+                    code.Append(">(static ")
                         .Append(dtoParameter)
                         .Append(" => ")
                         .Append(dtoParameter)
                         .Append('.')
                         .Append(EscapeIdentifier(name))
-                        .Append(", static ")
-                        .Append(childParameter)
-                        .AppendLine(" =>");
+                        .Append(", ");
+                    if (hasKey)
+                    {
+                        code.Append("static __key => __key.")
+                            .Append(EscapeIdentifier(keyProperty!.Name))
+                            .Append(", ")
+                            .Append(unassignedKeyExpression ?? "default!")
+                            .Append(", ")
+                            .Append(unassignedKeyExpression is null ? "false" : "true")
+                            .Append(", ");
+                        if (temporaryProperty is null)
+                        {
+                            code.Append("null");
+                        }
+                        else
+                        {
+                            code.Append("static __key => __key.")
+                                .Append(EscapeIdentifier(temporaryProperty.Name));
+                        }
+
+                        code.Append(", new string[] { ");
+                        for (var keyIndex = 0; keyIndex < keyMemberNames.Length; keyIndex++)
+                        {
+                            if (keyIndex > 0)
+                            {
+                                code.Append(", ");
+                            }
+
+                            code.Append(
+                                SymbolDisplay.FormatLiteral(keyMemberNames[keyIndex], true)
+                            );
+                        }
+
+                        code.Append(" }, ");
+                    }
+
+                    code.Append("static ").Append(childParameter).AppendLine(" =>");
                     AppendIndent(code, indent).AppendLine("{");
                     EmitDefaults(
                         code,
@@ -272,6 +367,7 @@ internal static class SparseEntityMapperEmitter
                         childParameter,
                         depth + 1,
                         scope.Length == 0 ? name : scope + "." + name,
+                        true,
                         covered,
                         visited,
                         diagnostics,
@@ -283,15 +379,18 @@ internal static class SparseEntityMapperEmitter
                 continue;
             }
 
-            var entityMemberType = GetMemberType(entityMember);
+            var entityMemberType = SparseEntityMapperSymbolHelpers.GetMemberType(entityMember);
             if (entityMemberType is null)
             {
                 continue;
             }
 
-            if (IsScalarType(dtoPropertyType) && IsScalarType(entityMemberType))
+            if (
+                SparseEntityMapperSymbolHelpers.IsScalarType(dtoPropertyType)
+                && SparseEntityMapperSymbolHelpers.IsScalarType(entityMemberType)
+            )
             {
-                if (!SameType(dtoPropertyType, entityMemberType))
+                if (!SparseEntityMapperSymbolHelpers.SameType(dtoPropertyType, entityMemberType))
                 {
                     // Explicit Configure owns this path: no default to emit and
                     // no diagnostic when the member is provably covered there.
@@ -336,8 +435,8 @@ internal static class SparseEntityMapperEmitter
             // types: report a clear diagnostic instead of emitting code that
             // violates the generic constraint.
             if (
-                !IsScalarType(dtoPropertyType)
-                && !IsScalarType(entityMemberType)
+                !SparseEntityMapperSymbolHelpers.IsScalarType(dtoPropertyType)
+                && !SparseEntityMapperSymbolHelpers.IsScalarType(entityMemberType)
                 && (dtoPropertyType.IsValueType || entityMemberType.IsValueType)
             )
             {
@@ -352,8 +451,8 @@ internal static class SparseEntityMapperEmitter
             }
 
             if (
-                !IsScalarType(dtoPropertyType)
-                && !IsScalarType(entityMemberType)
+                !SparseEntityMapperSymbolHelpers.IsScalarType(dtoPropertyType)
+                && !SparseEntityMapperSymbolHelpers.IsScalarType(entityMemberType)
                 && dtoPropertyType is INamedTypeSymbol dtoNested
                 && entityMemberType is INamedTypeSymbol entityNested
                 && entityMember is IPropertySymbol
@@ -394,6 +493,7 @@ internal static class SparseEntityMapperEmitter
                     childParameter,
                     depth + 1,
                     scope.Length == 0 ? name : scope + "." + name,
+                    false,
                     covered,
                     visited,
                     diagnostics,
@@ -747,133 +847,209 @@ internal static class SparseEntityMapperEmitter
         return properties;
     }
 
-    private static ISymbol? FindEntityMember(INamedTypeSymbol entityType, string name)
+    private static bool HasAttribute(ISymbol symbol, string metadataName) =>
+        symbol
+            .GetAttributes()
+            .Any(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "SparseFragments." + metadataName
+            );
+
+    private static bool TryGetKeyDeclaration(
+        INamedTypeSymbol elementType,
+        out IPropertySymbol? keyProperty,
+        out IPropertySymbol? temporaryProperty,
+        out string? unassignedKeyExpression,
+        out string[] keyMemberNames
+    )
     {
+        var properties = ListInstanceProperties(elementType);
+        var keys = properties
+            .Where(static property => HasAttribute(property, "SparseKeyAttribute"))
+            .ToArray();
+        var temporaries = properties
+            .Where(static property => HasAttribute(property, "SparseTemporaryKeyAttribute"))
+            .ToArray();
+        keyProperty = null;
+        temporaryProperty = null;
+        unassignedKeyExpression = null;
+        keyMemberNames = [];
+        if (
+            keys.Length != 1
+            || keys[0].GetMethod is null
+            || keys[0].DeclaredAccessibility != Accessibility.Public
+            || temporaries.Length > 1
+        )
+        {
+            return false;
+        }
+
+        keyProperty = keys[0];
+        temporaryProperty =
+            temporaries.Length == 1
+            && temporaries[0].Type
+                is INamedTypeSymbol
+                {
+                    OriginalDefinition.SpecialType: SpecialType.System_Nullable_T,
+                    TypeArguments.Length: 1,
+                } temporaryType
+            && temporaryType.TypeArguments[0].ToDisplayString() == "System.Guid"
+                ? temporaries[0]
+                : null;
+        var keyAttribute = keyProperty
+            .GetAttributes()
+            .First(static attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "SparseFragments.SparseKeyAttribute"
+            );
+        foreach (var argument in keyAttribute.NamedArguments)
+        {
+            if (argument.Key == "Unassigned")
+            {
+                unassignedKeyExpression = ConstantExpression(argument.Value);
+                break;
+            }
+        }
+
+        var writableNames = ListSettableProperties(elementType)
+            .Select(static property => property.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var members = new HashSet<string>(StringComparer.Ordinal) { keyProperty.Name };
+        foreach (var reference in keyProperty.DeclaringSyntaxReferences)
+        {
+            if (reference.GetSyntax() is not PropertyDeclarationSyntax declaration)
+            {
+                continue;
+            }
+
+            var syntax = declaration.ExpressionBody?.Expression;
+            if (syntax is null)
+            {
+                var getter = declaration.AccessorList?.Accessors.FirstOrDefault(static accessor =>
+                    accessor.Keyword.ValueText == "get"
+                );
+                syntax = getter?.ExpressionBody?.Expression;
+                if (syntax is null && getter?.Body is not null)
+                {
+                    foreach (
+                        var identifier in getter
+                            .Body.DescendantNodesAndSelf()
+                            .OfType<IdentifierNameSyntax>()
+                            .Where(identifier =>
+                                writableNames.Contains(identifier.Identifier.ValueText)
+                            )
+                    )
+                    {
+                        members.Add(identifier.Identifier.ValueText);
+                    }
+                }
+            }
+
+            if (syntax is not null)
+            {
+                foreach (
+                    var identifier in syntax
+                        .DescendantNodesAndSelf()
+                        .OfType<IdentifierNameSyntax>()
+                        .Where(identifier =>
+                            writableNames.Contains(identifier.Identifier.ValueText)
+                        )
+                )
+                {
+                    members.Add(identifier.Identifier.ValueText);
+                }
+            }
+        }
+
+        keyMemberNames = members.ToArray();
+        return true;
+    }
+
+    private static List<IPropertySymbol> ListInstanceProperties(INamedTypeSymbol type)
+    {
+        var properties = new List<IPropertySymbol>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         for (
-            var current = entityType;
+            var current = type;
             current is not null && current.SpecialType != SpecialType.System_Object;
             current = current.BaseType
         )
         {
-            foreach (var member in current.GetMembers(name))
+            foreach (var property in current.GetMembers().OfType<IPropertySymbol>())
             {
-                if (member.IsStatic)
+                if (
+                    !property.IsStatic
+                    && !property.IsIndexer
+                    && property.GetMethod is not null
+                    && seen.Add(property.Name)
+                )
                 {
-                    continue;
-                }
-
-                if (member is IPropertySymbol property && property.GetMethod is not null)
-                {
-                    return property;
-                }
-
-                if (member is IFieldSymbol)
-                {
-                    return member;
+                    properties.Add(property);
                 }
             }
         }
 
-        return null;
+        return properties;
     }
 
-    private static ITypeSymbol? GetMemberType(ISymbol member) =>
-        member switch
+    private static string? ConstantExpression(TypedConstant constant)
+    {
+        if (constant.IsNull || constant.Type is null || constant.Value is null)
         {
-            IPropertySymbol property => property.Type,
-            IFieldSymbol field => field.Type,
+            return null;
+        }
+
+        var value = constant.Value;
+        if (constant.Type.TypeKind == TypeKind.Enum)
+        {
+            return "("
+                + constant.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                + ")"
+                + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return constant.Type.SpecialType switch
+        {
+            SpecialType.System_String => SymbolDisplay.FormatLiteral((string)value, true),
+            SpecialType.System_Char => SymbolDisplay.FormatLiteral((char)value, true),
+            SpecialType.System_Boolean => (bool)value ? "true" : "false",
+            SpecialType.System_Byte => "(byte)"
+                + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+            SpecialType.System_SByte => "(sbyte)"
+                + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+            SpecialType.System_Int16 => "(short)"
+                + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+            SpecialType.System_UInt16 => "(ushort)"
+                + Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture),
+            SpecialType.System_Int32 => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ),
+            SpecialType.System_UInt32 => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "U",
+            SpecialType.System_Int64 => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "L",
+            SpecialType.System_UInt64 => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "UL",
+            SpecialType.System_Single => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "F",
+            SpecialType.System_Double => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "D",
+            SpecialType.System_Decimal => Convert.ToString(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture
+            ) + "M",
             _ => null,
         };
-
-    private static bool IsScalarType(ITypeSymbol type)
-    {
-        var underlying =
-            type is INamedTypeSymbol named
-            && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
-            && named.TypeArguments.Length == 1
-                ? named.TypeArguments[0]
-                : type;
-        switch (underlying.SpecialType)
-        {
-            case SpecialType.System_Boolean:
-            case SpecialType.System_Char:
-            case SpecialType.System_SByte:
-            case SpecialType.System_Byte:
-            case SpecialType.System_Int16:
-            case SpecialType.System_UInt16:
-            case SpecialType.System_Int32:
-            case SpecialType.System_UInt32:
-            case SpecialType.System_Int64:
-            case SpecialType.System_UInt64:
-            case SpecialType.System_Single:
-            case SpecialType.System_Double:
-            case SpecialType.System_Decimal:
-            case SpecialType.System_String:
-            case SpecialType.System_DateTime:
-                return true;
-            default:
-                break;
-        }
-
-        if (underlying.TypeKind == TypeKind.Enum)
-        {
-            return true;
-        }
-
-        if (underlying is INamedTypeSymbol namedType)
-        {
-            var full = namedType.OriginalDefinition.ToDisplayString();
-            if (
-                full == "System.DateTimeOffset"
-                || full == "System.DateOnly"
-                || full == "System.TimeOnly"
-                || full == "System.TimeSpan"
-                || full == "System.Guid"
-            )
-            {
-                return true;
-            }
-        }
-
-        return underlying is IArrayTypeSymbol array
-            && array.ElementType.SpecialType == SpecialType.System_Byte
-            && array.Rank == 1;
     }
-
-    private static ITypeSymbol? CollectionElementType(ITypeSymbol? type) =>
-        type switch
-        {
-            IArrayTypeSymbol array => array.ElementType,
-            INamedTypeSymbol named when named.TypeArguments.Length == 1 => named.TypeArguments[0],
-            _ => null,
-        };
-
-    private static bool IsCollectionType(ITypeSymbol type)
-    {
-        if (type.SpecialType == SpecialType.System_String)
-        {
-            return false;
-        }
-
-        if (
-            type is IArrayTypeSymbol array
-            && array.ElementType.SpecialType == SpecialType.System_Byte
-            && array.Rank == 1
-        )
-        {
-            return false;
-        }
-
-        return type.AllInterfaces.Any(static iface =>
-            iface.OriginalDefinition.SpecialType == SpecialType.System_Collections_IEnumerable
-        );
-    }
-
-    // Exact-type parity with the runtime plan check: reference-type nullable
-    // annotations are ignored by the comparer, but Nullable<T> value types
-    // never match their underlying type (int? versus int reports SPF033).
-    private static bool SameType(ITypeSymbol left, ITypeSymbol right) =>
-        SymbolEqualityComparer.Default.Equals(left, right);
 
     private static StringBuilder AppendIndent(StringBuilder code, int indent)
     {

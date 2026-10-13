@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using SparseFragments.EntityFrameworkCore.Mapping;
 using SparseFragments.EntityFrameworkCore.Tests.Sample;
@@ -13,6 +15,58 @@ namespace SparseFragments.EntityFrameworkCore.Tests;
 /// </remarks>
 public sealed class DirectApplyRegressionTests
 {
+    [SparseFragmentMapper]
+    public sealed class AppliedPathOrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    {
+        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        {
+            map.Member(dto => dto.Name, entity => entity.CustomerName);
+            map.Member(dto => dto.Code, entity => entity.Code);
+            map.OnMissing(dto => dto.Code, SparseEntityMissingPolicy.Ignore);
+            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            map.Write(
+                dto => dto.Notes,
+                (entity, notes) =>
+                {
+                    if (notes.IsPresent)
+                    {
+                        entity.Notes = notes.Value;
+                    }
+                }
+            );
+            map.Ignore(dto => dto.DisplayTotal);
+            map.Object(
+                dto => dto.Address,
+                entity => entity.Address,
+                child =>
+                {
+                    child.Member(address => address.Street, address => address.Street);
+                    child.Ignore(address => address.City);
+                }
+            );
+            map.Collection<OrderLineDto, OrderLineEntity>(
+                dto => dto.Lines,
+                entity => entity.Lines,
+                lines =>
+                {
+                    lines.Element(child =>
+                    {
+                        child.Ignore(line => line.Id);
+                        child.Ignore(line => line.TemporaryId);
+                        child.Ignore(line => line.Subtotal);
+                    });
+                    lines.Create(dto => new OrderLineEntity
+                    {
+                        Quantity = dto.Quantity,
+                        UnitPrice = dto.UnitPrice,
+                    });
+                    lines.Delete();
+                    lines.Order((line, index) => line.SortOrder = index);
+                }
+            );
+        }
+    }
+
     private static Optional<OrderDto.Fragment?> Present(OrderDto.Fragment fragment) =>
         Optional<OrderDto.Fragment?>.Present(fragment);
 
@@ -56,6 +110,147 @@ public sealed class DirectApplyRegressionTests
         context.SaveChanges();
         context.Entry(entity).Collection(static order => order.Lines).Load();
         return entity;
+    }
+
+    [Test]
+    public void ApplySurfaceHasTypedOverloadsAndHidesUntypedCompatibilityOverloads()
+    {
+        var mapperType = typeof(SparseEntityMapper<OrderEntity, OrderDto>);
+        foreach (var methodName in new[] { "Apply", "ApplyWithResult" })
+        {
+            var typed = mapperType.GetMethod(
+                methodName,
+                [typeof(DbContext), typeof(OrderEntity), typeof(ISparseChangeSet<OrderDto>)]
+            );
+            typed.ShouldNotBeNull();
+
+            var untyped = mapperType.GetMethod(
+                methodName,
+                [typeof(DbContext), typeof(OrderEntity), typeof(ISparseChangeSet)]
+            );
+            untyped.ShouldNotBeNull();
+            untyped!
+                .GetCustomAttribute<EditorBrowsableAttribute>()
+                ?.State.ShouldBe(EditorBrowsableState.Advanced);
+        }
+    }
+
+    [Test]
+    public async Task ApplyWithResultCapturesExecutedOperationsOnly()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateSample(connection, counter);
+        var entity = SeedOrder(context);
+        var current = ReadOrderDto(entity);
+        var incoming = ReadOrderDto(entity);
+        incoming.Name = "Bea";
+        incoming.Notes = "custom";
+        incoming.ShipCity = "Kyoto";
+        incoming.Address!.Street = "New Street";
+        incoming.DisplayTotal = "ignored change";
+        incoming.Lines.RemoveAt(2);
+        incoming.Lines.Reverse();
+        var temporary = Guid.NewGuid();
+        incoming.Lines.Add(
+            new OrderLineDto
+            {
+                Quantity = 7,
+                UnitPrice = 70m,
+                TemporaryId = temporary,
+            }
+        );
+        var accepted = current.CreateChangeSet(incoming);
+        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
+            new AppliedPathOrderMapper(),
+            context.Model
+        );
+
+        var result = mapper.ApplyWithResult(context, entity, accepted);
+
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Name" && path.Operation == SparseEntityApplyOperationKind.Set
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "ShipCity"
+            && path.EntityType == typeof(AddressEntity).FullName
+            && path.EntityMember == nameof(AddressEntity.City)
+            && path.Operation == SparseEntityApplyOperationKind.Set
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Address.Street"
+            && path.EntityType == typeof(AddressEntity).FullName
+            && path.EntityMember == nameof(AddressEntity.Street)
+            && path.Operation == SparseEntityApplyOperationKind.Set
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Notes" && path.Operation == SparseEntityApplyOperationKind.CustomWrite
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Lines" && path.Operation == SparseEntityApplyOperationKind.Created
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Lines"
+            && path.Operation == SparseEntityApplyOperationKind.Removed
+            && path.RemoveKind == SparseEntityRemoveKind.Delete
+        );
+        result.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Lines" && path.Operation == SparseEntityApplyOperationKind.Reordered
+        );
+        result.AppliedPaths.ShouldNotContain(path => path.DtoPath == "DisplayTotal");
+        entity.CustomerName.ShouldBe("Bea");
+        entity.Notes.ShouldBe("custom");
+        entity.Address!.City.ShouldBe("Kyoto");
+        entity.Address.Street.ShouldBe("New Street");
+
+        await context.SaveChangesAsync();
+        var authoritative = ReadOrderDto(entity);
+        counter.Reset();
+        mapper.AssignTemporaryKeys(context, result, current, authoritative);
+        counter.Commands.ShouldBe(0);
+        var withoutAddress = ReadOrderDto(entity);
+        mapper.AssignTemporaryKeys(context, result, authoritative, withoutAddress);
+        withoutAddress.Address = null;
+        var clearedAddress = mapper.ApplyWithResult(
+            context,
+            entity,
+            authoritative.CreateChangeSet(withoutAddress)
+        );
+        clearedAddress.AppliedPaths.ShouldContain(path =>
+            path.DtoPath == "Address" && path.Operation == SparseEntityApplyOperationKind.SetNull
+        );
+        var basis = Present(OrderDto.Fragment.From(withoutAddress));
+        var builder = basis.Value!.ToBuilder();
+        builder.Code = Optional<string>.Missing;
+        var missingCode = OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
+        var missingResult = mapper.ApplyWithResult(context, entity, missingCode);
+        missingResult.AppliedPaths.ShouldHaveSingleItem();
+        missingResult.AppliedPaths[0].DtoPath.ShouldBe("Code");
+        missingResult
+            .AppliedPaths[0]
+            .Operation.ShouldBe(SparseEntityApplyOperationKind.MissingIgnored);
+        entity.Code.ShouldBe("ABC");
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public void UntypedCompatibilityApplyRejectsChangeSetFromAnotherDto()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateSample(connection, new QueryCounter());
+        var entity = context.Orders.Add(new OrderEntity()).Entity;
+        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
+            new OrderMapper(),
+            context.Model
+        );
+        var unrelated = new AddressDto { City = "Kyoto" }.CreateChangeSet(new AddressDto());
+
+        var error = Should.Throw<ArgumentException>(() =>
+            mapper.Apply(context, entity, (ISparseChangeSet)unrelated)
+        );
+
+        error.ParamName.ShouldBe("changes");
+        context.Entry(entity).State.ShouldBe(EntityState.Added);
     }
 
     [Test]
@@ -615,6 +810,7 @@ public sealed class DirectApplyRegressionTests
     }
 
     /// <summary>Same CLR type, constructor-injected missing policy.</summary>
+    [SparseFragmentMapper]
     public sealed class FlagMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         public FlagMapper(bool lenient)
@@ -682,6 +878,7 @@ public sealed class DirectApplyRegressionTests
         error.DtoPath.ShouldBe("Name");
     }
 
+    [SparseFragmentMapper]
     public sealed class DuplicateWidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
     {
         public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
@@ -741,13 +938,26 @@ public sealed class DirectApplyRegressionTests
     }
 
     [Test]
-    public void RequiresGeneratedDefaultsReflectsAttribute()
+    public void UnmarkedMapperFailsWithGeneratorGuidance()
     {
-        // Wiring proof complement: attributed mappers demand a companion at
-        // creation (the suite passing is the end-to-end wiring fixture), while
-        // plain mappings keep the scoped inference fallback.
-        GeneratedDefaults.RequiresGeneratedDefaults(typeof(WidgetMapper)).ShouldBeTrue();
-        GeneratedDefaults.RequiresGeneratedDefaults(typeof(DeviceMapper)).ShouldBeFalse();
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateMapping(connection, new QueryCounter());
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<WidgetEntity, WidgetDto>.Create(
+                new UnmarkedWidgetMapper(),
+                context.Model
+            )
+        );
+
+        error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
+        error.Message.ShouldContain("[SparseFragmentMapper]");
+        error.Message.ShouldContain("runtime member inference is not supported");
+    }
+
+    public sealed class UnmarkedWidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+    {
+        public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map) { }
     }
 
     [Test]
@@ -881,6 +1091,7 @@ public sealed class DirectApplyRegressionTests
         reloaded.Lines.Single(static line => line.Qty == 2).ShipTo!.City.ShouldBe("Nara");
     }
 
+    [SparseFragmentMapper]
     public sealed class ParcelMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
     {
         public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
@@ -977,6 +1188,7 @@ public sealed class DirectApplyRegressionTests
     }
 
     /// <summary>Factory pre-populates nested tags to prove wholesale replacement.</summary>
+    [SparseFragmentMapper]
     public sealed class ParcelJunkMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
     {
         public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
@@ -1277,6 +1489,7 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
+    [SparseFragmentMapper]
     public sealed class ExplicitChildMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
@@ -1357,7 +1570,9 @@ public sealed class DirectApplyRegressionTests
         using var connection = TestDatabases.OpenMemory();
         var counter = new QueryCounter();
         using var context = TestDatabases.CreateKeyed(connection, counter);
-        var entity = context.Parcels.Add(new ParcelEntity { Lines = [] }).Entity;
+        var entity = context
+            .Parcels.Add(new ParcelEntity { Lines = [new ParcelLineEntity { Qty = 9, Tags = [] }] })
+            .Entity;
         await context.SaveChangesAsync();
         await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
         counter.Reset();
@@ -1376,7 +1591,10 @@ public sealed class DirectApplyRegressionTests
                     .ToList(),
             };
         var current = Read(entity);
+        var baselineTemporary = Guid.NewGuid();
+        current.Lines[0].TemporaryId = baselineTemporary;
         var incoming = Read(entity);
+        incoming.Lines[0].TemporaryId = baselineTemporary;
         incoming.Lines.Add(
             new ParcelLineDto
             {
@@ -1395,9 +1613,11 @@ public sealed class DirectApplyRegressionTests
         );
         var accepted = current.CreateChangeSet(incoming);
 
-        var result = SparseEntityMapper<ParcelEntity, ParcelDto>
-            .Create(new ParcelJunkMapper(), context.Model)
-            .ApplyWithResult(context, entity, accepted);
+        var mapper = SparseEntityMapper<ParcelEntity, ParcelDto>.Create(
+            new ParcelJunkMapper(),
+            context.Model
+        );
+        var result = mapper.ApplyWithResult(context, entity, accepted);
 
         result.TryGetCreated<ParcelLineEntity>(firstLine, out _).ShouldBeTrue();
         result.TryGetCreated<ParcelLineEntity>(secondLine, out _).ShouldBeTrue();
@@ -1407,6 +1627,39 @@ public sealed class DirectApplyRegressionTests
         tagScopes.Count.ShouldBe(2);
         tagScopes.SelectMany(static scope => scope.Value.Keys).ShouldBe([sharedTag, sharedTag]);
         counter.Commands.ShouldBe(0);
+
+        await context.SaveChangesAsync();
+        var authoritative = new ParcelDto
+        {
+            Lines = entity
+                .Lines.Select(static line => new ParcelLineDto
+                {
+                    Id = line.Id,
+                    Qty = line.Qty,
+                    Tags = line
+                        .Tags.Select(static tag => new ParcelTagDto
+                        {
+                            Id = tag.Id,
+                            Label = tag.Label,
+                        })
+                        .ToList(),
+                })
+                .ToList(),
+        };
+        mapper.AssignTemporaryKeys(context, result, current, authoritative);
+        authoritative
+            .Lines.Single(static line => line.Qty == 9)
+            .TemporaryId.ShouldBe(baselineTemporary);
+        authoritative.Lines.Single(static line => line.Qty == 1).TemporaryId.ShouldBe(firstLine);
+        authoritative.Lines.Single(static line => line.Qty == 2).TemporaryId.ShouldBe(secondLine);
+        authoritative
+            .Lines.Single(static line => line.Qty == 1)
+            .Tags.Single()
+            .TemporaryId.ShouldBe(sharedTag);
+        authoritative
+            .Lines.Single(static line => line.Qty == 2)
+            .Tags.Single()
+            .TemporaryId.ShouldBe(sharedTag);
     }
 
     [Test]
@@ -1437,6 +1690,7 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
+    [SparseFragmentMapper]
     public sealed class ObservableOrderMapper
         : IEntityModelMapping<ObservableOrderEntity, ObservableOrderDto>
     {
@@ -1474,6 +1728,7 @@ public sealed class DirectApplyRegressionTests
         error.Message.ShouldContain("parameterless constructor");
     }
 
+    [SparseFragmentMapper]
     public sealed class RigidOrderMapper : IEntityModelMapping<RigidOrderEntity, RigidOrderDto>
     {
         public void Configure(SparseEntityMapBuilder<RigidOrderEntity, RigidOrderDto> map)
@@ -1510,6 +1765,7 @@ public sealed class DirectApplyRegressionTests
         error.Message.ShouldContain("skip", Case.Insensitive);
     }
 
+    [SparseFragmentMapper]
     public sealed class StudentMapper : IEntityModelMapping<StudentEntity, StudentDto>
     {
         public void Configure(SparseEntityMapBuilder<StudentEntity, StudentDto> map)
@@ -1587,6 +1843,7 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
+    [SparseFragmentMapper]
     public sealed class BatchMapper : IEntityModelMapping<BatchEntity, BatchDto>
     {
         public void Configure(SparseEntityMapBuilder<BatchEntity, BatchDto> map)
@@ -1596,11 +1853,7 @@ public sealed class DirectApplyRegressionTests
                 entity => entity.Lines,
                 lines =>
                 {
-                    lines.Element(child =>
-                    {
-                        child.Ignore(line => line.Id);
-                        child.Ignore(line => line.TemporaryId);
-                    });
+                    lines.Element(child => { });
                     lines.Detach();
                 }
             );

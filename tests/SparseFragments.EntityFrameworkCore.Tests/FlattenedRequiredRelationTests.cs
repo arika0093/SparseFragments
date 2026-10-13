@@ -96,6 +96,7 @@ public sealed class ReqNoteContext : DbContext
     }
 }
 
+[SparseFragmentMapper]
 public sealed class ReqNoteMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteOrderDto>
 {
     public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteOrderDto> map)
@@ -116,6 +117,49 @@ public sealed class ReqNoteMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqN
                 lines.Order((entity, index) => entity.SortOrder = index);
             }
         );
+    }
+}
+
+[SparseFragmentModel]
+public partial class ReqNoteDto
+{
+    public string Text { get; set; } = string.Empty;
+}
+
+[SparseFragmentModel]
+public partial class ReqNoteObjectDto
+{
+    public string Customer { get; set; } = string.Empty;
+
+    public ReqNoteDto? Note { get; set; }
+}
+
+[SparseFragmentMapper]
+public sealed class ReqNoteObjectMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteObjectDto>
+{
+    public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteObjectDto> map)
+    {
+        map.Member(dto => dto.Customer, entity => entity.CustomerName);
+        map.Object(
+            dto => dto.Note,
+            entity => entity.Note,
+            note => note.Member(child => child.Text, entity => entity.Text)
+        );
+    }
+}
+
+[SparseFragmentModel]
+public partial class ReqNoteFlatDto
+{
+    public string Notes { get; set; } = string.Empty;
+}
+
+[SparseFragmentMapper]
+public sealed class ReqNoteFlatMapper : IEntityModelMapping<ReqNoteOrderEntity, ReqNoteFlatDto>
+{
+    public void Configure(SparseEntityMapBuilder<ReqNoteOrderEntity, ReqNoteFlatDto> map)
+    {
+        map.Member(dto => dto.Notes, entity => entity.Note!.Text);
     }
 }
 
@@ -187,5 +231,97 @@ public sealed class FlattenedRequiredRelationTests
             new DbContextOptionsBuilder<ReqNoteContext>().UseSqlite(connection).Options
         );
         verify.Orders.Include(static order => order.Note).Single().Note!.Text.ShouldBe("updated");
+    }
+
+    [Test]
+    public async Task UnloadedReferenceNavigationFailsBeforeMaterializingReplacement()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        var options = new DbContextOptionsBuilder<ReqNoteContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(counter)
+            .Options;
+        using (var seed = new ReqNoteContext(options))
+        {
+            seed.Database.EnsureCreated();
+            seed.Orders.Add(
+                new ReqNoteOrderEntity
+                {
+                    CustomerName = "Ann",
+                    Note = new ReqNoteEntity { Text = "keep" },
+                }
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        using var context = new ReqNoteContext(options);
+        var entity = await context.Orders.SingleAsync();
+        context.Entry(entity).Reference(static order => order.Note).IsLoaded.ShouldBeFalse();
+        var current = new ReqNoteObjectDto
+        {
+            Customer = entity.CustomerName,
+            Note = new ReqNoteDto { Text = "keep" },
+        };
+        var incoming = new ReqNoteObjectDto
+        {
+            Customer = entity.CustomerName,
+            Note = new ReqNoteDto { Text = "updated" },
+        };
+        var accepted = current.CreateChangeSet(incoming);
+        counter.Reset();
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<ReqNoteOrderEntity, ReqNoteObjectDto>
+                .Create(new ReqNoteObjectMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+
+        error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
+        error.DtoPath.ShouldBe("Note");
+        entity.Note.ShouldBeNull();
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task UnloadedFlattenedReferenceNavigationFailsBeforeMaterializingReplacement()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        var options = new DbContextOptionsBuilder<ReqNoteContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(counter)
+            .Options;
+        using (var seed = new ReqNoteContext(options))
+        {
+            seed.Database.EnsureCreated();
+            seed.Orders.Add(
+                new ReqNoteOrderEntity
+                {
+                    CustomerName = "Ann",
+                    Note = new ReqNoteEntity { Text = "keep" },
+                }
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        using var context = new ReqNoteContext(options);
+        var entity = await context.Orders.SingleAsync();
+        context.Entry(entity).Reference(static order => order.Note).IsLoaded.ShouldBeFalse();
+        var current = new ReqNoteFlatDto { Notes = "keep" };
+        var incoming = new ReqNoteFlatDto { Notes = "updated" };
+        var accepted = current.CreateChangeSet(incoming);
+        counter.Reset();
+
+        var error = Should.Throw<SparseEntityMappingException>(() =>
+            SparseEntityMapper<ReqNoteOrderEntity, ReqNoteFlatDto>
+                .Create(new ReqNoteFlatMapper(), context.Model)
+                .Apply(context, entity, accepted)
+        );
+
+        error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
+        error.DtoPath.ShouldBe("Notes");
+        entity.Note.ShouldBeNull();
+        counter.Commands.ShouldBe(0);
     }
 }

@@ -21,7 +21,9 @@ internal static class CollectionExecution
         object parent,
         SyncPlan<TDtoChild, TEntityChild> plan,
         string path,
-        Dictionary<string, Dictionary<Guid, object>> correlation
+        Dictionary<string, Dictionary<Guid, object>>? correlation,
+        List<SparseEntityAppliedPath>? appliedPaths,
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys
     )
         where TDtoChild : class
         where TEntityChild : class
@@ -35,7 +37,11 @@ internal static class CollectionExecution
 
         foreach (var addition in plan.Added)
         {
-            if (addition.TemporaryKey is not null && addition.TemporaryKey != Guid.Empty)
+            if (
+                correlation is not null
+                && addition.TemporaryKey is not null
+                && addition.TemporaryKey != Guid.Empty
+            )
             {
                 if (!correlation.TryGetValue(path, out var scope))
                 {
@@ -60,6 +66,20 @@ internal static class CollectionExecution
 
             context.Add(addition.Entity);
             var entry = PlanApplyState.AttachSingle(context, addition.Entity);
+            var scopeKey = addition.ScopeKey;
+            RecordCollectionScope(collectionScopeKeys, path, addition.Entity, scopeKey);
+            if (appliedPaths is not null)
+            {
+                appliedPaths.Add(
+                    AppliedPathFactory.Create(
+                        path,
+                        entry,
+                        runtime.NavigationName,
+                        SparseEntityApplyOperationKind.Created
+                    )
+                );
+            }
+
             // Nested scopes qualify with the added parent's identity so the
             // same temporary value reused under two new parents resolves
             // independently instead of falsely conflicting.
@@ -68,8 +88,10 @@ internal static class CollectionExecution
                 addition.Entity,
                 entry,
                 addition.Dto,
-                $"{path}[{addition.ScopeKey}]",
-                correlation
+                $"{path}[{scopeKey}]",
+                correlation,
+                appliedPaths,
+                collectionScopeKeys
             );
             var subs = new List<Action>();
             runtime.ChildPlan.WriteAll(sub, subs);
@@ -84,6 +106,18 @@ internal static class CollectionExecution
         foreach (var removal in plan.Removed)
         {
             ApplyRemoval(runtime, context, list, removal);
+            if (appliedPaths is not null)
+            {
+                appliedPaths.Add(
+                    AppliedPathFactory.Create(
+                        path,
+                        context.Entry(removal.Entity),
+                        runtime.NavigationName,
+                        SparseEntityApplyOperationKind.Removed,
+                        runtime.RemoveKind
+                    )
+                );
+            }
         }
 
         // Edits-only plans keep the tracked order: FinalOrder stays empty and
@@ -99,6 +133,38 @@ internal static class CollectionExecution
                 runtime.OrderSetter(plan.FinalOrder[index], index);
             }
         }
+        if (plan.OrderChanged && appliedPaths is not null)
+        {
+            appliedPaths.Add(
+                AppliedPathFactory.Create(
+                    path,
+                    context.Entry(parent),
+                    runtime.NavigationName,
+                    SparseEntityApplyOperationKind.Reordered
+                )
+            );
+        }
+    }
+
+    private static void RecordCollectionScope(
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys,
+        string path,
+        object entity,
+        string scopeKey
+    )
+    {
+        if (collectionScopeKeys is null)
+        {
+            return;
+        }
+
+        if (!collectionScopeKeys.TryGetValue(path, out var scopes))
+        {
+            scopes = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
+            collectionScopeKeys.Add(path, scopes);
+        }
+
+        scopes[entity] = scopeKey;
     }
 
     private static void ApplyRemoval<TDtoChild, TEntityChild>(
@@ -170,6 +236,9 @@ internal sealed class SyncPlan<TDtoChild, TEntityChild>
 
     /// <summary>Gets or sets whether the order setter persists positions.</summary>
     public bool PersistOrder { get; set; }
+
+    /// <summary>Gets or sets whether the accepted transition changed order.</summary>
+    public bool OrderChanged { get; set; }
 }
 
 /// <summary>

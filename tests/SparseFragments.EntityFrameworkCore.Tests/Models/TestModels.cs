@@ -62,6 +62,7 @@ public sealed class WidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
 }
 
 /// <summary>Widget mapping ignoring everything except Display, for fail-fast unmapped-path tests.</summary>
+[SparseFragmentMapper]
 public sealed class WidgetStrictMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
 {
     public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
@@ -75,6 +76,7 @@ public sealed class WidgetStrictMapper : IEntityModelMapping<WidgetEntity, Widge
 }
 
 /// <summary>Widget mapping that writes the identity with explicit allowance.</summary>
+[SparseFragmentMapper]
 public sealed class WidgetIdMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
 {
     public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
@@ -87,6 +89,7 @@ public sealed class WidgetIdMapper : IEntityModelMapping<WidgetEntity, WidgetDto
 }
 
 /// <summary>Widget mapping that writes the identity without allowance.</summary>
+[SparseFragmentMapper]
 public sealed class WidgetRawIdMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
 {
     public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
@@ -105,6 +108,7 @@ public partial class ShadowedWidgetDto
 }
 
 /// <summary>Mapping that collides with the shadow member.</summary>
+[SparseFragmentMapper]
 public sealed class ShadowedWidgetMapper : IEntityModelMapping<WidgetEntity, ShadowedWidgetDto>
 {
     public void Configure(SparseEntityMapBuilder<WidgetEntity, ShadowedWidgetDto> map) { }
@@ -128,6 +132,7 @@ public sealed class GadgetEntity
 }
 
 /// <summary>Ambiguous mapping: two DTO paths target the same entity member.</summary>
+[SparseFragmentMapper]
 public sealed class GadgetAmbiguousMapper : IEntityModelMapping<GadgetEntity, GadgetDto>
 {
     public void Configure(SparseEntityMapBuilder<GadgetEntity, GadgetDto> map)
@@ -157,6 +162,7 @@ public sealed class DeviceEntity
 }
 
 /// <summary>Baseline device mapping.</summary>
+[SparseFragmentMapper]
 public sealed class DeviceMapper : IEntityModelMapping<DeviceEntity, DeviceDto>
 {
     public void Configure(SparseEntityMapBuilder<DeviceEntity, DeviceDto> map) { }
@@ -197,6 +203,7 @@ public sealed class CartLineEntity
 }
 
 /// <summary>Mapping that marks the collection path.</summary>
+[SparseFragmentMapper]
 public sealed class CartMapper : IEntityModelMapping<CartEntity, CartDto>
 {
     public void Configure(SparseEntityMapBuilder<CartEntity, CartDto> map)
@@ -209,7 +216,7 @@ public sealed class CartMapper : IEntityModelMapping<CartEntity, CartDto>
 [SparseFragmentModel]
 public partial class TagsDto
 {
-    public List<string> Tags { get; set; } = [];
+    public List<string>? Tags { get; set; } = [];
 }
 
 /// <summary>Entity holding a primitive collection.</summary>
@@ -217,7 +224,7 @@ public sealed class TagsEntity
 {
     public int Id { get; set; }
 
-    public List<string> Tags { get; set; } = [];
+    public List<string>? Tags { get; set; } = [];
 }
 
 /// <summary>Second DTO configuration over the sample order entity.</summary>
@@ -230,6 +237,7 @@ public partial class OrderSummaryDto
 }
 
 /// <summary>Second mapping over the same entity with different renames and a subset of members.</summary>
+[SparseFragmentMapper]
 public sealed class OrderSummaryMapper : IEntityModelMapping<OrderEntity, OrderSummaryDto>
 {
     public void Configure(SparseEntityMapBuilder<OrderEntity, OrderSummaryDto> map)

@@ -133,6 +133,20 @@ public sealed class KeyedCollectionMappingTests
 
         result.TryGetCreated<OrderLineEntity>(temporary, out var correlated).ShouldBeTrue();
         ReferenceEquals(correlated, created).ShouldBeTrue();
+        ReferenceEquals(result.CreatedByPath, result.CreatedByPath).ShouldBeTrue();
+        var createdByPath = result.GetCreated<OrderLineEntity>("Lines");
+        createdByPath.Count.ShouldBe(1);
+        ReferenceEquals(createdByPath[temporary], created).ShouldBeTrue();
+        var expressionPath = result.GetCreated<OrderLineEntity, OrderDto>(dto => dto.Lines);
+        ReferenceEquals(expressionPath[temporary], created).ShouldBeTrue();
+        result
+            .TryGetCreated<OrderLineEntity>("Lines", temporary, out var pathCorrelated)
+            .ShouldBeTrue();
+        ReferenceEquals(pathCorrelated, created).ShouldBeTrue();
+        result.GetCreated("missing").ShouldBeEmpty();
+        result
+            .CreatedByPath["Lines"]
+            .ShouldBeOfType<System.Collections.ObjectModel.ReadOnlyDictionary<Guid, object>>();
         counter.Commands.ShouldBe(0);
 
         await context.SaveChangesAsync();
@@ -238,6 +252,81 @@ public sealed class KeyedCollectionMappingTests
             .Single(order => order.Id == entity.Id);
         reloaded.Lines.Count.ShouldBe(2);
         reloaded.Lines.Single(line => line.LineNo == 1).Qty.ShouldBe(11);
+    }
+
+    [Test]
+    public async Task TemporaryKeyWritebackUsesKeyProjectionAndPreservesBaselineIdentity()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .TemporaryCompositeOrders.Add(
+                new TemporaryCompositeOrderEntity
+                {
+                    Lines =
+                    [
+                        new TemporaryCompositeLineEntity
+                        {
+                            TenantId = "tenant",
+                            LineNo = 1,
+                            Qty = 1,
+                        },
+                    ],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static order => order.Lines).LoadAsync();
+        counter.Reset();
+
+        static TemporaryCompositeOrderDto Read(TemporaryCompositeOrderEntity order) =>
+            new()
+            {
+                Lines = order
+                    .Lines.Select(static line => new TemporaryCompositeLineDto
+                    {
+                        TenantId = line.TenantId,
+                        LineNo = line.LineNo,
+                        Qty = line.Qty,
+                        Key = line.TenantId + ":" + line.LineNo,
+                    })
+                    .ToList(),
+            };
+
+        var baseline = Read(entity);
+        var baselineTemporary = Guid.NewGuid();
+        baseline.Lines[0].TemporaryId = baselineTemporary;
+        var incoming = Read(entity);
+        incoming.Lines[0].TemporaryId = baselineTemporary;
+        var createdTemporary = Guid.NewGuid();
+        incoming.Lines.Add(
+            new TemporaryCompositeLineDto
+            {
+                TenantId = "tenant",
+                LineNo = 2,
+                Qty = 2,
+                TemporaryId = createdTemporary,
+            }
+        );
+        var accepted = baseline.CreateChangeSet(incoming);
+        var mapper = SparseEntityMapper<
+            TemporaryCompositeOrderEntity,
+            TemporaryCompositeOrderDto
+        >.Create(new TemporaryCompositeOrderMapper(), context.Model);
+
+        var result = mapper.ApplyWithResult(context, entity, accepted);
+        await context.SaveChangesAsync();
+        var authoritative = Read(entity);
+        counter.Reset();
+        mapper.AssignTemporaryKeys(context, result, baseline, authoritative);
+
+        authoritative
+            .Lines.Single(static line => line.LineNo == 1)
+            .TemporaryId.ShouldBe(baselineTemporary);
+        authoritative
+            .Lines.Single(static line => line.LineNo == 2)
+            .TemporaryId.ShouldBe(createdTemporary);
     }
 
     [Test]
@@ -408,6 +497,7 @@ public sealed class KeyedCollectionMappingTests
     }
 
     /// <summary>Same element pair, distinct path-scoped child mappings and removal policies.</summary>
+    [SparseFragmentMapper]
     public sealed class DuoDivergentMapper : IEntityModelMapping<DuoEntity, DuoDto>
     {
         /// <inheritdoc />
@@ -531,6 +621,7 @@ public sealed class KeyedCollectionMappingTests
     }
 
     /// <summary>Order mapping without an order setter: membership syncs, pure reorder fails.</summary>
+    [SparseFragmentMapper]
     public sealed class OrderNoOrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
     {
         /// <inheritdoc />
@@ -601,7 +692,6 @@ public sealed class KeyedCollectionMappingTests
         using var context = CreateSample(connection, counter);
         var entity = SeedOrder(context);
         var baseline = ReadOrderDto(entity);
-        var baselineIds = entity.Lines.Select(static line => line.Id).ToHashSet();
 
         // Client edit session over the baseline: one edit plus one temporary addition.
         var draft = CloneOrder(baseline);
@@ -625,27 +715,16 @@ public sealed class KeyedCollectionMappingTests
         var accepted = rebased.Rebased;
         counter.Reset();
 
-        var applied = SparseEntityMapper<OrderEntity, OrderDto>
-            .Create(new OrderMapper(), context.Model)
-            .ApplyWithResult(context, entity, accepted);
+        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
+            new OrderMapper(),
+            context.Model
+        );
+        var applied = mapper.ApplyWithResult(context, entity, accepted);
         counter.Commands.ShouldBe(0);
         await context.SaveChangesAsync();
 
-        // Authoritative DTO: persisted rows plus temporary correlation for the addition.
         var authoritative = ReadOrderDto(entity);
-        var createdIds = applied
-            .CreatedByPath["Lines"]
-            .ToDictionary(
-                static entry => ((OrderLineEntity)entry.Value).Id,
-                static entry => entry.Key
-            );
-        foreach (var line in authoritative.Lines)
-        {
-            if (!baselineIds.Contains(line.Id) && createdIds.TryGetValue(line.Id, out var temp))
-            {
-                line.TemporaryId = temp;
-            }
-        }
+        mapper.AssignTemporaryKeys(context, applied, baseline, authoritative);
 
         authoritative.Lines.Count.ShouldBe(4);
         authoritative.Lines.Single(static line => line.Quantity == 20).Id.ShouldNotBe(0);

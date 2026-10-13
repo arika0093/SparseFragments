@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using SparseFragments.EntityFrameworkCore.Mapping;
@@ -13,7 +15,7 @@ namespace SparseFragments.EntityFrameworkCore;
 /// earlier proof of concept, plans are never shared across mapping instances,
 /// so constructor-injected configuration cannot leak between instances.
 /// Reuse the returned mapper instance for repeated applies against the same
-/// model. <see cref="Apply" /> never queries, never calls <c>SaveChanges</c>,
+/// model. <see cref="Apply(DbContext, TEntity, ISparseChangeSet{TDto})" /> never queries, never calls <c>SaveChanges</c>,
 /// and never rebases; orchestration stays application-owned. Only members
 /// marked changed by the accepted change set execute their setters, so
 /// untouched EF properties stay unmodified. New values always come from the
@@ -25,11 +27,20 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     where TEntity : class
     where TDto : class
 {
+    private readonly Lazy<(
+        Expression<Func<TEntity, TDto>> Expression,
+        Func<TEntity, TDto> Compiled
+    )> _projection;
+
     private SparseEntityMapper(IModel model, EntityPlanBase plan, string mapper)
     {
         Model = model;
         Plan = plan;
         MapperName = mapper;
+        _projection = new Lazy<(
+            Expression<Func<TEntity, TDto>> Expression,
+            Func<TEntity, TDto> Compiled
+        )>(CreateProjection, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     internal IModel Model { get; }
@@ -37,6 +48,66 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     internal EntityPlanBase Plan { get; }
 
     internal string MapperName { get; }
+
+    /// <summary>
+    /// Gets the expression that projects an entity into the mapped DTO.
+    /// </summary>
+    /// <remarks>
+    /// Read-side validation is deferred until this property is first accessed.
+    /// The expression can be passed to LINQ providers such as EF Core.
+    /// </remarks>
+    public Expression<Func<TEntity, TDto>> Projection => _projection.Value.Expression;
+
+    /// <summary>
+    /// Projects an entity in memory into the mapped DTO.
+    /// </summary>
+    /// <remarks>
+    /// This method performs no database access. Load mapped reference and
+    /// collection navigations first when their values are needed in the DTO.
+    /// </remarks>
+    /// <param name="entity">The entity to project.</param>
+    /// <returns>The DTO projected from the entity.</returns>
+    public TDto ToDto(TEntity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        return _projection.Value.Compiled(entity);
+    }
+
+    /// <summary>
+    /// Preserves baseline temporary identities and assigns the identities of
+    /// newly created entities to the authoritative DTO.
+    /// </summary>
+    /// <remarks>
+    /// Call after <c>SaveChanges</c>, when generated entity keys are available.
+    /// Collection key projections configured with <c>Key()</c> are used for
+    /// matching, and nested collection paths remain scoped to their parent.
+    /// </remarks>
+    /// <param name="context">The context used to read mapped entity keys.</param>
+    /// <param name="result">The result returned by <see cref="ApplyWithResult(DbContext, TEntity, ISparseChangeSet{TDto})"/>.</param>
+    /// <param name="baseline">The prior DTO whose temporary identities must be preserved.</param>
+    /// <param name="authoritative">The newly projected or constructed authoritative DTO to update.</param>
+    public void AssignTemporaryKeys(
+        DbContext context,
+        SparseEntityApplyResult result,
+        TDto baseline,
+        TDto authoritative
+    )
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(authoritative);
+        if (!ReferenceEquals(context.Model, Model))
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                null,
+                "The context model is not the model this mapper was created for. Create a mapper per EF model."
+            );
+        }
+
+        Plan.AssignTemporaryKeys(context, baseline, authoritative, result, string.Empty);
+    }
 
     /// <summary>
     /// Creates the mapper for one mapping instance plus EF model.
@@ -79,16 +150,26 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
     /// <param name="entity">The tracked entity to update.</param>
     /// <param name="changes">The accepted/rebased change set; the strict write mask and value source.</param>
+    public void Apply(DbContext context, TEntity entity, ISparseChangeSet<TDto> changes)
+    {
+        ApplyCore(context, entity, changes, trackResult: false);
+    }
+
+    /// <summary>Applies a change set through the runtime-checked compatibility overload.</summary>
+    /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
+    /// <param name="entity">The tracked entity to update.</param>
+    /// <param name="changes">The accepted/rebased change set; its model type must be <typeparamref name="TDto"/>.</param>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
     public void Apply(DbContext context, TEntity entity, ISparseChangeSet changes)
     {
-        ApplyWithResult(context, entity, changes);
+        Apply(context, entity, RequireDtoChangeSet(changes));
     }
 
     /// <summary>
     /// Applies the accepted change set to a tracked entity and correlates created children.
     /// </summary>
     /// <remarks>
-    /// Same lifecycle as <see cref="Apply" />. The returned result maps every
+    /// Same lifecycle as <see cref="Apply(DbContext, TEntity, ISparseChangeSet{TDto})" />. The returned result maps every
     /// DTO <c>[SparseTemporaryKey]</c> to its created child entity scoped by
     /// collection path, so the application can read database-generated
     /// permanent keys after the application-owned <c>SaveChanges</c> and build
@@ -101,7 +182,32 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     public SparseEntityApplyResult ApplyWithResult(
         DbContext context,
         TEntity entity,
+        ISparseChangeSet<TDto> changes
+    )
+    {
+        return ApplyCore(context, entity, changes, trackResult: true)!;
+    }
+
+    /// <summary>Applies a change set through the runtime-checked compatibility overload.</summary>
+    /// <param name="context">The context tracking the entity. Its model must be the creation model.</param>
+    /// <param name="entity">The tracked entity to update.</param>
+    /// <param name="changes">The accepted/rebased change set; its model type must be <typeparamref name="TDto"/>.</param>
+    /// <returns>The path-scoped temporary-identity correlation for created child entities.</returns>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
+    public SparseEntityApplyResult ApplyWithResult(
+        DbContext context,
+        TEntity entity,
         ISparseChangeSet changes
+    )
+    {
+        return ApplyWithResult(context, entity, RequireDtoChangeSet(changes));
+    }
+
+    private SparseEntityApplyResult? ApplyCore(
+        DbContext context,
+        TEntity entity,
+        ISparseChangeSet<TDto> changes,
+        bool trackResult
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -136,7 +242,13 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             );
         }
 
-        var correlation = new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal);
+        var correlation = trackResult
+            ? new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal)
+            : null;
+        var appliedPaths = trackResult ? new List<SparseEntityAppliedPath>() : null;
+        var collectionScopeKeys = trackResult
+            ? new Dictionary<string, Dictionary<object, string>>(StringComparer.Ordinal)
+            : null;
         var state = new PlanApplyState(
             context,
             entity,
@@ -144,7 +256,9 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             changes,
             string.Empty,
             false,
-            correlation
+            correlation,
+            appliedPaths: appliedPaths,
+            collectionScopeKeys: collectionScopeKeys
         );
         var actions = new List<Action>();
         try
@@ -169,7 +283,19 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             throw ScopeToMapper(exception);
         }
 
-        return new SparseEntityApplyResult(correlation);
+        return trackResult
+            ? new SparseEntityApplyResult(correlation!, appliedPaths, collectionScopeKeys)
+            : null;
+    }
+
+    private static ISparseChangeSet<TDto> RequireDtoChangeSet(ISparseChangeSet changes)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        return changes as ISparseChangeSet<TDto>
+            ?? throw new ArgumentException(
+                $"The change set must describe DTO type '{typeof(TDto).FullName}'.",
+                nameof(changes)
+            );
     }
 
     private SparseEntityMappingException ScopeToMapper(SparseEntityMappingException exception)
@@ -187,6 +313,23 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             MapperName,
             exception
         );
+    }
+
+    private (
+        Expression<Func<TEntity, TDto>> Expression,
+        Func<TEntity, TDto> Compiled
+    ) CreateProjection()
+    {
+        var entity = Expression.Parameter(typeof(TEntity), "entity");
+        var context = new ReadProjectionBuildContext();
+        var body = Plan.BuildProjection(entity, context, string.Empty);
+        if (context.Errors.Count > 0)
+        {
+            throw ScopeToMapper(SparseEntityMappingException.FromErrors(context.Errors));
+        }
+
+        var expression = Expression.Lambda<Func<TEntity, TDto>>(body, entity);
+        return (expression, expression.Compile());
     }
 
     private static SparseEntityMapper<TEntity, TDto> Build(
