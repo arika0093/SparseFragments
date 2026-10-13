@@ -1506,6 +1506,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries baseline, SparseFragments.GeneratedApiFixtures.CatalogDictionaries current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogDictionaries?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -1734,6 +1736,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogImmutable baseline, SparseFragments.GeneratedApiFixtures.CatalogImmutable current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogImmutable?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -1964,6 +1968,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedItem current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -2212,6 +2218,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster baseline, SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -2480,6 +2488,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogNested baseline, SparseFragments.GeneratedApiFixtures.CatalogNested current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogNested?> model, System.Action? onChanged = null) { }
     }
     public sealed class CatalogPoco
@@ -2728,6 +2738,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration baseline, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration baseline, SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration?> model, System.Action? onChanged = null) { }
     }
     [SparseFragments.SparseFragmentModel]
@@ -2986,6 +2998,8 @@ namespace SparseFragments.GeneratedApiFixtures
         public static SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet(this SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar current) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar model, System.Action? onChanged = null) { }
         public static SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession CreateEditSession(this SparseFragments.GeneratedApiFixtures.CatalogScalar baseline, SparseFragments.GeneratedApiFixtures.CatalogScalar current, System.Action? onChanged = null) { }
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession session, SparseFragments.SparsePath collectionPath) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession session, SparseFragments.SparsePath collectionPath) { }
         public static SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar.Observable?> ToObservable(this SparseFragments.Optional<SparseFragments.GeneratedApiFixtures.CatalogScalar?> model, System.Action? onChanged = null) { }
     }
 }

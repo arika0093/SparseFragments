@@ -155,6 +155,105 @@ internal static class SparseModelExtensionsEmitter
             code.AppendLineAt(1, "}");
         }
 
+        if (
+            !model.IsStruct
+            && config.DescriptorDialect is not null
+            && config.EffectiveEmissionFeatures.EmitObservable
+        )
+        {
+            // Session-rooted collection editing facade (issue #251): the
+            // overloads below only forward the live descriptor set and the
+            // batch runner to the runtime editors, so all semantics stay in
+            // the reusable runtime while call sites read session-first.
+            var sessionType =
+                modelType
+                + "."
+                + SparseGeneratedPlacement.ResolveUiTypeName(
+                    "EditSession",
+                    members.Select(static member => member.Property.Name)
+                );
+            code.AppendLineAt(
+                1,
+                "/// <summary>Opens a path-addressed typed editing facade for one collection member of this session.</summary>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <remarks>Each operation re-resolves the live collection and runs inside one batch, so a replaced collection never acts on stale state and one user action raises one transition notification. Keyed lookups resolve stable identity per operation and never treat a sentinel or position as durable identity. For state inspection rather than editing, read the typed ChangeSet projections instead.</remarks>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <typeparam name=\"TElement\">The collection element model type.</typeparam>"
+            );
+            code.AppendLineAt(1, "/// <param name=\"session\">The edit session.</param>");
+            code.AppendLineAt(
+                1,
+                "/// <param name=\"collectionPath\">A single-member collection path.</param>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <returns>An editing facade bound to the addressed member.</returns>"
+            );
+            code.AppendLineAt(
+                1,
+                accessibility
+                    + " static global::SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this "
+                    + sessionType
+                    + " session, global::SparseFragments.SparsePath collectionPath)"
+            );
+            code.AppendLineAt(1, "{");
+            code.AppendLineAt(
+                2,
+                "if (session is null) throw new global::System.ArgumentNullException(nameof(session));"
+            );
+            code.AppendLineAt(
+                2,
+                "return global::SparseFragments.SparseCollectionEditors.EditCollection<TElement>(session.Descriptors, collectionPath, session.BatchEdit);"
+            );
+            code.AppendLineAt(1, "}");
+            code.AppendLineAt(
+                1,
+                "/// <summary>Opens a path-addressed keyed editing facade for one collection member of this session.</summary>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <remarks>Keyed operations resolve the current index per operation, so rows survive reordering; unassigned sentinels never serve as durable identity. Temporary identities address pending rows through their stable Guid.</remarks>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <typeparam name=\"TElement\">The collection element model type.</typeparam>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <typeparam name=\"TKey\">The assigned key type declared by the key attribute.</typeparam>"
+            );
+            code.AppendLineAt(1, "/// <param name=\"session\">The edit session.</param>");
+            code.AppendLineAt(
+                1,
+                "/// <param name=\"collectionPath\">A single-member collection path.</param>"
+            );
+            code.AppendLineAt(
+                1,
+                "/// <returns>A keyed editing facade bound to the addressed member.</returns>"
+            );
+            code.AppendLineAt(
+                1,
+                accessibility
+                    + " static global::SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditCollection<TElement, TKey>(this "
+                    + sessionType
+                    + " session, global::SparseFragments.SparsePath collectionPath)"
+            );
+            code.AppendLineAt(1, "{");
+            code.AppendLineAt(
+                2,
+                "if (session is null) throw new global::System.ArgumentNullException(nameof(session));"
+            );
+            code.AppendLineAt(
+                2,
+                "return global::SparseFragments.SparseCollectionEditors.EditKeyedCollection<TElement, TKey>(session.Descriptors, collectionPath, session.BatchEdit);"
+            );
+            code.AppendLineAt(1, "}");
+        }
+
         code.AppendLineAt(0, "}");
     }
 }

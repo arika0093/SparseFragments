@@ -413,6 +413,48 @@ namespace SparseFragments
     {
         public SparseCloneReferenceSafeAttribute() { }
     }
+    public enum SparseCollectionEditError
+    {
+        None = 0,
+        UnknownCollection = 1,
+        NotACollection = 2,
+        NullCollection = 3,
+        NotMutable = 4,
+        IndexOutOfRange = 5,
+        DuplicateKey = 6,
+        UnknownKey = 7,
+        UnassignedKey = 8,
+        UnknownTemporaryKey = 9,
+        InvalidItem = 10,
+    }
+    public class SparseCollectionEditor<TElement>
+    {
+        public SparseCollectionEditor(SparseFragments.Generated.IDescriptorSet descriptors, SparseFragments.SparsePath path, System.Action<System.Action> batch) { }
+        public bool CanAdd { get; }
+        public bool CanInsert { get; }
+        public bool CanMove { get; }
+        public bool CanRemove { get; }
+        public bool CanReplace { get; }
+        public int Count { get; }
+        public bool IsKeyed { get; }
+        public System.Collections.Generic.IReadOnlyList<string> KeyPropertyNames { get; }
+        public System.Type? KeyType { get; }
+        public SparseFragments.SparsePath Path { get; }
+        protected void Batched(System.Action mutation) { }
+        public bool IsAvailable(out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryAdd(TElement? item, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryGetAt(int index, out TElement? value, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryInsert(int index, TElement? item, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryMove(int oldIndex, int newIndex, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryRemoveAt(int index, out TElement? item, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryReplace(int index, TElement? item, out SparseFragments.SparseCollectionEditError error) { }
+        protected bool TryResolveArray(out SparseFragments.Generated.IArrayDescriptor array, out SparseFragments.SparseCollectionEditError error) { }
+    }
+    public static class SparseCollectionEditors
+    {
+        public static SparseFragments.SparseCollectionEditor<TElement> EditCollection<TElement>(this SparseFragments.Generated.IDescriptorSet descriptors, SparseFragments.SparsePath collectionPath, System.Action<System.Action> batch) { }
+        public static SparseFragments.SparseKeyedCollectionEditor<TElement, TKey> EditKeyedCollection<TElement, TKey>(this SparseFragments.Generated.IDescriptorSet descriptors, SparseFragments.SparsePath collectionPath, System.Action<System.Action> batch) { }
+    }
     public readonly struct SparseCollectionItemState : System.IEquatable<SparseFragments.SparseCollectionItemState>
     {
         public SparseFragments.Optional<object?> After { get; }
@@ -512,6 +554,21 @@ namespace SparseFragments
     {
         public SparseKeyAttribute() { }
         public object? Unassigned { get; set; }
+    }
+    public sealed class SparseKeyedCollectionEditor<TElement, TKey> : SparseFragments.SparseCollectionEditor<TElement>
+    {
+        public SparseKeyedCollectionEditor(SparseFragments.Generated.IDescriptorSet descriptors, SparseFragments.SparsePath path, System.Action<System.Action> batch) { }
+        public bool ContainsKey(TKey? key) { }
+        public int IndexOfKey(TKey? key) { }
+        public int IndexOfTemporaryKey(System.Guid temporaryKey) { }
+        public bool IsUnassignedKey(TKey? key) { }
+        public bool TryGetByKey(TKey? key, out TElement? value, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryGetByTemporaryKey(System.Guid temporaryKey, out TElement? value, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryGetKeyAt(int index, out TKey? key, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryMoveByKey(TKey? key, int newIndex, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryRemoveByKey(TKey? key, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryRemoveByTemporaryKey(System.Guid temporaryKey, out SparseFragments.SparseCollectionEditError error) { }
+        public bool TryReplaceByKey(TKey? key, TElement? item, out SparseFragments.SparseCollectionEditError error) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseMergeAttribute : System.Attribute

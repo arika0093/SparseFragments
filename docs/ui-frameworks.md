@@ -100,6 +100,18 @@ Notifications are synchronous and do not marshal to a UI thread. Collection view
 
 Use `session.BatchEdit(() => { ... })` when one user action needs several observable mutations. The outermost batch raises one `TransitionObserved` event for the net transition; nested batches join it. `PropertyChanged` and the optional `onChanged` callback are also coalesced. The batch still publishes when its action throws. A batch does not roll back mutations if its action throws: batching coalesces notifications only. To discard edits, revert explicitly (see [Discard pending edits](#discard-pending-edits)).
 
+### Edit one collection through a path-addressed facade
+
+`session.EditCollection<TElement>(Model.SparsePath.Items)` opens an editing facade for one collection member, and `session.EditCollection<TElement, TKey>` adds keyed operations where the element declares a stable key. Each facade call runs inside one batch, so one user action raises one transition notification. The facade resolves the live collection from the session descriptors on every operation. A collection that was replaced or assigned after the facade was created is picked up on the next call; there is no snapshot to refresh and nothing to re-create.
+
+Reads return underlying models. `TryGetAt` and the keyed lookups hand back the element model, never an observable proxy. Bind controls to the session observable view; use the facade for the mutation and the typed ChangeSet for what changed.
+
+Failures report a `SparseCollectionEditError` value: unknown member, member without sequence shape, null collection, immutable backing, out-of-range index, duplicate key, unknown key, unassigned sentinel used as identity, unknown temporary identity, or an item of the wrong element type. Rejected edits change nothing and raise no notification. Static misuse throws instead: a path that does not address one member, a keyed operation on an unkeyed collection, or a key type that does not match the declared key type.
+
+Keyed operations look the index up on every call, so rows keep their identity across reorder. Assigned keys compare by value. An unassigned sentinel never resolves, even when rows carry it: lookups report it as unassigned instead of returning the first sentinel row. Pending rows with a temporary Guid resolve through the temporary-identity operations. UI row keys come from `TryGetKeyAt` per position plus `IsUnassignedKey`; the pending row model itself carries its temporary Guid.
+
+Omitted on purpose: throwing variants of the Try operations (callers throw on the reported error where a throw fits), move-to-key helpers (compose `IndexOfKey` with `TryMove`), whole-collection clear and replace (no descriptor route exists; replace the member through the observable), dictionary and set members, and collections nested under list items (root members only, so resolution never depends on a positional index). Change-state reads stay out as well; the typed ChangeSet projections report what changed.
+
 ### Advanced inspection: Descriptors and flattened changes
 
 Ordinary editing needs only `Observable`, `Current`, and `CreateChangeSet()`. Two further seams exist for generic UI and diagnostics code:
