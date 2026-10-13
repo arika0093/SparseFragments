@@ -11,7 +11,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../src/SparseFragments.EntityFrameworkCore/SparseFragments.EntityFrameworkCore.csproj"
+    />
     <ProjectReference
       Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
       OutputItemType="Analyzer"
