@@ -3,6 +3,17 @@ namespace SparseTypes.Tests;
 public sealed class SparsePathFormattingTests
 {
     [Test]
+    public void EscapingRoundTripsEveryControlCharacterAndUnicode()
+    {
+        var key =
+            string.Concat(Enumerable.Range(0, 32).Select(index => (char)index)) + "\"\\日本語😀";
+        var path = SparsePath.Root<object>().Member("Values").Key(key);
+        var text = path.ToString();
+        text.Any(character => character < 0x20).ShouldBeFalse();
+        SparsePath.Parse<object>(text).ShouldBe(path);
+    }
+
+    [Test]
     public void FormattingCanReenterFromAKeyFormatter()
     {
         var nested = SparsePath.Root<object>().Member("Nested").Member("Value");
