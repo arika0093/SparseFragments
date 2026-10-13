@@ -166,7 +166,6 @@ public sealed class PlaygroundOrderMapper
             entity => entity.Lines,
             lines =>
             {
-                lines.Element(child => child.Ignore(line => line.Id));
                 lines.Delete();
                 lines.Order((entity, index) => entity.SortOrder = index);
             }

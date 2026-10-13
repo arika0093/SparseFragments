@@ -290,6 +290,50 @@ public sealed class SparseEntityMapperEmitterTests
     }
 
     [Test]
+    public void NullableSparseKeyMemberIsIgnoredByGeneratedElementDefaults()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            using System.Collections.Generic;
+            namespace Probe
+            {
+                public sealed class LineDto
+                {
+                    public int? Id { get; set; }
+                    [SparseFragments.SparseKey(Unassigned = 0)]
+                    public int Key => Id ?? 0;
+                    public int Qty { get; set; }
+                }
+                public sealed class LineEntity
+                {
+                    public int Id { get; set; }
+                    public int Qty { get; set; }
+                }
+                public sealed class OrderDto
+                {
+                    public List<LineDto> Lines { get; set; } = new();
+                }
+                public sealed class OrderEntity
+                {
+                    public List<LineEntity> Lines { get; set; } = new();
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, sources) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        sources.ShouldContain("child.Ignore(static dto => dto.Id);");
+        sources.ShouldContain("child.Member(static dto => dto.Qty, static entity => entity.Qty);");
+        sources.ShouldNotContain("dto => dto.Id, static entity => entity.Id");
+    }
+
+    [Test]
     public void InheritedMembersEmitDefaults()
     {
         const string source = """

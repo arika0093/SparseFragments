@@ -92,7 +92,6 @@ public sealed class NkMapper : IEntityModelMapping<NkOrderEntity, NkOrderDto>
             {
                 lines.Element(child =>
                 {
-                    child.Ignore(line => line.Id);
                     child.Ignore(line => line.TemporaryId);
                 });
                 lines.Delete();

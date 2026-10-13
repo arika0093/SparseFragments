@@ -34,8 +34,6 @@
                     entity => entity.Lines, // Apply them to the tracked EF collection.
                     lines =>
                     {
-                        // Nullable DTO Id cannot use the generated same-name mapping.
-                        lines.Element(child => child.Ignore(line => line.Id));
                         // Mark removed line entities for deletion by EF.
                         lines.Delete();
                         // Persist the collection order.

@@ -214,6 +214,15 @@ internal static class SparseEntityMapperEmitter
             return;
         }
 
+        HashSet<string>? keyMembers = null;
+        if (
+            collectionElement
+            && TryGetKeyDeclaration(dtoType, out _, out _, out _, out var keyComponentNames)
+        )
+        {
+            keyMembers = keyComponentNames.ToHashSet(StringComparer.Ordinal);
+        }
+
         foreach (var dtoProperty in ListSettableProperties(dtoType))
         {
             var name = dtoProperty.Name;
@@ -229,6 +238,27 @@ internal static class SparseEntityMapperEmitter
                 && SparseEntityMapperSymbolHelpers.IsScalarType(sameNameEntityType)
                 && SparseEntityMapperSymbolHelpers.SameType(dtoProperty.Type, sameNameEntityType);
             if (isTemporaryKey || (isKey && (!collectionElement || !sameNameScalar)))
+            {
+                AppendIndent(code, indent)
+                    .Append(builder)
+                    .Append(".Ignore(static ")
+                    .Append(dtoParameter)
+                    .Append(" => ")
+                    .Append(dtoParameter)
+                    .Append('.')
+                    .Append(EscapeIdentifier(name))
+                    .AppendLine(");");
+                continue;
+            }
+
+            if (
+                collectionElement
+                && keyMembers?.Contains(name) == true
+                && sameNameEntityType is not null
+                && SparseEntityMapperSymbolHelpers.IsScalarType(dtoProperty.Type)
+                && SparseEntityMapperSymbolHelpers.IsScalarType(sameNameEntityType)
+                && !SparseEntityMapperSymbolHelpers.SameType(dtoProperty.Type, sameNameEntityType)
+            )
             {
                 AppendIndent(code, indent)
                     .Append(builder)
