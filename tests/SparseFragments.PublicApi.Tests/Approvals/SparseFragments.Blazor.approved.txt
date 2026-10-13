@@ -70,5 +70,4 @@ namespace SparseFragments.Blazor
         public void Dispose() { }
         protected override void OnParametersSet() { }
     }
-    }
 }
