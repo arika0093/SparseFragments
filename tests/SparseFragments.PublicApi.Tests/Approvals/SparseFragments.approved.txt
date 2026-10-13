@@ -189,6 +189,13 @@ namespace SparseFragments
     {
         SparseFragments.ISparseKeyedItemChange<TKey, TElement, TElementChange> GetTemporaryChange(System.Guid temporaryKey);
     }
+    public interface ISparseTypedPath<TModel, TValue>
+    {
+        bool CanWriteModelValueInPlace { get; }
+        SparseFragments.SparsePath<TModel, TValue> TypedPath { get; }
+        SparseFragments.SparsePath UntypedPath { get; }
+        void WriteModelValueInPlace(TValue current, TValue updated);
+    }
     public interface ISparseValueChange<T>
     {
         SparseFragments.Optional<T> After { get; }
@@ -521,17 +528,21 @@ namespace SparseFragments
             public void Reset() { }
         }
     }
-    public readonly struct SparsePath<TModel, TValue> : System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
+    public readonly struct SparsePath<TModel, TValue> : SparseFragments.ISparseTypedPath<TModel, TValue>, System.IEquatable<SparseFragments.SparsePath<TModel, TValue>>
     {
         public SparsePath(SparseFragments.SparsePath path) { }
+        public bool CanWriteModelValueInPlace { get; }
         public SparseFragments.SparsePath Path { get; }
         public System.Type RootType { get; }
+        public SparseFragments.SparsePath<TModel, TValue> TypedPath { get; }
+        public SparseFragments.SparsePath UntypedPath { get; }
         public System.Type ValueType { get; }
         public bool Equals(SparseFragments.SparsePath other) { }
         public bool Equals(SparseFragments.SparsePath<TModel, TValue> other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override string ToString() { }
+        public void WriteModelValueInPlace(TValue current, TValue updated) { }
         public static SparseFragments.SparsePath op_Implicit(SparseFragments.SparsePath<TModel, TValue> path) { }
         public static bool operator !=(SparseFragments.SparsePath<TModel, TValue> left, SparseFragments.SparsePath<TModel, TValue> right) { }
         public static bool operator ==(SparseFragments.SparsePath<TModel, TValue> left, SparseFragments.SparsePath<TModel, TValue> right) { }
@@ -673,7 +684,9 @@ namespace SparseFragments.Generated
         object? GetItem(int index);
         SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index);
         object? GetItemKey(int index);
+        object? GetItemModel(int index);
         int IndexOfKey(object? key);
+        int IndexOfTemporaryKey(System.Guid temporaryKey);
         bool IsUnassignedKey(object? key);
         bool TryAdd(object? value);
         bool TryInsert(int index, object? value);
@@ -699,6 +712,7 @@ namespace SparseFragments.Generated
         SparseFragments.Generated.SparseDescriptorShape Shape { get; }
         System.Type Type { get; }
         System.Type ViewType { get; }
+        object? GetModelValue();
         object? GetValue();
         bool TrySetValue(object? value);
     }
@@ -706,6 +720,7 @@ namespace SparseFragments.Generated
     {
         System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> Members { get; }
         SparseFragments.Generated.IDescriptor? Find(SparseFragments.SparsePath path);
+        object? ResolveModel(SparseFragments.SparsePath path);
         bool TryGet(string name, out SparseFragments.Generated.IDescriptor descriptor);
     }
     public interface IDictDescriptor
@@ -720,6 +735,7 @@ namespace SparseFragments.Generated
         System.Type ValueType { get; }
         System.Type ValueViewType { get; }
         SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key);
+        object? GetValueModel(object? key);
         bool TryAdd(object? key, object? value);
         bool TryGetValue(object? key, out object? value);
         bool TryRemove(object? key);
@@ -747,6 +763,7 @@ namespace SparseFragments.Generated
         SparseFragments.Generated.IDescriptorSet? Child { get; }
         SparseFragments.Generated.IDictDescriptor? Dictionary { get; }
         SparseFragments.Generated.ISetDescriptor? Set { get; }
+        object? GetModelValue();
         object? GetValue();
         bool TrySetValue(object? value);
     }
@@ -787,7 +804,9 @@ namespace SparseFragments.Generated
         public object? GetItem(int index) { }
         public SparseFragments.Generated.IDescriptorSet? GetItemDescriptors(int index) { }
         public object? GetItemKey(int index) { }
+        public object? GetItemModel(int index) { }
         public int IndexOfKey(object? key) { }
+        public int IndexOfTemporaryKey(System.Guid temporaryKey) { }
         public bool IsUnassignedKey(object? key) { }
         public bool TryAdd(object? value) { }
         public bool TryInsert(int index, object? value) { }
@@ -810,6 +829,7 @@ namespace SparseFragments.Generated
         public System.Func<int, object?>? GetItemKey { get; set; }
         public System.Func<int, object?>? GetItemModel { get; set; }
         public System.Func<object?, int>? IndexOfKey { get; set; }
+        public System.Func<System.Guid, int>? IndexOfTemporaryKey { get; set; }
         public System.Func<object?, bool>? IsUnassignedKey { get; set; }
         public System.Func<object?, bool>? TryAdd { get; set; }
         public System.Func<int, object?, bool>? TryInsert { get; set; }
@@ -851,7 +871,8 @@ namespace SparseFragments.Generated
                     System.Func<SparseFragments.Generated.ISetDescriptor?>? getSet = null,
                     SparseFragments.Generated.SparseDescriptorShape? shape = null,
                     bool isRequired = false,
-                    bool isNullableOblivious = false) { }
+                    bool isNullableOblivious = false,
+                    System.Func<object?>? getModelValue = null) { }
         public SparseFragments.Generated.IArrayDescriptor? Array { get; }
         public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
         public SparseFragments.Generated.IDescriptorSet? Child { get; }
@@ -869,6 +890,7 @@ namespace SparseFragments.Generated
         public SparseFragments.Generated.SparseDescriptorShape Shape { get; }
         public System.Type Type { get; }
         public System.Type ViewType { get; }
+        public object? GetModelValue() { }
         public object? GetValue() { }
         public bool TrySetValue(object? value) { }
         public static SparseFragments.Generated.IDescriptor Guarded(SparseFragments.Generated.IDescriptor inner, System.Func<bool> isLive) { }
@@ -878,6 +900,7 @@ namespace SparseFragments.Generated
         public SparseDescriptorSet(System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> members) { }
         public System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.IDescriptor> Members { get; }
         public SparseFragments.Generated.IDescriptor? Find(SparseFragments.SparsePath path) { }
+        public object? ResolveModel(SparseFragments.SparsePath path) { }
         public bool TryGet(string name, out SparseFragments.Generated.IDescriptor descriptor) { }
         public static SparseFragments.Generated.IDescriptorSet Guarded(SparseFragments.Generated.IDescriptorSet inner, System.Func<bool> isLive) { }
     }
@@ -914,6 +937,7 @@ namespace SparseFragments.Generated
         public System.Type ValueType { get; }
         public System.Type ValueViewType { get; }
         public SparseFragments.Generated.IDescriptorSet? GetValueDescriptors(object? key) { }
+        public object? GetValueModel(object? key) { }
         public bool TryAdd(object? key, object? value) { }
         public bool TryGetValue(object? key, out object? value) { }
         public bool TryRemove(object? key) { }

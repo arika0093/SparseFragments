@@ -1,8 +1,11 @@
+using System.ComponentModel;
+
 namespace SparseFragments;
 
 /// <summary>A typed path that exposes its model-agnostic path representation.</summary>
 /// <typeparam name="TModel">The root model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseTypedPath<TModel, TValue>
 {
     /// <summary>Gets the compile-time typed path.</summary>
