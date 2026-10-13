@@ -707,6 +707,10 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             2,
+            "/// <exception cref=\"global::System.ArgumentNullException\">The path is null.</exception>"
+        );
+        code.AppendLineAt(
+            2,
             "/// <exception cref=\"global::System.ArgumentException\">The path does not resolve to a model value of the requested type.</exception>"
         );
         code.AppendLineAt(
@@ -720,14 +724,27 @@ internal static class SparseEditSessionEmitter
                 + " path) where TChild : class"
         );
         code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "var fork = Fork();");
+        // Validate cheap preconditions before Fork: cloning the whole root
+        // only to throw on an invalid path wastes the snapshot and the deep
+        // clone. The fork snapshots the same state, so resolving here and
+        // re-resolving on the fork cannot disagree; the second check stays as
+        // a backstop that also produces the fork-owned target instance.
         code.AppendLineAt(
             3,
-            "if (fork.Descriptors.ResolveModel(path.UntypedPath) is not TChild target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
+            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
+        );
+        code.AppendLineAt(
+            3,
+            "if (Descriptors.ResolveModel(path.UntypedPath) is not TChild) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
         );
         code.AppendLineAt(
             3,
             "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
+        );
+        code.AppendLineAt(3, "var fork = Fork();");
+        code.AppendLineAt(
+            3,
+            "if (fork.Descriptors.ResolveModel(path.UntypedPath) is not TChild target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
         );
         code.AppendLineAt(
             3,
@@ -872,14 +889,20 @@ internal static class SparseEditSessionEmitter
             "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
         );
         code.AppendLineAt(4, "var nestedPath = _path.Append(path.UntypedPath);");
-        code.AppendLineAt(4, "var fork = _fork.Fork();");
+        // Same clone-avoidance as the root scope: the draft already exists, so
+        // resolving against it validates the path without another full fork.
         code.AppendLineAt(
             4,
-            "if (fork.Descriptors.ResolveModel(nestedPath) is not TNested target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
+            "if (_fork.Descriptors.ResolveModel(nestedPath) is not TNested) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
         );
         code.AppendLineAt(
             4,
             "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
+        );
+        code.AppendLineAt(4, "var fork = _fork.Fork();");
+        code.AppendLineAt(
+            4,
+            "if (fork.Descriptors.ResolveModel(nestedPath) is not TNested target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
         );
         code.AppendLineAt(
             4,

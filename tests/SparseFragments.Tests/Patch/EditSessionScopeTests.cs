@@ -351,6 +351,212 @@ public sealed class EditSessionScopeTests
     }
 
     [Test]
+    public void RootOpenScopeNullThrowsArgumentNullWithoutDraft()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        ISparseEditSessionOpenDraftState draftState = session;
+
+        Should.Throw<ArgumentNullException>(() => session.OpenScope<ObservableChild>(null!));
+
+        session.HasChanges.ShouldBeFalse();
+        draftState.HasOpenDrafts.ShouldBeFalse();
+        model.Child.Name.ShouldBe("before");
+    }
+
+    [Test]
+    public void NestedOpenScopeNullThrowsArgumentNullWithoutDraft()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        ISparseEditSessionOpenDraftState groupDraftState = groupScope;
+
+        Should.Throw<ArgumentNullException>(() => groupScope.OpenScope<KeyedServer>(null!));
+
+        groupDraftState.HasOpenDrafts.ShouldBeFalse();
+        groupScope.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RootOpenScopeWrongTypeThrowsWithoutDraft()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        ISparseEditSessionOpenDraftState draftState = session;
+
+        // The path addresses a ServerGroup, not a KeyedServer. The raw
+        // struct wrapper only checks the root type, so the value mismatch
+        // surfaces at runtime from OpenScope validation.
+        var mismatched = new SparsePath<ClusterHolder, KeyedServer>(
+            ClusterHolder.SparsePath.Groups.Key("group")
+        );
+        Should.Throw<ArgumentException>(() => session.OpenScope(mismatched));
+
+        session.HasChanges.ShouldBeFalse();
+        draftState.HasOpenDrafts.ShouldBeFalse();
+        session.Observable.Groups[0].Name.ShouldBe("group");
+    }
+
+    [Test]
+    public void RootOpenScopeMissingKeyThrowsWithoutDraft()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = [new KeyedServer { Id = "server", Name = "before" }],
+        };
+        var session = model.CreateEditSession();
+        ISparseEditSessionOpenDraftState draftState = session;
+
+        Should.Throw<ArgumentException>(() =>
+            session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("missing"))
+        );
+
+        session.HasChanges.ShouldBeFalse();
+        draftState.HasOpenDrafts.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RootOpenScopeNonWritablePathThrowsWithoutDraft()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        ISparseEditSessionOpenDraftState draftState = session;
+        // The raw typed path resolves to the child but reports itself as
+        // non-writable, unlike generated SparsePaths builders.
+        var readOnly = new SparsePath<ObservableHolder, ObservableChild>(
+            ObservableHolder.SparsePath.Child
+        );
+
+        var exception = Should.Throw<ArgumentException>(() => session.OpenScope(readOnly));
+        exception.Message.ShouldContain("generated model value");
+
+        session.HasChanges.ShouldBeFalse();
+        draftState.HasOpenDrafts.ShouldBeFalse();
+    }
+
+    [Test]
+    public void NestedOpenScopeWrongTypeThrowsWithoutDraft()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        ISparseEditSessionOpenDraftState groupDraftState = groupScope;
+
+        // The path addresses a KeyedServer, not a ServerGroup.
+        var mismatched = new SparsePath<ServerGroup, ServerGroup>(
+            ServerGroup.SparsePath.Servers.Key("server")
+        );
+        Should.Throw<ArgumentException>(() => groupScope.OpenScope(mismatched));
+
+        groupDraftState.HasOpenDrafts.ShouldBeFalse();
+        groupScope.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void InvalidOpenScopeDoesNotCloneTheRoot()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = Enumerable
+                .Range(0, 5000)
+                .Select(index => new KeyedServer
+                {
+                    Id = "server-" + index,
+                    Name = new string('n', 64),
+                    Count = index,
+                })
+                .ToList(),
+        };
+        var session = model.CreateEditSession();
+        var valid = KeyedServerHolder.SparsePath.Items.Key("server-0");
+
+        // Warm up JIT and descriptor caches so measured bytes are model data.
+        // Each distinct failure shape is warmed up: first-time path resolution
+        // populates descriptor caches even when the key is missing.
+        try
+        {
+            session.OpenScope<KeyedServer>(null!);
+        }
+        catch (ArgumentNullException) { }
+
+        try
+        {
+            session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("missing"));
+        }
+        catch (ArgumentException) { }
+
+        using (session.OpenScope(valid)) { }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        using (session.OpenScope(valid)) { }
+        var successBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+        successBytes.ShouldBeGreaterThan(0);
+
+        before = GC.GetAllocatedBytesForCurrentThread();
+        try
+        {
+            session.OpenScope<KeyedServer>(null!);
+        }
+        catch (ArgumentNullException) { }
+
+        var nullBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        before = GC.GetAllocatedBytesForCurrentThread();
+        try
+        {
+            session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("missing"));
+        }
+        catch (ArgumentException) { }
+
+        var missingBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        // Failed opens validate before Fork, so no whole-root clone happens:
+        // a null path allocates only the exception, and a missing key pays
+        // just the (pre-existing, linear) key-scan resolution. Both stay below
+        // a successful open, which additionally clones the entire root.
+        nullBytes.ShouldBeLessThan(successBytes / 10);
+        missingBytes.ShouldBeLessThan(successBytes);
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
     public void DescriptorSetResolvesNestedMemberKeyAndTemporaryKeyValues()
     {
         var temporaryId = Guid.NewGuid();
