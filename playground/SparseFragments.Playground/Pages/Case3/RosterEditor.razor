@@ -50,28 +50,6 @@
     [Parameter]
     public bool RemovedOnly { get; set; }
 
-    internal static PlaygroundRoster CreateBefore() =>
-        new()
-        {
-            Quests =
-            [
-                new() { Id = "a", Title = "First", Points = 10, Scores = [10, 20] },
-                new() { Id = "b", Title = "Second", Points = 20, Scores = [30] },
-                new() { Id = "c", Title = "Third", Points = 30, Scores = [40, 50] },
-            ],
-        };
-
-    internal static PlaygroundRoster CreateAfter() =>
-        new()
-        {
-            Quests =
-            [
-                new() { Id = "b", Title = "Second v2", Points = 20, Scores = [30] },
-                new() { Id = "c", Title = "Third", Points = 30, Scores = [40, 50, 60] },
-                new() { Id = "d", Title = "Fourth", Points = 5, Scores = [60] },
-            ],
-        };
-
     private Task OnSortableUpdate((int oldIndex, int newIndex) indices)
     {
         var (oldIndex, newIndex) = indices;

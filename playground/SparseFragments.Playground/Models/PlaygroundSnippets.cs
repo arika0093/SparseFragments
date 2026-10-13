@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace SparseFragments.Playground.Models;
 
@@ -90,9 +91,7 @@ public static class PlaygroundSnippets
         }
         else if (state.EnabledOp == PatchKind.Remove)
         {
-            sb.AppendLine(
-                $"{variableName}.Enabled = FragmentOperation<bool>.Remove;"
-            );
+            sb.AppendLine($"{variableName}.Enabled = FragmentOperation<bool>.Remove;");
         }
         if (state.RetryOp == PatchKind.Set)
         {
@@ -100,9 +99,7 @@ public static class PlaygroundSnippets
         }
         else if (state.RetryOp == PatchKind.Remove)
         {
-            sb.AppendLine(
-                $"{variableName}.RetryCount = FragmentOperation<int>.Remove;"
-            );
+            sb.AppendLine($"{variableName}.RetryCount = FragmentOperation<int>.Remove;");
         }
         if (state.LabelOp == NullPatchKind.Set)
         {
@@ -110,15 +107,11 @@ public static class PlaygroundSnippets
         }
         else if (state.LabelOp == NullPatchKind.SetNull)
         {
-            sb.AppendLine(
-                $"{variableName}.Label = FragmentOperation<string?>.Set(null);"
-            );
+            sb.AppendLine($"{variableName}.Label = FragmentOperation<string?>.Set(null);");
         }
         else if (state.LabelOp == NullPatchKind.Remove)
         {
-            sb.AppendLine(
-                $"{variableName}.Label = FragmentOperation<string?>.Remove;"
-            );
+            sb.AppendLine($"{variableName}.Label = FragmentOperation<string?>.Remove;");
         }
         if (state.NestedOp == NestedPatchKind.SetNull)
         {
@@ -136,9 +129,7 @@ public static class PlaygroundSnippets
             }
             else if (state.HostOp == PatchKind.Remove)
             {
-                sb.AppendLine(
-                    $"{variableName}.Nested.Host = FragmentOperation<string>.Remove;"
-                );
+                sb.AppendLine($"{variableName}.Nested.Host = FragmentOperation<string>.Remove;");
             }
             if (state.PortOp == PatchKind.Set)
             {
@@ -146,9 +137,7 @@ public static class PlaygroundSnippets
             }
             else if (state.PortOp == PatchKind.Remove)
             {
-                sb.AppendLine(
-                    $"{variableName}.Nested.Port = FragmentOperation<int>.Remove;"
-                );
+                sb.AppendLine($"{variableName}.Nested.Port = FragmentOperation<int>.Remove;");
             }
         }
         if (state.PluginsOp == PatchKind.Set)
@@ -191,8 +180,7 @@ public static class PlaygroundSnippets
 
     private static string BoolLiteral(bool value) => value ? "true" : "false";
 
-    private static string StringLiteral(string value) =>
-        "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    private static string StringLiteral(string value) => JsonSerializer.Serialize(value);
 
     private static string StringArrayLiteral(string text) =>
         StringArrayLiteral(FragmentEditState.ParsePlugins(text));
@@ -264,7 +252,9 @@ public static class PlaygroundSnippets
 
         foreach (var added in quests.Added)
         {
-            sb.AppendLine($"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(added.Id)}, Title = {StringLiteral(added.Title)}, Points = {added.Points}, Scores = {IntListLiteral(added.Scores)} }});");
+            sb.AppendLine(
+                $"{variableName}.Quests.Add(new PlaygroundQuest {{ Id = {StringLiteral(added.Id)}, Title = {StringLiteral(added.Title)}, Points = {added.Points}, Scores = {IntListLiteral(added.Scores)} }});"
+            );
         }
         foreach (var removed in quests.Removed)
         {
@@ -276,20 +266,28 @@ public static class PlaygroundSnippets
             var quest = edit.Value;
             if (quest.Title.IsChanged && quest.Title.After.IsPresent)
             {
-                sb.AppendLine($"{variableName}.Quests.Edit({key}).Title = {StringLiteral(quest.Title.After.Value ?? string.Empty)};");
+                sb.AppendLine(
+                    $"{variableName}.Quests.Edit({key}).Title = {StringLiteral(quest.Title.After.Value ?? string.Empty)};"
+                );
             }
 
             if (quest.Points.IsChanged && quest.Points.After.IsPresent)
             {
-                sb.AppendLine($"{variableName}.Quests.Edit({key}).Points = {quest.Points.After.Value};");
+                sb.AppendLine(
+                    $"{variableName}.Quests.Edit({key}).Points = {quest.Points.After.Value};"
+                );
             }
 
             if (quest.Scores.IsChanged && quest.Scores.After.IsPresent)
             {
-                sb.AppendLine($"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral(quest.Scores.After.Value ?? new List<int>())}; // whole value: one element change replaces the list");
+                sb.AppendLine(
+                    $"{variableName}.Quests.Edit({key}).Scores = {IntListLiteral(quest.Scores.After.Value ?? new List<int>())}; // whole value: one element change replaces the list"
+                );
             }
         }
-        sb.AppendLine($"{variableName}.Quests.SetOrder([{string.Join(", ", quests.AfterOrder.Select(StringLiteral))}]); // final key order, not moves");
+        sb.AppendLine(
+            $"{variableName}.Quests.SetOrder([{string.Join(", ", quests.AfterOrder.Select(StringLiteral))}]); // final key order, not moves"
+        );
         return sb.ToString();
     }
 

@@ -1,5 +1,5 @@
 <FluentTextInput Placeholder="@Placeholder" Style="@Style"
-    Value="@Format(Value)"
+    Value="@IntListText.Format(Value)"
     ValueChanged="@OnTextChanged" />
 
 @code {
@@ -19,23 +19,5 @@
     [Parameter]
     public string? Style { get; set; }
 
-    private Task OnTextChanged(string? text) => ValueChanged.InvokeAsync(Parse(text ?? string.Empty));
-
-    private static string Format(IReadOnlyList<int> values) => string.Join(", ", values);
-
-    private static List<int> Parse(string text)
-    {
-        var result = new List<int>();
-        foreach (
-            var part in text.Split([',', ' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries)
-        )
-        {
-            if (int.TryParse(part.Trim(), out var value))
-            {
-                result.Add(value);
-            }
-        }
-
-        return result;
-    }
+    private Task OnTextChanged(string? text) => ValueChanged.InvokeAsync(IntListText.Parse(text ?? string.Empty));
 }

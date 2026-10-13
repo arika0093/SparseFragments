@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SparseFragments.Playground.Models;
+using SparseFragments.Playground.Pages.Case3;
 
 namespace SparseFragments.Tests;
 
@@ -385,13 +386,27 @@ public sealed class RosterHighlightTests
     }
 
     [Test]
+    public void GeneratedCSharpStringsEscapeControlCharacters()
+    {
+        var model = PlaygroundSnippets.ModelCSharp(
+            "model",
+            new PlaygroundSettings { Label = "line\nbreak\t\"quote\"\\slash" }
+        );
+
+        Microsoft
+            .CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(model)
+            .GetDiagnostics()
+            .ShouldBeEmpty();
+    }
+
+    [Test]
     public void InvalidStateIsConsistentEverywhere()
     {
         var invalidBefore = State(Quest("a"), Quest("a"));
         var invalidAfter = State(Quest("a"));
 
         // Duplicate keys fail the single derivation, leaving a null ChangeSet
-        // behind the page-local invalid state (same as Home.TryRefreshRosterChanges).
+        // and an error message in the page-local invalid state.
         Should.Throw<InvalidOperationException>(() => Diff(invalidBefore, invalidAfter));
         TryDiff(invalidBefore, invalidAfter).ShouldBeNull();
     }
@@ -443,7 +458,7 @@ public sealed class RosterHighlightTests
         playground.GetType("SparseFragments.Playground.Models.RosterHighlight").ShouldBeNull();
         playground.GetType("SparseFragments.Playground.Models.RosterRowHighlight").ShouldBeNull();
 
-        var editor = playground.GetType("SparseFragments.Playground.Components.RosterEditor");
+        var editor = playground.GetType("SparseFragments.Playground.Pages.Case3.RosterEditor");
         editor.ShouldNotBeNull();
         var changesParam = editor!.GetProperty("Changes");
         changesParam.ShouldNotBeNull();

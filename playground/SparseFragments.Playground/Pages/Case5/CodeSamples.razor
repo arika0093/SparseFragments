@@ -63,8 +63,8 @@
 
         try
         {
-            if (simulateConflict) SimulateConcurrentEdit(tracked.Id);
-            EnsureCurrentRevision(db, tracked.Id, tracked.Revision);
+            if (simulateConflict) PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, tracked.Id);
+            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, tracked.Revision);
             tracked.Revision++;
             await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
             var persisted = await db.Orders.Include(order => order.Lines)

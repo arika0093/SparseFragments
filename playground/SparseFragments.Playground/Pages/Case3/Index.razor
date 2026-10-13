@@ -50,7 +50,7 @@
                                 }
                                 @if (_rosterChanges is null)
                                 {
-                                    <p class="pg-hint">Cannot calculate changes because the list has duplicate keys or an invalid state.</p>
+                                    <p class="pg-hint">Cannot calculate changes: @_rosterChangesError</p>
                                 }
                                 else if (changeRows.Count == 0)
                                 {
@@ -98,9 +98,10 @@
 <CasePager PrevHref="case-2" PrevLabel="02 Typed patch" NextHref="case-4" NextLabel="04 Undo / Redo" />
 
 @code {
-    private PlaygroundRoster RosterBefore = RosterEditor.CreateBefore();
-    private PlaygroundRoster RosterAfter = RosterEditor.CreateAfter();
+    private PlaygroundRoster RosterBefore = RosterDefaults.Before();
+    private PlaygroundRoster RosterAfter = RosterDefaults.After();
     private PlaygroundRoster.ChangeSet? _rosterChanges;
+    private string? _rosterChangesError;
     private static readonly PlaygroundRoster.ChangeSet EmptyRosterChangeSet =
         PlaygroundRoster.ChangeSet.Between(
             Optional<PlaygroundRoster.Fragment?>.Missing,
@@ -163,37 +164,37 @@
             .ToArray();
     }
 
-    private bool TryRefreshRosterChanges()
+    private void RefreshRosterChanges()
     {
         try
         {
             _rosterChanges = RosterBefore.CreateChangeSet(RosterAfter);
-            return true;
+            _rosterChangesError = null;
         }
-        catch
+        catch (InvalidOperationException exception)
         {
             _rosterChanges = null;
-            return false;
+            _rosterChangesError = exception.Message;
         }
     }
 
-    protected override void OnInitialized() => TryRefreshRosterChanges();
+    protected override void OnInitialized() => RefreshRosterChanges();
 
     private void Refresh()
     {
-        TryRefreshRosterChanges();
+        RefreshRosterChanges();
         StateHasChanged();
     }
 
     private void ResetRosterBefore()
     {
-        RosterBefore = RosterEditor.CreateBefore();
-        TryRefreshRosterChanges();
+        RosterBefore = RosterDefaults.Before();
+        RefreshRosterChanges();
     }
 
     private void ResetRosterAfter()
     {
-        RosterAfter = RosterEditor.CreateAfter();
-        TryRefreshRosterChanges();
+        RosterAfter = RosterDefaults.After();
+        RefreshRosterChanges();
     }
 }
