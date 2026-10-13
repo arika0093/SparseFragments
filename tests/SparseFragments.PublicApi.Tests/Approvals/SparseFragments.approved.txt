@@ -413,6 +413,30 @@ namespace SparseFragments
     {
         public SparseCloneReferenceSafeAttribute() { }
     }
+    public readonly struct SparseCollectionItemState : System.IEquatable<SparseFragments.SparseCollectionItemState>
+    {
+        public SparseFragments.Optional<object?> After { get; }
+        public int AfterIndex { get; }
+        public SparseFragments.Optional<object?> Before { get; }
+        public int BeforeIndex { get; }
+        public bool IsAdded { get; }
+        public bool IsChanged { get; }
+        public bool IsEdited { get; }
+        public bool IsEmpty { get; }
+        public bool IsRemoved { get; }
+        public bool IsReordered { get; }
+        public object? Key { get; }
+        public System.Guid? TemporaryKey { get; }
+    }
+    public readonly struct SparseCollectionState : System.IEquatable<SparseFragments.SparseCollectionState>
+    {
+        public bool IsChanged { get; }
+        public bool IsEmpty { get; }
+        public bool OrderChanged { get; }
+        public SparseFragments.SparsePath Path { get; }
+        public SparseFragments.SparseCollectionItemState GetItemState(object? key) { }
+        public SparseFragments.SparseCollectionItemState GetTemporaryState(System.Guid temporaryKey) { }
+    }
     [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Struct, AllowMultiple=true, Inherited=false)]
     public sealed class SparseCompareAttribute : System.Attribute
     {
@@ -453,6 +477,25 @@ namespace SparseFragments
         ResolvedUseIncoming = 2,
         ResolvedUseCurrent = 3,
         ResolvedCustom = 4,
+    }
+    public enum SparseFieldChangeKind
+    {
+        Unchanged = 0,
+        Changed = 1,
+        Added = 2,
+        Removed = 3,
+        Reordered = 4,
+    }
+    public readonly struct SparseFieldState<T> : System.IEquatable<SparseFragments.SparseFieldState<T>>
+    {
+        public SparseFragments.Optional<T> After { get; }
+        public SparseFragments.Optional<T> Before { get; }
+        public bool HasAncestorChange { get; }
+        public bool HasChanges { get; }
+        public bool HasDescendantChange { get; }
+        public bool IsChanged { get; }
+        public SparseFragments.SparseFieldChangeKind Kind { get; }
+        public SparseFragments.SparsePath Path { get; }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct, Inherited=false)]
     public sealed class SparseFragmentModelAttribute : System.Attribute
@@ -695,6 +738,13 @@ namespace SparseFragments
     public sealed class SparseRedactBeforeAttribute : System.Attribute
     {
         public SparseRedactBeforeAttribute() { }
+    }
+    public static class SparseStateQueries
+    {
+        public static SparseFragments.SparseCollectionState DictionaryState<TKey, TValue, TEdited>(this SparseFragments.ISparseDictionaryChange<TKey, TValue, TEdited> change, SparseFragments.SparsePath path) { }
+        public static SparseFragments.SparseFieldState<object?> FieldState(this SparseFragments.ISparseChangeSet changes, SparseFragments.SparsePath path) { }
+        public static SparseFragments.SparseFieldState<TValue> FieldState<TModel, TValue>(this SparseFragments.ISparseChangeSet changes, SparseFragments.SparsePath<TModel, TValue> path) { }
+        public static SparseFragments.SparseCollectionState KeyedState<TKey, TElement, TElementChange>(this SparseFragments.ISparseKeyedChange<TKey, TElement, TElementChange> change, SparseFragments.SparsePath path) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class SparseTemporaryKeyAttribute : System.Attribute

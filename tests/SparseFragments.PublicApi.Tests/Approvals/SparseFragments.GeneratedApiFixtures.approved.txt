@@ -1356,9 +1356,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogDictionaries, TChild> path)
@@ -1614,9 +1617,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogImmutable, TChild> path)
@@ -1840,9 +1846,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem, TChild> path)
@@ -2074,9 +2083,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster, TChild> path)
@@ -2330,9 +2342,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogNested, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogNested, TChild> path)
@@ -2591,9 +2606,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration, TChild> path)
@@ -2842,9 +2860,12 @@ namespace SparseFragments.GeneratedApiFixtures
             public void AcceptChanges(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
             public void ApplyInPlace(SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
+            public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
+            public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
+            public SparseFragments.SparseFieldState<TValue> FieldState<TValue>(SparseFragments.SparsePath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TValue> path) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession Fork() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar GetModelForFrameworkAccess() { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.EditSession.Scope<TChild> OpenScope<TChild>(SparseFragments.ISparseTypedPath<SparseFragments.GeneratedApiFixtures.CatalogScalar, TChild> path)

@@ -276,6 +276,23 @@ implements that contract on both sessions and scopes; a session reports its
 active root and nested scopes, while a scope reports its active descendants.
 Closing or invalidating a scope removes it and its descendants from that state.
 
+`SparsePatchDialect` accepts an optional `StateContracts` record naming the
+caller-owned semantic state types: the field state, the collection state view,
+and the static state queries. When set (together with `TransitionContracts`
+and the typed-path interface), every generated `EditSession` gains live
+`FieldState` overloads (compile-time typed and model-agnostic paths) plus a
+path-addressed `CollectionState` view over root keyed and dictionary members
+for state inspection only; the surface is named `CollectionState` so a future
+path-addressed editing facade can keep the distinct `Collection` name. Queries
+derive from the session's retained baseline or change set on each call and keep
+no per-field caches or subscriptions; change-set queries are point-in-time
+while session queries re-diff the live model. Row states reuse the typed
+keyed/dictionary transitions, and field states project the flattened change
+records with missing versus present-null endpoints preserved. Leave
+`StateContracts` null to disable the surface: products without the runtime
+state types keep byte-identical output. Shared never names a `SparseFragments`
+runtime type; every state name arrives through the record.
+
 Outside `BatchEdit`, observable edits validate and publish their transitions
 immediately; a batch publishes its net transition at exit. The baseline
 comparison for `HasChanges` is deferred until its first read after an edit,

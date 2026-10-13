@@ -281,6 +281,14 @@ internal static class SparseFragmentPatchEmitter
         /// </remarks>
         public bool EmitJson => EffectiveStjCapabilities.SupportsV1Wire;
 
+        /// <summary>Product-owned semantic field/collection state types, or null to disable the state surface.</summary>
+        /// <remarks>
+        /// Null keeps products without the runtime state types byte-identical.
+        /// Shared never substitutes a SparseFragments type; every state name
+        /// arrives through this record.
+        /// </remarks>
+        public SparseStateContracts? StateContracts { get; init; }
+
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
         public ImmutableArray<SparseMemberPolicy> EffectiveMemberPolicies =>
             MemberPolicies.IsDefault ? ImmutableArray<SparseMemberPolicy>.Empty : MemberPolicies;

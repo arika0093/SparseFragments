@@ -144,6 +144,11 @@ public sealed partial class SparseFragmentsGenerator : IIncrementalGenerator
         {
             KeyValidationScopeFactory =
                 "global::SparseFragments.CompilerServices.SparseFragmentRuntime.RentKeyValidation",
+            StateContracts = new SparseStateContracts(
+                "global::SparseFragments.SparseFieldState",
+                "global::SparseFragments.SparseCollectionState",
+                "global::SparseFragments.SparseStateQueries"
+            ),
         },
         RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
         RebasePolicyBaseMetadataName: RebasePolicyBaseName,

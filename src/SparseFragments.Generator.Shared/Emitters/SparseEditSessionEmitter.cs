@@ -347,6 +347,11 @@ internal static class SparseEditSessionEmitter
                 + SparseFragmentPatchEmitter.GetPathType(patchDialect)
                 + "> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
         );
+        // Path-first semantic state inspection (issue #250): live field and
+        // root-collection queries over the retained baseline. Gated on the
+        // state contracts so products without the runtime state types keep
+        // byte-identical output.
+        SparseEditSessionStateEmitter.AppendStateMembers(code, modelType, members, patchDialect);
         code.AppendLineAt(
             2,
             "/// <summary>Applies a change set to the current model in place when possible.</summary>"
