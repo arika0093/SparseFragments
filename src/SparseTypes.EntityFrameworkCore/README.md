@@ -17,10 +17,14 @@ How it works:
   ordinary generator emits conventional defaults (same-name scalars, nested
   objects, collection markers) into an external companion; explicit entries
   replace each default exactly once. Neither the mapper nor the entity needs to
-  be partial. Keyed child collections use `Collection` with path-scoped
-  `Element` child mappings plus explicit key, factory, removal
-  (`Delete`/`Detach`/`SoftDelete`/`Remove`), and opt-in `Order` policies.
-- Build with `SparseEntityMapper<TEntity, TDto>.Create(mapping, model)`.
+  be partial (partial mappers with a parameterless constructor additionally
+  gain an `OrderMapper.Create(db.Model)` shorthand). Keyed child collections
+  use `Collection` with path-scoped `Element` child overrides (omitted when
+  the conventional child mappings suffice) plus explicit key, factory,
+  removal (`Delete`/`Detach`/`SoftDelete`/`Remove`), and opt-in `Order`
+  policies.
+- Build with `OrderMapper.Create(model)` for partial mappers, or
+  `SparseEntityMapper<TEntity, TDto>.Create(mapping, model)` otherwise.
   Creation validates the full coverage manifest against the EF `IModel`, so a
   dormant unmapped member fails here. Each call builds a fresh plan for that
   mapping instance; reuse the returned mapper for repeated applies.

@@ -137,7 +137,9 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// ChangeSet never edits them. Source-generated defaults (emitted by the
     /// ordinary generator for <c>[SparseFragmentMapper]</c> types) are applied
     /// before <c>Configure</c>, and explicit registrations replace them at the
-    /// exact scoped DTO member path.
+    /// exact scoped DTO member path. Partial mapper classes with a
+    /// parameterless constructor also gain a <c>Mapper.Create(model)</c>
+    /// shorthand for this factory.
     /// </remarks>
     /// <param name="mapping">The mapping declaring overrides through Configure.</param>
     /// <param name="model">The EF model the plan is validated against.</param>

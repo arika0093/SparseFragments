@@ -19,7 +19,7 @@ application-owned.
 <!-- illustrative: mapper shape; ported from the EfCoreSample.Server OrderMapper -->
 ```csharp
 [SparseFragmentMapper]
-public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+public sealed partial class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
 {
     public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
     {
@@ -49,8 +49,9 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
     }
 }
 
-var mapper = new OrderMapper();
-var mapperInstance = SparseEntityMapper<OrderEntity, OrderDto>.Create(mapper, db.Model);
+// Partial mappers gain the Create shorthand; other mappers use the generic factory.
+var mapperInstance = OrderMapper.Create(db.Model);
+// var mapperInstance = SparseEntityMapper<OrderEntity, OrderDto>.Create(new OrderMapper(), db.Model);
 var current = mapperInstance.ToDto(trackedOrder);
 var rebase = incoming.RebaseOnto(current);
 if (rebase.HasConflicts)
@@ -123,9 +124,10 @@ same-name collections via `DeclareCollection` markers. `Configure` declares
 only the rest, and every explicit entry replaces its generated default exactly
 once at the same DTO member path; the default setter never runs in addition
 to a configured override. Collection element defaults arrive the same way:
-the companion registers path-scoped conventional child mappings that the
-explicit `Collection(..., lines => lines.Element(...))` composes underneath
-its own overrides. Child element mappings stay scoped by parent collection
+the companion registers path-scoped conventional child mappings that an
+explicit `Element` composes underneath its own overrides; `Element` itself
+may be omitted when the conventional child mappings already cover the child
+members. Child element mappings stay scoped by parent collection
 path: the same child CLR type pair may map differently under two
 collections. A conventional `DeclareCollection` marker alone never counts as
 coverage: declare the full keyed `Collection` mapping or `Ignore` the member,
@@ -167,13 +169,17 @@ guidance to add the attribute; there is no runtime scalar-inference fallback.
 
 Ownership split: the generator statically discovers every conventional
 default it can resolve (same-name scalars, nested objects, collection
-markers) and reports incompatible pairs at compile time. Missing/null guards,
+markers) and reports incompatible pairs at compile time. Partial mapper
+classes with a parameterless constructor additionally gain an
+`OrderMapper.Create(db.Model)` shorthand for the generic factory.
+Missing/null guards,
 keyed lookup, relationship handling, and order persistence live once in the
 shared generic runtime algorithms instead of being duplicated per model, and
 execute only through the typed transitions above. Collection element children
 are configured explicitly in `Configure` (identity, factory, removal, and
 order policies cannot be inferred); same-name child scalars resolve within
-that explicit path scope. Nothing is ever discovered by scanning DTO members
+that path scope, with an explicit `Element` only for overrides beyond the
+conventional child mappings. Nothing is ever discovered by scanning DTO members
 at runtime once the companion exists.
 
 Nested objects stay inside the same mapper through `Object`, scoped to the
