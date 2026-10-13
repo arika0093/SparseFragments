@@ -275,6 +275,19 @@ metadata name when generated sessions should report open child drafts. Shared
 implements that contract on both sessions and scopes; a session reports its
 active root and nested scopes, while a scope reports its active descendants.
 Closing or invalidating a scope removes it and its descendants from that state.
+Setting the optional `EditSessionWithPathsInterfaceMetadataName` implements a
+typed path-provider contract on each generated root session and adds a cached
+`Paths` property returning the existing generated `SparsePaths<TModel>`
+builder, so consumers navigate `session.Paths.Items.Key(id).Title` without a
+separate root builder. Reading `Paths` never touches the mutable model, the
+change cache, or edit notifications. Collection member builders then also
+implement the caller-owned typed-path interface over the collection value
+type (element `Key`/`At`/`TemporaryKey`, dictionary, and set navigation are
+unchanged), which keeps nested, indexed, keyed, nullable, and relocated child
+navigation compile-time typed. Child scopes keep only the minimal session
+contract because a generic child scope cannot promise the root's concrete
+builder. Leave the entry null to disable the surface: products without the
+contract keep byte-identical output.
 
 `SparsePatchDialect` accepts an optional `StateContracts` record naming the
 caller-owned semantic state types: the field state, the collection state view,

@@ -29,6 +29,7 @@ internal sealed record SparseGeneratorConfig
         string? EditSessionInterfaceMetadataName = null,
         SparseEditSessionDialect? EditSessionDialect = null,
         string? EditSessionModelAccessorInterfaceMetadataName = null,
+        string? EditSessionWithPathsInterfaceMetadataName = null,
         SparseDescriptorDialect? DescriptorDialect = null,
         string? GeneratedImplementationNamespace = null,
         SparseFamilyNames? FamilyNames = null,
@@ -64,6 +65,7 @@ internal sealed record SparseGeneratorConfig
         this.EditSessionDialect = EditSessionDialect;
         this.EditSessionModelAccessorInterfaceMetadataName =
             EditSessionModelAccessorInterfaceMetadataName;
+        this.EditSessionWithPathsInterfaceMetadataName = EditSessionWithPathsInterfaceMetadataName;
         this.DescriptorDialect = DescriptorDialect;
         this.GeneratedImplementationNamespace = GeneratedImplementationNamespace;
         this.FamilyNames = FamilyNames;
@@ -131,6 +133,14 @@ internal sealed record SparseGeneratorConfig
     /// Trusted model-accessor interface implemented by generated model sessions, or null when disabled.
     /// </summary>
     public string? EditSessionModelAccessorInterfaceMetadataName { get; init; }
+
+    /// <summary>Typed path-provider interface implemented by generated root sessions, or null when disabled.</summary>
+    /// <remarks>
+    /// Names the product-owned <c>ISparseEditSessionWithPaths&lt;TModel, TPaths&gt;</c>
+    /// contract. Null keeps sessions without the <c>Paths</c> member so
+    /// downstream products without the contract keep byte-identical output.
+    /// </remarks>
+    public string? EditSessionWithPathsInterfaceMetadataName { get; init; }
 
     /// <summary>Open-draft state interface implemented by generated sessions, or null when disabled.</summary>
     public string? OpenDraftStateInterfaceMetadataName { get; init; }

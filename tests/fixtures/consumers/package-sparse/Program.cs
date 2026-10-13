@@ -65,7 +65,22 @@ Require(
 );
 var mergedUpstream = original.Merge(upstream.Build()).ToModel();
 Require(mergedUpstream.Label == "upstream", "layered merge");
+
+var sessionModel = new Settings
+{
+    Label = "session",
+    Child = new Child { Count = 1 },
+};
+var session = sessionModel.CreateEditSession();
+SparseTypes.SparsePath<Settings, string?> labelPath = session.Paths.Label;
+Require(labelPath.ToString() == "Label", "session typed path");
+Require(session.FieldState(session.Paths.Label).HasChanges == false, "session path field state");
+Require(ReadSessionRoot(session) == "$root", "generic session path provider");
 Console.WriteLine("SparseTypes packed consumer passed.");
+
+static string ReadSessionRoot<TModel, TPaths>(ISparseEditSessionWithPaths<TModel, TPaths> session)
+    where TModel : class
+    where TPaths : ISparseTypedPath<TModel, TModel> => session.Paths.UntypedPath.ToString();
 
 static void Require(bool condition, string capability)
 {

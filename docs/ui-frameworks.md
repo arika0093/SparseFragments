@@ -380,6 +380,32 @@ var committed = scope.TryCommit(out var conflicts);
 
 `TryCommit` rebases the child draft against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the scope open. `AcceptChanges()` throws `InvalidOperationException` when the target is missing or the draft conflicts. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, the scope enters `TargetMissing`. A nested scope cannot commit after its parent scope is canceled or committed; that attempt throws `InvalidOperationException`. Call `Cancel()` or dispose an open scope to discard its draft.
 
+### Navigate typed paths from the session
+
+Every root session exposes the same generated navigation as `Model.SparsePath` through `session.Paths`, so ordinary C#, MVVM, desktop UI, and Blazor code can write `session.Paths.Customer.Name` or `session.Paths.Items.Key(id).Title` without passing a separate root builder. The concrete builder type keeps compile-time root, value, and key typing; wrong types fail compilation. Generic consumers receive `ISparseEditSessionWithPaths<TModel, TPaths>` and read `Paths` without reflection, while `ISparseEditSession<TModel>` stays the minimal fallback. Child scopes keep only the minimal contract because a generic child scope cannot promise the root's concrete builder. Reading `Paths` never reads the mutable model, invalidates the change cache, or subscribes to edit notifications.
+
+<!-- sample: ui-session-paths -->
+```csharp
+var orderModel = new UiOrder { Number = "ORD-1" };
+var orderSession = orderModel.CreateEditSession();
+
+SparsePath<UiOrder, string> numberPath = orderSession.Paths.Number;
+// numberPath.ToString() == "Number"
+
+var widgetModel = new UiWidget
+{
+    Title = "w",
+    Items = [new UiWidgetItem { Id = "a", Name = "first" }],
+};
+var widgetSession = widgetModel.CreateEditSession();
+SparsePath<UiWidget, string> itemNamePath = widgetSession.Paths.Items.Key("a").Name;
+// itemNamePath.ToString() == "Items[\"a\"].Name"
+
+var itemState = widgetSession.FieldState(widgetSession.Paths.Items.Key("a").Name);
+// itemState.HasChanges == false
+```
+<!-- /sample -->
+
 ### Discard pending edits
 
 `RevertChanges()` writes the retained baseline back into the live model in place. It discards unsaved edits; it does not contact a server and does not advance the baseline. `Current` always reflects the live model, so it shows the reverted values immediately.

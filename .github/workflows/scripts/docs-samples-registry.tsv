@@ -87,6 +87,7 @@ docs/ui-frameworks.md	ui-fork-merge	tests/fixtures/consumers/package-sparse-docs
 docs/ui-frameworks.md	ui-fork-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-child-scope	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-collection-consumer	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/ui-frameworks.md	ui-session-paths	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs

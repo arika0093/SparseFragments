@@ -258,6 +258,12 @@ namespace SparseTypes
     {
         bool HasOpenDrafts { get; }
     }
+    public interface ISparseEditSessionWithPaths<out TModel, out TPaths> : SparseTypes.ISparseEditSession<TModel>
+        where out TModel :  class
+        where out TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+    {
+        TPaths Paths { get; }
+    }
     public interface ISparseEditSession<out TModel>
         where out TModel :  class
     {

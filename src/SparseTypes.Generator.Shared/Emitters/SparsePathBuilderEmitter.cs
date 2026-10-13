@@ -255,11 +255,17 @@ internal static class SparsePathBuilderEmitter
                 + literal
                 + "));"
         );
+        var collectionType = member.Property.Type.Name;
+        var collectionInterface = dialect.TypedPathInterfaceType
+            is { Length: > 0 } typedCollectionInterface
+            ? " : " + typedCollectionInterface + "<TRoot, " + collectionType + ">"
+            : string.Empty;
         code.AppendLineAt(2, "/// <summary>Collection path builder for '" + name + "'.</summary>");
         code.AppendLineAt(
             2,
             (dialect.PathIsValueType ? "public readonly struct " : "public sealed class ")
                 + builderName
+                + collectionInterface
         );
         code.AppendLineAt(2, "{");
         // Public-first order, matching the root builder above.
@@ -275,6 +281,42 @@ internal static class SparsePathBuilderEmitter
                 + builderName
                 + " paths) => paths._path;"
         );
+        if (dialect.TypedPathInterfaceType is { Length: > 0 })
+        {
+            var collectionTypedPath = SparseFragmentPatchEmitter.GetTypedPathType(
+                dialect,
+                "TRoot",
+                collectionType
+            );
+            code.AppendLineAt(3, "/// <summary>Gets the model-agnostic path.</summary>");
+            code.AppendLineAt(3, "public " + pathType + " UntypedPath => _path;");
+            code.AppendLineAt(3, "/// <summary>Gets the compile-time typed path.</summary>");
+            code.AppendLineAt(
+                3,
+                "public "
+                    + collectionTypedPath
+                    + " TypedPath => new "
+                    + collectionTypedPath
+                    + "(_path);"
+            );
+            code.AppendLineAt(
+                3,
+                "/// <summary>Gets whether the addressed collection can be updated without replacing its instance.</summary>"
+            );
+            code.AppendLineAt(3, "public bool CanWriteModelValueInPlace => false;");
+            code.AppendLineAt(
+                3,
+                "/// <summary>Writes an updated collection value into an existing addressed instance.</summary>"
+            );
+            code.AppendLineAt(
+                3,
+                "public void WriteModelValueInPlace("
+                    + collectionType
+                    + " current, "
+                    + collectionType
+                    + " updated) => throw new global::System.NotSupportedException(\"Collection member paths do not address a generated model value.\");"
+            );
+        }
         using var entries = new SharedIndentedBuilder(code.CancellationToken)
         {
             IndentOffset = code.IndentOffset,

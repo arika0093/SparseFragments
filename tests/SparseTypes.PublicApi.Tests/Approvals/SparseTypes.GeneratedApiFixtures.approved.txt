@@ -18,14 +18,22 @@ namespace SparseTypes.Generated
             public SparseTypes.SparsePath UntypedPath { get; }
             public void WriteModelValueInPlace(SparseTypes.GeneratedApiFixtures.CatalogDictionaries current, SparseTypes.GeneratedApiFixtures.CatalogDictionaries updated) { }
             public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<TRoot> paths) { }
-            public readonly struct SparseDetailsPaths
+            public readonly struct SparseDetailsPaths : SparseTypes.ISparseTypedPath<TRoot, System.Collections.Generic.Dictionary<string, SparseTypes.GeneratedApiFixtures.CatalogScalar>>
             {
+                public bool CanWriteModelValueInPlace { get; }
+                public SparseTypes.SparsePath<TRoot, System.Collections.Generic.Dictionary<string, SparseTypes.GeneratedApiFixtures.CatalogScalar>> TypedPath { get; }
+                public SparseTypes.SparsePath UntypedPath { get; }
                 public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<TRoot> Key(string key) { }
+                public void WriteModelValueInPlace(System.Collections.Generic.Dictionary<string, SparseTypes.GeneratedApiFixtures.CatalogScalar> current, System.Collections.Generic.Dictionary<string, SparseTypes.GeneratedApiFixtures.CatalogScalar> updated) { }
                 public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<TRoot>.SparseDetailsPaths paths) { }
             }
-            public readonly struct SparseScoresPaths
+            public readonly struct SparseScoresPaths : SparseTypes.ISparseTypedPath<TRoot, System.Collections.Generic.Dictionary<string, int>>
             {
+                public bool CanWriteModelValueInPlace { get; }
+                public SparseTypes.SparsePath<TRoot, System.Collections.Generic.Dictionary<string, int>> TypedPath { get; }
+                public SparseTypes.SparsePath UntypedPath { get; }
                 public SparseTypes.SparsePath<TRoot, int> Key(string key) { }
+                public void WriteModelValueInPlace(System.Collections.Generic.Dictionary<string, int> current, System.Collections.Generic.Dictionary<string, int> updated) { }
                 public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<TRoot>.SparseScoresPaths paths) { }
             }
         }
@@ -108,10 +116,14 @@ namespace SparseTypes.Generated
             public SparseTypes.SparsePath UntypedPath { get; }
             public void WriteModelValueInPlace(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster current, SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster updated) { }
             public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedRoster_A157F841.SparsePaths<TRoot> paths) { }
-            public readonly struct SparseItemsPaths
+            public readonly struct SparseItemsPaths : SparseTypes.ISparseTypedPath<TRoot, System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>>
             {
+                public bool CanWriteModelValueInPlace { get; }
+                public SparseTypes.SparsePath<TRoot, System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>> TypedPath { get; }
+                public SparseTypes.SparsePath UntypedPath { get; }
                 public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedItem_66C0C1FD.SparsePaths<TRoot> At(int index) { }
                 public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedItem_66C0C1FD.SparsePaths<TRoot> Key(string key) { }
+                public void WriteModelValueInPlace(System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem> current, System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem> updated) { }
                 public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedRoster_A157F841.SparsePaths<TRoot>.SparseItemsPaths paths) { }
             }
         }
@@ -210,9 +222,13 @@ namespace SparseTypes.Generated
             public SparseTypes.SparsePath UntypedPath { get; }
             public void WriteModelValueInPlace(SparseTypes.GeneratedApiFixtures.CatalogScalar current, SparseTypes.GeneratedApiFixtures.CatalogScalar updated) { }
             public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<TRoot> paths) { }
-            public readonly struct SparseLabelsPaths
+            public readonly struct SparseLabelsPaths : SparseTypes.ISparseTypedPath<TRoot, System.Collections.Generic.ISet<string>>
             {
+                public bool CanWriteModelValueInPlace { get; }
+                public SparseTypes.SparsePath<TRoot, System.Collections.Generic.ISet<string>> TypedPath { get; }
+                public SparseTypes.SparsePath UntypedPath { get; }
                 public SparseTypes.SparsePath<TRoot, string> Element(string item) { }
+                public void WriteModelValueInPlace(System.Collections.Generic.ISet<string> current, System.Collections.Generic.ISet<string> updated) { }
                 public static SparseTypes.SparsePath op_Implicit(SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<TRoot>.SparseLabelsPaths paths) { }
             }
         }
@@ -1344,7 +1360,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogDictionaries, SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogDictionaries, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogDictionaries, SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -1352,6 +1368,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogDictionaries> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet>? TransitionObserved;
@@ -1617,7 +1634,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogImmutable>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogImmutable>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogImmutable, SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogImmutable>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogImmutable, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogImmutable_4D88D0CC.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogImmutable>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogImmutable>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogImmutable, SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -1625,6 +1642,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogImmutable_4D88D0CC.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogImmutable> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet>? TransitionObserved;
@@ -1858,7 +1876,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem, SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedItem_66C0C1FD.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem, SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -1866,6 +1884,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedItem_66C0C1FD.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet>? TransitionObserved;
@@ -2107,7 +2126,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseTypes.ResolvedChoice> choices, out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet? resolved, out string? failureReason) { }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster, SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedRoster_A157F841.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster, SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -2115,6 +2134,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedRoster_A157F841.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet>? TransitionObserved;
@@ -2378,7 +2398,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 protected override bool TryCreateResolved(System.Collections.Generic.IReadOnlyList<SparseTypes.ResolvedChoice> choices, out SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet? resolved, out string? failureReason) { }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogNested>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogNested>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogNested, SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogNested>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogNested, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogNested_D948A6CB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogNested>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogNested>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogNested, SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -2386,6 +2406,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogNested_D948A6CB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogNested> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet>? TransitionObserved;
@@ -2654,7 +2675,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration, SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogReservedEnumeration_292919EB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration, SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -2662,6 +2683,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogReservedEnumeration_292919EB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet>? TransitionObserved;
@@ -2920,7 +2942,7 @@ namespace SparseTypes.GeneratedApiFixtures
                 public bool IsChanged { get; }
             }
         }
-        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogScalar>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogScalar>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogScalar, SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
+        public sealed class EditSession : SparseTypes.ISparseEditSessionModelAccessor<SparseTypes.GeneratedApiFixtures.CatalogScalar>, SparseTypes.ISparseEditSessionOpenDraftState, SparseTypes.ISparseEditSessionWithPaths<SparseTypes.GeneratedApiFixtures.CatalogScalar, SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogScalar>>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogScalar>, SparseTypes.ISparseEditSession<SparseTypes.GeneratedApiFixtures.CatalogScalar, SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet>, System.ComponentModel.INotifyPropertyChanged
         {
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ReadOnlyView Current { get; }
             public SparseTypes.Generated.IDescriptorSet Descriptors { get; }
@@ -2928,6 +2950,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool HasOpenDrafts { get; }
             public SparseTypes.ISparseEditHistory? History { get; }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.Observable Observable { get; }
+            public SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogScalar> Paths { get; }
             public event System.Action? HistoryChanged;
             public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
             public event System.Action<SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet>? TransitionObserved;

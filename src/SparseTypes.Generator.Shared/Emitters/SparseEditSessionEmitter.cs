@@ -229,6 +229,13 @@ internal static class SparseEditSessionEmitter
         {
             sessionBases += ", global::" + openDraftStateInterfaceMetadataName;
         }
+        sessionBases += SparseEditSessionPathsEmitter.GetPathsInterfaceBase(
+            model,
+            modelType,
+            config,
+            patchDialect,
+            code.CancellationToken
+        );
         // Sessions already raise PropertyChanged with the standard signature; declaring the
         // interface lets framework-neutral subscribers (such as the Blazor session scope)
         // attach without reflection or a ChangeSet-typed event.
@@ -288,6 +295,13 @@ internal static class SparseEditSessionEmitter
             "/// <summary>Gets a value indicating whether the session has pending changes.</summary>"
         );
         code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
+        SparseEditSessionPathsEmitter.AppendPathsProperty(
+            code,
+            model,
+            modelType,
+            config,
+            patchDialect
+        );
         if (openDraftStateInterfaceMetadataName is not null)
         {
             code.AppendLineAt(
@@ -457,6 +471,13 @@ internal static class SparseEditSessionEmitter
                 + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
         );
         code.AppendLineAt(2, "private readonly " + core + " _session;");
+        SparseEditSessionPathsEmitter.AppendPathsField(
+            code,
+            model,
+            modelType,
+            config,
+            patchDialect
+        );
         SparseEditSessionHistoryEmitter.AppendHistoryFields(
             code,
             modelType,
@@ -627,6 +648,10 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(
             2,
             "/// <summary>Opens an isolated edit scope for a model value addressed by a typed path.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Child scopes implement only the minimal session contract: a generic child scope cannot promise the same concrete generated path builder as its root session, so use the root <c>Paths</c> navigation with <c>Append</c> for nested paths.</remarks>"
         );
         code.AppendLineAt(2, "/// <param name=\"path\">The path to the model value.</param>");
         code.AppendLineAt(

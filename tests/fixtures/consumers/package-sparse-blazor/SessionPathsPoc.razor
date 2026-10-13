@@ -1,0 +1,33 @@
+@using SparseTypes
+
+@* Minimal Razor generic-inference proof of concept for issue #270 (Stage 2).
+   De-risks Stage 3 headless components without implementing any Blazor
+   component (those are #271): a plain generic C# helper infers TModel and
+   the concrete generated TPaths from the session, and session.Paths
+   navigation compiles inside Razor exactly like in C#. This file is
+   compile-only; no component behavior is asserted here. *@
+<p>@rootPath</p>
+<p>@linePath</p>
+
+@code {
+    private global::BlazorDocsOrder.EditSession session = null!;
+    private string rootPath = string.Empty;
+    private string linePath = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        session = new BlazorDocsOrder { Number = "ORD-1" }.CreateEditSession();
+        rootPath = ReadSessionRoot(session);
+        SparsePath<BlazorDocsOrder, string> number = session.Paths.Number;
+        SparsePath<BlazorDocsOrder, decimal> price = session.Paths.Lines.Key("a").Price;
+        rootPath = session.Paths.UntypedPath.ToString();
+        linePath = number.ToString() + ";" + price.ToString();
+    }
+
+    private static string ReadSessionRoot<TModel, TPaths>(
+        ISparseEditSessionWithPaths<TModel, TPaths> typed
+    )
+        where TModel : class
+        where TPaths : ISparseTypedPath<TModel, TModel> =>
+        typed.Paths.UntypedPath.ToString();
+}

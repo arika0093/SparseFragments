@@ -18,6 +18,7 @@ public sealed class SparseTypesApiAudienceTests
         "SparseTypes.FragmentOperationKind",
         "SparseTypes.ISparseEditSession`1",
         "SparseTypes.ISparseEditSession`2",
+        "SparseTypes.ISparseEditSessionWithPaths`2",
         "SparseTypes.ISparseEditSessionModelAccessor`1",
         "SparseTypes.EditSessionGroup",
         "SparseTypes.EditSessionGroupChangedPath",
