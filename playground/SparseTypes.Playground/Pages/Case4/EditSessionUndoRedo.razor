@@ -1,61 +1,65 @@
 @using System.Text.Json
-@using Microsoft.AspNetCore.Components.Forms
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 @using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
 @implements IDisposable
-<SparseSessionScope TModel="PlaygroundSettings" Session="_session">
+<SparseEdit Session="_session" Context="edit">
 <div class="pg-grid pg-two-pane">
     <FluentCard Class="pg-fluent-card">
         <div class="pg-card-head">
             <h3>Edit</h3>
             <div class="pg-actions pg-edit-history">
             <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Undo"
-                    Disabled="@(!_history.CanUndo)" @onclick="Undo">
+                    Disabled="@(!edit.CanUndo)" @onclick="() => Undo(edit)">
                     <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1.03-6.8 2.7L2 7v9h9l-3.65-3.65c1.32-1.25 3.12-2.02 5.15-2.02 3.23 0 5.96 2.07 6.94 4.95l2.4-.8C20.5 10.6 16.82 8 12.5 8Z" /></svg>
-                    Undo (@_history.UndoCount)
+                    Undo (@(edit.History?.UndoCount ?? 0))
             </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Redo"
-                    Disabled="@(!_history.CanRedo)" @onclick="Redo">
+                    Disabled="@(!edit.CanRedo)" @onclick="() => Redo(edit)">
                     <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c2.65 0 5.05 1.03 6.8 2.7L23 7v9h-9l3.65-3.65c-1.32-1.25-3.12-2.02-5.15-2.02-3.23 0-5.96 2.07-6.94 4.95l-2.4-.8C4.5 10.6 8.18 8 12.5 8Z" /></svg>
-                    Redo (@_history.RedoCount)
+                    Redo (@(edit.History?.RedoCount ?? 0))
             </FluentButton>
             </div>
         </div>
 
         <div class="pg-stack pg-edit-fields">
-            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Enabled) ? "pg-changed" : "")">
-                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Enabled))Enabled <small>bool</small></span>
-                <FluentCheckbox Value="@_enabled.Value"
-                    ValueChanged="@_enabled.SetAsync" />
-            </div>
-            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.RetryCount) ? "pg-changed" : "")">
-                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.RetryCount))RetryCount <small>int</small></span>
-                <FluentNumberInput TValue="int" Style="width: 10rem;"
-                    Value="@_retryCount.Value" ValueChanged="@_retryCount.SetAsync" />
-            </div>
-            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Label) ? "pg-changed" : "")">
-                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Label))Label <small>string</small></span>
-                <FluentTextInput Placeholder="label" Style="flex: 1 1 12rem;"
-                    Value="@_label.Value"
-                    ValueChanged="@_label.SetAsync" />
-            </div>
-            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Nested.Host) ? "pg-changed" : "")">
-                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Nested.Host))Nested.Host <small>string</small></span>
-                <FluentTextInput Placeholder="host" Style="flex: 1 1 12rem;"
-                    Value="@_host.Value"
-                    ValueChanged="@_host.SetAsync" />
-            </div>
-            <div class="pg-row pg-session-field @(IsChanged(PlaygroundSettings.SparsePath.Nested.Port) ? "pg-changed" : "")">
-                <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundSettings.SparsePath.Nested.Port))Nested.Port <small>int</small></span>
-                <FluentNumberInput TValue="int" Style="width: 10rem;"
-                    Value="@_port.Value" ValueChanged="@_port.SetAsync" />
-            </div>
+            <SparseField Path="edit.Path.Enabled" Context="enabled">
+                <div class="pg-row pg-session-field @(enabled.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(enabled.IsChanged)Enabled <small>bool</small></span>
+                    <FluentCheckbox @bind-Value="enabled.Value" />
+                </div>
+            </SparseField>
+            <SparseField Path="edit.Path.RetryCount" Context="retryCount">
+                <div class="pg-row pg-session-field @(retryCount.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(retryCount.IsChanged)RetryCount <small>int</small></span>
+                    <FluentNumberInput TValue="int" Style="width: 10rem;" @bind-Value="retryCount.Value" />
+                </div>
+            </SparseField>
+            <SparseField Path="edit.Path.Label" Context="label">
+                <div class="pg-row pg-session-field @(label.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(label.IsChanged)Label <small>string</small></span>
+                    <FluentTextInput Placeholder="label" Style="flex: 1 1 12rem;"
+                        @bind-Value="label.Value" />
+                </div>
+            </SparseField>
+            <SparseField Path="edit.Path.Nested.Host" Context="host">
+                <div class="pg-row pg-session-field @(host.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(host.IsChanged)Nested.Host <small>string</small></span>
+                    <FluentTextInput Placeholder="host" Style="flex: 1 1 12rem;"
+                        @bind-Value="host.Value" />
+                </div>
+            </SparseField>
+            <SparseField Path="edit.Path.Nested.Port" Context="port">
+                <div class="pg-row pg-session-field @(port.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(port.IsChanged)Nested.Port <small>int</small></span>
+                    <FluentNumberInput TValue="int" Style="width: 10rem;" @bind-Value="port.Value" />
+                </div>
+            </SparseField>
         </div>
 
-        <TaskListEditor Session="_session" BaselineTasks="_baselineModel.Tasks" Changes="SessionChanges" EditContext="_editContext" />
+        <TaskListEditor Session="_session" BaselineTasks="_baselineModel.Tasks" />
         <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
             <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
             <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
@@ -66,10 +70,10 @@
             <FluentMessageBar Intent="MessageBarIntent.Error">@_editError</FluentMessageBar>
         }
         <div class="pg-actions pg-session-actions">
-            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_session.HasChanges)"
-                @onclick="Reset">Reset</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!edit.HasChanges)"
+                @onclick="() => Reset(edit)">Reset</FluentButton>
             <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                Disabled="@(!_session.HasChanges)" @onclick="RequestSubmit">Submit</FluentButton>
+                Disabled="@(!edit.HasChanges)" @onclick="RequestSubmit">Submit</FluentButton>
         </div>
     </FluentCard>
 
@@ -77,8 +81,8 @@
         <FluentCard Class="pg-fluent-card pg-session-result">
             <div class="pg-card-head">
                 <h3>Result</h3>
-                <span class="pg-has-changes-badge @(_session.HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                    <span aria-hidden="true"></span>@(_session.HasChanges ? "Changes" : "No changes")
+                <span class="pg-has-changes-badge @(edit.HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(edit.HasChanges ? "Changes" : "No changes")
                 </span>
             </div>
             <FluentTabs ActiveTabId="@_activeTab" ActiveTabIdChanged="@(id => _activeTab = id ?? "current")">
@@ -108,7 +112,6 @@
         </FluentCard>
     </div>
 </div>
-</SparseSessionScope>
 
 <FluentDialog @ref="_submitDialog" Hidden="@_submitDialogHidden" Modal="true" TrapFocus="true"
     Class="pg-submit-preview-dialog" AriaLabel="Confirm submit changes">
@@ -145,9 +148,10 @@
     </div>
     <div class="pg-dialog-footer">
         <FluentButton Appearance="ButtonAppearance.Default" @onclick="CancelSubmit">Cancel</FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ConfirmSubmit">Submit</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="() => ConfirmSubmit(edit)">Submit</FluentButton>
     </div>
 </FluentDialog>
+</SparseEdit>
 
 <FluentDialog @ref="_completionDialog" Hidden="@_completionHidden" Modal="true" TrapFocus="true"
     AriaLabel="Edit session action completed">
@@ -182,13 +186,6 @@
     };
 
     private SettingsSession _session = null!;
-    private ISparseEditHistory _history = null!;
-    private EditContext _editContext = null!;
-    private SparseFieldBinding<PlaygroundSettings, bool> _enabled = null!;
-    private SparseFieldBinding<PlaygroundSettings, int> _retryCount = null!;
-    private SparseFieldBinding<PlaygroundSettings, string?> _label = null!;
-    private SparseFieldBinding<PlaygroundSettings, string> _host = null!;
-    private SparseFieldBinding<PlaygroundSettings, int> _port = null!;
     private PlaygroundSettings _baselineModel = null!;
     private string _baselineJson = string.Empty;
     private string _activeTab = "diff";
@@ -203,35 +200,21 @@
 
     private string CurrentJson => PlaygroundJson.WriteModel(_model);
 
-    // One point-in-time snapshot per render, shared by the task rows so each
-    // row probes state without re-diffing the live model.
-    private PlaygroundSettings.ChangeSet SessionChanges => _session.CreateChangeSet();
-
     protected override void OnInitialized()
     {
         _session = _model.CreateEditSession();
         // Opt-in history: the session retains no history until this call. The
         // session owns the history and clears it on successful accept/revert,
-        // so no manual stacks, replay guards, or disposal remain here.
-        _history = _session.EnableHistory();
-        _editContext = _session.CreateEditContext();
-        _enabled = _session.Bind(PlaygroundSettings.SparsePath.Enabled, _editContext);
-        _retryCount = _session.Bind(PlaygroundSettings.SparsePath.RetryCount, _editContext);
-        _label = _session.Bind(PlaygroundSettings.SparsePath.Label, _editContext);
-        _host = _session.Bind(PlaygroundSettings.SparsePath.Nested.Host, _editContext);
-        _port = _session.Bind(PlaygroundSettings.SparsePath.Nested.Port, _editContext);
+        // so no manual stacks, replay guards, or disposal remain here. The
+        // SparseEdit root above only reads and observes the owned history.
+        _session.EnableHistory();
         // The subscription below only appends changelog entries. Refresh is
-        // owned by the session scope, which re-renders on notifications.
+        // owned by the edit root, which re-renders on session notifications.
         _session.TransitionObserved += OnTransitionObserved;
         CaptureBaseline();
     }
 
     private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition) => AppendChanges(transition);
-
-    // Semantic highlight queries over the live baseline diff. Unknown paths
-    // report clean, so these replace the hand-rolled model comparisons.
-    private bool IsChanged<TValue>(SparsePath<PlaygroundSettings, TValue> path) =>
-        _session.FieldState(path).IsChanged;
 
     private static RenderFragment ChangedDot(bool changed) => builder =>
     {
@@ -377,12 +360,15 @@
         await _submitDialog.HideAsync();
     }
 
-    private async Task ConfirmSubmit()
+    private async Task ConfirmSubmit<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
     {
         await CancelSubmit();
         try
         {
-            _session.AcceptChanges(_editContext);
+            // The edit root owns the EditContext the fields validate against,
+            // so acknowledgement clears that context's modified flags.
+            _session.AcceptChanges(edit.EditContext);
             CaptureBaseline();
             ClearHistory();
             _editError = null;
@@ -420,12 +406,13 @@
         await _completionDialog.HideAsync();
     }
 
-    private async Task Reset()
+    private async Task Reset<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
     {
         try
         {
             _session.RevertChanges();
-            _editContext.MarkAsUnmodified();
+            edit.EditContext.MarkAsUnmodified();
             ClearHistory();
             _editError = null;
         }
@@ -441,11 +428,14 @@
     // Accept/revert already clear the opt-in history; only the demo log remains.
     private void ClearHistory() => _log.Clear();
 
-    private void Undo()
+    // History availability and stacks are read from the edit root above, so
+    // these adapters only surface replay conflicts as edit errors.
+    private void Undo<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
     {
         try
         {
-            _history.Undo();
+            edit.Undo();
             _editError = null;
         }
         catch (InvalidOperationException exception)
@@ -454,11 +444,12 @@
         }
     }
 
-    private void Redo()
+    private void Redo<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
     {
         try
         {
-            _history.Redo();
+            edit.Redo();
             _editError = null;
         }
         catch (InvalidOperationException exception)

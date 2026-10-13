@@ -105,6 +105,13 @@
             <p class="pg-hint">Apply an order ChangeSet to a tracked EF Core entity and persist it.</p>
             <FluentAnchorButton Appearance="ButtonAppearance.Primary" Href="case-5">Open sample</FluentAnchorButton>
         </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head">
+                <h3>06 Sessions</h3>
+            </div>
+            <p class="pg-hint">Coordinate independent edit forms through a group, or isolate edits with a scope or fork.</p>
+            <FluentAnchorButton Appearance="ButtonAppearance.Primary" Href="case-6">Open sample</FluentAnchorButton>
+        </FluentCard>
     </div>
 </section>
 
@@ -191,11 +198,11 @@
             {
                 public bool HasChanges { get; }
                 public ReadOnlyView Current { get; }
-
+        
                 // Creates a change set for the pending edits.
                 public ChangeSet CreateChangeSet();
-                // Creates an opt-in bounded undo/redo history (no retention without this call).
-                public SparseEditHistory<ChangeSet> CreateHistory(EditHistoryOptions? options = null);
+                // Opt-in session-owned undo/redo history (no retention without this call).
+                public ISparseEditHistory EnableHistory(EditHistoryOptions? options = null);
                 // Accepts the current model as the new baseline.
                 public void AcceptChanges();
                 // Restores the model to its retained baseline.

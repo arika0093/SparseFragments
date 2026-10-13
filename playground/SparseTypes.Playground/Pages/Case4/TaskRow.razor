@@ -1,4 +1,3 @@
-@using Microsoft.AspNetCore.Components.Forms
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
@@ -14,28 +13,30 @@
                 ValueChanged="@(value => _idDraft = value ?? string.Empty)"
                 @onfocusout="CommitTaskId" />
         </div>
-        <div class="pg-roster-field @(TitleChanged ? "pg-changed" : "")">
-            <span class="pg-mini notranslate" translate="no">
-                @if (TitleChanged)
-                {
-                    <span class="pg-dot" title="edited"></span>
-                }
-                Title
-            </span>
-            <FluentTextInput Value="@_title.Value"
-                ValueChanged="@_title.SetAsync" />
-        </div>
-        <div class="pg-roster-field @(PointsChanged ? "pg-changed" : "")">
-            <span class="pg-mini notranslate" translate="no">
-                @if (PointsChanged)
-                {
-                    <span class="pg-dot" title="edited"></span>
-                }
-                Points
-            </span>
-            <FluentNumberInput TValue="int" Style="width: 100%;" Value="@_points.Value"
-                ValueChanged="@_points.SetAsync" />
-        </div>
+        <SparseField Path="Session.Paths.Tasks.Key(Task.Id).Title" Context="title">
+            <div class="pg-roster-field @(title.IsChanged ? "pg-changed" : "")">
+                <span class="pg-mini notranslate" translate="no">
+                    @if (title.IsChanged)
+                    {
+                        <span class="pg-dot" title="edited"></span>
+                    }
+                    Title
+                </span>
+                <FluentTextInput @bind-Value="title.Value" />
+            </div>
+        </SparseField>
+        <SparseField Path="Session.Paths.Tasks.Key(Task.Id).Points" Context="points">
+            <div class="pg-roster-field @(points.IsChanged ? "pg-changed" : "")">
+                <span class="pg-mini notranslate" translate="no">
+                    @if (points.IsChanged)
+                    {
+                        <span class="pg-dot" title="edited"></span>
+                    }
+                    Points
+                </span>
+                <FluentNumberInput TValue="int" Style="width: 100%;" @bind-Value="points.Value" />
+            </div>
+        </SparseField>
         <div class="pg-roster-actions pg-task-actions">
             <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
             <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
@@ -56,36 +57,23 @@
     [Parameter, EditorRequired]
     public TaskObservable Task { get; set; } = null!;
 
-    // Point-in-time snapshot from the parent render; row and field lookups
-    // probe it without re-diffing the live model per row.
+    // Render-scoped row snapshot captured once by the parent list, so rows
+    // share one collection view instead of diffing per row. Field highlights
+    // come from each SparseField's own render-scoped state above.
     [Parameter, EditorRequired]
-    public PlaygroundSettings.ChangeSet Changes { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public EditContext EditContext { get; set; } = null!;
+    public SparseCollectionItemState RowState { get; set; }
 
     [Parameter]
     public EventCallback<string?> OnError { get; set; }
 
+    private string _idDraft = string.Empty;
     private TaskObservable? _lastTask;
     private string? _lastBoundId;
-    private string _idDraft = string.Empty;
-    private SparseFieldBinding<PlaygroundSettings, string> _title = null!;
-    private SparseFieldBinding<PlaygroundSettings, int> _points = null!;
     private int Index => Session.Observable.Tasks.IndexOf(Task);
 
     // Row highlights reuse the canonical keyed semantics instead of a
     // hand-rolled baseline map: added rows report IsAdded, surviving rows
     // report IsReordered on relative-rank changes.
-    private SparseCollectionItemState RowState =>
-        Changes.Tasks.KeyedState(PlaygroundSettings.SparsePath.Tasks).GetItemState(Task.Id);
-
-    private bool TitleChanged =>
-        Changes.FieldState(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Title).IsChanged;
-
-    private bool PointsChanged =>
-        Changes.FieldState(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Points).IsChanged;
-
     private string RowClass =>
         RowState.IsAdded
             ? "pg-roster-row pg-added"
@@ -95,16 +83,15 @@
 
     protected override void OnParametersSet()
     {
+        // Identity edits are keyed, not positional: only the id draft tracks
+        // the row, and only across row identity changes so in-progress typing
+        // survives re-renders. Title/Points bindings live in the SparseField
+        // components above, which rebind when the keyed path changes.
         if (!ReferenceEquals(_lastTask, Task) || !string.Equals(_lastBoundId, Task.Id, StringComparison.Ordinal))
         {
             _lastTask = Task;
             _lastBoundId = Task.Id;
             _idDraft = Task.Id;
-            // Toolkit-neutral bindings over the keyed path: reads resolve live
-            // and writes notify the shared EditContext. Keyed paths expose no
-            // value expression, so Fluent inputs bind value and callback only.
-            _title = Session.Bind(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Title, EditContext);
-            _points = Session.Bind(PlaygroundSettings.SparsePath.Tasks.Key(Task.Id).Points, EditContext);
         }
     }
 

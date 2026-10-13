@@ -1,20 +1,25 @@
-@using Microsoft.AspNetCore.Components.Forms
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 @using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
-@using TaskObservable = global::SparseTypes.Playground.Models.PlaygroundTask.Observable;
 
 <div class="pg-row pg-session-field pg-task-field">
     <span class="pg-name notranslate" translate="no">Tasks <small>List&lt;Task&gt;</small></span>
     <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTask">Add task</FluentButton>
 </div>
-<SortableList Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
-    OnUpdate="OnSortableUpdate" Context="task">
-    <SortableItemTemplate>
-        <TaskRow Task="task" Session="Session" Changes="Changes" EditContext="EditContext" OnError="SetTaskError" />
-    </SortableItemTemplate>
-</SortableList>
+<SparseField Path="Session.Paths.Tasks" Context="tasks">
+    @* One collection view per render, shared by all rows: capturing the
+    snapshot here diffs once, and row lookups below only probe it. Unknown
+    keys report the empty state, so stale rows render clean. *@
+    @{ var roster = tasks.TryGetCollectionState(out var view) ? view : null; }
+    <SortableList Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
+        OnUpdate="OnSortableUpdate" Context="task">
+        <SortableItemTemplate>
+            <TaskRow Task="task" Session="Session" RowState="roster?.GetItemState(task.Id) ?? default" OnError="SetTaskError" />
+        </SortableItemTemplate>
+    </SortableList>
+</SparseField>
 @if (_taskError is not null)
 {
     <FluentMessageBar Intent="MessageBarIntent.Error">@_taskError</FluentMessageBar>
@@ -31,13 +36,6 @@
     // which would read as an edit of the removed row instead of an addition.
     [Parameter, EditorRequired]
     public List<PlaygroundTask> BaselineTasks { get; set; } = [];
-
-    // Point-in-time snapshot from the parent render, shared by all rows.
-    [Parameter, EditorRequired]
-    public PlaygroundSettings.ChangeSet Changes { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public EditContext EditContext { get; set; } = null!;
 
     private string? _taskError;
 

@@ -1,0 +1,169 @@
+@using SparseTypes
+@using SparseTypes.Blazor
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
+
+<div class="pg-stack">
+    <p class="pg-hint">A fork is an independent speculative branch: edits on either side stay isolated. Merging previews a reconciled session without modifying either side, and only explicit adoption replaces the edited session.</p>
+    <div class="pg-grid pg-grid-duo">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Main session</h3></div>
+            <SparseEdit Session="_session" Context="edit">
+                <div class="pg-stack pg-edit-fields">
+                    <SparseField Path="edit.Path.Label" Context="label">
+                        <div class="pg-row pg-session-field @(label.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Label <small>string</small></span>
+                            <FluentTextInput @bind-Value="label.Value" />
+                        </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.RetryCount" Context="retryCount">
+                        <div class="pg-row pg-session-field @(retryCount.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">RetryCount <small>int</small></span>
+                            <FluentNumberInput TValue="int" @bind-Value="retryCount.Value" />
+                        </div>
+                    </SparseField>
+                </div>
+            </SparseEdit>
+            <div class="pg-actions">
+                <FluentButton Appearance="ButtonAppearance.Primary" Disabled="@(_fork is not null)" @onclick="ForkSession">Fork session</FluentButton>
+            </div>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Fork branch</h3></div>
+            @if (_fork is null)
+            {
+                <p class="pg-hint">No fork. Fork the main session to speculate in isolation.</p>
+            }
+            else
+            {
+                @* A fork is the same session type with its own live model and
+                baseline, so it edits through an ordinary SparseEdit root. *@
+                <SparseEdit Session="_fork" Context="forked">
+                    <div class="pg-stack pg-edit-fields">
+                        <SparseField Path="forked.Path.Label" Context="label">
+                            <div class="pg-row pg-session-field @(label.IsChanged ? "pg-changed" : "")">
+                                <span class="pg-name notranslate" translate="no">Fork.Label <small>string</small></span>
+                                <FluentTextInput @bind-Value="label.Value" />
+                            </div>
+                        </SparseField>
+                        <SparseField Path="forked.Path.RetryCount" Context="retryCount">
+                            <div class="pg-row pg-session-field @(retryCount.IsChanged ? "pg-changed" : "")">
+                                <span class="pg-name notranslate" translate="no">Fork.RetryCount <small>int</small></span>
+                                <FluentNumberInput TValue="int" @bind-Value="retryCount.Value" />
+                            </div>
+                        </SparseField>
+                    </div>
+                </SparseEdit>
+                <div class="pg-actions">
+                    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="MergeFork">Try merge fork</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="DiscardFork">Discard fork</FluentButton>
+                </div>
+            }
+            @if (_merged is not null)
+            {
+                <p class="pg-hint">Merged preview (neither session modified): Label=@_merged.Current.Label, RetryCount=@_merged.Current.RetryCount.</p>
+                <div class="pg-actions">
+                    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AdoptMerged">Adopt merged session</FluentButton>
+                </div>
+            }
+            @if (_conflicts.Count > 0)
+            {
+                <div class="pg-change-table-wrap">
+                    <table class="pg-change-table" aria-label="Merge conflicts">
+                        <thead><tr><th>Path</th><th>Main</th><th>Fork</th><th>Kind</th></tr></thead>
+                        <tbody>
+                            @foreach (var conflict in _conflicts)
+                            {
+                                <tr>
+                                    <td><span class="pg-change-value">@conflict.PathText</span></td>
+                                    <td><span class="pg-change-value">@PlaygroundJson.FormatChangeValue(conflict.CurrentValue)</span></td>
+                                    <td><span class="pg-change-value">@PlaygroundJson.FormatChangeValue(conflict.LocalValue)</span></td>
+                                    <td>@conflict.Kind</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (_forkMessage is not null)
+            {
+                <p class="pg-hint">@_forkMessage</p>
+            }
+        </FluentCard>
+    </div>
+</div>
+
+@code {
+    private readonly PlaygroundSettings _model = new()
+    {
+        Enabled = true,
+        RetryCount = 3,
+        Label = "Fork demo",
+        Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
+    };
+    private SettingsSession _session = null!;
+    private SettingsSession? _fork;
+    private SettingsSession? _merged;
+    private IReadOnlyList<SparseConflict> _conflicts = [];
+    private string? _forkMessage;
+
+    protected override void OnInitialized() => _session = _model.CreateEditSession();
+
+    private void ForkSession()
+    {
+        _fork = _session.Fork();
+        _merged = null;
+        _conflicts = [];
+        _forkMessage = null;
+    }
+
+    private void DiscardFork()
+    {
+        _fork = null;
+        _merged = null;
+        _conflicts = [];
+        _forkMessage = null;
+    }
+
+    private void MergeFork()
+    {
+        if (_fork is null)
+        {
+            return;
+        }
+
+        // The fork transition rebases onto the main session's current model.
+        // Success returns a new session with the main baseline and the merged
+        // model; both inputs stay exactly as they were until adoption below.
+        // To see conflicts, edit the same field on both sides first.
+        if (_session.TryMergeFrom(_fork, out var merged, out var conflicts))
+        {
+            _merged = merged;
+            _conflicts = [];
+            _forkMessage = "The fork merged cleanly. Adopt it to keep editing from the merged state.";
+        }
+        else
+        {
+            _merged = null;
+            _conflicts = conflicts ?? [];
+            _forkMessage = "The fork conflicts with main-session edits. Both sessions are unchanged; resolve by editing one side and merging again.";
+        }
+    }
+
+    private void AdoptMerged()
+    {
+        if (_merged is null)
+        {
+            return;
+        }
+
+        // Explicit adoption: replacing the session reference resubscribes the
+        // edit root above and rebuilds its fields against the merged model.
+        _session = _merged;
+        _fork = null;
+        _merged = null;
+        _conflicts = [];
+        _forkMessage = "Adopted the merged session as the edited session.";
+    }
+}

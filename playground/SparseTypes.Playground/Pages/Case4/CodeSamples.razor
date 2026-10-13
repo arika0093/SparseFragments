@@ -1,7 +1,7 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Create an EditSession to track model changes, bind Fluent inputs through the toolkit-neutral Blazor helpers, and rely on opt-in history plus a session scope for undo, redo, and refresh.</p>
+    <p class="pg-hint">Create an EditSession to track model changes, edit through the headless Blazor components over the session paths, and rely on opt-in history plus the edit root for undo, redo, and refresh.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Session / Bind" Id="code-4-session">
             <MonacoView Content="@SessionCode" Language="csharp" Height="390px" />
@@ -18,29 +18,35 @@
 @code {
     private const string SessionCode = """
         var session = model.CreateEditSession(); // Capture the model as the baseline.
-        var observable = session.Observable; // Bind input controls to this observable.
-        var shown = session.Current.RetryCount; // Read display state from the read-only view.
-
-        // Toolkit-neutral Blazor bindings: the same API serves standard inputs
-        // and third-party components such as the Fluent inputs below.
-        var editContext = session.CreateEditContext();
-        var retryCount = session.Bind(Model.SparsePath.RetryCount, editContext);
-        // FluentNumberInput Value="@retryCount.Value" ValueChanged="@retryCount.SetAsync"
-
-        if (session.FieldState(Model.SparsePath.RetryCount).IsChanged)
-        {
-            // Highlight the edited field; no handwritten baseline compare.
-        }
-
+        session.EnableHistory(); // Opt-in session-owned history; the edit root only observes it.
+        
+        // Headless Blazor editing over the session paths. SparseEdit takes only
+        // the session; each SparseField takes only a typed path. Third-party
+        // inputs bind with @bind-Value; InputBase controls take the explicit
+        // Value / ValueChanged / ValueExpression triple instead.
+        // <SparseEdit Session="@session" Context="edit">
+        //     <SparseField Path="edit.Path.RetryCount" Context="retryCount">
+        //         <FluentNumberInput TValue="int" @bind-Value="retryCount.Value" />
+        //     </SparseField>
+        //     <SparseField Path="edit.Path.Tasks.Key(taskId).Title" Context="title">
+        //         <FluentTextInput @bind-Value="title.Value" />
+        //     </SparseField>
+        //     <button disabled="@(!edit.CanUndo)" @onclick="edit.Undo">Undo</button>
+        // </SparseEdit>
+        
+        // The field context also carries the render-scoped semantic state.
+        // if (title.IsChanged) { /* Highlight the edited field; no handwritten baseline compare. */ }
+        
         if (session.HasChanges)
         {
             var pending = session.CreateChangeSet(); // Typed before-to-after transition for save.
-            session.AcceptChanges(editContext); // Submit and clear the context modified flags.
+            session.AcceptChanges(edit.EditContext); // Submit and clear the context modified flags.
         }
-        void Reset()
+        void Reset<TPaths>(SparseEditContext<Model, TPaths> edit)
+            where TPaths : ISparseTypedPath<Model, Model>
         {
             session.RevertChanges(); // Discard pending edits and restore the baseline.
-            editContext.MarkAsUnmodified();
+            edit.EditContext.MarkAsUnmodified();
         }
         """;
 
@@ -56,10 +62,10 @@
         };
         // Unsubscribe with the owner lifetime.
         // session.TransitionObserved -= handler;
-
-        // Appearance-free refresh: the scope cascades the session and
-        // re-renders its subtree once per session notification.
-        // <SparseSessionScope TModel="Model" Session="@session"> ... </SparseSessionScope>
+        
+        // Appearance-free refresh: the SparseEdit root cascades the session
+        // and re-renders its subtree once per session notification.
+        // <SparseEdit Session="@session" Context="edit"> ... </SparseEdit>
         """;
 
     private const string HistoryCode = """

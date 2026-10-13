@@ -1,5 +1,6 @@
 @using Microsoft.EntityFrameworkCore
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.EntityFrameworkCore
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
@@ -31,25 +32,32 @@
                         Disabled="@(_savePending || _changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
                 </div>
             </div>
+            <SparseEdit Session="_session" Context="edit">
             <div class="pg-stack pg-edit-fields">
-                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Customer) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Customer))Customer <small>string</small></span>
-                    <FluentTextInput Style="flex: 1 1 12rem;"
-                        Value="@_draft.Customer"
-                        ValueChanged="@(v => EditDraft(d => d.Customer = v ?? string.Empty))" />
-                </div>
-                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Notes) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Notes))Notes <small>string</small></span>
-                    <FluentTextInput Style="flex: 1 1 12rem;"
-                        Value="@_draft.Notes"
-                        ValueChanged="@(v => EditDraft(d => d.Notes = v ?? string.Empty))" />
-                </div>
-                <div class="pg-row pg-session-field @(IsChanged(PlaygroundOrderDto.SparsePath.Total) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">@ChangedDot(IsChanged(PlaygroundOrderDto.SparsePath.Total))Total <small>decimal</small></span>
-                    <FluentNumberInput TValue="decimal" Style="width: 10rem;"
-                        Value="@_draft.Total"
-                        ValueChanged="@(v => EditDraft(d => d.Total = v))" />
-                </div>
+                <SparseField Path="edit.Path.Customer" Context="customer">
+                    <div class="pg-row pg-session-field @(customer.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">@ChangedDot(customer.IsChanged)Customer <small>string</small></span>
+                        <FluentTextInput Style="flex: 1 1 12rem;"
+                            Value="@customer.Value"
+                            ValueChanged="@(v => EditFieldAsync(customer, v))" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Notes" Context="notes">
+                    <div class="pg-row pg-session-field @(notes.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">@ChangedDot(notes.IsChanged)Notes <small>string</small></span>
+                        <FluentTextInput Style="flex: 1 1 12rem;"
+                            Value="@notes.Value"
+                            ValueChanged="@(v => EditFieldAsync(notes, v))" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Total" Context="total">
+                    <div class="pg-row pg-session-field @(total.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">@ChangedDot(total.IsChanged)Total <small>decimal</small></span>
+                        <FluentNumberInput TValue="decimal" Style="width: 10rem;"
+                            Value="@total.Value"
+                            ValueChanged="@(v => EditFieldAsync(total, v))" />
+                    </div>
+                </SparseField>
             </div>
             <div class="pg-row pg-session-field pg-task-field">
                 <span class="pg-name notranslate" translate="no">Lines <small>List&lt;Line&gt;</small></span>
@@ -57,12 +65,19 @@
                     <FluentButton Appearance="ButtonAppearance.Primary" Title="Add a random line" @onclick="AddLine">Add</FluentButton>
                 </span>
             </div>
-            <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
-                OnUpdate="OnLinesReordered" Context="line">
-                <SortableItemTemplate>
-                    <OrderLineRow Line="line" Draft="_draft" Changes="_changes ?? EmptyOrderChangeSet" OnEditDraft="EditDraft" />
-                </SortableItemTemplate>
-            </SortableList>
+            <SparseField Path="edit.Path.Lines" Context="lines">
+                @* One collection view per render, shared by all rows: capturing
+                the snapshot here diffs once, and row lookups below only probe
+                it. The save pipeline below keeps its own retained ChangeSet. *@
+                @{ var roster = lines.TryGetCollectionState(out var view) ? view : null; }
+                <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
+                    OnUpdate="OnLinesReordered" Context="line">
+                    <SortableItemTemplate>
+                        <OrderLineRow Line="line" Draft="_draft" Lines="lines" Roster="roster" OnEditDraft="EditDraft" OnEdited="OnDraftEdited" />
+                    </SortableItemTemplate>
+                </SortableList>
+            </SparseField>
+            </SparseEdit>
             <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
                 <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
                 <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
@@ -254,10 +269,6 @@
 
     private static readonly string[] ConflictHandlingOptions = ["Standard", "Strict"];
 
-    // Empty snapshot for rows while the draft cannot be diffed; rows then render clean.
-    private static readonly PlaygroundOrderDto.ChangeSet EmptyOrderChangeSet =
-        PlaygroundOrderDto.ChangeSet.Empty;
-
     private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
     private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baselineView));
     private string DraftJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_draft));
@@ -359,10 +370,28 @@
     private void EditDraft(Action<PlaygroundOrderDto> edit)
     {
         edit(_liveDraft);
+        OnDraftEdited();
+    }
+
+    // Field writes arrive through SparseField bindings (which own the session
+    // write and refresh); this only runs the draft bookkeeping the headless
+    // components do not supply: clearing the last save outcome and refreshing
+    // the retained ChangeSet the save pipeline acknowledges.
+    private void OnDraftEdited()
+    {
         _applied = false;
         _applyResult = null;
         _modifiedRows = [];
         RefreshChanges();
+    }
+
+    // Scalar writes through one shared adapter: the field owns the session
+    // write, and the draft bookkeeping above follows it. Structural edits
+    // (add/remove/move) keep using EditDraft directly.
+    private async Task EditFieldAsync<TValue>(SparseFieldContext<PlaygroundOrderDto, TValue> field, TValue? value)
+    {
+        await field.SetAsync(value);
+        OnDraftEdited();
     }
 
     // New lines never carry an Id: like the case 4 task list, Add appends a
@@ -411,11 +440,9 @@
         }
     };
 
-    // Scalar highlights read the retained ChangeSet through the shared field
-    // queries instead of hand-rolled draft comparisons.
-    private bool IsChanged<TValue>(SparsePath<PlaygroundOrderDto, TValue> path) =>
-        _changes?.FieldState(path).IsChanged == true;
-
+    // Scalar highlights now come from each SparseField's render-scoped
+    // state; the retained ChangeSet below stays for the save pipeline, which
+    // acknowledges the exact immutable submission (#266 owns that lifecycle).
     private static string ConflictHandlingName(ConflictHandlingMode mode) => mode switch
     {
         ConflictHandlingMode.Standard => "Standard",
