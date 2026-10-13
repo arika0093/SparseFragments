@@ -243,6 +243,9 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         var collectionScopeKeys = trackResult
             ? new Dictionary<string, Dictionary<object, string>>(StringComparer.Ordinal)
             : null;
+        var nestedScopes = trackResult
+            ? new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal)
+            : null;
         var state = new PlanApplyState(
             context,
             entity,
@@ -252,7 +255,8 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             false,
             correlation,
             appliedPaths: appliedPaths,
-            collectionScopeKeys: collectionScopeKeys
+            collectionScopeKeys: collectionScopeKeys,
+            nestedScopes: nestedScopes
         );
         var actions = new List<Action>();
         try
@@ -278,7 +282,12 @@ public sealed class SparseEntityMapper<TEntity, TDto>
         }
 
         return trackResult
-            ? new SparseEntityApplyResult(correlation!, appliedPaths, collectionScopeKeys)
+            ? new SparseEntityApplyResult(
+                correlation!,
+                appliedPaths,
+                collectionScopeKeys,
+                nestedScopes
+            )
             : null;
     }
 

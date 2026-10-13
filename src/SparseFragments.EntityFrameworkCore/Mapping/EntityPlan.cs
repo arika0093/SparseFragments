@@ -108,7 +108,8 @@ internal abstract class EntityPlanBase
         object? baseline,
         object authoritative,
         SparseEntityApplyResult result,
-        string path
+        string path,
+        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     );
 
     /// <summary>Validates the change set, then executes the queued writes.</summary>
@@ -370,7 +371,8 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         object? baseline,
         object authoritative,
         SparseEntityApplyResult result,
-        string path
+        string path,
+        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -379,7 +381,7 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         ArgumentNullException.ThrowIfNull(path);
         foreach (var step in Steps)
         {
-            step.AssignTemporaryKeys(context, baseline, authoritative, result, path);
+            step.AssignTemporaryKeys(context, baseline, authoritative, result, path, parentScopes);
         }
     }
 

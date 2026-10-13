@@ -66,12 +66,20 @@ internal sealed class CollectionNode<TDto, TEntity, TDtoChild, TEntityChild> : M
         object? baseline,
         object authoritative,
         SparseEntityApplyResult result,
-        string path
+        string path,
+        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
         var baselineItems = baseline is null ? null : Runtime.SnapshotReader(baseline);
         var authoritativeItems = Runtime.SnapshotReader(authoritative);
-        Runtime.AssignTemporaryKeys(context, baselineItems, authoritativeItems, result, path);
+        Runtime.AssignTemporaryKeys(
+            context,
+            baselineItems,
+            authoritativeItems,
+            result,
+            path,
+            parentScopes
+        );
     }
 
     public override void CollectIncludes(

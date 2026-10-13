@@ -49,7 +49,8 @@ internal abstract class MemberNode
         object? baseline,
         object authoritative,
         SparseEntityApplyResult result,
-        string path
+        string path,
+        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     ) { }
 }
 

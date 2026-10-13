@@ -67,7 +67,9 @@ internal static class CollectionSync
                 true,
                 state.Correlation,
                 appliedPaths: state.AppliedPaths,
-                collectionScopeKeys: state.CollectionScopeKeys
+                collectionScopeKeys: state.CollectionScopeKeys,
+                nestedScopes: state.NestedScopes,
+                parentScope: CollectionScopeIdentity.Assigned(edit.Key, runtime.KeyComparer)
             );
             runtime.ChildPlan.Prepare(sub, actions);
         }
@@ -80,6 +82,8 @@ internal static class CollectionSync
         }
 
         var capturedEntity = state.Entity;
+        var capturedScopes = state.NestedScopes;
+        var capturedParentScope = state.ParentScope;
         actions.Add(() =>
             CollectionExecution.ExecuteSync(
                 runtime,
@@ -89,7 +93,9 @@ internal static class CollectionSync
                 path,
                 state.Correlation,
                 state.AppliedPaths,
-                state.CollectionScopeKeys
+                state.CollectionScopeKeys,
+                capturedScopes,
+                capturedParentScope
             )
         );
     }
@@ -232,7 +238,9 @@ internal static class CollectionSync
 
                 state.Context.Add(entity);
                 var entry = PlanApplyState.AttachSingle(state.Context, entity);
-                state.RecordCollectionScope(path, entity, scopeKey);
+                // The owning element's scope, not the element's own: records
+                // partition by parent scope.
+                state.RecordCollectionScope(path, entity, scopeKey, state.ParentScope);
                 if (state.AppliedPaths is not null)
                 {
                     state.RecordAppliedPath(
@@ -253,7 +261,14 @@ internal static class CollectionSync
                     childPath,
                     state.Correlation,
                     state.AppliedPaths,
-                    state.CollectionScopeKeys
+                    state.CollectionScopeKeys,
+                    state.NestedScopes,
+                    CollectionScopeIdentity.ForElement(
+                        key,
+                        key is not null && !runtime.IsUnassigned(key),
+                        temporaryKey,
+                        runtime.KeyComparer
+                    )
                 );
                 var subs = new List<Action>();
                 runtime.ChildPlan.WriteAll(sub, subs);
@@ -748,13 +763,21 @@ internal static class CollectionSync
         where TDtoChild : class
         where TEntityChild : class
     {
+        var probeKey = addition.AssignedKey;
         var probe = new PlanWriteState(
             context,
             addition.Entity,
             context.Entry(addition.Entity),
             addition.Dto,
             path,
-            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal)
+            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
+            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            parentScope: CollectionScopeIdentity.ForElement(
+                probeKey,
+                probeKey is not null && !runtime.IsUnassigned(probeKey),
+                addition.TemporaryKey,
+                runtime.KeyComparer
+            )
         );
         runtime.ChildPlan.WriteAll(probe, new List<Action>());
     }
@@ -769,13 +792,21 @@ internal static class CollectionSync
         where TDtoChild : class
         where TEntityChild : class
     {
+        var probeKey = runtime.DtoKey(snapshot);
         var probe = new PlanWriteState(
             context,
             prospective,
             context.Entry(prospective),
             snapshot,
             path,
-            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal)
+            new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
+            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            parentScope: CollectionScopeIdentity.ForElement(
+                probeKey,
+                probeKey is not null && !runtime.IsUnassigned(probeKey),
+                runtime.TemporaryGetter?.Invoke(snapshot),
+                runtime.KeyComparer
+            )
         );
         runtime.ChildPlan.WriteAll(probe, new List<Action>());
     }

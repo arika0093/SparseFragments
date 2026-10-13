@@ -34,7 +34,9 @@ internal sealed class PlanApplyState
         Dictionary<string, Dictionary<Guid, object>>? sharedCorrelation,
         List<SparseEntityMappingError>? sharedValidationErrors = null,
         List<SparseEntityAppliedPath>? appliedPaths = null,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null,
+        Dictionary<string, NestedScopeTable>? nestedScopes = null,
+        CollectionScopeIdentity parentScope = default
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -51,6 +53,8 @@ internal sealed class PlanApplyState
         _validationErrors = sharedValidationErrors ?? [];
         _appliedPaths = appliedPaths;
         _collectionScopeKeys = collectionScopeKeys;
+        NestedScopes = nestedScopes;
+        ParentScope = parentScope;
         Groups = Group(changes, path, isNested);
     }
 
@@ -88,6 +92,12 @@ internal sealed class PlanApplyState
     /// <summary>Gets created-entity scope keys, when result tracking is enabled.</summary>
     public Dictionary<string, Dictionary<object, string>>? CollectionScopeKeys =>
         _collectionScopeKeys;
+
+    /// <summary>Gets nested temporary-identity records keyed by parent scope.</summary>
+    public Dictionary<string, NestedScopeTable>? NestedScopes { get; }
+
+    /// <summary>Gets the parent element scope for nested correlation records.</summary>
+    public CollectionScopeIdentity ParentScope { get; }
 
     /// <summary>Collects a validation failure without executing queued writes.</summary>
     public bool CollectValidation(Action validate)
@@ -141,6 +151,11 @@ internal sealed class PlanApplyState
     }
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
+    /// <remarks>
+    /// The legacy path-string bucket keeps its exact contents for compatible
+    /// reads, but duplicate detection now runs on the parent-scoped record:
+    /// parents whose display keys collide keep independent correlations.
+    /// </remarks>
     public void RecordTemporary(string path, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -156,9 +171,12 @@ internal sealed class PlanApplyState
             Correlation[path] = scope;
         }
 
-        if (scope.TryGetValue(temporaryKey, out var existing))
+        if (NestedScopes is null || ParentScope.Kind == CollectionScopeKind.Unscoped)
         {
-            if (!ReferenceEquals(existing, entity))
+            if (
+                scope.TryGetValue(temporaryKey, out var existing)
+                && !ReferenceEquals(existing, entity)
+            )
             {
                 throw new SparseEntityMappingException(
                     SparseEntityMappingFailure.CollectionKeyConflict,
@@ -167,10 +185,20 @@ internal sealed class PlanApplyState
                 );
             }
 
+            scope[temporaryKey] = entity;
             return;
         }
 
+        // Legacy bucket keeps its contents for compatible reads; precise
+        // duplicate detection runs on the parent-scoped record below.
         scope[temporaryKey] = entity;
+        if (!NestedScopes.TryGetValue(path, out var table))
+        {
+            table = new NestedScopeTable(ParentScope.KeyComparer);
+            NestedScopes.Add(path, table);
+        }
+
+        table.Record(path, ParentScope, temporaryKey, entity);
     }
 
     /// <summary>Whether any changed record starts at the DTO member.</summary>

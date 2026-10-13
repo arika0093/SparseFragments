@@ -34,7 +34,9 @@ internal sealed class PlanWriteState
         string path,
         Dictionary<string, Dictionary<Guid, object>>? sharedCorrelation,
         List<SparseEntityAppliedPath>? appliedPaths = null,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null
+        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null,
+        Dictionary<string, NestedScopeTable>? nestedScopes = null,
+        CollectionScopeIdentity parentScope = default
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -50,6 +52,8 @@ internal sealed class PlanWriteState
         Correlation = sharedCorrelation;
         _appliedPaths = appliedPaths;
         _collectionScopeKeys = collectionScopeKeys;
+        NestedScopes = nestedScopes;
+        ParentScope = parentScope;
     }
 
     public DbContext Context { get; }
@@ -74,6 +78,12 @@ internal sealed class PlanWriteState
     /// <summary>Gets created-entity scope keys, when result tracking is enabled.</summary>
     public Dictionary<string, Dictionary<object, string>>? CollectionScopeKeys =>
         _collectionScopeKeys;
+
+    /// <summary>Gets nested temporary-identity records keyed by parent scope.</summary>
+    public Dictionary<string, NestedScopeTable>? NestedScopes { get; }
+
+    /// <summary>Gets the parent element scope for nested correlation records.</summary>
+    public CollectionScopeIdentity ParentScope { get; }
 
     /// <summary>Queues a write and records its applied-path detail after success.</summary>
     public void QueueWrite(List<Action> actions, SparseEntityAppliedPath appliedPath, Action write)
@@ -102,7 +112,12 @@ internal sealed class PlanWriteState
     }
 
     /// <summary>Records the exact path segment used for a created collection element.</summary>
-    public void RecordCollectionScope(string path, object entity, string scopeKey)
+    public void RecordCollectionScope(
+        string path,
+        object entity,
+        string scopeKey,
+        CollectionScopeIdentity scope
+    )
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(entity);
@@ -119,9 +134,27 @@ internal sealed class PlanWriteState
         }
 
         scopes[entity] = scopeKey;
+
+        if (NestedScopes is null || scope.Kind == CollectionScopeKind.Unscoped)
+        {
+            return;
+        }
+
+        if (!NestedScopes.TryGetValue(path, out var table))
+        {
+            table = new NestedScopeTable(scope.KeyComparer);
+            NestedScopes.Add(path, table);
+        }
+
+        table.RecordEntity(scope, entity);
     }
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
+    /// <remarks>
+    /// The legacy path-string bucket keeps its exact contents for compatible
+    /// reads, but duplicate detection now runs on the parent-scoped record:
+    /// parents whose display keys collide keep independent correlations.
+    /// </remarks>
     public void RecordTemporary(string path, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -137,9 +170,12 @@ internal sealed class PlanWriteState
             Correlation[path] = scope;
         }
 
-        if (scope.TryGetValue(temporaryKey, out var existing))
+        if (NestedScopes is null || ParentScope.Kind == CollectionScopeKind.Unscoped)
         {
-            if (!ReferenceEquals(existing, entity))
+            if (
+                scope.TryGetValue(temporaryKey, out var existing)
+                && !ReferenceEquals(existing, entity)
+            )
             {
                 throw new SparseEntityMappingException(
                     SparseEntityMappingFailure.CollectionKeyConflict,
@@ -148,10 +184,20 @@ internal sealed class PlanWriteState
                 );
             }
 
+            scope[temporaryKey] = entity;
             return;
         }
 
+        // Legacy bucket keeps its contents for compatible reads; precise
+        // duplicate detection runs on the parent-scoped record below.
         scope[temporaryKey] = entity;
+        if (!NestedScopes.TryGetValue(path, out var table))
+        {
+            table = new NestedScopeTable(ParentScope.KeyComparer);
+            NestedScopes.Add(path, table);
+        }
+
+        table.Record(path, ParentScope, temporaryKey, entity);
     }
 
     /// <summary>Gets the dotted DTO path prefix for error messages.</summary>
