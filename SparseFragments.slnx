@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SparseFragments.Tests/SparseFragments.Tests.csproj" />
+    <Project Path="tests/SparseFragments.DesktopBinding.Tests/SparseFragments.DesktopBinding.Tests.csproj" />
     <Project Path="tests/SparseFragments.EntityFrameworkCore.Tests/SparseFragments.EntityFrameworkCore.Tests.csproj" />
     <Project Path="tests/SparseFragments.Blazor.Tests/SparseFragments.Blazor.Tests.csproj" />
     <Project Path="tests/SparseFragments.NativeAotSmoke/SparseFragments.NativeAotSmoke.csproj" />

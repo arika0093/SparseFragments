@@ -594,3 +594,5 @@ DataContext = session.Observable;
 ```
 
 WinForms, .NET MAUI, WinUI, and Avalonia use the same `Observable` wrapper over the underlying model; only the framework-specific binding setup differs.
+
+Certification status for these bindings, including the tested matrix and open gaps, is recorded in the [UI toolkit neutral binding certification](ui-toolkit-neutral-cert.md).

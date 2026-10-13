@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SparseFragments.DesktopBinding.Tests</RootNamespace>
+    <AssemblyName>SparseFragments.DesktopBinding.Tests</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SparseFragments/SparseFragments.csproj" />
+    <ProjectReference
+      Include="../../src/SparseFragments.Generator/SparseFragments.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="true"
+    />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="SparseFragments" />
+  </ItemGroup>
+</Project>
