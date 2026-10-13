@@ -21,4 +21,10 @@ public class ChangeSetEnumerationComparisonBenchmarks
 
     [Benchmark]
     public int Structural() => _inner.StructuralEnumerate();
+
+    [Benchmark]
+    public int ScalarContract() => _inner.ScalarContractEnumerate();
+
+    [Benchmark]
+    public int StructuralContract() => _inner.StructuralContractEnumerate();
 }

@@ -58,6 +58,8 @@ public class ChangeSetEnumerationBenchmarks
             || _structural.IsEmpty != (Shape == ChangeSetEnumerationShape.NoOp)
             || ScalarEnumerate() != ScalarEnumerate()
             || StructuralEnumerate() != StructuralEnumerate()
+            || ScalarContractEnumerate() != ScalarEnumerate()
+            || StructuralContractEnumerate() != StructuralEnumerate()
             || !BenchScalarDictHolder.Patch.Between(scalarBefore, ScalarState(0)).IsEmpty
             || !BenchScalarDictHolder.Patch.Between(scalarAfter, ScalarState(afterStep)).IsEmpty
             || !BenchStructuralDictHolder
@@ -219,6 +221,24 @@ public class ChangeSetEnumerationBenchmarks
     {
         var checksum = 0;
         foreach (var change in _structural.EnumerateChanges())
+        {
+            checksum +=
+                change.PathText.Length
+                + (int)change.Kind
+                + (change.Before.IsPresent ? 1 : 0)
+                + (change.After.IsPresent ? 1 : 0);
+        }
+        return checksum;
+    }
+
+    public int ScalarContractEnumerate() => ContractChecksum(_scalar);
+
+    public int StructuralContractEnumerate() => ContractChecksum(_structural);
+
+    private static int ContractChecksum(ISparseChangeSet changes)
+    {
+        var checksum = 0;
+        foreach (var change in changes.EnumerateChangeRecords())
         {
             checksum +=
                 change.PathText.Length
