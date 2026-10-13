@@ -70,6 +70,10 @@
             </div>
             <MonacoView Content="@DraftJson" Language="json" Height="200px" />
             <div class="pg-case5-rebase-options">
+                <FluentCheckbox Value="@_waitBeforeApply"
+                    ValueChanged="@(value => _waitBeforeApply = value)" Disabled="@_savePending">
+                    Wait 10 seconds before applying save
+                </FluentCheckbox>
                 <FluentCheckbox Value="@_simulateConflict"
                     ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
                     Simulate another user editing before save
@@ -110,7 +114,14 @@
             }
             @if (!_applied && _applyError is null)
             {
-                <p class="pg-hint">Confirm a ChangeSet to apply its snapshot after 10 seconds. You can keep editing the draft during the delay.</p>
+                @if (_waitBeforeApply)
+                {
+                    <p class="pg-hint">Confirm a ChangeSet to apply its snapshot after 10 seconds. You can keep editing the draft during the delay.</p>
+                }
+                else
+                {
+                    <p class="pg-hint">Confirm a ChangeSet to apply its snapshot immediately.</p>
+                }
             }
             @if (_applied)
             {
@@ -154,7 +165,14 @@
         <h3>Save changes</h3>
     </div>
     <div class="pg-dialog-body">
-        <p class="pg-hint">Review the ChangeSet. After confirmation, this snapshot applies in 10 seconds; you can keep editing the draft meanwhile.</p>
+        @if (_waitBeforeApply)
+        {
+            <p class="pg-hint">Review the ChangeSet. After confirmation, this snapshot applies in 10 seconds; you can keep editing the draft meanwhile.</p>
+        }
+        else
+        {
+            <p class="pg-hint">Review the ChangeSet. After confirmation, this snapshot applies immediately.</p>
+        }
         @if (_changeRows.Count == 0)
         {
             <p class="pg-hint">No changes.</p>
@@ -215,6 +233,7 @@
     private bool _applied;
     private bool _savePending;
     private bool _simulateConflict;
+    private bool _waitBeforeApply;
     private string _entityJsonBeforeApply = string.Empty;
     private FluentDialog? _saveDialog;
     private bool _saveDialogHidden = true;
@@ -295,6 +314,7 @@
         _applied = false;
         _applyResult = null;
         _simulateConflict = false;
+        _waitBeforeApply = false;
         _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
         _saveDialogHidden = true;
@@ -455,6 +475,7 @@
         var submittedBaseline = Clone(_baseline);
         var simulateConflict = _simulateConflict;
         var conflictHandlingMode = _conflictHandlingMode;
+        var waitBeforeApply = _waitBeforeApply;
         await CloseSaveDialog();
         _pendingChanges = changes;
         _pendingDraft = submittedDraft;
@@ -467,6 +488,10 @@
         _applyResult = null;
         _modifiedRows = [];
         RefreshChanges();
+        if (!waitBeforeApply)
+        {
+            await ApplyPendingSave();
+        }
     }
 
     private async Task ApplyPendingSave()
