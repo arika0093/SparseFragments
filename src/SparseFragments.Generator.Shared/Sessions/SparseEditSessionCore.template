@@ -353,8 +353,9 @@ namespace __SESSION_NAMESPACE__
                 if (!committed)
                 {
                     // The model may be partially mutated; resynchronize observation
-                    // so the session never serves stale snapshots or caches.
-                    RefreshAfterModelMutation();
+                    // so the session never serves stale snapshots or caches. The
+                    // guarded path never masks the original failure.
+                    ResynchronizeAfterFailedMutation();
                 }
             }
             conflicts = null;
@@ -467,7 +468,11 @@ namespace __SESSION_NAMESPACE__
         /// <remarks>
         /// Conflicts leave both the live model and retained baseline untouched. A conflict-free
         /// reload writes the merged result into the existing model instance and retains the server
-        /// state as the new baseline.
+        /// state as the new baseline. The write runs arbitrary model setters and may partially
+        /// mutate the live model before throwing; the server baseline is adopted only after the
+        /// write succeeds, and a failure resynchronizes snapshots, caches, and notifications
+        /// without masking the original exception, so later reads observe the partial live state.
+        /// This method is not a transaction.
         /// </remarks>
         public __REBASE_RESULT_TYPE__ Reload(TModel serverState)
         {
@@ -529,7 +534,20 @@ namespace __SESSION_NAMESPACE__
                 // still picks up the server state while keeping the sentinel pending.
             }
 
-            _writeModel(_model, applied.Updated);
+            try
+            {
+                _writeModel(_model, applied.Updated);
+            }
+            catch
+            {
+                // The writer runs arbitrary setters and may have partially mutated
+                // the live model. The retained baseline is still the pre-reload
+                // snapshot, so resynchronize observations (without masking the
+                // original failure) and propagate instead of reporting success.
+                ResynchronizeAfterFailedMutation();
+                throw;
+            }
+
             _baseline = serverBaseline;
             RefreshAfterModelMutation();
             return rebased;
@@ -552,6 +570,13 @@ namespace __SESSION_NAMESPACE__
         /// authority succeeds (even after the baseline moved on), but an
         /// unrelated or stale change set never succeeds merely because the live
         /// model happens to equal the persisted model.
+        /// A returned retarget error restores the live model from its pre-call
+        /// snapshot and leaves the retained baseline untouched. An exception from
+        /// the correlation or retarget callbacks, or from the rollback writer,
+        /// never reports success: the live model is restored best-effort (arbitrary
+        /// setters cannot guarantee full rollback), observations are resynchronized
+        /// without masking the original exception, and the failure propagates.
+        /// This method is not a transaction.
         /// </remarks>
         /// <param name="submitted">The submitted transition to acknowledge.</param>
         /// <param name="persisted">The authoritative persisted model.</param>
@@ -712,34 +737,45 @@ namespace __SESSION_NAMESPACE__
 
             var backup = CloneLiveModel(_model);
             var backupSnapshot = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(backup));
-            var retargetError = retarget(_model, submittedAfter, persisted, map, pending);
-            if (retargetError is not null)
+            string? retargetError;
+            try
             {
-                // Retarget stages detached collections and restores its
-                // shallow sibling backups itself, so expected failures
-                // leave the live graph untouched, including init-only and
-                // getter-only contents and originally referenced rows.
-                // Only rewrite when the live model actually diverged;
-                // blindly writing the deep-clone backup would swap original
-                // references for clones.
-                var restore = true;
+                retargetError = retarget(_model, submittedAfter, persisted, map, pending);
+            }
+            catch
+            {
+                // An arbitrary retarget failure may have partially mutated the
+                // live graph. Restore the pre-call snapshot best-effort without
+                // masking the original: rollback itself runs arbitrary setters,
+                // so its failure only yields to resynchronization before the
+                // original propagates. Never a false success.
                 try
                 {
-                    restore = !_isEmpty(
-                        _between(
-                            backupSnapshot,
-                            __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
-                        )
-                    );
+                    RestoreReconcileBackup(backup, backupSnapshot);
                 }
-                catch (InvalidOperationException)
+                catch
                 {
-                    restore = true;
+                    // Preserve the original retarget failure; the resync below
+                    // still makes later reads observe the live state.
                 }
 
-                if (restore)
+                ResynchronizeAfterFailedMutation();
+                throw;
+            }
+
+            if (retargetError is not null)
+            {
+                try
                 {
-                    _writeModel(_model, backup);
+                    RestoreReconcileBackup(backup, backupSnapshot);
+                }
+                catch
+                {
+                    // The rollback writer runs arbitrary setters; resynchronize
+                    // so later reads observe the live state, then propagate the
+                    // rollback failure instead of the returned error.
+                    ResynchronizeAfterFailedMutation();
+                    throw;
                 }
 
                 RefreshAfterModelMutation();
@@ -758,7 +794,19 @@ namespace __SESSION_NAMESPACE__
             }
             catch (InvalidOperationException exception)
             {
-                _writeModel(_model, backup);
+                try
+                {
+                    _writeModel(_model, backup);
+                }
+                catch
+                {
+                    // The rollback writer runs arbitrary setters; resynchronize
+                    // so later reads observe the live state, then propagate the
+                    // rollback failure instead of the validation error.
+                    ResynchronizeAfterFailedMutation();
+                    throw;
+                }
+
                 RefreshAfterModelMutation();
                 error =
                     "Reconciling produced a model that cannot serve as a keyed baseline: "
@@ -1241,6 +1289,84 @@ namespace __SESSION_NAMESPACE__
             }
 
             OnPropertyChanged(nameof(HasChanges));
+        }
+
+        /// <summary>
+        /// Resynchronizes observations after arbitrary user code partially mutated the live model and threw.
+        /// </summary>
+        /// <remarks>
+        /// Refreshes the observation snapshot, change caches, and notifications so later reads observe
+        /// the live state instead of stale state. Never throws: a secondary failure (such as a live
+        /// state that cannot be diffed, or a throwing notification callback) only drops stale caches
+        /// and retries notifications best-effort, so the original exception always propagates unmasked.
+        /// This is not a rollback; mutating operations document their partial-write contract.
+        /// </remarks>
+        private void ResynchronizeAfterFailedMutation()
+        {
+            try
+            {
+                RefreshAfterModelMutation();
+            }
+            catch
+            {
+                // Keep the last valid observation so later diffs still start from
+                // valid state, drop stale caches, and retry notifications
+                // best-effort without masking the original failure.
+                InvalidateHasChangesCache();
+                try
+                {
+                    _refreshObservable?.Invoke(_observable);
+                }
+                catch
+                {
+                    // Notification failures yield to the original exception.
+                }
+
+                try
+                {
+                    OnPropertyChanged(nameof(HasChanges));
+                }
+                catch
+                {
+                    // Notification failures yield to the original exception.
+                }
+            }
+        }
+
+        /// <summary>Restores the live model from a reconcile backup when it diverged.</summary>
+        /// <remarks>
+        /// Only rewrites when the live model actually diverged; blindly writing the deep-clone
+        /// backup would swap original references for clones. A live model that cannot even be
+        /// diffed is always restored. Retarget stages detached collections and restores its
+        /// shallow sibling backups itself, so expected failures leave the live graph untouched,
+        /// including init-only and getter-only contents and originally referenced rows.
+        /// </remarks>
+        private void RestoreReconcileBackup(
+            TModel backup,
+            __OPTIONAL_TYPE__<TFragment?> backupSnapshot
+        )
+        {
+            var restoreBackup = true;
+            try
+            {
+                restoreBackup = !_isEmpty(
+                    _between(
+                        backupSnapshot,
+                        __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                    )
+                );
+            }
+            catch (InvalidOperationException)
+            {
+                restoreBackup = true;
+            }
+
+            if (restoreBackup)
+            {
+                // Callers verify in-place write support up front; the bang only
+                // reflects flow analysis that does not cross this helper.
+                _writeModel!(_model, backup);
+            }
         }
 
         private void DisableHasChangesCache()
