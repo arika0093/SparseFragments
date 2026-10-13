@@ -80,6 +80,9 @@ public sealed class GeneratedApiApprovalTests
             model.GetNestedTypes().Select(static type => type.Name).ShouldNotContain("SparsePaths");
 
             var changeSet = AssertNested(model, "ChangeSet");
+            var empty = changeSet.GetProperty("Empty", BindingFlags.Public | BindingFlags.Static);
+            empty.ShouldNotBeNull($"Expected {model.Name}.ChangeSet.Empty.");
+            empty!.PropertyType.ShouldBe(changeSet);
             AssertMethods(
                 changeSet,
                 [

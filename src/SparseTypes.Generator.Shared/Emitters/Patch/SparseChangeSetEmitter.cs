@@ -90,6 +90,7 @@ internal static class SparseChangeSetEmitter
             storage
         );
         SparseChangeSetBasicsEmitter.AppendIsEmpty(code, members);
+        SparseChangeSetBasicsEmitter.AppendEmpty(code, members);
         SparseChangeSetContractEmitter.AppendChangeSetContract(code, members, dialect);
         SparseChangeSetBetweenEmitter.AppendBetween(
             code,

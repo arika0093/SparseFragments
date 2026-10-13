@@ -1248,6 +1248,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet.ScoresTransition Scores { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogDictionaries current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet next) { }
@@ -1547,6 +1548,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet.NameTransition Name { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet.TagsTransition Tags { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogImmutable current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogImmutable.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogImmutable.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet next) { }
@@ -1783,6 +1785,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet.TitleTransition Title { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet next) { }
@@ -2013,6 +2016,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool IsEmpty { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet.ItemsTransition Items { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet next) { }
@@ -2287,6 +2291,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet.MetadataByKeyTransition MetadataByKey { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet.MetadataItemsTransition MetadataItems { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogNested current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogNested.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogNested.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet next) { }
@@ -2558,6 +2563,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet.SparseEnumerateChangedPathsTransition SparseEnumerateChangedPaths { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet.SparseEnumerateChangesTransition SparseEnumerateChanges { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet next) { }
@@ -2810,6 +2816,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet.NoteTransition Note { get; }
             [System.Text.Json.Serialization.JsonIgnore]
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet.RetryTransition Retry { get; }
+            public static SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet Empty { get; }
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogScalar current, SparseTypes.ChangePayloadRebaseOptions? options = null) { }
             public SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogScalar.Fragment?> ApplyToBaseline(SparseTypes.Optional<SparseTypes.GeneratedApiFixtures.CatalogScalar.Fragment?> baseline) { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet Compose(SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet next) { }

@@ -586,6 +586,21 @@ internal static class SparseChangeSetBasicsEmitter
         code.AppendLineAt(2, "public bool IsEmpty => " + string.Join(" && ", expr) + ";");
     }
 
+    internal static void AppendEmpty(
+        SharedIndentedBuilder code,
+        ImmutableArray<SparseMemberModel> members
+    )
+    {
+        code.AppendLineAt(
+            2,
+            "/// <summary>Gets an empty change set with no semantic changes.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "public static ChangeSet Empty { get; } = new ChangeSet(" + EmptyArgs(members) + ");"
+        );
+    }
+
     internal static string MemberEmptyTail(ImmutableArray<SparseMemberModel> members)
     {
         if (members.IsDefaultOrEmpty || members.Length == 0)
