@@ -173,7 +173,8 @@ public sealed class GeneratedApiApprovalTests
     public void EditSessionExposesCreateHistoryFactory()
     {
         // Issue #252: each generated session offers a typed opt-in history
-        // factory bound to its own change set, without reflection.
+        // factory bound to its own change set, without reflection. Advanced
+        // use only since issue #269: ordinary undo/redo uses EnableHistory.
         foreach (var model in FixtureModels)
         {
             var session = AssertNested(model, "EditSession");
@@ -199,6 +200,59 @@ public sealed class GeneratedApiApprovalTests
         scalarHistory.CanRedo.ShouldBeFalse();
         scalarHistory.MaxEntries.ShouldBeGreaterThan(0);
         scalarHistory.Dispose();
+    }
+
+    [Test]
+    public void EditSessionExposesSingleOwnedHistory()
+    {
+        // Issue #269: each generated session owns one opt-in history behind
+        // the framework-neutral control contract. Enabling twice with the
+        // same options is a no-op; disposal stays with the session.
+        foreach (var model in FixtureModels)
+        {
+            var session = AssertNested(model, "EditSession");
+
+            var historyProperty = session.GetProperty(
+                "History",
+                BindingFlags.Public | BindingFlags.Instance
+            );
+            historyProperty.ShouldNotBeNull($"Expected {model.Name}.EditSession.History.");
+            historyProperty!.PropertyType.ShouldBe(typeof(SparseTypes.ISparseEditHistory));
+
+            var enable = session.GetMethod(
+                "EnableHistory",
+                BindingFlags.Public | BindingFlags.Instance
+            );
+            enable.ShouldNotBeNull($"Expected {model.Name}.EditSession.EnableHistory.");
+            enable!.ReturnType.ShouldBe(typeof(SparseTypes.ISparseEditHistory));
+            var options = enable.GetParameters();
+            options.Length.ShouldBe(1);
+            options[0].ParameterType.ShouldBe(typeof(SparseTypes.EditHistoryOptions));
+            options[0].HasDefaultValue.ShouldBeTrue();
+
+            var disable = session.GetMethod(
+                "DisableHistory",
+                BindingFlags.Public | BindingFlags.Instance
+            );
+            disable.ShouldNotBeNull($"Expected {model.Name}.EditSession.DisableHistory.");
+            disable!.GetParameters().Length.ShouldBe(0);
+
+            var availability = session.GetEvent(
+                "HistoryChanged",
+                BindingFlags.Public | BindingFlags.Instance
+            );
+            availability.ShouldNotBeNull($"Expected {model.Name}.EditSession.HistoryChanged.");
+            availability!.EventHandlerType.ShouldBe(typeof(Action));
+        }
+
+        var ownedSession = new CatalogScalar().CreateEditSession();
+        ownedSession.History.ShouldBeNull();
+        var history = ownedSession.EnableHistory();
+        history.ShouldNotBeNull();
+        ReferenceEquals(history, ownedSession.History).ShouldBeTrue();
+        (history is IDisposable).ShouldBeFalse();
+        ownedSession.DisableHistory();
+        ownedSession.History.ShouldBeNull();
     }
 
     [Test]

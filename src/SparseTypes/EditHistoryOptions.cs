@@ -4,7 +4,7 @@ namespace SparseTypes;
 
 /// <summary>Options controlling an opt-in edit history.</summary>
 /// <remarks>
-/// History is opt-in only. Without <c>CreateHistory</c> the session retains
+/// History is opt-in only. Without <c>EnableHistory</c> the session retains
 /// nothing and performs no history bookkeeping. The existing
 /// <c>TransitionObserved</c> snapshot and diff work runs whether or not a
 /// history exists; opting in adds retention, not the underlying diff.

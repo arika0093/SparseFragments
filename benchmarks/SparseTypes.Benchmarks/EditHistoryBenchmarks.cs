@@ -37,10 +37,15 @@ public class EditHistoryBenchmarks
         // and redo reapplies on both shapes.
         var scalar = FreshScalar();
         var scalarSession = scalar.CreateEditSession();
-        using (scalarSession.CreateHistory(new EditHistoryOptions { MaxEntries = 8 }))
+        scalarSession.EnableHistory(new EditHistoryOptions { MaxEntries = 8 });
+        try
         {
             scalarSession.Observable.Title = "edited";
             scalarSession.Observable.Count = 9;
+        }
+        finally
+        {
+            scalarSession.DisableHistory();
         }
 
         if (scalar.Title != "edited" || scalar.Count != 9)
@@ -50,7 +55,8 @@ public class EditHistoryBenchmarks
 
         var keyed = FreshKeyed();
         var keyedSession = keyed.CreateEditSession();
-        using (var history = keyedSession.CreateHistory(new EditHistoryOptions { MaxEntries = 8 }))
+        var history = keyedSession.EnableHistory(new EditHistoryOptions { MaxEntries = 8 });
+        try
         {
             keyedSession.Observable.Items[0].Name = "edited";
             history.Undo();
@@ -60,6 +66,10 @@ public class EditHistoryBenchmarks
             }
 
             history.Redo();
+        }
+        finally
+        {
+            keyedSession.DisableHistory();
         }
 
         if (keyed.Items[0].Name != "edited")
@@ -98,12 +108,17 @@ public class EditHistoryBenchmarks
     {
         var model = FreshScalar();
         var session = model.CreateEditSession();
-        using (session.CreateHistory(new EditHistoryOptions { MaxEntries = 8 }))
+        session.EnableHistory(new EditHistoryOptions { MaxEntries = 8 });
+        try
         {
             for (var index = 0; index < EditCount; index++)
             {
                 session.Observable.Title = "edit-" + index;
             }
+        }
+        finally
+        {
+            session.DisableHistory();
         }
 
         return model.Title.Length + model.Count;
@@ -114,12 +129,17 @@ public class EditHistoryBenchmarks
     {
         var model = FreshScalar();
         var session = model.CreateEditSession();
-        using (session.CreateHistory(new EditHistoryOptions { MaxEntries = 512 }))
+        session.EnableHistory(new EditHistoryOptions { MaxEntries = 512 });
+        try
         {
             for (var index = 0; index < EditCount; index++)
             {
                 session.Observable.Title = "edit-" + index;
             }
+        }
+        finally
+        {
+            session.DisableHistory();
         }
 
         return model.Title.Length + model.Count;
@@ -143,12 +163,17 @@ public class EditHistoryBenchmarks
     {
         var model = FreshKeyed();
         var session = model.CreateEditSession();
-        using (session.CreateHistory(new EditHistoryOptions { MaxEntries = 8 }))
+        session.EnableHistory(new EditHistoryOptions { MaxEntries = 8 });
+        try
         {
             for (var index = 0; index < EditCount; index++)
             {
                 session.Observable.Items[index % 64].Name = "edit-" + index;
             }
+        }
+        finally
+        {
+            session.DisableHistory();
         }
 
         return model.Items.Count + model.Items[0].Name.Length;
@@ -159,12 +184,17 @@ public class EditHistoryBenchmarks
     {
         var model = FreshKeyed();
         var session = model.CreateEditSession();
-        using (session.CreateHistory(new EditHistoryOptions { MaxEntries = 512 }))
+        session.EnableHistory(new EditHistoryOptions { MaxEntries = 512 });
+        try
         {
             for (var index = 0; index < EditCount; index++)
             {
                 session.Observable.Items[index % 64].Name = "edit-" + index;
             }
+        }
+        finally
+        {
+            session.DisableHistory();
         }
 
         return model.Items.Count + model.Items[0].Name.Length;

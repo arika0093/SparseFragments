@@ -30,6 +30,7 @@ public sealed class SparseTypesApiAudienceTests
         "SparseTypes.EditSessionStaleSubmissionException",
         "SparseTypes.EditSessionSubmissionEntry`1",
         "SparseTypes.EditSessionSubmittedSection",
+        "SparseTypes.ISparseEditHistory",
         "SparseTypes.EditHistoryOptions",
         "SparseTypes.SparseEditHistory`1",
         "SparseTypes.MergeMode",

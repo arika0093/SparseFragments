@@ -77,6 +77,7 @@ docs/change-payload.md	payload-dict	tests/fixtures/consumers/package-sparse-docs
 docs/change-payload.md	payload-root	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
 docs/ui-frameworks.md	ui-session-models	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/ui-frameworks.md	ui-history	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-wpf-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/ui-frameworks.md	ui-accept-flow	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/ui-frameworks.md	ui-reload	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs

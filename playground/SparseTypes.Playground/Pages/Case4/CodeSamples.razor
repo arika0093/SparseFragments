@@ -63,17 +63,17 @@
         """;
 
     private const string HistoryCode = """
-        // Opt-in history: without CreateHistory the session retains nothing.
-        // Creating it subscribes to transitions automatically, so Undo and
-        // Redo work with no further wiring. Keep it as a field alongside
+        // Opt-in history: without EnableHistory the session retains nothing.
+        // Enabling subscribes the session-owned history automatically, so Undo
+        // and Redo work with no further wiring. Keep it as a field alongside
         // the session.
-        private SparseEditHistory<Model.ChangeSet> _history = null!;
+        private ISparseEditHistory _history = null!;
 
         void Setup()
         {
-            _history = session.CreateHistory();
+            _history = session.EnableHistory();
             // Bound retention: keep only the newest entries (default 50).
-            // _history = session.CreateHistory(new EditHistoryOptions { MaxEntries = 20 });
+            // _history = session.EnableHistory(new EditHistoryOptions { MaxEntries = 20 });
         }
 
         void Undo()
@@ -86,11 +86,11 @@
             _history.Redo(); // Reapplies the undone ChangeSet.
         }
 
-        // The history is disposable: it unsubscribes and releases retention.
-        // Dispose it with its owner, for example in the component Dispose method.
+        // The session owns the history: it unsubscribes and releases retention.
+        // Disable it with its owner, for example in the component Dispose method.
         public void Dispose()
         {
-            _history?.Dispose();
+            session.DisableHistory();
         }
 
         // Accept/revert clear registered histories on success, so submit and

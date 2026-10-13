@@ -117,21 +117,28 @@ public sealed class BlazorToolkitNeutralTests
         var model = Order();
         var session = model.CreateEditSession();
         var context = session.CreateEditContext();
-        using var history = session.CreateHistory();
-        var binding = session.Bind(OrderDto.SparsePath.Number, context);
+        var history = session.EnableHistory();
+        try
+        {
+            var binding = session.Bind(OrderDto.SparsePath.Number, context);
 
-        history.UndoCount.ShouldBe(0);
-        binding.Set("ORD-2");
-        history.UndoCount.ShouldBe(1);
-        history.CanUndo.ShouldBeTrue();
-        context.IsModified().ShouldBeTrue();
+            history.UndoCount.ShouldBe(0);
+            binding.Set("ORD-2");
+            history.UndoCount.ShouldBe(1);
+            history.CanUndo.ShouldBeTrue();
+            context.IsModified().ShouldBeTrue();
 
-        session.AcceptChanges(context);
+            session.AcceptChanges(context);
 
-        session.HasChanges.ShouldBeFalse();
-        context.IsModified().ShouldBeFalse();
-        history.UndoCount.ShouldBe(0);
-        history.CanUndo.ShouldBeFalse();
+            session.HasChanges.ShouldBeFalse();
+            context.IsModified().ShouldBeFalse();
+            history.UndoCount.ShouldBe(0);
+            history.CanUndo.ShouldBeFalse();
+        }
+        finally
+        {
+            session.DisableHistory();
+        }
     }
 
     [Test]
