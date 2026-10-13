@@ -3,17 +3,20 @@ using System.ComponentModel;
 namespace SparseFragments;
 
 /// <summary>Presence-aware typed endpoint used by generated ChangePayloads.</summary>
+/// <remarks>
+/// This type is serializer-agnostic: it carries no JSON attributes (issue
+/// #242). The v1 wire mapping (<c>state</c>/<c>value</c> names, order, and the
+/// lower-case tokens in <see cref="ChangePayloadWire"/>) is implemented by the
+/// optional generated JSON bridge, which is only emitted when the consuming
+/// compilation references a compatible <c>System.Text.Json</c> API set.
+/// </remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class ChangePayloadEndpoint<T>
 {
     /// <summary>Gets or sets the endpoint state.</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("state")]
-    [System.Text.Json.Serialization.JsonPropertyOrder(0)]
     public ChangePayloadState State { get; set; }
 
     /// <summary>Gets or sets the endpoint value when <see cref="State"/> is <see cref="ChangePayloadState.Value"/>.</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("value")]
-    [System.Text.Json.Serialization.JsonPropertyOrder(1)]
     public T? Value { get; set; }
 
     /// <summary>Creates a payload endpoint from an optional value.</summary>
@@ -41,7 +44,6 @@ public sealed class ChangePayloadEndpoint<T>
         new() { State = ChangePayloadState.Redacted };
 
     /// <summary>Whether this endpoint redacts its value.</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsRedacted => State == ChangePayloadState.Redacted;
 
     /// <summary>Validates that value-free states carry no value.</summary>
@@ -119,22 +121,21 @@ public sealed class ChangePayloadEndpoint<T>
 }
 
 /// <summary>The presence state of a generated ChangePayload endpoint.</summary>
+/// <remarks>
+/// Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by
+/// the generated JSON bridge; the enum itself carries no serializer
+/// attributes so the base runtime stays serializer-agnostic.
+/// </remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-[System.Text.Json.Serialization.JsonConverter(
-    typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ChangePayloadState>)
-)]
 public enum ChangePayloadState
 {
     /// <summary>The endpoint is missing.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("missing")]
     Missing,
 
     /// <summary>The endpoint is explicitly null.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("null")]
     Null,
 
     /// <summary>The endpoint carries a value.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
     Value,
 
     /// <summary>The endpoint state is deliberately undisclosed.</summary>
@@ -144,30 +145,27 @@ public enum ChangePayloadState
     /// paired with a concrete after-state is an explicit write-only operation.
     /// After-states must stay concrete; a redacted after-state is malformed.
     /// </remarks>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
     Redacted,
 }
 
 /// <summary>The operation represented by a keyed or dictionary payload item.</summary>
+/// <remarks>
+/// Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by
+/// the generated JSON bridge; the enum itself carries no serializer
+/// attributes so the base runtime stays serializer-agnostic.
+/// </remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-[System.Text.Json.Serialization.JsonConverter(
-    typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ChangePayloadItemKind>)
-)]
 public enum ChangePayloadItemKind
 {
     /// <summary>An item was added.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("add")]
     Add,
 
     /// <summary>An item was removed.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("remove")]
     Remove,
 
     /// <summary>An item was edited.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("edit")]
     Edit,
 
     /// <summary>An item was reordered.</summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("reorder")]
     Reorder,
 }

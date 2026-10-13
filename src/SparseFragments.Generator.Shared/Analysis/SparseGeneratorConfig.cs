@@ -35,7 +35,8 @@ internal sealed record SparseGeneratorConfig
         string? GeneratedImplementationSuffix = null,
         string? TemporaryKeyAttributeMetadataName = null,
         bool AllowFileScopedTypes = false,
-        string? OpenDraftStateInterfaceMetadataName = null
+        string? OpenDraftStateInterfaceMetadataName = null,
+        SparseStjCapabilities? StjCapabilities = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -70,6 +71,7 @@ internal sealed record SparseGeneratorConfig
         this.TemporaryKeyAttributeMetadataName = TemporaryKeyAttributeMetadataName;
         this.AllowFileScopedTypes = AllowFileScopedTypes;
         this.OpenDraftStateInterfaceMetadataName = OpenDraftStateInterfaceMetadataName;
+        this.StjCapabilities = StjCapabilities;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -176,6 +178,30 @@ internal sealed record SparseGeneratorConfig
     /// helpers (per-model Fragment operations) to <c>file</c>.
     /// </remarks>
     public bool AllowFileScopedTypes { get; init; }
+
+    /// <summary>System.Text.Json surface available to generated code, or null for the full surface.</summary>
+    /// <remarks>
+    /// Null keeps the historical unconditional JSON emission so downstream
+    /// products that never probe the compilation keep byte-identical output.
+    /// The owning generator overrides this per compilation with
+    /// <see cref="SparseStjCapabilityDetector"/> results; see
+    /// <see cref="EffectiveStjCapabilities"/>.
+    /// </remarks>
+    public SparseStjCapabilities? StjCapabilities { get; init; }
+
+    /// <summary>Effective JSON surface, defaulting to the full historical set.</summary>
+    public SparseStjCapabilities EffectiveStjCapabilities =>
+        StjCapabilities ?? SparseStjCapabilities.All;
+
+    /// <summary>Whether generated JSON artifacts may be emitted for this configuration.</summary>
+    /// <remarks>
+    /// The effective choice intersects the requested
+    /// <see cref="SparseEmissionFeatures.EmitJsonConverters"/> family with the
+    /// probed compilation surface: absent or partial System.Text.Json support
+    /// suppresses the JSON artifacts instead of emitting uncompilable code.
+    /// </remarks>
+    public bool EffectiveEmitJson =>
+        EffectiveEmissionFeatures.EmitJsonConverters && EffectiveStjCapabilities.SupportsV1Wire;
 
     public SparseMergeModeMap EffectiveMergeModeMap => MergeModeMap;
 

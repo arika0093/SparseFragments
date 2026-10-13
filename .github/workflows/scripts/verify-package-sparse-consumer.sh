@@ -95,4 +95,33 @@ dotnet build "${netstandard_csproj}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 assert_candidate_resolved "tests/fixtures/consumers/package-sparse-netstandard/obj/project.assets.json"
 
+# Serializer-free consumer (issues #242/#243): a netstandard2.0 class library
+# with no System.Text.Json reference. Compilation success is the gate: the
+# netstandard2.0 targeting pack ships no System.Text.Json, so any generated
+# JSON token fails the build. The fixture sources and the restore closure must
+# both stay free of System.Text.Json.
+nojson_dir="tests/fixtures/consumers/package-sparse-nojson"
+nojson_csproj="${nojson_dir}/PackageSparse.NoJson.Consumer.csproj"
+if [[ ! -f "${nojson_csproj}" ]]; then
+    echo "Serializer-free consumer fixture missing at '${nojson_csproj}'." >&2
+    exit 1
+fi
+if grep -r -F 'Include="System.Text.Json"' "${nojson_dir}" --include='*.csproj' >/dev/null; then
+    echo "Serializer-free fixture must not reference the System.Text.Json package." >&2
+    exit 1
+fi
+if grep -r -F "using System.Text.Json" "${nojson_dir}" --include='*.cs' >/dev/null; then
+    echo "Serializer-free fixture must not use System.Text.Json APIs." >&2
+    exit 1
+fi
+dotnet build "${nojson_csproj}" \
+    --configuration Release \
+    -p:SparseFragmentsPackageVersion="${version}" \
+    -p:RestoreAdditionalProjectSources="${feed}"
+assert_candidate_resolved "${nojson_dir}/obj/project.assets.json"
+if grep -F -q "System.Text.Json" "${nojson_dir}/obj/project.assets.json"; then
+    echo "Serializer-free restore closure must not contain System.Text.Json." >&2
+    exit 1
+fi
+
 echo "SparseFragments packed package consumer verified (SparseFragments ${version})."

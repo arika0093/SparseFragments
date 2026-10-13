@@ -253,12 +253,33 @@ internal static class SparseFragmentPatchEmitter
         string? PathType = null,
         SparseTransitionContracts? TransitionContracts = null,
         bool PathIsValueType = false,
-        string? TypedPathInterfaceType = null
+        string? TypedPathInterfaceType = null,
+        SparseStjCapabilities? StjCapabilities = null
     )
     {
         /// <summary>Optional generic factory taking capacity and a set constructor for an exclusive disposable key-validation scope.</summary>
         /// <remarks>The scope exposes an empty HashSet&lt;TKey&gt; Keys using default key equality.</remarks>
         public string? KeyValidationScopeFactory { get; init; }
+
+        /// <summary>Probed System.Text.Json surface, or null for the historical full surface.</summary>
+        /// <remarks>
+        /// Null keeps unconditional JSON emission so products that never probe
+        /// the compilation keep byte-identical output. The owning generator sets
+        /// this per compilation from <see cref="SparseStjCapabilityDetector"/>.
+        /// </remarks>
+        // NOTE: positional record property; declared implicitly by the ctor parameter.
+
+        /// <summary>Effective JSON surface, defaulting to the full historical set.</summary>
+        public SparseStjCapabilities EffectiveStjCapabilities =>
+            StjCapabilities ?? SparseStjCapabilities.All;
+
+        /// <summary>Whether v1 JSON artifacts may be emitted under the probed surface.</summary>
+        /// <remarks>
+        /// False suppresses every <c>System.Text.Json</c> token (attributes,
+        /// converters, bridge types) so compilations without a compatible API
+        /// set still build the serializer-independent core.
+        /// </remarks>
+        public bool EmitJson => EffectiveStjCapabilities.SupportsV1Wire;
 
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
         public ImmutableArray<SparseMemberPolicy> EffectiveMemberPolicies =>

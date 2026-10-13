@@ -4,29 +4,19 @@ namespace SparseFragments
     public sealed class ChangePayloadEndpoint<T>
     {
         public ChangePayloadEndpoint() { }
-        [System.Text.Json.Serialization.JsonIgnore]
         public bool IsRedacted { get; }
-        [System.Text.Json.Serialization.JsonPropertyName("state")]
-        [System.Text.Json.Serialization.JsonPropertyOrder(0)]
         public SparseFragments.ChangePayloadState State { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("value")]
-        [System.Text.Json.Serialization.JsonPropertyOrder(1)]
         public T Value { get; set; }
         public SparseFragments.Optional<T> ToOptional() { }
         public void Validate() { }
         public static SparseFragments.ChangePayloadEndpoint<T> FromOptional(SparseFragments.Optional<T> value) { }
         public static SparseFragments.ChangePayloadEndpoint<T> Redacted() { }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangePayloadItemKind>))]
     public enum ChangePayloadItemKind
     {
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("add")]
         Add = 0,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("remove")]
         Remove = 1,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("edit")]
         Edit = 2,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("reorder")]
         Reorder = 3,
     }
     public sealed class ChangePayloadRebaseOptions : System.IEquatable<SparseFragments.ChangePayloadRebaseOptions>
@@ -39,17 +29,34 @@ namespace SparseFragments
         public bool IsRedactedBefore(string? pathText) { }
         public SparseFragments.ChangePayloadRebaseOptions Nest(string segment) { }
     }
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SparseFragments.ChangePayloadState>))]
     public enum ChangePayloadState
     {
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("missing")]
         Missing = 0,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("null")]
         Null = 1,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("value")]
         Value = 2,
-        [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
         Redacted = 3,
+    }
+    public static class ChangePayloadWire
+    {
+        public const string AddKind = "add";
+        public const string ChangesProperty = "changes";
+        public const string DiscriminatorProperty = "member";
+        public const string EditKind = "edit";
+        public const string MissingState = "missing";
+        public const string NullState = "null";
+        public const string RedactedState = "redacted";
+        public const string RemoveKind = "remove";
+        public const string ReorderKind = "reorder";
+        public const string RootDiscriminator = "$root";
+        public const string StateProperty = "state";
+        public const string ValueProperty = "value";
+        public const string ValueState = "value";
+        public const string Version = "0.1";
+        public const string VersionProperty = "version";
+        public static string ToToken(SparseFragments.ChangePayloadItemKind kind) { }
+        public static string ToToken(SparseFragments.ChangePayloadState state) { }
+        public static bool TryParseKind(string? token, out SparseFragments.ChangePayloadItemKind kind) { }
+        public static bool TryParseState(string? token, out SparseFragments.ChangePayloadState state) { }
     }
     public sealed class EditSessionGroup
     {

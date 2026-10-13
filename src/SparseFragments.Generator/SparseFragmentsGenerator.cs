@@ -13,7 +13,7 @@ namespace SparseFragments.Generator;
 
 /// <summary>Generates standalone sparse fragments for <c>[SparseFragmentModel]</c> types.</summary>
 [Generator(LanguageNames.CSharp)]
-public sealed class SparseFragmentsGenerator : IIncrementalGenerator
+public sealed partial class SparseFragmentsGenerator : IIncrementalGenerator
 {
     private const string ModelAttributeName = "SparseFragments.SparseFragmentModelAttribute";
     private const string MergeAttributeName = "SparseFragments.SparseMergeAttribute";
@@ -534,15 +534,22 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             )
             .WithComparer(EqualityComparer<bool>.Default)
             .WithTrackingName("SparseFragmentsGenerator.FileScopedTypes");
+        // Consumer System.Text.Json API surface (issues #242/#243): probed
+        // from referenced symbols, never from the TFM or host dependencies.
+        // The snapshot flows through Shared via the config/dialect layer so
+        // JSON artifacts are omitted when the surface is absent or partial.
+        var stjCapabilities = CreateStjCapabilitiesProvider(context);
         var generated = analyzed
             .Combine(bclSetSupport)
             .Combine(allowFileScopedTypes)
+            .Combine(stjCapabilities)
             .Select(
                 static (input, cancellationToken) =>
                     Render(
-                        input.Left.Left,
-                        input.Left.Right.ReadOnlySet,
-                        input.Left.Right.Capacity,
+                        input.Left.Left.Left,
+                        input.Left.Left.Right.ReadOnlySet,
+                        input.Left.Left.Right.Capacity,
+                        input.Left.Right,
                         input.Right,
                         cancellationToken
                     )
@@ -587,12 +594,14 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         var promotedSources = distinctPromoted
             .Combine(bclSetSupport)
             .Combine(allowFileScopedTypes)
+            .Combine(stjCapabilities)
             .Select(
                 static (input, cancellationToken) =>
                     RenderSinglePromoted(
-                        input.Left.Left,
-                        input.Left.Right.ReadOnlySet,
-                        input.Left.Right.Capacity,
+                        input.Left.Left.Left,
+                        input.Left.Left.Right.ReadOnlySet,
+                        input.Left.Left.Right.Capacity,
+                        input.Left.Right,
                         input.Right,
                         cancellationToken
                     )
@@ -668,6 +677,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 }
             }
         );
+        // Partial System.Text.Json surface with JSON families requested: see
+        // RegisterStjSurfaceValidation for the omission-plus-diagnostic policy.
+        RegisterStjSurfaceValidation(context, stjCapabilities, hasModels);
         var needsEditSession = generatedOncePlan
             .Select(static (plan, _) => plan.Has(SparseGeneratedCapability.EditSession))
             .WithComparer(EqualityComparer<bool>.Default)
@@ -902,6 +914,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
         bool allowFileScopedTypes,
+        SparseStjCapabilities stjCapabilities,
         CancellationToken cancellationToken
     )
     {
@@ -912,7 +925,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         }
 
         var model = analysis.Model.Value;
-        var configuration = Configuration with { AllowFileScopedTypes = allowFileScopedTypes };
+        var configuration = WithCapabilities(Configuration, allowFileScopedTypes, stjCapabilities);
         // Per-model single-file emission: the surface, the reloc-2/reloc-3
         // implementation plus the reloc-1 UI/session family merge into one
         // hint so a model owns exactly one file. Only compilation-scoped
@@ -994,6 +1007,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
         bool bclHashSetImplementsReadOnlySet,
         bool bclHashSetSupportsCapacity,
         bool allowFileScopedTypes,
+        SparseStjCapabilities stjCapabilities,
         CancellationToken cancellationToken
     )
     {
@@ -1024,7 +1038,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             Configuration.PromotedHintNameSuffix,
             cancellationToken
         );
-        var configuration = Configuration with { AllowFileScopedTypes = allowFileScopedTypes };
+        var configuration = WithCapabilities(Configuration, allowFileScopedTypes, stjCapabilities);
         var (surface, implementation) = SparsePerModelEmitter.BuildPromotedSplitSurface(
             promoted,
             bclHashSetImplementsReadOnlySet,

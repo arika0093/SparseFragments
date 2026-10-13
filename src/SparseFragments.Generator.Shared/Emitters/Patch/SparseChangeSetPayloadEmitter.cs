@@ -107,10 +107,11 @@ internal static class SparseChangeSetPayloadEmitter
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
-        code.AppendLineAt(
-            1,
-            "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
-        );
+        if (dialect.EmitJson)
+            code.AppendLineAt(
+                1,
+                "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
+            );
         code.AppendLineAt(1, "public class " + payloadCore);
         code.AppendLineAt(1, "{");
         // XML docs precede serialization attributes so the compiler associates
@@ -119,7 +120,7 @@ internal static class SparseChangeSetPayloadEmitter
             2,
             "/// <summary>Gets or sets the member changes carried by this core.</summary>"
         );
-        AppendJsonProperty(code, 2, "Changes", 1);
+        AppendJsonProperty(code, 2, "Changes", 1, dialect.EmitJson);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.List<"
@@ -192,10 +193,11 @@ internal static class SparseChangeSetPayloadEmitter
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
-        code.AppendLineAt(
-            1,
-            "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
-        );
+        if (dialect.EmitJson)
+            code.AppendLineAt(
+                1,
+                "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
+            );
         code.AppendLineAt(
             1,
             "public sealed class ChangePayload : " + PayloadTypeName(dialect, modelType, "Core")
@@ -205,7 +207,7 @@ internal static class SparseChangeSetPayloadEmitter
             2,
             "/// <summary>Gets or sets the provisional wire version token.</summary>"
         );
-        AppendJsonProperty(code, 2, "Version", 0);
+        AppendJsonProperty(code, 2, "Version", 0, dialect.EmitJson);
         code.AppendLineAt(2, "public string? Version { get; set; }");
         if (modelType is not null)
         {
@@ -326,7 +328,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLineAt(1, "public sealed class " + payloadRoot);
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "/// <summary>Gets or sets the snapshot member values.</summary>");
-        AppendJsonProperty(code, 2, "Members", 0);
+        AppendJsonProperty(code, 2, "Members", 0, dialect.EmitJson);
         code.AppendLineAt(
             2,
             "public global::System.Collections.Generic.List<"
@@ -480,37 +482,43 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLine();
 
         // XML docs precede serialization attributes so the compiler associates
-        // them with the member (CS1591).
+        // them with the member (CS1591). Polymorphic dispatch is JSON-only and
+        // omitted when the probed surface cannot support the v1 contract.
         code.AppendLineAt(
             1,
             "/// <summary>Base type for the per-member change variants.</summary>"
         );
-        code.AppendLineAt(
-            1,
-            "[global::System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = \"member\")]"
-        );
-        var rootDiscriminatorBuilder = new System.Text.StringBuilder("$root");
-        while (variants.Any(member => member.Property.Name == rootDiscriminatorBuilder.ToString()))
-            rootDiscriminatorBuilder.Append('$');
-        var rootDiscriminator = rootDiscriminatorBuilder.ToString();
-        code.AppendLineAt(
-            1,
-            "[global::System.Text.Json.Serialization.JsonDerivedType(typeof("
-                + PayloadName(modelType, "RootChange")
-                + "), "
-                + SymbolDisplay.FormatLiteral(rootDiscriminator, true)
-                + ")]"
-        );
-        foreach (var member in variants)
+        if (dialect.EmitJson)
         {
             code.AppendLineAt(
                 1,
+                "[global::System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = \"member\")]"
+            );
+            var rootDiscriminatorBuilder = new System.Text.StringBuilder("$root");
+            while (
+                variants.Any(member => member.Property.Name == rootDiscriminatorBuilder.ToString())
+            )
+                rootDiscriminatorBuilder.Append('$');
+            var rootDiscriminator = rootDiscriminatorBuilder.ToString();
+            code.AppendLineAt(
+                1,
                 "[global::System.Text.Json.Serialization.JsonDerivedType(typeof("
-                    + PayloadMemberName(modelType, "Change", member.Id)
+                    + PayloadName(modelType, "RootChange")
                     + "), "
-                    + SymbolDisplay.FormatLiteral(member.Property.Name, true)
+                    + SymbolDisplay.FormatLiteral(rootDiscriminator, true)
                     + ")]"
             );
+            foreach (var member in variants)
+            {
+                code.AppendLineAt(
+                    1,
+                    "[global::System.Text.Json.Serialization.JsonDerivedType(typeof("
+                        + PayloadMemberName(modelType, "Change", member.Id)
+                        + "), "
+                        + SymbolDisplay.FormatLiteral(member.Property.Name, true)
+                        + ")]"
+                );
+            }
         }
         code.AppendLineAt(
             1,
@@ -533,12 +541,24 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "{");
         code.AppendLineAt(2, "/// <summary>Gets or sets the before snapshot.</summary>");
-        AppendIgnoreNull(code, 2);
-        AppendJsonProperty(code, 2, "Before", 0);
+        AppendIgnoreNull(code, 2, dialect.EmitJson);
+        AppendJsonProperty(code, 2, "Before", 0, dialect.EmitJson);
+        if (dialect.EmitJson)
+            SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                code,
+                2,
+                payloadRoot
+            );
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? Before { get; set; }");
         code.AppendLineAt(2, "/// <summary>Gets or sets the after snapshot.</summary>");
-        AppendIgnoreNull(code, 2);
-        AppendJsonProperty(code, 2, "After", 1);
+        AppendIgnoreNull(code, 2, dialect.EmitJson);
+        AppendJsonProperty(code, 2, "After", 1, dialect.EmitJson);
+        if (dialect.EmitJson)
+            SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                code,
+                2,
+                payloadRoot
+            );
         code.AppendLineAt(2, "public " + endpoint + "<" + payloadRoot + ">? After { get; set; }");
         code.AppendLineAt(1, "}");
         code.AppendLine();
@@ -555,6 +575,11 @@ internal static class SparseChangeSetPayloadEmitter
             );
             code.AppendLine();
         }
+        // The endpoint/kind bridge preserves the v1 wire shape once the
+        // runtime stopped carrying serializer attributes (issue #242). It is
+        // JSON-only like every other System.Text.Json token in this file.
+        if (dialect.EmitJson)
+            SparseChangePayloadJsonBridgeEmitter.AppendBridgeConverters(code, dialect);
         code.IndentOffset--;
         code.AppendLineAt(1, "}");
     }
@@ -662,19 +687,30 @@ internal static class SparseChangeSetPayloadEmitter
             + PayloadName(childModelType, suffix);
     }
 
-    internal static void AppendIgnoreNull(SharedIndentedBuilder code, int indent) =>
+    internal static void AppendIgnoreNull(
+        SharedIndentedBuilder code,
+        int indent,
+        bool emitJson = true
+    )
+    {
+        if (!emitJson)
+            return;
         code.AppendLineAt(
             indent,
             "[global::System.Text.Json.Serialization.JsonIgnore(Condition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]"
         );
+    }
 
     internal static void AppendJsonProperty(
         SharedIndentedBuilder code,
         int indent,
         string name,
-        int order
+        int order,
+        bool emitJson = true
     )
     {
+        if (!emitJson)
+            return;
         var jsonName = char.ToLowerInvariant(name[0]) + name.Substring(1);
         code.AppendLineAt(
             indent,
@@ -686,9 +722,17 @@ internal static class SparseChangeSetPayloadEmitter
         );
     }
 
-    internal static void AppendIgnoreDefault(SharedIndentedBuilder code, int indent) =>
+    internal static void AppendIgnoreDefault(
+        SharedIndentedBuilder code,
+        int indent,
+        bool emitJson = true
+    )
+    {
+        if (!emitJson)
+            return;
         code.AppendLineAt(
             indent,
             "[global::System.Text.Json.Serialization.JsonIgnore(Condition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]"
         );
+    }
 }

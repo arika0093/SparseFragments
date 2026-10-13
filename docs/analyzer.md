@@ -331,7 +331,13 @@ public partial class PolicySettings
   non-full transports; nested members recurse through the child model's own
   member names, and keyed or dictionary members keep full disclosure.
 * Fix: Enable the required feature families together, or move the transport
-  policy to a scalar member.
+  policy to a scalar member. The same ID reports a partial `System.Text.Json`
+  surface: when the compilation references `System.Text.Json` but lacks APIs
+  required for the `ChangePayload` v1 contract, the message names the missing
+  members and JSON artifacts are omitted. Reference a compatible
+  `System.Text.Json` version to restore JSON support. Builds that only need
+  the serializer-independent core can suppress this instance; a fully absent
+  surface stays silent.
 
 ## SPF029: Unknown product member
 

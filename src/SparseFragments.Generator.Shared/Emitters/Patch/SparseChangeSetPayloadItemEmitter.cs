@@ -396,8 +396,14 @@ internal static class SparseChangeSetPayloadItemEmitter
         // XML docs precede serialization attributes so the compiler associates
         // them with the member (CS1591).
         code.AppendLineAt(2, "/// <summary>Gets or sets the snapshot value.</summary>");
-        SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-        SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Value", 0);
+        SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+        SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Value", 0, dialect.EmitJson);
+        if (dialect.EmitJson)
+            SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                code,
+                2,
+                memberValueType
+            );
         code.AppendLineAt(
             2,
             "public " + endpoint + "<" + memberValueType + ">? Value { get; set; }"
@@ -412,8 +418,14 @@ internal static class SparseChangeSetPayloadItemEmitter
                 implementationNamespace
             );
             code.AppendLineAt(2, "/// <summary>Gets or sets the nested change core.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Nested", 1);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                code,
+                2,
+                "Nested",
+                1,
+                dialect.EmitJson
+            );
             code.AppendLineAt(2, "public " + childPayload + "? Nested { get; set; }");
         }
         else if (
@@ -423,18 +435,36 @@ internal static class SparseChangeSetPayloadItemEmitter
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
             code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 2);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                code,
+                2,
+                "Before",
+                2,
+                dialect.EmitJson
+            );
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    valueType
+                );
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
             );
             code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 3);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 3, dialect.EmitJson);
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    valueType
+                );
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
             code.AppendLineAt(2, "/// <summary>Gets or sets the per-item changes.</summary>");
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Items", 4);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Items", 4, dialect.EmitJson);
             code.AppendLineAt(
                 2,
                 "public global::System.Collections.Generic.List<"
@@ -445,8 +475,14 @@ internal static class SparseChangeSetPayloadItemEmitter
             {
                 var keyType = SparseChangeSetBasicsEmitter.KeyTypeOf(member);
                 code.AppendLineAt(2, "/// <summary>Gets or sets the before key order.</summary>");
-                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "BeforeOrder", 5);
+                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "BeforeOrder",
+                    5,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(
                     2,
                     "public global::System.Collections.Generic.List<"
@@ -454,8 +490,14 @@ internal static class SparseChangeSetPayloadItemEmitter
                         + ">? BeforeOrder { get; set; }"
                 );
                 code.AppendLineAt(2, "/// <summary>Gets or sets the after key order.</summary>");
-                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "AfterOrder", 6);
+                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "AfterOrder",
+                    6,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(
                     2,
                     "public global::System.Collections.Generic.List<"
@@ -468,8 +510,14 @@ internal static class SparseChangeSetPayloadItemEmitter
                         2,
                         "/// <summary>Gets or sets the before temporary order.</summary>"
                     );
-                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TempBeforeOrder", 8);
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                        code,
+                        2,
+                        "TempBeforeOrder",
+                        8,
+                        dialect.EmitJson
+                    );
                     code.AppendLineAt(
                         2,
                         "public global::System.Collections.Generic.List<global::System.Guid>? TempBeforeOrder { get; set; }"
@@ -478,8 +526,14 @@ internal static class SparseChangeSetPayloadItemEmitter
                         2,
                         "/// <summary>Gets or sets the after temporary order.</summary>"
                     );
-                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TempAfterOrder", 9);
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                        code,
+                        2,
+                        "TempAfterOrder",
+                        9,
+                        dialect.EmitJson
+                    );
                     code.AppendLineAt(
                         2,
                         "public global::System.Collections.Generic.List<global::System.Guid>? TempAfterOrder { get; set; }"
@@ -491,15 +545,33 @@ internal static class SparseChangeSetPayloadItemEmitter
         {
             var valueType = SparseChangeSetBasicsEmitter.FragmentValueType(member);
             code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 0);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                code,
+                2,
+                "Before",
+                0,
+                dialect.EmitJson
+            );
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    valueType
+                );
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + valueType + ">? Before { get; set; }"
             );
             code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 1);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 1, dialect.EmitJson);
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    valueType
+                );
             code.AppendLineAt(2, "public " + endpoint + "<" + valueType + ">? After { get; set; }");
         }
         code.AppendLineAt(1, "}");
@@ -541,39 +613,77 @@ internal static class SparseChangeSetPayloadItemEmitter
             );
             code.AppendLineAt(1, "{");
             code.AppendLineAt(2, "/// <summary>Gets or sets the item key.</summary>");
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Key", 0);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Key", 0, dialect.EmitJson);
             code.AppendLineAt(2, "public " + keyType + " Key { get; set; } = default!;");
             code.AppendLineAt(2, "/// <summary>Gets or sets the before endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Before", 4);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                code,
+                2,
+                "Before",
+                4,
+                dialect.EmitJson
+            );
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    itemValueType
+                );
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? Before { get; set; }"
             );
             code.AppendLineAt(2, "/// <summary>Gets or sets the after endpoint.</summary>");
-            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 5);
+            SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "After", 5, dialect.EmitJson);
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendEndpointConverterAttribute(
+                    code,
+                    2,
+                    itemValueType
+                );
             code.AppendLineAt(
                 2,
                 "public " + endpoint + "<" + itemValueType + ">? After { get; set; }"
             );
             code.AppendLineAt(2, "/// <summary>Gets or sets the item change kind.</summary>");
-            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Kind", 1);
+            SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Kind", 1, dialect.EmitJson);
+            if (dialect.EmitJson)
+                SparseChangePayloadJsonBridgeEmitter.AppendItemKindConverterAttribute(code, 2);
             code.AppendLineAt(2, "public " + runtime + "ChangePayloadItemKind Kind { get; set; }");
             if (SparseChangeSetBasicsEmitter.IsKeyed(member))
             {
                 code.AppendLineAt(2, "/// <summary>Gets or sets the before index.</summary>");
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "BeforeIndex", 2);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "BeforeIndex",
+                    2,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(2, "public int BeforeIndex { get; set; } = -1;");
                 code.AppendLineAt(2, "/// <summary>Gets or sets the after index.</summary>");
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "AfterIndex", 3);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "AfterIndex",
+                    3,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(2, "public int AfterIndex { get; set; } = -1;");
                 code.AppendLineAt(
                     2,
                     "/// <summary>Gets or sets whether the item was reordered.</summary>"
                 );
-                SparseChangeSetPayloadEmitter.AppendIgnoreDefault(code, 2);
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "IsReordered", 6);
+                SparseChangeSetPayloadEmitter.AppendIgnoreDefault(code, 2, dialect.EmitJson);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "IsReordered",
+                    6,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(2, "public bool IsReordered { get; set; }");
                 if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
                 {
@@ -581,16 +691,28 @@ internal static class SparseChangeSetPayloadItemEmitter
                         2,
                         "/// <summary>Gets or sets the temporary identity for unassigned items.</summary>"
                     );
-                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                    SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "TemporaryKey", 8);
+                    SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                    SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                        code,
+                        2,
+                        "TemporaryKey",
+                        8,
+                        dialect.EmitJson
+                    );
                     code.AppendLineAt(2, "public global::System.Guid? TemporaryKey { get; set; }");
                 }
             }
             if (isModelValue)
             {
                 code.AppendLineAt(2, "/// <summary>Gets or sets the nested edit core.</summary>");
-                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2);
-                SparseChangeSetPayloadEmitter.AppendJsonProperty(code, 2, "Edit", 7);
+                SparseChangeSetPayloadEmitter.AppendIgnoreNull(code, 2, dialect.EmitJson);
+                SparseChangeSetPayloadEmitter.AppendJsonProperty(
+                    code,
+                    2,
+                    "Edit",
+                    7,
+                    dialect.EmitJson
+                );
                 code.AppendLineAt(2, "public " + childName + "? Edit { get; set; }");
             }
             code.AppendLineAt(1, "}");

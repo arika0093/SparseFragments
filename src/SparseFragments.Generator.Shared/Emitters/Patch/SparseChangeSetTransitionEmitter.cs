@@ -593,7 +593,11 @@ internal static class SparseChangeSetTransitionEmitter
                 + member.Property.Name
                 + "'.</summary>"
         );
-        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        SparseChangePayloadJsonBridgeEmitter.AppendBareJsonIgnore(
+            code,
+            2,
+            dialect?.EmitJson ?? true
+        );
         if (target is not null)
         {
             code.AppendLineAt(
@@ -763,7 +767,11 @@ internal static class SparseChangeSetTransitionEmitter
                 + member.Property.Name
                 + "'.</summary>"
         );
-        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        SparseChangePayloadJsonBridgeEmitter.AppendBareJsonIgnore(
+            code,
+            2,
+            dialect?.EmitJson ?? true
+        );
         if (target is not null)
         {
             code.AppendLineAt(
@@ -860,7 +868,7 @@ internal static class SparseChangeSetTransitionEmitter
                 + member.Property.Name
                 + "'.</summary>"
         );
-        code.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        SparseChangePayloadJsonBridgeEmitter.AppendBareJsonIgnore(code, 2, dialect.EmitJson);
         if (target is not null)
         {
             code.AppendLineAt(

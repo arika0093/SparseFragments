@@ -85,7 +85,7 @@ internal static class SparseChangeSetDictProjectionEmitter
                 + member.Property.Name
                 + "'.</summary>"
         );
-        shell.AppendLineAt(2, "[global::System.Text.Json.Serialization.JsonIgnore]");
+        SparseChangePayloadJsonBridgeEmitter.AppendBareJsonIgnore(shell, 2, dialect.EmitJson);
         shell.AppendLineAt(2, "public " + trans + " " + prop);
         shell.AppendLineAt(2, "{");
         shell.AppendLineAt(3, "get");

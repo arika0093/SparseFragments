@@ -27,6 +27,12 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
+  <!-- Down-level targets have no inbox System.Text.Json: JSON transport needs
+    an explicit reference now that the base runtime brings none transitively
+    (issue #242). Modern targets keep the shared-framework copy. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net48'">
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+  </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <Compile Remove="Program.cs" />
   </ItemGroup>

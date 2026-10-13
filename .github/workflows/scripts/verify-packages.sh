@@ -82,6 +82,14 @@ require_dependency() {
     fi
 }
 
+require_no_dependency() {
+    local dependency_id="$1"
+    if grep -q -F "<dependency id=\"${dependency_id}\"" <<<"${nuspec}"; then
+        echo "Package '${package_id}' must not depend on '${dependency_id}'." >&2
+        exit 1
+    fi
+}
+
 declare -A found_package_ids=()
 
 for package_file in "${package_files[@]}"; do
@@ -111,6 +119,9 @@ for package_file in "${package_files[@]}"; do
             require_entry 'analyzers/dotnet/cs/SparseFragments.Generator.dll'
             require_entry 'lib/netstandard2.0/SparseFragments.dll'
             require_readme 'README.md'
+            # Serializer-agnostic runtime (issue #242): the base package must
+            # not bring System.Text.Json transitively.
+            require_no_dependency 'System.Text.Json'
             ;;
         SparseFragments.Blazor)
             require_entry 'lib/net8.0/SparseFragments.Blazor.dll'

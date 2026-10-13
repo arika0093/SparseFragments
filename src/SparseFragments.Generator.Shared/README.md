@@ -234,6 +234,25 @@ before reading the matching transition. Custom path types must expose these
 members along with equality and the path factories described above. Segment
 `Name` is empty for non-member segments.
 
+JSON artifacts additionally require a compatible `System.Text.Json` API set in
+the consuming compilation. `SparseStjCapabilities` snapshots the referenced
+symbols: the converter base, property attributes, polymorphic and discriminator
+attributes, unknown-member handling, the UTF-8 reader and writer surface, and
+type-info lookup. `SparseStjCapabilityDetector.Probe` computes the snapshot
+from the compilation itself, never from the target framework name or the
+generator host's dependencies. `SparseGeneratorConfig.StjCapabilities` carries
+it (null keeps the historical full surface for products that never probe), and
+`SparsePatchDialect.StjCapabilities` propagates it to emitters that only
+receive the dialect. `EffectiveEmitJson` intersects the snapshot with
+`EmitJsonConverters`. When the surface is absent or partial, emitters drop
+every `System.Text.Json` token and keep the serializer-independent `Fragment`,
+`Patch`, `ChangeSet`, and payload CLR projections. A present-but-partial
+surface with JSON families requested reports the missing APIs through the
+InvalidEmissionPlan diagnostic. The `ChangePayload` v1 endpoint and item-kind
+mapping lives in generated per-model converters that read tokens from the
+runtime wire constants; the runtime endpoint and enum types carry no serializer
+attributes.
+
 ## Edit-session configuration
 
 `SparseEditSessionDialect` configures the namespace and hint names for the

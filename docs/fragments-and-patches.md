@@ -383,7 +383,8 @@ ChangeSet -> Patch
 ## Serialize Patches and ChangeSets
 
 Generated `Fragment` types carry `System.Text.Json` support through
-`FragmentJsonConverter`. A `ChangeSet` travels only through its generated
+`FragmentJsonConverter` when the consuming compilation references a compatible
+API set. A `ChangeSet` travels only through its generated
 transport type. Serialize a ChangeSet through its generated payload:
 
 <!-- sample: core-serialization -->

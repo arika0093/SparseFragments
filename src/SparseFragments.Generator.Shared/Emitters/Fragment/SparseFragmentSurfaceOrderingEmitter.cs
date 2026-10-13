@@ -57,7 +57,9 @@ internal static class SparseFragmentSurfaceOrderingEmitter
         );
         code.AppendLineAt(2, "/// <returns>The seeded builder.</returns>");
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        if (features.EmitJsonConverters)
+        // JSON converters need both the requested family and a compatible
+        // probed compilation surface (issues #242/#243).
+        if (features.EmitJsonConverters && patchDialect.EmitJson)
         {
             if (
                 implementationBuilder is not null
@@ -137,7 +139,7 @@ internal static class SparseFragmentSurfaceOrderingEmitter
         );
         code.AppendLineAt(2, "/// <returns>The seeded builder.</returns>");
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
-        if (features.EmitJsonConverters)
+        if (features.EmitJsonConverters && patchDialect.EmitJson)
         {
             if (
                 implementationBuilder is not null
@@ -195,6 +197,7 @@ internal static class SparseFragmentSurfaceOrderingEmitter
         core.AppendFragmentClonePrivateCtor(code, members);
         if (
             features.EmitJsonConverters
+            && patchDialect.EmitJson
             && implementationBuilder is not null
             && jsonConverterQualifiedName is not null
         )
