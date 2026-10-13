@@ -10,7 +10,9 @@ builder.Services.AddDbContext<SampleDbContext>(options =>
         builder.Configuration.GetConnectionString("orders") ?? "Data Source=orders.db"
     )
 );
+builder.Services.AddSparseEntityMappers(typeof(OrderMapper));
 var app = builder.Build();
+app.Services.ValidateSparseEntityMappers<SampleDbContext>();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -54,6 +56,7 @@ app.Run();
 static async Task<IResult> GetOrderAsync(
     int id,
     SampleDbContext db,
+    ISparseEntityMapper<OrderEntity, OrderDto> mapper,
     ILogger<Program> logger,
     CancellationToken cancellationToken
 )
@@ -70,13 +73,14 @@ static async Task<IResult> GetOrderAsync(
     }
 
     logger.LogInformation("Loaded order {OrderId} with {LineCount} lines", id, entity.Lines.Count);
-    return Results.Ok(ReadOrderDto(entity));
+    return Results.Ok(mapper.ToDto(db, entity));
 }
 
 static async Task<IResult> UpdateOrderAsync(
     int id,
     OrderDto.ChangePayload payload,
     SampleDbContext db,
+    ISparseEntityMapper<OrderEntity, OrderDto> mapper,
     ILogger<Program> logger,
     CancellationToken cancellationToken
 )
@@ -92,7 +96,7 @@ static async Task<IResult> UpdateOrderAsync(
         return Results.NotFound();
     }
 
-    var current = ReadOrderDto(entity);
+    var current = mapper.ToDto(db, entity);
     OrderDto.ChangeSet changes;
     try
     {
@@ -111,20 +115,11 @@ static async Task<IResult> UpdateOrderAsync(
         return Results.Conflict();
     }
 
-    var applied = SparseEntityMapper<OrderEntity, OrderDto>
-        .Create(new OrderMapper(), db.Model)
-        .ApplyWithResult(db, entity, accepted.Rebased);
+    var applied = mapper.ApplyWithResult(db, entity, accepted.Rebased);
     await db.SaveChangesAsync(cancellationToken);
 
-    var authoritative = ReadOrderDto(entity);
-    if (applied.CreatedByPath.TryGetValue("Lines", out var createdLines))
-    {
-        foreach (var created in createdLines)
-        {
-            var lineId = ((OrderLineEntity)created.Value).Id;
-            authoritative.Lines.Single(line => line.Id == lineId).TemporaryId = created.Key;
-        }
-    }
+    var authoritative = mapper.ToDto(db, entity);
+    mapper.AssignTemporaryKeys(db, applied, current, authoritative);
 
     logger.LogInformation(
         "Updated order {OrderId}; {LineCount} lines persisted",
@@ -133,25 +128,3 @@ static async Task<IResult> UpdateOrderAsync(
     );
     return Results.Ok(authoritative);
 }
-
-static OrderDto ReadOrderDto(OrderEntity entity) =>
-    new()
-    {
-        Name = entity.CustomerName,
-        Notes = entity.Notes,
-        Code = entity.Code,
-        ShipCity = entity.Address?.City ?? string.Empty,
-        Address = entity.Address is null
-            ? null
-            : new AddressDto { Street = entity.Address.Street, City = entity.Address.City },
-        Lines = entity
-            .Lines.OrderBy(static line => line.SortOrder)
-            .Select(static line => new OrderLineDto
-            {
-                Id = line.Id,
-                Quantity = line.Quantity,
-                UnitPrice = line.UnitPrice,
-                Subtotal = line.Quantity * line.UnitPrice,
-            })
-            .ToList(),
-    };

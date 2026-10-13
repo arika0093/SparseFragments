@@ -27,6 +27,7 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
             entity => entity.Code,
             code => code == null ? null : code.ToUpperInvariant()
         );
+        map.Read(dto => dto.Code, entity => entity.Code);
         map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
         map.Ignore(dto => dto.DisplayTotal);
         map.Object(
@@ -35,6 +36,7 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
             child =>
             {
                 child.Ignore(address => address.City);
+                child.Read(address => address.City, address => address.City);
             }
         );
         map.Collection<OrderLineDto, OrderLineEntity>(
@@ -44,12 +46,12 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
             {
                 lines.Element(child =>
                 {
-                    child.Ignore(line => line.Id);
-                    child.Ignore(line => line.TemporaryId);
+                    child.Read(line => line.Id, entity => entity.Id);
                     child.Ignore(line => line.Subtotal);
+                    child.Read(line => line.Subtotal, entity => entity.Quantity * entity.UnitPrice);
                 });
                 lines.Delete();
-                lines.Order((entity, index) => entity.SortOrder = index);
+                lines.Order(entity => entity.SortOrder);
             }
         );
     }

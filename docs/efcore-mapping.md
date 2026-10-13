@@ -11,10 +11,10 @@ supported/unsupported matrix.
 
 ## Lifecycle
 
-The mapper owns one step of the endpoint flow. Everything around it stays
-application-owned: the read-side entity to DTO projection, `RebaseOnto` and
-authorization, entity loading and querying, `SaveChanges`, transactions, and
-retries.
+The mapper owns one step of the endpoint flow. It can build the entity-to-DTO
+projection from the write mapping, while `RebaseOnto`, authorization, query
+execution and loading, `SaveChanges`, transactions, and retries stay
+application-owned.
 
 <!-- illustrative: mapper shape; ported from the EfCoreSample.Server OrderMapper -->
 ```csharp
@@ -48,19 +48,19 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
     }
 }
 
-// Caller owns current-state projection, conflict checking and persistence.
-var current = ReadCurrentDto(trackedOrder);
+var mapper = new OrderMapper();
+var mapperInstance = SparseEntityMapper<OrderEntity, OrderDto>.Create(mapper, db.Model);
+var current = mapperInstance.ToDto(trackedOrder);
 var rebase = incoming.RebaseOnto(current);
 if (rebase.HasConflicts)
 {
     return Conflict();
 }
 
-var mapper = new OrderMapper();
-var mapperInstance = SparseEntityMapper<OrderEntity, OrderDto>.Create(mapper, db.Model);
 var result = mapperInstance.ApplyWithResult(db, trackedOrder, rebase.Rebased); // no query, no SaveChanges
 await db.SaveChangesAsync();
-// Build the authoritative DTO, preserving result's temporary-key correlation.
+var authoritative = mapperInstance.ToDto(trackedOrder);
+mapperInstance.AssignTemporaryKeys(db, result, current, authoritative);
 ```
 
 `Create` runs `Configure` now, applies the source-generated conventional
@@ -70,6 +70,28 @@ it. Each `Create` call builds a fresh plan for that mapping instance: plans
 are never shared across mapping instances, so constructor-injected
 configuration cannot leak between instances. Reuse the returned mapper for
 repeated applies against the same model.
+
+For DI applications, `AddSparseEntityMappers` registers mapping types from the
+generated registry and exposes `ISparseEntityMapper<TEntity, TDto>` services.
+Mapping instances are singletons by default and can use constructor injection.
+The first operation for a context model creates and caches one plan for that
+`IModel`; a different model gets a separate plan. Call
+`ValidateSparseEntityMappers<TContext>` during startup to build plans for
+registered mappings present in that context's model and surface configuration
+errors before serving requests.
+
+`Projection` exposes an `Expression<Func<TEntity, TDto>>` for use with
+`Select`, and `ToDto` evaluates the same mapping for an already loaded entity.
+Mappings that cannot be inverted, such as custom writers and conversions
+without a reverse expression, need an explicit `Read` registration. Projection
+validation is deferred until either read API is requested.
+
+Use `query.IncludeFor(mapper, changes)` to add the navigation paths needed by
+an accepted change set. The method returns a query without executing it.
+Membership or order changes load complete collections; edit-only keyed
+transitions may use a filtered Include when the key is a mapped scalar property.
+Other key shapes use an unfiltered Include. Owned references are omitted, and
+callers can chain `AsSplitQuery()` when multiple collection includes warrant it.
 
 `Apply` validates the whole change set before executing any queued write, so a
 deterministic mapping failure leaves the entity graph and the `ChangeTracker`
@@ -85,6 +107,9 @@ needs an after-state DTO and never reconstructs one internally.
 `ApplyWithResult` additionally correlates created child entities by DTO
 temporary identity, scoped by collection path (see below); plain `Apply`
 discards that correlation.
+The result also exposes `AppliedPaths`, an ordered list of successful writes
+with DTO paths, operation kinds, and known entity targets. Only
+`ApplyWithResult` records this list.
 
 ## Configuration
 
@@ -136,7 +161,8 @@ arbitrary `Configure` bodies cannot be evaluated statically, deeper omissions
 fail fast at mapper creation with the DTO path and a corrective action.
 A marked mapper whose companion is missing (generator not wired as an
 analyzer) fails fast at creation instead of silently falling back to runtime
-inference; unmarked mappings keep the scoped fallback explicitly.
+inference. Mappers without `[SparseFragmentMapper]` also fail at creation with
+guidance to add the attribute; there is no runtime scalar-inference fallback.
 
 Ownership split: the generator statically discovers every conventional
 default it can resolve (same-name scalars, nested objects, collection
@@ -235,8 +261,10 @@ map.Collection<OrderLineDto, OrderLineEntity>(
 * The DTO `[SparseKey]` may be computed (tuples, value objects) and may differ
   from EF identity. Without `Key()`, the DTO key must equal the single-property
   EF primary key type; composite EF keys and alternate identities always need
-  an explicit projection to the same key space. Key members that EF protects
-  are written on creation only through an explicit child `AllowWrite`.
+  an explicit projection to the same key space. Generated child mappings
+  exclude `[SparseKey]` and `[SparseTemporaryKey]` members by default. Use an
+  explicit child `AllowWrite` when a client-assigned key must be written during
+  creation.
 * No unassigned sentinel is ever inferred from `default(TKey)`: without an
   explicit `[SparseKey(Unassigned = ...)]` or `UnassignedKey(...)`
   declaration, a stable default key is a valid assigned identity. Multiple
@@ -247,10 +275,14 @@ map.Collection<OrderLineDto, OrderLineEntity>(
   child entity, scoped by collection path and keyed parent identity (nested
   scopes additionally qualify with the added parent's assigned or temporary
   identity): duplicate Guids within one logical collection fail, reuse across
-  distinct scopes resolves independently. The application reads
-  database-generated keys off the tracked instances after its own
-  `SaveChanges`, builds the authoritative DTO (preserving temporary values
-  for new rows), and hands it to the existing client `Reconcile` flow.
+  distinct scopes resolves independently. After `SaveChanges`, call
+  `AssignTemporaryKeys` with the baseline and authoritative DTOs. It copies
+  temporary identities to newly created DTO elements without replacing
+  identities already present in the baseline, ready for the client
+  `Reconcile` flow.
+* `ApplyWithResult` also records each successful write in `AppliedPaths`, with
+  the DTO path, operation kind, and known entity target. `Apply` does not
+  allocate or populate this operation list.
   Previously soft-deleted rows stay tracked but leave the DTO projection:
   later applies retain them only when the `SoftDelete` `isDeleted` predicate
   proves the omission, and their positions persist through `Order()` like any
@@ -275,7 +307,8 @@ map.Collection<OrderLineDto, OrderLineEntity>(
   metadata, relationship resolution, and configured callbacks only, never
   fallback implicit mapping.
 * Skip navigations (many-to-many), unkeyed sequences, and scalar sequences
-  fail explicitly instead of syncing.
+  without a compatible EF primitive-collection property fail explicitly
+  instead of syncing.
 
 ## Missing versus null
 
@@ -328,11 +361,15 @@ target, the failure category, and a corrective action.
 | Keyed add/edit/remove without a final DTO, with Delete/Detach/SoftDelete/Remove policies | Supported |
 | Composite, alternate, and computed identities via explicit `Key()` | Supported |
 | Path-scoped `[SparseTemporaryKey]` correlation and authoritative-DTO `Reconcile` | Supported |
+| `AssignTemporaryKeys` after persistence and `AppliedPaths` from `ApplyWithResult` | Supported |
+| Entity-to-DTO `Projection` and `ToDto` for readable mappings | Supported |
+| ChangeSet-derived navigation loading with `IncludeFor` | Supported |
+| EF primitive collections as whole-value replacements | Supported |
 | Opt-in order persistence with complete order evidence | Supported |
 | Compile-time conventional defaults plus fail-fast mapper creation | Supported |
 | Rebase, `SaveChanges`, authorization, loading, transactions | Application-owned (out of scope) |
 | NativeAOT | Not required; EF model inspection may reflect |
-| Unkeyed sequences, scalar sequences, skip navigations | Explicit failure |
+| Unkeyed sequences, unsupported scalar sequences, skip navigations | Explicit failure |
 | Filtered includes for removal/reorder transitions | Explicit failure |
 | Transformations needing unchanged sibling DTO values | Explicit custom logic or unsupported-operation diagnostic |
 | Detached nested targets | Attached as unchanged (documented) or rejected per member |
@@ -342,6 +379,9 @@ target, the failure category, and a corrective action.
 * Targets `net10.0` only.
 * Keyed synchronization covers `IList` collection navigations with a generated
   keyed transition (`[SparseKey]` element with generator support).
+* Primitive collection updates replace the complete collection instance. The
+  DTO and EF property must expose compatible element types; null and `Missing`
+  follow the configured nullability and missing policies.
 * Custom callbacks are caller code: failures after partial execution leave the
   context inconsistent; do not reuse it outside a rolled-back transaction.
 * Conversions run during validation and should be pure.
