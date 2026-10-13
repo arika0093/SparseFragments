@@ -485,6 +485,408 @@ public sealed class EditSessionGroupTests
         wasCanceled.ShouldBeTrue();
     }
 
+    [Test]
+    public void SyncValidateChangesSeesOnlyTheCapturedChangeSet()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        string? readinessObserved = null;
+        string? changesObserved = null;
+        group.Register(
+            "profile",
+            Registration(
+                session,
+                validate: () =>
+                {
+                    readinessObserved = session.Observable.Name;
+                    return null;
+                },
+                validateChanges: changes =>
+                {
+                    changesObserved = changes.Name.After.Value;
+                    return null;
+                },
+                createChangeSet: () =>
+                {
+                    var captured = session.CreateChangeSet();
+                    session.Observable.Name = "mutated after capture";
+                    return captured;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var submission = group.Prepare();
+
+        changesObserved.ShouldBe("submitted");
+        readinessObserved.ShouldBe("mutated after capture");
+        submission.ChangedPaths.ShouldHaveSingleItem().PathText.ShouldBe("Name");
+    }
+
+    [Test]
+    public async Task PrepareAsyncRunsSyncAndAsyncValidatorsAgainstTheCapturedChangeSet()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        string? syncObserved = null;
+        string? asyncObserved = null;
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateChanges: changes =>
+                {
+                    syncObserved = changes.Name.After.Value;
+                    return null;
+                },
+                validateAsync: async (changes, cancellationToken) =>
+                {
+                    asyncObserved = changes.Name.After.Value;
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var prepareTask = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        session.Observable.Name = "edited while validating";
+        releaseValidation.TrySetResult(true);
+
+        var submission = await prepareTask;
+
+        syncObserved.ShouldBe("submitted");
+        asyncObserved.ShouldBe("submitted");
+        submission.Get(handle).Changes.Name.After.Value.ShouldBe("submitted");
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task PrepareAsyncRejectsDraftsOpenedWhileAwaiting()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var hasDrafts = false;
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        group.Register(
+            "profile",
+            Registration(
+                session,
+                hasOpenDrafts: () => hasDrafts,
+                validateAsync: async (_, cancellationToken) =>
+                {
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var prepareTask = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        hasDrafts = true;
+        releaseValidation.TrySetResult(true);
+
+        EditSessionGroupValidationException? draftFailure = null;
+        try
+        {
+            await prepareTask;
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            draftFailure = exception;
+        }
+
+        draftFailure.ShouldNotBeNull();
+        draftFailure!.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
+    }
+
+    [Test]
+    public async Task PrepareAsyncRejectsNestedScopeOpenedWhileAwaiting()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = [new KeyedServer { Id = "server", Name = "before" }],
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        group.Register(
+            "servers",
+            new EditSessionGroupRegistration<KeyedServerHolder, KeyedServerHolder.ChangeSet>
+            {
+                Session = session,
+                CreateChangeSet = session.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+                ValidateAsync = async (_, cancellationToken) =>
+                {
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                },
+            }
+        );
+
+        var prepareTask = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
+        releaseValidation.TrySetResult(true);
+
+        EditSessionGroupValidationException? scopeFailure = null;
+        try
+        {
+            await prepareTask;
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            scopeFailure = exception;
+        }
+
+        scopeFailure.ShouldNotBeNull();
+        scopeFailure!.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
+        scope.Cancel();
+    }
+
+    [Test]
+    public async Task PrepareAsyncFailsWhenSectionUnregisteredDuringValidation()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateAsync: async (_, cancellationToken) =>
+                {
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var prepareTask = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        group.Unregister(handle, EditSessionGroupRemovalPolicy.DetachWithPendingChanges);
+        releaseValidation.TrySetResult(true);
+
+        EditSessionGroupValidationException? unregisterFailure = null;
+        try
+        {
+            await prepareTask;
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            unregisterFailure = exception;
+        }
+
+        unregisterFailure.ShouldNotBeNull();
+        unregisterFailure!
+            .Issues.ShouldHaveSingleItem()
+            .Message.ShouldContain("unregistered or replaced");
+        group.Prepare().Sections.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task PrepareAsyncFailsWhenSectionReplacedDuringValidation()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateAsync: async (_, cancellationToken) =>
+                {
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var prepareTask = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        var replacementSession = new NeutralSessionModel
+        {
+            Name = "replacement",
+        }.CreateEditSession();
+        var replacement = group.Replace(
+            handle,
+            Registration(replacementSession),
+            EditSessionGroupRemovalPolicy.DetachWithPendingChanges
+        );
+        releaseValidation.TrySetResult(true);
+
+        EditSessionGroupValidationException? replaceFailure = null;
+        try
+        {
+            await prepareTask;
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            replaceFailure = exception;
+        }
+
+        replaceFailure.ShouldNotBeNull();
+        replaceFailure!
+            .Issues.ShouldHaveSingleItem()
+            .Message.ShouldContain("unregistered or replaced");
+        replacement.SectionId.ShouldBe("profile");
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task PrepareAsyncFailsWhenBaselineAdvancesWhileAwaiting()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var callCount = 0;
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateAsync: async (_, cancellationToken) =>
+                {
+                    if (Interlocked.Increment(ref callCount) == 1)
+                        return null;
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "first";
+        var first = await group.PrepareAsync(CancellationToken.None);
+
+        session.Observable.Name = "second";
+        var secondPrepare = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        group.AcceptChanges(first, handle);
+        releaseValidation.TrySetResult(true);
+
+        EditSessionGroupValidationException? baselineFailure = null;
+        try
+        {
+            await secondPrepare;
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            baselineFailure = exception;
+        }
+
+        baselineFailure.ShouldNotBeNull();
+        baselineFailure!.Issues.ShouldHaveSingleItem().Message.ShouldContain("baseline changed");
+    }
+
+    [Test]
+    public void EmptySectionStillRunsCapturedValidators()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var observedEmpty = false;
+        var rejectEmpty = true;
+        group.Register(
+            "profile",
+            Registration(
+                session,
+                validateChanges: changes =>
+                {
+                    observedEmpty = changes.IsEmpty;
+                    return rejectEmpty ? "Empty sections cannot be submitted." : null;
+                }
+            )
+        );
+
+        var failure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+        failure
+            .Issues.ShouldHaveSingleItem()
+            .Message.ShouldBe("Empty sections cannot be submitted.");
+        observedEmpty.ShouldBeTrue();
+
+        rejectEmpty = false;
+        group.Prepare().Sections.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void SyncValidationExceptionsBecomeIssuesWhileCancellationPropagates()
+    {
+        var model = new NeutralSessionModel { Name = "before" };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        group.Register(
+            "profile",
+            Registration(
+                session,
+                validateChanges: static _ =>
+                    throw new InvalidOperationException("Captured check failed.")
+            )
+        );
+        session.Observable.Name = "submitted";
+
+        var failure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+        failure.Issues.ShouldHaveSingleItem().Message.ShouldBe("Captured check failed.");
+
+        var cancelGroup = new EditSessionGroup();
+        var cancelSession = new NeutralSessionModel { Name = "before" }.CreateEditSession();
+        cancelGroup.Register(
+            "profile",
+            Registration(
+                cancelSession,
+                validateChanges: static _ => throw new OperationCanceledException()
+            )
+        );
+        cancelSession.Observable.Name = "submitted";
+        Should.Throw<OperationCanceledException>(() => cancelGroup.Prepare());
+    }
+
     private static EditSessionGroupRegistration<
         NeutralSessionModel,
         NeutralSessionModel.ChangeSet
@@ -493,16 +895,19 @@ public sealed class EditSessionGroupTests
         Func<bool>? hasOpenDrafts = null,
         Func<string?>? validate = null,
         Func<NeutralSessionModel.ChangeSet, CancellationToken, Task<string?>>? validateAsync = null,
-        bool reconcile = false
+        bool reconcile = false,
+        Func<NeutralSessionModel.ChangeSet, string?>? validateChanges = null,
+        Func<NeutralSessionModel.ChangeSet>? createChangeSet = null
     ) =>
         new()
         {
             Session = session,
-            CreateChangeSet = session.CreateChangeSet,
+            CreateChangeSet = createChangeSet ?? session.CreateChangeSet,
             IsEmpty = static changes => changes.IsEmpty,
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             HasOpenDrafts = hasOpenDrafts ?? (() => false),
             Validate = validate,
+            ValidateChanges = validateChanges,
             ValidateAsync = validateAsync,
             TryReconcile = reconcile
                 ? (changes, persisted) =>

@@ -94,6 +94,7 @@ namespace SparseFragments
         public System.Func<TChangeSet, TModel, System.ValueTuple<bool, string?>>? TryReconcile { get; init; }
         public System.Func<string?>? Validate { get; init; }
         public System.Func<TChangeSet, System.Threading.CancellationToken, System.Threading.Tasks.Task<string?>>? ValidateAsync { get; init; }
+        public System.Func<TChangeSet, string?>? ValidateChanges { get; init; }
     }
     public enum EditSessionGroupRemovalPolicy
     {

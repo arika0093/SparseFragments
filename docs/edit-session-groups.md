@@ -14,10 +14,18 @@ captured change set and acknowledge it without casting heterogeneous sections.
 
 An `EditSessionGroupRegistration<TModel, TChangeSet>` supplies the session,
 delegates to create and inspect its generated change set, and a delegate to
-enumerate paths from that change set. It can also supply `Validate` to report
-section-specific readiness errors and `TryReconcile` to connect the generated
-session's reconciliation operation. `ValidateAsync` receives the captured
-change set and a cancellation token.
+enumerate paths from that change set. It can also supply readiness and
+validation callbacks and `TryReconcile` to connect the generated
+session's reconciliation operation.
+
+`Validate` is the live-session readiness hook. It takes no arguments and may
+inspect the current mutable session, UI state, or permission to submit. It
+does not receive the captured submission, so it cannot validate an earlier
+immutable change set. `ValidateChanges` is the synchronous submission
+validator. It receives the exact immutable change set placed in the eventual
+submission and must not inspect the live session. `ValidateAsync` is the
+asynchronous submission validator. It receives the captured change set and a
+cancellation token, paired with `ValidateChanges` for synchronous coverage.
 
 `Prepare` checks every registered section, including unchanged sections. It
 rejects open drafts and readiness failures before returning a submission. A
@@ -32,8 +40,36 @@ neither source can report draft state.
 then runs synchronous readiness checks. It rejects registrations with an
 asynchronous validator; call `PrepareAsync(cancellationToken)` for those
 sections. `PrepareAsync` captures every section synchronously before awaiting
-validation. Each asynchronous validator receives that captured change set, so
-edits made while validation is in progress do not change the submission.
+validation. Each synchronous and asynchronous submission validator receives
+that captured change set, so edits made while validation is in progress do
+not change the submission. Post-capture edits remain pending on the live
+session.
+
+Preparation follows capture, readiness, and submission validation in that
+order. Capture produces immutable snapshots. Readiness evaluates open drafts
+and the live `Validate` hook. Submission validation runs `ValidateChanges`
+and `ValidateAsync` against the captured change sets. A synchronous validator
+that throws (other than cancellation) produces a validation issue with the
+exception message. An asynchronous validator that throws produces a
+validation issue the same way, while cancellation propagates as
+`OperationCanceledException`.
+
+`PrepareAsync` re-evaluates a limited set after its awaits. It checks the
+open-draft policy again, so drafts opened while awaiting fail validation. It
+checks whether a section was unregistered or replaced during validation. It
+checks whether a section baseline revision advanced during validation, for
+example through `AcceptChanges` of an earlier submission. Any of these
+changes fail the in-flight preparation with
+`EditSessionGroupValidationException`. Ordinary local edits do not invalidate
+the captured submission. The live readiness hook runs before awaits and is
+not evaluated again after awaits.
+
+The group never holds its internal lock across user callbacks or awaits, so
+a validator may call back into the group without deadlocking. Structural
+changes made during validation fail the in-flight preparation as described
+above. Callers should still coordinate model edits while preparing a
+multi-section submission, since concurrently edited sessions cannot become
+one atomic snapshot.
 
 The resulting `EditSessionGroupSubmission` exposes ordered section metadata,
 typed entries through `Get(handle)`, and aggregate paths that retain both the
@@ -61,6 +97,19 @@ against an older revision returns a stale-submission error or throws
 replaced section handles are also invalidated, and submissions from another
 group cannot be acknowledged. Keep one outstanding submission per section
 when reconciling; independent acknowledgements may proceed for other sections.
+
+## Migration notes
+
+Existing `Validate` callbacks keep their meaning as live-session readiness
+checks. No signature change is required for checks that inspect UI state,
+permissions, or other live state.
+
+When a `Validate` callback reads the change set through the live session,
+move that logic to `ValidateChanges`, which receives the captured change set
+directly. Keep a `Validate` callback only for the part of the check that
+needs live state. `ValidateAsync` already receives the captured change set,
+so its signature is unchanged; add `ValidateChanges` alongside it when the
+same rule needs synchronous coverage in `Prepare`.
 
 ## Unregistering and replacement
 
