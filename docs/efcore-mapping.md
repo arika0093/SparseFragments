@@ -41,11 +41,6 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
                 {
                     child.Ignore(line => line.Subtotal);
                 });
-                lines.Create(dto => new OrderLineEntity
-                {
-                    Quantity = dto.Quantity,
-                    UnitPrice = dto.UnitPrice,
-                });
                 lines.Delete();
                 lines.Order((entity, index) => entity.SortOrder = index);
             }
@@ -199,6 +194,11 @@ full-collection DTO is required. Child mapping, key projection, factory,
 removal, and order policies are declared in the same parent mapper
 `Configure` and scoped to that parent path.
 
+Added children use a public parameterless constructor by default. Configure
+`Create` only when construction needs values outside the mapped after-state or
+a domain factory; the child plan writes mapped members from the after-state
+after the factory returns.
+
 <!-- illustrative: keyed collection registrations available on the collection builder -->
 ```csharp
 map.Collection<OrderLineDto, OrderLineEntity>(
@@ -212,7 +212,6 @@ map.Collection<OrderLineDto, OrderLineEntity>(
         });
         lines.Key(dto => dto.Key, entity => ValueTuple.Create(entity.TenantId, entity.LineNo)); // computed/composite
         lines.UnassignedKey(0); // explicit sentinel; never inferred from default(TKey)
-        lines.Create(dto => new OrderLineEntity { Quantity = dto.Quantity }); // optional factory
         lines.Delete(); // or Detach(), SoftDelete(mark), Remove(callback)
         lines.Order((entity, index) => entity.SortOrder = index); // opt-in order persistence
     }

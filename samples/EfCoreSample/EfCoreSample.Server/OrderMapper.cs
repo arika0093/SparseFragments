@@ -48,11 +48,6 @@ public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
                     child.Ignore(line => line.TemporaryId);
                     child.Ignore(line => line.Subtotal);
                 });
-                lines.Create(dto => new OrderLineEntity
-                {
-                    Quantity = dto.Quantity,
-                    UnitPrice = dto.UnitPrice,
-                });
                 lines.Delete();
                 lines.Order((entity, index) => entity.SortOrder = index);
             }
