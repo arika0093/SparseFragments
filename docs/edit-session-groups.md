@@ -21,11 +21,10 @@ change set and a cancellation token.
 
 `Prepare` checks every registered section, including unchanged sections. It
 rejects open drafts and readiness failures before returning a submission. A
-registration must provide `HasOpenDrafts` or use a session implementing
-`ISparseEditSessionOpenDraftState`. The generated `OpenScope` API does not
-maintain an open-scope listing, so applications using scopes must track their
-lifecycle in this callback or interface. Applications that do not create
-scopes can explicitly report `false`.
+generated session reports root and nested scopes through
+`ISparseEditSessionOpenDraftState`. Custom sessions with open drafts must
+provide `HasOpenDrafts` or implement that interface. Registration fails when
+neither source can report draft state.
 
 ## Preparing and acknowledging changes
 

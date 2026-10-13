@@ -151,12 +151,16 @@ public sealed class EditSessionGroupTests
         var hasDrafts = true;
         var isReady = false;
         var group = new EditSessionGroup();
+        var untrackedSession = new UntrackedSession<
+            NeutralSessionModel,
+            NeutralSessionModel.ChangeSet
+        >(session);
         Should.Throw<ArgumentException>(() =>
             group.Register(
                 "untracked",
                 new EditSessionGroupRegistration<NeutralSessionModel, NeutralSessionModel.ChangeSet>
                 {
-                    Session = session,
+                    Session = untrackedSession,
                     CreateChangeSet = session.CreateChangeSet,
                     IsEmpty = static changes => changes.IsEmpty,
                     EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
@@ -184,6 +188,34 @@ public sealed class EditSessionGroupTests
             .Message.ShouldBe("The section is not ready.");
 
         isReady = true;
+        group.Prepare().Sections.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void PrepareAutomaticallyRejectsGeneratedSessionScopes()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = [new KeyedServer { Id = "server", Name = "before" }],
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        group.Register(
+            "servers",
+            new EditSessionGroupRegistration<KeyedServerHolder, KeyedServerHolder.ChangeSet>
+            {
+                Session = session,
+                CreateChangeSet = session.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+            }
+        );
+        using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
+
+        var failure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+
+        failure.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
+        scope.Cancel();
         group.Prepare().Sections.ShouldBeEmpty();
     }
 
@@ -326,4 +358,19 @@ public sealed class EditSessionGroupTests
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
             HasOpenDrafts = static () => false,
         };
+
+    private sealed class UntrackedSession<TModel, TChangeSet>(
+        ISparseEditSession<TModel, TChangeSet> inner
+    ) : ISparseEditSession<TModel, TChangeSet>
+        where TModel : class
+        where TChangeSet : class
+    {
+        public TModel Model => inner.Model;
+
+        public bool HasChanges => inner.HasChanges;
+
+        public void AcceptChanges() => inner.AcceptChanges();
+
+        public void AcceptChanges(TChangeSet changes) => inner.AcceptChanges(changes);
+    }
 }

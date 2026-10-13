@@ -5,18 +5,6 @@ using System.Threading.Tasks;
 
 namespace SparseFragments;
 
-/// <summary>Reports whether a session currently has an uncommitted edit draft.</summary>
-/// <remarks>
-/// Generated sessions expose <c>OpenScope</c> without maintaining an open-scope
-/// registry. Implement this interface or provide a draft callback on the group
-/// registration when open scopes must block submission.
-/// </remarks>
-public interface ISparseEditSessionOpenDraftState
-{
-    /// <summary>Gets whether a draft is open and has not been committed or canceled.</summary>
-    bool HasOpenDrafts { get; }
-}
-
 /// <summary>Controls what unregistering or replacing a changed session does.</summary>
 public enum EditSessionGroupRemovalPolicy
 {

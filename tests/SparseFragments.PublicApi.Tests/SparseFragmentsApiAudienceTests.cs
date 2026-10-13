@@ -19,8 +19,6 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.ISparseEditSession`1",
         "SparseFragments.ISparseEditSession`2",
         "SparseFragments.ISparseEditSessionModelAccessor`1",
-        "SparseFragments.ISparseEditSessionOpenDraftState",
-        "SparseFragments.ISparseTypedPath`2",
         "SparseFragments.EditSessionGroup",
         "SparseFragments.EditSessionGroupChangedPath",
         "SparseFragments.EditSessionGroupRegistration`2",
