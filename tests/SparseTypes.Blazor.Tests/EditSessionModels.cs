@@ -71,6 +71,34 @@ public partial class BlazorUnassignedItem
 }
 
 [SparseModel]
+public partial class BlazorDraftLine
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
+
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+}
+
+[SparseModel]
+public partial class BlazorDraftBoard
+{
+    public string Name { get; set; } = string.Empty;
+
+    public List<BlazorDraftLine> Drafts { get; set; } = new();
+}
+
+[SparseModel]
+public partial class BlazorCounterForm
+{
+    public string Label { get; set; } = string.Empty;
+
+    public int Total { get; set; }
+}
+
+[SparseModel]
 public partial class BlazorUnassignedOrder
 {
     public string Number { get; set; } = string.Empty;

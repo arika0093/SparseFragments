@@ -145,6 +145,7 @@ public static class UiDocSamples
         BlazorFormConflict();
         await BlazorFormTransportAsync();
         await BlazorToolkitBindingsAsync();
+        await BlazorHeadlessAsync();
         UiHistoryFlow();
     }
 
@@ -548,6 +549,115 @@ public static class UiDocSamples
         DocsCheck.Require(freshBinding.Value == "SAVED", "fresh binding reads persisted state");
     }
 
+    private static async Task BlazorHeadlessAsync()
+    {
+        // sample: blazor-headless
+        var headlessOrder = new HeadlessOrder
+        {
+            Number = "ORD-1",
+            Customer = new HeadlessCustomer { Name = "Ada", Email = "ada@example.com" },
+            Lines = new List<HeadlessOrderLine>
+            {
+                new()
+                {
+                    Sku = "a",
+                    Quantity = 1,
+                    Price = 10m,
+                },
+                new()
+                {
+                    Sku = "b",
+                    Quantity = 2,
+                    Price = 20m,
+                },
+            },
+        };
+        var headlessSession = headlessOrder.CreateEditSession();
+        var headlessContext = headlessSession.CreateEditContext();
+        var headlessHistory = headlessSession.EnableHistory();
+
+        // The triples a SparseField hands to inputs: the live value, the change
+        // delegate, and the original-model expression for member-only paths.
+        var headlessNumber = headlessSession.Bind(HeadlessOrder.SparsePath.Number, headlessContext);
+        DocsCheck.Require(headlessNumber.Value == "ORD-1", "binding reads the live value");
+        DocsCheck.Require(
+            headlessNumber.ValueExpression is not null,
+            "member path exposes an expression"
+        );
+        await headlessNumber.SetAsync("ORD-2");
+        DocsCheck.Require(headlessOrder.Number == "ORD-2", "binding writes through the session");
+        DocsCheck.Require(
+            headlessSession.FieldState(HeadlessOrder.SparsePath.Number).IsChanged,
+            "scalar field state reports the edit"
+        );
+        DocsCheck.Require(headlessHistory.CanUndo, "session-owned history retains the edit");
+
+        headlessHistory.Undo();
+        DocsCheck.Require(headlessOrder.Number == "ORD-1", "undo restores");
+        headlessHistory.Redo();
+        DocsCheck.Require(headlessOrder.Number == "ORD-2", "redo reapplies");
+
+        // Keyed and indexed paths expose no expression, so value/callback
+        // inputs edit them while validation stays explicit.
+        var headlessPrice = headlessSession.Bind(
+            HeadlessOrder.SparsePath.Lines.Key("b").Price,
+            headlessContext
+        );
+        DocsCheck.Require(
+            headlessPrice.ValueExpression is null,
+            "keyed path exposes no expression"
+        );
+        await headlessPrice.SetAsync(99m);
+        DocsCheck.Require(
+            headlessOrder.Lines.Single(line => line.Sku == "b").Price == 99m,
+            "keyed binding writes through the session"
+        );
+        DocsCheck.Require(
+            headlessSession
+                .CollectionState(HeadlessOrder.SparsePath.Lines)
+                .GetItemState("b")
+                .IsEdited,
+            "collection state reports the edited row"
+        );
+
+        var headlessSku = headlessSession.Bind(
+            HeadlessOrder.SparsePath.Lines.At(0).Sku,
+            headlessContext
+        );
+        DocsCheck.Require(headlessSku.Value == "a", "indexed binding follows the position");
+
+        var headlessDrafts = new HeadlessOrder();
+        var headlessDraftSession = headlessDrafts.CreateEditSession();
+        var headlessDraftContext = headlessDraftSession.CreateEditContext();
+        var headlessTemporaryId = Guid.NewGuid();
+        headlessDraftSession.Observable.Drafts.AddModel(
+            new HeadlessDraft
+            {
+                Id = 0,
+                Title = "draft",
+                TemporaryId = headlessTemporaryId,
+            }
+        );
+        var headlessTitle = headlessDraftSession.Bind(
+            HeadlessOrder.SparsePath.Drafts.TemporaryKey(headlessTemporaryId).Title,
+            headlessDraftContext
+        );
+        DocsCheck.Require(headlessTitle.Value == "draft", "temporary-key binding reads the value");
+        await headlessTitle.SetAsync("draft v2");
+        DocsCheck.Require(
+            headlessDrafts.Drafts.Single(item => item.TemporaryId == headlessTemporaryId).Title
+                == "draft v2",
+            "temporary-key binding writes through the session"
+        );
+        DocsCheck.Require(
+            headlessDraftContext.IsModified(),
+            "temporary-key write marks the field modified"
+        );
+
+        headlessSession.DisableHistory();
+        // /sample
+    }
+
     private static void WpfObservableBinding()
     {
         // sample: ui-wpf-session
@@ -686,4 +796,52 @@ public partial class BlazorDocsOrder
     public string Number { get; set; } = string.Empty;
 
     public List<BlazorDocsOrderLine> Lines { get; set; } = new();
+}
+
+[SparseModel]
+public partial class HeadlessCustomer
+{
+    [Required]
+    public string Name { get; set; } = string.Empty;
+
+    public string? Email { get; set; }
+}
+
+[SparseModel]
+public partial class HeadlessOrderLine
+{
+    [SparseKey]
+    public string Sku { get; set; } = string.Empty;
+
+    public int Quantity { get; set; }
+
+    public decimal Price { get; set; }
+}
+
+[SparseModel]
+public partial class HeadlessDraft
+{
+    [SparseKey(Unassigned = 0)]
+    public int Id { get; set; }
+
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+}
+
+[SparseModel]
+public partial class HeadlessOrder
+{
+    public string Number { get; set; } = string.Empty;
+
+    public int Version { get; set; }
+
+    public HeadlessCustomer Customer { get; set; } = new();
+
+    public List<HeadlessOrderLine> Lines { get; set; } = new();
+
+    public Dictionary<string, HeadlessCustomer> Contacts { get; set; } = new();
+
+    public List<HeadlessDraft> Drafts { get; set; } = new();
 }

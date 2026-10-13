@@ -75,6 +75,14 @@ internal static class SparseFieldPathResolver
                     // historical bracket spelling.
                     current = ResolveKeyedValue(current, segment.Key, errorPath);
                     break;
+                case SparsePathSegmentKind.TemporaryKey:
+                    if (current is null)
+                    {
+                        throw InvalidFieldPath(errorPath);
+                    }
+
+                    current = ResolveTemporaryValue(current, segment.TemporaryKey, errorPath);
+                    break;
                 default:
                     if (current is null)
                     {
@@ -276,6 +284,39 @@ internal static class SparseFieldPathResolver
         public required Type KeyType { get; init; }
     }
 
+    private static object ResolveTemporaryValue(object collection, Guid? temporaryKey, string path)
+    {
+        // Temporary segments name unassigned-entry identity, never positions:
+        // the element is located through its SparseTemporaryKey member, so the
+        // lookup follows row replacement exactly like the keyed lookup does.
+        if (collection is string || temporaryKey is null)
+        {
+            throw InvalidFieldPath(path);
+        }
+
+        if (collection is not IEnumerable elements)
+        {
+            throw InvalidFieldPath(path);
+        }
+
+        var elementType = GetSequenceElementType(collection) ?? FirstElementType(elements);
+        if (elementType is null || !TryGetTemporaryReader(elementType, out var reader))
+        {
+            throw InvalidFieldPath(path);
+        }
+
+        foreach (var element in elements)
+        {
+            if (element is not null && Equals(reader(element), temporaryKey.Value))
+            {
+                return element;
+            }
+        }
+
+        // Removed or assigned entries no longer resolve against the live model.
+        throw InvalidFieldPath(path);
+    }
+
     private static object ResolveKeyedElement(
         IEnumerable elements,
         Type? elementType,
@@ -354,6 +395,28 @@ internal static class SparseFieldPathResolver
                     GetKey = property.GetValue,
                     KeyType = property.PropertyType,
                 };
+                return true;
+            }
+        }
+
+        reader = null!;
+        return false;
+    }
+
+    private static bool TryGetTemporaryReader(Type elementType, out Func<object, object?> reader)
+    {
+        foreach (
+            var property in elementType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+        )
+        {
+            if (
+                property.CanRead
+                && property.GetIndexParameters().Length == 0
+                && property.GetCustomAttribute<SparseTemporaryKeyAttribute>(inherit: true)
+                    is not null
+            )
+            {
+                reader = property.GetValue;
                 return true;
             }
         }
