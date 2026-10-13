@@ -51,6 +51,91 @@ namespace SparseFragments
         [System.Text.Json.Serialization.JsonStringEnumMemberName("redacted")]
         Redacted = 3,
     }
+    public sealed class EditSessionGroup
+    {
+        public EditSessionGroup() { }
+        public void AcceptChanges<TModel, TChangeSet>(SparseFragments.EditSessionGroupSubmission submission, SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> handle)
+            where TModel :  class
+            where TChangeSet :  class { }
+        public SparseFragments.EditSessionGroupSubmission Prepare() { }
+        public System.Threading.Tasks.Task<SparseFragments.EditSessionGroupSubmission> PrepareAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(string sectionId, SparseFragments.EditSessionGroupRegistration<TModel, TChangeSet> registration)
+            where TModel :  class
+            where TChangeSet :  class { }
+        public SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> Replace<TModel, TChangeSet>(SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> handle, SparseFragments.EditSessionGroupRegistration<TModel, TChangeSet> registration, SparseFragments.EditSessionGroupRemovalPolicy policy)
+            where TModel :  class
+            where TChangeSet :  class { }
+        public bool TryReconcile<TModel, TChangeSet>(SparseFragments.EditSessionGroupSubmission submission, SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> handle, TModel persisted, out string? error)
+            where TModel :  class
+            where TChangeSet :  class { }
+        public void Unregister<TModel, TChangeSet>(SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> handle, SparseFragments.EditSessionGroupRemovalPolicy policy)
+            where TModel :  class
+            where TChangeSet :  class { }
+    }
+    public sealed class EditSessionGroupChangedPath
+    {
+        public SparseFragments.SparsePath Path { get; }
+        public string PathText { get; }
+        public string SectionId { get; }
+    }
+    public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
+        where TModel :  class
+        where TChangeSet :  class
+    {
+        public EditSessionGroupRegistration() { }
+        public System.Func<TChangeSet> CreateChangeSet { get; init; }
+        public System.Func<TChangeSet, System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath>> EnumerateChangedPaths { get; init; }
+        public System.Func<bool>? HasOpenDrafts { get; init; }
+        public System.Func<TChangeSet, bool> IsEmpty { get; init; }
+        public SparseFragments.ISparseEditSession<TModel, TChangeSet> Session { get; init; }
+        [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Success",
+                "Error"})]
+        public System.Func<TChangeSet, TModel, System.ValueTuple<bool, string?>>? TryReconcile { get; init; }
+        public System.Func<string?>? Validate { get; init; }
+        public System.Func<TChangeSet, System.Threading.CancellationToken, System.Threading.Tasks.Task<string?>>? ValidateAsync { get; init; }
+    }
+    public enum EditSessionGroupRemovalPolicy
+    {
+        RequireClean = 0,
+        DetachWithPendingChanges = 1,
+    }
+    public sealed class EditSessionGroupSubmission
+    {
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.EditSessionGroupChangedPath> ChangedPaths { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.EditSessionSubmittedSection> Sections { get; }
+        public SparseFragments.EditSessionSubmissionEntry<TChangeSet> Get<TModel, TChangeSet>(SparseFragments.EditSessionSectionHandle<TModel, TChangeSet> handle)
+            where TModel :  class
+            where TChangeSet :  class { }
+    }
+    public sealed class EditSessionGroupValidationException : System.InvalidOperationException
+    {
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.EditSessionGroupValidationIssue> Issues { get; }
+    }
+    public sealed class EditSessionGroupValidationIssue
+    {
+        public string Message { get; }
+        public string SectionId { get; }
+    }
+    public sealed class EditSessionSectionHandle<TModel, TChangeSet>
+        where TModel :  class
+        where TChangeSet :  class
+    {
+        public string SectionId { get; }
+        public SparseFragments.ISparseEditSession<TModel, TChangeSet> Session { get; }
+    }
+    public sealed class EditSessionStaleSubmissionException : System.InvalidOperationException { }
+    public sealed class EditSessionSubmissionEntry<TChangeSet> : SparseFragments.EditSessionSubmittedSection
+        where TChangeSet :  class
+    {
+        public TChangeSet Changes { get; }
+    }
+    public class EditSessionSubmittedSection
+    {
+        public long BaselineRevision { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> ChangedPaths { get; }
+        public string SectionId { get; }
+    }
     public abstract class FragmentMergeStrategy<T>
     {
         protected FragmentMergeStrategy() { }
@@ -138,6 +223,10 @@ namespace SparseFragments
         where out TModel :  class
     {
         TModel GetModelForFrameworkAccess();
+    }
+    public interface ISparseEditSessionOpenDraftState
+    {
+        bool HasOpenDrafts { get; }
     }
     public interface ISparseEditSession<out TModel>
         where out TModel :  class

@@ -1,0 +1,95 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace SparseFragments;
+
+/// <summary>Reports whether a session currently has an uncommitted edit draft.</summary>
+/// <remarks>
+/// Generated sessions expose <c>OpenScope</c> without maintaining an open-scope
+/// registry. Implement this interface or provide a draft callback on the group
+/// registration when open scopes must block submission.
+/// </remarks>
+public interface ISparseEditSessionOpenDraftState
+{
+    /// <summary>Gets whether a draft is open and has not been committed or canceled.</summary>
+    bool HasOpenDrafts { get; }
+}
+
+/// <summary>Controls what unregistering or replacing a changed session does.</summary>
+public enum EditSessionGroupRemovalPolicy
+{
+    /// <summary>Reject removal while the session has changes or open drafts.</summary>
+    RequireClean,
+
+    /// <summary>Remove the registration while leaving its session and drafts untouched.</summary>
+    DetachWithPendingChanges,
+}
+
+/// <summary>Operations and readiness checks for one typed session registration.</summary>
+/// <typeparam name="TModel">The editable model type.</typeparam>
+/// <typeparam name="TChangeSet">The generated immutable change-set type.</typeparam>
+public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
+    where TModel : class
+    where TChangeSet : class
+{
+    /// <summary>Gets or initializes the edit session.</summary>
+    public ISparseEditSession<TModel, TChangeSet> Session { get; init; } = null!;
+
+    /// <summary>Captures the session's current change set.</summary>
+    public Func<TChangeSet> CreateChangeSet { get; init; } = null!;
+
+    /// <summary>Tests whether a captured change set is empty.</summary>
+    public Func<TChangeSet, bool> IsEmpty { get; init; } = null!;
+
+    /// <summary>Gets changed paths from the captured change set.</summary>
+    public Func<TChangeSet, IReadOnlyList<SparsePath>> EnumerateChangedPaths { get; init; } = null!;
+
+    /// <summary>
+    /// Gets a readiness error, or <see langword="null"/> when the section may be submitted.
+    /// </summary>
+    public Func<string?>? Validate { get; init; }
+
+    /// <summary>
+    /// Asynchronously validates the captured change set, returning an error when it cannot be submitted.
+    /// </summary>
+    public Func<TChangeSet, CancellationToken, Task<string?>>? ValidateAsync { get; init; }
+
+    /// <summary>
+    /// Reports open drafts. If omitted, the session must implement
+    /// <see cref="ISparseEditSessionOpenDraftState"/>.
+    /// </summary>
+    public Func<bool>? HasOpenDrafts { get; init; }
+
+    /// <summary>
+    /// Reconciles an acknowledged change set with an authoritative persisted model.
+    /// Return <see langword="false"/> and an error when reconciliation cannot be applied.
+    /// </summary>
+    public Func<TChangeSet, TModel, (bool Success, string? Error)>? TryReconcile { get; init; }
+}
+
+/// <summary>A typed handle for one stable section registration in an edit-session group.</summary>
+/// <typeparam name="TModel">The editable model type.</typeparam>
+/// <typeparam name="TChangeSet">The generated immutable change-set type.</typeparam>
+public sealed class EditSessionSectionHandle<TModel, TChangeSet>
+    where TModel : class
+    where TChangeSet : class
+{
+    internal EditSessionSectionHandle(EditSessionGroup owner, IEditSessionGroupSection section)
+    {
+        Owner = owner;
+        Section = section;
+    }
+
+    /// <summary>Gets the stable section identifier.</summary>
+    public string SectionId => Section.SectionId;
+
+    /// <summary>Gets the registered typed edit session.</summary>
+    public ISparseEditSession<TModel, TChangeSet> Session =>
+        (ISparseEditSession<TModel, TChangeSet>)Section.Session;
+
+    internal EditSessionGroup Owner { get; }
+
+    internal IEditSessionGroupSection Section { get; }
+}

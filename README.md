@@ -100,7 +100,7 @@ The generated types answer different questions:
 
 The Quick Start uses the first three rows: `defaults` carries Label `default` with the full database value, `environment` carries only Port 6432, and `effective` merges to Label `default`, Host `db.local`, Port 6432. The patch sets Label to `production` and Port to 7432 while Host stays `db.local`. The change set reports Label `default` to `production` and Port 6432 to 7432, with Host unchanged. The transport row serializes that same change set; see the [ChangePayload wire reference](docs/change-payload.md). The editing row tracks unsaved work in a running UI; see [UI frameworks](docs/ui-frameworks.md).
 
-For task guidance, see [Fragments and patches](docs/fragments-and-patches.md) for construction, diffing, and merge rules, [Merge strategies](docs/merge-strategies.md) for layering, [ChangeSet rebase](docs/rebase.md) for reconciling concurrent edits, [Keyed collections](docs/keyed-collections.md) for identity-based collection edits, and [UI frameworks](docs/ui-frameworks.md) for edit sessions in Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia.
+For task guidance, see [Fragments and patches](docs/fragments-and-patches.md) for construction, diffing, and merge rules, [Merge strategies](docs/merge-strategies.md) for layering, [ChangeSet rebase](docs/rebase.md) for reconciling concurrent edits, [Keyed collections](docs/keyed-collections.md) for identity-based collection edits, [Edit-session groups](docs/edit-session-groups.md) for coordinating heterogeneous sessions, and [UI frameworks](docs/ui-frameworks.md) for edit sessions in Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia.
 
 ## What each capability covers
 
