@@ -112,6 +112,7 @@ namespace SparseFragments
         bool TryGetNestedChange(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseChangeSet? child);
         bool TryGetValueChange<T>(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseFragments.ISparseValueChange<T>? change);
     }
+    public interface ISparseChangeSet<TModel> : SparseFragments.ISparseChangeSet { }
     public interface ISparseDictionaryChange<TKey, TValue, TEdited>
     {
         System.Collections.Generic.IReadOnlyDictionary<TKey, TValue> Added { get; }

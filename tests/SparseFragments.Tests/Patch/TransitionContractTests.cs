@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using SparseFragments;
 using SparseFragments.Generated;
 
@@ -88,7 +90,7 @@ public sealed class TransitionContractTests
             )
         );
 
-        ISparseChangeSet toMissing = Settings.ChangeSet.Between(before, missing);
+        ISparseChangeSet<Settings> toMissing = Settings.ChangeSet.Between(before, missing);
         toMissing.IsChanged.ShouldBeTrue();
         toMissing.TryGetValueChange<string?>("Label", out var toMissingLabel).ShouldBeTrue();
         toMissingLabel.ShouldNotBeNull();
@@ -151,6 +153,7 @@ public sealed class TransitionContractTests
 
         changes.TryGetNestedChange("Nested", out var nested).ShouldBeTrue();
         nested.ShouldNotBeNull();
+        nested!.GetType().GetInterfaces().ShouldContain(typeof(ISparseChangeSet<Nested>));
         nested!.IsEmpty.ShouldBeFalse();
         nested.TryGetValueChange<string>("Host", out var host).ShouldBeTrue();
         host.ShouldNotBeNull();
@@ -162,6 +165,75 @@ public sealed class TransitionContractTests
         changes.TryGetValueChange<string?>("Label", out var label).ShouldBeTrue();
         label.ShouldNotBeNull();
         label!.IsChanged.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RebasedChangeSetKeepsItsModelType()
+    {
+        var baseline = Present(
+            MakeSettings(
+                Optional<string?>.Present("before"),
+                Optional<int>.Present(1),
+                Optional<Nested.Fragment?>.Missing
+            )
+        );
+        var edited = Present(
+            MakeSettings(
+                Optional<string?>.Present("after"),
+                Optional<int>.Present(1),
+                Optional<Nested.Fragment?>.Missing
+            )
+        );
+
+        ISparseChangeSet<Settings> rebased = Settings
+            .ChangeSet.Between(baseline, edited)
+            .RebaseOnto(baseline)
+            .Rebased;
+
+        rebased.IsChanged.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ChangeSetForAnotherModelDoesNotConvertAtCompileTime()
+    {
+        const string source = """
+            public static class CompileProbe
+            {
+                private static void Accept(
+                    global::SparseFragments.ISparseChangeSet<global::SparseFragments.Tests.Nested> changes
+                ) { }
+
+                public static void PassWrongModel(
+                    global::SparseFragments.Tests.Settings.ChangeSet changes
+                ) => Accept(changes);
+            }
+            """;
+        var tree = CSharpSyntaxTree.ParseText(source);
+        var trustedAssemblies = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(
+            Path.PathSeparator
+        );
+        var references = trustedAssemblies
+            .Select(static assemblyPath =>
+                (MetadataReference)MetadataReference.CreateFromFile(assemblyPath)
+            )
+            .Append(
+                MetadataReference.CreateFromFile(
+                    typeof(SparseFragmentModelAttribute).Assembly.Location
+                )
+            )
+            .Append(MetadataReference.CreateFromFile(typeof(Settings).Assembly.Location));
+        var compilation = CSharpCompilation.Create(
+            "TypedChangeSetCompileProbe",
+            [tree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
+
+        compilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .Select(static diagnostic => diagnostic.Id)
+            .ShouldContain("CS1503");
     }
 
     private static Optional<CompositeServerHolder.Fragment?> Composite(

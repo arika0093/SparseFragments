@@ -136,6 +136,9 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
                 "global::SparseFragments.Generated.SparseChangeRecord",
                 "global::SparseFragments.Generated.SparseChangeKind"
             )
+            {
+                TypedChangeSetInterfaceType = "global::SparseFragments.ISparseChangeSet",
+            }
         )
         {
             KeyValidationScopeFactory =

@@ -92,6 +92,16 @@ public interface ISparseChangeSet
     );
 }
 
+/// <summary>Read-only baseline-aware change set associated with a model type.</summary>
+/// <typeparam name="TModel">The model type whose changes this change set describes.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+[SuppressMessage(
+    "Major Code Smell",
+    "S2326:Unused type parameters should be removed",
+    Justification = "TModel is a compile-time model identity for typed change sets."
+)]
+public interface ISparseChangeSet<TModel> : ISparseChangeSet { }
+
 /// <summary>Read-only keyed-sequence transition with typed permanent keys.</summary>
 /// <remarks>
 /// Implemented by generated per-member keyed transition types. Additions,

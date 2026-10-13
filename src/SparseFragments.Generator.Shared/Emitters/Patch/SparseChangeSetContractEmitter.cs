@@ -24,10 +24,25 @@ internal static class SparseChangeSetContractEmitter
     internal static bool HasContracts(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>
         dialect.TransitionContracts is not null;
 
-    internal static string ChangeSetBases(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>
-        HasContracts(dialect)
-            ? " : " + dialect.TransitionContracts!.ChangeSetInterfaceType
-            : string.Empty;
+    internal static string ChangeSetBases(
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        string? modelType
+    )
+    {
+        if (!HasContracts(dialect))
+            return string.Empty;
+
+        var contracts = dialect.TransitionContracts!;
+        if (
+            modelType is not null
+            && contracts.TypedChangeSetInterfaceType is string typedInterfaceType
+        )
+        {
+            return " : " + typedInterfaceType + "<" + modelType + ">";
+        }
+
+        return " : " + contracts.ChangeSetInterfaceType;
+    }
 
     internal static string ScalarBases(
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,

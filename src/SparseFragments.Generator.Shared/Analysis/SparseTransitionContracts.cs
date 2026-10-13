@@ -26,6 +26,9 @@ internal sealed record SparseTransitionContracts(
     /// <summary>Read-only root/nested change-set contract.</summary>
     public string ChangeSetInterfaceType { get; init; } = ChangeSetInterfaceType;
 
+    /// <summary>Optional model-typed root/nested change-set contract.</summary>
+    public string? TypedChangeSetInterfaceType { get; init; }
+
     /// <summary>Read-only keyed-sequence transition contract (open generic, arity 3).</summary>
     public string KeyedChangeInterfaceType { get; init; } = KeyedChangeInterfaceType;
 

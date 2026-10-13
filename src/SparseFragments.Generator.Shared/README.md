@@ -206,6 +206,18 @@ introduced. Leave `TransitionContracts` null to disable the surface: products
 without the runtime contracts keep byte-identical output. Shared never names a
 `SparseFragments` runtime type; every contract name arrives through the record.
 
+`SparseTransitionContracts.TypedChangeSetInterfaceType` optionally names an
+open generic interface for model-typed change sets. Set it to a fully qualified
+type name without type arguments, such as
+`global::MyProduct.ISparseChangeSet`, and make that interface derive from
+`ChangeSetInterfaceType`. Keep its model parameter invariant when downstream
+APIs need exact model matching. When a model type is available, Shared closes
+the configured interface over that model for each root and nested `ChangeSet`.
+Downstream APIs can use this closed interface as a parameter type, so a change
+set for another model fails to compile. Leave this property unset to retain the
+non-generic `ChangeSetInterfaceType`; leave `TransitionContracts` null to
+disable transition contracts.
+
 Paths use the caller-owned path type from `SparsePatchDialect.PathType`
 (defaulting to the dialect runtime namespace plus `SparsePath`). `ChangeInfo`
 exposes the path in that type plus a wire-compatible text rendering; the

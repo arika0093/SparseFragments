@@ -52,7 +52,7 @@ internal static class SparseChangeSetEmitter
             1,
             accessibility
                 + " sealed partial class ChangeSet"
-                + SparseChangeSetContractEmitter.ChangeSetBases(dialect)
+                + SparseChangeSetContractEmitter.ChangeSetBases(dialect, modelType)
         );
         code.AppendLineAt(1, "{");
         // State-bound bodies live in the private nested __Core with direct
