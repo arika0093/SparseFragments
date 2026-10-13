@@ -1,6 +1,28 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseFragments")]
 namespace SparseFragments.Blazor
 {
+    public enum SparseConflictFallbackMode
+    {
+        NearestParent = 0,
+        Model = 1,
+    }
+    public static class SparseConflictValidationExtensions
+    {
+        public static int AddConflicts<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.EditContext editContext, System.Collections.Generic.IEnumerable<SparseFragments.SparseConflict> conflicts, SparseFragments.Blazor.SparseConflictValidationOptions? options = null)
+            where TModel :  class { }
+        public static void ClearConflicts<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.ValidationMessageStore store, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
+            where TModel :  class { }
+        public static Microsoft.AspNetCore.Components.Forms.EditContext ReplaceEditContext<TModel>(this SparseFragments.ISparseEditSession<TModel> freshSession, Microsoft.AspNetCore.Components.Forms.EditContext staleContext)
+            where TModel :  class { }
+    }
+    public sealed class SparseConflictValidationOptions : System.IEquatable<SparseFragments.Blazor.SparseConflictValidationOptions>
+    {
+        public SparseConflictValidationOptions() { }
+        public bool ClearStoreFirst { get; init; }
+        public SparseFragments.Blazor.SparseConflictFallbackMode Fallback { get; init; }
+        public System.Func<SparseFragments.SparseConflict, string>? MessageFactory { get; init; }
+        public string GetMessage(SparseFragments.SparseConflict conflict) { }
+    }
     public static class SparseEditSessionExtensions
     {
         public static void AcceptChanges<TModel>(this SparseFragments.ISparseEditSession<TModel> session, Microsoft.AspNetCore.Components.Forms.EditContext editContext)
