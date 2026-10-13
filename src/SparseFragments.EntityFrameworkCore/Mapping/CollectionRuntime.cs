@@ -229,6 +229,13 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     public LambdaExpression? OrderSelectorExpression { get; private set; }
 
     /// <summary>Restores prior identities and assigns keys for created entities in this scope.</summary>
+    /// <remarks>
+    /// Validates the complete correlation and stages every required assignment
+    /// across this collection before mutating any authoritative DTO. Nested
+    /// scopes recurse during the apply phase; a nested failure rolls back
+    /// through the ambient <see cref="TemporaryKeyStagingScope" /> opened by the
+    /// mapper entry point, so no earlier member stays modified.
+    /// </remarks>
     public void AssignTemporaryKeys(
         DbContext context,
         IEnumerable<TDtoChild>? baseline,
@@ -243,52 +250,198 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         var collectionPath = string.IsNullOrEmpty(parentPath) ? DtoName : $"{parentPath}.{DtoName}";
+        // First pass: validate everything and stage assignments without mutation,
+        // so deterministic mapping failures surface before earlier items change.
+        var staged = StageTemporaryAssignments(
+            context,
+            baseline,
+            authoritative,
+            result,
+            collectionPath
+        );
+        // Second pass: apply staged values, then recurse into nested scopes.
+        var journal = TemporaryKeyStagingScope.Current;
+        foreach (var assignment in staged)
+        {
+            if (assignment.Temporary.HasValue)
+            {
+                var current = TemporaryGetter?.Invoke(assignment.Item);
+                if (current != assignment.Temporary)
+                {
+                    var original = current;
+                    var target = assignment.Item;
+                    journal?.Record(() => RestoreTemporaryKey(target, original));
+                    SetTemporaryKey(target, assignment.Temporary.Value, collectionPath);
+                }
+            }
+
+            ChildPlan.AssignTemporaryKeys(
+                context,
+                assignment.BaselineItem,
+                assignment.Item,
+                result,
+                assignment.ItemPath
+            );
+        }
+    }
+
+    /// <summary>One validated temporary-key assignment plus its nested correlation.</summary>
+    private sealed record StagedTemporaryAssignment
+    {
+        /// <summary>Gets the authoritative DTO element to update.</summary>
+        public required TDtoChild Item { get; init; }
+
+        /// <summary>Gets the staged temporary identity, when one is required.</summary>
+        public required Guid? Temporary { get; init; }
+
+        /// <summary>Gets the baseline element for nested correlation, when known.</summary>
+        public required TDtoChild? BaselineItem { get; init; }
+
+        /// <summary>Gets the nested DTO path for child scopes.</summary>
+        public required string ItemPath { get; init; }
+    }
+
+    /// <summary>Validates complete correlation and stages assignments without mutation.</summary>
+    /// <remarks>
+    /// Baseline survivors keep their prior temporary identity, created rows
+    /// take the result temporary (which wins when both match), and correlation
+    /// runs only on stable keys and temporaries: never by collection index.
+    /// Removed baseline rows simply have no authoritative match and stay
+    /// ignored, while every created row must reconcile or fail explicitly.
+    /// </remarks>
+    private List<StagedTemporaryAssignment> StageTemporaryAssignments(
+        DbContext context,
+        IEnumerable<TDtoChild>? baseline,
+        IEnumerable<TDtoChild> authoritative,
+        SparseEntityApplyResult result,
+        string collectionPath
+    )
+    {
         var baselineByKey = new Dictionary<object, TDtoChild>(KeyComparer);
         if (baseline is not null)
         {
             foreach (var item in baseline)
             {
                 var key = DtoKey(item);
-                if (key is not null)
+                if (key is null)
                 {
-                    baselineByKey.TryAdd(key, item);
+                    continue;
+                }
+
+                if (!baselineByKey.TryAdd(key, item) && !IsUnassigned(key))
+                {
+                    throw new SparseEntityMappingException(
+                        SparseEntityMappingFailure.CollectionKeyConflict,
+                        collectionPath,
+                        $"Two baseline rows under '{collectionPath}' share one assigned identity. Baseline identities must be unique within one collection scope."
+                    );
                 }
             }
         }
 
+        var scopeKeys = result.GetCreatedScopeKeys(collectionPath);
         var createdByKey = new Dictionary<object, (TEntityChild Entity, string ScopeKey)>(
             KeyComparer
         );
-        foreach (var scope in result.GetCreatedScopeKeys(collectionPath))
+        foreach (var scope in scopeKeys)
         {
             if (scope.Key is not TEntityChild entity)
             {
-                continue;
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.MetadataMismatch,
+                    collectionPath,
+                    $"The apply result under '{collectionPath}' records a created entity of an unexpected type. The result is inconsistent with this collection and cannot be reconciled."
+                );
             }
 
             var key = EntityKey(context, entity);
-            if (key is not null)
+            if (key is null || IsUnassigned(key))
             {
-                createdByKey.TryAdd(key, (entity, scope.Value));
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyNotFound,
+                    collectionPath,
+                    $"A created child under '{collectionPath}' has no generated permanent key. Call AssignTemporaryKeys after SaveChanges so database-generated keys are available for correlation."
+                );
+            }
+
+            if (!createdByKey.TryAdd(key, (entity, scope.Value)))
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyConflict,
+                    collectionPath,
+                    $"Two created children under '{collectionPath}' share one assigned identity. Created identities must be unique within one collection scope."
+                );
             }
         }
 
         var temporaryByEntity = new Dictionary<object, Guid>(ReferenceEqualityComparer.Instance);
         foreach (var temporary in result.GetCreated(collectionPath))
         {
-            temporaryByEntity[temporary.Value] = temporary.Key;
+            if (temporary.Value is not TEntityChild entity)
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.MetadataMismatch,
+                    collectionPath,
+                    $"The apply result under '{collectionPath}' records a temporary identity for an unexpected entity type. The result is inconsistent with this collection and cannot be reconciled."
+                );
+            }
+
+            if (!scopeKeys.ContainsKey(entity))
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.MetadataMismatch,
+                    collectionPath,
+                    $"The apply result under '{collectionPath}' records a temporary identity with no matching scope record. The result is inconsistent and cannot be reconciled."
+                );
+            }
+
+            if (!temporaryByEntity.TryAdd(entity, temporary.Key))
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.Ambiguous,
+                    collectionPath,
+                    $"One created child under '{collectionPath}' carries two temporary identities. Each created child must resolve to exactly one temporary identity."
+                );
+            }
         }
 
+        var staged = new List<StagedTemporaryAssignment>();
+        var assignedKeys = new HashSet<object>(KeyComparer);
+        var assignedTemporaries = new HashSet<Guid>();
         var index = 0;
         foreach (var item in authoritative)
         {
             var key = DtoKey(item);
+            if (key is not null && !IsUnassigned(key) && !assignedKeys.Add(key))
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyConflict,
+                    collectionPath,
+                    $"Two authoritative rows under '{collectionPath}' share one assigned identity. Authoritative identities must be unique within one collection scope; correlation never guesses by collection index."
+                );
+            }
+
+            var currentTemporary = TemporaryGetter?.Invoke(item);
+            if (
+                currentTemporary is not null
+                && currentTemporary != Guid.Empty
+                && !assignedTemporaries.Add(currentTemporary.Value)
+            )
+            {
+                throw new SparseEntityMappingException(
+                    SparseEntityMappingFailure.CollectionKeyConflict,
+                    collectionPath,
+                    $"Two authoritative rows under '{collectionPath}' share one temporary identity. Temporary identities must be unique within one collection scope."
+                );
+            }
+
+            Guid? planned = null;
             if (key is not null && baselineByKey.TryGetValue(key, out var prior))
             {
                 var priorTemporary = TemporaryGetter?.Invoke(prior);
                 if (priorTemporary is not null && priorTemporary != Guid.Empty)
                 {
-                    SetTemporaryKey(item, priorTemporary.Value, collectionPath);
+                    planned = priorTemporary.Value;
                 }
             }
 
@@ -305,7 +458,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 && temporaryByEntity.TryGetValue(createdEntity, out var createdTemporary)
             )
             {
-                SetTemporaryKey(item, createdTemporary, collectionPath);
+                planned = createdTemporary;
             }
 
             TDtoChild? baselineItem = null;
@@ -332,15 +485,55 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 childScopeKey = index.ToString();
             }
 
-            ChildPlan.AssignTemporaryKeys(
-                context,
-                baselineItem,
-                item,
-                result,
-                $"{collectionPath}[{childScopeKey}]"
+            staged.Add(
+                new StagedTemporaryAssignment
+                {
+                    Item = item,
+                    Temporary = planned,
+                    BaselineItem = baselineItem,
+                    ItemPath = $"{collectionPath}[{childScopeKey}]",
+                }
             );
             index++;
         }
+
+        var missing = createdByKey
+            .Where(created => !assignedKeys.Contains(created.Key))
+            .Select(static created => created.Key)
+            .FirstOrDefault();
+        if (missing is not null)
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.CollectionKeyNotFound,
+                collectionPath,
+                $"A created child under '{collectionPath}' has no matching authoritative row. Removed baseline rows are ignored, but every created row must reconcile with the authoritative DTO."
+            );
+        }
+
+        if (
+            TemporarySetter is null
+            && staged.Any(static assignment => assignment.Temporary.HasValue)
+        )
+        {
+            throw new SparseEntityMappingException(
+                SparseEntityMappingFailure.MetadataMismatch,
+                collectionPath,
+                $"The DTO element '{typeof(TDtoChild).Name}' declares [SparseTemporaryKey] but its property has no public setter."
+            );
+        }
+
+        return staged;
+    }
+
+    private void RestoreTemporaryKey(TDtoChild dto, Guid? original)
+    {
+        // Best effort rollback: without a setter there is nothing to restore.
+        if (TemporarySetter is null)
+        {
+            return;
+        }
+
+        TemporarySetter(dto, original);
     }
 
     /// <summary>Builds and validates the runtime for one parent collection.</summary>

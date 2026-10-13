@@ -80,6 +80,13 @@ public sealed class SparseEntityMapper<TEntity, TDto>
     /// Call after <c>SaveChanges</c>, when generated entity keys are available.
     /// Collection key projections configured with <c>Key()</c> are used for
     /// matching, and nested collection paths remain scoped to their parent.
+    /// Every required assignment across all nested collections is validated
+    /// before any authoritative DTO mutation: duplicate, missing, or ambiguous
+    /// correspondence fails with <see cref="SparseEntityMappingException" />
+    /// carrying the offending DTO/collection path and leaves the authoritative
+    /// DTO unmodified. Removed baseline rows are ignored, but every created
+    /// row must reconcile. When a user-defined temporary-key setter throws,
+    /// earlier staged assignments are rolled back before the error propagates.
     /// </remarks>
     /// <param name="context">The context used to read mapped entity keys.</param>
     /// <param name="result">The result returned by <see cref="ApplyWithResult(DbContext, TEntity, ISparseChangeSet{TDto})"/>.</param>
@@ -105,7 +112,20 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             );
         }
 
-        Plan.AssignTemporaryKeys(context, baseline, authoritative, result, string.Empty);
+        var staging = TemporaryKeyStagingScope.Begin();
+        try
+        {
+            Plan.AssignTemporaryKeys(context, baseline, authoritative, result, string.Empty);
+        }
+        catch
+        {
+            staging.Rollback();
+            throw;
+        }
+        finally
+        {
+            staging.Close();
+        }
     }
 
     /// <summary>
