@@ -156,7 +156,12 @@ public sealed partial class SparseFragmentsGenerator : IIncrementalGenerator
         EditSessionInterfaceMetadataName: "SparseFragments.ISparseEditSession",
         GeneratedImplementationNamespace: "SparseFragments.Generated",
         EmissionFeatures: new SparseEmissionFeatures(EmitFragmentOrigins: true),
-        EditSessionDialect: new SparseEditSessionDialect("SparseFragments.Generated"),
+        EditSessionDialect: new SparseEditSessionDialect(
+            "SparseFragments.Generated",
+            HistoryType: "global::SparseFragments.SparseEditHistory",
+            HistoryOptionsType: "global::SparseFragments.EditHistoryOptions",
+            HistoryHooksType: "global::SparseFragments.SparseEditHistoryHooks"
+        ),
         EditSessionModelAccessorInterfaceMetadataName: "SparseFragments.ISparseEditSessionModelAccessor",
         OpenDraftStateInterfaceMetadataName: "SparseFragments.ISparseEditSessionOpenDraftState",
         DescriptorDialect: new SparseDescriptorDialect(

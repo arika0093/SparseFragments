@@ -58,6 +58,12 @@ namespace SparseFragments
         public static bool TryParseKind(string? token, out SparseFragments.ChangePayloadItemKind kind) { }
         public static bool TryParseState(string? token, out SparseFragments.ChangePayloadState state) { }
     }
+    public sealed class EditHistoryOptions
+    {
+        public EditHistoryOptions() { }
+        public int MaxEntries { get; set; }
+    }
+    public delegate bool EditHistoryTryApply<TChangeSet>(TChangeSet changes, out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts);
     public sealed class EditSessionGroup
     {
         public EditSessionGroup() { }
@@ -519,6 +525,37 @@ namespace SparseFragments
         ResolvedUseIncoming = 2,
         ResolvedUseCurrent = 3,
         ResolvedCustom = 4,
+    }
+    public sealed class SparseEditHistoryHooks<TChangeSet>
+        where TChangeSet :  class
+    {
+        public SparseEditHistoryHooks() { }
+        public System.Func<TChangeSet, TChangeSet, TChangeSet>? Compose { get; set; }
+        public System.Func<TChangeSet, TChangeSet>? Invert { get; set; }
+        public System.Func<TChangeSet, bool>? IsEmpty { get; set; }
+        public System.Action<System.Action<TChangeSet>>? Subscribe { get; set; }
+        public SparseFragments.EditHistoryTryApply<TChangeSet>? TryApply { get; set; }
+        public System.Action<System.Action<TChangeSet>>? Unsubscribe { get; set; }
+    }
+    public sealed class SparseEditHistory<TChangeSet> : System.IDisposable
+        where TChangeSet :  class
+    {
+        public SparseEditHistory(SparseFragments.EditHistoryOptions? options, SparseFragments.SparseEditHistoryHooks<TChangeSet> hooks) { }
+        public bool CanRedo { get; }
+        public bool CanUndo { get; }
+        public int MaxEntries { get; }
+        public int RedoCount { get; }
+        public int UndoCount { get; }
+        public event System.Action? Disposed;
+        public System.IDisposable BeginGroup() { }
+        public void Clear() { }
+        public void Dispose() { }
+        public void Group(System.Action action) { }
+        public void OnTransition(TChangeSet changes) { }
+        public void Redo() { }
+        public bool TryRedo(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        public bool TryUndo(out System.Collections.Generic.IReadOnlyList<SparseFragments.SparseConflict>? conflicts) { }
+        public void Undo() { }
     }
     public enum SparseFieldChangeKind
     {

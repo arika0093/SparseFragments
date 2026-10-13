@@ -110,6 +110,12 @@ internal static class SparseRelocatedEditSessionCore
                 + ".Fragment.From(updated).__SparseWriteWritableTo(current)";
         var conflictType = patchDialect.ConflictType;
         var rebaseResultType = patchDialect.RebaseResult(modelType + ".ChangeSet");
+        var hasHistory = SparseEditSessionHistoryEmitter.TryGetHistoryTypes(
+            config,
+            out var historyType,
+            out var historyOptionsType,
+            out var historyHooksType
+        );
         // A same-named member pushes the session behind a Sparse prefix,
         // mirroring observable/view collision resolution.
         var sessionSimple = SparseGeneratedPlacement.ResolveUiTypeName(
@@ -281,100 +287,15 @@ internal static class SparseRelocatedEditSessionCore
                 + modelType
                 + ".ChangeSet changes) => _session.ApplyInPlace(changes);"
         );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Reverts pending changes to the retained baseline.</summary>"
-        );
-        code.AppendLineAt(2, "public void RevertChanges() => _session.RevertChanges();");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Reverts the current model to its retained baseline when possible in place.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"conflicts\">Structured conflicts when the pending changes cannot be reverted in place.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns><see langword=\"true\"/> when the model was reverted; otherwise <see langword=\"false\"/>.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryRevertChanges(out global::System.Collections.Generic.IReadOnlyList<"
-                + conflictType
-                + ">? conflicts) => _session.TryRevertChanges(out conflicts);"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Reloads the session around the given server state, preserving local edits.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"serverState\">The authoritative server state.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns>The rebase outcome with the rebased change set.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public "
-                + rebaseResultType
-                + " Reload("
-                + modelType
-                + " serverState) => _session.Reload(serverState);"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Accepts the pending changes and advances the baseline.</summary>"
-        );
-        code.AppendLineAt(2, "public void AcceptChanges() => _session.AcceptChanges();");
-        code.AppendLineAt(
-            2,
-            "/// <summary>Accepts the given change set and advances the baseline.</summary>"
-        );
-        code.AppendLineAt(2, "/// <param name=\"changes\">The change set to accept.</param>");
-        code.AppendLineAt(
-            2,
-            "public void AcceptChanges("
-                + modelType
-                + ".ChangeSet changes) => _session.AcceptChanges(changes);"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Reconciles a submitted change set with the authoritative persisted model.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"submitted\">The submitted transition to acknowledge.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"persisted\">The authoritative persisted model.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"error\">The failure reason, or null on success.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns><see langword=\"true\"/> on success; otherwise <see langword=\"false\"/>.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryReconcile("
-                + modelType
-                + ".ChangeSet submitted, "
-                + modelType
-                + " persisted, out string? error) => _session.TryReconcile(submitted, persisted, static (s, p) => "
-                + modelType
-                + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
-                + modelType
-                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
+        SparseEditSessionHistoryEmitter.AppendLifecycleMembers(
+            code,
+            modelType,
+            conflictType,
+            rebaseResultType,
+            hasHistory,
+            historyType,
+            historyOptionsType,
+            historyHooksType
         );
         // Raw model access bypasses the change cache, so it is exposed only
         // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
@@ -433,6 +354,12 @@ internal static class SparseRelocatedEditSessionCore
                 + ", Invert = static changes => changes.Invert(), Rebase = static (changes, server) => changes.RebaseOnto(server), EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(), RefreshObservable = static observable => observable.__SparseRefresh(), BaselineToModel = static fragment => fragment.ToModel() };"
         );
         code.AppendLineAt(2, "private readonly " + core + " _session;");
+        SparseEditSessionHistoryEmitter.AppendHistoryFields(
+            code,
+            modelType,
+            hasHistory,
+            historyType
+        );
         if (
             config.DescriptorDialect is { } descriptorsDialect
             && config.EffectiveEmissionFeatures.EmitObservable

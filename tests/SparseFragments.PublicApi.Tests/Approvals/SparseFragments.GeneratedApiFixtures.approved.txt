@@ -1358,6 +1358,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -1621,6 +1622,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogImmutable.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -1852,6 +1854,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -2091,6 +2094,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -2352,6 +2356,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogNested.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -2618,6 +2623,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogReservedEnumeration.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }
@@ -2874,6 +2880,7 @@ namespace SparseFragments.GeneratedApiFixtures
             public void BatchEdit(System.Action edit) { }
             public SparseFragments.SparseCollectionState CollectionState(SparseFragments.SparsePath collectionPath) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
+            public SparseFragments.SparseEditHistory<SparseFragments.GeneratedApiFixtures.CatalogScalar.ChangeSet> CreateHistory(SparseFragments.EditHistoryOptions? options = null) { }
             public SparseFragments.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
             public System.Collections.Generic.IReadOnlyList<SparseFragments.SparsePath> EnumerateChangedPaths() { }
             public SparseFragments.SparseFieldState<object?> FieldState(SparseFragments.SparsePath path) { }

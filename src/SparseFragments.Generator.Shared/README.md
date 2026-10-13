@@ -293,6 +293,15 @@ records with missing versus present-null endpoints preserved. Leave
 state types keep byte-identical output. Shared never names a `SparseFragments`
 runtime type; every state name arrives through the record.
 
+`SparseEditSessionDialect` optionally binds an opt-in history surface through
+`HistoryType`, `HistoryOptionsType`, and `HistoryHooksType`. When all three
+name caller-owned types, each generated session gains a typed `CreateHistory`
+factory that wires the concrete change set (`IsEmpty`, `Invert`, `Compose`,
+in-place apply, transition subscription) into the reusable history core, plus
+baseline-lifecycle invalidation that clears registered histories only after
+`AcceptChanges`, `Reload`, `TryReconcile`, or `RevertChanges` succeeds. Leave
+any entry null to keep sessions byte-identical without the factory.
+
 Outside `BatchEdit`, observable edits validate and publish their transitions
 immediately; a batch publishes its net transition at exit. The baseline
 comparison for `HasChanges` is deferred until its first read after an edit,

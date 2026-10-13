@@ -30,6 +30,8 @@ public sealed class SparseFragmentsApiAudienceTests
         "SparseFragments.EditSessionStaleSubmissionException",
         "SparseFragments.EditSessionSubmissionEntry`1",
         "SparseFragments.EditSessionSubmittedSection",
+        "SparseFragments.EditHistoryOptions",
+        "SparseFragments.SparseEditHistory`1",
         "SparseFragments.MergeMode",
         "SparseFragments.SparseFragmentModelAttribute",
         "SparseFragments.SparseIgnoreAttribute",

@@ -391,12 +391,18 @@ internal sealed record SparseEditSessionDialect
     public SparseEditSessionDialect(
         string Namespace,
         string CoreHintName = "Generated.EditSessionCore.g.cs",
-        string CurrentCoreHintName = "Generated.EditSessionWithCurrentCore.g.cs"
+        string CurrentCoreHintName = "Generated.EditSessionWithCurrentCore.g.cs",
+        string? HistoryType = null,
+        string? HistoryOptionsType = null,
+        string? HistoryHooksType = null
     )
     {
         this.Namespace = Namespace;
         this.CoreHintName = CoreHintName;
         this.CurrentCoreHintName = CurrentCoreHintName;
+        this.HistoryType = HistoryType;
+        this.HistoryOptionsType = HistoryOptionsType;
+        this.HistoryHooksType = HistoryHooksType;
     }
 
     /// <summary>Namespace containing the generated edit-session helper types.</summary>
@@ -407,6 +413,26 @@ internal sealed record SparseEditSessionDialect
 
     /// <summary>Hint name for the generated current-view edit-session helper source.</summary>
     public string CurrentCoreHintName { get; init; }
+
+    /// <summary>Optional opt-in history type, or null when history is not emitted.</summary>
+    /// <remarks>
+    /// Product-owned reusable history core (for example
+    /// <c>global::SparseFragments.SparseEditHistory</c>). Null keeps sessions
+    /// byte-identical without any history factory.
+    /// </remarks>
+    public string? HistoryType { get; init; }
+
+    /// <summary>Optional history options type, or null when history is not emitted.</summary>
+    public string? HistoryOptionsType { get; init; }
+
+    /// <summary>Optional history hooks type, or null when history is not emitted.</summary>
+    public string? HistoryHooksType { get; init; }
+
+    /// <summary>Whether the dialect carries a complete history binding.</summary>
+    public bool HasHistory =>
+        HistoryType is { Length: > 0 }
+        && HistoryOptionsType is { Length: > 0 }
+        && HistoryHooksType is { Length: > 0 };
 }
 
 internal sealed record SparseDescriptorDialect

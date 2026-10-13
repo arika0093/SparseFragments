@@ -167,6 +167,38 @@ public sealed class GeneratedApiApprovalTests
     }
 
     [Test]
+    public void EditSessionExposesCreateHistoryFactory()
+    {
+        // Issue #252: each generated session offers a typed opt-in history
+        // factory bound to its own change set, without reflection.
+        foreach (var model in FixtureModels)
+        {
+            var session = AssertNested(model, "EditSession");
+            var factory = session.GetMethod(
+                "CreateHistory",
+                BindingFlags.Public | BindingFlags.Instance
+            );
+            factory.ShouldNotBeNull($"Expected {model.Name}.EditSession.CreateHistory.");
+            factory!.ReturnType.IsGenericType.ShouldBeTrue();
+            factory
+                .ReturnType.GetGenericTypeDefinition()
+                .ShouldBe(typeof(SparseFragments.SparseEditHistory<>));
+            factory.ReturnType.GetGenericArguments()[0].ShouldBe(model.GetNestedType("ChangeSet"));
+            var options = factory.GetParameters();
+            options.Length.ShouldBe(1);
+            options[0].ParameterType.ShouldBe(typeof(SparseFragments.EditHistoryOptions));
+            options[0].HasDefaultValue.ShouldBeTrue();
+        }
+
+        // The factory result supports the documented undo/redo surface.
+        var scalarHistory = new CatalogScalar().CreateEditSession().CreateHistory();
+        scalarHistory.CanUndo.ShouldBeFalse();
+        scalarHistory.CanRedo.ShouldBeFalse();
+        scalarHistory.MaxEntries.ShouldBeGreaterThan(0);
+        scalarHistory.Dispose();
+    }
+
+    [Test]
     public void PayloadImplementationDtosAreGroupedAndHiddenFromIntelliSense()
     {
         // Stage 3 (#192): typed DTOs live in the per-model implementation
