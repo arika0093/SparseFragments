@@ -1,5 +1,4 @@
-using SparseFragments;
-using SparseFragments.Playground.Models;
+using SparseFragments.Generated;
 
 namespace SparseFragments.Playground.Pages;
 
@@ -18,19 +17,20 @@ internal static class PlaygroundPageHelper
         }
     }
 
-    internal static string ChangeOperation(PlaygroundRoster.ChangeSet.ChangeKind kind) =>
+    // Audit (#256): Cases 3-5 each mapped their own per-model ChangeKind plus a
+    // Missing-to-"—" format. Tables now project ISparseChangeSet records through
+    // SparseChangeRowProjection, so one mapping over the model-independent kind
+    // covers every case; value text stays with each case's JSON hook.
+    internal static string ChangeOperation(SparseChangeKind kind) =>
         kind switch
         {
-            PlaygroundRoster.ChangeSet.ChangeKind.Changed => "Edit",
-            PlaygroundRoster.ChangeSet.ChangeKind.Added => "Add",
-            PlaygroundRoster.ChangeSet.ChangeKind.Removed => "Remove",
-            PlaygroundRoster.ChangeSet.ChangeKind.Order => "Order",
+            SparseChangeKind.Changed => "Edit",
+            SparseChangeKind.Added => "Add",
+            SparseChangeKind.Removed => "Remove",
+            SparseChangeKind.Order => "Order",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
     internal static string ChangeOperationClass(string operation) =>
         $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
-
-    internal static string FormatRosterValue(Optional<object?> value) =>
-        value.IsPresent ? PlaygroundJson.FormatChangeValue(value.Value) : "—";
 }

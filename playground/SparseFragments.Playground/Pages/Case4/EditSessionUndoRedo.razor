@@ -350,6 +350,11 @@
         await _submitDialog.ShowAsync();
     }
 
+    // Audit (#256): this preview intentionally stays a live-model diff instead
+    // of projecting ChangeSet records. It renders bespoke task summaries and
+    // groups operations (Add, Remove, Edit, Order) with unquoted key targets
+    // such as Tasks[t1].Title, which differ from the wire PathText the shared
+    // projection reports. Keep the duplication; do not "unify" it.
     private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
     {
         var changes = new List<(string Target, string Operation, string Before, string After)>();
@@ -567,11 +572,19 @@
 
     private void AppendChanges(PlaygroundSettings.ChangeSet changes)
     {
-        var entries = changes.EnumerateChanges()
-            .Select(static entry => (
-                Path: entry.PathText,
-                Before: OneLine(FormatValue(entry.Before)),
-                After: OneLine(FormatValue(entry.After))
+        var entries = SparseChangeRowProjection.Project(
+                changes,
+                new SparseChangeRowOptions
+                {
+                    // The log predates the shared table and marks gaps
+                    // "(missing)"; keep its wording instead of unifying on "—".
+                    MissingText = "(missing)",
+                    FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
+                })
+            .Select(static row => (
+                Path: row.PathText,
+                Before: OneLine(row.BeforeText),
+                After: OneLine(row.AfterText)
             ))
             .OrderBy(static entry => entry.Path, StringComparer.Ordinal)
             .ToArray();
@@ -597,16 +610,6 @@
         value.Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal)
             .Replace("\t", "\\t", StringComparison.Ordinal);
-
-    private static string FormatValue(Optional<object?> value)
-    {
-        if (!value.IsPresent)
-        {
-            return "(missing)";
-        }
-
-        return PlaygroundJson.FormatChangeValue(value.Value);
-    }
 
     private sealed record LogEntry(string Time, string Change);
 }

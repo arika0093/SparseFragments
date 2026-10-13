@@ -130,7 +130,7 @@
                                 {
                                     <tr>
                                         <td><span class="pg-change-value">@row.Entity</span></td>
-                                        <td><span class="@PlaygroundEfPresentation.ChangeOperationClass(PlaygroundEfPresentation.EfStateOperation(row.State))">@PlaygroundEfPresentation.EfStateOperation(row.State)</span></td>
+                                        <td><span class="@PlaygroundPageHelper.ChangeOperationClass(PlaygroundEfPresentation.EfStateOperation(row.State))">@PlaygroundEfPresentation.EfStateOperation(row.State)</span></td>
                                         <td><span class="pg-change-value">@row.Property</span></td>
                                         <td><span class="pg-change-value">@row.Before</span></td>
                                         <td><span class="pg-change-value">@row.After</span></td>
@@ -170,10 +170,10 @@
                         @foreach (var row in _changeRows)
                         {
                             <tr>
-                                <td><span class="@PlaygroundEfPresentation.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                <td><span class="pg-change-value">@row.Path</span></td>
-                                <td><span class="pg-change-value">@row.Before</span></td>
-                                <td><span class="pg-change-value">@row.After</span></td>
+                                <td><span class="@PlaygroundPageHelper.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
+                                <td><span class="pg-change-value">@row.PathText</span></td>
+                                <td><span class="pg-change-value">@row.BeforeText</span></td>
+                                <td><span class="pg-change-value">@row.AfterText</span></td>
                             </tr>
                         }
                     </tbody>
@@ -220,7 +220,7 @@
     private bool _saveDialogHidden = true;
     private bool _conflictVisible;
     private string _conflictSummary = string.Empty;
-    private List<(string Operation, string Path, string Before, string After)> _changeRows = [];
+    private IReadOnlyList<SparseChangeRow> _changeRows = [];
     private List<(string Entity, string State, string Property, string Before, string After)> _modifiedRows = [];
     private PlaygroundOrderDto.ChangeSet? _pendingChanges;
     private PlaygroundOrderDto? _pendingDraft;
@@ -400,14 +400,13 @@
         try
         {
             _changes = _baseline.CreateChangeSet(_draft);
-            _changeRows = _changes
-                .EnumerateChanges()
-                .Select(static change => (
-                    Operation: PlaygroundEfPresentation.ChangeOperation(change.Kind),
-                    Path: change.PathText,
-                    Before: PlaygroundEfPresentation.FormatChangeValue(change.Before),
-                    After: PlaygroundEfPresentation.FormatChangeValue(change.After)))
-                .ToList();
+            _changeRows = SparseChangeRowProjection.Project(
+                _changes,
+                new SparseChangeRowOptions
+                {
+                    FormatOperation = PlaygroundPageHelper.ChangeOperation,
+                    FormatValue = static value => PlaygroundOrderJson.FormatValue(value),
+                });
         }
         catch (Exception ex)
         {

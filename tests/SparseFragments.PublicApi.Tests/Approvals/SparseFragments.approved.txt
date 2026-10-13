@@ -414,6 +414,34 @@ namespace SparseFragments
         public SparseFragments.SparseConflict Conflict { get; }
         public SparseFragments.Optional<object?> Desired { get; }
     }
+    public sealed class SparseChangeRow : System.IEquatable<SparseFragments.SparseChangeRow>
+    {
+        public SparseChangeRow() { }
+        public SparseFragments.Optional<object?> After { get; init; }
+        public string AfterText { get; init; }
+        public SparseFragments.Optional<object?> Before { get; init; }
+        public string BeforeText { get; init; }
+        public SparseFragments.Generated.SparseChangeKind Kind { get; init; }
+        public string Operation { get; init; }
+        public SparseFragments.SparsePath Path { get; init; }
+        public string PathText { get; init; }
+    }
+    public sealed class SparseChangeRowOptions : System.IEquatable<SparseFragments.SparseChangeRowOptions>
+    {
+        public SparseChangeRowOptions() { }
+        public System.Func<System.Exception, string>? FormatError { get; init; }
+        public System.Func<SparseFragments.Generated.SparseChangeKind, string>? FormatOperation { get; init; }
+        public System.Func<object?, string>? FormatValue { get; init; }
+        public string MissingText { get; init; }
+        public string GetErrorText(System.Exception exception) { }
+        public string GetOperation(SparseFragments.Generated.SparseChangeKind kind) { }
+        public string GetValueText(SparseFragments.Optional<object?> value) { }
+    }
+    public static class SparseChangeRowProjection
+    {
+        public static System.Collections.Generic.IReadOnlyList<SparseFragments.SparseChangeRow> Project(SparseFragments.ISparseChangeSet changes, SparseFragments.SparseChangeRowOptions? options = null) { }
+        public static System.Collections.Generic.IReadOnlyList<SparseFragments.SparseChangeRow> Project(System.Collections.Generic.IReadOnlyList<SparseFragments.Generated.SparseChangeRecord> records, SparseFragments.SparseChangeRowOptions? options = null) { }
+    }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
     {

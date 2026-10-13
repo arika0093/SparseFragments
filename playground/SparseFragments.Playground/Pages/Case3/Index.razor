@@ -68,9 +68,9 @@
                                                 {
                                                     <tr>
                                                         <td><span class="@PlaygroundPageHelper.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                                        <td><span class="pg-change-value">@row.Path</span></td>
-                                                        <td><span class="pg-change-value">@row.Before</span></td>
-                                                        <td><span class="pg-change-value">@row.After</span></td>
+                                                        <td><span class="pg-change-value">@row.PathText</span></td>
+                                                        <td><span class="pg-change-value">@row.BeforeText</span></td>
+                                                        <td><span class="pg-change-value">@row.AfterText</span></td>
                                                     </tr>
                                                 }
                                             </tbody>
@@ -147,21 +147,21 @@
         return PlaygroundSnippets.RosterManualPatchCSharp("patch", _rosterChanges);
     }
 
-    private IReadOnlyList<(string Operation, string Path, string Before, string After)> BuildRosterChangeRows()
+    private IReadOnlyList<SparseChangeRow> BuildRosterChangeRows()
     {
         if (_rosterChanges is null)
         {
             return [];
         }
 
-        return _rosterChanges.EnumerateChanges()
-            .Select(static change => (
-                Operation: PlaygroundPageHelper.ChangeOperation(change.Kind),
-                Path: change.PathText,
-                Before: PlaygroundPageHelper.FormatRosterValue(change.Before),
-                After: PlaygroundPageHelper.FormatRosterValue(change.After)
-            ))
-            .ToArray();
+        return SparseChangeRowProjection.Project(
+            _rosterChanges,
+            new SparseChangeRowOptions
+            {
+                FormatOperation = PlaygroundPageHelper.ChangeOperation,
+                FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
+            }
+        );
     }
 
     private void RefreshRosterChanges()

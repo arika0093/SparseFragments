@@ -70,19 +70,13 @@ internal static class PlaygroundEfPresentation
         return rows;
     }
 
-    internal static string ChangeOperation(PlaygroundOrderDto.ChangeSet.ChangeKind kind) =>
-        kind switch
-        {
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Changed => "Edit",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Added => "Add",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Removed => "Remove",
-            PlaygroundOrderDto.ChangeSet.ChangeKind.Order => "Order",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-        };
-
-    internal static string ChangeOperationClass(string operation) =>
-        $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
-
+    // Audit (#256): the ChangeSet save-preview table projects through
+    // SparseChangeRowProjection with the shared PlaygroundPageHelper operation
+    // mapping, so the per-model ChangeKind switch and the CSS class helper that
+    // duplicated it are gone. EfStateOperation stays: EntityState rows are EF
+    // entries, not change records, so they keep their own mapping.
+    // FormatChangeValue stays too: rebase conflict endpoints are SparseConflict
+    // values, a different record type the row projection does not cover.
     internal static string FormatChangeValue(Optional<object?> value) =>
         value.IsPresent ? PlaygroundOrderJson.FormatValue(value.Value) : "—";
 
