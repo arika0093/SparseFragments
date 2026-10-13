@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using SparseTypes;
 
 // Compile-checked mirrors of docs/change-payload.md (#198).
@@ -77,6 +79,34 @@ public static class ChangePayloadDocsSamples
             WireSettings.Patch.Between(setAddRestored.ToPatch().Apply(setAddBefore), setAddAfter)
                 .IsEmpty,
             "deserialized addition replays the transition"
+        );
+
+        // sample: payload-context
+        var contextOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = JsonTypeInfoResolver.Combine(
+                WirePayloadContext.Default,
+                new DefaultJsonTypeInfoResolver()
+            ),
+        };
+        var contextJson = JsonSerializer.Serialize(setPayload, contextOptions);
+        var contextRestored = JsonSerializer
+            .Deserialize<WireSettings.ChangePayload>(contextJson, contextOptions)!
+            .ToChangeSet();
+        // contextRestored.ToPatch().Apply(setBefore) replays setAfter
+        // /sample
+        DocsCheck.Require(
+            WirePayloadContext.Default.GetTypeInfo(typeof(string)) is not null
+                && WirePayloadContext.Default.GetTypeInfo(typeof(int)) is not null,
+            "endpoint value types resolve through context metadata"
+        );
+        DocsCheck.Require(
+            WirePayloadContext.Default.GetTypeInfo(typeof(WireSettings.ChangePayload)) is null,
+            "generated payloads resolve downstream; same-assembly contexts cover value types only"
+        );
+        DocsCheck.Require(
+            WireSettings.Patch.Between(contextRestored.ToPatch().Apply(setBefore), setAfter).IsEmpty,
+            "resolver-based serialization replays the transition"
         );
     }
 
@@ -514,6 +544,14 @@ public static class ChangePayloadDocsSamples
         DocsCheck.Require(versionRejected == 2, "unknown version rejected on every path");
     }
 }
+
+// Source-generated metadata for the context sample: the endpoint value types
+// the payload carries. Generated payload DTOs cannot be registered here (a
+// context only sees types that exist before generation runs); fully trimmed
+// builds declare the context downstream of the models instead.
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(int))]
+internal sealed partial class WirePayloadContext : JsonSerializerContext { }
 
 // sample: payload-models
 [SparseModel]

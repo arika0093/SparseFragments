@@ -153,4 +153,74 @@ public sealed class ChangePayloadWireTests
             )
         );
     }
+
+    [Test]
+    public void BridgeRoundTripsEveryEndpointState()
+    {
+        var container = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
+        var converterType = container
+            .GetNestedTypes()
+            .Single(static type => type.Name == "ChangePayloadEndpointJsonConverter`1")
+            .MakeGenericType(typeof(string));
+        var options = new JsonSerializerOptions();
+        options.Converters.Add((JsonConverter)Activator.CreateInstance(converterType)!);
+
+        // Scalar, keyed, dictionary, and nested round-trips live in
+        // ChangePayloadTests; redaction round-trips live in
+        // ChangePayloadRedactionTests. This pins the bridge token matrix only.
+        foreach (var state in Enum.GetValues<ChangePayloadState>())
+        {
+            var token = ChangePayloadWire.ToToken(state);
+            var endpoint = JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>(
+                "{\"state\":\"" + token + "\",\"value\":null}",
+                options
+            )!;
+            endpoint.State.ShouldBe(state);
+
+            var json = JsonSerializer.Serialize(endpoint, options);
+            json.ShouldContain("\"state\":\"" + token + "\"");
+        }
+    }
+
+    [Test]
+    public void BridgeDefaultsMissingEndpointMembers()
+    {
+        var container = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
+        var converterType = container
+            .GetNestedTypes()
+            .Single(static type => type.Name == "ChangePayloadEndpointJsonConverter`1")
+            .MakeGenericType(typeof(string));
+        var options = new JsonSerializerOptions();
+        options.Converters.Add((JsonConverter)Activator.CreateInstance(converterType)!);
+
+        var empty = JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>("{}", options)!;
+        empty.State.ShouldBe(ChangePayloadState.Missing);
+        empty.Value.ShouldBeNull();
+    }
+
+    [Test]
+    public void BridgeRoundTripsEveryItemKindAndRejectsUnknownTokens()
+    {
+        var container = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
+        var converterType = container
+            .GetNestedTypes()
+            .Single(static type => type.Name == "ChangePayloadItemKindJsonConverter");
+        var options = new JsonSerializerOptions();
+        options.Converters.Add((JsonConverter)Activator.CreateInstance(converterType)!);
+
+        foreach (var kind in Enum.GetValues<ChangePayloadItemKind>())
+        {
+            var token = ChangePayloadWire.ToToken(kind);
+            var json = JsonSerializer.Serialize(kind, options);
+            json.ShouldBe("\"" + token + "\"");
+            JsonSerializer.Deserialize<ChangePayloadItemKind>(json, options).ShouldBe(kind);
+        }
+
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<ChangePayloadItemKind>("\"bogus\"", options)
+        );
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<ChangePayloadItemKind>("null", options)
+        );
+    }
 }

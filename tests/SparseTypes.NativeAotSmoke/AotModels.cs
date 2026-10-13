@@ -76,6 +76,7 @@ public partial class AotServerHolder
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(AotOrderStatus))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(AotServer))]
