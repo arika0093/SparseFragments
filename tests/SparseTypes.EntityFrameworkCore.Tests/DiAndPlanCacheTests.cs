@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>DI registration and per-model plan caching tests.</summary>
-public sealed class DiAndPlanCacheTests
+public sealed partial class DiAndPlanCacheTests
 {
     /// <summary>Counts mapper configuration calls made while plans are built.</summary>
     public sealed class PlanBuildProbe
@@ -20,8 +20,8 @@ public sealed class DiAndPlanCacheTests
     }
 
     /// <summary>A widget mapping whose constructor dependency proves DI activation.</summary>
-    [SparseFragmentMapper]
-    public sealed class DiWidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+    [SparseFragmentMapper<WidgetEntity, WidgetDto>]
+    public sealed partial class DiWidgetMapper
     {
         private readonly PlanBuildProbe _probe;
 
@@ -34,14 +34,13 @@ public sealed class DiAndPlanCacheTests
         /// <summary>Gets the injected configuration probe.</summary>
         public PlanBuildProbe Probe => _probe;
 
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+        private void Configure()
         {
             _probe.RecordConfiguration();
-            map.Ignore(dto => dto.Id);
-            map.Read(dto => dto.Id, entity => entity.Id);
-            map.Ignore(dto => dto.RowVersion);
-            map.Ignore(dto => dto.Display);
+            Map.Ignore(dto => dto.Id);
+            Map.Read(dto => dto.Id, entity => entity.Id);
+            Map.Ignore(dto => dto.RowVersion);
+            Map.Ignore(dto => dto.Display);
         }
     }
 

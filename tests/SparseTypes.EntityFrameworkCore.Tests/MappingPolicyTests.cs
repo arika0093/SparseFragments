@@ -3,7 +3,7 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>Failure and policy behavior: missing, null, unmapped, ambiguous, and protected paths.</summary>
-public sealed class MappingPolicyTests
+public sealed partial class MappingPolicyTests
 {
     public sealed class ValidationErrorsDto
     {
@@ -14,14 +14,13 @@ public sealed class MappingPolicyTests
         public string Unmapped { get; set; } = string.Empty;
     }
 
-    [SparseFragmentMapper]
-    public sealed class ValidationErrorsMapper
-        : IEntityModelMapping<WidgetEntity, ValidationErrorsDto>
+    [SparseFragmentMapper<WidgetEntity, ValidationErrorsDto>]
+    public sealed partial class ValidationErrorsMapper
     {
-        public void Configure(SparseEntityMapBuilder<WidgetEntity, ValidationErrorsDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Id, entity => entity.Id);
-            map.Member(dto => dto.WrongType, entity => entity.DueDate);
+            Map.Member(dto => dto.Id, entity => entity.Id);
+            Map.Member(dto => dto.WrongType, entity => entity.DueDate);
         }
     }
 
@@ -124,20 +123,20 @@ public sealed class MappingPolicyTests
     }
 
     /// <summary>Order mapping with a per-member missing policy for notes.</summary>
-    [SparseFragmentMapper]
-    public sealed class OrderPermissiveMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class OrderPermissiveMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -145,26 +144,26 @@ public sealed class MappingPolicyTests
                     child.Ignore(address => address.City);
                 }
             );
-            map.Ignore(dto => dto.Lines);
-            map.OnMissing(dto => dto.Notes, SparseEntityMissingPolicy.SetNull);
+            Map.Ignore(dto => dto.Lines);
+            Map.OnMissing(dto => dto.Notes, SparseEntityMissingPolicy.SetNull);
         }
     }
 
     /// <summary>Order mapping with a lenient global missing default.</summary>
-    [SparseFragmentMapper]
-    public sealed class OrderLenientMissingMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class OrderLenientMissingMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -172,26 +171,26 @@ public sealed class MappingPolicyTests
                     child.Ignore(address => address.City);
                 }
             );
-            map.Ignore(dto => dto.Lines);
-            map.MissingDefault(SparseEntityMissingPolicy.SetNull);
+            Map.Ignore(dto => dto.Lines);
+            Map.MissingDefault(SparseEntityMissingPolicy.SetNull);
         }
     }
 
     /// <summary>Order mapping that ignores a missing nested address.</summary>
-    [SparseFragmentMapper]
-    public sealed class OrderLenientNestedMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class OrderLenientNestedMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -200,7 +199,7 @@ public sealed class MappingPolicyTests
                 },
                 SparseEntityMissingPolicy.Ignore
             );
-            map.Ignore(dto => dto.Lines);
+            Map.Ignore(dto => dto.Lines);
         }
     }
 

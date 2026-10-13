@@ -9,29 +9,35 @@ using SparseTypes.Generator.Shared;
 namespace SparseTypes.Generator;
 
 /// <summary>
-/// Emits conventional EntityFrameworkCore mapping defaults for
-/// <c>[SparseFragmentMapper]</c> types discovered by the ordinary generator.
+/// Emits conventional EntityFrameworkCore mapping defaults and mapper bridges
+/// for <c>[SparseFragmentMapper{TEntity, TDto}]</c> types discovered by the
+/// ordinary generator.
 /// </summary>
 /// <remarks>
 /// Product-specific surface, not Shared: Shared never hard-codes
-/// SparseTypes runtime or mapper names. For each mapper implementing
-/// <c>IEntityModelMapping&lt;TEntity, TDto&gt;</c> (the DTO may live in a
-/// referenced Contracts assembly), the emitter writes an external companion
+/// SparseTypes runtime or mapper names. For each mapper carrying the generic
+/// marker attribute (the DTO may live in a referenced Contracts assembly),
+/// the emitter writes an external companion
 /// <c>{Mapper}_SparseEfDefaults</c> whose <c>RegisterDefaults</c> registers
 /// source-level conventional registrations: same-name exact-type scalars via
 /// <c>Member</c>, same-name nested models via recursive <c>Object</c>, and
-/// same-name collections via <c>DeclareCollection</c> markers. Explicit
-/// <c>Configure</c> entries replace each default exactly once at runtime.
+/// same-name collections via <c>DeclareCollection</c> markers, plus a partial
+/// bridge implementing <c>IEntityModelMapping&lt;TEntity, TDto&gt;</c> with a
+/// lock-guarded <c>Map</c> scope for the optional parameterless
+/// <c>Configure()</c>. Explicit <c>Configure</c> entries replace each default
+/// exactly once at runtime.
 /// Same-name members whose types differ produce SPF033 instead of a deferred
 /// reflection failure. Members without a same-name entity counterpart stay
-/// explicit-only and fail fast at mapper creation when unconfigured. Partial
-/// mapper classes with a parameterless constructor additionally gain a
-/// <c>Create(IModel)</c> shorthand on the mapper itself.
+/// explicit-only and fail fast at mapper creation when unconfigured.
+/// Declaration errors (missing partial, bad shapes, colliding members,
+/// unsupported Configure) produce SPF034. Mappers with a parameterless
+/// constructor additionally gain a <c>Create(IModel)</c> shorthand on the
+/// mapper itself.
 /// </remarks>
 internal static class SparseEntityMapperEmitter
 {
     internal const string MapperAttributeMetadataName =
-        "SparseTypes.EntityFrameworkCore.SparseFragmentMapperAttribute";
+        "SparseTypes.EntityFrameworkCore.SparseFragmentMapperAttribute`2";
 
     internal const string MappingInterfaceMetadataName =
         "SparseTypes.EntityFrameworkCore.IEntityModelMapping`2";
@@ -48,7 +54,16 @@ internal static class SparseEntityMapperEmitter
     {
         cancellationToken.ThrowIfCancellationRequested();
         var location = mapper.Locations.FirstOrDefault();
-        if (!TryResolveMappingPair(mapper, out var entityType, out var dtoType))
+        if (
+            !SparseEntityMapperDeclaration.TryResolveMappingPair(
+                mapper,
+                out var entityType,
+                out var dtoType,
+                out var pairError
+            )
+            || entityType is null
+            || dtoType is null
+        )
         {
             return new SparseGenerationResult(
                 null,
@@ -57,10 +72,29 @@ internal static class SparseEntityMapperEmitter
                     new SparseGeneratorDiagnostic(
                         SparseTypesDiagnosticIds.InvalidEntityMapperDeclaration,
                         location,
-                        mapper.Name
+                        pairError
+                            ?? $"Entity mapper '{mapper.Name}' must declare [SparseFragmentMapper<TEntity, TDto>] with resolvable class type arguments"
                     )
                 )
             );
+        }
+
+        var declarationErrors = SparseEntityMapperDeclaration.Validate(mapper, entityType, dtoType);
+        if (declarationErrors.Length > 0)
+        {
+            var failures = ImmutableArray.CreateBuilder<SparseGeneratorDiagnostic>();
+            foreach (var failure in declarationErrors)
+            {
+                failures.Add(
+                    new SparseGeneratorDiagnostic(
+                        SparseTypesDiagnosticIds.InvalidEntityMapperDeclaration,
+                        failure.Location,
+                        failure.Message
+                    )
+                );
+            }
+
+            return new SparseGenerationResult(null, null, failures.ToImmutable());
         }
 
         var diagnostics = ImmutableArray.CreateBuilder<SparseGeneratorDiagnostic>();
@@ -91,13 +125,17 @@ internal static class SparseEntityMapperEmitter
         nesting.Reverse();
         nesting.Add(mapper.Name);
         var companionName = string.Join("_", nesting) + "_SparseEfDefaults";
-        // Supported-declarative Configure analysis: explicit Member/Ignore (and
-        // scoped Object/Collection/Element) registrations suppress SPF033 for
-        // the members they cover. A Configure body outside the analyzable
+        // Supported-declarative Configure analysis: explicit Map.Member/Ignore
+        // (and scoped Object/Collection/Element) registrations suppress SPF033
+        // for the members they cover. A Configure body outside the analyzable
         // subset (helpers, control flow, dynamic calls) suppresses nothing
         // provable: diagnostics stay silent there and runtime plan validation
-        // remains the backstop.
+        // remains the backstop. Defaults-only mappers cover nothing provably.
         var covered = SparseEntityMapperConfigureAnalysis.TryCollectCoveredMembers(mapper);
+        var hasConfigure = SparseEntityMapperConfigureAnalysis.TryFindParameterlessConfigure(
+            mapper,
+            out _
+        );
         var indent = mapperNamespace is null ? 0 : 1;
         AppendIndent(code, indent).Append("internal static class ").AppendLine(companionName);
         AppendIndent(code, indent).AppendLine("{");
@@ -146,9 +184,22 @@ internal static class SparseEntityMapperEmitter
             .AppendLine("), RegisterDefaults);");
         AppendIndent(code, indent + 1).AppendLine("}");
         AppendIndent(code, indent).AppendLine("}");
+        // Generated bridge: the partial mapper implements
+        // IEntityModelMapping plus the Map scope. The Create shorthand below
+        // covers partial mappers with a parameterless constructor; mappers
+        // without one (for example constructor-injected mappings) keep the
+        // generic factory only.
+        SparseEntityMapperBridgeEmitter.AppendBridge(
+            code,
+            indent,
+            mapper,
+            entityType,
+            dtoType,
+            companionName,
+            hasConfigure
+        );
         // Mapper shorthand: partial mappers with a parameterless
-        // constructor also get OrderMapper.Create(db.Model). Non-partial
-        // mappers keep the generic factory only.
+        // constructor also get OrderMapper.Create(db.Model).
         SparseEntityMapperFactoryEmitter.AppendFactory(code, indent, mapper, entityType, dtoType);
         if (mapperNamespace is not null)
         {
@@ -160,42 +211,6 @@ internal static class SparseEntityMapperEmitter
             + companionName
             + ".SparseEfDefaults.g.cs";
         return new SparseGenerationResult(hintName, code.ToString(), diagnostics.ToImmutable());
-    }
-
-    private static bool TryResolveMappingPair(
-        INamedTypeSymbol mapper,
-        out INamedTypeSymbol entityType,
-        out INamedTypeSymbol dtoType
-    )
-    {
-        entityType = null!;
-        dtoType = null!;
-        foreach (var candidate in mapper.AllInterfaces)
-        {
-            if (
-                candidate.OriginalDefinition.MetadataName != "IEntityModelMapping`2"
-                || candidate.OriginalDefinition.ContainingNamespace.ToDisplayString()
-                    != "SparseTypes.EntityFrameworkCore"
-            )
-            {
-                continue;
-            }
-
-            if (
-                candidate.TypeArguments.Length == 2
-                && candidate.TypeArguments[0] is INamedTypeSymbol entity
-                && candidate.TypeArguments[1] is INamedTypeSymbol dto
-            )
-            {
-                entityType = entity;
-                dtoType = dto;
-                return true;
-            }
-
-            return false;
-        }
-
-        return false;
     }
 
     private static void EmitDefaults(

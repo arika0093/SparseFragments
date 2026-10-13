@@ -64,14 +64,12 @@ public sealed class CompositeLineEntity
 }
 
 /// <summary>Composite-keyed order mapping with an explicit DTO to EF key projection.</summary>
-[SparseFragmentMapper]
-public sealed class CompositeOrderMapper
-    : IEntityModelMapping<CompositeOrderEntity, CompositeOrderDto>
+[SparseFragmentMapper<CompositeOrderEntity, CompositeOrderDto>]
+public sealed partial class CompositeOrderMapper
 {
-    /// <inheritdoc />
-    public void Configure(SparseEntityMapBuilder<CompositeOrderEntity, CompositeOrderDto> map)
+    private void Configure()
     {
-        map.Collection<CompositeLineDto, CompositeLineEntity>(
+        Map.Collection<CompositeLineDto, CompositeLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -150,16 +148,12 @@ public sealed class TemporaryCompositeLineEntity
 }
 
 /// <summary>Mapping that projects a composite entity key into a stable string key.</summary>
-[SparseFragmentMapper]
-public sealed class TemporaryCompositeOrderMapper
-    : IEntityModelMapping<TemporaryCompositeOrderEntity, TemporaryCompositeOrderDto>
+[SparseFragmentMapper<TemporaryCompositeOrderEntity, TemporaryCompositeOrderDto>]
+public sealed partial class TemporaryCompositeOrderMapper
 {
-    /// <inheritdoc />
-    public void Configure(
-        SparseEntityMapBuilder<TemporaryCompositeOrderEntity, TemporaryCompositeOrderDto> map
-    )
+    private void Configure()
     {
-        map.Collection<TemporaryCompositeLineDto, TemporaryCompositeLineEntity>(
+        Map.Collection<TemporaryCompositeLineDto, TemporaryCompositeLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -290,13 +284,12 @@ public sealed class RigidOrderEntity
 }
 
 /// <summary>Natural-key order mapping: the DTO key meets the EF alternate key, not the primary key.</summary>
-[SparseFragmentMapper]
-public sealed class SkuOrderMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
+[SparseFragmentMapper<SkuOrderEntity, SkuOrderDto>]
+public sealed partial class SkuOrderMapper
 {
-    /// <inheritdoc />
-    public void Configure(SparseEntityMapBuilder<SkuOrderEntity, SkuOrderDto> map)
+    private void Configure()
     {
-        map.Collection<SkuLineDto, SkuLineEntity>(
+        Map.Collection<SkuLineDto, SkuLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

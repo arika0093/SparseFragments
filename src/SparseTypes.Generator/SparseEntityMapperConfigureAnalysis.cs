@@ -5,30 +5,86 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SparseTypes.Generator;
 
 // Supported declarative Configure subset for SPF033 suppression: direct
-// typed builder calls whose DTO selector is a single member access, with
-// Object/Collection/Element lambdas tracked for scope. Anything else
-// (helpers, control flow, dynamic calls) makes the whole Configure
-// unanalyzable, in which case nothing is provable and diagnostics stay
-// silent with runtime plan validation as the backstop.
+// typed Map calls whose DTO selector is a single member access, with
+// Object/Collection/Element lambdas tracked for scope. The receiver is the
+// generated Map property (Map. or this.Map.); nested scope parameters (lines,
+// child) behave as before. Anything else (helpers, control flow, dynamic
+// calls) makes the whole Configure unanalyzable, in which case nothing is
+// provable and diagnostics stay silent with runtime plan validation as the
+// backstop. A mapper without a supported Configure is defaults-only and
+// provably covers nothing, so an empty set is returned (SPF033 stays active).
 internal static class SparseEntityMapperConfigureAnalysis
 {
+    internal static bool TryFindParameterlessConfigure(
+        INamedTypeSymbol mapper,
+        out IMethodSymbol? configure
+    )
+    {
+        configure = null;
+        foreach (var candidate in mapper.GetMembers("Configure").OfType<IMethodSymbol>())
+        {
+            if (
+                !candidate.IsStatic
+                && candidate.Parameters.Length == 0
+                && candidate.TypeParameters.Length == 0
+                && candidate.ReturnsVoid
+            )
+            {
+                if (configure is not null)
+                {
+                    return false;
+                }
+
+                configure = candidate;
+            }
+        }
+
+        return configure is not null;
+    }
+
     internal static HashSet<(string Scope, string Member)>? TryCollectCoveredMembers(
         INamedTypeSymbol mapper
     )
     {
-        var configure = mapper
+        var supported = mapper
             .GetMembers("Configure")
             .OfType<IMethodSymbol>()
-            .FirstOrDefault(static method => method.Parameters.Length == 1);
-        if (configure is null)
+            .Where(static method => !method.IsStatic && method.Parameters.Length == 0)
+            .ToArray();
+        if (supported.Length == 0)
+        {
+            return [];
+        }
+
+        if (
+            supported.Length != 1
+            || supported[0].TypeParameters.Length != 0
+            || !supported[0].ReturnsVoid
+        )
         {
             return null;
         }
 
+        var configure = supported[0];
         var declaration =
             configure.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
             as MethodDeclarationSyntax;
-        if (declaration?.Body is not { } body)
+        if (declaration is null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<StatementSyntax>? statements = null;
+        if (declaration.Body is { } body)
+        {
+            statements = body.Statements;
+        }
+        else if (declaration.ExpressionBody?.Expression is ExpressionSyntax arrow)
+        {
+            statements = [SyntaxFactory.ExpressionStatement(arrow)];
+        }
+
+        if (statements is null)
         {
             return null;
         }
@@ -36,18 +92,18 @@ internal static class SparseEntityMapperConfigureAnalysis
         var covered = new HashSet<(string Scope, string Member)>();
         var vars = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            [configure.Parameters[0].Name] = string.Empty,
+            ["Map"] = string.Empty,
         };
-        return ProcessConfigureBlock(body, vars, covered) ? covered : null;
+        return ProcessConfigureStatements(statements, vars, covered) ? covered : null;
     }
 
-    private static bool ProcessConfigureBlock(
-        BlockSyntax block,
+    private static bool ProcessConfigureStatements(
+        IReadOnlyList<StatementSyntax> statements,
         Dictionary<string, string> vars,
         HashSet<(string Scope, string Member)> covered
     )
     {
-        foreach (var statement in block.Statements)
+        foreach (var statement in statements)
         {
             if (
                 statement
@@ -71,21 +127,13 @@ internal static class SparseEntityMapperConfigureAnalysis
         HashSet<(string Scope, string Member)> covered
     )
     {
-        if (
-            invocation.Expression
-                is not MemberAccessExpressionSyntax
-                {
-                    Expression: IdentifierNameSyntax receiver,
-                    Name: IdentifierNameSyntax method
-                }
-            || !vars.TryGetValue(receiver.Identifier.Text, out var scope)
-        )
+        if (!TryGetReceiver(invocation, vars, out var scope, out var method))
         {
             return false;
         }
 
         var arguments = invocation.ArgumentList.Arguments;
-        switch (method.Identifier.Text)
+        switch (method)
         {
             case "Member":
                 // Only a converter-bearing Member resolves a member: a
@@ -173,34 +221,51 @@ internal static class SparseEntityMapperConfigureAnalysis
             case "SoftDelete":
             case "Order":
             case "UnassignedKey":
+            case "Read":
                 return true;
             default:
                 return false;
         }
     }
 
-    private static bool ProcessConfigureStatements(
-        IReadOnlyList<StatementSyntax> statements,
+    // Receivers are the generated Map property (Map. or this.Map.) or a nested
+    // scope lambda parameter (lines., child.).
+    private static bool TryGetReceiver(
+        InvocationExpressionSyntax invocation,
         Dictionary<string, string> vars,
-        HashSet<(string Scope, string Member)> covered
+        out string scope,
+        out string method
     )
     {
-        foreach (var statement in statements)
+        scope = string.Empty;
+        method = string.Empty;
+        if (invocation.Expression is not MemberAccessExpressionSyntax access)
         {
-            if (
-                statement
-                    is not ExpressionStatementSyntax
-                    {
-                        Expression: InvocationExpressionSyntax invocation
-                    }
-                || !ProcessConfigureInvocation(invocation, vars, covered)
-            )
-            {
-                return false;
-            }
+            return false;
         }
 
-        return true;
+        if (access.Name is not IdentifierNameSyntax methodName)
+        {
+            return false;
+        }
+
+        method = methodName.Identifier.Text;
+        if (access.Expression is IdentifierNameSyntax receiver)
+        {
+            return vars.TryGetValue(receiver.Identifier.Text, out scope!);
+        }
+
+        if (
+            access.Expression is MemberAccessExpressionSyntax qualified
+            && qualified.Expression is ThisExpressionSyntax
+            && qualified.Name is IdentifierNameSyntax qualifiedName
+            && vars.TryGetValue(qualifiedName.Identifier.Text, out scope!)
+        )
+        {
+            return true;
+        }
+
+        return false;
     }
 
     // A converter lives past the DTO/entity selector pair: the third or fourth

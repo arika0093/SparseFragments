@@ -123,13 +123,12 @@ public sealed class BinLineEntity
 }
 
 /// <summary>Struct-keyed holder mapping with a nested temporary-keyed collection.</summary>
-[SparseFragmentMapper]
-public sealed class BinHolderMapper : IEntityModelMapping<BinHolderEntity, BinHolderDto>
+[SparseFragmentMapper<BinHolderEntity, BinHolderDto>]
+public sealed partial class BinHolderMapper
 {
-    /// <inheritdoc />
-    public void Configure(SparseEntityMapBuilder<BinHolderEntity, BinHolderDto> map)
+    private void Configure()
     {
-        map.Collection<BinDto, BinEntity>(
+        Map.Collection<BinDto, BinEntity>(
             dto => dto.Bins,
             entity => entity.Bins,
             bins =>

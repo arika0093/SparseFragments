@@ -4,7 +4,7 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>Collection diagnosis, plan caching, multi-config mapping, and assembly boundaries.</summary>
-public sealed class CollectionAndCacheTests
+public sealed partial class CollectionAndCacheTests
 {
     [Test]
     public async Task KeyedCollectionChangeIsDiagnosed()
@@ -114,22 +114,22 @@ public sealed class CollectionAndCacheTests
     }
 
     /// <summary>Whole-value tag mapping, which still diagnoses in this proof of concept.</summary>
-    [SparseFragmentMapper]
-    public sealed class TagsMapper : IEntityModelMapping<TagsEntity, TagsDto>
+    [SparseFragmentMapper<TagsEntity, TagsDto>]
+    public sealed partial class TagsMapper
     {
-        public void Configure(SparseEntityMapBuilder<TagsEntity, TagsDto> map)
+        private void Configure()
         {
-            map.Collection(dto => dto.Tags, entity => entity.Tags);
+            Map.Collection(dto => dto.Tags, entity => entity.Tags);
         }
     }
 
-    [SparseFragmentMapper]
-    public sealed class TagsIgnoreMissingMapper : IEntityModelMapping<TagsEntity, TagsDto>
+    [SparseFragmentMapper<TagsEntity, TagsDto>]
+    public sealed partial class TagsIgnoreMissingMapper
     {
-        public void Configure(SparseEntityMapBuilder<TagsEntity, TagsDto> map)
+        private void Configure()
         {
-            map.Collection(dto => dto.Tags, entity => entity.Tags);
-            map.OnMissing(dto => dto.Tags, SparseEntityMissingPolicy.Ignore);
+            Map.Collection(dto => dto.Tags, entity => entity.Tags);
+            Map.OnMissing(dto => dto.Tags, SparseEntityMissingPolicy.Ignore);
         }
     }
 

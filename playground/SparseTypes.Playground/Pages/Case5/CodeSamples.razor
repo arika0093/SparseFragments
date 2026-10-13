@@ -21,15 +21,14 @@
 @code {
     private const string EfMapperCode = """
         // Generate defaults for same-name scalar properties.
-        [SparseFragmentMapper]
+        [SparseFragmentMapper<PlaygroundOrderEntity, PlaygroundOrderDto>]
         public sealed partial class PlaygroundOrderMapper
-            : IEntityModelMapping<PlaygroundOrderEntity, PlaygroundOrderDto>
         {
-            public void Configure(SparseEntityMapBuilder<PlaygroundOrderEntity, PlaygroundOrderDto> map)
+            private void Configure()
             {
-                map.Member(dto => dto.Customer, entity => entity.CustomerName); // Map the renamed customer property.
-                map.Member(dto => dto.Notes, entity => entity.Note!.Text);      // Flatten Notes onto the related note.
-                map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
+                Map.Member(dto => dto.Customer, entity => entity.CustomerName); // Map the renamed customer property.
+                Map.Member(dto => dto.Notes, entity => entity.Note!.Text);      // Flatten Notes onto the related note.
+                Map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
                     dto => dto.Lines,       // Read changes from the DTO collection.
                     entity => entity.Lines, // Apply them to the tracked EF collection.
                     lines =>
@@ -44,7 +43,7 @@
         }
         // Total, Product, and Qty map automatically because their names and types match.
         // Key and TemporaryId identify keyed changes, so they need no scalar mapping.
-        // The partial modifier earns the OrderMapper.Create(db.Model) shorthand.
+        // The generator implements IEntityModelMapping and backs Map for this build.
         """;
 
     private const string EfFlowCode = """

@@ -4,16 +4,15 @@ using Microsoft.EntityFrameworkCore;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>Removal policies, safeguards, dispatch contracts, and build-time rejection.</summary>
-public sealed class KeyedCollectionPolicyTests
+public sealed partial class KeyedCollectionPolicyTests
 {
     /// <summary>Soft-delete order mapping.</summary>
-    [SparseFragmentMapper]
-    public sealed class SoftOrderMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
+    [SparseFragmentMapper<SoftOrderEntity, SoftOrderDto>]
+    public sealed partial class SoftOrderMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SoftOrderEntity, SoftOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection<SoftLineDto, SoftLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -29,14 +28,13 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Detach mapping over the archived duo collection.</summary>
-    [SparseFragmentMapper]
-    public sealed class DuoDetachMapper : IEntityModelMapping<DuoEntity, DuoDto>
+    [SparseFragmentMapper<DuoEntity, DuoDto>]
+    public sealed partial class DuoDetachMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<DuoEntity, DuoDto> map)
+        private void Configure()
         {
-            map.Ignore(dto => dto.Actives);
-            map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Ignore(dto => dto.Actives);
+            Map.Collection<DuoLineDto, DuoLineEntity>(
                 dto => dto.Archived,
                 entity => entity.Archived,
                 lines =>
@@ -53,16 +51,15 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Custom removal mapping recording the callback.</summary>
-    [SparseFragmentMapper]
-    public sealed class SoftCustomMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
+    [SparseFragmentMapper<SoftOrderEntity, SoftOrderDto>]
+    public sealed partial class SoftCustomMapper
     {
         /// <summary>Gets the removed identities observed by the callback.</summary>
         public List<int> RemovedIds { get; } = [];
 
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SoftOrderEntity, SoftOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection<SoftLineDto, SoftLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -214,13 +211,12 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Collection mapping without any removal policy.</summary>
-    [SparseFragmentMapper]
-    public sealed class PolicyLessMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
+    [SparseFragmentMapper<SoftOrderEntity, SoftOrderDto>]
+    public sealed partial class PolicyLessMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SoftOrderEntity, SoftOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection<SoftLineDto, SoftLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -235,13 +231,12 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Detach mapping over a required relationship.</summary>
-    [SparseFragmentMapper]
-    public sealed class RequiredDetachMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
+    [SparseFragmentMapper<SoftOrderEntity, SoftOrderDto>]
+    public sealed partial class RequiredDetachMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SoftOrderEntity, SoftOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection<SoftLineDto, SoftLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -402,13 +397,12 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Natural-key mapping used for the collision probe.</summary>
-    [SparseFragmentMapper]
-    public sealed class SkuCollisionMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
+    [SparseFragmentMapper<SkuOrderEntity, SkuOrderDto>]
+    public sealed partial class SkuCollisionMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SkuOrderEntity, SkuOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection<SkuLineDto, SkuLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -462,13 +456,12 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Collection over a scalar sequence with element configuration.</summary>
-    [SparseFragmentMapper]
-    public sealed class TagsElementMapper : IEntityModelMapping<TagsEntity, TagsDto>
+    [SparseFragmentMapper<TagsEntity, TagsDto>]
+    public sealed partial class TagsElementMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<TagsEntity, TagsDto> map)
+        private void Configure()
         {
-            map.Collection<string, string>(
+            Map.Collection<string, string>(
                 dto => dto.Tags,
                 entity => entity.Tags,
                 lines =>
@@ -493,13 +486,12 @@ public sealed class KeyedCollectionPolicyTests
     }
 
     /// <summary>Key mapping whose type disagrees with the generated transition.</summary>
-    [SparseFragmentMapper]
-    public sealed class KeyMismatchMapper : IEntityModelMapping<SkuOrderEntity, SkuOrderDto>
+    [SparseFragmentMapper<SkuOrderEntity, SkuOrderDto>]
+    public sealed partial class KeyMismatchMapper
     {
-        /// <inheritdoc />
-        public void Configure(SparseEntityMapBuilder<SkuOrderEntity, SkuOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection<SkuLineDto, SkuLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

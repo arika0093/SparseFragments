@@ -105,25 +105,25 @@ public sealed class SampleDbContext(DbContextOptions<SampleDbContext> options) :
     }
 }
 
-[SparseFragmentMapper]
-public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+[SparseFragmentMapper<OrderEntity, OrderDto>]
+public sealed partial class OrderMapper
 {
-    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Name, entity => entity.CustomerName);
-        map.Member(
+        Map.Member(dto => dto.Name, entity => entity.CustomerName);
+        Map.Member(
             dto => dto.Code,
             entity => entity.Code,
             code => code == null ? null : code.ToUpperInvariant()
         );
-        map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-        map.Ignore(dto => dto.DisplayTotal);
-        map.Object(
+        Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+        Map.Ignore(dto => dto.DisplayTotal);
+        Map.Object(
             dto => dto.Address,
             entity => entity.Address,
             child => child.Ignore(address => address.City)
         );
-        map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Collection<OrderLineDto, OrderLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

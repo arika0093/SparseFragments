@@ -11,18 +11,18 @@ namespace SparseTypes.EntityFrameworkCore.Tests;
 /// and the ChangeTracker untouched, temporary identities stay scoped by
 /// collection path, and order/removal evidence must be complete.
 /// </remarks>
-public sealed class DirectApplyRegressionTests
+public sealed partial class DirectApplyRegressionTests
 {
-    [SparseFragmentMapper]
-    public sealed class AppliedPathOrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class AppliedPathOrderMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(dto => dto.Code, entity => entity.Code);
-            map.OnMissing(dto => dto.Code, SparseEntityMissingPolicy.Ignore);
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Write(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(dto => dto.Code, entity => entity.Code);
+            Map.OnMissing(dto => dto.Code, SparseEntityMissingPolicy.Ignore);
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Write(
                 dto => dto.Notes,
                 (entity, notes) =>
                 {
@@ -32,8 +32,8 @@ public sealed class DirectApplyRegressionTests
                     }
                 }
             );
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -42,7 +42,7 @@ public sealed class DirectApplyRegressionTests
                     child.Ignore(address => address.City);
                 }
             );
-            map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection<OrderLineDto, OrderLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -786,8 +786,8 @@ public sealed class DirectApplyRegressionTests
     }
 
     /// <summary>Same CLR type, constructor-injected missing policy.</summary>
-    [SparseFragmentMapper]
-    public sealed class FlagMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class FlagMapper
     {
         public FlagMapper(bool lenient)
         {
@@ -797,17 +797,17 @@ public sealed class DirectApplyRegressionTests
         /// <summary>Gets whether missing Notes clears instead of throwing.</summary>
         public bool Lenient { get; }
 
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -815,7 +815,7 @@ public sealed class DirectApplyRegressionTests
                     child.Ignore(address => address.City);
                 }
             );
-            map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection<OrderLineDto, OrderLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -832,7 +832,7 @@ public sealed class DirectApplyRegressionTests
             );
             if (Lenient)
             {
-                map.MissingDefault(SparseEntityMissingPolicy.SetNull);
+                Map.MissingDefault(SparseEntityMissingPolicy.SetNull);
             }
         }
     }
@@ -854,16 +854,16 @@ public sealed class DirectApplyRegressionTests
         error.DtoPath.ShouldBe("Name");
     }
 
-    [SparseFragmentMapper]
-    public sealed class DuplicateWidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+    [SparseFragmentMapper<WidgetEntity, WidgetDto>]
+    public sealed partial class DuplicateWidgetMapper
     {
-        public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+        private void Configure()
         {
-            map.Ignore(dto => dto.Id);
-            map.Ignore(dto => dto.RowVersion);
-            map.Ignore(dto => dto.Display);
-            map.Member(dto => dto.Name, entity => entity.Name);
-            map.Member(dto => dto.Name, entity => entity.Name);
+            Map.Ignore(dto => dto.Id);
+            Map.Ignore(dto => dto.RowVersion);
+            Map.Ignore(dto => dto.Display);
+            Map.Member(dto => dto.Name, entity => entity.Name);
+            Map.Member(dto => dto.Name, entity => entity.Name);
         }
     }
 
@@ -902,14 +902,14 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
-    [SparseFragmentMapper]
-    public sealed class NestedWidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+    [SparseFragmentMapper<WidgetEntity, WidgetDto>]
+    public sealed partial class NestedWidgetMapper
     {
-        public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+        private void Configure()
         {
-            map.Ignore(dto => dto.Id);
-            map.Ignore(dto => dto.RowVersion);
-            map.Ignore(dto => dto.Display);
+            Map.Ignore(dto => dto.Id);
+            Map.Ignore(dto => dto.RowVersion);
+            Map.Ignore(dto => dto.Display);
         }
     }
 
@@ -927,7 +927,7 @@ public sealed class DirectApplyRegressionTests
         );
 
         error.Failure.ShouldBe(SparseEntityMappingFailure.MetadataMismatch);
-        error.Message.ShouldContain("[SparseFragmentMapper]");
+        error.Message.ShouldContain("[SparseFragmentMapper<");
         error.Message.ShouldContain("runtime member inference is not supported");
     }
 
@@ -955,20 +955,20 @@ public sealed class DirectApplyRegressionTests
         error.DtoPath.ShouldBe("Lines");
     }
 
-    [SparseFragmentMapper]
-    public sealed class UnconfiguredLinesMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class UnconfiguredLinesMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -1067,12 +1067,12 @@ public sealed class DirectApplyRegressionTests
         reloaded.Lines.Single(static line => line.Qty == 2).ShipTo!.City.ShouldBe("Nara");
     }
 
-    [SparseFragmentMapper]
-    public sealed class ParcelMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
+    [SparseFragmentMapper<ParcelEntity, ParcelDto>]
+    public sealed partial class ParcelMapper
     {
-        public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
+        private void Configure()
         {
-            map.Collection<ParcelLineDto, ParcelLineEntity>(
+            Map.Collection<ParcelLineDto, ParcelLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1164,12 +1164,12 @@ public sealed class DirectApplyRegressionTests
     }
 
     /// <summary>Factory pre-populates nested tags to prove wholesale replacement.</summary>
-    [SparseFragmentMapper]
-    public sealed class ParcelJunkMapper : IEntityModelMapping<ParcelEntity, ParcelDto>
+    [SparseFragmentMapper<ParcelEntity, ParcelDto>]
+    public sealed partial class ParcelJunkMapper
     {
-        public void Configure(SparseEntityMapBuilder<ParcelEntity, ParcelDto> map)
+        private void Configure()
         {
-            map.Collection<ParcelLineDto, ParcelLineEntity>(
+            Map.Collection<ParcelLineDto, ParcelLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1465,21 +1465,21 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
-    [SparseFragmentMapper]
-    public sealed class ExplicitChildMapper : IEntityModelMapping<OrderEntity, OrderDto>
+    [SparseFragmentMapper<OrderEntity, OrderDto>]
+    public sealed partial class ExplicitChildMapper
     {
-        public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+        private void Configure()
         {
-            map.Member(dto => dto.Name, entity => entity.CustomerName);
-            map.Member(
+            Map.Member(dto => dto.Name, entity => entity.CustomerName);
+            Map.Member(
                 dto => dto.Code,
                 entity => entity.Code,
                 code => code == null ? null : code.ToUpperInvariant()
             );
-            map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-            map.Ignore(dto => dto.DisplayTotal);
-            map.Ignore(dto => dto.Lines);
-            map.Object(
+            Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+            Map.Ignore(dto => dto.DisplayTotal);
+            Map.Ignore(dto => dto.Lines);
+            Map.Object(
                 dto => dto.Address,
                 entity => entity.Address,
                 child =>
@@ -1666,13 +1666,12 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
-    [SparseFragmentMapper]
-    public sealed class ObservableOrderMapper
-        : IEntityModelMapping<ObservableOrderEntity, ObservableOrderDto>
+    [SparseFragmentMapper<ObservableOrderEntity, ObservableOrderDto>]
+    public sealed partial class ObservableOrderMapper
     {
-        public void Configure(SparseEntityMapBuilder<ObservableOrderEntity, ObservableOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection<SkuLineDto, SkuLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1704,12 +1703,12 @@ public sealed class DirectApplyRegressionTests
         error.Message.ShouldContain("parameterless constructor");
     }
 
-    [SparseFragmentMapper]
-    public sealed class RigidOrderMapper : IEntityModelMapping<RigidOrderEntity, RigidOrderDto>
+    [SparseFragmentMapper<RigidOrderEntity, RigidOrderDto>]
+    public sealed partial class RigidOrderMapper
     {
-        public void Configure(SparseEntityMapBuilder<RigidOrderEntity, RigidOrderDto> map)
+        private void Configure()
         {
-            map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection<SkuLineDto, SkuLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1741,12 +1740,12 @@ public sealed class DirectApplyRegressionTests
         error.Message.ShouldContain("skip", Case.Insensitive);
     }
 
-    [SparseFragmentMapper]
-    public sealed class StudentMapper : IEntityModelMapping<StudentEntity, StudentDto>
+    [SparseFragmentMapper<StudentEntity, StudentDto>]
+    public sealed partial class StudentMapper
     {
-        public void Configure(SparseEntityMapBuilder<StudentEntity, StudentDto> map)
+        private void Configure()
         {
-            map.Collection<CourseRefDto, CourseEntity>(
+            Map.Collection<CourseRefDto, CourseEntity>(
                 dto => dto.Courses,
                 entity => entity.Courses,
                 lines =>
@@ -1819,12 +1818,12 @@ public sealed class DirectApplyRegressionTests
         counter.Commands.ShouldBe(0);
     }
 
-    [SparseFragmentMapper]
-    public sealed class BatchMapper : IEntityModelMapping<BatchEntity, BatchDto>
+    [SparseFragmentMapper<BatchEntity, BatchDto>]
+    public sealed partial class BatchMapper
     {
-        public void Configure(SparseEntityMapBuilder<BatchEntity, BatchDto> map)
+        private void Configure()
         {
-            map.Collection<BatchLineDto, BatchLineEntity>(
+            Map.Collection<BatchLineDto, BatchLineEntity>(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

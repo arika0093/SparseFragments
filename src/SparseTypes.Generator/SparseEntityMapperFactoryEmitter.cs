@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SparseTypes.Generator;
 
 /// <summary>
-/// Emits the <c>Create(IModel)</c> shorthand for <c>[SparseFragmentMapper]</c> types.
+/// Emits the <c>Create(IModel)</c> shorthand for <c>[SparseFragmentMapper{TEntity, TDto}]</c> types.
 /// </summary>
 /// <remarks>
 /// Product-specific surface, not Shared: Shared never hard-codes
@@ -15,9 +15,9 @@ namespace SparseTypes.Generator;
 /// parameterless instance constructor, a partial declaration contributes
 /// <c>public static SparseEntityMapper{TEntity, TDto} Create(IModel model)</c>,
 /// so call sites read <c>OrderMapper.Create(db.Model)</c> instead of the
-/// fully-qualified generic factory. Non-partial mappers, nested mappers under
-/// non-partial containers, and mappers without a parameterless constructor
-/// (for example constructor-injected mappings) keep the generic factory only.
+/// fully-qualified generic factory. Mappers without a parameterless
+/// constructor (for example constructor-injected mappings) keep the generic
+/// factory only.
 /// </remarks>
 internal static class SparseEntityMapperFactoryEmitter
 {

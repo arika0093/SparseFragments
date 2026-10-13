@@ -46,57 +46,57 @@ public sealed class WidgetEntity
 
 /// <summary>Baseline widget mapping: ignores the display member.</summary>
 /// <remarks>
-/// Carries <c>[SparseFragmentMapper]</c> so the ordinary generator emits the
+/// Carries <c>[SparseFragmentMapper{TEntity, TDto}]</c> so the ordinary generator emits the
 /// conventional defaults (same-name scalars) for this pair end to end; the
 /// explicit ignores below replace the generated identity/token defaults.
 /// </remarks>
-[SparseFragmentMapper]
-public sealed class WidgetMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+[SparseFragmentMapper<WidgetEntity, WidgetDto>]
+public sealed partial class WidgetMapper
 {
-    public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+    private void Configure()
     {
-        map.Ignore(dto => dto.Id);
-        map.Ignore(dto => dto.RowVersion);
-        map.Ignore(dto => dto.Display);
+        Map.Ignore(dto => dto.Id);
+        Map.Ignore(dto => dto.RowVersion);
+        Map.Ignore(dto => dto.Display);
     }
 }
 
 /// <summary>Widget mapping ignoring everything except Display, for fail-fast unmapped-path tests.</summary>
-[SparseFragmentMapper]
-public sealed class WidgetStrictMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+[SparseFragmentMapper<WidgetEntity, WidgetDto>]
+public sealed partial class WidgetStrictMapper
 {
-    public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+    private void Configure()
     {
-        map.Ignore(dto => dto.Id);
-        map.Ignore(dto => dto.Name);
-        map.Ignore(dto => dto.Status);
-        map.Ignore(dto => dto.DueDate);
-        map.Ignore(dto => dto.RowVersion);
+        Map.Ignore(dto => dto.Id);
+        Map.Ignore(dto => dto.Name);
+        Map.Ignore(dto => dto.Status);
+        Map.Ignore(dto => dto.DueDate);
+        Map.Ignore(dto => dto.RowVersion);
     }
 }
 
 /// <summary>Widget mapping that writes the identity with explicit allowance.</summary>
-[SparseFragmentMapper]
-public sealed class WidgetIdMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+[SparseFragmentMapper<WidgetEntity, WidgetDto>]
+public sealed partial class WidgetIdMapper
 {
-    public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Id, entity => entity.Id);
-        map.Ignore(dto => dto.Display);
-        map.Ignore(dto => dto.RowVersion);
-        map.AllowWrite(dto => dto.Id);
+        Map.Member(dto => dto.Id, entity => entity.Id);
+        Map.Ignore(dto => dto.Display);
+        Map.Ignore(dto => dto.RowVersion);
+        Map.AllowWrite(dto => dto.Id);
     }
 }
 
 /// <summary>Widget mapping that writes the identity without allowance.</summary>
-[SparseFragmentMapper]
-public sealed class WidgetRawIdMapper : IEntityModelMapping<WidgetEntity, WidgetDto>
+[SparseFragmentMapper<WidgetEntity, WidgetDto>]
+public sealed partial class WidgetRawIdMapper
 {
-    public void Configure(SparseEntityMapBuilder<WidgetEntity, WidgetDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Id, entity => entity.Id);
-        map.Ignore(dto => dto.Display);
-        map.Ignore(dto => dto.RowVersion);
+        Map.Member(dto => dto.Id, entity => entity.Id);
+        Map.Ignore(dto => dto.Display);
+        Map.Ignore(dto => dto.RowVersion);
     }
 }
 
@@ -108,10 +108,10 @@ public partial class ShadowedWidgetDto
 }
 
 /// <summary>Mapping that collides with the shadow member.</summary>
-[SparseFragmentMapper]
-public sealed class ShadowedWidgetMapper : IEntityModelMapping<WidgetEntity, ShadowedWidgetDto>
+[SparseFragmentMapper<WidgetEntity, ShadowedWidgetDto>]
+public sealed partial class ShadowedWidgetMapper
 {
-    public void Configure(SparseEntityMapBuilder<WidgetEntity, ShadowedWidgetDto> map) { }
+    private void Configure() { }
 }
 
 /// <summary>DTO with two members for one entity member.</summary>
@@ -132,13 +132,13 @@ public sealed class GadgetEntity
 }
 
 /// <summary>Ambiguous mapping: two DTO paths target the same entity member.</summary>
-[SparseFragmentMapper]
-public sealed class GadgetAmbiguousMapper : IEntityModelMapping<GadgetEntity, GadgetDto>
+[SparseFragmentMapper<GadgetEntity, GadgetDto>]
+public sealed partial class GadgetAmbiguousMapper
 {
-    public void Configure(SparseEntityMapBuilder<GadgetEntity, GadgetDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Title, entity => entity.Name);
-        map.Member(dto => dto.Heading, entity => entity.Name);
+        Map.Member(dto => dto.Title, entity => entity.Name);
+        Map.Member(dto => dto.Heading, entity => entity.Name);
     }
 }
 
@@ -162,10 +162,10 @@ public sealed class DeviceEntity
 }
 
 /// <summary>Baseline device mapping.</summary>
-[SparseFragmentMapper]
-public sealed class DeviceMapper : IEntityModelMapping<DeviceEntity, DeviceDto>
+[SparseFragmentMapper<DeviceEntity, DeviceDto>]
+public sealed partial class DeviceMapper
 {
-    public void Configure(SparseEntityMapBuilder<DeviceEntity, DeviceDto> map) { }
+    private void Configure() { }
 }
 
 /// <summary>Keyed line DTO for collection diagnosis.</summary>
@@ -203,12 +203,12 @@ public sealed class CartLineEntity
 }
 
 /// <summary>Mapping that marks the collection path.</summary>
-[SparseFragmentMapper]
-public sealed class CartMapper : IEntityModelMapping<CartEntity, CartDto>
+[SparseFragmentMapper<CartEntity, CartDto>]
+public sealed partial class CartMapper
 {
-    public void Configure(SparseEntityMapBuilder<CartEntity, CartDto> map)
+    private void Configure()
     {
-        map.Collection(dto => dto.Lines, entity => entity.Lines);
+        Map.Collection(dto => dto.Lines, entity => entity.Lines);
     }
 }
 
@@ -237,11 +237,11 @@ public partial class OrderSummaryDto
 }
 
 /// <summary>Second mapping over the same entity with different renames and a subset of members.</summary>
-[SparseFragmentMapper]
-public sealed class OrderSummaryMapper : IEntityModelMapping<OrderEntity, OrderSummaryDto>
+[SparseFragmentMapper<OrderEntity, OrderSummaryDto>]
+public sealed partial class OrderSummaryMapper
 {
-    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderSummaryDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Title, entity => entity.CustomerName);
+        Map.Member(dto => dto.Title, entity => entity.CustomerName);
     }
 }

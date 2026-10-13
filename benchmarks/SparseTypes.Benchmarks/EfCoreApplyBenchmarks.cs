@@ -98,15 +98,15 @@ public sealed class EfApplyDbContext(DbContextOptions<EfApplyDbContext> options)
     }
 }
 
-[SparseFragmentMapper]
-public sealed class EfApplyOrderMapper : IEntityModelMapping<EfApplyOrderEntity, EfApplyOrderDto>
+[SparseFragmentMapper<EfApplyOrderEntity, EfApplyOrderDto>]
+public sealed partial class EfApplyOrderMapper
 {
-    public void Configure(SparseEntityMapBuilder<EfApplyOrderEntity, EfApplyOrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Name, entity => entity.CustomerName);
-        map.Member(dto => dto.Notes, entity => entity.Notes);
-        map.Member(dto => dto.Code, entity => entity.Code);
-        map.Object(
+        Map.Member(dto => dto.Name, entity => entity.CustomerName);
+        Map.Member(dto => dto.Notes, entity => entity.Notes);
+        Map.Member(dto => dto.Code, entity => entity.Code);
+        Map.Object(
             dto => dto.Address,
             entity => entity.ShippingAddress,
             address =>
@@ -115,7 +115,7 @@ public sealed class EfApplyOrderMapper : IEntityModelMapping<EfApplyOrderEntity,
                 address.Member(dto => dto.City, entity => entity.City);
             }
         );
-        map.Collection<EfApplyLineDto, EfApplyLineEntity>(
+        Map.Collection<EfApplyLineDto, EfApplyLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

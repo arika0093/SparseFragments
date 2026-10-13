@@ -4,7 +4,7 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>Verifies projections built from entity mapping registrations.</summary>
-public sealed class ReadProjectionTests
+public sealed partial class ReadProjectionTests
 {
     [Test]
     public async Task ProjectionTranslatesAndProjectsNestedOrderedCollections()
@@ -230,22 +230,22 @@ public sealed class ReadProjectionTests
     }
 }
 
-[SparseFragmentMapper]
-internal sealed class ProjectionOrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+[SparseFragmentMapper<OrderEntity, OrderDto>]
+internal sealed partial class ProjectionOrderMapper
 {
-    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Name, entity => entity.CustomerName);
-        map.Member(dto => dto.Code, entity => entity.Code, code => code?.ToUpperInvariant());
-        map.Read(dto => dto.Code, entity => entity.Code);
-        map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
-        map.Object(
+        Map.Member(dto => dto.Name, entity => entity.CustomerName);
+        Map.Member(dto => dto.Code, entity => entity.Code, code => code?.ToUpperInvariant());
+        Map.Read(dto => dto.Code, entity => entity.Code);
+        Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
+        Map.Object(
             dto => dto.Address,
             entity => entity.Address,
             child => child.Ignore(address => address.City)
         );
-        map.Ignore(dto => dto.DisplayTotal);
-        map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Ignore(dto => dto.DisplayTotal);
+        Map.Collection<OrderLineDto, OrderLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -262,12 +262,12 @@ internal sealed class ProjectionOrderMapper : IEntityModelMapping<OrderEntity, O
     }
 }
 
-[SparseFragmentMapper]
-internal sealed class SoftOrderReadMapper : IEntityModelMapping<SoftOrderEntity, SoftOrderDto>
+[SparseFragmentMapper<SoftOrderEntity, SoftOrderDto>]
+internal sealed partial class SoftOrderReadMapper
 {
-    public void Configure(SparseEntityMapBuilder<SoftOrderEntity, SoftOrderDto> map)
+    private void Configure()
     {
-        map.Collection<SoftLineDto, SoftLineEntity>(
+        Map.Collection<SoftLineDto, SoftLineEntity>(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -280,18 +280,18 @@ internal sealed class SoftOrderReadMapper : IEntityModelMapping<SoftOrderEntity,
     }
 }
 
-[SparseFragmentMapper]
-internal sealed class UnsupportedProjectionMapper : IEntityModelMapping<OrderEntity, OrderDto>
+[SparseFragmentMapper<OrderEntity, OrderDto>]
+internal sealed partial class UnsupportedProjectionMapper
 {
-    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map)
+    private void Configure()
     {
-        map.Member(dto => dto.Name, entity => entity.CustomerName, name => name?.Trim());
-        map.Write(dto => dto.Code, static (_, _) => { });
-        map.Ignore(dto => dto.Notes);
-        map.Ignore(dto => dto.ShipCity);
-        map.Ignore(dto => dto.DisplayTotal);
-        map.Ignore(dto => dto.Address);
-        map.Ignore(dto => dto.Lines);
+        Map.Member(dto => dto.Name, entity => entity.CustomerName, name => name?.Trim());
+        Map.Write(dto => dto.Code, static (_, _) => { });
+        Map.Ignore(dto => dto.Notes);
+        Map.Ignore(dto => dto.ShipCity);
+        Map.Ignore(dto => dto.DisplayTotal);
+        Map.Ignore(dto => dto.Address);
+        Map.Ignore(dto => dto.Lines);
     }
 }
 
@@ -301,12 +301,12 @@ internal sealed partial class ExplicitReadDto
     public string Value { get; set; } = string.Empty;
 }
 
-[SparseFragmentMapper]
-internal sealed class ExplicitReadMapper : IEntityModelMapping<OrderEntity, ExplicitReadDto>
+[SparseFragmentMapper<OrderEntity, ExplicitReadDto>]
+internal sealed partial class ExplicitReadMapper
 {
-    public void Configure(SparseEntityMapBuilder<OrderEntity, ExplicitReadDto> map)
+    private void Configure()
     {
-        map.Write(dto => dto.Value, static (_, _) => { });
-        map.Read(dto => dto.Value, entity => entity.CustomerName);
+        Map.Write(dto => dto.Value, static (_, _) => { });
+        Map.Read(dto => dto.Value, entity => entity.CustomerName);
     }
 }

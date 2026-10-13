@@ -381,22 +381,29 @@ public partial class PolicySettings
 ## SPF033: Incompatible entity default mapping
 
 * Message: `Incompatible conventional entity mapping: {0}`
-* Cause: A `[SparseFragmentMapper]` type has a same-name DTO/entity member pair
+* Cause: A `[SparseFragmentMapper<TEntity, TDto>]` type has a same-name DTO/entity member pair
   whose types differ, so no conventional `Member` default can be generated.
   The generator never guesses a conversion.
 * Fix: Declare an explicit `Member` mapping with a convert callback, or
-  `Ignore` the member, in the mapper's `Configure`. Protection (keys,
+  `Ignore` the member, in the mapper's parameterless `Configure()` using `Map`. Protection (keys,
   concurrency tokens, generated and shadow members) is still validated at
   mapper creation against the EF model.
 
 ## SPF034: Invalid entity mapper declaration
 
-* Message: `Entity mapper '{0}' must implement IEntityModelMapping<TEntity, TDto>`
-* Cause: `[SparseFragmentMapper]` annotates a type that does not implement
-  `IEntityModelMapping<TEntity, TDto>`, so no Entity/DTO pair can be resolved.
-* Fix: Implement `IEntityModelMapping<TEntity, TDto>` on the mapper and declare
-  overrides in `Configure`. The mapper class itself need not be partial; the
-  generator emits an external companion.
+* Message: `Invalid entity mapper declaration: {0}`
+* Cause: `[SparseFragmentMapper<TEntity, TDto>]` annotates a type whose
+  declaration the generator cannot augment: the mapper or an enclosing type
+  is not `partial`, the mapper has an unsupported shape (abstract, static,
+  record, generic, nested in a generic or non-class type, or declaring its
+  own base type), the Entity/DTO type arguments are unresolvable, the mapper
+  implements `IEntityModelMapping` manually (the generator owns that
+  implementation), a member named `Map` collides with the generated scope, or
+  `Configure` is not exactly one optional parameterless instance method.
+* Fix: Declare `[SparseFragmentMapper<TEntity, TDto>] public sealed partial
+  class XxxMapper` with an optional `private void Configure()` that uses the
+  generated `Map` property, and remove any manual interface implementation or
+  colliding members. A conventions-only mapping omits `Configure` entirely.
 
 ## SPF035: Unsupported entity member shape
 
@@ -414,6 +421,6 @@ public partial class PolicySettings
   reports them here instead and degrades the temporary-key assignment to
   `null`.
 * Fix: Declare an explicit `Member` mapping with a convert callback, or
-  `Ignore` the member, in the mapper's `Configure`. For temporary identities,
+  `Ignore` the member, in the mapper's parameterless `Configure()`. For temporary identities,
   prefer a public `{ get; set; }` `Guid?` property so generated defaults can
   assign identities after construction.
