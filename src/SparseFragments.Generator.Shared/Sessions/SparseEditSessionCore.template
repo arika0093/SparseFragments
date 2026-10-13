@@ -1086,6 +1086,10 @@ namespace __SESSION_NAMESPACE__
 
         internal void AdoptBranchRoot(Guid rootId) => _rootId = rootId;
 
+        internal bool IsInSameLineage(
+            EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> other
+        ) => other is not null && _rootId == other._rootId;
+
         internal void RefreshAfterExternalMutation() => RefreshAfterModelMutation();
 
         // Private state and helpers trail the internal surface.

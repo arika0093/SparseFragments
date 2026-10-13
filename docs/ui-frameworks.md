@@ -315,7 +315,7 @@ Conflicts carry the same member paths as change-set rebase, so per-field resolut
 
 ### Edit child models in an isolated scope
 
-Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope exposes its draft through `Observable` and merges it into the parent session with `TryCommit`.
+Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope implements `ISparseEditSession<TChild>` and exposes its draft through `Model`, `Observable`, and `Current`. Call `AcceptChanges()` or `TryCommit` to merge the draft into its parent session. A scope can open another scope with a path relative to its child draft.
 
 <!-- sample: ui-child-scope -->
 ```csharp
@@ -336,7 +336,7 @@ var committed = scope.TryCommit(out var conflicts);
 ```
 <!-- /sample -->
 
-`TryCommit` rebases the child draft against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the scope open. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, the scope enters `TargetMissing`. Call `Cancel()` or dispose an open scope to discard its draft.
+`TryCommit` rebases the child draft against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the scope open. `AcceptChanges()` throws `InvalidOperationException` when the target is missing or the draft conflicts. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, the scope enters `TargetMissing`. A nested scope cannot commit after its parent scope is canceled or committed; that attempt throws `InvalidOperationException`. Call `Cancel()` or dispose an open scope to discard its draft.
 
 ### Discard pending edits
 

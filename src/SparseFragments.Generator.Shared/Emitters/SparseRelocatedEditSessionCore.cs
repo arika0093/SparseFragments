@@ -367,6 +367,7 @@ internal static class SparseRelocatedEditSessionCore
             code,
             modelType,
             sessionSimple,
+            sessionInterfaceMetadataName,
             patchDialect,
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null
         );

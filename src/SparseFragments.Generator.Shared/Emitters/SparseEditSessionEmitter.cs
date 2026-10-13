@@ -468,6 +468,7 @@ internal static class SparseEditSessionEmitter
             code,
             modelType,
             sessionSimple,
+            sessionInterfaceMetadataName,
             patchDialect,
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null
         );
@@ -623,6 +624,7 @@ internal static class SparseEditSessionEmitter
         SharedIndentedBuilder code,
         string modelType,
         string sessionSimple,
+        string sessionInterfaceMetadataName,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
         SparseDescriptorDialect? descriptorDialect
     )
@@ -633,6 +635,7 @@ internal static class SparseEditSessionEmitter
         }
 
         var pathType = SparseFragmentPatchEmitter.GetPathType(patchDialect);
+        var sessionContract = "global::" + sessionInterfaceMetadataName + "<TChild>";
         var typedPathInterface =
             patchDialect.TypedPathInterfaceType + "<" + modelType + ", TChild>";
         var conflictType = patchDialect.ConflictType;
@@ -657,6 +660,11 @@ internal static class SparseEditSessionEmitter
             "/// <summary>The target no longer exists in the parent session.</summary>"
         );
         code.AppendLineAt(3, "TargetMissing,");
+        code.AppendLineAt(
+            3,
+            "/// <summary>The parent scope was canceled, committed, or left its edit lineage.</summary>"
+        );
+        code.AppendLineAt(3, "ParentInvalidated,");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
@@ -693,7 +701,7 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             3,
-            "return new Scope<TChild>(this, fork, path, path.UntypedPath, target);"
+            "return new Scope<TChild>(this, fork, path.UntypedPath, path.WriteModelValueInPlace, target, null);"
         );
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -706,9 +714,13 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             2,
-            "public sealed class Scope<TChild> : global::System.IDisposable where TChild : class"
+            "public sealed class Scope<TChild> : "
+                + sessionContract
+                + ", global::System.IDisposable where TChild : class"
         );
         code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "/// <summary>Gets the editable child model.</summary>");
+        code.AppendLineAt(3, "public TChild Model => _model;");
         code.AppendLineAt(3, "/// <summary>Gets the writable draft model.</summary>");
         code.AppendLineAt(3, "public TChild Observable => _model;");
         code.AppendLineAt(3, "/// <summary>Gets the current draft model.</summary>");
@@ -719,7 +731,7 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             3,
-            "public bool HasChanges => _state == ScopeState.Open && !_fork.CreateChangeSet().IsEmpty;"
+            "public bool HasChanges => IsOpenInAncestry && !_fork.CreateChangeSet().IsEmpty;"
         );
         code.AppendLineAt(3, "/// <summary>Gets the target path.</summary>");
         code.AppendLineAt(3, "public " + pathType + " Path => _path;");
@@ -739,6 +751,10 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             3,
+            "/// <exception cref=\"global::System.InvalidOperationException\">The scope is closed, its parent is invalid, or the parent and draft belong to unrelated lineages.</exception>"
+        );
+        code.AppendLineAt(
+            3,
             "public bool TryCommit(out global::System.Collections.Generic.IReadOnlyList<"
                 + conflictType
                 + ">? conflicts)"
@@ -747,6 +763,10 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(
             4,
             "if (_state != ScopeState.Open) throw new global::System.InvalidOperationException(\"The edit scope is no longer open.\");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!_parent._session.IsInSameLineage(_fork._session) || (_parentIsOpen is not null && !_parentIsOpen())) { _state = ScopeState.ParentInvalidated; throw new global::System.InvalidOperationException(\"The parent edit scope is no longer open or belongs to an unrelated edit lineage.\"); }"
         );
         code.AppendLineAt(
             4,
@@ -767,11 +787,65 @@ internal static class SparseEditSessionEmitter
         );
         code.AppendLineAt(
             4,
-            "if (!rebased.Rebased.IsEmpty) { var candidate = _parent.Fork(); if (!candidate.TryApplyInPlace(rebased.Rebased, out conflicts)) return false; if (_parent.Descriptors.ResolveModel(_path) is not TChild currentTarget || candidate.Descriptors.ResolveModel(_path) is not TChild updatedTarget) { _state = ScopeState.TargetMissing; conflicts = null; return false; } try { _typedPath.WriteModelValueInPlace(currentTarget, updatedTarget); } finally { _parent._session.RefreshAfterExternalMutation(); } }"
+            "if (!rebased.Rebased.IsEmpty) { var candidate = _parent.Fork(); if (!candidate.TryApplyInPlace(rebased.Rebased, out conflicts)) return false; if (_parent.Descriptors.ResolveModel(_path) is not TChild currentTarget || candidate.Descriptors.ResolveModel(_path) is not TChild updatedTarget) { _state = ScopeState.TargetMissing; conflicts = null; return false; } try { _writeModelValue(currentTarget, updatedTarget); } finally { _parent._session.RefreshAfterExternalMutation(); } }"
         );
         code.AppendLineAt(4, "conflicts = null;");
         code.AppendLineAt(4, "_state = ScopeState.Committed;");
         code.AppendLineAt(4, "return true;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Commits the child draft into its parent session.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <exception cref=\"global::System.InvalidOperationException\">The draft conflicts with its parent, its target is missing, or its parent scope is invalid.</exception>"
+        );
+        code.AppendLineAt(
+            3,
+            "public void AcceptChanges() { if (!TryCommit(out var conflicts)) throw new global::System.InvalidOperationException(conflicts is null ? \"The edit scope target is no longer available.\" : \"The edit scope conflicts with changes in its parent session.\"); }"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <summary>Opens a nested scope for a model value within this child draft.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <param name=\"path\">The path to the nested model value.</param>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <returns>A nested scope that commits into this scope's draft.</returns>"
+        );
+        code.AppendLineAt(
+            3,
+            "public Scope<TNested> OpenScope<TNested>("
+                + patchDialect.TypedPathInterfaceType
+                + "<TChild, TNested> path) where TNested : class"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (!IsOpenInAncestry) throw new global::System.InvalidOperationException(\"The parent edit scope is no longer open.\");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
+        );
+        code.AppendLineAt(4, "var nestedPath = _path.Append(path.UntypedPath);");
+        code.AppendLineAt(4, "var fork = _fork.Fork();");
+        code.AppendLineAt(
+            4,
+            "if (fork.Descriptors.ResolveModel(nestedPath) is not TNested target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
+        );
+        code.AppendLineAt(
+            4,
+            "return new Scope<TNested>(_fork, fork, nestedPath, path.WriteModelValueInPlace, target, () => IsOpenInAncestry);"
+        );
         code.AppendLineAt(3, "}");
         code.AppendLineAt(
             3,
@@ -793,17 +867,23 @@ internal static class SparseEditSessionEmitter
                 + " parent, "
                 + sessionSimple
                 + " fork, "
-                + typedPathInterface
-                + " typedPath, "
                 + pathType
-                + " path, TChild model) { _parent = parent; _fork = fork; _typedPath = typedPath; _path = path; _model = model; _state = ScopeState.Open; }"
+                + " path, global::System.Action<TChild, TChild> writeModelValue, TChild model, global::System.Func<bool>? parentIsOpen) { _parent = parent; _fork = fork; _path = path; _writeModelValue = writeModelValue; _model = model; _parentIsOpen = parentIsOpen; _state = ScopeState.Open; }"
         );
         code.AppendLineAt(3, "private readonly " + sessionSimple + " _parent;");
         code.AppendLineAt(3, "private readonly " + sessionSimple + " _fork;");
-        code.AppendLineAt(3, "private readonly " + typedPathInterface + " _typedPath;");
         code.AppendLineAt(3, "private readonly " + pathType + " _path;");
+        code.AppendLineAt(
+            3,
+            "private readonly global::System.Action<TChild, TChild> _writeModelValue;"
+        );
+        code.AppendLineAt(3, "private readonly global::System.Func<bool>? _parentIsOpen;");
         code.AppendLineAt(3, "private readonly TChild _model;");
         code.AppendLineAt(3, "private ScopeState _state;");
+        code.AppendLineAt(
+            3,
+            "private bool IsOpenInAncestry => _state == ScopeState.Open && (_parentIsOpen is null || _parentIsOpen());"
+        );
         code.AppendLineAt(2, "}");
     }
 

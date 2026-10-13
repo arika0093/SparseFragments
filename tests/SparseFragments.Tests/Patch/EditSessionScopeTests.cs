@@ -29,7 +29,15 @@ public sealed class EditSessionScopeTests
     {
         var model = new KeyedServerHolder
         {
-            Items = [new KeyedServer { Id = "server", Name = "before", Count = 1 }],
+            Items =
+            [
+                new KeyedServer
+                {
+                    Id = "server",
+                    Name = "before",
+                    Count = 1,
+                },
+            ],
         };
         var session = model.CreateEditSession();
         using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
@@ -140,7 +148,15 @@ public sealed class EditSessionScopeTests
         var temporaryId = Guid.NewGuid();
         var model = new TempOrderHolder
         {
-            Lines = [new TempOrderLine { Id = 0, TemporaryId = temporaryId, Name = "before" }],
+            Lines =
+            [
+                new TempOrderLine
+                {
+                    Id = 0,
+                    TemporaryId = temporaryId,
+                    Name = "before",
+                },
+            ],
         };
         var session = model.CreateEditSession();
         using var scope = session.OpenScope(
@@ -160,7 +176,10 @@ public sealed class EditSessionScopeTests
     {
         var model = new StructuralDictHolder
         {
-            Servers = new() { ["server"] = new KeyedServer { Id = "server", Name = "before" } },
+            Servers = new()
+            {
+                ["server"] = new KeyedServer { Id = "server", Name = "before" },
+            },
         };
         var session = model.CreateEditSession();
         using var scope = session.OpenScope(StructuralDictHolder.SparsePath.Servers.Key("server"));
@@ -170,6 +189,119 @@ public sealed class EditSessionScopeTests
 
         conflicts.ShouldBeNull();
         session.Observable.Servers["server"].Name.ShouldBe("updated");
+    }
+
+    [Test]
+    public void ScopeImplementsTheChildEditSessionContract()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers =
+                    [
+                        new KeyedServer
+                        {
+                            Id = "server",
+                            Name = "before",
+                            Count = 1,
+                        },
+                    ],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var scope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        ISparseEditSession<ServerGroup> childSession = scope;
+
+        childSession.Model.Servers[0].Count = 2;
+        childSession.HasChanges.ShouldBeTrue();
+        childSession.AcceptChanges();
+
+        scope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.Committed);
+        session.Observable.Groups[0].Servers[0].Count.ShouldBe(2);
+    }
+
+    [Test]
+    public void NestedScopesCommitIntoTheirParentDraft()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        using var serverScope = groupScope.OpenScope(ServerGroup.SparsePath.Servers.Key("server"));
+        serverScope.Observable.Name = "nested";
+
+        serverScope.AcceptChanges();
+        serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.Committed);
+        groupScope.HasChanges.ShouldBeTrue();
+        groupScope.AcceptChanges();
+
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("nested");
+    }
+
+    [Test]
+    public void NestedScopeFailsAfterItsParentIsCanceled()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        using var serverScope = groupScope.OpenScope(ServerGroup.SparsePath.Servers.Key("server"));
+        serverScope.Observable.Name = "nested";
+        groupScope.Cancel();
+
+        Should.Throw<InvalidOperationException>(() => serverScope.TryCommit(out _));
+
+        serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.ParentInvalidated);
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("before");
+    }
+
+    [Test]
+    public void NestedScopeFailsAfterItsParentIsCommitted()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        using var groupScope = session.OpenScope(ClusterHolder.SparsePath.Groups.Key("group"));
+        using var serverScope = groupScope.OpenScope(ServerGroup.SparsePath.Servers.Key("server"));
+        serverScope.Observable.Name = "nested";
+        groupScope.AcceptChanges();
+
+        Should.Throw<InvalidOperationException>(() => serverScope.TryCommit(out _));
+
+        serverScope.State.ShouldBe(ClusterHolder.EditSession.ScopeState.ParentInvalidated);
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("before");
     }
 
     [Test]
