@@ -638,6 +638,215 @@ public sealed class SparseEntityMapperEmitterTests
     }
 
     [Test]
+    public void InitOnlyTemporaryKeyEmitsNullSetterWithDiagnosticAndCompiles()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            using System.Collections.Generic;
+            namespace Probe
+            {
+                public sealed class LineDto
+                {
+                    [SparseFragments.SparseKey(Unassigned = 0)]
+                    public int Id { get; set; }
+                    [SparseFragments.SparseTemporaryKey]
+                    public Guid? TemporaryId { get; init; }
+                    public int Qty { get; set; }
+                }
+                public sealed class LineEntity
+                {
+                    public int Id { get; set; }
+                    public Guid? TemporaryId { get; set; }
+                    public int Qty { get; set; }
+                }
+                public sealed class OrderDto
+                {
+                    public List<LineDto> Lines { get; set; } = new();
+                }
+                public sealed class OrderEntity
+                {
+                    public List<LineEntity> Lines { get; set; } = new();
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF035");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("TemporaryId");
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        // Correlation still reads the temporary identity; only the
+        // post-construction assignment degrades to null so the companion builds.
+        emitted.ShouldContain("static __key => __key.TemporaryId");
+        emitted.ShouldContain("child.Ignore(static dto => dto.TemporaryId);");
+        emitted.ShouldNotContain("__dto.TemporaryId = __value");
+
+        // Compile fixture: the emitted companion must build with the probe.
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
+    public void PrivateDtoMemberIsSkippedAndCompiles()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    private string Secret { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    public string Secret { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Notes, static entity => entity.Notes);"
+        );
+        emitted.ShouldNotContain("Secret");
+
+        // Compile fixture: the emitted companion must build with the probe.
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
+    public void PrivateEntityMemberReportsSpf035AndCompiles()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    public string Secret { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    private string Secret { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        var match = diagnostics.Single(static d => d.Id == "SPF035");
+        match.Severity.ShouldBe(DiagnosticSeverity.Error);
+        match.GetMessage().ShouldContain("Secret");
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Notes, static entity => entity.Notes);"
+        );
+        emitted.ShouldNotContain("entity.Secret");
+
+        // Compile fixture: the emitted companion must build with the probe.
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
+    public void InaccessibleAndReadonlyShapesCompileWithoutInvalidSelectors()
+    {
+        const string source = """
+            using SparseFragments.EntityFrameworkCore;
+            namespace Probe
+            {
+                public class BaseDto
+                {
+                    public string Base { get; set; } = string.Empty;
+                }
+                public sealed class AddressDto
+                {
+                    public string Street { get; set; } = string.Empty;
+                }
+                public sealed class OrderDto : BaseDto
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    public string Label { get; init; } = string.Empty;
+                    public string Computed => Notes;
+                    internal string InternalNote { get; set; } = string.Empty;
+                    protected string Guarded { get; set; } = string.Empty;
+                    private string Secret { get; set; } = string.Empty;
+                    public AddressDto? Address { get; set; }
+                }
+                public class BaseEntity
+                {
+                    public string Base { get; set; } = string.Empty;
+                }
+                public sealed class AddressEntity
+                {
+                    public string Street { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity : BaseEntity
+                {
+                    public string Notes { get; set; } = string.Empty;
+                    public string Label { get; set; } = string.Empty;
+                    public string InternalNote { get; set; } = string.Empty;
+                    public string Guarded { get; set; } = string.Empty;
+                    public string Secret { get; set; } = string.Empty;
+                    public AddressEntity? Address { get; set; }
+                }
+                [SparseFragmentMapper]
+                public sealed class OrderMapper : IEntityModelMapping<OrderEntity, OrderDto>
+                {
+                    public void Configure(SparseEntityMapBuilder<OrderEntity, OrderDto> map) { }
+                }
+            }
+            """;
+        var (diagnostics, _) = RunDriver(source);
+        diagnostics
+            .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        // Public, inherited, init-only (read-only selectors) and same-assembly
+        // internal members keep their defaults, including nested objects.
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Notes, static entity => entity.Notes);"
+        );
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Base, static entity => entity.Base);"
+        );
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Label, static entity => entity.Label);"
+        );
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.InternalNote, static entity => entity.InternalNote);"
+        );
+        emitted.ShouldContain(
+            "builder.Object(static dto => dto.Address, static entity => entity.Address, static child =>"
+        );
+        // Protected/private DTO members and getter-only computed members stay
+        // unmapped without invalid selectors.
+        emitted.ShouldNotContain("Guarded");
+        emitted.ShouldNotContain("Secret");
+        emitted.ShouldNotContain("dto.Computed");
+
+        // Compile fixture: the emitted companion must build with the probe.
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
     public void CustomStructPairReportsSpf035()
     {
         const string source = """

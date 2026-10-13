@@ -399,5 +399,15 @@ public partial class PolicySettings
   scalar set (custom structs), so neither a conventional `Member` default nor
   a nested `Object` mapping applies: `Object` contracts require reference
   types. Supported scalar value types include `DateOnly` and `TimeOnly`.
+  The same code covers members the generated companion cannot name:
+  private/protected or cross-assembly internal members, member types that are
+  not visible from the companion, key metadata that is not a single publicly
+  readable declaration, and `[SparseTemporaryKey]` properties without a
+  publicly settable (non-`init`) setter. The companion is an unrelated type,
+  so such selectors would fail with downstream C# errors; the generator
+  reports them here instead and degrades the temporary-key assignment to
+  `null`.
 * Fix: Declare an explicit `Member` mapping with a convert callback, or
-  `Ignore` the member, in the mapper's `Configure`.
+  `Ignore` the member, in the mapper's `Configure`. For temporary identities,
+  prefer a public `{ get; set; }` `Guid?` property so generated defaults can
+  assign identities after construction.

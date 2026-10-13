@@ -46,6 +46,11 @@ internal static class SparseTemporaryKeyAnalyzer
     /// temporary identity without an unassigned state can never activate).
     /// An explicit property initializer only warns
     /// (<c>TemporaryKeyInitializer</c>) and keeps the declaration usable.
+    /// Init-only setters are explicitly accepted: callers assign the identity
+    /// through object initializers or constructors, and generated code only
+    /// reads the value. Consumers that must assign post-construction (such as
+    /// the EF Core mapper's temporary-key setter delegate) guard
+    /// <c>IsInitOnly</c> separately instead of relying on this discovery.
     /// Use <see cref="CollectDiagnostics"/> to report the corresponding
     /// diagnostics.
     /// </remarks>
@@ -358,6 +363,9 @@ internal static class SparseTemporaryKeyAnalyzer
         && property.DeclaredAccessibility == Accessibility.Public
         && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
 
+    // Init-only setters are intentionally accepted here: the temporary identity
+    // is assigned at construction (object initializers) while generated code
+    // only reads it. Post-construction writers must check IsInitOnly themselves.
     private static bool HasPublicSetter(IPropertySymbol property) =>
         property.SetMethod?.DeclaredAccessibility == Accessibility.Public;
 

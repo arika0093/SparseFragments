@@ -95,7 +95,7 @@ internal static class SparseEntityMapperEmitter
         // subset (helpers, control flow, dynamic calls) suppresses nothing
         // provable: diagnostics stay silent there and runtime plan validation
         // remains the backstop.
-        var covered = TryCollectCoveredMembers(mapper);
+        var covered = SparseEntityMapperConfigureAnalysis.TryCollectCoveredMembers(mapper);
         var indent = mapperNamespace is null ? 0 : 1;
         AppendIndent(code, indent).Append("internal static class ").AppendLine(companionName);
         AppendIndent(code, indent).AppendLine("{");
@@ -124,7 +124,8 @@ internal static class SparseEntityMapperEmitter
             covered,
             visited,
             diagnostics,
-            location
+            location,
+            mapper
         );
         AppendIndent(code, indent + 1).AppendLine("}");
         AppendIndent(code, indent + 1)
@@ -206,7 +207,8 @@ internal static class SparseEntityMapperEmitter
         HashSet<(string Scope, string Member)>? covered,
         HashSet<string> visited,
         ImmutableArray<SparseGeneratorDiagnostic>.Builder diagnostics,
-        Location? location
+        Location? location,
+        INamedTypeSymbol mapper
     )
     {
         if (depth > MaxDepth)
@@ -217,16 +219,28 @@ internal static class SparseEntityMapperEmitter
         HashSet<string>? keyMembers = null;
         if (
             collectionElement
-            && TryGetKeyDeclaration(dtoType, out _, out _, out _, out var keyComponentNames)
+            && TryGetKeyDeclaration(
+                dtoType,
+                mapper,
+                out _,
+                out _,
+                out _,
+                out var keyComponentNames,
+                out _
+            )
         )
         {
             keyMembers = keyComponentNames.ToHashSet(StringComparer.Ordinal);
         }
 
-        foreach (var dtoProperty in ListSettableProperties(dtoType))
+        foreach (var dtoProperty in ListSettableProperties(dtoType, mapper))
         {
             var name = dtoProperty.Name;
-            var entityMember = SparseEntityMapperSymbolHelpers.FindEntityMember(entityType, name);
+            var entityMember = SparseEntityMapperSymbolHelpers.FindAccessibleEntityMember(
+                entityType,
+                name,
+                mapper
+            );
             var isKey = HasAttribute(dtoProperty, "SparseKeyAttribute");
             var isTemporaryKey = HasAttribute(dtoProperty, "SparseTemporaryKeyAttribute");
             var sameNameEntityType = entityMember is null
@@ -274,6 +288,29 @@ internal static class SparseEntityMapperEmitter
 
             if (entityMember is null)
             {
+                // A same-name member that exists but is unreachable from the
+                // companion would fail with a CS error if referenced, so report
+                // it instead of emitting an invalid selector. A missing
+                // counterpart stays explicit-only by design (runtime plan
+                // validation fails fast when unconfigured), as does anything
+                // already covered by (or hidden behind an unanalyzable)
+                // Configure.
+                if (
+                    covered is not null
+                    && !covered.Contains((scope, name))
+                    && SparseEntityMapperSymbolHelpers.FindEntityMember(entityType, name)
+                        is not null
+                )
+                {
+                    diagnostics.Add(
+                        new SparseGeneratorDiagnostic(
+                            SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+                            location,
+                            $"{dtoType.Name}.{name} has no entity member accessible from the generated companion; make the entity member publicly accessible or Ignore() the DTO member"
+                        )
+                    );
+                }
+
                 continue;
             }
 
@@ -313,11 +350,34 @@ internal static class SparseEntityMapperEmitter
                 {
                     var hasKey = TryGetKeyDeclaration(
                         dtoElementNamed,
+                        mapper,
                         out var keyProperty,
                         out var temporaryProperty,
                         out var unassignedKeyExpression,
-                        out var keyMemberNames
+                        out var keyMemberNames,
+                        out var invalidTemporaryReason
                     );
+                    if (invalidTemporaryReason is not null)
+                    {
+                        diagnostics.Add(
+                            new SparseGeneratorDiagnostic(
+                                SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+                                location,
+                                invalidTemporaryReason
+                            )
+                        );
+                    }
+
+                    if (!hasKey && DeclaresKeyAttributes(dtoElementNamed))
+                    {
+                        diagnostics.Add(
+                            new SparseGeneratorDiagnostic(
+                                SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+                                location,
+                                $"{dtoElementNamed.Name} declares key metadata that generated defaults cannot use; declare a single publicly readable [SparseKey] property (with unassigned semantics when a [SparseTemporaryKey] is present) or configure the collection explicitly"
+                            )
+                        );
+                    }
                     // Path-scoped conventional element defaults: the explicit
                     // Collection(..., lines => lines.Element(...)) composes
                     // these underneath its own overrides, which replace each
@@ -370,16 +430,36 @@ internal static class SparseEntityMapperEmitter
 
                         code.Append(", ");
                         if (
-                            temporaryProperty?.SetMethod?.DeclaredAccessibility
-                            != Accessibility.Public
+                            !SparseEntityMapperSymbolHelpers.IsTemporarySetterUsable(
+                                temporaryProperty,
+                                mapper
+                            )
                         )
                         {
+                            // An init-only (or otherwise non-assignable)
+                            // temporary key cannot be written by a runtime
+                            // delegate outside construction: pass null so the
+                            // companion still compiles, and diagnose instead of
+                            // emitting an invalid assignment. The runtime
+                            // reports a clear MetadataMismatch if it ever needs
+                            // to assign one.
+                            if (temporaryProperty is not null)
+                            {
+                                diagnostics.Add(
+                                    new SparseGeneratorDiagnostic(
+                                        SparseFragmentsDiagnosticIds.UnsupportedEntityMemberShape,
+                                        location,
+                                        $"{dtoElementNamed.Name}.{temporaryProperty.Name} must be a publicly settable (non-init) property for generated defaults to assign temporary identities; use '{temporaryProperty.Name} {{ get; set; }}' or configure the collection explicitly"
+                                    )
+                                );
+                            }
+
                             code.Append("null");
                         }
                         else
                         {
                             code.Append("static (__dto, __value) => __dto.")
-                                .Append(EscapeIdentifier(temporaryProperty.Name))
+                                .Append(EscapeIdentifier(temporaryProperty!.Name))
                                 .Append(" = __value");
                         }
 
@@ -416,7 +496,8 @@ internal static class SparseEntityMapperEmitter
                         covered,
                         visited,
                         diagnostics,
-                        location
+                        location,
+                        mapper
                     );
                     AppendIndent(code, indent).AppendLine("});");
                 }
@@ -542,7 +623,8 @@ internal static class SparseEntityMapperEmitter
                     covered,
                     visited,
                     diagnostics,
-                    location
+                    location,
+                    mapper
                 );
                 AppendIndent(code, indent).AppendLine("});");
                 visited.Remove(visitKey);
@@ -550,320 +632,21 @@ internal static class SparseEntityMapperEmitter
         }
     }
 
-    // Supported declarative Configure subset for SPF033 suppression: direct
-    // typed builder calls whose DTO selector is a single member access, with
-    // Object/Collection/Element lambdas tracked for scope. Anything else
-    // (helpers, control flow, dynamic calls) makes the whole Configure
-    // unanalyzable, in which case nothing is provable and diagnostics stay
-    // silent with runtime plan validation as the backstop.
-    private static HashSet<(string Scope, string Member)>? TryCollectCoveredMembers(
+    // Declarative Configure coverage analysis lives in
+    // SparseEntityMapperConfigureAnalysis.
+    private static List<IPropertySymbol> ListSettableProperties(
+        INamedTypeSymbol type,
         INamedTypeSymbol mapper
     )
     {
-        var configure = mapper
-            .GetMembers("Configure")
-            .OfType<IMethodSymbol>()
-            .FirstOrDefault(static method => method.Parameters.Length == 1);
-        if (configure is null)
-        {
-            return null;
-        }
-
-        var declaration =
-            configure.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
-            as MethodDeclarationSyntax;
-        if (declaration?.Body is not { } body)
-        {
-            return null;
-        }
-
-        var covered = new HashSet<(string Scope, string Member)>();
-        var vars = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [configure.Parameters[0].Name] = string.Empty,
-        };
-        return ProcessConfigureBlock(body, vars, covered) ? covered : null;
-    }
-
-    private static bool ProcessConfigureBlock(
-        BlockSyntax block,
-        Dictionary<string, string> vars,
-        HashSet<(string Scope, string Member)> covered
-    )
-    {
-        foreach (var statement in block.Statements)
-        {
-            if (
-                statement
-                    is not ExpressionStatementSyntax
-                    {
-                        Expression: InvocationExpressionSyntax invocation
-                    }
-                || !ProcessConfigureInvocation(invocation, vars, covered)
-            )
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool ProcessConfigureInvocation(
-        InvocationExpressionSyntax invocation,
-        Dictionary<string, string> vars,
-        HashSet<(string Scope, string Member)> covered
-    )
-    {
-        if (
-            invocation.Expression
-                is not MemberAccessExpressionSyntax
-                {
-                    Expression: IdentifierNameSyntax receiver,
-                    Name: IdentifierNameSyntax method
-                }
-            || !vars.TryGetValue(receiver.Identifier.Text, out var scope)
-        )
-        {
-            return false;
-        }
-
-        var arguments = invocation.ArgumentList.Arguments;
-        switch (method.Identifier.Text)
-        {
-            case "Member":
-                // Only a converter-bearing Member resolves a member: a
-                // two-argument or policy-only Member cannot supply a conversion.
-                if (
-                    arguments.Count > 0
-                    && HasConverterArgument(arguments)
-                    && TrySingleMember(arguments[0].Expression, out var member)
-                )
-                {
-                    covered.Add((scope, member));
-                }
-
-                return true;
-            case "Write":
-            case "Ignore":
-                if (
-                    arguments.Count > 0
-                    && TrySingleMember(arguments[0].Expression, out var written)
-                )
-                {
-                    covered.Add((scope, written));
-                }
-
-                return true;
-            case "OnMissing":
-            case "AllowWrite":
-                // Policies alone resolve nothing; still supported syntax.
-                return true;
-            case "Object":
-            case "Collection":
-                if (
-                    arguments.Count == 0
-                    || !TrySingleMember(arguments[0].Expression, out var childMember)
-                )
-                {
-                    return true;
-                }
-
-                covered.Add((scope, childMember));
-                if (
-                    arguments.Count < 3
-                    || !TryLambdaStatements(
-                        arguments[2].Expression,
-                        out var parameter,
-                        out var statements
-                    )
-                )
-                {
-                    return arguments.Count < 3;
-                }
-
-                var childScope = scope.Length == 0 ? childMember : scope + "." + childMember;
-                var nested = new Dictionary<string, string>(vars, StringComparer.Ordinal)
-                {
-                    [parameter] = childScope,
-                };
-                return ProcessConfigureStatements(statements, nested, covered);
-            case "Element":
-                if (
-                    arguments.Count == 0
-                    || !TryLambdaStatements(
-                        arguments[0].Expression,
-                        out var elementParameter,
-                        out var elementStatements
-                    )
-                )
-                {
-                    return false;
-                }
-
-                var scoped = new Dictionary<string, string>(vars, StringComparer.Ordinal)
-                {
-                    [elementParameter] = scope,
-                };
-                return ProcessConfigureStatements(elementStatements, scoped, covered);
-            case "MissingDefault":
-            case "DeclareCollection":
-            case "DeclareCollectionElement":
-            case "Key":
-            case "Create":
-            case "Remove":
-            case "Delete":
-            case "Detach":
-            case "SoftDelete":
-            case "Order":
-            case "UnassignedKey":
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static bool ProcessConfigureStatements(
-        IReadOnlyList<StatementSyntax> statements,
-        Dictionary<string, string> vars,
-        HashSet<(string Scope, string Member)> covered
-    )
-    {
-        foreach (var statement in statements)
-        {
-            if (
-                statement
-                    is not ExpressionStatementSyntax
-                    {
-                        Expression: InvocationExpressionSyntax invocation
-                    }
-                || !ProcessConfigureInvocation(invocation, vars, covered)
-            )
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // A converter lives past the DTO/entity selector pair: the third or fourth
-    // argument as a lambda (a policy enum member access is not one).
-    private static bool HasConverterArgument(SeparatedSyntaxList<ArgumentSyntax> arguments)
-    {
-        for (var index = 2; index < arguments.Count; index++)
-        {
-            if (
-                arguments[index].Expression
-                is SimpleLambdaExpressionSyntax
-                    or ParenthesizedLambdaExpressionSyntax
-            )
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TrySingleMember(ExpressionSyntax expression, out string member)
-    {
-        member = string.Empty;
-        if (
-            expression
-                is SimpleLambdaExpressionSyntax
-                {
-                    Parameter: var token,
-                    Body: MemberAccessExpressionSyntax
-                    {
-                        Expression: IdentifierNameSyntax receiver,
-                        Name: IdentifierNameSyntax name
-                    }
-                }
-            && receiver.Identifier.Text == token.Identifier.Text
-        )
-        {
-            member = name.Identifier.Text;
-            return true;
-        }
-
-        if (
-            expression
-                is ParenthesizedLambdaExpressionSyntax
-                {
-                    ParameterList.Parameters.Count: 1
-                } parenthesized
-            && parenthesized.Body
-                is MemberAccessExpressionSyntax
-                {
-                    Expression: IdentifierNameSyntax parenthesizedReceiver,
-                    Name: IdentifierNameSyntax parenthesizedName
-                }
-            && parenthesizedReceiver.Identifier.Text
-                == parenthesized.ParameterList.Parameters[0].Identifier.Text
-        )
-        {
-            member = parenthesizedName.Identifier.Text;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryLambdaStatements(
-        ExpressionSyntax expression,
-        out string parameter,
-        out IReadOnlyList<StatementSyntax> statements
-    )
-    {
-        parameter = string.Empty;
-        statements = [];
-        if (expression is SimpleLambdaExpressionSyntax simple)
-        {
-            parameter = simple.Parameter.Identifier.Text;
-            if (simple.Body is BlockSyntax block)
-            {
-                statements = block.Statements;
-                return true;
-            }
-
-            if (simple.Body is ExpressionSyntax body)
-            {
-                statements = [SyntaxFactory.ExpressionStatement(body)];
-                return true;
-            }
-
-            return false;
-        }
-
-        if (
-            expression is ParenthesizedLambdaExpressionSyntax
-            {
-                ParameterList.Parameters.Count: 1
-            } parenthesized
-        )
-        {
-            parameter = parenthesized.ParameterList.Parameters[0].Identifier.Text;
-            if (parenthesized.Body is BlockSyntax parenthesizedBlock)
-            {
-                statements = parenthesizedBlock.Statements;
-                return true;
-            }
-
-            if (parenthesized.Body is ExpressionSyntax parenthesizedBody)
-            {
-                statements = [SyntaxFactory.ExpressionStatement(parenthesizedBody)];
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static List<IPropertySymbol> ListSettableProperties(INamedTypeSymbol type)
-    {
         // Walk the base chain explicitly: inherited writable properties take
         // conventional defaults too, with the nearest declaration winning.
+        // Only members (and member types) reachable from the emitted companion
+        // qualify: private/protected or cross-assembly internal members would
+        // fail with CS errors when named from the unrelated companion type.
+        // Init-only setters stay eligible here because conventional
+        // Member/Object/Collection selectors only read; the temporary-key
+        // assignment delegate guards IsInitOnly separately.
         var properties = new List<IPropertySymbol>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (
@@ -885,12 +668,38 @@ internal static class SparseEntityMapperEmitter
                     continue;
                 }
 
+                if (
+                    !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(member, mapper)
+                    || !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(
+                        member.GetMethod,
+                        mapper
+                    )
+                    || !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(
+                        member.SetMethod,
+                        mapper
+                    )
+                    || !SparseEntityMapperSymbolHelpers.IsTypeAccessibleFromCompanion(
+                        member.Type,
+                        mapper
+                    )
+                )
+                {
+                    continue;
+                }
+
                 properties.Add(member);
             }
         }
 
         return properties;
     }
+
+    private static bool DeclaresKeyAttributes(INamedTypeSymbol elementType) =>
+        ListInstanceProperties(elementType)
+            .Any(property =>
+                HasAttribute(property, "SparseKeyAttribute")
+                || HasAttribute(property, "SparseTemporaryKeyAttribute")
+            );
 
     private static bool HasAttribute(ISymbol symbol, string metadataName) =>
         symbol
@@ -901,10 +710,12 @@ internal static class SparseEntityMapperEmitter
 
     private static bool TryGetKeyDeclaration(
         INamedTypeSymbol elementType,
+        INamedTypeSymbol mapper,
         out IPropertySymbol? keyProperty,
         out IPropertySymbol? temporaryProperty,
         out string? unassignedKeyExpression,
-        out string[] keyMemberNames
+        out string[] keyMemberNames,
+        out string? invalidTemporaryReason
     )
     {
         var properties = ListInstanceProperties(elementType);
@@ -918,10 +729,15 @@ internal static class SparseEntityMapperEmitter
         temporaryProperty = null;
         unassignedKeyExpression = null;
         keyMemberNames = [];
+        invalidTemporaryReason = null;
+        var keyGetMethod = keys.Length == 1 ? keys[0].GetMethod : null;
         if (
             keys.Length != 1
-            || keys[0].GetMethod is null
+            || keyGetMethod is null
             || keys[0].DeclaredAccessibility != Accessibility.Public
+            || !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(keys[0], mapper)
+            || !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(keyGetMethod, mapper)
+            || !SparseEntityMapperSymbolHelpers.IsTypeAccessibleFromCompanion(keys[0].Type, mapper)
             || temporaries.Length > 1
         )
         {
@@ -929,17 +745,39 @@ internal static class SparseEntityMapperEmitter
         }
 
         keyProperty = keys[0];
-        temporaryProperty =
-            temporaries.Length == 1
-            && temporaries[0].Type
-                is INamedTypeSymbol
-                {
-                    OriginalDefinition.SpecialType: SpecialType.System_Nullable_T,
-                    TypeArguments.Length: 1,
-                } temporaryType
-            && temporaryType.TypeArguments[0].ToDisplayString() == "System.Guid"
-                ? temporaries[0]
-                : null;
+        // A usable temporary identity mirrors the Shared analyzer's declaration
+        // rules (single, readable, Guid?, not combined with [SparseKey]) plus
+        // companion reachability. Init-only setters stay eligible here because
+        // correlation only reads; assignability is guarded separately when the
+        // setter delegate is emitted.
+        if (temporaries.Length == 1)
+        {
+            var candidate = temporaries[0];
+            if (
+                candidate.IsStatic
+                || candidate.IsIndexer
+                || candidate.GetMethod is null
+                || candidate.DeclaredAccessibility != Accessibility.Public
+                || candidate.GetMethod.DeclaredAccessibility != Accessibility.Public
+                || !SparseEntityMapperSymbolHelpers.IsAccessibleFromCompanion(candidate, mapper)
+                || HasAttribute(candidate, "SparseKeyAttribute")
+                || candidate.Type
+                    is not INamedTypeSymbol
+                    {
+                        OriginalDefinition.SpecialType: SpecialType.System_Nullable_T,
+                        TypeArguments.Length: 1,
+                    } temporaryType
+                || temporaryType.TypeArguments[0].ToDisplayString() != "System.Guid"
+            )
+            {
+                invalidTemporaryReason =
+                    $"{elementType.Name}.{candidate.Name} is not a usable temporary identity; mark a single publicly readable Guid? property (without [SparseKey]) that is accessible from the generated companion";
+            }
+            else
+            {
+                temporaryProperty = candidate;
+            }
+        }
         var keyAttribute = keyProperty
             .GetAttributes()
             .First(static attribute =>
@@ -954,7 +792,7 @@ internal static class SparseEntityMapperEmitter
             }
         }
 
-        var writableNames = ListSettableProperties(elementType)
+        var writableNames = ListSettableProperties(elementType, mapper)
             .Select(static property => property.Name)
             .ToHashSet(StringComparer.Ordinal);
         var members = new HashSet<string>(StringComparer.Ordinal) { keyProperty.Name };

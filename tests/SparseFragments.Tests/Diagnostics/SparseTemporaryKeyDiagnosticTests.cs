@@ -102,10 +102,38 @@ public sealed class SparseTemporaryKeyDiagnosticTests
     public void ValidDeclarationProducesNoDiagnostics()
     {
         var (diagnostics, sources) = Run(WithHolder(ValidElement));
-        diagnostics
-            .Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
-            .ShouldBeEmpty();
+        diagnostics.Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal)).ShouldBeEmpty();
         sources.ShouldNotBeEmpty();
+    }
+
+    [Test]
+    public void InitOnlyTemporaryKeyKeepsDeclarationValid()
+    {
+        // Init-only identities are assigned at construction (object
+        // initializers) while generated code only reads them, so the
+        // declaration itself stays valid: no SPF031/SPF032. The init member
+        // still makes the structural element non-overlayable, which clone
+        // analysis reports as SPF008 on the holder. Post-construction writers
+        // (such as the EF Core mapper's setter delegate) guard IsInitOnly on
+        // their own side.
+        const string element = """
+            public partial class TempKeyed
+            {
+                [SparseKey(Unassigned = 0)]
+                public int Id { get; set; }
+
+                [SparseTemporaryKey]
+                public Guid? TemporaryId { get; init; }
+
+                public string Name { get; set; } = "";
+            }
+            """;
+        var (diagnostics, sources) = Run(WithHolder(element));
+        diagnostics
+            .Where(d => d.Id is "SPF031" or "SPF032")
+            .ShouldBeEmpty("init-only temporary identity keeps a valid declaration shape");
+        AssertSpfErrorIds(diagnostics, ["SPF008"]);
+        sources.ShouldBeEmpty();
     }
 
     [Test]
@@ -124,12 +152,12 @@ public sealed class SparseTemporaryKeyDiagnosticTests
         };
         var element =
             """
-            public partial class TempKeyed
-            {
-                [SparseKey(Unassigned = 0)]
-                public int Id { get; set; }
+                public partial class TempKeyed
+                {
+                    [SparseKey(Unassigned = 0)]
+                    public int Id { get; set; }
 
-            """
+                """
             + "    "
             + declaration.Replace("\n", "\n    ")
             + "\n}";
@@ -168,18 +196,19 @@ public sealed class SparseTemporaryKeyDiagnosticTests
     {
         var declaration = kind switch
         {
-            "privateSetter" => "[SparseTemporaryKey]\npublic Guid? TemporaryId { get; private set; }",
+            "privateSetter" =>
+                "[SparseTemporaryKey]\npublic Guid? TemporaryId { get; private set; }",
             "getterOnly" => "[SparseTemporaryKey]\npublic Guid? TemporaryId { get; }",
             _ => "[SparseTemporaryKey]\npublic static Guid? TemporaryId { get; set; }",
         };
         var element =
             """
-            public partial class TempKeyed
-            {
-                [SparseKey(Unassigned = 0)]
-                public int Id { get; set; }
+                public partial class TempKeyed
+                {
+                    [SparseKey(Unassigned = 0)]
+                    public int Id { get; set; }
 
-            """
+                """
             + "    "
             + declaration.Replace("\n", "\n    ")
             + "\n}";
@@ -203,10 +232,7 @@ public sealed class SparseTemporaryKeyDiagnosticTests
             """;
         var (diagnostics, sources) = Run(WithHolder(element));
         AssertSpfErrorIds(diagnostics, ["SPF031"]);
-        diagnostics
-            .Single(d => d.Id == "SPF031")
-            .GetMessage()
-            .ShouldContain("unassigned");
+        diagnostics.Single(d => d.Id == "SPF031").GetMessage().ShouldContain("unassigned");
         sources.ShouldBeEmpty();
     }
 
@@ -277,14 +303,14 @@ public sealed class SparseTemporaryKeyDiagnosticTests
         };
         var element =
             """
-            public partial class TempKeyed
-            {
-                [SparseKey(Unassigned = 0)]
-                public int Id { get; set; }
+                public partial class TempKeyed
+                {
+                    [SparseKey(Unassigned = 0)]
+                    public int Id { get; set; }
 
-                [SparseTemporaryKey]
-                public Guid? TemporaryId { get; set; }
-            """
+                    [SparseTemporaryKey]
+                    public Guid? TemporaryId { get; set; }
+                """
             + initializer
             + ";}";
         var (diagnostics, sources) = Run(WithHolder(element));
