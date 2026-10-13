@@ -1,0 +1,161 @@
+@using SparseTypes
+@using SparseTypes.Blazor
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
+
+<div class="pg-stack">
+    <p class="pg-hint">A nested one-shot scope isolates edits to <code>Nested</code> until <code>TryCommit</code> merges them into the parent session. <code>Cancel</code> and disposal discard the draft; committing over newer parent edits reports conflicts instead of overwriting them.</p>
+    <div class="pg-grid pg-grid-duo">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Parent session</h3></div>
+            <SparseEdit Session="_session" Context="edit">
+                <div class="pg-stack pg-edit-fields">
+                    <SparseField Path="edit.Path.Nested.Host" Context="host">
+                        <div class="pg-row pg-session-field @(host.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Nested.Host <small>string</small></span>
+                            <FluentTextInput @bind-Value="host.Value" />
+                        </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.Nested.Port" Context="port">
+                        <div class="pg-row pg-session-field @(port.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Nested.Port <small>int</small></span>
+                            <FluentNumberInput TValue="int" @bind-Value="port.Value" />
+                        </div>
+                    </SparseField>
+                </div>
+            </SparseEdit>
+            <div class="pg-actions">
+                <FluentButton Appearance="ButtonAppearance.Primary" Disabled="@(_scope is not null)" @onclick="OpenScope">Open scope</FluentButton>
+            </div>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Isolated draft</h3></div>
+            @if (_scope is null)
+            {
+                <p class="pg-hint">No open scope. Open one to edit a private copy of Nested.</p>
+            }
+            else
+            {
+                <div class="pg-stack pg-edit-fields">
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Draft.Host <small>string</small></span>
+                        @* The scope draft is a plain model: edits land on the
+                        draft only, and the post-event render shows them. The
+                        parent session is untouched until TryCommit. *@
+                        <FluentTextInput Value="@_scope.Observable.Host"
+                            ValueChanged="@(v => EditDraft(draft => draft.Host = v ?? string.Empty))" />
+                    </div>
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Draft.Port <small>int</small></span>
+                        <FluentNumberInput TValue="int" Value="@_scope.Observable.Port"
+                            ValueChanged="@(v => EditDraft(draft => draft.Port = v))" />
+                    </div>
+                </div>
+                <p class="pg-hint">Scope state: @_scope.State. Draft changes: @(_scope.HasChanges ? "yes" : "none").</p>
+                <div class="pg-actions">
+                    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CommitScope">TryCommit</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="CancelScope">Cancel</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="DisposeScope">Dispose</FluentButton>
+                </div>
+            }
+            @if (_conflicts.Count > 0)
+            {
+                <div class="pg-change-table-wrap">
+                    <table class="pg-change-table" aria-label="Scope conflicts">
+                        <thead><tr><th>Path</th><th>Parent</th><th>Draft</th><th>Kind</th></tr></thead>
+                        <tbody>
+                            @foreach (var conflict in _conflicts)
+                            {
+                                <tr>
+                                    <td><span class="pg-change-value">@conflict.PathText</span></td>
+                                    <td><span class="pg-change-value">@PlaygroundJson.FormatChangeValue(conflict.CurrentValue)</span></td>
+                                    <td><span class="pg-change-value">@PlaygroundJson.FormatChangeValue(conflict.LocalValue)</span></td>
+                                    <td>@conflict.Kind</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (_scopeMessage is not null)
+            {
+                <p class="pg-hint">@_scopeMessage</p>
+            }
+        </FluentCard>
+    </div>
+</div>
+
+@code {
+    private readonly PlaygroundSettings _model = new()
+    {
+        Enabled = true,
+        RetryCount = 3,
+        Label = "Scope demo",
+        Nested = new PlaygroundNested { Host = "db.local", Port = 5432 },
+    };
+    private SettingsSession _session = null!;
+    private SettingsSession.Scope<PlaygroundNested>? _scope;
+    private IReadOnlyList<SparseConflict> _conflicts = [];
+    private string? _scopeMessage;
+
+    protected override void OnInitialized() => _session = _model.CreateEditSession();
+
+    private void OpenScope()
+    {
+        _scope?.Cancel();
+        // Nested is always populated in this demo, so the scope resolves.
+        _scope = _session.OpenScope(PlaygroundSettings.SparsePath.Nested);
+        _conflicts = [];
+        _scopeMessage = null;
+    }
+
+    private void EditDraft(Action<PlaygroundNested> edit)
+    {
+        if (_scope is not null)
+        {
+            edit(_scope.Observable);
+        }
+    }
+
+    private void CommitScope()
+    {
+        if (_scope is null)
+        {
+            return;
+        }
+
+        // The commit rebases the draft onto the parent's current state: edits
+        // made in the parent form after opening the scope conflict instead of
+        // being overwritten. To see it, open a scope, change Host on the left,
+        // then TryCommit here.
+        if (_scope.TryCommit(out var conflicts))
+        {
+            _scopeMessage = $"Committed; scope state is {_scope.State}.";
+            _scope = null;
+            _conflicts = [];
+        }
+        else
+        {
+            _conflicts = conflicts ?? [];
+            _scopeMessage = $"The draft conflicts with newer parent edits; scope state is {_scope.State}. The parent session is unchanged.";
+        }
+    }
+
+    private void CancelScope()
+    {
+        _scope?.Cancel();
+        _scopeMessage = _scope is null ? null : $"Discarded; scope state is {_scope.State}.";
+        _scope = null;
+    }
+
+    private void DisposeScope()
+    {
+        // Disposal is an explicit discard path: an undisposed open scope
+        // would keep the draft alive, so leaving without commit, cancel, or
+        // dispose is a leak of intent, not just memory.
+        _scope?.Dispose();
+        _scopeMessage = _scope is null ? null : $"Disposed without commit; scope state is {_scope.State}.";
+        _scope = null;
+    }
+}

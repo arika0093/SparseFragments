@@ -1,0 +1,304 @@
+@using System.Threading
+@using SparseTypes
+@using SparseTypes.Blazor
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using ProfileSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
+@using ConnectionSession = global::SparseTypes.Playground.Models.PlaygroundNested.EditSession;
+
+<div class="pg-stack">
+    <p class="pg-hint">Two independent typed <code>SparseEdit</code> forms coordinate through Core <code>EditSessionGroup.Prepare/PrepareAsync</code>. Preparation captures immutable per-section change sets; acknowledgement is per-section, never an atomic cross-session transaction.</p>
+    <div class="pg-grid pg-grid-duo">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Profile section</h3></div>
+            <SparseEdit Session="_profileSession" Context="profile">
+                <div class="pg-stack pg-edit-fields">
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Enabled <small>bool</small></span>
+                        <SparseField Path="profile.Path.Enabled" Context="enabled">
+                            <FluentCheckbox @bind-Value="enabled.Value" />
+                        </SparseField>
+                    </div>
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">RetryCount <small>int</small></span>
+                        @* Built-in InputBase control: pass the triple explicitly so
+                        validation targets the original model instead of the field
+                        context. Third-party inputs use @@bind-Value instead. *@
+                        <SparseField Path="profile.Path.RetryCount" Context="retryCount">
+                            <InputNumber TValue="int" Value="@retryCount.Value"
+                                ValueChanged="@retryCount.ValueChanged"
+                                ValueExpression="@retryCount.ValueExpression" />
+                        </SparseField>
+                    </div>
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Label <small>string</small></span>
+                        <SparseField Path="profile.Path.Label" Context="label">
+                            <FluentTextInput @bind-Value="label.Value" />
+                        </SparseField>
+                    </div>
+                </div>
+            </SparseEdit>
+            <p class="pg-hint">Live paths: @LiveProfilePaths</p>
+        </FluentCard>
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head"><h3>Connection section</h3></div>
+            <SparseEdit Session="_connectionSession" Context="connection">
+                <div class="pg-stack pg-edit-fields">
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Host <small>string</small></span>
+                        <SparseField Path="connection.Path.Host" Context="host">
+                            <FluentTextInput @bind-Value="host.Value" />
+                        </SparseField>
+                    </div>
+                    <div class="pg-row pg-session-field">
+                        <span class="pg-name notranslate" translate="no">Port <small>int</small></span>
+                        <SparseField Path="connection.Path.Port" Context="port">
+                            <FluentNumberInput TValue="int" @bind-Value="port.Value" />
+                        </SparseField>
+                    </div>
+                </div>
+            </SparseEdit>
+            <p class="pg-hint">Live paths: @LiveConnectionPaths</p>
+        </FluentCard>
+    </div>
+    <FluentCard Class="pg-fluent-card">
+        <div class="pg-card-head"><h3>Prepare and acknowledge</h3></div>
+        <div class="pg-actions">
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="Prepare">Prepare</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="PrepareAsync">Prepare async</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(_draft is not null)" @onclick="OpenDraft">Open draft on profile</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(_draft is null)" @onclick="CancelDraft">Cancel draft</FluentButton>
+        </div>
+        @if (_draft is not null)
+        {
+            <p class="pg-hint">Open draft state: @_draft.State. Preparation must reject while a draft is open.</p>
+        }
+        @if (_issues.Count > 0)
+        {
+            <div class="pg-change-table-wrap">
+                <table class="pg-change-table" aria-label="Validation issues">
+                    <thead><tr><th>Section</th><th>Issue</th></tr></thead>
+                    <tbody>
+                        @foreach (var issue in _issues)
+                        {
+                            <tr><td>@issue.SectionId</td><td>@issue.Message</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        @if (_prepareError is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_prepareError</FluentMessageBar>
+        }
+        @if (_submission is not null)
+        {
+            <p class="pg-hint">Captured submission (frozen at prepare; later edits do not alter it):</p>
+            <code>@_frozenSummary</code>
+            <div class="pg-change-table-wrap">
+                <table class="pg-change-table" aria-label="Submitted sections">
+                    <thead><tr><th>Section</th><th>Revision</th><th>Changed paths</th><th>Acknowledged</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var section in _submission.Sections)
+                        {
+                            <tr>
+                                <td>@section.SectionId</td>
+                                <td>@section.BaselineRevision</td>
+                                <td><span class="pg-change-value">@string.Join(", ", section.ChangedPaths.Select(static path => path.ToString()))</span></td>
+                                <td>@(IsAcked(section.SectionId) ? "yes" : "no")</td>
+                                <td>
+                                    <FluentButton Appearance="ButtonAppearance.Default"
+                                        Disabled="@(!CanAck(section.SectionId))" @onclick="() => Acknowledge(section.SectionId)">Acknowledge</FluentButton>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        @if (_ackError is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_ackError</FluentMessageBar>
+        }
+    </FluentCard>
+</div>
+
+@code {
+    private readonly PlaygroundSettings _profile = new() { Enabled = true, RetryCount = 3, Label = "Ada" };
+    private readonly PlaygroundNested _connection = new() { Host = "db.local", Port = 5432 };
+    private readonly EditSessionGroup _group = new();
+    private ProfileSession _profileSession = null!;
+    private ConnectionSession _connectionSession = null!;
+    private EditSessionSectionHandle<PlaygroundSettings, PlaygroundSettings.ChangeSet>? _profileHandle;
+    private EditSessionSectionHandle<PlaygroundNested, PlaygroundNested.ChangeSet>? _connectionHandle;
+    private EditSessionGroupSubmission? _submission;
+    private IReadOnlyList<EditSessionGroupValidationIssue> _issues = [];
+    private string? _prepareError;
+    private string? _ackError;
+    private string _frozenSummary = string.Empty;
+    private bool _profileAcked;
+    private bool _connectionAcked;
+    private ProfileSession.Scope<PlaygroundNested>? _draft;
+
+    private string LiveProfilePaths =>
+        string.Join(", ", _profileSession.CreateChangeSet().EnumerateChangedPaths().Select(static path => path.ToString()));
+
+    private string LiveConnectionPaths =>
+        string.Join(", ", _connectionSession.CreateChangeSet().EnumerateChangedPaths().Select(static path => path.ToString()));
+
+    protected override void OnInitialized()
+    {
+        _profileSession = _profile.CreateEditSession();
+        _connectionSession = _connection.CreateEditSession();
+        _profileHandle = _group.Register(
+            "profile",
+            new EditSessionGroupRegistration<PlaygroundSettings, PlaygroundSettings.ChangeSet>
+            {
+                Session = _profileSession,
+                CreateChangeSet = _profileSession.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+                HasOpenDrafts = () => _profileSession.HasOpenDrafts,
+                Validate = () =>
+                    string.IsNullOrWhiteSpace(_profile.Label) ? "Profile label is required." : null,
+                ValidateChanges = static changes =>
+                    changes.RetryCount.IsChanged && changes.RetryCount.After.Value < 0
+                        ? "RetryCount must not be negative."
+                        : null,
+            });
+        _connectionHandle = _group.Register(
+            "connection",
+            new EditSessionGroupRegistration<PlaygroundNested, PlaygroundNested.ChangeSet>
+            {
+                Session = _connectionSession,
+                CreateChangeSet = _connectionSession.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+                HasOpenDrafts = () => _connectionSession.HasOpenDrafts,
+                Validate = () =>
+                    string.IsNullOrWhiteSpace(_connection.Host) ? "Connection host is required." : null,
+                ValidateChanges = static changes =>
+                    changes.Port.IsChanged && (changes.Port.After.Value < 1 || changes.Port.After.Value > 65535)
+                        ? "Port must be between 1 and 65535."
+                        : null,
+                // Async validation forces the PrepareAsync path: plain Prepare
+                // reports this section as requiring PrepareAsync.
+                ValidateAsync = static async (changes, cancellationToken) =>
+                {
+                    await Task.Delay(50, cancellationToken);
+                    return changes.Host.After is { IsPresent: true, Value: "unreachable.invalid" }
+                        ? "The host did not answer the reachability probe."
+                        : null;
+                },
+            });
+    }
+
+    private void Prepare()
+    {
+        try
+        {
+            _submission = _group.Prepare();
+            AfterPrepared();
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            _issues = exception.Issues;
+            _prepareError = null;
+        }
+        catch (Exception exception)
+        {
+            _prepareError = $"{exception.GetType().Name}: {exception.Message}";
+        }
+    }
+
+    private async Task PrepareAsync()
+    {
+        try
+        {
+            _submission = await _group.PrepareAsync();
+            AfterPrepared();
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            _issues = exception.Issues;
+            _prepareError = null;
+        }
+        catch (Exception exception)
+        {
+            _prepareError = $"{exception.GetType().Name}: {exception.Message}";
+        }
+    }
+
+    private void AfterPrepared()
+    {
+        _issues = [];
+        _prepareError = null;
+        _ackError = null;
+        _profileAcked = false;
+        _connectionAcked = false;
+        // Strings freeze the captured paths: later session edits re-render
+        // the live hints above but never rewrite this summary.
+        _frozenSummary = _submission is null
+            ? string.Empty
+            : string.Join(
+                "; ",
+                _submission.Sections.Select(static section =>
+                    $"{section.SectionId}@r{section.BaselineRevision}: [{string.Join(", ", section.ChangedPaths.Select(static path => path.ToString()))}]"));
+    }
+
+    private void OpenDraft()
+    {
+        // Profile Nested is always populated in this demo, so the scope
+        // always resolves; a missing target would throw ArgumentException.
+        _draft?.Cancel();
+        _draft = _profileSession.OpenScope(PlaygroundSettings.SparsePath.Nested);
+    }
+
+    private void CancelDraft()
+    {
+        _draft?.Cancel();
+        _draft = null;
+    }
+
+    private bool IsAcked(string sectionId) =>
+        sectionId switch
+        {
+            "profile" => _profileAcked,
+            "connection" => _connectionAcked,
+            _ => false,
+        };
+
+    private bool CanAck(string sectionId) =>
+        _submission is not null && !IsAcked(sectionId);
+
+    private void Acknowledge(string sectionId)
+    {
+        if (_submission is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Per-section acknowledgement only: the group advances that
+            // section's baseline and leaves the other section pending. There
+            // is no cross-session atomicity to claim here.
+            if (sectionId == "profile" && _profileHandle is not null)
+            {
+                _group.AcceptChanges(_submission, _profileHandle);
+                _profileAcked = true;
+            }
+            else if (sectionId == "connection" && _connectionHandle is not null)
+            {
+                _group.AcceptChanges(_submission, _connectionHandle);
+                _connectionAcked = true;
+            }
+
+            _ackError = null;
+        }
+        catch (Exception exception)
+        {
+            _ackError = $"{exception.GetType().Name}: {exception.Message}";
+        }
+    }
+}
