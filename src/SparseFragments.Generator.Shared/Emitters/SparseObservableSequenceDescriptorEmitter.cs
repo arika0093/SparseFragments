@@ -390,6 +390,21 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + "(key, out var typedKey)) return false; return "
             + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "typedKey")
             + "; }, ";
+        var temporaryResolver = string.Empty;
+        if (member.Collection.TemporaryKeyPropertyName is { } temporaryKeyProperty)
+        {
+            var temporaryProperty = SparseNaming.EscapeIdentifier(temporaryKeyProperty);
+            temporaryResolver =
+                "IndexOfTemporaryKey = temporaryKey => { var temporaryList = this."
+                + property
+                + "!; for (var temporaryIndex = 0; temporaryIndex < temporaryList.Count; temporaryIndex++) { var temporaryModel = "
+                + Unwrap("temporaryList[temporaryIndex]")
+                + "; if (temporaryModel is "
+                + member.Collection.ElementType.NonNullableName
+                + " typedTemporaryModel && typedTemporaryModel."
+                + temporaryProperty
+                + " == temporaryKey) return temporaryIndex; } return -1; }, ";
+        }
         var namesLiteral =
             "new string[] { "
             + string.Join(
@@ -399,7 +414,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 )
             )
             + " }";
-        return (resolvers, ", typeof(" + keyTypeName + "), " + namesLiteral);
+        return (resolvers + temporaryResolver, ", typeof(" + keyTypeName + "), " + namesLiteral);
     }
 
     /// <summary>Builds a key expression reading an object-typed model.</summary>

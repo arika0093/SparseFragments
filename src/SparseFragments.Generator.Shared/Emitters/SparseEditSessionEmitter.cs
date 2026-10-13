@@ -464,6 +464,13 @@ internal static class SparseEditSessionEmitter
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
+        AppendScopeMembers(
+            code,
+            modelType,
+            sessionSimple,
+            patchDialect,
+            config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null
+        );
         AppendForkMergeMembers(code, core, conflictType, sessionSimple);
         code.AppendLineAt(
             2,
@@ -609,6 +616,195 @@ internal static class SparseEditSessionEmitter
             2,
             "internal " + sessionSimple + "(" + core + " session) { _session = session; }"
         );
+    }
+
+    /// <summary>Appends path-addressed child edit scopes when descriptors are configured.</summary>
+    internal static void AppendScopeMembers(
+        SharedIndentedBuilder code,
+        string modelType,
+        string sessionSimple,
+        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
+        SparseDescriptorDialect? descriptorDialect
+    )
+    {
+        if (descriptorDialect is null || patchDialect.TypedPathInterfaceType is not { Length: > 0 })
+        {
+            return;
+        }
+
+        var pathType = SparseFragmentPatchEmitter.GetPathType(patchDialect);
+        var typedPathInterface =
+            patchDialect.TypedPathInterfaceType + "<" + modelType + ", TChild>";
+        var conflictType = patchDialect.ConflictType;
+
+        code.AppendLineAt(
+            2,
+            "/// <summary>Identifies the lifecycle state of an edit scope.</summary>"
+        );
+        code.AppendLineAt(2, "public enum ScopeState");
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "/// <summary>The scope can still be edited or committed.</summary>");
+        code.AppendLineAt(3, "Open,");
+        code.AppendLineAt(
+            3,
+            "/// <summary>The draft was committed to the parent session.</summary>"
+        );
+        code.AppendLineAt(3, "Committed,");
+        code.AppendLineAt(3, "/// <summary>The draft was discarded.</summary>");
+        code.AppendLineAt(3, "Canceled,");
+        code.AppendLineAt(
+            3,
+            "/// <summary>The target no longer exists in the parent session.</summary>"
+        );
+        code.AppendLineAt(3, "TargetMissing,");
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Opens an isolated edit scope for a model value addressed by a typed path.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"path\">The path to the model value.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <returns>A scope containing an independent draft of the addressed model value.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <exception cref=\"global::System.ArgumentException\">The path does not resolve to a model value of the requested type.</exception>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <exception cref=\"global::System.ArgumentException\">The path does not address a generated model value.</exception>"
+        );
+        code.AppendLineAt(
+            2,
+            "public Scope<TChild> OpenScope<TChild>("
+                + typedPathInterface
+                + " path) where TChild : class"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "var fork = Fork();");
+        code.AppendLineAt(
+            3,
+            "if (fork.Descriptors.ResolveModel(path.UntypedPath) is not TChild target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
+        );
+        code.AppendLineAt(
+            3,
+            "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
+        );
+        code.AppendLineAt(
+            3,
+            "return new Scope<TChild>(this, fork, path, path.UntypedPath, target);"
+        );
+        code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>An isolated model draft that can be committed or discarded.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <typeparam name=\"TChild\">The addressed model type.</typeparam>"
+        );
+        code.AppendLineAt(
+            2,
+            "public sealed class Scope<TChild> : global::System.IDisposable where TChild : class"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(3, "/// <summary>Gets the writable draft model.</summary>");
+        code.AppendLineAt(3, "public TChild Observable => _model;");
+        code.AppendLineAt(3, "/// <summary>Gets the current draft model.</summary>");
+        code.AppendLineAt(3, "public TChild Current => _model;");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Gets whether the draft differs from its state when the scope opened.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "public bool HasChanges => _state == ScopeState.Open && !_fork.CreateChangeSet().IsEmpty;"
+        );
+        code.AppendLineAt(3, "/// <summary>Gets the target path.</summary>");
+        code.AppendLineAt(3, "public " + pathType + " Path => _path;");
+        code.AppendLineAt(3, "/// <summary>Gets the scope lifecycle state.</summary>");
+        code.AppendLineAt(3, "public ScopeState State => _state;");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Attempts to merge the draft into the parent's current unsaved state.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <param name=\"conflicts\">Structured conflicts when the draft cannot be committed.</param>"
+        );
+        code.AppendLineAt(
+            3,
+            "/// <returns><see langword=\"true\"/> when the draft was committed; otherwise <see langword=\"false\"/>.</returns>"
+        );
+        code.AppendLineAt(
+            3,
+            "public bool TryCommit(out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts)"
+        );
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(
+            4,
+            "if (_state != ScopeState.Open) throw new global::System.InvalidOperationException(\"The edit scope is no longer open.\");"
+        );
+        code.AppendLineAt(
+            4,
+            "if (_parent.Descriptors.ResolveModel(_path) is not TChild) { _state = ScopeState.TargetMissing; conflicts = null; return false; }"
+        );
+        code.AppendLineAt(
+            4,
+            "if (_fork.CreateChangeSet().IsEmpty) { _state = ScopeState.Committed; conflicts = null; return true; }"
+        );
+        code.AppendLineAt(4, "var changes = _fork.CreateChangeSet();");
+        code.AppendLineAt(
+            4,
+            "var rebased = changes.RebaseOnto(_parent._session.GetModelForFrameworkAccess());"
+        );
+        code.AppendLineAt(
+            4,
+            "if (rebased.HasConflicts) { conflicts = rebased.Conflicts; return false; }"
+        );
+        code.AppendLineAt(
+            4,
+            "if (!rebased.Rebased.IsEmpty) { var candidate = _parent.Fork(); if (!candidate.TryApplyInPlace(rebased.Rebased, out conflicts)) return false; if (_parent.Descriptors.ResolveModel(_path) is not TChild currentTarget || candidate.Descriptors.ResolveModel(_path) is not TChild updatedTarget) { _state = ScopeState.TargetMissing; conflicts = null; return false; } try { _typedPath.WriteModelValueInPlace(currentTarget, updatedTarget); } finally { _parent._session.RefreshAfterExternalMutation(); } }"
+        );
+        code.AppendLineAt(4, "conflicts = null;");
+        code.AppendLineAt(4, "_state = ScopeState.Committed;");
+        code.AppendLineAt(4, "return true;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "/// <summary>Discards the draft without changing the parent session.</summary>"
+        );
+        code.AppendLineAt(
+            3,
+            "public void Cancel() { if (_state == ScopeState.Open) _state = ScopeState.Canceled; }"
+        );
+        code.AppendLineAt(3, "/// <inheritdoc />");
+        code.AppendLineAt(
+            3,
+            "public void Dispose() { if (_state == ScopeState.Open) _state = ScopeState.Canceled; }"
+        );
+        code.AppendLineAt(
+            3,
+            "internal Scope("
+                + sessionSimple
+                + " parent, "
+                + sessionSimple
+                + " fork, "
+                + typedPathInterface
+                + " typedPath, "
+                + pathType
+                + " path, TChild model) { _parent = parent; _fork = fork; _typedPath = typedPath; _path = path; _model = model; _state = ScopeState.Open; }"
+        );
+        code.AppendLineAt(3, "private readonly " + sessionSimple + " _parent;");
+        code.AppendLineAt(3, "private readonly " + sessionSimple + " _fork;");
+        code.AppendLineAt(3, "private readonly " + typedPathInterface + " _typedPath;");
+        code.AppendLineAt(3, "private readonly " + pathType + " _path;");
+        code.AppendLineAt(3, "private readonly TChild _model;");
+        code.AppendLineAt(3, "private ScopeState _state;");
+        code.AppendLineAt(2, "}");
     }
 
     private static string ReadTemplate(string resourceName)

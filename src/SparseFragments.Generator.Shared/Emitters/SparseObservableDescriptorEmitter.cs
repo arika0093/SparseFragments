@@ -69,6 +69,7 @@ internal static class SparseObservableDescriptorEmitter
         var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
             ? "() => { __onRawModelAccess?.Invoke(); return " + receiver + "; }"
             : "() => " + receiver;
+        var getModelValue = "() => (object?)__model." + property;
         code.AppendLineAt(
             4,
             "new "
@@ -109,6 +110,8 @@ internal static class SparseObservableDescriptorEmitter
                 + (member.Property.IsRequired ? "true" : "false")
                 + ", "
                 + (member.Property.IsNullableOblivious ? "true" : "false")
+                + ", "
+                + getModelValue
                 + "),"
         );
     }

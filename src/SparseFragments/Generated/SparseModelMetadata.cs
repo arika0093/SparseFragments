@@ -74,6 +74,9 @@ public interface ISparseInstanceAccess
     /// <summary>Gets the current value through the generated observable.</summary>
     object? GetValue();
 
+    /// <summary>Gets the underlying model value without an observable proxy.</summary>
+    object? GetModelValue();
+
     /// <summary>Attempts to replace the value through the generated observable.</summary>
     bool TrySetValue(object? value);
 

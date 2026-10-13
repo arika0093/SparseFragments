@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace SparseFragments.Generator.Shared;
 
@@ -80,10 +81,14 @@ internal static class SparsePathBuilderEmitter
             1,
             "/// <typeparam name=\"TRoot\">The root model the path navigates from.</typeparam>"
         );
+        var pathInterface = dialect.TypedPathInterfaceType is { Length: > 0 } typedPathInterface
+            ? " : " + typedPathInterface + "<TRoot, " + modelType + ">"
+            : string.Empty;
         code.AppendLineAt(
             1,
             (dialect.PathIsValueType ? "public readonly struct " : "public sealed class ")
                 + "SparsePaths<TRoot>"
+                + pathInterface
         );
         code.AppendLineAt(1, "{");
         // Public-first order: conversion and member navigation precede the
@@ -98,6 +103,50 @@ internal static class SparsePathBuilderEmitter
                 + pathType
                 + "(SparsePaths<TRoot> paths) => paths._path;"
         );
+        if (dialect.TypedPathInterfaceType is { Length: > 0 })
+        {
+            code.AppendLineAt(2, "/// <summary>Gets the model-agnostic path.</summary>");
+            code.AppendLineAt(2, "public " + pathType + " UntypedPath => _path;");
+            var typedPath = SparseFragmentPatchEmitter.GetTypedPathType(
+                dialect,
+                "TRoot",
+                modelType
+            );
+            code.AppendLineAt(2, "/// <summary>Gets the compile-time typed path.</summary>");
+            code.AppendLineAt(
+                2,
+                "public " + typedPath + " TypedPath => new " + typedPath + "(_path);"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets whether this path addresses a generated model that can be updated in place.</summary>"
+            );
+            code.AppendLineAt(2, "public bool CanWriteModelValueInPlace => true;");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Writes an updated model value into an existing addressed instance.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public void WriteModelValueInPlace("
+                    + modelType
+                    + " current, "
+                    + modelType
+                    + " updated)"
+            );
+            code.AppendLineAt(2, "{");
+            foreach (
+                var member in members.Where(member =>
+                    !member.Property.IsReadOnly && !member.Property.IsInitOnly
+                )
+            )
+            {
+                var property = SparseNaming.EscapeIdentifier(member.Property.Name);
+                code.AppendLineAt(3, "current." + property + " = updated." + property + ";");
+            }
+
+            code.AppendLineAt(2, "}");
+        }
         using var navigations = new SharedIndentedBuilder(code.CancellationToken)
         {
             IndentOffset = code.IndentOffset,

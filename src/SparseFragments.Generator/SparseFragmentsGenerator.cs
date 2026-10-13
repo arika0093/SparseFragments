@@ -124,6 +124,7 @@ public sealed class SparseFragmentsGenerator : IIncrementalGenerator
             PayloadImplementationContainerPrefix: "__Internal",
             PathType: "global::SparseFragments.SparsePath",
             PathIsValueType: true,
+            TypedPathInterfaceType: "global::SparseFragments.ISparseTypedPath",
             TransitionContracts: new SparseTransitionContracts(
                 "global::SparseFragments.ISparseValueChange",
                 "global::SparseFragments.ISparseChangeSet",

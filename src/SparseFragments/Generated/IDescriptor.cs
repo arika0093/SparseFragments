@@ -66,6 +66,9 @@ public interface IDescriptor
     /// <summary>Gets the current value through the generated observable.</summary>
     object? GetValue();
 
+    /// <summary>Gets the underlying model value without an observable proxy.</summary>
+    object? GetModelValue();
+
     /// <summary>Attempts to replace the value through the generated observable.</summary>
     bool TrySetValue(object? value);
 
@@ -122,6 +125,11 @@ public interface IDescriptorSet
     /// through sequence positions.
     /// </remarks>
     IDescriptor? Find(SparsePath path);
+
+    /// <summary>Resolves the underlying model value addressed by a path.</summary>
+    /// <param name="path">The path to resolve.</param>
+    /// <returns>The model value, or null when the path is absent or its value is null.</returns>
+    object? ResolveModel(SparsePath path);
 }
 
 /// <summary>Describes and edits a sequence through its generated observable view.</summary>
@@ -158,6 +166,9 @@ public interface IArrayDescriptor
 
     /// <summary>Gets an item through the generated observable view.</summary>
     object? GetItem(int index);
+
+    /// <summary>Gets the underlying model item without an observable proxy.</summary>
+    object? GetItemModel(int index);
 
     /// <summary>Gets nested descriptors for an item that is a generated model.</summary>
     IDescriptorSet? GetItemDescriptors(int index);
@@ -205,6 +216,9 @@ public interface IArrayDescriptor
     /// </remarks>
     int IndexOfKey(object? key);
 
+    /// <summary>Finds the first index with the given temporary identity.</summary>
+    int IndexOfTemporaryKey(Guid temporaryKey);
+
     /// <summary>Determines whether a key is the configured unassigned marker.</summary>
     /// <remarks>Always false when the sequence configures no marker.</remarks>
     bool IsUnassignedKey(object? key);
@@ -244,6 +258,9 @@ public interface IDictDescriptor
 
     /// <summary>Attempts to get a value by key through the generated observable view.</summary>
     bool TryGetValue(object? key, out object? value);
+
+    /// <summary>Gets the underlying model value for a key, or null when absent.</summary>
+    object? GetValueModel(object? key);
 
     /// <summary>Gets nested descriptors for a value that is a generated model.</summary>
     /// <remarks>

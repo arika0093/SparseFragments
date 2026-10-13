@@ -1086,6 +1086,8 @@ namespace __SESSION_NAMESPACE__
 
         internal void AdoptBranchRoot(Guid rootId) => _rootId = rootId;
 
+        internal void RefreshAfterExternalMutation() => RefreshAfterModelMutation();
+
         // Private state and helpers trail the internal surface.
         private const string DuplicateKeyErrorMessage = "Duplicate key in keyed collection.";
         private const string UnassignedBaselineErrorMessage =

@@ -13,7 +13,9 @@ namespace SparseFragments;
 /// <typeparam name="TModel">The root model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
-public readonly struct SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel, TValue>>
+public readonly struct SparsePath<TModel, TValue>
+    : IEquatable<SparsePath<TModel, TValue>>,
+        ISparseTypedPath<TModel, TValue>
 {
     /// <summary>Creates a typed path over an untyped path.</summary>
     /// <param name="path">The underlying path.</param>
@@ -35,6 +37,23 @@ public readonly struct SparsePath<TModel, TValue> : IEquatable<SparsePath<TModel
 
     /// <summary>Gets the underlying model-agnostic path.</summary>
     public SparsePath Path => _path.IsInitialized ? _path : SparsePath.Root<TModel>();
+
+    /// <inheritdoc />
+    public SparsePath<TModel, TValue> TypedPath => this;
+
+    /// <inheritdoc />
+    public SparsePath UntypedPath => Path;
+
+    /// <inheritdoc />
+    public bool CanWriteModelValueInPlace => false;
+
+    /// <inheritdoc />
+    public void WriteModelValueInPlace(TValue current, TValue updated)
+    {
+        throw new NotSupportedException(
+            "This typed path does not address a generated model value."
+        );
+    }
 
     /// <summary>Gets the root model type.</summary>
     public Type RootType => typeof(TModel);

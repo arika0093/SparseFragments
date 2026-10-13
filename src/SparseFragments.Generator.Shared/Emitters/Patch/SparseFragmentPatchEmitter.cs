@@ -252,7 +252,8 @@ internal static class SparseFragmentPatchEmitter
         string? InPlaceWriteUnavailableKindMemberName = null,
         string? PathType = null,
         SparseTransitionContracts? TransitionContracts = null,
-        bool PathIsValueType = false
+        bool PathIsValueType = false,
+        string? TypedPathInterfaceType = null
     )
     {
         /// <summary>Optional generic factory taking capacity and a set constructor for an exclusive disposable key-validation scope.</summary>

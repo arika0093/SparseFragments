@@ -95,6 +95,58 @@ public sealed class SparseDescriptorSet : IDescriptorSet
         return current;
     }
 
+    /// <inheritdoc />
+    public object? ResolveModel(SparsePath path)
+    {
+        if (path.RootType != RootType)
+        {
+            throw new ArgumentException(
+                "The path belongs to a different descriptor root.",
+                nameof(path)
+            );
+        }
+
+        if (path.IsRoot)
+        {
+            return null;
+        }
+
+        if (Find(path) is { } descriptor)
+        {
+            return descriptor.GetModelValue();
+        }
+
+        var parent = path.Parent;
+        if (parent is null || Find(parent.Value) is not { } container)
+        {
+            return null;
+        }
+
+        var segment = path.Segments[path.Segments.Count - 1];
+        if (segment.Kind == SparsePathSegmentKind.Index)
+        {
+            return container.Array?.GetItemModel(segment.Index);
+        }
+
+        if (segment.Kind == SparsePathSegmentKind.TemporaryKey)
+        {
+            var array = container.Array;
+            var index = array?.IndexOfTemporaryKey(segment.TemporaryKey!.Value) ?? -1;
+            return index < 0 ? null : array!.GetItemModel(index);
+        }
+
+        if (container.Dictionary is { } dictionary)
+        {
+            return dictionary.GetValueModel(segment.Key);
+        }
+
+        var sequence = container.Array;
+        var keyedIndex = sequence?.IndexOfKey(segment.Key) ?? -1;
+        return keyedIndex < 0 ? null : sequence!.GetItemModel(keyedIndex);
+    }
+
+    private Type RootType => _members.Count == 0 ? typeof(object) : _members[0].Path.RootType;
+
     private static IDescriptorSet? ResolveItemScope(
         IDescriptor descriptor,
         SparsePathSegment segment
@@ -109,6 +161,13 @@ public sealed class SparseDescriptorSet : IDescriptorSet
             }
 
             return array.GetItemDescriptors(segment.Index);
+        }
+
+        if (segment.Kind == SparsePathSegmentKind.TemporaryKey)
+        {
+            var array = descriptor.Array;
+            var index = array?.IndexOfTemporaryKey(segment.TemporaryKey!.Value) ?? -1;
+            return index < 0 || index >= array!.Count ? null : array.GetItemDescriptors(index);
         }
 
         if (descriptor.Dictionary?.GetValueDescriptors(segment.Key) is { } values)
@@ -156,6 +215,7 @@ public sealed class SparseDescriptorSet : IDescriptorSet
 public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISparseInstanceAccess
 {
     private readonly Func<object?> _getValue;
+    private readonly Func<object?>? _getModelValue;
     private readonly Func<object?, bool>? _setValue;
     private readonly Func<IDescriptorSet?>? _getChild;
     private readonly Func<IArrayDescriptor?>? _getArray;
@@ -179,13 +239,15 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
         Func<ISetDescriptor?>? getSet = null,
         SparseDescriptorShape? shape = null,
         bool isRequired = false,
-        bool isNullableOblivious = false
+        bool isNullableOblivious = false,
+        Func<object?>? getModelValue = null
     )
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(attributes);
         _getValue = getValue ?? throw new ArgumentNullException(nameof(getValue));
+        _getModelValue = getModelValue;
         _setValue = setValue;
         _getChild = getChild;
         _getArray = getArray;
@@ -243,6 +305,9 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
 
     /// <inheritdoc />
     public object? GetValue() => _getValue();
+
+    /// <inheritdoc />
+    public object? GetModelValue() => _getModelValue?.Invoke() ?? GetValue();
 
     /// <inheritdoc />
     public bool TrySetValue(object? value) =>
@@ -310,6 +375,8 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
         public IReadOnlyList<Attribute> Attributes => _inner.Attributes;
 
         public object? GetValue() => _inner.GetValue();
+
+        public object? GetModelValue() => _inner.GetModelValue();
 
         public bool TrySetValue(object? value) => _isLive() && _inner.TrySetValue(value);
 
@@ -387,6 +454,9 @@ public sealed class SparseArrayDescriptorAccess
     /// <summary>Gets or sets the positional key lookup.</summary>
     public Func<object?, int>? IndexOfKey { get; set; }
 
+    /// <summary>Gets or sets the temporary identity lookup.</summary>
+    public Func<Guid, int>? IndexOfTemporaryKey { get; set; }
+
     /// <summary>Gets or sets the unassigned-marker test.</summary>
     public Func<object?, bool>? IsUnassignedKey { get; set; }
 }
@@ -439,6 +509,10 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
     public int IndexOfKey(object? key) => _access.IndexOfKey?.Invoke(key) ?? -1;
 
     /// <inheritdoc />
+    public int IndexOfTemporaryKey(Guid temporaryKey) =>
+        _access.IndexOfTemporaryKey?.Invoke(temporaryKey) ?? -1;
+
+    /// <inheritdoc />
     public bool IsUnassignedKey(object? key) => _access.IsUnassignedKey?.Invoke(key) == true;
 
     /// <inheritdoc />
@@ -477,7 +551,10 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
             )
         )(index);
 
-    internal object? ModelAt(int index) => _access.GetItemModel?.Invoke(index);
+    /// <inheritdoc />
+    public object? GetItemModel(int index) => _access.GetItemModel?.Invoke(index);
+
+    internal object? ModelAt(int index) => GetItemModel(index);
 
     internal bool HasModelResolver => _access.GetItemModel is not null;
 
@@ -541,6 +618,9 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
 
         public int IndexOfKey(object? key) => _inner.IndexOfKey(key);
 
+        public int IndexOfTemporaryKey(Guid temporaryKey) =>
+            _inner.IndexOfTemporaryKey(temporaryKey);
+
         public bool IsUnassignedKey(object? key) => _inner.IsUnassignedKey(key);
 
         public int Count => _inner.Count;
@@ -556,6 +636,8 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
         public bool CanMove => _isLive() && _inner.CanMove;
 
         public object? GetItem(int index) => _inner.GetItem(index);
+
+        public object? GetItemModel(int index) => _inner.GetItemModel(index);
 
         public IDescriptorSet? GetItemDescriptors(int index)
         {
@@ -730,7 +812,10 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
     public IDescriptorSet? GetValueDescriptors(object? key) =>
         _access.GetValueDescriptors?.Invoke(key);
 
-    internal object? ValueModelAt(object? key) => _access.GetValueModel?.Invoke(key);
+    /// <inheritdoc />
+    public object? GetValueModel(object? key) => _access.GetValueModel?.Invoke(key);
+
+    internal object? ValueModelAt(object? key) => GetValueModel(key);
 
     internal bool HasValueResolver => _access.GetValueModel is not null;
 
@@ -787,6 +872,8 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
 
         public bool TryGetValue(object? key, out object? value) =>
             _inner.TryGetValue(key, out value);
+
+        public object? GetValueModel(object? key) => _inner.GetValueModel(key);
 
         public IDescriptorSet? GetValueDescriptors(object? key)
         {
