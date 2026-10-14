@@ -23,6 +23,10 @@ public partial class PlaygroundSettings
     [SparseMerge(MergeMode.Append)]
     public IReadOnlyList<string> Plugins { get; set; } = [];
 
+    /// <summary>Gets or sets tags. Layers contribute distinct entries.</summary>
+    [SparseMerge(MergeMode.SetUnion)]
+    public HashSet<string> Tags { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Gets or sets the tasks.</summary>
     public List<PlaygroundTask> Tasks { get; set; } = [];
 }

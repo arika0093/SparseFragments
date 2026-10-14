@@ -10,7 +10,9 @@ public static class PlaygroundSnippets
     public static string FragmentCSharp(string variableName, FragmentEditState state)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"var {variableName} = new PlaygroundSettings.Fragment");
+        sb.AppendLine(
+            $"var {variableName} = new PlaygroundSettings.Fragment({StringLiteral(variableName)})"
+        );
         sb.AppendLine("{");
         if (state.EnabledPresent)
         {
@@ -42,6 +44,10 @@ public static class PlaygroundSnippets
         {
             sb.AppendLine($"    Plugins = {StringArrayLiteral(state.PluginsText)},");
         }
+        if (state.TagsPresent)
+        {
+            sb.AppendLine($"    Tags = {StringSetLiteral(state.TagsText)},");
+        }
         sb.AppendLine("};");
         return sb.ToString();
     }
@@ -70,6 +76,7 @@ public static class PlaygroundSnippets
             sb.AppendLine("    },");
         }
         sb.AppendLine($"    Plugins = {StringArrayLiteral(model.Plugins)},");
+        sb.AppendLine($"    Tags = {StringSetLiteral(model.Tags)},");
         sb.AppendLine("};");
         return sb.ToString();
     }
@@ -187,6 +194,12 @@ public static class PlaygroundSnippets
 
     private static string StringArrayLiteral(IReadOnlyList<string> values) =>
         values.Count == 0 ? "[]" : $"[{string.Join(", ", values.Select(StringLiteral))}]";
+
+    private static string StringSetLiteral(string text) =>
+        StringSetLiteral(FragmentEditState.ParsePlugins(text));
+
+    private static string StringSetLiteral(IEnumerable<string> values) =>
+        $"new HashSet<string> {{ {string.Join(", ", values.Select(StringLiteral))} }}";
 
     /// <summary>Builds C# code constructing a roster model value.</summary>
     public static string RosterModelCSharp(string variableName, PlaygroundRoster model)

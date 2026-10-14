@@ -107,6 +107,20 @@
                 Disabled="@(!State.PluginsPresent)" />
         </div>
     </div>
+
+    <div class="pg-row">
+        <FluentCheckbox Class="pg-name-check"
+            Value="@State.TagsPresent"
+            ValueChanged="@OnTagsPresentChanged">
+            <span class="notranslate" translate="no">Tags <small>set union</small></span>
+        </FluentCheckbox>
+        <div class="pg-controls">
+            <FluentTextInput Placeholder="comma separated" Style="flex: 1 1 9rem; min-width: 0;"
+                Value="@State.TagsText"
+                ValueChanged="@(async v => { State.TagsText = v; await NotifyAsync(); })"
+                Disabled="@(!State.TagsPresent)" />
+        </div>
+    </div>
 </FluentStack>
 
 @code {
@@ -136,6 +150,12 @@
     private Task OnPluginsPresentChanged(bool present)
     {
         State.PluginsPresent = present;
+        return NotifyAsync();
+    }
+
+    private Task OnTagsPresentChanged(bool present)
+    {
+        State.TagsPresent = present;
         return NotifyAsync();
     }
 

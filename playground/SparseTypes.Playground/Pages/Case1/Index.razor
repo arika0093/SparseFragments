@@ -14,7 +14,7 @@
     <FluentTabs Orientation="Orientation.Horizontal" Overflow>
         <FluentTab Header="Playground" Id="section-1-playground">
             <div class="pg-section-content">
-                <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins uses append-merge.</p>
+                <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins appends; Tags keeps distinct entries.</p>
                 <div class="pg-grid pg-grid-trio">
                     <FluentCard Class="pg-fluent-card">
                         <div class="pg-card-head">
@@ -63,6 +63,9 @@
                             <FluentTab Header="Diff (JSON)" Id="merged-diff-json">
                                 <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
                             </FluentTab>
+                            <FluentTab Header="Origins" Id="merged-origins">
+                                <MonacoView Content="@MergedOrigins" Language="plaintext" Height="270px" />
+                            </FluentTab>
                         </FluentTabs>
                     </FluentCard>
                 </div>
@@ -77,13 +80,13 @@
 <CasePager PrevHref="/" PrevLabel="Overview" NextHref="case-2" NextLabel="02 Typed patch" />
 
 @code {
-    private FragmentEditState Lower = FragmentEditState.LowerDefaults();
-    private FragmentEditState Higher = FragmentEditState.HigherDefaults();
+    private FragmentEditState Lower = FragmentEditState.LowerDefaults(includeTags: true);
+    private FragmentEditState Higher = FragmentEditState.HigherDefaults(includeTags: true);
     private string LowerTabId = "lower-csharp";
     private string HigherTabId = "higher-csharp";
 
-    private PlaygroundSettings.Fragment LowerFragment => Lower.Build();
-    private PlaygroundSettings.Fragment HigherFragment => Higher.Build();
+    private PlaygroundSettings.Fragment LowerFragment => Lower.Build("lower");
+    private PlaygroundSettings.Fragment HigherFragment => Higher.Build("higher");
     private PlaygroundSettings.Fragment MergedFragment => LowerFragment.Merge(HigherFragment);
 
     private string LowerCSharp => PlaygroundSnippets.FragmentCSharp("lower", Lower);
@@ -96,6 +99,11 @@
     private string MergedModelCSharp => PlaygroundPageHelper.Try(() => PlaygroundSnippets.ModelCSharp("model", MergedFragment.ToModel()));
     private string MergeDiffJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(
         PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
+    private string MergedOrigins => PlaygroundPageHelper.Try(() =>
+        string.Join(
+            System.Environment.NewLine,
+            MergedFragment.EnumerateOrigins().Select(entry => $"{entry.Path}: {entry.Origin ?? "Unknown"}")
+        ));
 
     private void Refresh() => StateHasChanged();
 
@@ -110,7 +118,7 @@
         HigherTabId = $"higher-{language}";
     }
 
-    private void ResetLower() => Lower = FragmentEditState.LowerDefaults();
+    private void ResetLower() => Lower = FragmentEditState.LowerDefaults(includeTags: true);
 
-    private void ResetHigher() => Higher = FragmentEditState.HigherDefaults();
+    private void ResetHigher() => Higher = FragmentEditState.HigherDefaults(includeTags: true);
 }

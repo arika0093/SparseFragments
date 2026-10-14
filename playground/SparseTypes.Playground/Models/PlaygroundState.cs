@@ -106,8 +106,14 @@ public sealed class FragmentEditState
     /// <summary>Gets or sets comma-separated plugin names.</summary>
     public string PluginsText { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets whether Tags is present.</summary>
+    public bool TagsPresent { get; set; }
+
+    /// <summary>Gets or sets comma-separated tag names.</summary>
+    public string TagsText { get; set; } = string.Empty;
+
     /// <summary>Creates the default lower (baseline) layer.</summary>
-    public static FragmentEditState LowerDefaults() =>
+    public static FragmentEditState LowerDefaults(bool includeTags = false) =>
         new()
         {
             EnabledPresent = true,
@@ -123,10 +129,12 @@ public sealed class FragmentEditState
             PortValue = 5432,
             PluginsPresent = true,
             PluginsText = "base-plugin",
+            TagsPresent = includeTags,
+            TagsText = "shared,base-tag",
         };
 
     /// <summary>Creates the default higher (overlay) layer.</summary>
-    public static FragmentEditState HigherDefaults() =>
+    public static FragmentEditState HigherDefaults(bool includeTags = false) =>
         new()
         {
             EnabledPresent = false,
@@ -142,12 +150,14 @@ public sealed class FragmentEditState
             PortValue = 8080,
             PluginsPresent = true,
             PluginsText = "extra-plugin",
+            TagsPresent = includeTags,
+            TagsText = "shared,tenant-tag",
         };
 
     /// <summary>Builds a sparse fragment carrying only present members.</summary>
-    public PlaygroundSettings.Fragment Build()
+    public PlaygroundSettings.Fragment Build(string? origin = null)
     {
-        return new PlaygroundSettings.Fragment
+        return new PlaygroundSettings.Fragment(origin)
         {
             Enabled = EnabledPresent
                 ? Optional<bool>.Present(EnabledValue)
@@ -168,6 +178,11 @@ public sealed class FragmentEditState
             Plugins = PluginsPresent
                 ? Optional<IReadOnlyList<string>>.Present(ParsePlugins(PluginsText))
                 : Optional<IReadOnlyList<string>>.Missing,
+            Tags = TagsPresent
+                ? Optional<HashSet<string>>.Present(
+                    new HashSet<string>(ParsePlugins(TagsText), StringComparer.Ordinal)
+                )
+                : Optional<HashSet<string>>.Missing,
         };
     }
 
@@ -334,6 +349,7 @@ public static class PlaygroundJson
         "Label",
         "Nested",
         "Plugins",
+        "Tags",
         "Tasks",
     ];
     private static readonly string[] NestedFragmentOrder = ["Host", "Port"];

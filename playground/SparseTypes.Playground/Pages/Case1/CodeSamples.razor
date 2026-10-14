@@ -1,31 +1,50 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">The higher fragment overrides present values, preserves omitted members from Lower, and appends Plugins.</p>
-    <MonacoView Content="@MergeCode" Language="csharp" Height="360px" />
+    <p class="pg-hint">Origins explain which layer supplied each effective value. They do not change merge results or fragment JSON.</p>
+    <MonacoView Content="@MergeCode" Language="csharp" Height="500px" />
 </div>
 
 @code {
     private const string MergeCode = """
-        var lower = new PlaygroundSettings.Fragment
+        using System;
+        using System.Collections.Generic;
+        using SparseTypes;
+
+        var lower = new PlaygroundSettings.Fragment("lower")
         {
             Enabled = true,
             RetryCount = 3,
             Label = "base",
             Nested = new PlaygroundNested.Fragment { Host = "localhost", Port = 5432 },
-            Plugins = ["base-plugin"]
+            Plugins = ["base-plugin"],
+            Tags = new HashSet<string> { "shared", "base-tag" }
         };
 
-        var higher = new PlaygroundSettings.Fragment
+        var higher = new PlaygroundSettings.Fragment("higher")
         {
-            RetryCount = 5,
             Label = (string?)null,
             Nested = new PlaygroundNested.Fragment { Port = 8080 },
-            Plugins = ["extra-plugin"]
+            Plugins = ["extra-plugin"],
+            Tags = new HashSet<string> { "shared", "tenant-tag" }
         };
 
-        var merged = lower.Merge(higher).ToModel();
-        // Result: Enabled=true, RetryCount=5, Label=null.
-        // Nested.Host=localhost, Nested.Port=8080, Plugins=[base-plugin, extra-plugin].
+        var merged = lower.Merge(higher);
+        var model = merged.ToModel();
+        var origins = merged.EnumerateOrigins();
+        var pluginSource = merged.GetOrigin(
+            SparsePath.Root<PlaygroundSettings>().Member("Plugins").At(1));
+        // Plugin origin is "higher"; the overlapping "shared" tag remains "lower".
+        // RetryCount and Nested.Host come from lower; Label and Nested.Port come from higher.
+
+        [SparseModel]
+        partial class PlaygroundSettings
+        {
+            [SparseMerge(MergeMode.Append)]
+            public IReadOnlyList<string> Plugins { get; set; } = [];
+
+            [SparseMerge(MergeMode.SetUnion)]
+            public HashSet<string> Tags { get; set; } = new(StringComparer.Ordinal);
+        }
         """;
 }
