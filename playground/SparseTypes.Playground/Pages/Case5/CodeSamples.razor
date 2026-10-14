@@ -81,6 +81,8 @@
             // Generated keys land on the authoritative projection; acknowledgement routes
             // by what the server returned, never by list position.
             mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
+            if (!session.TryReconcile(submitted, persisted, out var error))
+                throw new InvalidOperationException(error); // No partial writeback; retry or reseed.
             var postSubmit = submittedDraft.CreateChangeSet(draft);
             var postSubmitRebase = postSubmit.RebaseOnto(persisted);
             var pending = postSubmitRebase.Rebased;
@@ -101,8 +103,6 @@
             var syncDraft = PlaygroundOrderDto.ChangeSet.Between(draft, targetDraft);
             if (!syncDraft.IsEmpty && !session.TryApplyInPlace(syncDraft, out var syncConflicts))
                 throw new InvalidOperationException($"Could not merge persisted values: {syncConflicts?.Count ?? 0} conflicts.");
-            if (!session.TryReconcile(submitted, persisted, out var error))
-                throw new InvalidOperationException(error); // No partial writeback; retry or reseed.
             // Untouched fields adopt authoritative values; post-submit edits stay pending.
         }
         catch (DbUpdateConcurrencyException)

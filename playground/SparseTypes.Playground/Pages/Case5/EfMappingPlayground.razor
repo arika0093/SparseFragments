@@ -899,7 +899,6 @@
         PlaygroundOrderDto persisted
     )
     {
-        var postSubmitConflicts = PreparePostSubmitDraft(submittedDraft, persisted);
         if (!_session.TryReconcile(submitted, persisted, out var error))
         {
             throw new InvalidOperationException(
@@ -907,6 +906,7 @@
             );
         }
 
+        var postSubmitConflicts = PreparePostSubmitDraft(submittedDraft, persisted);
         _baselineView = persisted;
         _conflictRows = postSubmitConflicts;
         _conflictSubmittedHeader = "Later local draft";

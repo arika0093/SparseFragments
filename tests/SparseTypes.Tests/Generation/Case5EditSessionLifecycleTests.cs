@@ -185,6 +185,9 @@ public sealed class Case5EditSessionLifecycleTests
         persisted.Notes = "Remote note";
         persisted.Total = 20m;
 
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+
         var postSubmit = submittedDraft.CreateChangeSet(live);
         var postSubmitRebase = postSubmit.RebaseOnto(persisted);
         var targetDraft = postSubmitRebase
@@ -199,8 +202,6 @@ public sealed class Case5EditSessionLifecycleTests
         session.TryApplyInPlace(syncDraft, out var conflicts).ShouldBeTrue();
         conflicts.ShouldBeNull();
 
-        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
-        error.ShouldBeNull();
         live.Customer.ShouldBe("Remote customer");
         live.Notes.ShouldBe("Remote note");
         live.Total.ShouldBe(21m);
