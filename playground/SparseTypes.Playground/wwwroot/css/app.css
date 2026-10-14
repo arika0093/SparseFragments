@@ -943,6 +943,17 @@ a, .btn-link {
     border-radius: 0.25rem;
 }
 
+.pg-session-password {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--colorNeutralStroke1, #dee2e6);
+    border-radius: 0.25rem;
+    background: var(--colorNeutralBackground1, #fff);
+    color: var(--colorNeutralForeground1, #212529);
+}
+
 .pg-session-field.pg-changed,
 .pg-roster-field.pg-changed {
     background: rgba(130, 80, 223, 0.12);

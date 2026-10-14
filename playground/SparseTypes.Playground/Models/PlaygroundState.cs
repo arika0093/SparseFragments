@@ -343,6 +343,7 @@ public static class PlaygroundJson
         "Enabled",
         "RetryCount",
         "Label",
+        "Password",
         "Nested",
         "Plugins",
         "Tags",
@@ -439,6 +440,26 @@ public static class PlaygroundJson
         // ChangeSet table cell never throws during render.
         return value.ToString() ?? "null";
     }
+
+    /// <summary>Replaces a password value in a human-readable change summary.</summary>
+    public static string MaskPasswordSummaryValue(string path, string value) =>
+        IsPasswordPath(path) ? "[masked]" : value;
+
+    /// <summary>Serializes a settings summary without exposing its password value.</summary>
+    public static string WriteMaskedSettingsSummary(PlaygroundSettings model)
+    {
+        var summary = model.DeepClone();
+        if (summary.Password is not null)
+        {
+            summary.Password = "[masked]";
+        }
+
+        return WriteModel(summary);
+    }
+
+    private static bool IsPasswordPath(string path) =>
+        string.Equals(path, nameof(PlaygroundSettings.Password), StringComparison.Ordinal)
+        || path.EndsWith($".{nameof(PlaygroundSettings.Password)}", StringComparison.Ordinal);
 
     /// <summary>Deserializes a settings ChangeSet from its typed payload DTO.</summary>
     public static PlaygroundSettings.ChangeSet ReadSettingsChangeSet(string json)

@@ -12,40 +12,43 @@
             <h3 class="pg-code-sample-subheading">Undo and redo</h3>
             <MonacoView Content="@HistoryCode" Language="csharp" Height="370px" />
         </FluentTab>
+        <FluentTab Header="Password redaction" Id="code-4-redaction">
+            <MonacoView Content="@RedactionCode" Language="csharp" Height="500px" />
+        </FluentTab>
     </FluentTabs>
 </div>
 
 @code {
     private const string SessionCode = """
-        var session = model.CreateEditSession(); // Capture the model as the baseline.
+        var baseline = model.DeepClone(); // Independent snapshot for presentation.
+        var session = model.CreateEditSession();
         session.EnableHistory(); // Opt-in session-owned history; the edit root only observes it.
-        
-        // Headless Blazor editing over the session paths. SparseEdit takes only
-        // the session; each SparseField takes only a typed path. Third-party
-        // inputs bind with @bind-Value; InputBase controls take the explicit
-        // Value / ValueChanged / ValueExpression triple instead.
+
+        // Razor context: `edit` exists only inside this SparseEdit subtree.
         // <SparseEdit Session="@session" Context="edit">
         //     <SparseField Path="edit.Path.RetryCount" Context="retryCount">
         //         <FluentNumberInput TValue="int" @bind-Value="retryCount.Value" />
         //     </SparseField>
-        //     <SparseField Path="edit.Path.Tasks.Key(taskId).Title" Context="title">
-        //         <FluentTextInput @bind-Value="title.Value" />
+        //     <SparseField Path="edit.Path.Password" Context="password">
+        //         <input type="password" @bind="password.Value" />
         //     </SparseField>
-        //     <button disabled="@(!edit.CanUndo)" @onclick="edit.Undo">Undo</button>
+        //     <button @onclick="() => Submit(edit)">Submit</button>
         // </SparseEdit>
-        
-        // The field context also carries the render-scoped semantic state.
-        // if (title.IsChanged) { /* Highlight the edited field; no handwritten baseline compare. */ }
-        
-        if (session.HasChanges)
+
+        void Submit<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+            where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
         {
-            var pending = session.CreateChangeSet(); // Typed before-to-after transition for save.
-            session.AcceptChanges(edit.EditContext); // Submit and clear the context modified flags.
+            if (edit.HasChanges)
+            {
+                var pending = edit.Session.CreateChangeSet();
+                edit.Session.AcceptChanges(edit.EditContext);
+            }
         }
-        void Reset<TPaths>(SparseEditContext<Model, TPaths> edit)
-            where TPaths : ISparseTypedPath<Model, Model>
+
+        void Reset<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
+            where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
         {
-            session.RevertChanges(); // Discard pending edits and restore the baseline.
+            session.RevertChanges();
             edit.EditContext.MarkAsUnmodified();
         }
         """;
@@ -82,6 +85,18 @@
             // _history = session.EnableHistory(new EditHistoryOptions { MaxEntries = 20 });
         }
 
+        void ApplyPreset()
+        {
+            session.BatchEdit(() =>
+            {
+                session.Observable.Enabled = false;
+                session.Observable.RetryCount = 8;
+                session.Observable.Label = "Batch preset";
+                session.Observable.Password = "sample-after-password";
+            });
+            // The whole preset is one history entry, so one Undo restores every field.
+        }
+
         void Undo()
         {
             _history.Undo(); // Applies the inverted ChangeSet; throws when empty or conflicting.
@@ -102,5 +117,37 @@
         // Accept/revert clear registered histories on success, so submit and
         // reset need no manual stack handling. Replayed operations are never
         // re-recorded, and BatchEdit stores one entry per action.
+        """;
+
+    private const string RedactionCode = """
+        using System.Text.Json;
+        using SparseTypes;
+
+        [SparseModel]
+        public partial class PlaygroundSettings
+        {
+            [SparseRedactBefore]
+            public string? Password { get; set; }
+        }
+
+        var changes = session.CreateChangeSet();
+        var payload = changes.ToPayload();
+        var json = JsonSerializer.Serialize(payload);
+        var imported = JsonSerializer.Deserialize<PlaygroundSettings.ChangePayload>(json)!;
+
+        // Redaction applies to the before-value in transport, not local models or complete local history.
+        // The after-value is transmitted. This is not encryption or credential storage.
+        // A redacted payload cannot reconstruct a complete ChangeSet through ToChangeSet() or FromPayload().
+        var baselineFreePatch = imported.ToPatch();
+        var blindUpdate = baselineFreePatch.ApplyTo(current);
+
+        // Use mixed apply when ordinary members still need rebase/conflict checks.
+        if (imported.TryApplyMixedTo(current, out var updated, out var result))
+        {
+            // A conflict in an ordinary member commits none of the mixed changes.
+        }
+
+        var reversible = imported.InvertReversibleChanges(out var skipped);
+        // Write-only paths are omitted from the inverse and listed in skipped; this is not a full inverse.
         """;
 }

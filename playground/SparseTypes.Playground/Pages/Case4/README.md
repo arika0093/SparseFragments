@@ -2,6 +2,15 @@
 
 This folder contains the edit-session page, task model, and sample code. `TaskListEditor` and `TaskRow` keep task-list editing separate from session history and submission.
 
+The Apply preset action changes several fields in one `BatchEdit`, so one
+Undo reverses the whole preset. The baseline snapshot uses generated
+`DeepClone()` to keep its nested and collection values independent.
+
+The password field uses a synthetic value and a masked input. Model summaries,
+history rows, and the submit preview replace it with `[masked]`; the
+ChangePayload view is the deliberate transport example, where the before-value
+is redacted and the after-value remains present.
+
 ## Collection editing through the typed facade
 
 Adds, drag reorders, removals, row moves, and id renames go through `Session.EditCollection<PlaygroundTask, string>(PlaygroundSettings.SparsePath.Tasks)`. Each call runs inside one batch, so one user action raises one transition notification and one opt-in history entry. The drag handler keeps the `SortableList` guards (stale indices and no-ops stay silent) and maps the drop position to facade coordinates: the list addresses the end as `Count`, the facade addresses the last position as `Count - 1`. A rename is one keyed replace, which keeps the row position and reports a removal plus an addition in the change set.

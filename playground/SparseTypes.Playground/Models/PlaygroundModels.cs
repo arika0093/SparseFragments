@@ -16,6 +16,11 @@ public partial class PlaygroundSettings
     /// <summary>Gets or sets a label.</summary>
     public string? Label { get; set; } = "default";
 
+    /// <summary>Gets or sets a synthetic password whose transport before-value is redacted.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SparseRedactBefore]
+    public string? Password { get; set; }
+
     /// <summary>Gets or sets a nested model.</summary>
     public PlaygroundNested? Nested { get; set; } = new();
 

@@ -11,6 +11,9 @@
         <div class="pg-card-head">
             <h3>Edit</h3>
             <div class="pg-actions pg-edit-history">
+            <FluentButton Appearance="ButtonAppearance.Default" @onclick="ApplyPreset">
+                Apply preset
+            </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Undo"
                     Disabled="@(!edit.CanUndo)" @onclick="() => Undo(edit)">
                     <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1.03-6.8 2.7L2 7v9h9l-3.65-3.65c1.32-1.25 3.12-2.02 5.15-2.02 3.23 0 5.96 2.07 6.94 4.95l2.4-.8C20.5 10.6 16.82 8 12.5 8Z" /></svg>
@@ -42,6 +45,13 @@
                     <span class="pg-name notranslate" translate="no">@ChangedDot(label.IsChanged)Label <small>string</small></span>
                     <FluentTextInput Placeholder="label" Style="flex: 1 1 12rem;"
                         @bind-Value="label.Value" />
+                </div>
+            </SparseField>
+            <SparseField Path="edit.Path.Password" Context="password">
+                <div class="pg-row pg-session-field @(password.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-name notranslate" translate="no">@ChangedDot(password.IsChanged)Password <small>write-only</small></span>
+                    <input class="pg-session-password" type="password" autocomplete="new-password"
+                        aria-label="Password" @bind="password.Value" />
                 </div>
             </SparseField>
             <SparseField Path="edit.Path.Nested.Host" Context="host">
@@ -94,6 +104,9 @@
                 </FluentTab>
                 <FluentTab Header="Baseline" Id="baseline">
                     <MonacoView Content="@_baselineJson" Language="json" Height="320px" />
+                </FluentTab>
+                <FluentTab Header="ChangePayload" Id="change-payload">
+                    <MonacoView Content="@ChangePayloadJson" Language="json" Height="320px" />
                 </FluentTab>
             </FluentTabs>
         </FluentCard>
@@ -158,6 +171,7 @@
         Enabled = true,
         RetryCount = 3,
         Label = "Draft",
+        Password = "sample-before-password",
         Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
         Plugins = ["base-plugin"],
         Tasks =
@@ -182,7 +196,10 @@
     private FluentDialog? _submitDialog;
     private FluentDialog? _completionDialog;
 
-    private string CurrentJson => PlaygroundJson.WriteModel(_model);
+    private string CurrentJson => PlaygroundJson.WriteMaskedSettingsSummary(_model);
+    private string ChangePayloadJson => PlaygroundPageHelper.Try(() =>
+        PlaygroundJson.WriteSettingsChangeSet(_session.CreateChangeSet())
+    );
 
     protected override void OnInitialized()
     {
@@ -211,14 +228,12 @@
         }
     };
 
-    private PlaygroundSettings CloneModel() =>
-        JsonSerializer.Deserialize(CurrentJson, PlaygroundJsonContext.Default.PlaygroundSettings)
-        ?? throw new JsonException("The current model JSON deserialized to null.");
+    private PlaygroundSettings CloneModel() => _model.DeepClone();
 
     private void CaptureBaseline()
     {
         _baselineModel = CloneModel();
-        _baselineJson = PlaygroundJson.WriteModel(_baselineModel);
+        _baselineJson = PlaygroundJson.WriteMaskedSettingsSummary(_baselineModel);
     }
 
     private async Task RequestSubmit()
@@ -258,6 +273,7 @@
         AddSubmitChange(changes, nameof(PlaygroundSettings.Enabled), "Edit", _baselineModel.Enabled, current.Enabled);
         AddSubmitChange(changes, nameof(PlaygroundSettings.RetryCount), "Edit", _baselineModel.RetryCount, current.RetryCount);
         AddSubmitChange(changes, nameof(PlaygroundSettings.Label), "Edit", _baselineModel.Label, current.Label);
+        AddSubmitChange(changes, nameof(PlaygroundSettings.Password), "Edit", _baselineModel.Password, current.Password);
         AddSubmitChange(
             changes,
             $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Host)}",
@@ -328,7 +344,14 @@
     {
         if (!EqualityComparer<T>.Default.Equals(before, after))
         {
-            changes.Add((target, operation, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            changes.Add(
+                (
+                    target,
+                    operation,
+                    PlaygroundJson.MaskPasswordSummaryValue(target, JsonSerializer.Serialize(before)),
+                    PlaygroundJson.MaskPasswordSummaryValue(target, JsonSerializer.Serialize(after))
+                )
+            );
         }
     }
 
@@ -416,6 +439,17 @@
     // Accept/revert already clear the opt-in history; only the demo log remains.
     private void ClearHistory() => _log.Clear();
 
+    private void ApplyPreset()
+    {
+        _session.BatchEdit(() =>
+        {
+            _session.Observable.Enabled = false;
+            _session.Observable.RetryCount = 8;
+            _session.Observable.Label = "Batch preset";
+            _session.Observable.Password = "sample-after-password";
+        });
+    }
+
     // History availability and stacks are read from the edit root above, so
     // these adapters only surface replay conflicts as edit errors.
     private void Undo<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
@@ -459,8 +493,12 @@
                 })
             .Select(static row => (
                 Path: row.PathText,
-                Before: OneLine(row.BeforeText),
-                After: OneLine(row.AfterText)
+                Before: OneLine(
+                    PlaygroundJson.MaskPasswordSummaryValue(row.PathText, row.BeforeText)
+                ),
+                After: OneLine(
+                    PlaygroundJson.MaskPasswordSummaryValue(row.PathText, row.AfterText)
+                )
             ))
             .OrderBy(static entry => entry.Path, StringComparer.Ordinal)
             .ToArray();

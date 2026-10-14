@@ -63,6 +63,10 @@ public static class PlaygroundSnippets
         sb.AppendLine(
             model.Label is null ? "    Label = null," : $"    Label = {StringLiteral(model.Label)},"
         );
+        if (model.Password is not null)
+        {
+            sb.AppendLine($"    Password = {StringLiteral(model.Password)},");
+        }
         if (model.Nested is null)
         {
             sb.AppendLine("    Nested = null,");
