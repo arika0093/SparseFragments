@@ -14,6 +14,7 @@ Add `[SparseModel]` to a standard `partial` class.
 The Roslyn source generator equips it with companion types for partial state, patch commands,
 diff transitions, JSON payloads, and reactive edit sessions automatically.
 
+<!-- illustrative: model shape excerpt; attribute and partial declarations only, not a runnable program -->
 ```csharp
 [SparseModel]                 // add this attribute
 public partial class Settings // mark the class as partial
@@ -164,6 +165,21 @@ The source generator emits companion types designed to work together across the 
 | `ChangeSet` | Before-to-after transition | Audit logs, undo/redo, conflict-aware rebase |
 | `ChangePayload` | Wire envelope | Versioned JSON transport across process boundaries |
 | `EditSession` | Reactive UI draft | Dirty tracking, Undo/Redo, batch editing in Blazor/Desktop |
+
+### Presence tracking with Optional<T>
+
+A `Fragment` represents your model where every member is wrapped in `Optional<T>`.
+This enables three distinct states that standard C# properties cannot distinguish at once:
+
+<!-- sample: readme-optional-states -->
+```csharp
+Optional<string?> missing = Optional<string?>.Missing;
+Optional<string?> value = "hello";
+Optional<string?> explicitNull = Optional<string?>.Present(null);
+```
+<!-- /sample -->
+
+Missing means unassigned (falling through during merge), present `null` explicitly clears a value, and present value updates it.
 
 Additionally, helper types like `DeepClone()` and `Descriptors` are generated for convenience.
 

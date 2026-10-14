@@ -1,13 +1,27 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/arika0093/SparseTypes")]
 namespace SparseTypes.Blazor
 {
+    public interface ISparseChildEditContext<TModel, TConflict>
+        where TModel :  class
+        where TConflict :  class
+    {
+        bool CanRedo { get; }
+        bool CanUndo { get; }
+        bool HasChanges { get; }
+        SparseTypes.ISparseEditSession<TModel> Session { get; }
+        void AcceptChanges();
+        void DiscardChanges();
+        void Redo();
+        bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
+        void Undo();
+    }
     public interface ISparseEditScope<out TModel>
         where out TModel :  class
     {
         Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
         SparseTypes.ISparseEditSession<TModel> Session { get; }
     }
-    public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
+    public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession> : SparseTypes.Blazor.ISparseChildEditContext<TModel, TConflict>
         where TModel :  class
         where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
         where TConflict :  class
