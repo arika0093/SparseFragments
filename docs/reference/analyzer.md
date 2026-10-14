@@ -1,4 +1,4 @@
-# SparseTypes Analyzer Diagnostics (SPF001–SPF035)
+# SparseTypes Analyzer Diagnostics (SPF001-SPF035)
 
 Diagnostics reported by the source generator `SparseTypes.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
@@ -88,7 +88,7 @@ public partial class Settings
   or the strategy is `abstract`, generic, or not accessibly constructible.
 * Fix: Derive from `FragmentMergeStrategy<TMember>` with `TMember` exactly matching
   the member type, and make the strategy a concrete class with an accessible
-  parameterless constructor. See [Merge strategies](merge-strategies.md).
+  parameterless constructor. See [Merge strategies](../explanation/merge-strategies.md).
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
@@ -112,8 +112,8 @@ public partial class StrategySettings
 * Message: `The configured merge mode is not supported for member '{0}'`
 * Cause: The mode does not apply to this member kind:
   `Deep` needs a nested generated model, `Append` needs an ordered collection,
-  `SetUnion` needs a collection, and numeric values outside `MergeMode` 0–5 are rejected.
-* Fix: Select a mode that matches the member kind. See [Merge strategies](merge-strategies.md).
+  `SetUnion` needs a collection, and numeric values outside `MergeMode` 0-5 are rejected.
+* Fix: Select a mode that matches the member kind. See [Merge strategies](../explanation/merge-strategies.md).
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
@@ -153,7 +153,7 @@ public partial class Settings
   is outside the supported cloneable shapes or closes a constructor-bound cycle
   the cloner cannot rebuild.
 * Fix: Switch to a supported structural type or collection, or mark the property
-  `[SparseCloneReferenceSafe]`. See [Cloning and ownership](cloning-and-ownership.md).
+  `[SparseCloneReferenceSafe]`. See [Cloning and ownership](../explanation/cloning-and-ownership.md).
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
@@ -199,7 +199,7 @@ public partial class Settings
   `MergeMode.Replace`, `MergeMode.Append`, `MergeMode.SetUnion`, or a custom
   strategy for whole-collection semantics. The implicit default `Replace` does
   not exempt unkeyed structural sequences.
-  See [Keyed collections](keyed-collections.md).
+  See [Keyed collections](../explanation/keyed-collections.md).
 
 ## SPF013: Multiple SparseKey properties
 
@@ -208,7 +208,7 @@ public partial class Settings
   element type. Multiple marks never form a composite key.
 * Fix: Keep one `[SparseKey]` property. Composite identity uses a single
   computed property whose type holds every component (see
-  [Keyed collections](keyed-collections.md#composite-identity-in-one-computed-property)).
+  [Keyed collections](../explanation/keyed-collections.md#composite-identity-in-one-computed-property)).
 
 ## SPF014: Invalid SparseKey declaration
 
@@ -281,7 +281,7 @@ public partial class Widget
 * Fix: Use a non-null sentinel constant convertible to the marked key property type.
   A null sentinel needs a nullable key type; a nullable key type without
   `Unassigned` already uses `null` as its sentinel.
-  See [unassigned keys](keyed-collections.md#unassigned-keys).
+  See [unassigned keys](../explanation/keyed-collections.md#unassigned-keys).
 
 ## SPF026: In-place submit is unavailable
 
@@ -300,7 +300,7 @@ public partial class Widget
 * Fix: Derive from `FragmentRebasePolicy<TMember>` with `TMember` exactly matching
   the member type, make the policy a concrete class with an accessible
   parameterless constructor, and apply it to a scalar or whole-replace member.
-  See [ChangeSet rebase](rebase.md).
+  See [ChangeSet rebase](../explanation/rebase.md).
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp

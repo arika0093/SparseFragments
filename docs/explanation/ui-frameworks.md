@@ -149,9 +149,9 @@ Ordinary editing needs only `Observable`, `Current`, and `CreateChangeSet()`. Tw
 * `session.Descriptors` exposes per-member metadata (path, type, nullability, editability), live get/set accessors, and the property attributes from the source model. It backs generic form builders and validation; handwritten per-member code should use the typed surface instead.
 * `ChangeSet.EnumerateChanges()` flattens a transition into `ChangeInfo` rows (`SparsePath` path, presence-aware before/after, `ChangeKind`), and `EnumerateChangedPaths()` lists the changed member paths. `ChangeSet.Find(path)` and `session.Descriptors.Find(path)` locate single rows and descriptors by exact path. They feed logs, lists, and tests; ordinary editing reads the typed member transitions instead (see [Observe typed member transitions](fragments-and-patches.md#observe-typed-member-transitions)).
 
-Limitations: descriptors track the live model, so values read through them change as the model changes. Flattened enumeration describes one computed transition; it does not update when the model is edited further. See the [Descriptors reference](descriptors.md) for the full contract.
+Limitations: descriptors track the live model, so values read through them change as the model changes. Flattened enumeration describes one computed transition; it does not update when the model is edited further. See the [Descriptors reference](../reference/descriptors.md) for the full contract.
 
-Writable reference-type models also generate `Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)`. They update the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>` properties retain their collection instance and have their contents replaced. Nested model values may be replaced. A model with init-only or constructor-only members keeps its normal edit-session APIs but cannot use in-place apply (see [SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+Writable reference-type models also generate `Fragment.WriteTo(model)` and `Patch.ApplyInPlace(model)`. They update the existing model object; supported `List<T>` and `Dictionary<TKey,TValue>` properties retain their collection instance and have their contents replaced. Nested model values may be replaced. A model with init-only or constructor-only members keeps its normal edit-session APIs but cannot use in-place apply (see [SPF026](../reference/analyzer.md#spf026-in-place-submit-is-unavailable)).
 
 For bindings that need `INotifyPropertyChanged`, `Optional<T>.ToObservable()` maps `Optional<Model?>` to the generated, model-specific observable proxy while preserving missing, present-null, and present-value states. The proxy type is nested in the model (see [Generated type placement](#generated-type-placement)), so keep the call inferred with `var`:
 
@@ -459,7 +459,7 @@ When added rows carry `[SparseTemporaryKey]` Guids, the form has a second option
 using SettingsSession = global::SparseTypes.Playground.Models.PlaygroundSettings.EditSession;
 ```
 
-There are no backwards-compatibility aliases: update explicit type references, or drop them in favor of `var` and the extension entry points. A model member named `Observable` or `EditSession` pushes the generated type behind a `Sparse` prefix instead of colliding; members named `ChangeSet` or `ChangePayload` are reported as SPF009 instead of failing with a raw compiler error (see [SPF009](analyzer.md#spf009-member-conflicts-with-generated-api)). A nested type named `EditSession` still collides with the generated session and fails compilation.
+There are no backwards-compatibility aliases: update explicit type references, or drop them in favor of `var` and the extension entry points. A model member named `Observable` or `EditSession` pushes the generated type behind a `Sparse` prefix instead of colliding; members named `ChangeSet` or `ChangePayload` are reported as SPF009 instead of failing with a raw compiler error (see [SPF009](../reference/analyzer.md#spf009-member-conflicts-with-generated-api)). A nested type named `EditSession` still collides with the generated session and fails compilation.
 
 ## Blazor
 
@@ -526,7 +526,7 @@ Bind the created `EditContext` to an ordinary `EditForm`:
 
 ### Submit, conflict display, and refresh
 
-The completed form flow lives in [Blazor edit form](how-to/blazor-edit-form.md):
+The completed form flow lives in [Blazor edit form](../how-to/blazor-edit-form.md):
 input bound through the `Observable` adapter with `EditContext` field
 tracking, a submit that sends exactly one change-set payload, a fresh
 session from the persisted row on success only, structured conflicts kept as
@@ -676,5 +676,3 @@ DataContext = session.Observable;
 ```
 
 WinForms, .NET MAUI, WinUI, and Avalonia use the same `Observable` wrapper over the underlying model; only the framework-specific binding setup differs.
-
-Certification status for these bindings, including the tested matrix and open gaps, is recorded in the [UI toolkit neutral binding certification](ui-toolkit-neutral-cert.md).

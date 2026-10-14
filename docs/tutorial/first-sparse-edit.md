@@ -19,7 +19,7 @@ dotnet add SparseTutorial package SparseTypes
 
 The model is an ordinary C# class. The attribute asks the generator for the
 sparse companions (`Fragment`, `Patch`, `ChangeSet`) around it. The full
-generation rules stay in the [model shapes reference](../model-shapes.md).
+generation rules stay in the [model shapes reference](../reference/model-shapes.md).
 
 <!-- sample: tutorial-models -->
 ```csharp
@@ -70,7 +70,7 @@ var environmentOverride = new TutorialSiteSettings.Fragment { RefreshSeconds = 6
 members of the override win; missing members keep the lower-layer value. The
 direction matters: `baseline.Merge(environmentOverride)` is not the same
 call as the reverse. Layering rules and collection modes live in the
-[merge strategies reference](../merge-strategies.md).
+[merge strategies reference](../explanation/merge-strategies.md).
 
 <!-- sample: tutorial-merge -->
 ```csharp
@@ -130,10 +130,10 @@ var undone = changes.Invert();
 
 The transition above is also the unit that travels: convert it with
 `ToPayload()` and reconcile it with `RebaseOnto` when another writer moves
-first. For those steps, read [ChangeSet rebase](../rebase.md) for the
-reconciliation flow and [ChangePayload](../change-payload.md) for the wire
+first. For those steps, read [ChangeSet rebase](../explanation/rebase.md) for the
+reconciliation flow and [ChangePayload](../reference/change-payload.md) for the wire
 envelope. For task-sized follow-ups, see
 [layered settings](../how-to/layered-settings.md) for multi-layer overrides
 and [partial updates](../how-to/partial-updates.md) for commands versus
 baseline-aware changes. The full operation list stays in
-[fragments and patches](../fragments-and-patches.md).
+[fragments and patches](../explanation/fragments-and-patches.md).

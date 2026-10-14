@@ -110,7 +110,7 @@ Nullability has three states. `IsNullable` reports explicitly annotated nullabil
 
 Descriptors are instance-bound, not path-bound. `IDescriptor.Path` records the creation-time location as a `SparsePath` (`PathText` renders the wire-compatible text). A retained accessor does not follow replacement, and a write through it fails instead of editing a detached object. Re-resolve from the session or parent to obtain live accessors. `IDescriptorSet.Find(path)` locates the descriptor at exactly a path, or null when absent.
 
-An edit scope is path-addressed instead: generated `EditSession.OpenScope(typedPath)` resolves its target again when committing. Nested scopes append a typed path relative to the current child draft. Keyed paths therefore continue to address the same item after reordering. See [isolated child edit scopes](ui-frameworks.md#edit-child-models-in-an-isolated-scope).
+An edit scope is path-addressed instead: generated `EditSession.OpenScope(typedPath)` resolves its target again when committing. Nested scopes append a typed path relative to the current child draft. Keyed paths therefore continue to address the same item after reordering. See [isolated child edit scopes](../explanation/ui-frameworks.md#edit-child-models-in-an-isolated-scope).
 
 | Change | Retained accessor behavior |
 | --- | --- |

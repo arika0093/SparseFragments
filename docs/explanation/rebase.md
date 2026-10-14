@@ -102,7 +102,7 @@ a replacement.
 existing collection object and replace its contents; nested model properties
 may be replaced. Get-only or init-only members prevent these in-place APIs
 from being generated, while ordinary immutable patch and rebase APIs
-remain available ([SPF026](analyzer.md#spf026-in-place-submit-is-unavailable)).
+remain available ([SPF026](../reference/analyzer.md#spf026-in-place-submit-is-unavailable)).
 
 ## The Three Outcomes
 
@@ -330,7 +330,7 @@ if (!policyBase.CreateChangeSet(policyEdited).TryApplyTo(policyCurrent, out var 
 
 Selection order for scalar and whole-replace members: an explicit `FragmentRebasePolicy<T>` first, then `FragmentMergeStrategy<T>.TryRebase`, then `ChangePayloadRebaseOptions.DefaultRebaseMode` when it is not `Default`, then the built-in three-way reconciliation. Merge still uses the merge strategy when a policy is present.
 
-Policies apply to scalar and whole-replace members only. Nested models, keyed sequences, dictionaries, and `Append`/`SetUnion` members reconcile member by member; a whole-member policy on those shapes fails with [SPF027](analyzer.md#spf027-invalid-custom-rebase-policy).
+Policies apply to scalar and whole-replace members only. Nested models, keyed sequences, dictionaries, and `Append`/`SetUnion` members reconcile member by member; a whole-member policy on those shapes fails with [SPF027](../reference/analyzer.md#spf027-invalid-custom-rebase-policy).
 
 `FragmentRebasePolicy<T>` ships `FailOnConflict`, `PreferIncoming`, and `PreferCurrent` factories. The prefer modes overwrite on divergence and never report a conflict; they are last-write-wins shortcuts rather than reconciliations that found no conflict.
 
@@ -462,7 +462,7 @@ persistence race protection still uses the concurrency token below.
 
 ## End-to-End Example
 
-Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict. The payload shapes in this flow are specified in the [ChangePayload wire reference](change-payload.md).
+Here is a complete pass through client edit, serialization, current-state rebase, and save-or-conflict. The payload shapes in this flow are specified in the [ChangePayload wire reference](../reference/change-payload.md).
 
 <!-- sample: rebase-e2e -->
 ```csharp

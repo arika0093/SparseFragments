@@ -2,7 +2,7 @@
 
 A `ChangePayload` is the versioned JSON envelope that carries a `ChangeSet` transition, a `Patch` command, or a mix of both across a process boundary. It names members and carries typed values, so each side converts the envelope into its own `Patch` or `ChangeSet`. The library performs no domain-specific model mapping, and the client and server models may differ.
 
-The current format token is `"version": "0.1"`. Treat it as the documented current format, not a promise of indefinite backwards compatibility. For the in-memory transition and command types, see [Fragments and patches](fragments-and-patches.md). For reconciling a received transition with current state, see [ChangeSet rebase](rebase.md).
+The current format token is `"version": "0.1"`. Treat it as the documented current format, not a promise of indefinite backwards compatibility. For the in-memory transition and command types, see [Fragments and patches](../explanation/fragments-and-patches.md). For reconciling a received transition with current state, see [ChangeSet rebase](../explanation/rebase.md).
 
 <!-- sample: payload-models -->
 ```csharp
@@ -272,7 +272,7 @@ add items carrying the temporary Guid, so each pending addition keeps its own
 identity through serialization instead of sharing the sentinel plus a position.
 `ToChangeSet()` restores the additions under their Guids, and later edits,
 removals, and reorders address them the same way. The conversion round-trip is
-shown in [Keyed collections](keyed-collections.md#temporary-identity-for-pending-additions).
+shown in [Keyed collections](../explanation/keyed-collections.md#temporary-identity-for-pending-additions).
 
 ## Whole-root transitions
 

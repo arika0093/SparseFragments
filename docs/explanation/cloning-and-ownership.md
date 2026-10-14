@@ -45,7 +45,7 @@ Other members are assigned from the computed result, so nested model objects
 may be replaced. These APIs mutate caller-owned state and should be used only
 when that identity-preserving behavior is desired. Init-only or get-only
 members disable in-place APIs; see
-[`SPF026`](analyzer.md#spf026-in-place-submit-is-unavailable).
+[`SPF026`](../reference/analyzer.md#spf026-in-place-submit-is-unavailable).
 
 ## `DeepClone`
 
@@ -71,7 +71,7 @@ public partial class Settings
 }
 ```
 
-* Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors ([`SPF008`](analyzer.md#spf008-unsupported-deep-clone-member)); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
+* Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors ([`SPF008`](../reference/analyzer.md#spf008-unsupported-deep-clone-member)); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
 
 ## Graph and Cycle Behavior
 

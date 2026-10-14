@@ -5,7 +5,7 @@ styling, or a component vendor. `SparseEdit` takes only `Session`;
 `TModel` and the concrete generated path builder infer from it. Each
 `SparseField` takes only `Path`; `TModel` and `TValue` infer from the
 builder. This guide assumes the [first sparse edit](../tutorial/first-sparse-edit.md)
-flow and the [Blazor UI contract](../ui-frameworks.md#blazor) read familiar,
+flow and the [Blazor UI contract](../explanation/ui-frameworks.md#blazor) read familiar,
 and the [Blazor edit form](blazor-edit-form.md) guide covers the equivalent
 save lifecycle with hand-written bindings.
 

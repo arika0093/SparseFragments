@@ -4,7 +4,7 @@ This guide stacks library, application, and user fragments over one model and
 removes overrides layer by layer. It assumes the
 [first sparse edit](../tutorial/first-sparse-edit.md) flow already reads
 familiar: snapshots, sparse construction, and `Merge` direction. The merge
-rules themselves stay in the [merge strategies reference](../merge-strategies.md);
+rules themselves stay in the [merge strategies reference](../explanation/merge-strategies.md);
 this page shows what they do to a concrete three-layer setup.
 
 ## Model and contributions

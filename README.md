@@ -167,19 +167,22 @@ Browse the documentation organized by the [Diátaxis](https://diataxis.fr/) fram
 * [Partial updates](docs/how-to/partial-updates.md): Accept patch commands or baseline-aware changes in Web APIs.
 * [Blazor edit form](docs/how-to/blazor-edit-form.md): Save form edits without losing draft state.
 * [Blazor headless components](docs/how-to/blazor-headless-components.md): Build custom UI inputs over session paths.
+* [EF Core mapping](docs/how-to/efcore-mapping.md): Persist ChangeSets to databases with Entity Framework Core.
 
 ### Explanation (Concepts and design)
-* [ChangeSet rebase](docs/rebase.md): Three-way reconciliation, conflict detection, and server save flows.
-* [Keyed collections](docs/keyed-collections.md): Identity-based list operations vs. index-based mutation.
-* [Cloning and ownership](docs/cloning-and-ownership.md): Instance isolation and memory safety guarantees.
-* [Merge strategies](docs/merge-strategies.md): Deep merge, collection append, set union, and custom rules.
+* [Fragments and patches](docs/explanation/fragments-and-patches.md): Four core sparse states, algebraic operations, and lifecycle.
+* [ChangeSet rebase](docs/explanation/rebase.md): Three-way reconciliation, conflict detection, and server save flows.
+* [Keyed collections](docs/explanation/keyed-collections.md): Identity-based list operations vs. index-based mutation.
+* [Cloning and ownership](docs/explanation/cloning-and-ownership.md): Instance isolation and memory safety guarantees.
+* [Merge strategies](docs/explanation/merge-strategies.md): Deep merge, collection append, set union, and custom rules.
+* [UI frameworks & Edit sessions](docs/explanation/ui-frameworks.md): Framework-neutral editing model for Blazor, WPF, WinForms, MAUI, and Avalonia.
+* [Edit-session groups](docs/explanation/edit-session-groups.md): Coordinating multiple edit sessions across distinct models.
 
 ### Reference (Technical facts and APIs)
-* [ChangePayload wire format](docs/change-payload.md): JSON schema and serialization specification.
-* [UI frameworks & Edit sessions](docs/ui-frameworks.md): Binding and lifecycle reference for Blazor, WPF, WinForms, MAUI, and Avalonia.
-* [Descriptors reference](docs/descriptors.md): Reflection-free runtime metadata and dynamic accessors.
-* [Model shapes](docs/model-shapes.md): Supported C# shapes, modifiers, and constructor requirements.
-* [Diagnostics](docs/analyzer.md): Roslyn analyzer rules (`SPF001`–`SPF024`).
+* [ChangePayload wire format](docs/reference/change-payload.md): JSON schema and serialization specification.
+* [Descriptors reference](docs/reference/descriptors.md): Reflection-free runtime metadata and dynamic accessors.
+* [Model shapes](docs/reference/model-shapes.md): Supported C# shapes, modifiers, and constructor requirements.
+* [Diagnostics](docs/reference/analyzer.md): Roslyn analyzer rules (`SPF001`-`SPF035`).
 
 ## Packages and Compatibility
 

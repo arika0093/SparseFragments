@@ -5,8 +5,8 @@ baseline-free patch command from a caller that never saw the current state,
 and a baseline-aware change set from an editor that did. It assumes the
 [first sparse edit](../tutorial/first-sparse-edit.md) flow already reads
 familiar. The wire envelope and reconciliation rules stay in their
-references: [ChangePayload](../change-payload.md) for the JSON layout and
-[ChangeSet rebase](../rebase.md) for the server-side save, including the
+references: [ChangePayload](../reference/change-payload.md) for the JSON layout and
+[ChangeSet rebase](../explanation/rebase.md) for the server-side save, including the
 row-version guard. This page chooses the input and shows where information
 is lost on purpose.
 
@@ -57,7 +57,7 @@ An editor that read the row sends the transition it observed. The change
 set keeps the before-state, so the endpoint can rebase it onto the current
 row and report a conflict instead of overwriting a concurrent edit. The
 rebase itself runs on the server as shown in
-[ChangeSet rebase](../rebase.md#disconnected-editing).
+[ChangeSet rebase](../explanation/rebase.md#disconnected-editing).
 
 <!-- sample: partial-changeset -->
 ```csharp
@@ -164,4 +164,4 @@ catch (ArgumentException)
 
 The `JsonSerializer` lines need `using System.Text.Json;` at the top of the
 file. The redaction attribute and the mixed-request endpoints that accept
-both shapes in one call stay in the [ChangePayload reference](../change-payload.md).
+both shapes in one call stay in the [ChangePayload reference](../reference/change-payload.md).

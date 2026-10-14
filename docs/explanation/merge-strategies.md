@@ -52,14 +52,14 @@ var merged = lower.Merge(higher);
 // merged.Plugins == ["base-plugin", "extra-plugin"] (Append concatenates)
 ```
 
-Applicability constraints (enforced at generation time, [SPF005](analyzer.md#spf005-unsupported-merge-mode)):
+Applicability constraints (enforced at generation time, [SPF005](../reference/analyzer.md#spf005-unsupported-merge-mode)):
 
 * `Deep` is only available for nested models (fragment models or structural types).
 * `Append` cannot be used on set types (use an ordered collection or `SetUnion`) nor on non-collections.
 * `SetUnion` cannot be used on non-collections.
 * Out-of-range numeric mode values are rejected.
 
-Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](analyzer.md#spf011-structural-sequence-without-usable-key)).
+Structural sequences without a key cannot use the implicit default behavior: they must declare identity or explicitly select `Replace`, `Append`, `SetUnion`, or a custom strategy ([SPF011](../reference/analyzer.md#spf011-structural-sequence-without-usable-key)).
 
 An explicit `[SparseMerge(MergeMode.Replace)]` means the entire sequence or dictionary is replaced as one value; this also applies to keyed lists and dictionaries, and changes their ChangeSet payload JSON from granular entries to a whole-value operation. The implicit `Default` remains granular for keyed collections: it resolves to `Deep` for nested models and to `Replace` for everything else.
 

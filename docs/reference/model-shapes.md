@@ -40,7 +40,7 @@ public partial class Settings
 
 `[SparseIgnore]` can be inherited with a property declaration and is supported on promoted nested models. It cannot be used on a key or on required, init-only, or non-defaulted constructor-bound properties ([`SPF022`](analyzer.md#spf022-sparseignore-on-key), [`SPF023`](analyzer.md#spf023-sparseignore-on-unsupported-property)). Use `[SparseIgnore]` to remove a member from the generated surface and `[JsonIgnore]` to remove it from generated JSON only: a `[JsonIgnore]` member without `[SparseIgnore]` still merges, patches, diffs, and observes normally, and only its JSON conversion is skipped.
 
-Most members need no merge configuration: `MergeMode.Default` resolves to `Deep` for nested generated models and to `Replace` for scalars and ordinary collections. Add `[SparseMerge]` only when you want different behavior (see [Merge strategies](merge-strategies.md)):
+Most members need no merge configuration: `MergeMode.Default` resolves to `Deep` for nested generated models and to `Replace` for scalars and ordinary collections. Add `[SparseMerge]` only when you want different behavior (see [Merge strategies](../explanation/merge-strategies.md)):
 
 <!-- illustrative: shape illustration; shown without surrounding file context and does not compile as written -->
 ```csharp
@@ -100,16 +100,16 @@ public Child Child { get; set; } = new(); // explicit atomic replacement
 ```
 
 * `Shared nested types must agree.` A nested type without its own explicit `[SparseModel]` root that is referenced from multiple roots with different member sets or merge settings is an error ([`SPF010`](analyzer.md#spf010-incompatible-promoted-fragment-model)): unify the definitions and settings, or annotate the nested type itself with `[SparseModel]` to promote it to an explicit root.
-* `Collection element types are discovered the same way.` A `List<T>` member whose `T` is a fragment model (or a reachable `partial` type) is patched element by element and needs key identity (see [Keyed collections](keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
+* `Collection element types are discovered the same way.` A `List<T>` member whose `T` is a fragment model (or a reachable `partial` type) is patched element by element and needs key identity (see [Keyed collections](../explanation/keyed-collections.md)); otherwise the member needs `Append`, `SetUnion`, or a custom strategy.
 
-Element identity for element-patched collections is declared with exactly one property-level `[SparseKey]` per element type, including tuple and value-object keys through a single computed property. Declaration problems surface as `SPF011`, `SPF013`, `SPF014`, `SPF017`, `SPF019`, `SPF022`, or `SPF024`, and temporary-identity problems as `SPF031` or `SPF032` (see [the analyzer reference](analyzer.md#spf011-structural-sequence-without-usable-key) and [Keyed collections](keyed-collections.md)).
+Element identity for element-patched collections is declared with exactly one property-level `[SparseKey]` per element type, including tuple and value-object keys through a single computed property. Declaration problems surface as `SPF011`, `SPF013`, `SPF014`, `SPF017`, `SPF019`, `SPF022`, or `SPF024`, and temporary-identity problems as `SPF031` or `SPF032` (see [the analyzer reference](analyzer.md#spf011-structural-sequence-without-usable-key) and [Keyed collections](../explanation/keyed-collections.md)).
 
 ## Constructors, Members, and Cycles
 
 * Prefer a parameterless constructor; constructor-bound properties (including `init` and `required`) resolve by name-and-type matching.
 * Members marked `[JsonIgnore]` never participate in JSON conversion; members that would collide on the same JSON wire name fail during analysis ([`SPF021`](analyzer.md#spf021-duplicate-json-property-name)) rather than at runtime.
 * Members named `JsonConverter` or `FragmentJsonConverter` collide with the generated JSON converter ([`SPF009`](analyzer.md#spf009-member-conflicts-with-generated-api)): rename the member.
-* `From` and `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them (see [Clone & ownership](cloning-and-ownership.md)).
+* `From` and `Diff` reject cycles with a path-naming `NotSupportedException`, while `DeepClone` preserves them (see [Clone & ownership](../explanation/cloning-and-ownership.md)).
 
 ## Language Version
 

@@ -14,84 +14,84 @@
 # from this file; the id lists must not be duplicated anywhere else.
 README.md	readme-quickstart	tests/fixtures/consumers/package-sparse-readme/Program.cs
 README.md	readme-optional-states	tests/fixtures/consumers/package-sparse-readme/Program.cs
-docs/fragments-and-patches.md	core-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-create	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-layering	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-diff	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-patch	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-builder	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-between	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-nested-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-nested	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-changeset	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-algebra	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-serialization	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-change-payload-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/fragments-and-patches.md	core-change-payload	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-first	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-composite-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-unassigned-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-unassigned-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-temporary-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-temporary-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-reconcile-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-server-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-server-mapping	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/keyed-collections.md	keyed-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/merge-strategies.md	merge-compare-models	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
-docs/merge-strategies.md	merge-compare	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
-docs/rebase.md	rebase-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-first	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-presence	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-in-place	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
-docs/rebase.md	rebase-applied	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-conflict	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-policy-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-policy	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-redacted	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	mixed-apply	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
-docs/rebase.md	rebase-e2e	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
-docs/rebase.md	rebase-server-store	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
-docs/rebase.md	rebase-server-save	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
-docs/change-payload.md	payload-models	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-scalar-set	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-explicit-null	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-remove	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-nested	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-keyed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-command	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-conversions	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-mixed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-invert	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-version	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-context	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
-docs/change-payload.md	payload-envelope	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-scalar-add	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-nested-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-keyed-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-reorder	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-dict	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/change-payload.md	payload-root	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
-docs/ui-frameworks.md	ui-session-models	tests/fixtures/consumers/package-sparse-blazor/Program.cs
-docs/ui-frameworks.md	ui-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
-docs/ui-frameworks.md	ui-history	tests/fixtures/consumers/package-sparse-blazor/Program.cs
-docs/ui-frameworks.md	ui-wpf-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
-docs/ui-frameworks.md	ui-accept-flow	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-reload	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-reload-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-revert	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-fork-merge	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-fork-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-child-scope	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-collection-consumer	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/ui-frameworks.md	ui-session-paths	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
-docs/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/fragments-and-patches.md	core-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-create	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-layering	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-diff	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-patch	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-builder	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-between	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-nested-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-nested	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-changeset	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-algebra	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-serialization	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-change-payload-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/fragments-and-patches.md	core-change-payload	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-first	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-composite-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-unassigned-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-unassigned-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-temporary-model	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-temporary-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-reconcile-flow	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-server-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-server-mapping	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-typed	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/keyed-collections.md	keyed-transition-contracts	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/merge-strategies.md	merge-compare-models	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
+docs/explanation/merge-strategies.md	merge-compare	tests/fixtures/consumers/package-sparse-docs/MergeStrategies.cs
+docs/explanation/rebase.md	rebase-first-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-first	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-presence	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-in-place	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
+docs/explanation/rebase.md	rebase-applied	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-conflict	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-policy-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-policy	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-redacted	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	mixed-apply	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
+docs/explanation/rebase.md	rebase-e2e	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
+docs/explanation/rebase.md	rebase-server-store	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
+docs/explanation/rebase.md	rebase-server-save	tests/fixtures/consumers/package-sparse-docs/RebaseSamples.cs
+docs/reference/change-payload.md	payload-models	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-scalar-set	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-explicit-null	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-remove	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-nested	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-keyed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-command	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-conversions	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-mixed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-invert	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-version	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-context	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-envelope	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-scalar-add	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-nested-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-keyed-json	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-reorder	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-dict	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/reference/change-payload.md	payload-root	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
+docs/explanation/ui-frameworks.md	ui-session-models	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/explanation/ui-frameworks.md	ui-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/explanation/ui-frameworks.md	ui-history	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/explanation/ui-frameworks.md	ui-wpf-session	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/explanation/ui-frameworks.md	ui-accept-flow	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-reload	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-reload-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-revert	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-fork-merge	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-fork-conflict	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-child-scope	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-collection-consumer	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/explanation/ui-frameworks.md	ui-session-paths	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/reference/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/reference/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
+docs/reference/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/tutorial/first-sparse-edit.md	tutorial-models	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/tutorial/first-sparse-edit.md	tutorial-baseline	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/tutorial/first-sparse-edit.md	tutorial-override	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs

@@ -3,9 +3,9 @@
 This guide wires one order form from first keystroke to saved row. It
 assumes the [first sparse edit](../tutorial/first-sparse-edit.md) flow
 already reads familiar and the
-[UI frameworks](../ui-frameworks.md#blazor) contract makes sense. The
+[UI frameworks](../explanation/ui-frameworks.md#blazor) contract makes sense. The
 persistence and rebase rules behind the save stay in
-[ChangeSet rebase](../rebase.md); this page shows the form around them.
+[ChangeSet rebase](../explanation/rebase.md); this page shows the form around them.
 
 The listings below run in the `package-sparse-blazor` consumer fixture, and
 the Razor shape around them compiles as `OrderEditForm.razor` in the same
@@ -368,7 +368,7 @@ var resolved = conflictSession.Reload(serverState);
 A conflict-free `Reload` with disjoint server changes merges instead: it
 writes the merged result into the live model instance and keeps the pending
 edits as changes against the new baseline, as shown in
-[UI frameworks](../ui-frameworks.md#reload-with-fresh-server-state). The
+[UI frameworks](../explanation/ui-frameworks.md#reload-with-fresh-server-state). The
 component turns that into two explicit choices rather than an automatic
 accept or a silent return. A row-version mismatch with disjoint changes
 merges the server state, clears the conflict, and asks for an explicit

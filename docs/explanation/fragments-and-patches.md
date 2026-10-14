@@ -4,7 +4,7 @@ A `Fragment` is sparse state: for every model member it records missing, present
 
 The four answer different questions: a fragment says *what is specified*, a patch says *what to change* ("set these values"), a change set says *what changed* ("these values changed from X to Y"), and a change payload says *what travels* ("apply these transitions and commands"). The task table at the end maps each need to its API.
 
-New to the library: start with the [first sparse edit tutorial](tutorial/first-sparse-edit.md). Here to solve a task: [layered settings](how-to/layered-settings.md), [partial updates](how-to/partial-updates.md), or [Blazor edit form](how-to/blazor-edit-form.md). This page stays the reference for the four types.
+New to the library: start with the [first sparse edit tutorial](../tutorial/first-sparse-edit.md). Here to solve a task: [layered settings](../how-to/layered-settings.md), [partial updates](../how-to/partial-updates.md), or [Blazor edit form](../how-to/blazor-edit-form.md). This page stays the reference for the four types.
 
 ## Choose the Operation
 
@@ -416,7 +416,7 @@ Typed projections such as `IsChanged`, keyed `Added`, `Removed`, and `Edited`, a
 
 Serialize and deserialize the generated `T.ChangePayload`, not `T.ChangeSet` or `T.Patch`. A `ChangeSet` enters the envelope with `ToPayload()`; a `Patch` enters it with `ChangePayload.FromPatch(patch)`, which redacts every before-state by construction. The `changes` array mixes both kinds member by member: one member can carry a regular before/after transition while another carries a baseline-free command. The typed member variants are suitable for OpenAPI endpoint schemas.
 
-The full wire contract, exact JSON, endpoint states, version validation, and conversion rules live in the [ChangePayload wire reference](change-payload.md). Redacted is never read as missing, and redacting the before-value does not hide a sensitive after-state from logs or history displays.
+The full wire contract, exact JSON, endpoint states, version validation, and conversion rules live in the [ChangePayload wire reference](../reference/change-payload.md). Redacted is never read as missing, and redacting the before-value does not hide a sensitive after-state from logs or history displays.
 
 <!-- sample: core-change-payload-models -->
 ```csharp
