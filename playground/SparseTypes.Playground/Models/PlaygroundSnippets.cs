@@ -92,33 +92,33 @@ public static class PlaygroundSnippets
 
     private static void AppendPatchLine(StringBuilder sb, string variableName, PatchEditState state)
     {
-        if (state.EnabledOp == PatchKind.Set)
-        {
-            sb.AppendLine($"{variableName}.Enabled = {BoolLiteral(state.EnabledValue)};");
-        }
-        else if (state.EnabledOp == PatchKind.Remove)
-        {
-            sb.AppendLine($"{variableName}.Enabled = FragmentOperation<bool>.Remove;");
-        }
-        if (state.RetryOp == PatchKind.Set)
-        {
-            sb.AppendLine($"{variableName}.RetryCount = {state.RetryValue};");
-        }
-        else if (state.RetryOp == PatchKind.Remove)
-        {
-            sb.AppendLine($"{variableName}.RetryCount = FragmentOperation<int>.Remove;");
-        }
+        AppendOperationLine(
+            sb,
+            $"{variableName}.Enabled",
+            state.EnabledOp,
+            BoolLiteral(state.EnabledValue)
+        );
+        AppendOperationLine(
+            sb,
+            $"{variableName}.RetryCount",
+            state.RetryOp,
+            state.RetryValue.ToString()
+        );
         if (state.LabelOp == NullPatchKind.Set)
         {
-            sb.AppendLine($"{variableName}.Label = {StringLiteral(state.LabelValue)};");
+            sb.AppendLine($"{variableName}.Label.Set({StringLiteral(state.LabelValue)});");
         }
         else if (state.LabelOp == NullPatchKind.SetNull)
         {
-            sb.AppendLine($"{variableName}.Label = FragmentOperation<string?>.Set(null);");
+            sb.AppendLine($"{variableName}.Label.Set(null);");
         }
         else if (state.LabelOp == NullPatchKind.Remove)
         {
-            sb.AppendLine($"{variableName}.Label = FragmentOperation<string?>.Remove;");
+            sb.AppendLine($"{variableName}.Label.Remove();");
+        }
+        else
+        {
+            sb.AppendLine($"{variableName}.Label.Keep();");
         }
         if (state.NestedOp == NestedPatchKind.SetNull)
         {
@@ -130,32 +130,45 @@ public static class PlaygroundSnippets
         }
         else if (state.NestedOp == NestedPatchKind.Set)
         {
-            if (state.HostOp == PatchKind.Set)
-            {
-                sb.AppendLine($"{variableName}.Nested.Host = {StringLiteral(state.HostValue)};");
-            }
-            else if (state.HostOp == PatchKind.Remove)
-            {
-                sb.AppendLine($"{variableName}.Nested.Host = FragmentOperation<string>.Remove;");
-            }
-            if (state.PortOp == PatchKind.Set)
-            {
-                sb.AppendLine($"{variableName}.Nested.Port = {state.PortValue};");
-            }
-            else if (state.PortOp == PatchKind.Remove)
-            {
-                sb.AppendLine($"{variableName}.Nested.Port = FragmentOperation<int>.Remove;");
-            }
-        }
-        if (state.PluginsOp == PatchKind.Set)
-        {
-            sb.AppendLine($"{variableName}.Plugins = {StringArrayLiteral(state.PluginsText)};");
-        }
-        else if (state.PluginsOp == PatchKind.Remove)
-        {
-            sb.AppendLine(
-                $"{variableName}.Plugins = FragmentOperation<System.Collections.Generic.IReadOnlyList<string>>.Remove;"
+            AppendOperationLine(
+                sb,
+                $"{variableName}.Nested.Host",
+                state.HostOp,
+                StringLiteral(state.HostValue)
             );
+            AppendOperationLine(
+                sb,
+                $"{variableName}.Nested.Port",
+                state.PortOp,
+                state.PortValue.ToString()
+            );
+        }
+        AppendOperationLine(
+            sb,
+            $"{variableName}.Plugins",
+            state.PluginsOp,
+            StringArrayLiteral(state.PluginsText)
+        );
+    }
+
+    private static void AppendOperationLine(
+        StringBuilder sb,
+        string member,
+        PatchKind operation,
+        string value
+    )
+    {
+        if (operation == PatchKind.Set)
+        {
+            sb.AppendLine($"{member}.Set({value});");
+        }
+        else if (operation == PatchKind.Remove)
+        {
+            sb.AppendLine($"{member}.Remove();");
+        }
+        else
+        {
+            sb.AppendLine($"{member}.Keep();");
         }
     }
 

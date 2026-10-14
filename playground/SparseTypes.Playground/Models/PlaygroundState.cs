@@ -264,35 +264,24 @@ public sealed class PatchEditState
     public PlaygroundSettings.Patch Build()
     {
         var patch = new PlaygroundSettings.Patch();
-        if (EnabledOp == PatchKind.Set)
-        {
-            patch.Enabled = FragmentOperation<bool>.Set(EnabledValue);
-        }
-        else if (EnabledOp == PatchKind.Remove)
-        {
-            patch.Enabled = FragmentOperation<bool>.Remove;
-        }
-
-        if (RetryOp == PatchKind.Set)
-        {
-            patch.RetryCount = FragmentOperation<int>.Set(RetryValue);
-        }
-        else if (RetryOp == PatchKind.Remove)
-        {
-            patch.RetryCount = FragmentOperation<int>.Remove;
-        }
+        ApplyOperation(ref patch.Enabled, EnabledOp, EnabledValue);
+        ApplyOperation(ref patch.RetryCount, RetryOp, RetryValue);
 
         if (LabelOp == NullPatchKind.Set)
         {
-            patch.Label = FragmentOperation<string?>.Set(LabelValue);
+            patch.Label.Set(LabelValue);
         }
         else if (LabelOp == NullPatchKind.SetNull)
         {
-            patch.Label = FragmentOperation<string?>.Set(null);
+            patch.Label.Set(null);
         }
         else if (LabelOp == NullPatchKind.Remove)
         {
-            patch.Label = FragmentOperation<string?>.Remove;
+            patch.Label.Remove();
+        }
+        else
+        {
+            patch.Label.Keep();
         }
 
         if (NestedOp == NestedPatchKind.SetNull)
@@ -305,37 +294,44 @@ public sealed class PatchEditState
         }
         else if (NestedOp == NestedPatchKind.Set)
         {
-            if (HostOp == PatchKind.Set)
-            {
-                patch.Nested.Host = FragmentOperation<string>.Set(HostValue);
-            }
-            else if (HostOp == PatchKind.Remove)
-            {
-                patch.Nested.Host = FragmentOperation<string>.Remove;
-            }
-
-            if (PortOp == PatchKind.Set)
-            {
-                patch.Nested.Port = FragmentOperation<int>.Set(PortValue);
-            }
-            else if (PortOp == PatchKind.Remove)
-            {
-                patch.Nested.Port = FragmentOperation<int>.Remove;
-            }
+            ApplyOperation(ref patch.Nested.Host, HostOp, HostValue);
+            ApplyOperation(ref patch.Nested.Port, PortOp, PortValue);
         }
 
         if (PluginsOp == PatchKind.Set)
         {
-            patch.Plugins = FragmentOperation<IReadOnlyList<string>>.Set(
-                FragmentEditState.ParsePlugins(PluginsText)
-            );
+            patch.Plugins.Set(FragmentEditState.ParsePlugins(PluginsText));
         }
         else if (PluginsOp == PatchKind.Remove)
         {
-            patch.Plugins = FragmentOperation<IReadOnlyList<string>>.Remove;
+            patch.Plugins.Remove();
+        }
+        else
+        {
+            patch.Plugins.Keep();
         }
 
         return patch;
+    }
+
+    private static void ApplyOperation<T>(
+        ref FragmentOperation<T> target,
+        PatchKind operation,
+        T value
+    )
+    {
+        if (operation == PatchKind.Set)
+        {
+            target.Set(value);
+        }
+        else if (operation == PatchKind.Remove)
+        {
+            target.Remove();
+        }
+        else
+        {
+            target.Keep();
+        }
     }
 }
 

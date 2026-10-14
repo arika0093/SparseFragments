@@ -1,20 +1,35 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Start with the merged fragment from Section 1. Unassigned operations stay unchanged; assigning null stores null, while Remove clears this fragment's contribution.</p>
-    <MonacoView Content="@PatchCode" Language="csharp" Height="260px" />
+    <p class="pg-hint">A regular ChangePayload can reconstruct this ChangeSet. The before-redaction case is covered in Section 4.</p>
+    <MonacoView Content="@PatchCode" Language="csharp" Height="500px" />
 </div>
 
 @code {
     private const string PatchCode = """
+        using System.Text.Json;
+        using SparseTypes;
+
         var fragment = lower.Merge(higher);
 
         var patch = new PlaygroundSettings.Patch();
-        patch.RetryCount = 5;
-        patch.Label = (string?)null;
-        patch.Enabled = FragmentOperation<bool>.Remove;
+        patch.Enabled.Keep();
+        var retryOperation = FragmentOperation<int>.Set(5);
+        patch.RetryCount.CopyFrom(retryOperation);
+        patch.Label.Set("patched!");
+        // Set(null) keeps an explicit null distinct from Keep and Remove.
+        // patch.Label.Set(null);
+        patch.Nested.Host.Remove();
+        patch.Nested.Port.Set(9000);
+        patch.Plugins.Keep();
 
-        var updated = fragment.Apply(patch);
-        // RetryCount=5, Label=null; Enabled is removed from this fragment.
+        var baseline = Optional<PlaygroundSettings.Fragment?>.Present(fragment);
+        var changes = PlaygroundSettings.ChangeSet.FromPatch(baseline, patch);
+        var options = PlaygroundJson.ChangeSetOptions();
+        var json = JsonSerializer.Serialize(changes.ToPayload(), options);
+        var payload = JsonSerializer.Deserialize<PlaygroundSettings.ChangePayload>(json, options)
+            ?? throw new JsonException("The ChangePayload JSON deserialized to null.");
+        var importedChanges = payload.ToChangeSet();
+        var updated = fragment.Apply(importedChanges.ToPatch());
         """;
 }
