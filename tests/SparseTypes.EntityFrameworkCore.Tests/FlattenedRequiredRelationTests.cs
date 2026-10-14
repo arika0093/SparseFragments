@@ -103,7 +103,7 @@ public sealed partial class ReqNoteMapper
     {
         Map.Member(dto => dto.Customer, entity => entity.CustomerName);
         Map.Member(dto => dto.Notes, entity => entity.Note!.Text);
-        Map.Collection<ReqNoteLineDto, ReqNoteLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

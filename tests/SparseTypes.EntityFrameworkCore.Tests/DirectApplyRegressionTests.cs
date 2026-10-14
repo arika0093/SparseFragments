@@ -42,7 +42,7 @@ public sealed partial class DirectApplyRegressionTests
                     child.Ignore(address => address.City);
                 }
             );
-            Map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -815,7 +815,7 @@ public sealed partial class DirectApplyRegressionTests
                     child.Ignore(address => address.City);
                 }
             );
-            Map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1072,7 +1072,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<ParcelLineDto, ParcelLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1082,7 +1082,7 @@ public sealed partial class DirectApplyRegressionTests
                         child.Ignore(line => line.Id);
                         child.Ignore(line => line.TemporaryId);
                         child.Object(line => line.ShipTo, entity => entity.ShipTo, address => { });
-                        child.Collection<ParcelTagDto, ParcelTagEntity>(
+                        child.Collection(
                             dto => dto.Tags,
                             entity => entity.Tags,
                             tags =>
@@ -1169,7 +1169,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<ParcelLineDto, ParcelLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1179,7 +1179,7 @@ public sealed partial class DirectApplyRegressionTests
                         child.Ignore(line => line.Id);
                         child.Ignore(line => line.TemporaryId);
                         child.Object(line => line.ShipTo, entity => entity.ShipTo, address => { });
-                        child.Collection<ParcelTagDto, ParcelTagEntity>(
+                        child.Collection(
                             dto => dto.Tags,
                             entity => entity.Tags,
                             tags =>
@@ -1671,7 +1671,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1708,7 +1708,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -1745,7 +1745,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<CourseRefDto, CourseEntity>(
+            Map.Collection(
                 dto => dto.Courses,
                 entity => entity.Courses,
                 lines =>
@@ -1823,7 +1823,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         private void Configure()
         {
-            Map.Collection<BatchLineDto, BatchLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

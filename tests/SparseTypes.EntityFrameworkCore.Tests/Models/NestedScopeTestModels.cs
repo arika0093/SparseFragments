@@ -128,7 +128,7 @@ public sealed partial class BinHolderMapper
 {
     private void Configure()
     {
-        Map.Collection<BinDto, BinEntity>(
+        Map.Collection(
             dto => dto.Bins,
             entity => entity.Bins,
             bins =>
@@ -136,7 +136,7 @@ public sealed partial class BinHolderMapper
                 bins.Key(dto => dto.Code, entity => new BinCode(entity.Aisle, entity.Bay));
                 bins.Element(child =>
                 {
-                    child.Collection<BinLineDto, BinLineEntity>(
+                    child.Collection(
                         dto => dto.Lines,
                         entity => entity.Lines,
                         lines =>

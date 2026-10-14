@@ -115,7 +115,7 @@ public sealed partial class EfApplyOrderMapper
                 address.Member(dto => dto.City, entity => entity.City);
             }
         );
-        Map.Collection<EfApplyLineDto, EfApplyLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

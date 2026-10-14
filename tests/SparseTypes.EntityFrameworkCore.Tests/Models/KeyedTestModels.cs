@@ -69,7 +69,7 @@ public sealed partial class CompositeOrderMapper
 {
     private void Configure()
     {
-        Map.Collection<CompositeLineDto, CompositeLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -153,7 +153,7 @@ public sealed partial class TemporaryCompositeOrderMapper
 {
     private void Configure()
     {
-        Map.Collection<TemporaryCompositeLineDto, TemporaryCompositeLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -289,7 +289,7 @@ public sealed partial class SkuOrderMapper
 {
     private void Configure()
     {
-        Map.Collection<SkuLineDto, SkuLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

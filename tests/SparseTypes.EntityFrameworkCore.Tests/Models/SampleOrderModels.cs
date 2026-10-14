@@ -123,7 +123,7 @@ public sealed partial class OrderMapper
             entity => entity.Address,
             child => child.Ignore(address => address.City)
         );
-        Map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

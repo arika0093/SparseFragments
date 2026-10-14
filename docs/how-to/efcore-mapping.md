@@ -33,7 +33,7 @@ public sealed partial class OrderMapper
         Map.Read(dto => dto.Code, entity => entity.Code);
         Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
         Map.Ignore(dto => dto.DisplayTotal);
-        Map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -247,7 +247,7 @@ after the factory returns.
 
 <!-- illustrative: keyed collection registrations available on the collection builder -->
 ```csharp
-Map.Collection<OrderLineDto, OrderLineEntity>(
+Map.Collection(
     dto => dto.Lines,
     entity => entity.Lines,
     lines =>

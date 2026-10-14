@@ -38,7 +38,7 @@ public sealed partial class OrderMapper
                 child.Read(address => address.City, address => address.City);
             }
         );
-        Map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

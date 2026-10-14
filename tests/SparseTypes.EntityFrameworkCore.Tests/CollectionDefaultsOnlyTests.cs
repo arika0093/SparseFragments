@@ -89,7 +89,7 @@ public sealed partial class CollectionDefaultsOnlyTests
     {
         private void Configure()
         {
-            Map.Collection<DefaultsOnlyLineDto, DefaultsOnlyLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

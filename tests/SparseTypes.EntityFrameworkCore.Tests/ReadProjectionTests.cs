@@ -245,7 +245,7 @@ internal sealed partial class ProjectionOrderMapper
             child => child.Ignore(address => address.City)
         );
         Map.Ignore(dto => dto.DisplayTotal);
-        Map.Collection<OrderLineDto, OrderLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
@@ -267,7 +267,7 @@ internal sealed partial class SoftOrderReadMapper
 {
     private void Configure()
     {
-        Map.Collection<SoftLineDto, SoftLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>

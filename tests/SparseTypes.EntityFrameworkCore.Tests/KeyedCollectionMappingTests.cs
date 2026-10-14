@@ -535,7 +535,7 @@ public sealed partial class KeyedCollectionMappingTests
     {
         private void Configure()
         {
-            Map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Collection(
                 dto => dto.Actives,
                 entity => entity.Actives,
                 lines =>
@@ -549,7 +549,7 @@ public sealed partial class KeyedCollectionMappingTests
                     lines.Delete();
                 }
             );
-            Map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Collection(
                 dto => dto.Archived,
                 entity => entity.Archived,
                 lines =>
@@ -674,7 +674,7 @@ public sealed partial class KeyedCollectionMappingTests
                     child.Ignore(address => address.City);
                 }
             );
-            Map.Collection<OrderLineDto, OrderLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

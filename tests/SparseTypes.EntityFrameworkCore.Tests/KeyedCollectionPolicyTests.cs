@@ -12,7 +12,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -34,7 +34,7 @@ public sealed partial class KeyedCollectionPolicyTests
         private void Configure()
         {
             Map.Ignore(dto => dto.Actives);
-            Map.Collection<DuoLineDto, DuoLineEntity>(
+            Map.Collection(
                 dto => dto.Archived,
                 entity => entity.Archived,
                 lines =>
@@ -59,7 +59,7 @@ public sealed partial class KeyedCollectionPolicyTests
 
         private void Configure()
         {
-            Map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -216,7 +216,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -236,7 +236,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<SoftLineDto, SoftLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -402,7 +402,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>
@@ -461,7 +461,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<string, string>(
+            Map.Collection(
                 dto => dto.Tags,
                 entity => entity.Tags,
                 lines =>
@@ -491,7 +491,7 @@ public sealed partial class KeyedCollectionPolicyTests
     {
         private void Configure()
         {
-            Map.Collection<SkuLineDto, SkuLineEntity>(
+            Map.Collection(
                 dto => dto.Lines,
                 entity => entity.Lines,
                 lines =>

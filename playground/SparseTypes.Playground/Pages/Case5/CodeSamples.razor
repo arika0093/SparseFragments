@@ -28,7 +28,7 @@
             {
                 Map.Member(dto => dto.Customer, entity => entity.CustomerName); // Map the renamed customer property.
                 Map.Member(dto => dto.Notes, entity => entity.Note!.Text);      // Flatten Notes onto the related note.
-                Map.Collection<PlaygroundOrderLineDto, PlaygroundOrderLineEntity>(
+                Map.Collection(
                     dto => dto.Lines,       // Read changes from the DTO collection.
                     entity => entity.Lines, // Apply them to the tracked EF collection.
                     lines =>

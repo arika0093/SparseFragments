@@ -85,7 +85,7 @@ public sealed partial class NkMapper
     private void Configure()
     {
         Map.Member(dto => dto.Customer, entity => entity.CustomerName);
-        Map.Collection<NkLineDto, NkLineEntity>(
+        Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
