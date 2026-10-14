@@ -64,7 +64,7 @@
                             @foreach (var tier in Draft.PriceTiers)
                             {
                                 <SparseSessionScope @key="tier.Code" Session="_draftSession">
-                                    <CatalogPriceTierEditor Code="tier.Code"
+                                    <CatalogPriceTierEditor Code="@tier.Code"
                                         State="@(roster?.GetItemState(tier.Code) ?? default)"
                                         ChildSessions="ChildSessions"
                                         SectionDraftsEnabled="SectionDraftsEnabled"
