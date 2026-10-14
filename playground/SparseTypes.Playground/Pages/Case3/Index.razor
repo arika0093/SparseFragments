@@ -58,24 +58,8 @@
                                 }
                                 else
                                 {
-                                    <div class="pg-change-table-wrap pg-roster-change-table-wrap">
-                                        <table class="pg-change-table" aria-label="Roster ChangeSet">
-                                            <thead>
-                                                <tr><th>Operation</th><th>Path</th><th>Before</th><th>After</th></tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach (var row in changeRows)
-                                                {
-                                                    <tr>
-                                                        <td><span class="@PlaygroundPageHelper.ChangeOperationClass(row.Operation)">@row.Operation</span></td>
-                                                        <td><span class="pg-change-value">@row.PathText</span></td>
-                                                        <td><span class="pg-change-value">@row.BeforeText</span></td>
-                                                        <td><span class="pg-change-value">@row.AfterText</span></td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    <ChangePreviewTable Rows="changeRows" AriaLabel="Roster ChangeSet"
+                                        WrapperClass="pg-roster-change-table-wrap" />
                                 }
                             </FluentTab>
                             <FluentTab Header="ChangePayload" Id="roster-changeset-json">
@@ -145,7 +129,7 @@
         return PlaygroundSnippets.RosterManualPatchCSharp("patch", _rosterChanges);
     }
 
-    private IReadOnlyList<SparseChangeRow> BuildRosterChangeRows()
+    private IReadOnlyList<ChangePreviewRow> BuildRosterChangeRows()
     {
         if (_rosterChanges is null)
         {
@@ -159,7 +143,15 @@
                 FormatOperation = PlaygroundPageHelper.ChangeOperation,
                 FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
             }
-        );
+        )
+            .Select(static row => new ChangePreviewRow
+            {
+                Target = row.PathText,
+                Operation = row.Operation,
+                Before = row.BeforeText,
+                After = row.AfterText,
+            })
+            .ToArray();
     }
 
     private void RefreshRosterChanges()
