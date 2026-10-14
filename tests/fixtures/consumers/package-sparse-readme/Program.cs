@@ -24,34 +24,39 @@ Require(explicitNull.IsPresent && explicitNull.Value is null, "Optional present 
 // the ChangeSet transition. Comment lines stay outside the sample region so
 // the region matches the README block exactly.
 // sample: readme-quickstart
+// 1. Snapshot complete defaults
 var defaults = Settings.Fragment.From(new Settings
 {
     Label = "default",
     Database = new() { Host = "db.local", Port = 5432 },
 });
 
+// 2. Define an override with only Port specified
 var environment = new Settings.Fragment
 {
     Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
 
+// 3. Merge layers (unspecified members fall through)
 var effective = defaults.Merge(environment);
 Require(effective.Database.Value!.Port.Value == 6432, "merge higher priority wins");
 Require(effective.Database.Value.Host.Value == "db.local", "merge falls through nested missing members");
 Require(effective.Label.Value == "default", "merge keeps lower value for missing members");
 
+// 4. Apply a targeted patch
 var patch = new Settings.Patch { Label = "production" };
 patch.Database.Port = 7432;
 var updated = effective.Apply(patch);
 Require(updated.ToModel().Label == "production", "typed patch applies");
 Require(updated.Database.Value!.Port.Value == 7432, "typed nested set");
 
+// 5. Inspect the transition between states
 var changes = Settings.ChangeSet.Between(effective, updated);
-Console.WriteLine(updated.ToModel().Label); // production
-Console.WriteLine(updated.ToModel().Database!.Host); // db.local, preserved by the patch
-Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(updated.ToModel().Label);            // production
+Console.WriteLine(updated.ToModel().Database!.Host);   // db.local, preserved by the patch
+Console.WriteLine(changes.Label.IsChanged);            // True
 Console.WriteLine(changes.Database.Port.Before.Value); // 6432
-Console.WriteLine(changes.Database.Port.After.Value); // 7432
+Console.WriteLine(changes.Database.Port.After.Value);  // 7432
 // /sample
 Require(changes.Label.IsChanged, "typed transition reports the Label change");
 Require(changes.Label.Before.Value == "default", "typed transition Before");

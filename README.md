@@ -4,21 +4,41 @@
 
 [![NuGet Version](https://img.shields.io/nuget/v/SparseTypes?style=flat-square&logo=NuGet&color=0080CC)](https://www.nuget.org/packages/SparseTypes/) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/arika0093/SparseTypes/test.yaml?branch=main&label=Test&style=flat-square) [![DeepWiki](https://img.shields.io/badge/DeepWiki-SparseTypes-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/arika0093/SparseTypes)
 
-*A unified change model for .NET.*
+*End-to-end change management for .NET.*
 
-Ordinary C# models gain multiple source-generated types for partial state, editing, and typed changes.
+From live UI drafts and Undo/Redo to wire transport, concurrent rebase, and database persistence, all generated from your existing C# models.
 
-Add `[SparseModel]` to a `partial` model. The application keeps using the same model; the source generator adds the supporting types around it.
+Add `[SparseModel]` to a standard `partial` class. The Roslyn source generator equips it with companion types for partial state, patch commands, diff transitions, JSON payloads, and reactive edit sessions automatically.
 
-It helps when:
+### Where it helps in real systems
 
-* a settings layer must omit a property instead of assigning its default value;
-* an editor must preserve which properties the user actually changed;
-* a client must send an edit without overwriting unrelated server changes;
-* a UI needs notifications and must distinguish a touched field from a value that is still changed;
-* a collection needs to track edits by item identity rather than by array position.
+* **Editable forms and dashboards**: Track touched fields (`IsChanged`), provide Undo/Redo, and drag-and-drop reorder collection items without writing bespoke ViewModel plumbing.
+* **Web APIs and partial updates**: Distinguish between "set to null" and "omitted from request" with compile-time type safety.
+* **Layered configuration**: Merge system defaults, environment overrides, and tenant settings without default values clobbering lower layers.
+* **Concurrent editing and collaboration**: Rebase client edits onto current server state. Non-conflicting fields merge automatically, and only identical-property clashes raise conflicts.
+* **Targeted persistence**: Apply only modified properties directly to EF Core tracked entities or SQL stores instead of full entity replacements.
 
-Try these cases live in the browser: [*SparseTypes Playground*](https://arika0093.github.io/SparseTypes/).
+### Why SparseTypes?
+
+* **One model produces the entire stack**: Annotate a standard C# model once. The generator emits partial fragments, patch commands, diff transitions, JSON payloads, and reactive edit sessions without manual DTO variants.
+* **100% type-safe and refactoring-friendly**: Normal C# property assignment replaces error-prone string paths and runtime reflection.
+* **Zero reflection and Native AOT ready**: All companion code is emitted at compile time. It allocates minimally, trims cleanly, and runs on Native AOT.
+* **Identity-based collection tracking**: Marking collection items with `[SparseKey]` tracks additions, removals, edits, and reorders by ID rather than fragile array positions.
+* **Git-style three-way rebase**: Resolves concurrent changes cleanly instead of discarding work with blunt last-write-wins or total concurrency errors.
+
+### Try it live: SparseTypes Playground
+
+Experience full change workflows in the browser: [**SparseTypes Playground**](https://arika0093.github.io/SparseTypes/)
+
+* **Basics**:
+  * [Case 1: Layer merge](https://arika0093.github.io/SparseTypes/case-1): Compose multi-layer settings with fall-through semantics.
+  * [Case 2: Typed patch](https://arika0093.github.io/SparseTypes/case-2): Build and apply baseline-free patch commands with explicit null support.
+* **UI and Collections**:
+  * [Case 3: Keyed list](https://arika0093.github.io/SparseTypes/case-3): Reorder, insert, and edit collection items by stable key.
+  * [Case 4: Edit session and Undo/Redo](https://arika0093.github.io/SparseTypes/case-4): Reactive UI editing, dirty state tracking, and history management.
+* **Persistence and Concurrency**:
+  * [Case 5: EF Core mapping and Rebase](https://arika0093.github.io/SparseTypes/case-5): Save ChangeSets to tracked entities and rebase concurrent edits during simulated network delay.
+  * [Case 6: Heterogeneous sessions](https://arika0093.github.io/SparseTypes/case-6): Coordinate multiple edit sessions across distinct model types.
 
 ## Install
 
@@ -38,30 +58,35 @@ With the .NET 10 SDK or later, the whole example fits in a single file. It layer
 
 using SparseTypes;
 
+// 1. Snapshot complete defaults
 var defaults = Settings.Fragment.From(new Settings
 {
     Label = "default",
     Database = new() { Host = "db.local", Port = 5432 },
 });
 
+// 2. Define an override with only Port specified
 var environment = new Settings.Fragment
 {
     Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
 
+// 3. Merge layers (unspecified members fall through)
 var effective = defaults.Merge(environment);
 
+// 4. Apply a targeted patch
 var patch = new Settings.Patch { Label = "production" };
 patch.Database.Port = 7432;
 var updated = effective.Apply(patch);
 
+// 5. Inspect the transition between states
 var changes = Settings.ChangeSet.Between(effective, updated);
 
-Console.WriteLine(updated.ToModel().Label); // production
-Console.WriteLine(updated.ToModel().Database!.Host); // db.local, preserved by the patch
-Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(updated.ToModel().Label);            // production
+Console.WriteLine(updated.ToModel().Database!.Host);   // db.local, preserved by the patch
+Console.WriteLine(changes.Label.IsChanged);            // True
 Console.WriteLine(changes.Database.Port.Before.Value); // 6432
-Console.WriteLine(changes.Database.Port.After.Value); // 7432
+Console.WriteLine(changes.Database.Port.After.Value);  // 7432
 
 [SparseModel]
 public partial class Settings
@@ -84,174 +109,41 @@ Save it as `quickstart.cs` and run:
 dotnet run --file quickstart.cs
 ```
 
-A `Fragment` records which values are provided, so the Port-only override leaves Host to fall through from defaults. A `Patch` carries the requested operations, so the edit sets Label and the nested port while Host stays untouched. A `ChangeSet` records the before to after transition, so the output shows Label changed and Port moved from 6432 to 7432. When the same transition must survive concurrent edits, convert it with `ToPayload` and reconcile with `RebaseOnto` (see [ChangeSet rebase](docs/rebase.md)).
+Unassigned members fall through on `Merge`. `Patch` applies targeted edits without requiring a baseline.
+`ChangeSet` captures typed before-to-after transitions with exact `IsChanged` flags.
 
-## Choose your workflow
+### Wire transport and concurrent rebase
 
-The generated types answer different questions:
+When changes cross process boundaries, serialize the change set into JSON and reconcile against the latest server state:
 
-| Type | Question | Typical use |
-| --- | --- | --- |
-| `Fragment` | Which values are provided? | Layers, overrides, partially supplied values |
-| `Patch` | What should change? | Baseline-free commands and local edits |
-| `ChangeSet` | What changed from before to after? | Baseline-aware diff, undo, compose, conflict-aware rebase |
-| `ChangePayload` | How does the change travel? | Transport-only typed versioned JSON |
-| `EditSession` | What is still unsaved? | Synchronous editing against a retained baseline |
-
-The Quick Start uses the first three rows: `defaults` carries Label `default` with the full database value, `environment` carries only Port 6432, and `effective` merges to Label `default`, Host `db.local`, Port 6432. The patch sets Label to `production` and Port to 7432 while Host stays `db.local`. The change set reports Label `default` to `production` and Port 6432 to 7432, with Host unchanged. The transport row serializes that same change set; see the [ChangePayload wire reference](docs/change-payload.md). The editing row tracks unsaved work in a running UI; see [UI frameworks](docs/ui-frameworks.md).
-
-For task guidance, see [Fragments and patches](docs/fragments-and-patches.md) for construction, diffing, and merge rules, [Merge strategies](docs/merge-strategies.md) for layering, [ChangeSet rebase](docs/rebase.md) for reconciling concurrent edits, [Keyed collections](docs/keyed-collections.md) for identity-based collection edits, [Edit-session groups](docs/edit-session-groups.md) for coordinating heterogeneous sessions, and [UI frameworks](docs/ui-frameworks.md) for edit sessions in Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia.
-
-## What each capability covers
-
-The sections below expand the Quick Start proof by scenario. Each one links to the guide that defines the behavior.
-
-### Partial values
-
-A settings layer often needs to distinguish "not specified" from "explicitly set to `null`". A normal nullable property cannot represent both meanings at once.
-
-A generated `Fragment` keeps that distinction:
-
-<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
+<!-- illustrative: excerpt; crosses process boundaries with System.Text.Json -->
 ```csharp
-var user = new Settings.Fragment { Label = (string?)null };
-var effective = defaults.Merge(user);
-```
-
-This is useful for defaults, environment settings, tenant settings, user overrides, and other partially supplied values.
-
-See [Fragments and patches](docs/fragments-and-patches.md) and [Merge strategies](docs/merge-strategies.md) for construction, diffing, and merge rules.
-
-### Partial edits
-
-A full edited object does not say which values the user intended to change. Treating every property as an update can overwrite values the editor never touched.
-
-A generated `Patch` contains only the requested operations:
-
-<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
-```csharp
-var patch = new Settings.Patch();
-patch.Database.Port = 6432;
-
-var updated = current.Apply(patch);
-```
-
-This is useful for local commands, partial-update APIs, and edits created in another process. EF Core already tracks edits made directly to tracked entities; SparseTypes is useful when the edit arrives from elsewhere.
-
-See [Fragments and patches](docs/fragments-and-patches.md) for patch operations and application.
-
-### Before to after changes
-
-Undo, audit output, conflict detection, and synchronization need more than the final value. They need to know what changed.
-
-A generated `ChangeSet` records that transition:
-
-<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
-```csharp
-var changes = Settings.ChangeSet.Between(before, after);
-
-changes.Database.Port.IsChanged;
-changes.Database.Port.Before;
-changes.Database.Port.After;
-```
-
-See [Fragments and patches](docs/fragments-and-patches.md) for typed transitions, inversion, composition, and conversion back to a patch.
-
-### Client and server edits
-
-A `ChangeSet` crosses a process boundary through its generated payload, using the transport the application already owns:
-
-<!-- illustrative: excerpt; names come from the Quick Start and the fence does not compile as written -->
-```csharp
+// 1. Serialize the typed change set for wire transport
 var json = JsonSerializer.Serialize(changes.ToPayload());
+// 2. Deserialize on the server
 var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
-
-var rebased = incoming.RebaseOnto(current);
+// 3. Rebase incoming changes onto latest server state
+var rebased = incoming.RebaseOnto(updated);
 ```
+`RebaseOnto` compares the client's original baseline against the latest server state.
+Independent properties merge automatically without overwriting concurrent edits, while collisions on the same property surface as structured conflicts.
 
-Rebasing preserves unrelated newer changes instead of replacing current state with a stale object. Conflicting edits are reported separately.
+## Architecture: The Generated Core
 
-See [ChangeSet rebase](docs/rebase.md) for the client and server flow and conflict handling, and the [ChangePayload wire reference](docs/change-payload.md) for the exact JSON contract.
+The source generator emits companion types designed to work together across the change lifecycle:
 
-### UI editing
+| Generated Type | Role | Typical Use |
+| --- | --- | --- |
+| `Fragment` | Sparse state snapshot | Default layers, overrides, partially supplied values |
+| `Patch` | Requested operations | Baseline-free commands, targeted API requests |
+| `ChangeSet` | Before-to-after transition | Audit logs, undo/redo, conflict-aware rebase |
+| `ChangePayload` | Wire envelope | Versioned JSON transport across process boundaries |
+| `EditSession` | Reactive UI draft | Dirty tracking, Undo/Redo, batch editing in Blazor/Desktop |
 
-Change notification and "there is still something to save" are different questions. A field can be touched and then restored to its original value.
+### Presence tracking with Optional<T>
 
-An edit session (the per-model `EditSession` in `SparseTypes.Generated`, reached through `CreateEditSession()`) compares a retained baseline with the live model. It is synchronous and provides no transport or conflict framework:
-
-<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
-```csharp
-var session = order.CreateEditSession();
-session.Observable.Name = "Updated";
-
-var submitted = session.CreateChangeSet();
-var response = await SendChangesAsync(submitted.ToPayload());
-if (response.IsSuccess)
-{
-    // Advances the baseline only. The live model is untouched,
-    // so edits made after CreateChangeSet stay pending.
-    session.AcceptChanges(submitted);
-}
-```
-
-Bind controls to `session.Observable` and read display state from `session.Current`. The proxy edits the live model with notifications; the read-only view exposes the same state without setters. A raw `session.Model` reference edits the same instance without notifications and disables the session's observable-change cache, so prefer the proxy while the session tracks edits. Group one user action with `BatchEdit`, and undo unsaved edits with `RevertChanges()`:
-
-<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
-```csharp
-session.Observable.Name = "Updated";
-string shown = session.Current.Name;
-
-session.BatchEdit(() =>
-{
-    session.Observable.Name = "Batched";
-});
-
-session.RevertChanges();
-// session.HasChanges == false
-```
-
-The recommended workflow disables editing in the UI while a save is in flight, then starts a fresh session from the returned server state (`persisted.CreateEditSession()`). This naturally picks up server-assigned keys, timestamps, and normalization.
-
-For forms that keep editing enabled during submission, `session.AcceptChanges(submitted)` advances only the baseline so edits made after `CreateChangeSet` stay pending. This approach requires that the server makes no schema changes, key assignments, or normalization. When the destination object is already bound to the UI, prefer the conflict-checked `ChangeSet.TryApplyInPlace`: it rebases onto the bound model's current state, preserves unrelated concurrent edits, and reports conflicting or immutable-member edits as structured conflicts instead of overwriting silently.
-
-<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
-```csharp
-var pending = baseline.CreateChangeSet(edited);
-if (!pending.TryApplyInPlace(boundModel, out var conflicts))
-{
-    ShowConflicts(conflicts);
-    return;
-}
-// boundModel now carries the change; unrelated concurrent edits are preserved.
-```
-
-The explicit blind form `changes.ToPatch().ApplyInPlace(model)` skips the before-state check and can no longer rebase or report conflicts. See [ChangeSet rebase](docs/rebase.md) for the safe and blind in-place options.
-
-`ChangeSet.EnumerateChanges()` (flattened rows for logs and lists) is an advanced seam. Ordinary editing uses `Observable`, `Current`, and the typed transitions. See [UI frameworks](docs/ui-frameworks.md) for sessions, `EditContext` handling, validation, and `Observable` wrappers for Blazor, WPF, WinForms, .NET MAUI, WinUI, and Avalonia integration.
-
-### Keyed collections
-
-Collection edits need stable identity. Array positions are not enough when items can be inserted, removed, or reordered.
-
-With a `[SparseKey]` on the element model, changes are exposed by key:
-
-<!-- illustrative: excerpt; names come from the surrounding prose and the fence does not compile as written -->
-```csharp
-var changes = Roster.ChangeSet.Between(before, after);
-
-changes.Quests.Added;
-changes.Quests.Removed;
-changes.Quests.Edited;
-changes.Quests.OrderChanged;
-```
-
-See [Keyed collections](docs/keyed-collections.md) for key rules, per-item transitions, and the temporary-key save workflow. The [Playground](https://arika0093.github.io/SparseTypes/) shows the behavior interactively.
-
-## Generated API
-
-### Presence tracking
-
-`Optional<T>` represents the three states that a normal property cannot distinguish: missing, present `null`, and present value.
+A `Fragment` represents your model where every member is wrapped in `Optional<T>`.
+This enables three distinct states that standard C# properties cannot distinguish at once:
 
 <!-- sample: readme-optional-states -->
 ```csharp
@@ -261,87 +153,48 @@ Optional<string?> explicitNull = Optional<string?>.Present(null);
 ```
 <!-- /sample -->
 
-Generated fragments use this distinction while exposing model-shaped members, so application code normally works through the generated types instead of maintaining presence flags by hand. A Patch `Remove()` drops one member contribution back to missing; on the next merge that member falls through to the lower layer. It never assigns the C# default or runs a constructor. This removal behavior is independent of the Quick Start values above: it describes what happens to any single member contribution when it becomes Missing.
-
-### Source generation
-
-<!-- illustrative: simplified names; does not compile as written -->
-`[SparseModel]` generates code shaped like the following schematic (names simplified; it does not compile as written). The state,
-operation, and UI/editing families stay nested in the model; builders,
-paths, and operation machinery live in a stable per-model
-`SparseTypes.Generated` container:
-
-```csharp
-partial class Settings
-{
-    public Settings DeepClone();
-
-    public sealed class Fragment;
-    public sealed class Patch;
-    public sealed class ChangeSet;
-    public sealed class ChangePayload;
-    public sealed class EditSession;
-    public sealed class Observable;
-    public sealed class ReadOnlyView;
-}
-
-// In namespace SparseTypes.Generated, one container per model:
-// <Container>.FragmentBuilder, <Container>.SparsePaths<TRoot>,
-// <Container>.DescriptorFactory, operation implementations.
-```
-
-Each model is emitted into one file; only compilation-wide helpers keep
-separate `Generated.*` files. Prefer `var` with `CreateEditSession()` and
-`ToObservable()` instead of naming the types. There are no
-backwards-compatibility aliases. See
-[Generated type placement](docs/ui-frameworks.md#generated-type-placement)
-for the full mapping.
-
-Reachable eligible `partial` nested types receive the corresponding generated APIs as well. See [Model shapes](docs/model-shapes.md) for the supported shapes and constructor rules.
-
-The code is generated at compile time, uses no reflection for these generated operations, and works with NativeAOT.
+Missing means unassigned (falling through during merge), present `null` explicitly clears a value, and present value updates it.
 
 ## Documentation
 
-Start with the [first sparse edit](docs/tutorial/first-sparse-edit.md) to
-learn the basics by doing. Each how-to below solves one named task; the rest
-are API references to look things up.
+Browse the documentation organized by the [Diátaxis](https://diataxis.fr/) framework:
 
-| Task | Guide |
-| --- | --- |
-| Learn the basics end to end | [First sparse edit](docs/tutorial/first-sparse-edit.md) |
-| Layer overrides and remove them | [Layered settings](docs/how-to/layered-settings.md) |
-| Send commands or baseline-aware changes | [Partial updates](docs/how-to/partial-updates.md) |
-| Save a Blazor form without losing edits | [Blazor edit form](docs/how-to/blazor-edit-form.md) |
-| Construct fragments, patches, and transitions | [Fragments and patches](docs/fragments-and-patches.md) |
-| Layer defaults and overrides | [Merge strategies](docs/merge-strategies.md) |
-| Observe and rebase before to after changes | [ChangeSet rebase](docs/rebase.md) |
-| Send a change across a process boundary | [ChangePayload wire reference](docs/change-payload.md) |
-| Add, remove, edit, and reorder collection items | [Keyed collections](docs/keyed-collections.md) |
-| Track edits in Blazor, WPF, MAUI, WinUI, or Avalonia | [UI frameworks](docs/ui-frameworks.md) |
-| Control copying and reference sharing | [Clone & ownership](docs/cloning-and-ownership.md) |
-| Check supported model shapes and constructors | [Model shapes](docs/model-shapes.md) |
-| Resolve generator errors | [Diagnostics](docs/analyzer.md) |
+### Tutorials (Learning by doing)
+* [First sparse edit](docs/tutorial/first-sparse-edit.md): Build a working edit pipeline end to end.
+
+### How-to Guides (Goal-oriented recipes)
+* [Layered settings](docs/how-to/layered-settings.md): Compose multi-tier configuration and remove overrides.
+* [Partial updates](docs/how-to/partial-updates.md): Accept patch commands or baseline-aware changes in Web APIs.
+* [Blazor edit form](docs/how-to/blazor-edit-form.md): Save form edits without losing draft state.
+* [Blazor headless components](docs/how-to/blazor-headless-components.md): Build custom UI inputs over session paths.
+
+### Explanation (Concepts and design)
+* [ChangeSet rebase](docs/rebase.md): Three-way reconciliation, conflict detection, and server save flows.
+* [Keyed collections](docs/keyed-collections.md): Identity-based list operations vs. index-based mutation.
+* [Cloning and ownership](docs/cloning-and-ownership.md): Instance isolation and memory safety guarantees.
+* [Merge strategies](docs/merge-strategies.md): Deep merge, collection append, set union, and custom rules.
+
+### Reference (Technical facts and APIs)
+* [ChangePayload wire format](docs/change-payload.md): JSON schema and serialization specification.
+* [UI frameworks & Edit sessions](docs/ui-frameworks.md): Binding and lifecycle reference for Blazor, WPF, WinForms, MAUI, and Avalonia.
+* [Descriptors reference](docs/descriptors.md): Reflection-free runtime metadata and dynamic accessors.
+* [Model shapes](docs/model-shapes.md): Supported C# shapes, modifiers, and constructor requirements.
+* [Diagnostics](docs/analyzer.md): Roslyn analyzer rules (`SPF001`–`SPF024`).
 
 ## Packages and Compatibility
 
 ### SparseTypes
-
-* Released as `netstandard2.0`.
-  * .NET Framework 4.6.1 or later
-  * .NET Core 2.0 or later, .NET 5 or later
-  * .NET MAUI and other platforms that support `netstandard2.0` (see [Select .NET Standard version](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-2.0#select-net-standard-version)).
+* Core runtime and source generator: targets `netstandard2.0` (compatible with .NET 6+, .NET 8+, .NET 10+, and modern .NET runtimes).
+* Requires Roslyn 4.3.1 or later (Visual Studio 2022 17.3+, JetBrains Rider 2023.1+, .NET SDK 6.0+).
 * Generated code requires C# 9.0 or later.
-  * Set `<LangVersion>9.0</LangVersion>` (or later) in the consuming project.
-  * The `netstandard2.0` and .NET Framework targets default to C# 7.3, so those consumers must opt in explicitly.
-* Source generation runs in any build that uses Roslyn 4.3.1 or later (SDK and compiler requirement). The versions below add design-time IDE support:
-  * VisualStudio 2022: 17.3 or later
-  * JetBrains Rider: 2023.1 or later
-  * Unity: 6 or later
 
 ### SparseTypes.Blazor
+* Reactive edit sessions and field components for Blazor applications.
+* Targets `net8.0` and `net10.0`.
 
-Requires `net8.0` or later.
+### SparseTypes.EntityFrameworkCore
+* ChangeSet mapping and change tracking integration for Entity Framework Core.
+* Targets `net10.0`.
 
 ## License
 
