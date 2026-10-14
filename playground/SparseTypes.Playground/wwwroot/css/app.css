@@ -157,9 +157,9 @@ a, .btn-link {
 .pg-title h1 {
     font-family: 'Michroma', sans-serif;
     font-weight: 700;
-    font-size: 2rem;
+    font-size: 32px;
     min-width: 0;
-    margin-bottom: 0;
+    margin-bottom: 4px;
 }
 
 .pg-home-link {
