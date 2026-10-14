@@ -1,0 +1,127 @@
+@using SparseTypes.Playground.Components
+
+<div class="pg-code-samples">
+    <p class="pg-hint">Each tab owns a scoped draft and its own Undo/Redo history. Commit moves a scope into the catalog session; tab navigation asks how to resolve an uncommitted draft.</p>
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Shapes" Id="code-6-shapes">
+            <MonacoView Content="@ShapesCode" Language="csharp" Height="390px" />
+        </FluentTab>
+        <FluentTab Header="Section scopes" Id="code-6-scopes">
+            <MonacoView Content="@ScopesCode" Language="csharp" Height="330px" />
+        </FluentTab>
+        <FluentTab Header="Workflow and keyed scopes" Id="code-6-workflow">
+            <MonacoView Content="@WorkflowCode" Language="csharp" Height="360px" />
+        </FluentTab>
+        <FluentTab Header="History and save" Id="code-6-history">
+            <MonacoView Content="@HistoryCode" Language="csharp" Height="330px" />
+        </FluentTab>
+    </FluentTabs>
+</div>
+
+@code {
+    private const string ShapesCode = """
+        [SparseModel]
+        public partial class EnterpriseCatalogItem
+        {
+            public CatalogOverview Overview { get; set; } = new();
+            public CatalogCommercialDetails Commercial { get; set; } = new();
+            public CatalogOperationsDetails Operations { get; set; } = new();
+            public CatalogWorkflow Workflow { get; set; } = new();
+        }
+
+        [SparseModel]
+        public partial class CatalogCommercialDetails
+        {
+            public List<CatalogPriceTier> PriceTiers { get; set; } = [];
+        }
+
+        [SparseModel]
+        public partial class CatalogPriceTier
+        {
+            [SparseKey]
+            public string Code { get; set; } = string.Empty;
+            public List<CatalogDiscountBand> Discounts { get; set; } = [];
+        }
+
+        [SparseModel]
+        public partial class CatalogWorkflow
+        {
+            public List<CatalogWorkStep> Steps { get; set; } = [];
+        }
+
+        public sealed class CatalogWorkStep
+        {
+            [SparseKey]
+            public string Id { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public CatalogWorkMaster Master { get; set; } = new();
+        }
+        """;
+
+    private const string ScopesCode = """
+        var session = catalog.CreateEditSession();
+
+        using var overview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
+        overview.Observable.Name = "Modular Drive Unit";
+        if (!overview.TryCommit(out var conflicts))
+        {
+            ShowConflicts(conflicts);
+        }
+
+        using var commercial = session.OpenScope(EnterpriseCatalogItem.SparsePath.Commercial);
+        commercial.Observable.UnitPrice = 2480m;
+        commercial.TryCommit(out _);
+
+        var changes = session.CreateChangeSet();
+        // Each scope commits one nested draft into the same typed session.
+        """;
+
+    private const string WorkflowCode = """
+        var workflow = session.OpenScope(EnterpriseCatalogItem.SparsePath.Workflow);
+        workflow.Observable.Steps.Add(new CatalogWorkStep
+        {
+            Id = "new-step",
+            Name = "Calibration",
+            Master = new CatalogWorkMaster(),
+        });
+        workflow.TryCommit(out _);
+
+        var stepMaster = session.OpenScope(
+            EnterpriseCatalogItem.SparsePath.Workflow.Steps.Key("new-step").Master);
+        stepMaster.Observable.WorkCenter = "WC-17";
+        stepMaster.TryCommit(out _);
+        """;
+
+    private const string HistoryCode = """
+        var session = catalog.CreateEditSession();
+        var overview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
+        var draft = overview.Observable.CreateEditSession();
+        var history = draft.EnableHistory();
+        draft.Observable.Active = false;
+
+        if (history.CanUndo)
+        {
+            history.Undo();
+        }
+
+        history.Redo();
+        draft.DisableHistory();
+        overview.TryCommit(out _);
+
+        // Reopen the scope and create a new history after commit.
+        var nextOverview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
+        var nextDraft = nextOverview.Observable.CreateEditSession();
+        var nextHistory = nextDraft.EnableHistory();
+
+        var changes = session.CreateChangeSet();
+        if (changes.IsChanged)
+        {
+            var beforeJson = JsonSerializer.Serialize(savedCatalog, PlaygroundJsonContext.Default.EnterpriseCatalogItem);
+            var afterJson = JsonSerializer.Serialize(catalog, PlaygroundJsonContext.Default.EnterpriseCatalogItem);
+            PresentDiff(beforeJson, afterJson);
+            session.AcceptChanges();
+        }
+
+        nextDraft.DisableHistory();
+        """;
+}

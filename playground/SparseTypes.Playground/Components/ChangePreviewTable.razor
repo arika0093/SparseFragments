@@ -1,0 +1,38 @@
+<div class="pg-change-table-wrap @WrapperClass">
+    <table class="pg-change-table @TableClass" aria-label="@AriaLabel">
+        <thead>
+            <tr><th>Operation</th><th>@TargetHeader</th><th>Before</th><th>After</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr>
+                    <td><span class="@OperationClass(row.Operation)">@row.Operation</span></td>
+                    <td><span class="pg-change-value">@row.Target</span></td>
+                    <td><span class="pg-change-value">@row.Before</span></td>
+                    <td><span class="pg-change-value">@row.After</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ChangePreviewRow> Rows { get; set; } = [];
+
+    [Parameter]
+    public string TargetHeader { get; set; } = "Path";
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Changes";
+
+    [Parameter]
+    public string? WrapperClass { get; set; }
+
+    [Parameter]
+    public string? TableClass { get; set; }
+
+    private static string OperationClass(string operation) =>
+        $"pg-change-operation pg-change-{operation.ToLowerInvariant()}";
+}

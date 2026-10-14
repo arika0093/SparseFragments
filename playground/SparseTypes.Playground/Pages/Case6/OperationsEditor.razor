@@ -1,0 +1,202 @@
+@using SparseTypes.Playground.Models
+@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@implements IDisposable
+
+<FluentCard Class="pg-fluent-card">
+    <div class="pg-card-head">
+        <h3>Operations details</h3>
+        <span class="pg-has-changes-badge @(_scope.HasChanges ? "pg-has-changes" : "pg-no-changes")">
+            <span aria-hidden="true"></span>@(_scope.HasChanges ? "Edited" : "Current")
+        </span>
+    </div>
+    <div class="pg-stack pg-edit-fields">
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.Facility, Draft.Facility) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Facility <small>string</small></span>
+            <FluentTextInput Value="@Draft.Facility"
+                ValueChanged="@(value => Update(() => Draft.Facility = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.Warehouse, Draft.Warehouse) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Warehouse <small>string</small></span>
+            <FluentTextInput Value="@Draft.Warehouse"
+                ValueChanged="@(value => Update(() => Draft.Warehouse = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(_baseline.LeadTimeDays != Draft.LeadTimeDays ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">LeadTimeDays <small>int</small></span>
+            <FluentNumberInput TValue="int" Value="@Draft.LeadTimeDays"
+                ValueChanged="@(value => Update(() => Draft.LeadTimeDays = value))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.QualityStandard, Draft.QualityStandard) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">QualityStandard <small>string</small></span>
+            <FluentTextInput Value="@Draft.QualityStandard"
+                ValueChanged="@(value => Update(() => Draft.QualityStandard = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(_baseline.InspectionRequired != Draft.InspectionRequired ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">InspectionRequired <small>bool</small></span>
+            <FluentCheckbox Value="@Draft.InspectionRequired"
+                ValueChanged="@(value => Update(() => Draft.InspectionRequired = value))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.PackagingInstruction, Draft.PackagingInstruction) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">PackagingInstruction <small>string</small></span>
+            <FluentTextInput Value="@Draft.PackagingInstruction"
+                ValueChanged="@(value => Update(() => Draft.PackagingInstruction = value ?? string.Empty))" />
+        </div>
+    </div>
+
+    <div class="pg-catalog-list-section">
+        <div class="pg-card-head">
+            <h4>Operational documents</h4>
+            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddDocument">Add document</FluentButton>
+        </div>
+        <div class="pg-roster-list">
+            @foreach (var document in Draft.Documents)
+            {
+                <div class="@CatalogRowState.ClassFor(_baseline.Documents, Draft.Documents, document, static item => item.Code, static item => item.Code, hasChanged: HasDocumentChanged)">
+                    <div class="pg-catalog-document-row">
+                        <FluentTextInput Value="@document.Title"
+                            ValueChanged="@(value => Update(() => document.Title = value ?? string.Empty))"
+                            aria-label="Document title" />
+                        <FluentTextInput Value="@document.Owner"
+                            ValueChanged="@(value => Update(() => document.Owner = value ?? string.Empty))"
+                            aria-label="Document owner" />
+                        <FluentCheckbox Value="@document.Required"
+                            ValueChanged="@(value => Update(() => document.Required = value))">
+                            Required
+                        </FluentCheckbox>
+                        <FluentButton Appearance="ButtonAppearance.Default" Title="Remove document"
+                            @onclick="() => RemoveDocument(document.Code)">✕</FluentButton>
+                    </div>
+                </div>
+            }
+            @foreach (var removed in _baseline.Documents.Where(document =>
+                !Draft.Documents.Any(current => current.Code == document.Code)))
+            {
+                <div class="pg-roster-row pg-removed">
+                    <div class="pg-catalog-inline-row">
+                        <span>@removed.Title</span>
+                        <span class="pg-change-remove">Removed</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+        <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+        <span class="pg-dot"></span>edited
+    </div>
+    <ScopeActions @ref="_scopeActions" TModel="CatalogOperationsDetails" Scope="_scope" HistoryProvider="GetHistory"
+        OnFinished="ReopenScope" OnChanged="OnChanged" />
+</FluentCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public CatalogSession Session { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public CatalogScopeCoordinator Scopes { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private CatalogSession.Scope<CatalogOperationsDetails> _scope = null!;
+    private CatalogOperationsDetails.EditSession _draftSession = null!;
+    private ISparseEditHistory _history = null!;
+    private ScopeActions<CatalogOperationsDetails>? _scopeActions;
+    private CatalogOperationsDetails _baseline = null!;
+    private IDisposable? _registration;
+    private int _newDocumentNumber;
+    public bool HasChanges => _scope?.HasChanges == true;
+    private CatalogOperationsDetails.Observable Draft => _draftSession.Observable;
+
+    protected override void OnInitialized()
+    {
+        OpenScope();
+        _registration = Scopes.Register(
+            CatalogScopeCoordinator.OperationsId,
+            () => _scope?.HasChanges == true,
+            CommitCurrentScope,
+            CancelScope,
+            ReopenScopeSilently
+        );
+    }
+
+    public void Dispose()
+    {
+        _registration?.Dispose();
+        _draftSession?.DisableHistory();
+        _scope?.Dispose();
+    }
+
+    private void OpenScope()
+    {
+        _draftSession?.DisableHistory();
+        _scope?.Dispose();
+        _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Operations);
+        _draftSession = _scope.Observable.CreateEditSession();
+        _history = _draftSession.EnableHistory();
+        _baseline = _scope.Observable.DeepClone();
+    }
+
+    private Task ReopenScope()
+    {
+        OpenScope();
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task ReopenScopeSilently()
+    {
+        OpenScope();
+        return Task.CompletedTask;
+    }
+
+    private void CancelScope()
+    {
+        _draftSession?.DisableHistory();
+        _scope?.Cancel();
+        _scope = null!;
+    }
+
+    private Task<bool> CommitCurrentScope() =>
+        _scopeActions?.CommitScopeAsync() ?? Task.FromResult(true);
+
+    private ISparseEditHistory GetHistory() => _history;
+
+    private Task Update(Action update)
+    {
+        update();
+        return OnChanged.InvokeAsync();
+    }
+
+    private async Task AddDocument()
+    {
+        Draft.Documents.AddModel(new CatalogOperationDocument
+        {
+            Code = $"doc-{_newDocumentNumber++}-{Guid.NewGuid():N}",
+            Title = "New operational document",
+            Owner = "Operations",
+            Required = false,
+        });
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task RemoveDocument(string code)
+    {
+        var document = Draft.Documents.FirstOrDefault(item => item.Code == code);
+        if (document is not null)
+        {
+            Draft.Documents.Remove(document);
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private bool HasDocumentChanged(CatalogOperationDocument.Observable document)
+    {
+        var baselineDocument = _baseline.Documents.FirstOrDefault(candidate => candidate.Code == document.Code);
+        return baselineDocument is not null
+            && (baselineDocument.Title != document.Title
+                || baselineDocument.Owner != document.Owner
+                || baselineDocument.Required != document.Required);
+    }
+
+    private static bool IsChanged<TValue>(TValue before, TValue after) =>
+        !EqualityComparer<TValue>.Default.Equals(before, after);
+}

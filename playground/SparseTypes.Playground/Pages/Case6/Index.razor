@@ -1,29 +1,23 @@
 @page "/case-6"
 @using SparseTypes.Playground.Components
 
-<PageTitle>06 Sessions — SparseTypes Playground</PageTitle>
+<PageTitle>06 Enterprise master editing — SparseTypes Playground</PageTitle>
 
 <section class="pg-section">
     <div class="pg-section-heading">
         <span class="pg-section-number">06</span>
-        <h2>Session coordination: group, scope, fork</h2>
+        <h2>Enterprise master editing with scoped sections</h2>
         <GitHubLink Href="https://github.com/arika0093/SparseTypes/tree/main/playground/SparseTypes.Playground/Pages/Case6" Label="Case 6 source on GitHub" />
     </div>
     <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline">
-        <FluentTab Header="Group" Id="section-6-group">
+        <FluentTab Header="Playground" Id="section-6-playground">
             <div class="pg-section-content">
-                <GroupDemo />
+                <p class="pg-hint">Edit a multi-section catalog with independent Scope drafts, nested lists, and reorderable workflow steps. The work-master tabs follow the current workflow draft; save groups changes by section for review.</p>
+                <EnterpriseCatalogPlayground />
             </div>
         </FluentTab>
-        <FluentTab Header="Scope" Id="section-6-scope">
-            <div class="pg-section-content">
-                <ScopeDemo />
-            </div>
-        </FluentTab>
-        <FluentTab Header="Fork" Id="section-6-fork">
-            <div class="pg-section-content">
-                <ForkDemo />
-            </div>
+        <FluentTab Header="Codes" Id="section-6-codes">
+            <CodeSamples />
         </FluentTab>
     </FluentTabs>
 </section>

@@ -1,0 +1,180 @@
+@using SparseTypes.Playground.Models
+@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@implements IDisposable
+
+<FluentCard Class="pg-fluent-card">
+    <div class="pg-card-head">
+        <h3>Overview</h3>
+        <span class="pg-has-changes-badge @(_scope.HasChanges ? "pg-has-changes" : "pg-no-changes")">
+            <span aria-hidden="true"></span>@(_scope.HasChanges ? "Edited" : "Current")
+        </span>
+    </div>
+    <div class="pg-stack pg-edit-fields">
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.ItemCode, Draft.ItemCode) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">ItemCode <small>string</small></span>
+            <FluentTextInput Value="@Draft.ItemCode"
+                ValueChanged="@(value => Update(() => Draft.ItemCode = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.Name, Draft.Name) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Name <small>string</small></span>
+            <FluentTextInput Value="@Draft.Name"
+                ValueChanged="@(value => Update(() => Draft.Name = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.Category, Draft.Category) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Category <small>string</small></span>
+            <FluentTextInput Value="@Draft.Category"
+                ValueChanged="@(value => Update(() => Draft.Category = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(IsChanged(_baseline.Owner, Draft.Owner) ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Owner <small>string</small></span>
+            <FluentTextInput Value="@Draft.Owner"
+                ValueChanged="@(value => Update(() => Draft.Owner = value ?? string.Empty))" />
+        </div>
+        <div class="pg-row pg-session-field @(_baseline.Active != Draft.Active ? "pg-changed" : "")">
+            <span class="pg-name notranslate" translate="no">Active <small>bool</small></span>
+            <FluentCheckbox Value="@Draft.Active"
+                ValueChanged="@(value => Update(() => Draft.Active = value))" />
+        </div>
+    </div>
+
+    <div class="pg-catalog-list-section">
+        <div class="pg-card-head">
+            <h4>Alternate codes</h4>
+            <div class="pg-actions">
+                <FluentTextInput Placeholder="New code" Value="@_newAlias"
+                    ValueChanged="@(value => _newAlias = value ?? string.Empty)" />
+                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddAlias">Add</FluentButton>
+            </div>
+        </div>
+        <div class="pg-roster-list">
+            @foreach (var alias in Draft.AlternateCodes)
+            {
+                <div class="@CatalogRowState.ClassFor(_baseline.AlternateCodes, Draft.AlternateCodes, alias, static value => value)">
+                    <div class="pg-catalog-inline-row">
+                        <span>@alias</span>
+                        <FluentButton Appearance="ButtonAppearance.Default" Title="Remove code"
+                            @onclick="() => RemoveAlias(alias)">✕</FluentButton>
+                    </div>
+                </div>
+            }
+            @foreach (var removed in _baseline.AlternateCodes.Where(alias =>
+                !Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase)))
+            {
+                <div class="pg-roster-row pg-removed">
+                    <div class="pg-catalog-inline-row">
+                        <span>@removed</span>
+                        <span class="pg-change-remove">Removed</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+        <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+        <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+    </div>
+    <ScopeActions @ref="_scopeActions" TModel="CatalogOverview" Scope="_scope" HistoryProvider="GetHistory"
+        OnFinished="ReopenScope" OnChanged="OnChanged" />
+</FluentCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public CatalogSession Session { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public CatalogScopeCoordinator Scopes { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private CatalogSession.Scope<CatalogOverview> _scope = null!;
+    private CatalogOverview.EditSession _draftSession = null!;
+    private ISparseEditHistory _history = null!;
+    private ScopeActions<CatalogOverview>? _scopeActions;
+    private CatalogOverview _baseline = null!;
+    private IDisposable? _registration;
+    private string _newAlias = string.Empty;
+    public bool HasChanges => _scope?.HasChanges == true;
+    private CatalogOverview.Observable Draft => _draftSession.Observable;
+
+    protected override void OnInitialized()
+    {
+        OpenScope();
+        _registration = Scopes.Register(
+            CatalogScopeCoordinator.OverviewId,
+            () => _scope?.HasChanges == true,
+            CommitCurrentScope,
+            CancelScope,
+            ReopenScopeSilently
+        );
+    }
+
+    public void Dispose()
+    {
+        _registration?.Dispose();
+        _draftSession?.DisableHistory();
+        _scope?.Dispose();
+    }
+
+    private void OpenScope()
+    {
+        _draftSession?.DisableHistory();
+        _scope?.Dispose();
+        _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
+        _draftSession = _scope.Observable.CreateEditSession();
+        _history = _draftSession.EnableHistory();
+        _baseline = _scope.Observable.DeepClone();
+    }
+
+    private Task ReopenScope()
+    {
+        OpenScope();
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task ReopenScopeSilently()
+    {
+        OpenScope();
+        return Task.CompletedTask;
+    }
+
+    private void CancelScope()
+    {
+        _draftSession?.DisableHistory();
+        _scope?.Cancel();
+        _scope = null!;
+    }
+
+    private Task<bool> CommitCurrentScope() =>
+        _scopeActions?.CommitScopeAsync() ?? Task.FromResult(true);
+
+    private ISparseEditHistory GetHistory() => _history;
+
+    private Task Update(Action update)
+    {
+        update();
+        return OnChanged.InvokeAsync();
+    }
+
+    private async Task AddAlias()
+    {
+        var alias = _newAlias.Trim();
+        if (alias.Length == 0 || _scope.Observable.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Draft.AlternateCodes.Add(alias);
+        _newAlias = string.Empty;
+        await OnChanged.InvokeAsync();
+    }
+
+    private Task RemoveAlias(string alias)
+    {
+        Draft.AlternateCodes.Remove(alias);
+        return OnChanged.InvokeAsync();
+    }
+
+    private static bool IsChanged<TValue>(TValue before, TValue after) =>
+        !EqualityComparer<TValue>.Default.Equals(before, after);
+}

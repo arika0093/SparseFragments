@@ -576,6 +576,16 @@ public static class PlaygroundJson
         return Pretty(json);
     }
 
+    /// <summary>Serializes an enterprise catalog item using generated JSON metadata.</summary>
+    public static string WriteEnterpriseCatalog(EnterpriseCatalogItem model)
+    {
+        var json = JsonSerializer.Serialize(
+            model,
+            PlaygroundJsonContext.Default.EnterpriseCatalogItem
+        );
+        return Pretty(json);
+    }
+
     /// <summary>Pretty-prints JSON, returning the input when it is not valid JSON.</summary>
     public static string Pretty(string json)
     {

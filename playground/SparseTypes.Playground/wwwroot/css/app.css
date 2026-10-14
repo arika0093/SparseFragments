@@ -587,8 +587,10 @@ a, .btn-link {
     padding: 0;
 }
 
-.pg-roster-list.fluent-sortable-list .sortable-item {
+.pg-roster-list.fluent-sortable-list .sortable-item,
+.pg-catalog-palette.fluent-sortable-list .sortable-item {
     display: block;
+    width: 100%;
     height: auto !important;
     min-height: 0;
     margin: 0 !important;
@@ -620,6 +622,12 @@ a, .btn-link {
 
 .pg-roster-row.pg-moved {
     border-left-color: #0969da;
+    background: rgba(9, 105, 218, 0.07);
+}
+
+.pg-roster-row.pg-changed {
+    border-left-color: #8250df;
+    background: rgba(130, 80, 223, 0.07);
 }
 
 .pg-roster-list.fluent-sortable-list .sortable-ghost {
@@ -724,6 +732,8 @@ a, .btn-link {
 }
 
 .pg-case5-rebase-options {
+    display: flex;
+    flex-direction: column;
     margin-top: 0.75rem;
 }
 
@@ -1119,8 +1129,204 @@ fluent-dialog::part(dialog) {
     margin-top: 0.75rem;
 }
 
-.pg-submit-preview-dialog::part(dialog) {
+.pg-conflict-dialog::part(dialog) {
     width: min(88rem, calc(100vw - 2rem));
+}
+
+.pg-catalog-review-dialog::part(dialog),
+.pg-submit-preview-dialog::part(dialog) {
+    max-width: calc(100vw - 3rem) !important;
+    width: 100% !important;
+}
+
+.pg-catalog-review-dialog .pg-dialog-body {
+    min-width: 0;
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+}
+
+.pg-catalog-dialog .pg-dialog-body {
+    min-width: 0;
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+}
+
+.pg-submit-preview-dialog .pg-dialog-body {
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+}
+
+.pg-catalog-header-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+}
+
+.pg-catalog-header-main h3 {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.pg-catalog-tab-label {
+    white-space: nowrap;
+}
+
+.pg-catalog-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.4rem;
+    padding: 0.08rem 0.38rem;
+    border: 1px solid #a6f3b8;
+    border-radius: 999px;
+    background: #dafbe1;
+    color: #1a7f37;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.pg-catalog-header-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.pg-catalog-header-actions {
+    flex-wrap: nowrap;
+    margin: 0;
+    gap: 0.75rem;
+}
+
+.pg-catalog-section-tabs {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-catalog-section-tabs > fluent-tablist {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.pg-catalog-section-tabs fluent-tab {
+    flex-shrink: 0;
+}
+
+.pg-catalog-section-tabs .fluent-tab-panel {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pg-catalog-navigation-dialog::part(dialog) {
+    width: min(32rem, calc(100vw - 2rem));
+}
+
+.pg-catalog-list-section {
+    margin-top: 1.25rem;
+}
+
+.pg-catalog-inline-row,
+.pg-catalog-tier-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.pg-catalog-workflow-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 0.8fr);
+    align-items: start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.pg-catalog-workflow-layout .pg-card-head h4 {
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.pg-catalog-workflow-dropzone {
+    min-height: 8rem;
+    padding: 0.5rem;
+    border: 1px dashed var(--colorNeutralStroke1, #d0d7de);
+    border-radius: 0.5rem;
+}
+
+.pg-case6-step-line {
+    display: grid;
+    grid-template-columns: 2rem minmax(8rem, 1.3fr) minmax(7rem, 1fr) 5rem auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pg-case6-step-line > * {
+    min-width: 0;
+}
+
+.pg-catalog-palette {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid var(--colorNeutralStroke1, #d0d7de);
+    border-radius: 0.5rem;
+}
+
+.pg-catalog-palette.fluent-sortable-list .sortable-item {
+    flex: 0 0 auto;
+}
+
+.pg-workflow-scope-actions {
+    margin-top: 1.5rem;
+}
+
+.pg-catalog-template {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.4rem;
+    border-radius: 0.35rem;
+    background: var(--colorNeutralBackground2, #f6f8fa);
+}
+
+.pg-catalog-template > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pg-catalog-template small {
+    color: var(--colorNeutralForeground3, #656d76);
+}
+
+.pg-catalog-tier-summary {
+    justify-content: flex-start;
+    flex: 1 1 auto;
+}
+
+.pg-catalog-document-row {
+    display: grid;
+    grid-template-columns: minmax(8rem, 1fr) minmax(7rem, 0.8fr) auto auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pg-catalog-discount-row {
+    display: grid;
+    grid-template-columns: 8rem 8rem minmax(10rem, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .pg-import-dialog::part(dialog) {
@@ -1313,5 +1519,65 @@ fluent-dialog::part(dialog) {
     .pg-nested {
         margin-left: 0.5rem;
         padding-left: 0.5rem;
+    }
+}
+
+@media (max-width: 48rem) {
+    .pg-catalog-workflow-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-catalog-header-main {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .pg-catalog-header-controls {
+        justify-content: space-between;
+        width: 100%;
+        box-sizing: border-box;
+        flex-wrap: wrap;
+    }
+
+    .pg-case6-step-line {
+        grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    }
+
+    .pg-case6-step-line .pg-roster-field:nth-of-type(2),
+    .pg-case6-step-line .pg-roster-field:nth-of-type(3) {
+        grid-column: 2;
+    }
+
+    .pg-case6-step-line .pg-roster-actions {
+        grid-column: 3;
+        grid-row: 1 / span 3;
+    }
+
+    .pg-catalog-document-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    }
+
+    .pg-catalog-document-row fluent-checkbox {
+        grid-column: 1 / span 2;
+    }
+
+    .pg-catalog-discount-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 32rem) {
+    .pg-catalog-dialog::part(dialog) {
+        width: calc(100vw - 0.5rem);
+        max-width: calc(100vw - 0.5rem);
+    }
+
+    .pg-catalog-document-row,
+    .pg-catalog-discount-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pg-catalog-document-row fluent-checkbox {
+        grid-column: 1;
     }
 }

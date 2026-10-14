@@ -1,0 +1,441 @@
+@using SparseTypes
+@using SparseTypes.Playground.Models
+@using SparseTypes.Playground.Components
+@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@implements IDisposable
+
+<div class="pg-stack">
+    <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
+        <div class="pg-catalog-header-main">
+            <h3>Catalog editor</h3>
+            <div class="pg-catalog-header-controls">
+                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(HasChanges ? "Changes pending" : "No committed changes")
+                </span>
+                <div class="pg-actions pg-catalog-header-actions">
+                    <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges)" @onclick="Reset">
+                        Reset
+                    </FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                        Disabled="@(!HasChanges)" @onclick="OpenSavePreview">
+                        Save
+                    </FluentButton>
+                </div>
+            </div>
+        </div>
+        @if (_error is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
+        }
+    </FluentCard>
+
+    <FluentTabs ActiveTabId="@_activeSectionTab" ActiveTabIdChanged="OnSectionTabChanged"
+        Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline pg-catalog-section-tabs">
+        <FluentTab Id="case-6-overview">
+            <HeaderTemplate>
+                <span class="pg-catalog-tab-label">1. Overview</span>
+                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.OverviewId))
+                {
+                    <span class="pg-catalog-tab-badge">Edited</span>
+                }
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="pg-section-content">
+                    <OverviewEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                </div>
+            </ChildContent>
+        </FluentTab>
+        <FluentTab Id="case-6-commercial">
+            <HeaderTemplate>
+                <span class="pg-catalog-tab-label">2. Commercial</span>
+                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.CommercialId))
+                {
+                    <span class="pg-catalog-tab-badge">Edited</span>
+                }
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="pg-section-content">
+                    <CommercialEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                </div>
+            </ChildContent>
+        </FluentTab>
+        <FluentTab Id="case-6-operations">
+            <HeaderTemplate>
+                <span class="pg-catalog-tab-label">3. Operations</span>
+                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.OperationsId))
+                {
+                    <span class="pg-catalog-tab-badge">Edited</span>
+                }
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="pg-section-content">
+                    <OperationsEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                </div>
+            </ChildContent>
+        </FluentTab>
+        <FluentTab Id="case-6-workflow">
+            <HeaderTemplate>
+                <span class="pg-catalog-tab-label">4. Workflow</span>
+                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.WorkflowId))
+                {
+                    <span class="pg-catalog-tab-badge">Edited</span>
+                }
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="pg-section-content">
+                    <WorkflowEditor @ref="_workflowEditor" Session="_session" Scopes="_scopes"
+                        SavedWorkflow="_savedWorkflow"
+                        BaselineVersion="_baselineVersion" OnChanged="Refresh" />
+                </div>
+            </ChildContent>
+        </FluentTab>
+        <FluentTab Id="case-6-work-masters">
+            <HeaderTemplate>
+                <span class="pg-catalog-tab-label">5. Work masters</span>
+                @if (CurrentWorkflow.Steps.Any(step =>
+                    _scopes.HasChangesFor(CatalogScopeCoordinator.WorkMasterId(step.Id))))
+                {
+                    <span class="pg-catalog-tab-badge">Edited</span>
+                }
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="pg-section-content">
+                    @if (CurrentWorkflow.Steps.Count == 0)
+                    {
+                        <p class="pg-hint">Add workflow steps to create their work-master tabs. The tabs follow the current workflow draft.</p>
+                    }
+                    else
+                    {
+                        <FluentTabs ActiveTabId="@ActiveMasterTabId" ActiveTabIdChanged="OnMasterTabChanged"
+                            Orientation="Orientation.Vertical">
+                            @foreach (var step in CurrentWorkflow.Steps)
+                            {
+                                <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
+                                    <HeaderTemplate>
+                                        <span class="pg-catalog-tab-label">@step.Name</span>
+                                        @if (_scopes.HasChangesFor(CatalogScopeCoordinator.WorkMasterId(step.Id)))
+                                        {
+                                            <span class="pg-catalog-tab-badge">Edited</span>
+                                        }
+                                    </HeaderTemplate>
+                                    <ChildContent>
+                                        <StepMasterEditor @key="step.Id" Session="_session" Step="step"
+                                            Scopes="_scopes" OnChanged="Refresh" />
+                                    </ChildContent>
+                                </FluentTab>
+                            }
+                        </FluentTabs>
+                    }
+                </div>
+            </ChildContent>
+        </FluentTab>
+    </FluentTabs>
+</div>
+
+<FluentDialog @ref="_saveDialog" Hidden="@_saveDialogHidden" Modal="true" TrapFocus="true"
+    Size="@DialogSize.Full" Class="pg-catalog-review-dialog" AriaLabel="Review catalog changes">
+    <div class="pg-dialog-heading">
+        <h3>Review changes</h3>
+    </div>
+    <div class="pg-dialog-body">
+        <p class="pg-hint">Review the ChangeSet before saving.</p>
+        @if (_changeRows.Count == 0)
+        {
+            <p class="pg-hint">No changes.</p>
+        }
+        else
+        {
+            <ChangePreviewTable Rows="_changeRows" TargetHeader="Path" AriaLabel="Catalog ChangeSet" />
+        }
+    </div>
+    <div class="pg-dialog-footer">
+        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="ConfirmSave">Save</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="CloseSavePreview">Cancel</FluentButton>
+    </div>
+</FluentDialog>
+
+@code {
+    private const string MasterTabPrefix = "case-6-master-";
+
+    private EnterpriseCatalogItem _model = null!;
+    private EnterpriseCatalogItem.EditSession _session = null!;
+    private readonly CatalogScopeCoordinator _scopes = new();
+    private FluentDialog? _saveDialog;
+    private WorkflowEditor? _workflowEditor;
+    private bool _saveDialogHidden = true;
+    private IReadOnlyList<ChangePreviewRow> _changeRows = [];
+    private string? _error;
+    private int _baselineVersion;
+    private CatalogWorkflow _savedWorkflow = null!;
+    private string _activeSectionTab = "case-6-overview";
+    private string _activeMasterTab = string.Empty;
+
+    private bool HasChanges => _session.HasChanges;
+    private CatalogWorkflow CurrentWorkflow => _workflowEditor?.CurrentWorkflow ?? _model.Workflow;
+    private string ActiveMasterTabId =>
+        CurrentWorkflow.Steps.Count == 0
+            ? string.Empty
+            : CurrentWorkflow.Steps.Any(step => MasterTabId(step.Id) == _activeMasterTab)
+                ? _activeMasterTab
+                : MasterTabId(CurrentWorkflow.Steps[0].Id);
+
+    protected override void OnInitialized()
+    {
+        _model = CreateSample();
+        _session = _model.CreateEditSession();
+        _savedWorkflow = _model.Workflow.DeepClone();
+    }
+
+    public void Dispose() => _scopes.CancelAll();
+
+    private static EnterpriseCatalogItem CreateSample() =>
+        new()
+        {
+            Overview = new CatalogOverview
+            {
+                ItemCode = "EQ-2048",
+                Name = "Modular Drive Unit",
+                Category = "Industrial equipment",
+                Owner = "M. Tanaka",
+                Active = true,
+                AlternateCodes = ["MDU-2048", "MDU-2048-AP"],
+            },
+            Commercial = new CatalogCommercialDetails
+            {
+                Customer = "Northwind Manufacturing",
+                Region = "APAC",
+                ContractCode = "NW-2026-041",
+                Currency = "USD",
+                UnitPrice = 2480.00m,
+                AnnualVolume = 1200,
+                PriceTiers =
+                [
+                    new CatalogPriceTier
+                    {
+                        Code = "standard",
+                        Label = "Standard",
+                        MinimumQuantity = 1,
+                        UnitPrice = 2480m,
+                        Discounts =
+                        [
+                            new CatalogDiscountBand
+                            {
+                                Code = "annual",
+                                MinimumQuantity = 100,
+                                DiscountPercent = 3,
+                                ApprovalRole = "Sales manager",
+                            },
+                        ],
+                    },
+                    new CatalogPriceTier
+                    {
+                        Code = "volume",
+                        Label = "Volume",
+                        MinimumQuantity = 500,
+                        UnitPrice = 2290m,
+                        Discounts =
+                        [
+                            new CatalogDiscountBand
+                            {
+                                Code = "strategic",
+                                MinimumQuantity = 1000,
+                                DiscountPercent = 5,
+                                ApprovalRole = "Commercial director",
+                            },
+                        ],
+                    },
+                ],
+            },
+            Operations = new CatalogOperationsDetails
+            {
+                Facility = "Nagoya Plant",
+                Warehouse = "WH-A3",
+                LeadTimeDays = 18,
+                QualityStandard = "ISO 9001",
+                InspectionRequired = true,
+                PackagingInstruction = "Moisture barrier, export pallet",
+                Documents =
+                [
+                    new CatalogOperationDocument
+                    {
+                        Code = "spec",
+                        Title = "Product specification",
+                        Owner = "Engineering",
+                        Required = true,
+                    },
+                    new CatalogOperationDocument
+                    {
+                        Code = "inspection",
+                        Title = "Inspection checklist",
+                        Owner = "Quality",
+                        Required = true,
+                    },
+                ],
+            },
+            Workflow = new CatalogWorkflow
+            {
+                Steps =
+                [
+                    new CatalogWorkStep
+                    {
+                        Id = "cut",
+                        Name = "Cutting",
+                        ResponsibleTeam = "Machining",
+                        StandardHours = 1.5m,
+                        Master = new CatalogWorkMaster
+                        {
+                            WorkCenter = "WC-12",
+                            Equipment = "CNC Lathe 04",
+                            SetupMinutes = 20,
+                            Instruction = "Verify stock diameter before the first cut.",
+                        },
+                    },
+                    new CatalogWorkStep
+                    {
+                        Id = "assemble",
+                        Name = "Assembly",
+                        ResponsibleTeam = "Assembly",
+                        StandardHours = 2.25m,
+                        Master = new CatalogWorkMaster
+                        {
+                            WorkCenter = "WC-31",
+                            Equipment = "Press Station 02",
+                            SetupMinutes = 15,
+                            Instruction = "Apply the specified torque sequence.",
+                            SupervisorApproval = true,
+                        },
+                    },
+                    new CatalogWorkStep
+                    {
+                        Id = "inspect",
+                        Name = "Final inspection",
+                        ResponsibleTeam = "Quality",
+                        StandardHours = 0.75m,
+                        Master = new CatalogWorkMaster
+                        {
+                            WorkCenter = "QC-08",
+                            Equipment = "CMM 01",
+                            SetupMinutes = 10,
+                            Instruction = "Record dimensional results against the drawing.",
+                        },
+                    },
+                ],
+            },
+        };
+
+    private async Task OpenSavePreview()
+    {
+        if (!await _scopes.CommitAllAsync())
+        {
+            _error = "Resolve the scope conflict before saving.";
+            return;
+        }
+
+        if (!_session.HasChanges)
+        {
+            return;
+        }
+
+        _error = null;
+        _changeRows = SparseChangeRowProjection.Project(
+            _session.CreateChangeSet(),
+            new SparseChangeRowOptions
+            {
+                FormatOperation = PlaygroundPageHelper.ChangeOperation,
+                FormatValue = static value => PlaygroundJson.FormatChangeValue(value),
+            }
+        )
+            .Select(static row => new ChangePreviewRow
+            {
+                Target = row.PathText,
+                Operation = row.Operation,
+                Before = row.BeforeText,
+                After = row.AfterText,
+            })
+            .ToArray();
+        if (_saveDialog is null)
+        {
+            throw new InvalidOperationException("The catalog save dialog is not initialized.");
+        }
+
+        _saveDialogHidden = false;
+        await _saveDialog.ShowAsync();
+    }
+
+    private async Task CloseSavePreview()
+    {
+        _saveDialogHidden = true;
+        if (_saveDialog is null)
+        {
+            throw new InvalidOperationException("The catalog save dialog is not initialized.");
+        }
+
+        await _saveDialog.HideAsync();
+    }
+
+    private async Task ConfirmSave()
+    {
+        await CloseSavePreview();
+        _scopes.CancelAll();
+        try
+        {
+            _session.AcceptChanges();
+            _savedWorkflow = _model.Workflow.DeepClone();
+            _baselineVersion++;
+            _error = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            await _scopes.ReopenAllAsync();
+        }
+    }
+
+    private static string MasterTabId(string stepId) => $"{MasterTabPrefix}{stepId}";
+
+    private Task OnSectionTabChanged(string? tabId)
+    {
+        if (!string.IsNullOrWhiteSpace(tabId))
+        {
+            _activeSectionTab = tabId;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnMasterTabChanged(string? tabId)
+    {
+        if (!string.IsNullOrWhiteSpace(tabId))
+        {
+            _activeMasterTab = tabId;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task Reset()
+    {
+        _scopes.CancelAll();
+        try
+        {
+            _session.RevertChanges();
+            _savedWorkflow = _model.Workflow.DeepClone();
+            _baselineVersion++;
+            _error = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            await _scopes.ReopenAllAsync();
+        }
+    }
+
+    private void Refresh() => StateHasChanged();
+
+}
