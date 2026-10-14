@@ -20,7 +20,7 @@ public static class UiFrameworksSamples
         ReloadConflictLeavesSessionUntouched();
         ForkMergesIndependentEdits();
         ForkConflictLeavesBothSessionsUntouched();
-        ChildScopeCommitsDisjointParentEdits();
+        ChildSessionAcceptsDisjointParentEdits();
         SessionPathsNavigateFromSession();
         RevertRestoresBaseline();
         CollectionConsumerEditsThroughTypedPath();
@@ -313,33 +313,33 @@ public static class UiFrameworksSamples
         );
     }
 
-    private static void ChildScopeCommitsDisjointParentEdits()
+    private static void ChildSessionAcceptsDisjointParentEdits()
     {
-        // sample: ui-child-scope
+        // sample: ui-child-session
         var child = new UiWidgetChild { Name = "before" };
         var model = new UiWidget { Title = "before", Child = child };
         var session = model.CreateEditSession();
-        using var scope = session.OpenScope(UiWidget.SparsePath.Child);
+        using var childSession = session.OpenChildSession(UiWidget.SparsePath.Child);
 
-        scope.Observable!.Name = "draft";
+        childSession.Session.Observable!.Name = "draft";
         session.Observable.Title = "parent edit";
 
-        var committed = scope.TryCommit(out var conflicts);
-        // committed == true
+        var accepted = childSession.TryAcceptChanges(out var conflicts);
+        // accepted == true
         // conflicts is null
         // model.Title == "parent edit"
         // model.Child.Name == "draft"
         // ReferenceEquals(model.Child, child) == true
         // /sample
-        DocsCheck.Require(committed, "child scope commits without conflict");
+        DocsCheck.Require(accepted, "child session accepts without conflict");
         DocsCheck.Require(conflicts is null, "disjoint parent edit reports no conflict");
         DocsCheck.Require(
             model.Title == "parent edit" && model.Child!.Name == "draft",
-            "child scope preserves the parent edit and commits its draft"
+            "child session preserves the parent edit and accepts its draft"
         );
         DocsCheck.Require(
             ReferenceEquals(model.Child, child),
-            "child scope writes into the existing child instance"
+            "child session writes into the existing child instance"
         );
     }
 

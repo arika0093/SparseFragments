@@ -98,7 +98,6 @@ namespace SparseTypes
         public EditSessionGroupRegistration() { }
         public System.Func<TChangeSet> CreateChangeSet { get; init; }
         public System.Func<TChangeSet, System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath>> EnumerateChangedPaths { get; init; }
-        public System.Func<bool>? HasOpenDrafts { get; init; }
         public System.Func<TChangeSet, bool> IsEmpty { get; init; }
         public SparseTypes.ISparseEditSession<TModel, TChangeSet> Session { get; init; }
         [System.Runtime.CompilerServices.TupleElementNames(new string[] {
@@ -212,6 +211,15 @@ namespace SparseTypes
         bool TryGetValueChange<T>(string memberName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.ISparseValueChange<T>? change);
     }
     public interface ISparseChangeSet<TModel> : SparseTypes.ISparseChangeSet { }
+    public interface ISparseChildEditPath<TParent, TChild, TChildPaths, TChildSession> : SparseTypes.ISparseTypedPath<TParent, TChild>
+        where TChild :  class
+        where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+        where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>
+    {
+        TChild Clone(TChild model);
+        TChildSession CreateEditSession(TChild baseline, TChild current, System.Action? onChanged);
+        TChildPaths CreateRootPaths();
+    }
     public interface ISparseDictionaryChange<TKey, TValue, TEdited>
     {
         System.Collections.Generic.IReadOnlyDictionary<TKey, TValue> Added { get; }
@@ -232,6 +240,18 @@ namespace SparseTypes
         bool IsEmpty { get; }
         bool IsRemoved { get; }
         TKey Key { get; }
+    }
+    public interface ISparseEditChildSession<TModel, TPaths, TConflict, TSession> : System.IDisposable
+        where TModel :  class
+        where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+        where TConflict :  class
+        where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
+    {
+        bool HasChanges { get; }
+        TSession Session { get; }
+        void AcceptChanges();
+        void DiscardChanges();
+        bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
     }
     public interface ISparseEditHistory
     {
@@ -254,9 +274,17 @@ namespace SparseTypes
     {
         TModel GetModelForFrameworkAccess();
     }
-    public interface ISparseEditSessionOpenDraftState
+    public interface ISparseEditSessionWithChildren<TModel, TConflict>
+        where TModel :  class
+        where TConflict :  class
     {
-        bool HasOpenDrafts { get; }
+        bool HasPendingChildSessions { get; }
+        void DiscardChildSessions();
+        SparseTypes.ISparseEditChildSession<TChild, TChildPaths, TConflict, TChildSession> OpenChildSession<TChild, TChildPaths, TChildSession>(SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
+            where TChild :  class
+            where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+            where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>;
+        bool TryAcceptChildSessions(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
     }
     public interface ISparseEditSessionWithPaths<out TModel, out TPaths> : SparseTypes.ISparseEditSession<TModel>
         where out TModel :  class
@@ -575,6 +603,23 @@ namespace SparseTypes
         ResolvedUseIncoming = 2,
         ResolvedUseCurrent = 3,
         ResolvedCustom = 4,
+    }
+    public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession> : SparseTypes.ISparseEditChildSession<TModel, TPaths, TConflict, TSession>, System.IDisposable
+        where TModel :  class
+        where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+        where TConflict :  class
+        where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
+    {
+        public SparseEditChildSession(TSession session, TPaths rootPath, TModel baseline, System.Func<TModel, TModel> clone, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Accepted",
+                "Current",
+                "Conflicts"})] System.Func<TModel, System.ValueTuple<bool, TModel?, System.Collections.Generic.IReadOnlyList<TConflict>?>> tryAccept, System.Action onDiscarded, System.Action detach) { }
+        public bool HasChanges { get; }
+        public TSession Session { get; }
+        public void AcceptChanges() { }
+        public void DiscardChanges() { }
+        public void Dispose() { }
+        public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
     }
     public sealed class SparseEditHistoryHooks<TChangeSet>
         where TChangeSet :  class

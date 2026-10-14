@@ -270,13 +270,16 @@ implements a trusted model-accessor interface on each generated session, so
 framework integrations can read the live model without invalidating the
 session's observable-change cache. Consumers without that interface keep the
 previous behavior: framework helpers fall back to the raw model.
-Set `OpenDraftStateInterfaceMetadataName` to the consumer-owned interface
-metadata name when generated sessions should report open child drafts. Shared
-implements that contract on both sessions and scopes; a session reports its
-active root and nested scopes, while a scope reports its active descendants.
-Closing or invalidating a scope removes it and its descendants from that state.
+The optional `EditChildPathInterfaceMetadataName`,
+`EditChildSessionInterfaceMetadataName`, `EditChildSessionImplementationType`,
+and `EditSessionWithChildrenInterfaceMetadataName` entries configure the
+child-session contracts and implementation. When supplied with descriptors
+and typed paths, generated sessions can open path-addressed child models as
+independent generated sessions. Child sessions can nest, own separate
+histories, accept or discard their edits, and automatically merge pending
+descendants before a root change set is captured.
 Setting the optional `EditSessionWithPathsInterfaceMetadataName` implements a
-typed path-provider contract on each generated root session and adds a cached
+typed path-provider contract on each generated session and adds a cached
 `Paths` property returning the existing generated `SparsePaths<TModel>`
 builder, so consumers navigate `session.Paths.Items.Key(id).Title` without a
 separate root builder. Reading `Paths` never touches the mutable model, the
@@ -284,9 +287,8 @@ change cache, or edit notifications. Collection member builders then also
 implement the caller-owned typed-path interface over the collection value
 type (element `Key`/`At`/`TemporaryKey`, dictionary, and set navigation are
 unchanged), which keeps nested, indexed, keyed, nullable, and relocated child
-navigation compile-time typed. Child scopes keep only the minimal session
-contract because a generic child scope cannot promise the root's concrete
-builder. Leave the entry null to disable the surface: products without the
+navigation compile-time typed. Child sessions expose their own generated
+builder rooted at the child model. Leave the entry null to disable the surface: products without the
 contract keep byte-identical output.
 
 `SparsePatchDialect` accepts an optional `StateContracts` record naming the

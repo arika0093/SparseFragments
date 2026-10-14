@@ -34,56 +34,56 @@
         <FluentTab Id="case-6-overview">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">1. Overview</span>
-                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.OverviewId))
+                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.OverviewId))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                    <OverviewEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-commercial">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">2. Commercial</span>
-                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.CommercialId))
+                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.CommercialId))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                    <CommercialEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-operations">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">3. Operations</span>
-                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.OperationsId))
+                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.OperationsId))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor Session="_session" Scopes="_scopes" OnChanged="Refresh" />
+                    <OperationsEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-workflow">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">4. Workflow</span>
-                @if (_scopes.HasChangesFor(CatalogScopeCoordinator.WorkflowId))
+                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkflowId))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <WorkflowEditor @ref="_workflowEditor" Session="_session" Scopes="_scopes"
+                    <WorkflowEditor @ref="_workflowEditor" ChildSession="_workflowChildSession"
                         SavedWorkflow="_savedWorkflow"
                         BaselineVersion="_baselineVersion" OnChanged="Refresh" />
                 </div>
@@ -93,7 +93,7 @@
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">5. Work masters</span>
                 @if (CurrentWorkflow.Steps.Any(step =>
-                    _scopes.HasChangesFor(CatalogScopeCoordinator.WorkMasterId(step.Id))))
+                    _childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkMasterId(step.Id))))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
@@ -113,14 +113,14 @@
                                 <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
                                     <HeaderTemplate>
                                         <span class="pg-catalog-tab-label">@step.Name</span>
-                                        @if (_scopes.HasChangesFor(CatalogScopeCoordinator.WorkMasterId(step.Id)))
+                                        @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkMasterId(step.Id)))
                                         {
                                             <span class="pg-catalog-tab-badge">Edited</span>
                                         }
                                     </HeaderTemplate>
                                     <ChildContent>
-                                        <StepMasterEditor @key="step.Id" Session="_session" Step="step"
-                                            Scopes="_scopes" OnChanged="Refresh" />
+                                        <StepMasterEditor @key="step.Id" Session="_workflowChildSession.Session" Step="step"
+                                            ChildSessions="_childSessions" OnChanged="Refresh" />
                                     </ChildContent>
                                 </FluentTab>
                             }
@@ -159,7 +159,9 @@
 
     private EnterpriseCatalogItem _model = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
-    private readonly CatalogScopeCoordinator _scopes = new();
+    private readonly CatalogChildSessionCoordinator _childSessions = new();
+    private CatalogChildSessionHandle<CatalogWorkflow.EditSession> _workflowChildSession = null!;
+    private IDisposable? _workflowRegistration;
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
     private bool _saveDialogHidden = true;
@@ -171,7 +173,8 @@
     private string _activeMasterTab = string.Empty;
 
     private bool HasChanges => _session.HasChanges;
-    private CatalogWorkflow CurrentWorkflow => _workflowEditor?.CurrentWorkflow ?? _model.Workflow;
+    private CatalogWorkflow CurrentWorkflow =>
+        _workflowChildSession?.Session.GetModelForFrameworkAccess() ?? _model.Workflow;
     private string ActiveMasterTabId =>
         CurrentWorkflow.Steps.Count == 0
             ? string.Empty
@@ -183,10 +186,16 @@
     {
         _model = CreateSample();
         _session = _model.CreateEditSession();
+        OpenWorkflowChildSession();
         _savedWorkflow = _model.Workflow.DeepClone();
     }
 
-    public void Dispose() => _scopes.CancelAll();
+    public void Dispose()
+    {
+        _childSessions.DiscardAll();
+        _workflowRegistration?.Dispose();
+        _workflowChildSession?.Dispose();
+    }
 
     private static EnterpriseCatalogItem CreateSample() =>
         new()
@@ -325,9 +334,9 @@
 
     private async Task OpenSavePreview()
     {
-        if (!await _scopes.CommitAllAsync())
+        if (!await _childSessions.AcceptAllAsync())
         {
-            _error = "Resolve the scope conflict before saving.";
+            _error = "Resolve the child-session conflict before saving.";
             return;
         }
 
@@ -337,8 +346,16 @@
         }
 
         _error = null;
+        if (!_session.TryCreateChangeSet(out var changes, out var conflicts))
+        {
+            _error = conflicts is null
+                ? "A child edit session target is no longer available."
+                : "Resolve the child-session conflict before saving.";
+            return;
+        }
+
         _changeRows = SparseChangeRowProjection.Project(
-            _session.CreateChangeSet(),
+            changes!,
             new SparseChangeRowOptions
             {
                 FormatOperation = PlaygroundPageHelper.ChangeOperation,
@@ -376,22 +393,51 @@
     private async Task ConfirmSave()
     {
         await CloseSavePreview();
-        _scopes.CancelAll();
+        _childSessions.DiscardAll();
         try
         {
             _session.AcceptChanges();
             _savedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
+            _session = _model.CreateEditSession();
+            OpenWorkflowChildSession();
             _error = null;
         }
         catch (InvalidOperationException exception)
         {
             _error = exception.Message;
         }
-        finally
+    }
+
+    private void OpenWorkflowChildSession()
+    {
+        _workflowRegistration?.Dispose();
+        _workflowChildSession?.Dispose();
+        _workflowChildSession = CatalogChildSessionHandle.From(
+            _session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Workflow)
+        );
+        _workflowRegistration = _childSessions.Register(
+            CatalogChildSessionCoordinator.WorkflowId,
+            () => _workflowChildSession.HasChanges,
+            AcceptWorkflowChildSessionAsync,
+            () => _workflowChildSession.DiscardChanges()
+        );
+    }
+
+    private Task<bool> AcceptWorkflowChildSessionAsync() =>
+        _workflowEditor?.AcceptChildSessionAsync() ?? AcceptWorkflowChildSessionDirectlyAsync();
+
+    private Task<bool> AcceptWorkflowChildSessionDirectlyAsync()
+    {
+        var accepted = _workflowChildSession.TryAcceptChanges(out var conflicts);
+        if (!accepted)
         {
-            await _scopes.ReopenAllAsync();
+            _error = conflicts is null
+                ? "A workflow child-session target is no longer available."
+                : "Resolve the workflow child-session conflict before saving.";
         }
+
+        return Task.FromResult(accepted);
     }
 
     private static string MasterTabId(string stepId) => $"{MasterTabPrefix}{stepId}";
@@ -416,24 +462,24 @@
         return Task.CompletedTask;
     }
 
-    private async Task Reset()
+    private Task Reset()
     {
-        _scopes.CancelAll();
+        _childSessions.DiscardAll();
         try
         {
             _session.RevertChanges();
             _savedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
+            _session = _model.CreateEditSession();
+            OpenWorkflowChildSession();
             _error = null;
         }
         catch (InvalidOperationException exception)
         {
             _error = exception.Message;
         }
-        finally
-        {
-            await _scopes.ReopenAllAsync();
-        }
+
+        return Task.CompletedTask;
     }
 
     private void Refresh() => StateHasChanged();

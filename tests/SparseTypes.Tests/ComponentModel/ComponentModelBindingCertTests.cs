@@ -8,8 +8,8 @@ namespace SparseTypes.Tests;
 /// Covers the binding surface desktop frameworks consume: scalar and nested
 /// <see cref="INotifyPropertyChanged"/> notifications, collection
 /// notifications, typed paths, semantic dirty state, and keyed reorder.
-/// Scope lifecycle, bound-target boundaries, validation display, disposal,
-/// and threading live in <c>ComponentModelScopeCertTests</c>.
+/// Child-session lifecycle, bound-target boundaries, validation display,
+/// disposal, and threading live in <c>ComponentModelChildSessionCertTests</c>.
 /// </summary>
 public sealed class ComponentModelBindingCertTests
 {

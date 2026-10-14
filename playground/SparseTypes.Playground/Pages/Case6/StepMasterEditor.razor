@@ -1,8 +1,8 @@
+@using SparseTypes
 @using SparseTypes.Playground.Models
-@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
 @implements IDisposable
 
-@if (Step is not null && _scope is not null && _draftSession is not null)
+@if (Step is not null && _childSession is not null && _draftSession is not null)
 {
 <FluentCard Class="pg-fluent-card">
     <div class="pg-card-head">
@@ -10,8 +10,8 @@
             <h3>@Step.Name master</h3>
             <p class="pg-hint">Step key: <code>@Step.Id</code>, team: @Step.ResponsibleTeam</p>
         </div>
-        <span class="pg-has-changes-badge @(_scope.HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(_scope.HasChanges ? "Edited" : "Current")
+        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
         </span>
     </div>
     <div class="pg-stack pg-edit-fields">
@@ -41,96 +41,99 @@
                 ValueChanged="@(value => Update(() => Draft.SupervisorApproval = value))" />
         </div>
     </div>
-    <ScopeActions @ref="_scopeActions" TModel="CatalogWorkMaster" Scope="_scope" HistoryProvider="GetHistory"
-        OnFinished="ReopenScope" OnChanged="OnChanged" />
+    <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
+        Accept="TryAcceptChildSession" Discard="DiscardChildSession" OnFinished="RefreshBaseline" OnChanged="OnChanged" />
 </FluentCard>
 }
 
 @code {
     [Parameter, EditorRequired]
-    public CatalogSession Session { get; set; } = null!;
+    public CatalogWorkflow.EditSession Session { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public CatalogWorkStep Step { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public CatalogScopeCoordinator Scopes { get; set; } = null!;
+    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private CatalogSession.Scope<CatalogWorkMaster> _scope = null!;
+    private CatalogWorkflow.EditSession? _parentSession;
+    private CatalogChildSessionHandle<CatalogWorkMaster.EditSession> _childSession = null!;
     private CatalogWorkMaster.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
-    private ScopeActions<CatalogWorkMaster>? _scopeActions;
+    private ChildSessionActions? _childSessionActions;
     private CatalogWorkMaster _baseline = null!;
     private IDisposable? _registration;
-    public bool HasChanges => _scope?.HasChanges == true;
+    public bool HasChanges => _childSession?.HasChanges == true;
     private CatalogWorkMaster.Observable Draft => _draftSession.Observable;
 
     protected override void OnInitialized()
     {
-        OpenScope();
-        _registration = Scopes.Register(
-            CatalogScopeCoordinator.WorkMasterId(Step.Id),
-            () => _scope?.HasChanges == true,
-            CommitCurrentScope,
-            CancelScope,
-            ReopenScopeSilently
+        OpenChildSession();
+        _registration = ChildSessions.Register(
+            CatalogChildSessionCoordinator.WorkMasterId(Step.Id),
+            GetHasChanges,
+            AcceptCurrentChildSession,
+            DiscardChildSession
         );
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_parentSession, Session))
+        {
+            OpenChildSession();
+        }
+        else if (_childSession is not null && !_childSession.HasChanges)
+        {
+            _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        }
     }
 
     public void Dispose()
     {
         _registration?.Dispose();
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
+        _childSession?.Dispose();
     }
 
-    private void OpenScope()
+    private void OpenChildSession()
     {
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
-        _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Workflow.Steps.Key(Step.Id).Master);
-        _draftSession = _scope.Observable.CreateEditSession();
+        _childSession?.Dispose();
+        _parentSession = Session;
+        _childSession = CatalogChildSessionHandle.From(
+            Session.OpenChildSession(CatalogWorkflow.SparsePath.Steps.Key(Step.Id).Master)
+        );
+        _draftSession = _childSession.Session;
         _history = _draftSession.EnableHistory();
-        _baseline = _scope.Observable.DeepClone();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private Task ReopenScope()
+    private Task RefreshBaseline()
     {
-        if (!StepExistsInSession)
-        {
-            return OnChanged.InvokeAsync();
-        }
-
-        OpenScope();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         return OnChanged.InvokeAsync();
     }
 
-    private Task ReopenScopeSilently()
-    {
-        if (!StepExistsInSession)
-        {
-            return Task.CompletedTask;
-        }
+    private Task<bool> AcceptCurrentChildSession() =>
+        _childSessionActions?.AcceptChildSessionAsync() ?? Task.FromResult(true);
 
-        OpenScope();
-        return Task.CompletedTask;
+    private bool GetHasChanges() => HasChanges;
+
+    private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
+    {
+        var accepted = _childSession.TryAcceptChanges(out var conflicts);
+        return (accepted, conflicts);
     }
 
-    private bool StepExistsInSession =>
-        Session?.Observable?.Workflow?.Steps?.Any(step => step.Id == Step.Id) == true;
-
-    private void CancelScope()
+    private void DiscardChildSession()
     {
-        _draftSession?.DisableHistory();
-        _scope?.Cancel();
-        _scope = null!;
+        _childSession.DiscardChanges();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
-
-    private Task<bool> CommitCurrentScope() =>
-        _scopeActions?.CommitScopeAsync() ?? Task.FromResult(true);
 
     private ISparseEditHistory GetHistory() => _history;
 

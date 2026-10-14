@@ -75,7 +75,7 @@ public sealed class SparseEditSessionEmitterTests
     }
 
     [Test]
-    public void ModelSessionUsesConfiguredOpenDraftStateInterface()
+    public void ModelSessionDoesNotEmitLegacyOpenDraftSurface()
     {
         var model = new SparseModelInfo(
             "Order",
@@ -121,8 +121,7 @@ public sealed class SparseEditSessionEmitterTests
             StructuralHostPrefix: "__DownstreamHost_",
             PatchDialect: PatchDialect(),
             EditSessionInterfaceMetadataName: "PackageShared.ISparseEditSession",
-            EditSessionDialect: new SparseEditSessionDialect("Downstream.Generated"),
-            OpenDraftStateInterfaceMetadataName: "PackageShared.ISessionOpenDraftState"
+            EditSessionDialect: new SparseEditSessionDialect("Downstream.Generated")
         );
         using var code = new SharedIndentedBuilder(CancellationToken.None);
 
@@ -138,8 +137,9 @@ public sealed class SparseEditSessionEmitterTests
         );
 
         var source = code.ToString();
-        source.ShouldContain("global::PackageShared.ISessionOpenDraftState");
-        source.ShouldContain("HasOpenDrafts => __sparse_open_draft_count > 0");
+        source.ShouldNotContain("OpenScope");
+        source.ShouldNotContain("HasOpenDrafts");
+        source.ShouldNotContain("ISessionOpenDraftState");
         source.ShouldNotContain("SparseTypes.");
     }
 }

@@ -93,6 +93,6 @@ Call `group.AcceptChanges(submission, handle)` when a specific backend service s
 ### Server normalization and reconciliation
 When the persistence layer mutates submitted entities (e.g. generating server timestamps or normalizing values), call `group.TryReconcile(submission, handle, persistedModel, out error)` to update the session baseline without clobbering subsequent uncommitted client edits.
 
-### Rejection of open drafts and stale submissions
-* `group.Prepare()` throws `EditSessionGroupValidationException` if any registered session contains active uncommitted child scopes (`OpenScope`). Cancel or commit child scopes before preparing a submission.
+### Child sessions and stale submissions
+* `group.Prepare()` captures each registered session's change set. Generated sessions accept pending child sessions and descendants while creating that change set; a child-session conflict makes preparation fail with a validation issue.
 * `AcceptChanges` and `TryReconcile` throw `EditSessionStaleSubmissionException` if called with a previously acknowledged or outdated submission.

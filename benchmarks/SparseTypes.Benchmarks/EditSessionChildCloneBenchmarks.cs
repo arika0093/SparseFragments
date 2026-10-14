@@ -30,23 +30,23 @@ public partial class ScopeBenchRoot
 }
 
 /// <summary>
-/// Edit-scope open cost matrix for issue #239: opening a child draft forks
+/// Child-session open cost matrix for issue #239: opening a child session forks
 /// (snapshots plus deep-clones) the whole root, so the cost scales with the
 /// root graph rather than the edited subtree. The benchmarks vary root size
-/// independently of child size, plus simultaneous-scope count and nesting.
+/// independently of child size, plus simultaneous-session count and nesting.
 /// Benchmarks return checksums so the measured call cannot be eliminated;
 /// allocations are recorded by <c>MemoryDiagnoser</c>. Machine-dependent
-/// timings are reported in docs/benchmarks/edit-scope-clone.md, never
+/// timings are reported in docs/benchmarks/edit-child-session-clone.md, never
 /// asserted.
 /// </summary>
 [MemoryDiagnoser]
-public class EditScopeCloneBenchmarks
+public class EditSessionChildCloneBenchmarks
 {
     [Params(0, 1024, 8192)]
     public int SiblingCount { get; set; }
 
     [Params(1, 8)]
-    public int ScopeCount { get; set; }
+    public int ChildSessionCount { get; set; }
 
     private ScopeBenchRoot _prototype = null!;
 
@@ -83,20 +83,20 @@ public class EditScopeCloneBenchmarks
         // while the checked-out copy advances.
         var check = _prototype.DeepClone();
         var session = check.CreateEditSession();
-        using (var scope = session.OpenScope(ScopeBenchRoot.SparsePath.Target))
+        using (var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target))
         {
-            if (scope.Model.Name != "target" || scope.Model.Servers.Count != 4)
+            if (child.Session.Model.Name != "target" || child.Session.Model.Servers.Count != 4)
                 throw new InvalidOperationException(
-                    "Scope harness must resolve the small child subtree."
+                    "Child-session harness must resolve the small child subtree."
                 );
-            scope.Model.Name = "edited";
+            child.Session.Model.Name = "edited";
         }
 
-        using (var scope = session.OpenScope(ScopeBenchRoot.SparsePath.Target))
+        using (var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target))
         {
-            scope.Model.Name = "edited";
-            if (!scope.TryCommit(out var conflicts) || conflicts is not null)
-                throw new InvalidOperationException("Scope harness must commit cleanly.");
+            child.Session.Model.Name = "edited";
+            if (!child.TryAcceptChanges(out var conflicts) || conflicts is not null)
+                throw new InvalidOperationException("Child-session harness must accept cleanly.");
         }
 
         var observable =
@@ -111,61 +111,63 @@ public class EditScopeCloneBenchmarks
             || _prototype.Target.Name != "target"
         )
             throw new InvalidOperationException(
-                "Scope harness must commit into the session while leaving the prototype stationary."
+                "Child-session harness must update the session while leaving the prototype stationary."
             );
     }
 
     [Benchmark]
-    public int OpenSmallChildScope()
+    public int OpenSmallChildSession()
     {
         var session = _prototype.CreateEditSession();
-        using var scope = session.OpenScope(ScopeBenchRoot.SparsePath.Target);
-        scope.Model.Servers[0].Count++;
-        return scope.Model.Name.Length + scope.Model.Servers.Count;
+        using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
+        child.Session.Model.Servers[0].Count++;
+        return child.Session.Model.Name.Length + child.Session.Model.Servers.Count;
     }
 
     [Benchmark]
-    public int OpenSiblingScopeAndCancel()
+    public int OpenSiblingChildSessionAndDiscard()
     {
         var session = _prototype.CreateEditSession();
         if (SiblingCount == 0)
         {
-            using var target = session.OpenScope(ScopeBenchRoot.SparsePath.Target);
-            return target.Model.Name.Length;
+            using var target = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
+            return target.Session.Model.Name.Length;
         }
 
         var key = "sibling-" + (SiblingCount / 2);
-        using var scope = session.OpenScope(ScopeBenchRoot.SparsePath.Siblings.Key(key));
-        return scope.Model.Name.Length + scope.Model.Count;
+        using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Siblings.Key(key));
+        return child.Session.Model.Name.Length + child.Session.Model.Count;
     }
 
     [Benchmark]
-    public int OpenNestedScope()
+    public int OpenNestedChildSession()
     {
         var session = _prototype.CreateEditSession();
-        using var group = session.OpenScope(ScopeBenchRoot.SparsePath.Target);
-        using var server = group.OpenScope(ScopeBenchGroup.SparsePath.Servers.Key("target-1"));
-        server.Model.Count++;
-        return server.Model.Name.Length + group.Model.Servers.Count;
+        using var group = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
+        using var server = group.Session.OpenChildSession(
+            ScopeBenchGroup.SparsePath.Servers.Key("target-1")
+        );
+        server.Session.Model.Count++;
+        return server.Session.Model.Name.Length + group.Session.Model.Servers.Count;
     }
 
     [Benchmark]
-    public int OpenManyScopes()
+    public int OpenManyChildSessions()
     {
         var session = _prototype.CreateEditSession();
         var checksum = 0;
-        for (var index = 0; index < ScopeCount; index++)
+        for (var index = 0; index < ChildSessionCount; index++)
         {
             if (SiblingCount == 0)
             {
-                using var target = session.OpenScope(ScopeBenchRoot.SparsePath.Target);
-                checksum += target.Model.Name.Length;
+                using var target = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
+                checksum += target.Session.Model.Name.Length;
                 continue;
             }
 
             var key = "sibling-" + ((index * 131) % SiblingCount);
-            using var scope = session.OpenScope(ScopeBenchRoot.SparsePath.Siblings.Key(key));
-            checksum += scope.Model.Name.Length + scope.Model.Count;
+            using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Siblings.Key(key));
+            checksum += child.Session.Model.Name.Length + child.Session.Model.Count;
         }
 
         return checksum;

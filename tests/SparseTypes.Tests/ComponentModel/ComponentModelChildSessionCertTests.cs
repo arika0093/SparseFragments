@@ -3,27 +3,26 @@ using System.ComponentModel;
 namespace SparseTypes.Tests;
 
 /// <summary>
-/// Edit-scope and validation-display certification (issue #262).
-/// Covers the one-shot <c>OpenScope</c>/<c>TryCommit</c>/<c>Cancel</c>
-/// lifecycle, what binding actually attaches to, the rejected
+/// Child-session and validation-display certification.
+/// Covers child-session acceptance, discard and disposal, the rejected
 /// <see cref="IEditableObject"/> route (issue #259), validation error
 /// display through <see cref="INotifyDataErrorInfo"/>, after-disposal
 /// behavior, and UI-thread responsibility.
 /// </summary>
-public sealed class ComponentModelScopeCertTests
+public sealed class ComponentModelChildSessionCertTests
 {
     [Test]
-    public void ScopeCommitMergesDraftAndKeepsDisjointParentEdits()
+    public void ChildSessionAcceptMergesDraftAndKeepsDisjointParentEdits()
     {
         var child = new ObservableChild { Name = "before" };
         var model = new ObservableHolder { Title = "before", Child = child };
         var session = model.CreateEditSession();
-        using var scope = session.OpenScope(ObservableHolder.SparsePath.Child);
+        using var childSession = session.OpenChildSession(ObservableHolder.SparsePath.Child);
 
-        scope.Observable.Name = "draft";
+        childSession.Session.Observable.Name = "draft";
         session.Observable.Title = "parent edit";
 
-        scope.TryCommit(out var conflicts).ShouldBeTrue();
+        childSession.TryAcceptChanges(out var conflicts).ShouldBeTrue();
 
         conflicts.ShouldBeNull();
         model.Title.ShouldBe("parent edit");
@@ -32,102 +31,91 @@ public sealed class ComponentModelScopeCertTests
     }
 
     [Test]
-    public void BoundTargetIsObservableOrModelNeverTheScope()
+    public void ChildSessionEditsRemainIsolatedUntilAccepted()
     {
         var model = new ObservableHolder { Child = new ObservableChild { Name = "before" } };
         var session = model.CreateEditSession();
-        using var scope = session.OpenScope(ObservableHolder.SparsePath.Child);
-        ISparseEditSession<ObservableChild> childSession = scope;
+        using var childSession = session.OpenChildSession(ObservableHolder.SparsePath.Child);
 
-        // The draft is isolated: editing it touches neither the parent model
-        // nor the parent session until commit.
-        scope.Observable.Name = "draft";
+        childSession.Session.Observable.Name = "draft";
         model.Child.Name.ShouldBe("before");
-        session.HasChanges.ShouldBeFalse();
-        scope.HasChanges.ShouldBeTrue();
+        session.HasChanges.ShouldBeTrue();
+        childSession.HasChanges.ShouldBeTrue();
 
-        // Controls bind scope.Observable (or scope.Model for read paths).
-        // Binding the scope object itself observes nothing useful.
-        scope.GetType().GetInterfaces().ShouldNotContain(typeof(INotifyPropertyChanged));
-        childSession.Model.Name.ShouldBe("draft");
-        ((INotifyPropertyChanged)session).ShouldNotBeNull();
+        ((INotifyPropertyChanged)childSession.Session).ShouldNotBeNull();
 
-        scope.TryCommit(out _).ShouldBeTrue();
+        childSession.TryAcceptChanges(out _).ShouldBeTrue();
         model.Child.Name.ShouldBe("draft");
         session.HasChanges.ShouldBeTrue();
     }
 
     [Test]
-    public void ConflictingScopeCommitLeavesParentUntouched()
+    public void ConflictingChildSessionAcceptLeavesParentUntouched()
     {
         var model = new KeyedServerHolder
         {
             Items = [new KeyedServer { Id = "server", Name = "before" }],
         };
         var session = model.CreateEditSession();
-        using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
+        using var childSession = session.OpenChildSession(
+            KeyedServerHolder.SparsePath.Items.Key("server")
+        );
 
-        scope.Observable.Name = "draft";
+        childSession.Session.Observable.Name = "draft";
         session.Observable.Items[0].Name = "parent";
 
-        scope.TryCommit(out var conflicts).ShouldBeFalse();
+        childSession.TryAcceptChanges(out var conflicts).ShouldBeFalse();
 
         conflicts.ShouldNotBeNull();
-        scope.State.ShouldBe(KeyedServerHolder.EditSession.ScopeState.Open);
         session.Observable.Items[0].Name.ShouldBe("parent");
     }
 
     [Test]
-    public void CancelAndDisposeDiscardTheDraft()
+    public void DiscardAndDisposeDoNotChangeTheParent()
     {
         var model = new KeyedServerHolder
         {
             Items = [new KeyedServer { Id = "server", Name = "before" }],
         };
         var session = model.CreateEditSession();
+        using var childSession = session.OpenChildSession(
+            KeyedServerHolder.SparsePath.Items.Key("server")
+        );
+        childSession.Session.Observable.Name = "discarded";
+        childSession.DiscardChanges();
+        childSession.HasChanges.ShouldBeFalse();
 
-        using (var canceled = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server")))
-        {
-            canceled.Observable.Name = "discarded";
-            canceled.Cancel();
-            canceled.State.ShouldBe(KeyedServerHolder.EditSession.ScopeState.Canceled);
-        }
-
-        using (var disposed = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server")))
-        {
-            disposed.Observable.Name = "discarded";
-        }
+        childSession.Session.Observable.Name = "detached";
+        childSession.Dispose();
 
         model.Items[0].Name.ShouldBe("before");
         session.HasChanges.ShouldBeFalse();
-        ((ISparseEditSessionOpenDraftState)session).HasOpenDrafts.ShouldBeFalse();
     }
 
     [Test]
-    public void ScopeDoesNotImplementIEditableObject()
+    public void ChildSessionDoesNotImplementIEditableObject()
     {
-        // Issue #259 was closed as not planned: the scope is a one-shot
-        // draft, while IEditableObject callers expect repeated
-        // Begin/End/Cancel cycles on the same bound row. Grids bind the row
-        // model, not the scope, so the interface on the scope would not
-        // enable row integration anyway. No wrapper is provided.
+        // Grids bind model rows, not the generated session object, so the
+        // interface would not provide the expected Begin/End/Cancel behavior.
         var holderSession = new ObservableHolder
         {
             Child = new ObservableChild { Name = "before" },
         }.CreateEditSession();
-        using var childScope = holderSession.OpenScope(ObservableHolder.SparsePath.Child);
+        using var childSession = holderSession.OpenChildSession(ObservableHolder.SparsePath.Child);
 
-        childScope.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+        childSession.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+        childSession.Session.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
 
         var keyedSession = new KeyedServerHolder
         {
             Items = [new KeyedServer { Id = "server", Name = "before" }],
         }.CreateEditSession();
-        using var rowScope = keyedSession.OpenScope(
+        using var rowSession = keyedSession.OpenChildSession(
             KeyedServerHolder.SparsePath.Items.Key("server")
         );
 
-        rowScope.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+        rowSession.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+        rowSession.Session.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
         keyedSession.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
         keyedSession.Observable.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
     }

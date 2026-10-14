@@ -646,7 +646,9 @@ internal static class SparseFragmentEmitter
                 canApplyPatchInPlace: canApplyPatchInPlace,
                 canApplyChangeSetInPlace: canApplyChangeSetInPlace,
                 originEmitter: originEmitter,
-                builderContainer: operationContainer
+                builderContainer: operationContainer,
+                model: model,
+                config: config
             );
             // Stage 4 (#193): moved algorithms live in the operations class in
             // the same implementation file (hints stay per-model via the shared
@@ -797,7 +799,9 @@ internal static class SparseFragmentEmitter
                             + SparseGeneratedPlacement.GetContainerForQualifiedName(
                                 child,
                                 cancellationToken
-                            )
+                            ),
+                        model,
+                        config
                     );
                     implementationBuilder.Append(pathsBody.ToString());
                 }
@@ -882,7 +886,9 @@ internal static class SparseFragmentEmitter
         bool canApplyPatchInPlace = false,
         bool canApplyChangeSetInPlace = false,
         SparseFragmentOriginEmitter? originEmitter = null,
-        string? builderContainer = null
+        string? builderContainer = null,
+        SparseModelInfo? model = null,
+        SparseGeneratorConfig? config = null
     )
     {
         SparseFragmentCoreEmitter.AppendDeclaration(
@@ -1025,7 +1031,14 @@ internal static class SparseFragmentEmitter
             }
             else
             {
-                SparsePathBuilderEmitter.Append(code, modelType, members, patchDialect);
+                SparsePathBuilderEmitter.Append(
+                    code,
+                    modelType,
+                    members,
+                    patchDialect,
+                    model,
+                    config
+                );
             }
             SparseTemporaryKeyReconcileEmitter.AppendReconcileHelpers(
                 code,

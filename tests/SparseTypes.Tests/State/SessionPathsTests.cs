@@ -254,20 +254,12 @@ public sealed class SessionPathsTests
     }
 
     [Test]
-    public void ChildScopeKeepsMinimalContract()
+    public void ChildSessionKeepsTypedPathContract()
     {
         var session = new SessionPathsOrder().CreateEditSession();
 
-        using var scope = session.OpenScope<SessionPathsCustomer>(session.Paths.Customer);
+        using var child = session.OpenChildSession(SessionPathsOrder.SparsePath.Customer);
 
-        (scope is ISparseEditSession<SessionPathsCustomer>).ShouldBeTrue();
-        // A generic child scope cannot promise the root's concrete builder.
-        (
-            (object)scope
-            is ISparseEditSessionWithPaths<
-                SessionPathsCustomer,
-                ISparseTypedPath<SessionPathsCustomer, SessionPathsCustomer>
-            >
-        ).ShouldBeFalse();
+        child.Session.Paths.Name.ToString().ShouldBe("Name");
     }
 }

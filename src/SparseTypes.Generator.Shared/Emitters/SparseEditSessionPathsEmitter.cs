@@ -4,14 +4,13 @@ namespace SparseTypes.Generator.Shared;
 
 /// <summary>Typed path-navigation surface for generated root edit sessions (issue #270).</summary>
 /// <remarks>
-/// Emits one cached <c>Paths</c> property per root session returning the
+/// Emits one cached <c>Paths</c> property per generated session returning the
 /// existing generated <c>SparsePaths&lt;TModel&gt;</c> builder, plus the
 /// opt-in <c>ISparseEditSessionWithPaths&lt;TModel, TPaths&gt;</c> base.
 /// Path-only access never touches the mutable model, the change cache, or
 /// edit notifications: the builder is cached per session from the root path.
-/// Child scopes (<c>Scope&lt;TChild&gt;</c>) intentionally stay on the
-/// minimal session contract because a generic child scope cannot promise
-/// the same concrete generated builder.
+/// Child sessions use the same emission, with their builder rooted at the
+/// child model type.
 /// </remarks>
 internal static class SparseEditSessionPathsEmitter
 {

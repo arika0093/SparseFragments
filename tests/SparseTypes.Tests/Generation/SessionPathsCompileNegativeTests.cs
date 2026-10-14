@@ -5,7 +5,7 @@ using SparseTypes.Generator;
 namespace SparseTypes.Tests.Generation;
 
 // Compile-time proofs for issue #270: wrong root, value, and key types fail
-// on session-owned navigation, and child scopes expose no Paths member.
+// on session-owned navigation.
 public sealed class SessionPathsCompileNegativeTests
 {
     private const string ProbeSource = """
@@ -192,28 +192,5 @@ public sealed class SessionPathsCompileNegativeTests
                 """
             )
             .ShouldContain("CS0029");
-    }
-
-    [Test]
-    public void ChildScopeExposesNoPaths()
-    {
-        NegativeDiagnostics(
-                """
-                using SparseTypes;
-                namespace PathsNegativeProbe
-                {
-                    file static class ScopePaths
-                    {
-                        public static void Check()
-                        {
-                            var session = new NegOrder().CreateEditSession();
-                            using var scope = session.OpenScope<NegCustomer>(session.Paths.Customer);
-                            var bad = scope.Paths;
-                        }
-                    }
-                }
-                """
-            )
-            .ShouldContain("CS1061");
     }
 }

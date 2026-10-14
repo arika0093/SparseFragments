@@ -1,6 +1,6 @@
 namespace SparseTypes.Playground.Pages.Case6;
 
-public sealed class CatalogScopeCoordinator
+public sealed class CatalogChildSessionCoordinator
 {
     private const string WorkMasterPrefix = "work-master:";
     public const string OverviewId = "overview";
@@ -8,19 +8,18 @@ public sealed class CatalogScopeCoordinator
     public const string OperationsId = "operations";
     public const string WorkflowId = "workflow";
 
-    private readonly List<ScopeParticipant> _participants = [];
+    private readonly List<ChildSessionParticipant> _participants = [];
 
     public static string WorkMasterId(string stepId) => $"{WorkMasterPrefix}{stepId}";
 
     public IDisposable Register(
         string id,
         Func<bool> hasChanges,
-        Func<Task<bool>> commit,
-        Action cancel,
-        Func<Task> reopen
+        Func<Task<bool>> accept,
+        Action discard
     )
     {
-        var participant = new ScopeParticipant(id, hasChanges, commit, cancel, reopen);
+        var participant = new ChildSessionParticipant(id, hasChanges, accept, discard);
         _participants.Add(participant);
         return new Registration(this, participant);
     }
@@ -28,11 +27,11 @@ public sealed class CatalogScopeCoordinator
     public bool HasChangesFor(string id) =>
         _participants.Any(participant => participant.Id == id && participant.HasChanges());
 
-    public async Task<bool> CommitAllAsync()
+    public async Task<bool> AcceptAllAsync()
     {
         foreach (var participant in _participants.ToArray())
         {
-            if (!await participant.Commit())
+            if (participant.HasChanges() && !await participant.Accept())
             {
                 return false;
             }
@@ -41,86 +40,43 @@ public sealed class CatalogScopeCoordinator
         return true;
     }
 
-    public void CancelAll()
+    public void DiscardAll()
     {
         foreach (var participant in _participants.ToArray())
         {
-            participant.Cancel();
+            participant.Discard();
         }
     }
 
-    public async Task ReopenAllAsync()
+    private void Unregister(ChildSessionParticipant participant) => _participants.Remove(participant);
+
+    private sealed class ChildSessionParticipant
     {
-        foreach (var participant in _participants.ToArray())
-        {
-            await participant.Reopen();
-        }
-    }
-
-    public async Task<bool> CommitWorkMastersAsync()
-    {
-        foreach (var participant in WorkMasterParticipants())
-        {
-            if (participant.HasChanges() && !await participant.Commit())
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public void CancelWorkMasters()
-    {
-        foreach (var participant in WorkMasterParticipants())
-        {
-            participant.Cancel();
-        }
-    }
-
-    public async Task ReopenWorkMastersAsync()
-    {
-        foreach (var participant in WorkMasterParticipants())
-        {
-            await participant.Reopen();
-        }
-    }
-
-    private void Unregister(ScopeParticipant participant) => _participants.Remove(participant);
-
-    private ScopeParticipant[] WorkMasterParticipants() =>
-        _participants.Where(participant => participant.Id.StartsWith(WorkMasterPrefix, StringComparison.Ordinal)).ToArray();
-
-    private sealed class ScopeParticipant
-    {
-        public ScopeParticipant(
+        public ChildSessionParticipant(
             string id,
             Func<bool> hasChanges,
-            Func<Task<bool>> commit,
-            Action cancel,
-            Func<Task> reopen
+            Func<Task<bool>> accept,
+            Action discard
         )
         {
             Id = id;
             HasChanges = hasChanges;
-            Commit = commit;
-            Cancel = cancel;
-            Reopen = reopen;
+            Accept = accept;
+            Discard = discard;
         }
 
         public string Id { get; }
         public Func<bool> HasChanges { get; }
-        public Func<Task<bool>> Commit { get; }
-        public Action Cancel { get; }
-        public Func<Task> Reopen { get; }
+        public Func<Task<bool>> Accept { get; }
+        public Action Discard { get; }
     }
 
     private sealed class Registration : IDisposable
     {
-        private CatalogScopeCoordinator? _owner;
-        private readonly ScopeParticipant _participant;
+        private CatalogChildSessionCoordinator? _owner;
+        private readonly ChildSessionParticipant _participant;
 
-        public Registration(CatalogScopeCoordinator owner, ScopeParticipant participant)
+        public Registration(CatalogChildSessionCoordinator owner, ChildSessionParticipant participant)
         {
             _owner = owner;
             _participant = participant;

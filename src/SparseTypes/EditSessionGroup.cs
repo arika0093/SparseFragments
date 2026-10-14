@@ -74,7 +74,7 @@ public sealed class EditSessionGroup
         }
     }
 
-    /// <summary>Removes a section using an explicit policy for dirty sessions and open drafts.</summary>
+    /// <summary>Removes a section using an explicit policy for dirty sessions.</summary>
     /// <param name="handle">The current typed section handle.</param>
     /// <param name="policy">Whether removal must reject dirty state or detach it from the group.</param>
     public void Unregister<TModel, TChangeSet>(
@@ -141,9 +141,9 @@ public sealed class EditSessionGroup
     /// readiness hook, then validate the captured change sets. Submission validators observe only
     /// the captured <c>TChangeSet</c> placed in the eventual submission; later session edits remain
     /// pending and do not alter what validators observe. The group never holds its internal gate
-    /// across user callbacks. Validators must not open drafts; drafts are reported as readiness failures.
+    /// across user callbacks.
     /// </remarks>
-    /// <exception cref="EditSessionGroupValidationException">A section is unready, has an open draft, or cannot be captured.</exception>
+    /// <exception cref="EditSessionGroupValidationException">A section is unready or cannot be captured.</exception>
     public EditSessionGroupSubmission Prepare()
     {
         var captures = CaptureSections();
@@ -179,8 +179,8 @@ public sealed class EditSessionGroup
     /// Preparation runs in order: synchronously capture immutable change sets, evaluate the live-session
     /// readiness hook and synchronous captured validators, then await asynchronous validators that each
     /// receive the captured change set. Post-capture edits remain pending and do not retroactively alter
-    /// what validators observe. After awaits the group re-evaluates only the open-draft policy, whether a
-    /// section was unregistered or replaced, and whether its baseline revision advanced; such changes fail
+    /// what validators observe. After awaits the group re-evaluates whether a section was unregistered or
+    /// replaced and whether its baseline revision advanced; such changes fail
     /// validation. Ordinary local edits do not invalidate the captured submission, and the live readiness
     /// hook is not re-evaluated after awaits. The group never holds its internal gate across user callbacks
     /// or awaits, so validators may call back into the group without deadlocking; structural changes made
@@ -190,7 +190,7 @@ public sealed class EditSessionGroup
     /// </remarks>
     /// <param name="cancellationToken">The token used to cancel asynchronous validation.</param>
     /// <returns>The immutable submission after all section validation succeeds.</returns>
-    /// <exception cref="EditSessionGroupValidationException">A section is unready, has an open draft, or fails validation.</exception>
+    /// <exception cref="EditSessionGroupValidationException">A section is unready or fails validation.</exception>
     /// <exception cref="OperationCanceledException">Validation is canceled.</exception>
     public Task<EditSessionGroupSubmission> PrepareAsync(
         CancellationToken cancellationToken = default
@@ -405,12 +405,9 @@ public sealed class EditSessionGroup
             }
         }
 
-        // Phase 3: re-evaluate after awaits. Structural checks snapshot under the gate
-        // without invoking user code; draft checks run outside the gate.
-        List<EditSessionGroupCapture> liveCaptures;
+        // Phase 3: re-evaluate registration identity and baseline revisions after awaits.
         lock (_gate)
         {
-            liveCaptures = new List<EditSessionGroupCapture>(captures.Count);
             foreach (var capture in captures)
             {
                 if (
@@ -437,20 +434,7 @@ public sealed class EditSessionGroup
                     );
                     continue;
                 }
-
-                liveCaptures.Add(capture);
             }
-        }
-
-        foreach (var section in liveCaptures.Select(static capture => capture.Section))
-        {
-            if (
-                !section.TryValidateOpenDrafts(out var draftError)
-                && !issues.Any(issue =>
-                    issue.SectionId == section.SectionId && issue.Message == draftError
-                )
-            )
-                issues.Add(new EditSessionGroupValidationIssue(section.SectionId, draftError!));
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -541,9 +525,9 @@ public sealed class EditSessionGroup
             return;
         if (policy != EditSessionGroupRemovalPolicy.RequireClean)
             throw new ArgumentOutOfRangeException(nameof(policy));
-        if (section.HasOpenDrafts || section.HasChanges())
+        if (section.HasChanges())
             throw new InvalidOperationException(
-                $"Section '{section.SectionId}' has pending changes or open drafts. Use DetachWithPendingChanges to remove it explicitly."
+                $"Section '{section.SectionId}' has pending changes. Use DetachWithPendingChanges to remove it explicitly."
             );
     }
 
@@ -607,14 +591,6 @@ public sealed class EditSessionGroup
                 "A changed-path delegate is required.",
                 nameof(registration)
             );
-        if (
-            registration.HasOpenDrafts is null
-            && registration.Session is not ISparseEditSessionOpenDraftState
-        )
-            throw new ArgumentException(
-                "Provide HasOpenDrafts or implement ISparseEditSessionOpenDraftState so open drafts cannot be submitted.",
-                nameof(registration)
-            );
     }
 
     private sealed class EditSessionGroupSection<TModel, TChangeSet> : IEditSessionGroupSection
@@ -641,10 +617,6 @@ public sealed class EditSessionGroup
         public object Session => Registration.Session;
 
         public bool HasAsyncValidation => Registration.ValidateAsync is not null;
-
-        public bool HasOpenDrafts =>
-            Registration.HasOpenDrafts?.Invoke()
-            ?? ((ISparseEditSessionOpenDraftState)Registration.Session).HasOpenDrafts;
 
         public bool HasChanges()
         {
@@ -695,14 +667,12 @@ public sealed class EditSessionGroup
             }
         }
 
-        /// <summary>Evaluates the live-session readiness hook and open drafts.</summary>
+        /// <summary>Evaluates the live-session readiness hook.</summary>
         /// <remarks>
         /// May inspect the current mutable session. It does not observe the captured submission.
         /// </remarks>
         public bool TryValidate(out string? error)
         {
-            if (!TryValidateOpenDrafts(out error))
-                return false;
             error = null;
             try
             {
@@ -736,23 +706,6 @@ public sealed class EditSessionGroup
                 }
 
                 return true;
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                error = exception.Message;
-                return false;
-            }
-        }
-
-        public bool TryValidateOpenDrafts(out string? error)
-        {
-            error = null;
-            try
-            {
-                if (!HasOpenDrafts)
-                    return true;
-                error = "The section has an open edit draft.";
-                return false;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -830,21 +783,17 @@ internal interface IEditSessionGroupSection
 
     long BaselineRevision { get; set; }
 
-    bool HasOpenDrafts { get; }
-
     bool HasAsyncValidation { get; }
 
     bool HasChanges();
 
     bool TryCapture(out EditSessionGroupCapture? capture, out string? error);
 
-    /// <summary>Evaluates the live-session readiness hook and open drafts.</summary>
+    /// <summary>Evaluates the live-session readiness hook.</summary>
     bool TryValidate(out string? error);
 
     /// <summary>Validates the captured change set without inspecting live session state.</summary>
     bool TryValidateChanges(object changes, out string? error);
-
-    bool TryValidateOpenDrafts(out string? error);
 
     Task<string?> ValidateAsync(object changes, CancellationToken cancellationToken);
 

@@ -1,6 +1,5 @@
 @using SparseTypes
 @using SparseTypes.Playground.Models
-@typeparam TModel where TModel : class
 
 <div class="pg-stack">
     <div class="pg-actions">
@@ -11,9 +10,9 @@
             Redo (@CurrentHistory.RedoCount)
         </FluentButton>
         <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-            Disabled="@(!Scope.HasChanges)" @onclick="CommitScopeAsync">Save section draft</FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!Scope.HasChanges)"
-            @onclick="Cancel">Cancel scope</FluentButton>
+            Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
+        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges())"
+            @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
     </div>
     @if (_message is not null)
     {
@@ -22,7 +21,7 @@
     @if (_conflicts.Count > 0)
     {
         <div class="pg-change-table-wrap">
-            <table class="pg-change-table" aria-label="Scope conflicts">
+            <table class="pg-change-table" aria-label="Child-session conflicts">
                 <thead><tr><th>Path</th><th>Current value</th><th>Draft value</th><th>Kind</th></tr></thead>
                 <tbody>
                     @foreach (var conflict in _conflicts)
@@ -42,10 +41,16 @@
 
 @code {
     [Parameter, EditorRequired]
-    public EnterpriseCatalogItem.EditSession.Scope<TModel> Scope { get; set; } = null!;
+    public Func<bool> HasChanges { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public Func<ISparseEditHistory> HistoryProvider { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<(bool Accepted, IReadOnlyList<SparseConflict>? Conflicts)> Accept { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action Discard { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnFinished { get; set; }
@@ -53,57 +58,36 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    [Parameter]
-    public Func<Task<bool>>? BeforeCommit { get; set; }
-
-    [Parameter]
-    public EventCallback OnCommitAttemptFinished { get; set; }
-
-    [Parameter]
-    public string BeforeCommitFailureMessage { get; set; } = "Resolve related drafts before saving this section.";
-
     private IReadOnlyList<SparseConflict> _conflicts = [];
     private string? _message;
     private ISparseEditHistory CurrentHistory => HistoryProvider();
 
-    public async Task<bool> CommitScopeAsync()
+    public async Task<bool> AcceptChildSessionAsync()
     {
-        if (!Scope.HasChanges)
+        if (!HasChanges())
         {
             return true;
         }
 
-        if (BeforeCommit is not null && !await BeforeCommit())
+        var result = Accept();
+        if (result.Accepted)
         {
-            _message = BeforeCommitFailureMessage;
-            return false;
+            _conflicts = [];
+            _message = "Section draft saved to the catalog session.";
+            await OnFinished.InvokeAsync();
+            return true;
         }
 
-        try
-        {
-            if (Scope.TryCommit(out var conflicts))
-            {
-                _conflicts = [];
-                _message = "Section draft saved to the catalog session.";
-                await OnFinished.InvokeAsync();
-                return true;
-            }
-
-            _conflicts = conflicts ?? [];
-            _message = "The scope overlaps newer session edits. Cancel it to reload the current section, then reapply the intended changes.";
-            return false;
-        }
-        finally
-        {
-            await OnCommitAttemptFinished.InvokeAsync();
-        }
+        _conflicts = result.Conflicts ?? [];
+        _message = "The child session overlaps newer parent-session edits. Discard it to reload the current section, then reapply the intended changes.";
+        return false;
     }
 
-    private async Task Cancel()
+    private async Task DiscardChildSessionAsync()
     {
-        Scope.Cancel();
+        Discard();
         _conflicts = [];
-        _message = "Scope canceled. The section is ready for more edits.";
+        _message = "Section draft discarded. The section is ready for more edits.";
         await OnFinished.InvokeAsync();
     }
 

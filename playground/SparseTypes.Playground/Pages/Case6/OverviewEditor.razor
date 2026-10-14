@@ -1,3 +1,4 @@
+@using SparseTypes
 @using SparseTypes.Playground.Models
 @using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
 @implements IDisposable
@@ -5,8 +6,8 @@
 <FluentCard Class="pg-fluent-card">
     <div class="pg-card-head">
         <h3>Overview</h3>
-        <span class="pg-has-changes-badge @(_scope.HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(_scope.HasChanges ? "Edited" : "Current")
+        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
         </span>
     </div>
     <div class="pg-stack pg-edit-fields">
@@ -73,8 +74,8 @@
         <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
         <span class="pg-lg"><span class="pg-dot"></span>edited</span>
     </div>
-    <ScopeActions @ref="_scopeActions" TModel="CatalogOverview" Scope="_scope" HistoryProvider="GetHistory"
-        OnFinished="ReopenScope" OnChanged="OnChanged" />
+    <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
+        Accept="TryAcceptChildSession" Discard="DiscardChildSession" OnFinished="RefreshBaseline" OnChanged="OnChanged" />
 </FluentCard>
 
 @code {
@@ -82,71 +83,83 @@
     public CatalogSession Session { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public CatalogScopeCoordinator Scopes { get; set; } = null!;
+    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private CatalogSession.Scope<CatalogOverview> _scope = null!;
+    private CatalogSession? _parentSession;
+    private CatalogChildSessionHandle<CatalogOverview.EditSession> _childSession = null!;
     private CatalogOverview.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
-    private ScopeActions<CatalogOverview>? _scopeActions;
+    private ChildSessionActions? _childSessionActions;
     private CatalogOverview _baseline = null!;
     private IDisposable? _registration;
     private string _newAlias = string.Empty;
-    public bool HasChanges => _scope?.HasChanges == true;
+    public bool HasChanges => _childSession?.HasChanges == true;
     private CatalogOverview.Observable Draft => _draftSession.Observable;
 
     protected override void OnInitialized()
     {
-        OpenScope();
-        _registration = Scopes.Register(
-            CatalogScopeCoordinator.OverviewId,
-            () => _scope?.HasChanges == true,
-            CommitCurrentScope,
-            CancelScope,
-            ReopenScopeSilently
+        OpenChildSession();
+        _registration = ChildSessions.Register(
+            CatalogChildSessionCoordinator.OverviewId,
+            GetHasChanges,
+            AcceptCurrentChildSession,
+            DiscardChildSession
         );
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_parentSession, Session))
+        {
+            OpenChildSession();
+        }
     }
 
     public void Dispose()
     {
         _registration?.Dispose();
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
+        _childSession?.Dispose();
     }
 
-    private void OpenScope()
+    private void OpenChildSession()
     {
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
-        _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
-        _draftSession = _scope.Observable.CreateEditSession();
+        _childSession?.Dispose();
+        _parentSession = Session;
+        _childSession = CatalogChildSessionHandle.From(
+            Session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview)
+        );
+        _draftSession = _childSession.Session;
         _history = _draftSession.EnableHistory();
-        _baseline = _scope.Observable.DeepClone();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private Task ReopenScope()
+    private Task RefreshBaseline()
     {
-        OpenScope();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         return OnChanged.InvokeAsync();
     }
 
-    private Task ReopenScopeSilently()
+    private Task<bool> AcceptCurrentChildSession() =>
+        _childSessionActions?.AcceptChildSessionAsync() ?? Task.FromResult(true);
+
+    private bool GetHasChanges() => HasChanges;
+
+    private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
-        OpenScope();
-        return Task.CompletedTask;
+        var accepted = _childSession.TryAcceptChanges(out var conflicts);
+        return (accepted, conflicts);
     }
 
-    private void CancelScope()
+    private void DiscardChildSession()
     {
-        _draftSession?.DisableHistory();
-        _scope?.Cancel();
-        _scope = null!;
+        _childSession.DiscardChanges();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
-
-    private Task<bool> CommitCurrentScope() =>
-        _scopeActions?.CommitScopeAsync() ?? Task.FromResult(true);
 
     private ISparseEditHistory GetHistory() => _history;
 
@@ -159,7 +172,7 @@
     private async Task AddAlias()
     {
         var alias = _newAlias.Trim();
-        if (alias.Length == 0 || _scope.Observable.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase))
+        if (alias.Length == 0 || Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }

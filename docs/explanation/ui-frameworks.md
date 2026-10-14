@@ -355,22 +355,22 @@ var didClashMerge = clashingSession.TryMergeFrom(
 
 Conflicts carry the same member paths as change-set rebase, so per-field resolution follows the [rebase](rebase.md) flow. The fork shares its origin session's lineage: merging an unrelated session throws `InvalidOperationException`, as does merging a session into itself. Branching differs from the neighboring calls. `BatchEdit` groups notifications for edits already in the session. `AcceptChanges` acknowledges a saved transition. `Reload` rebases pending edits onto authoritative server state in place. Branching stays in process: it assigns no temporary keys and performs no transport.
 
-### Edit child models in an isolated scope
+### Edit child models in independent sessions
 
-Use `OpenScope` when a nested form edits one child model independently of the parent form. Pass the generated typed path for the child; the scope implements `ISparseEditSession<TChild>` and exposes its draft through `Model`, `Observable`, and `Current`. Call `AcceptChanges()` or `TryCommit` to merge the draft into its parent session. A scope can open another scope with a path relative to its child draft. Generated sessions and scopes implement `ISparseEditSessionOpenDraftState`; `HasOpenDrafts` reports open scopes and their descendants.
+Use `OpenChildSession` when a nested form needs its own paths, undo/redo history, or nested editing. The returned child handle exposes the generated child-model edit session through `Session`. Accepting merges the child edits into its parent and resets the child's history baseline; a conflict leaves the edits pending. Child sessions can open further child sessions with paths relative to their own model.
 
-<!-- sample: ui-child-scope -->
+<!-- sample: ui-child-session -->
 ```csharp
 var child = new UiWidgetChild { Name = "before" };
 var model = new UiWidget { Title = "before", Child = child };
 var session = model.CreateEditSession();
-using var scope = session.OpenScope(UiWidget.SparsePath.Child);
+using var childSession = session.OpenChildSession(UiWidget.SparsePath.Child);
 
-scope.Observable!.Name = "draft";
+childSession.Session.Observable!.Name = "draft";
 session.Observable.Title = "parent edit";
 
-var committed = scope.TryCommit(out var conflicts);
-// committed == true
+var accepted = childSession.TryAcceptChanges(out var conflicts);
+// accepted == true
 // conflicts is null
 // model.Title == "parent edit"
 // model.Child.Name == "draft"
@@ -378,11 +378,11 @@ var committed = scope.TryCommit(out var conflicts);
 ```
 <!-- /sample -->
 
-`TryCommit` rebases the child draft against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the scope open. `AcceptChanges()` throws `InvalidOperationException` when the target is missing or the draft conflicts. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, the scope enters `TargetMissing`. A nested scope cannot commit after its parent scope is canceled or committed; that attempt throws `InvalidOperationException`. Call `Cancel()` or dispose an open scope to discard its draft.
+`TryAcceptChanges` rebases the child session against the parent's current state. Disjoint parent edits are kept; overlapping edits return `false` with conflicts and leave the child session open. `AcceptChanges()` throws `InvalidOperationException` when the target is missing or the edits conflict. A keyed or temporary-key path continues to address its item after reordering. If the target no longer exists, acceptance fails and disconnects the child session. Dispose the child handle to disconnect it, or call `DiscardChanges()` to restore its baseline while keeping it connected. Creating a root change set automatically accepts pending child and descendant sessions; use `TryCreateChangeSet` to receive conflicts instead of throwing.
 
 ### Navigate typed paths from the session
 
-Every root session exposes the same generated navigation as `Model.SparsePath` through `session.Paths`, so ordinary C#, MVVM, desktop UI, and Blazor code can write `session.Paths.Customer.Name` or `session.Paths.Items.Key(id).Title` without passing a separate root builder. The concrete builder type keeps compile-time root, value, and key typing; wrong types fail compilation. Generic consumers receive `ISparseEditSessionWithPaths<TModel, TPaths>` and read `Paths` without reflection, while `ISparseEditSession<TModel>` stays the minimal fallback. Child scopes keep only the minimal contract because a generic child scope cannot promise the root's concrete builder. Reading `Paths` never reads the mutable model, invalidates the change cache, or subscribes to edit notifications.
+Every generated edit session, including child sessions, exposes the same generated navigation as `Model.SparsePath` through `session.Paths`, so ordinary C#, MVVM, desktop UI, and Blazor code can write `session.Paths.Customer.Name` or `session.Paths.Items.Key(id).Title` without passing a separate root builder. The concrete builder type keeps compile-time root, value, and key typing; wrong types fail compilation. Generic consumers receive `ISparseEditSessionWithPaths<TModel, TPaths>` and read `Paths` without reflection, while `ISparseEditSession<TModel>` stays the minimal fallback. Reading `Paths` never reads the mutable model, invalidates the change cache, or subscribes to edit notifications.
 
 <!-- sample: ui-session-paths -->
 ```csharp

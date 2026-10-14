@@ -8,9 +8,8 @@ namespace SparseTypes;
 /// compile-time root, value, and key typing without a separate root builder.
 /// <c>ISparseEditSession&lt;TModel&gt;</c> stays the minimal fallback;
 /// this interface is the opt-in typed provider for framework-neutral
-/// consumers. Child scopes (<c>Scope&lt;TChild&gt;</c>) implement only the
-/// minimal contract because a generic child scope cannot promise the same
-/// concrete generated builder.
+/// consumers. Generated child-model sessions expose their own concrete path
+/// builder through this interface as well.
 /// </remarks>
 /// <typeparam name="TModel">The live editable model type.</typeparam>
 /// <typeparam name="TPaths">The concrete generated root path builder type.</typeparam>

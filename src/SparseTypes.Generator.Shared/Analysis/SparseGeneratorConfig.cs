@@ -36,8 +36,11 @@ internal sealed record SparseGeneratorConfig
         string? GeneratedImplementationSuffix = null,
         string? TemporaryKeyAttributeMetadataName = null,
         bool AllowFileScopedTypes = false,
-        string? OpenDraftStateInterfaceMetadataName = null,
-        SparseStjCapabilities? StjCapabilities = null
+        SparseStjCapabilities? StjCapabilities = null,
+        string? EditChildPathInterfaceMetadataName = null,
+        string? EditChildSessionInterfaceMetadataName = null,
+        string? EditChildSessionImplementationType = null,
+        string? EditSessionWithChildrenInterfaceMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -72,8 +75,12 @@ internal sealed record SparseGeneratorConfig
         this.GeneratedImplementationSuffix = GeneratedImplementationSuffix;
         this.TemporaryKeyAttributeMetadataName = TemporaryKeyAttributeMetadataName;
         this.AllowFileScopedTypes = AllowFileScopedTypes;
-        this.OpenDraftStateInterfaceMetadataName = OpenDraftStateInterfaceMetadataName;
         this.StjCapabilities = StjCapabilities;
+        this.EditChildPathInterfaceMetadataName = EditChildPathInterfaceMetadataName;
+        this.EditChildSessionInterfaceMetadataName = EditChildSessionInterfaceMetadataName;
+        this.EditChildSessionImplementationType = EditChildSessionImplementationType;
+        this.EditSessionWithChildrenInterfaceMetadataName =
+            EditSessionWithChildrenInterfaceMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -142,8 +149,17 @@ internal sealed record SparseGeneratorConfig
     /// </remarks>
     public string? EditSessionWithPathsInterfaceMetadataName { get; init; }
 
-    /// <summary>Open-draft state interface implemented by generated sessions, or null when disabled.</summary>
-    public string? OpenDraftStateInterfaceMetadataName { get; init; }
+    /// <summary>Typed child-path factory interface implemented by generated model paths, or null when disabled.</summary>
+    public string? EditChildPathInterfaceMetadataName { get; init; }
+
+    /// <summary>Child edit-session contract returned by generated parent sessions, or null when disabled.</summary>
+    public string? EditChildSessionInterfaceMetadataName { get; init; }
+
+    /// <summary>Runtime child-session implementation type, or null when disabled.</summary>
+    public string? EditChildSessionImplementationType { get; init; }
+
+    /// <summary>Nested-session coordination contract implemented by generated sessions, or null when disabled.</summary>
+    public string? EditSessionWithChildrenInterfaceMetadataName { get; init; }
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }

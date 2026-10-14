@@ -48,186 +48,188 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         + "}\n"
         + "}\n";
 
-    private static readonly SparseGeneratorConfig Configuration = new(
-        ModelAttributeMetadataName: ModelAttributeName,
-        IgnoreAttributeMetadataName: "SparseTypes.SparseIgnoreAttribute",
-        RedactBeforeAttributeMetadataName: "SparseTypes.SparseRedactBeforeAttribute",
-        MergeAttributeMetadataName: MergeAttributeName,
-        MergeStrategyBaseMetadataName: MergeStrategyBaseName,
-        CloneReferenceSafeAttributeMetadataName: "SparseTypes.SparseCloneReferenceSafeAttribute",
-        KeyAttributeMetadataName: "SparseTypes.SparseKeyAttribute",
-        TemporaryKeyAttributeMetadataName: "SparseTypes.SparseTemporaryKeyAttribute",
-        MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
-        DiagnosticIds: new SparseDiagnosticIdMap(
-            SparseTypesDiagnosticIds.MustBePartial,
-            SparseTypesDiagnosticIds.UnsupportedModel,
-            SparseTypesDiagnosticIds.MissingConstructor,
-            SparseTypesDiagnosticIds.InvalidMergeStrategy,
-            SparseTypesDiagnosticIds.UnsupportedMerge,
-            SparseTypesDiagnosticIds.UnsupportedRequired,
-            SparseTypesDiagnosticIds.UnsupportedStructural,
-            SparseTypesDiagnosticIds.UnsupportedClone,
-            SparseTypesDiagnosticIds.GeneratedNameCollision,
-            SparseTypesDiagnosticIds.IncompatiblePromotedModel,
-            SparseTypesDiagnosticIds.UnkeyedStructuralSequence,
-            SparseTypesDiagnosticIds.MultiplePropertyKeys,
-            SparseTypesDiagnosticIds.InvalidKeyAttributeShape,
-            SparseTypesDiagnosticIds.InaccessibleKeyProperty,
-            SparseTypesDiagnosticIds.UnsupportedKeyShape,
-            SparseTypesDiagnosticIds.DuplicateJsonPropertyName,
-            SparseTypesDiagnosticIds.SparseIgnoreOnKey,
-            SparseTypesDiagnosticIds.SparseIgnoreUnsupportedProperty,
-            SparseTypesDiagnosticIds.InvalidRebasePolicy,
-            SparseTypesDiagnosticIds.InvalidEmissionPlan,
-            SparseTypesDiagnosticIds.UnknownProductMember,
-            SparseTypesDiagnosticIds.InvalidComparisonStrategy
-        ),
-        HintNameSuffix: ".SparseTypes.g.cs",
-        PromotedHintNameSuffix: ".SparsePromoted.g.cs",
-        StructuralHostPrefix: "__SparseStructural_",
-        RuntimeDialect: new SparseRuntimeDialect(
-            "global::SparseTypes.",
-            "global::SparseTypes.Optional",
-            "global::SparseTypes.FragmentMergeStrategy",
-            "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
-            "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
-            "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
-            "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
-            "__sparse_merge_strategy_",
-            "__sparse_rebase_policy_"
-        )
-        {
-            CloneContextScopeFactory =
-                "global::SparseTypes.CompilerServices.SparseFragmentRuntime.RentCloneContext",
-        },
-        PatchDialect: new SparseFragmentPatchEmitter.SparsePatchDialect(
-            "global::SparseTypes.",
-            "__sparse_whole",
-            "__SparseMembersEmpty",
-            SparseFragmentPatchEmitter.Field,
-            static _ => string.Empty,
-            "Apply",
-            false,
-            "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
-            "global::SparseTypes.SparseConflict",
-            "global::SparseTypes.SparseConflictKind",
-            static payload => "global::SparseTypes.RebaseResult<" + payload + ">",
-            SparseFragmentPatchEmitter.ChildPatch,
-            SparseFragmentPatchEmitter.DefaultChildChangeSet,
-            MergeStrategyField: static member => "__sparse_merge_strategy_" + member.Id,
-            RebaseOptionsType: "global::SparseTypes.ChangePayloadRebaseOptions",
-            RebaseModeType: "global::SparseTypes.SparseRebaseMode",
-            RebasePolicyType: "global::SparseTypes.FragmentRebasePolicy",
-            RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
-            InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
-            PayloadImplementationContainerPrefix: "__Internal",
-            PathType: "global::SparseTypes.SparsePath",
-            PathIsValueType: true,
-            TypedPathInterfaceType: "global::SparseTypes.ISparseTypedPath",
-            TransitionContracts: new SparseTransitionContracts(
-                "global::SparseTypes.ISparseValueChange",
-                "global::SparseTypes.ISparseChangeSet",
-                "global::SparseTypes.ISparseKeyedChange",
-                "global::SparseTypes.ISparseKeyedItemChange",
-                "global::SparseTypes.ISparseTemporaryKeyedChange",
-                "global::SparseTypes.ISparseDictionaryChange",
-                "global::SparseTypes.ISparseDictionaryItemChange",
-                "global::SparseTypes.ISparseStructuralDictionaryItemChange",
-                "global::SparseTypes.Generated.SparseChangeRecord",
-                "global::SparseTypes.Generated.SparseChangeKind"
+    private static readonly SparseGeneratorConfig Configuration =
+        SparseTypesGeneratorChildSessionConfig.Configure(
+            new(
+                ModelAttributeMetadataName: ModelAttributeName,
+                IgnoreAttributeMetadataName: "SparseTypes.SparseIgnoreAttribute",
+                RedactBeforeAttributeMetadataName: "SparseTypes.SparseRedactBeforeAttribute",
+                MergeAttributeMetadataName: MergeAttributeName,
+                MergeStrategyBaseMetadataName: MergeStrategyBaseName,
+                CloneReferenceSafeAttributeMetadataName: "SparseTypes.SparseCloneReferenceSafeAttribute",
+                KeyAttributeMetadataName: "SparseTypes.SparseKeyAttribute",
+                TemporaryKeyAttributeMetadataName: "SparseTypes.SparseTemporaryKeyAttribute",
+                MergeModeMap: new SparseMergeModeMap(0, 1, 2, 3, 4, 5),
+                DiagnosticIds: new SparseDiagnosticIdMap(
+                    SparseTypesDiagnosticIds.MustBePartial,
+                    SparseTypesDiagnosticIds.UnsupportedModel,
+                    SparseTypesDiagnosticIds.MissingConstructor,
+                    SparseTypesDiagnosticIds.InvalidMergeStrategy,
+                    SparseTypesDiagnosticIds.UnsupportedMerge,
+                    SparseTypesDiagnosticIds.UnsupportedRequired,
+                    SparseTypesDiagnosticIds.UnsupportedStructural,
+                    SparseTypesDiagnosticIds.UnsupportedClone,
+                    SparseTypesDiagnosticIds.GeneratedNameCollision,
+                    SparseTypesDiagnosticIds.IncompatiblePromotedModel,
+                    SparseTypesDiagnosticIds.UnkeyedStructuralSequence,
+                    SparseTypesDiagnosticIds.MultiplePropertyKeys,
+                    SparseTypesDiagnosticIds.InvalidKeyAttributeShape,
+                    SparseTypesDiagnosticIds.InaccessibleKeyProperty,
+                    SparseTypesDiagnosticIds.UnsupportedKeyShape,
+                    SparseTypesDiagnosticIds.DuplicateJsonPropertyName,
+                    SparseTypesDiagnosticIds.SparseIgnoreOnKey,
+                    SparseTypesDiagnosticIds.SparseIgnoreUnsupportedProperty,
+                    SparseTypesDiagnosticIds.InvalidRebasePolicy,
+                    SparseTypesDiagnosticIds.InvalidEmissionPlan,
+                    SparseTypesDiagnosticIds.UnknownProductMember,
+                    SparseTypesDiagnosticIds.InvalidComparisonStrategy
+                ),
+                HintNameSuffix: ".SparseTypes.g.cs",
+                PromotedHintNameSuffix: ".SparsePromoted.g.cs",
+                StructuralHostPrefix: "__SparseStructural_",
+                RuntimeDialect: new SparseRuntimeDialect(
+                    "global::SparseTypes.",
+                    "global::SparseTypes.Optional",
+                    "global::SparseTypes.FragmentMergeStrategy",
+                    "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
+                    "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
+                    "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
+                    "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
+                    "__sparse_merge_strategy_",
+                    "__sparse_rebase_policy_"
+                )
+                {
+                    CloneContextScopeFactory =
+                        "global::SparseTypes.CompilerServices.SparseFragmentRuntime.RentCloneContext",
+                },
+                PatchDialect: new SparseFragmentPatchEmitter.SparsePatchDialect(
+                    "global::SparseTypes.",
+                    "__sparse_whole",
+                    "__SparseMembersEmpty",
+                    SparseFragmentPatchEmitter.Field,
+                    static _ => string.Empty,
+                    "Apply",
+                    false,
+                    "global::SparseTypes.CompilerServices.SparseFragmentRuntime",
+                    "global::SparseTypes.SparseConflict",
+                    "global::SparseTypes.SparseConflictKind",
+                    static payload => "global::SparseTypes.RebaseResult<" + payload + ">",
+                    SparseFragmentPatchEmitter.ChildPatch,
+                    SparseFragmentPatchEmitter.DefaultChildChangeSet,
+                    MergeStrategyField: static member => "__sparse_merge_strategy_" + member.Id,
+                    RebaseOptionsType: "global::SparseTypes.ChangePayloadRebaseOptions",
+                    RebaseModeType: "global::SparseTypes.SparseRebaseMode",
+                    RebasePolicyType: "global::SparseTypes.FragmentRebasePolicy",
+                    RebasePolicyField: static member => "__sparse_rebase_policy_" + member.Id,
+                    InPlaceWriteUnavailableKindMemberName: "InPlaceWriteUnavailable",
+                    PayloadImplementationContainerPrefix: "__Internal",
+                    PathType: "global::SparseTypes.SparsePath",
+                    PathIsValueType: true,
+                    TypedPathInterfaceType: "global::SparseTypes.ISparseTypedPath",
+                    TransitionContracts: new SparseTransitionContracts(
+                        "global::SparseTypes.ISparseValueChange",
+                        "global::SparseTypes.ISparseChangeSet",
+                        "global::SparseTypes.ISparseKeyedChange",
+                        "global::SparseTypes.ISparseKeyedItemChange",
+                        "global::SparseTypes.ISparseTemporaryKeyedChange",
+                        "global::SparseTypes.ISparseDictionaryChange",
+                        "global::SparseTypes.ISparseDictionaryItemChange",
+                        "global::SparseTypes.ISparseStructuralDictionaryItemChange",
+                        "global::SparseTypes.Generated.SparseChangeRecord",
+                        "global::SparseTypes.Generated.SparseChangeKind"
+                    )
+                    {
+                        TypedChangeSetInterfaceType = "global::SparseTypes.ISparseChangeSet",
+                    }
+                )
+                {
+                    KeyValidationScopeFactory =
+                        "global::SparseTypes.CompilerServices.SparseFragmentRuntime.RentKeyValidation",
+                    StateContracts = new SparseStateContracts(
+                        "global::SparseTypes.SparseFieldState",
+                        "global::SparseTypes.SparseCollectionState",
+                        "global::SparseTypes.SparseStateQueries"
+                    )
+                    {
+                        ObservedFieldType = "global::SparseTypes.SparseObservedField",
+                        ObservedFieldHooksType = "global::SparseTypes.SparseObservedFieldHooks",
+                    },
+                },
+                RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
+                RebasePolicyBaseMetadataName: RebasePolicyBaseName,
+                ComparisonAttributeMetadataName: "SparseTypes.SparseCompareAttribute",
+                EditSessionInterfaceMetadataName: "SparseTypes.ISparseEditSession",
+                GeneratedImplementationNamespace: "SparseTypes.Generated",
+                EmissionFeatures: new SparseEmissionFeatures(EmitFragmentOrigins: true),
+                EditSessionDialect: new SparseEditSessionDialect(
+                    "SparseTypes.Generated",
+                    HistoryType: "global::SparseTypes.SparseEditHistory",
+                    HistoryOptionsType: "global::SparseTypes.EditHistoryOptions",
+                    HistoryHooksType: "global::SparseTypes.SparseEditHistoryHooks",
+                    HistoryContractType: "global::SparseTypes.ISparseEditHistory"
+                ),
+                EditSessionModelAccessorInterfaceMetadataName: "SparseTypes.ISparseEditSessionModelAccessor",
+                EditSessionWithPathsInterfaceMetadataName: "SparseTypes.ISparseEditSessionWithPaths",
+                DescriptorDialect: new SparseDescriptorDialect(
+                    "global::SparseTypes.Generated.IDescriptor",
+                    "global::SparseTypes.Generated.IDescriptorSet",
+                    "global::SparseTypes.Generated.IArrayDescriptor",
+                    "global::SparseTypes.Generated.IDictDescriptor",
+                    "global::SparseTypes.Generated.ISetDescriptor",
+                    "global::SparseTypes.Generated.SparseDescriptor",
+                    "global::SparseTypes.Generated.SparseDescriptorSet",
+                    "global::SparseTypes.Generated.SparseArrayDescriptor",
+                    "global::SparseTypes.Generated.SparseArrayDescriptorAccess",
+                    "global::SparseTypes.Generated.SparseDictionaryDescriptor",
+                    "global::SparseTypes.Generated.SparseDictionaryDescriptorAccess",
+                    "global::SparseTypes.Generated.SparseSetDescriptor",
+                    "global::SparseTypes.Generated.SparseSetDescriptorAccess",
+                    "global::SparseTypes.Generated.SparseDescriptorShape",
+                    "global::SparseTypes.Generated.SparseDescriptorValue"
+                ),
+                ReservedGeneratedNames: ImmutableArray.Create(
+                    // Issue #195: only names injected into the annotated model are
+                    // reserved here. Nested state/operation families (Fragment,
+                    // FragmentBuilder, Patch, ChangeSet, ChangePayload) plus the
+                    // member/method names they declare on the model surface. Names
+                    // that now exist only in the per-model implementation container
+                    // (Observable, ReadOnlyView, EditSession, DescriptorFactory and
+                    // the operation/DTO/converter types) are resolved through the
+                    // central SparseGeneratedPlacement resolver instead, so model
+                    // members may freely reuse them.
+                    "Fragment",
+                    "FragmentBuilder",
+                    "Empty",
+                    "IsEmpty",
+                    "Merge",
+                    "ApplyChanges",
+                    "Diff",
+                    "DeepClone",
+                    "From",
+                    "ToModel",
+                    "ToBuilder",
+                    "Build",
+                    "Origin",
+                    "GetOrigin",
+                    "TryGetOrigin",
+                    "EnumerateOrigins",
+                    "GetByOrigin",
+                    "SplitByOrigin",
+                    "Patch",
+                    "ChangeSet",
+                    "ChangePayload",
+                    "SparsePath",
+                    "SparsePaths",
+                    "JsonConverter",
+                    "FragmentJsonConverter",
+                    "ApplyTo",
+                    "TryApplyTo",
+                    "WriteTo",
+                    "ApplyInPlace",
+                    "ApplyInPlaceResult"
+                )
             )
-            {
-                TypedChangeSetInterfaceType = "global::SparseTypes.ISparseChangeSet",
-            }
-        )
-        {
-            KeyValidationScopeFactory =
-                "global::SparseTypes.CompilerServices.SparseFragmentRuntime.RentKeyValidation",
-            StateContracts = new SparseStateContracts(
-                "global::SparseTypes.SparseFieldState",
-                "global::SparseTypes.SparseCollectionState",
-                "global::SparseTypes.SparseStateQueries"
-            )
-            {
-                ObservedFieldType = "global::SparseTypes.SparseObservedField",
-                ObservedFieldHooksType = "global::SparseTypes.SparseObservedFieldHooks",
-            },
-        },
-        RebasePolicyAttributeMetadataName: RebasePolicyAttributeName,
-        RebasePolicyBaseMetadataName: RebasePolicyBaseName,
-        ComparisonAttributeMetadataName: "SparseTypes.SparseCompareAttribute",
-        EditSessionInterfaceMetadataName: "SparseTypes.ISparseEditSession",
-        GeneratedImplementationNamespace: "SparseTypes.Generated",
-        EmissionFeatures: new SparseEmissionFeatures(EmitFragmentOrigins: true),
-        EditSessionDialect: new SparseEditSessionDialect(
-            "SparseTypes.Generated",
-            HistoryType: "global::SparseTypes.SparseEditHistory",
-            HistoryOptionsType: "global::SparseTypes.EditHistoryOptions",
-            HistoryHooksType: "global::SparseTypes.SparseEditHistoryHooks",
-            HistoryContractType: "global::SparseTypes.ISparseEditHistory"
-        ),
-        EditSessionModelAccessorInterfaceMetadataName: "SparseTypes.ISparseEditSessionModelAccessor",
-        EditSessionWithPathsInterfaceMetadataName: "SparseTypes.ISparseEditSessionWithPaths",
-        OpenDraftStateInterfaceMetadataName: "SparseTypes.ISparseEditSessionOpenDraftState",
-        DescriptorDialect: new SparseDescriptorDialect(
-            "global::SparseTypes.Generated.IDescriptor",
-            "global::SparseTypes.Generated.IDescriptorSet",
-            "global::SparseTypes.Generated.IArrayDescriptor",
-            "global::SparseTypes.Generated.IDictDescriptor",
-            "global::SparseTypes.Generated.ISetDescriptor",
-            "global::SparseTypes.Generated.SparseDescriptor",
-            "global::SparseTypes.Generated.SparseDescriptorSet",
-            "global::SparseTypes.Generated.SparseArrayDescriptor",
-            "global::SparseTypes.Generated.SparseArrayDescriptorAccess",
-            "global::SparseTypes.Generated.SparseDictionaryDescriptor",
-            "global::SparseTypes.Generated.SparseDictionaryDescriptorAccess",
-            "global::SparseTypes.Generated.SparseSetDescriptor",
-            "global::SparseTypes.Generated.SparseSetDescriptorAccess",
-            "global::SparseTypes.Generated.SparseDescriptorShape",
-            "global::SparseTypes.Generated.SparseDescriptorValue"
-        ),
-        ReservedGeneratedNames: ImmutableArray.Create(
-            // Issue #195: only names injected into the annotated model are
-            // reserved here. Nested state/operation families (Fragment,
-            // FragmentBuilder, Patch, ChangeSet, ChangePayload) plus the
-            // member/method names they declare on the model surface. Names
-            // that now exist only in the per-model implementation container
-            // (Observable, ReadOnlyView, EditSession, DescriptorFactory and
-            // the operation/DTO/converter types) are resolved through the
-            // central SparseGeneratedPlacement resolver instead, so model
-            // members may freely reuse them.
-            "Fragment",
-            "FragmentBuilder",
-            "Empty",
-            "IsEmpty",
-            "Merge",
-            "ApplyChanges",
-            "Diff",
-            "DeepClone",
-            "From",
-            "ToModel",
-            "ToBuilder",
-            "Build",
-            "Origin",
-            "GetOrigin",
-            "TryGetOrigin",
-            "EnumerateOrigins",
-            "GetByOrigin",
-            "SplitByOrigin",
-            "Patch",
-            "ChangeSet",
-            "ChangePayload",
-            "SparsePath",
-            "SparsePaths",
-            "JsonConverter",
-            "FragmentJsonConverter",
-            "ApplyTo",
-            "TryApplyTo",
-            "WriteTo",
-            "ApplyInPlace",
-            "ApplyInPlaceResult"
-        )
-    );
+        );
 
     private static readonly DiagnosticDescriptor MustBePartial = new(
         SparseTypesDiagnosticIds.MustBePartial,

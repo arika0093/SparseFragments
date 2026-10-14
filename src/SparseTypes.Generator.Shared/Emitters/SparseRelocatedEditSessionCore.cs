@@ -50,10 +50,6 @@ internal static class SparseRelocatedEditSessionCore
             );
         var modelAccessorInterfaceMetadataName =
             config.EditSessionModelAccessorInterfaceMetadataName;
-        var openDraftStateInterfaceMetadataName = config.OpenDraftStateInterfaceMetadataName
-            is { Length: > 0 } openDraftInterface
-            ? openDraftInterface
-            : null;
         var sessionDialect =
             config.EditSessionDialect
             ?? throw new ArgumentException("An edit-session dialect is required.", nameof(config));
@@ -125,9 +121,16 @@ internal static class SparseRelocatedEditSessionCore
             sessionBases +=
                 ", global::" + modelAccessorInterfaceMetadataName + "<" + modelType + ">";
         }
-        if (openDraftStateInterfaceMetadataName is not null)
+        if (SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect))
         {
-            sessionBases += ", global::" + openDraftStateInterfaceMetadataName;
+            sessionBases +=
+                ", global::"
+                + config.EditSessionWithChildrenInterfaceMetadataName
+                + "<"
+                + modelType
+                + ", "
+                + patchDialect.ConflictType
+                + ">";
         }
         sessionBases += SparseEditSessionPathsEmitter.GetPathsInterfaceBase(
             model,
@@ -191,9 +194,24 @@ internal static class SparseRelocatedEditSessionCore
         }
         code.AppendLineAt(
             2,
-            "/// <summary>Gets a value indicating whether the session has pending changes.</summary>"
+            "/// <summary>Gets whether "
+                + (
+                    SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect)
+                        ? "this session or any child session"
+                        : "the session"
+                )
+                + " has pending changes.</summary>"
         );
-        code.AppendLineAt(2, "public bool HasChanges => _session.HasChanges;");
+        code.AppendLineAt(
+            2,
+            "public bool HasChanges => _session.HasChanges"
+                + (
+                    SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect)
+                        ? " || HasPendingChildSessions"
+                        : string.Empty
+                )
+                + ";"
+        );
         SparseEditSessionPathsEmitter.AppendPathsProperty(
             code,
             model,
@@ -201,14 +219,6 @@ internal static class SparseRelocatedEditSessionCore
             config,
             patchDialect
         );
-        if (openDraftStateInterfaceMetadataName is not null)
-        {
-            code.AppendLineAt(
-                2,
-                "/// <summary>Gets whether this session has any open child drafts.</summary>"
-            );
-            code.AppendLineAt(2, "public bool HasOpenDrafts => __sparse_open_draft_count > 0;");
-        }
         code.AppendLineAt(
             2,
             "/// <summary>Occurs when the session state or current view changes.</summary>"
@@ -244,10 +254,65 @@ internal static class SparseRelocatedEditSessionCore
             2,
             "/// <returns>The pending change set; empty when there are no changes.</returns>"
         );
-        code.AppendLineAt(
-            2,
-            "public " + modelType + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
-        );
+        if (SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect))
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Attempts to create a change set after merging pending child sessions.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"changes\">The change set on success; otherwise null.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <param name=\"conflicts\">Child-session conflicts on failure.</param>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <returns>True when the change set was created; otherwise false.</returns>"
+            );
+            code.AppendLineAt(
+                2,
+                "public bool TryCreateChangeSet(out "
+                    + modelType
+                    + ".ChangeSet? changes, out global::System.Collections.Generic.IReadOnlyList<"
+                    + patchDialect.ConflictType
+                    + ">? conflicts)"
+            );
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out conflicts)) { changes = null; return false; }"
+            );
+            code.AppendLineAt(3, "changes = _session.CreateChangeSet();");
+            code.AppendLineAt(3, "return true;");
+            code.AppendLineAt(2, "}");
+            code.AppendLineAt(
+                2,
+                "/// <summary>Creates a change set after merging pending child sessions.</summary>"
+            );
+            code.AppendLineAt(2, "/// <returns>The pending change set.</returns>");
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">A child session conflicts with this session.</exception>"
+            );
+            code.AppendLineAt(
+                2,
+                "public "
+                    + modelType
+                    + ".ChangeSet CreateChangeSet() => TryCreateChangeSet(out var changes, out var conflicts) ? changes! : throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session could not be accepted.\" : \"A child edit session conflicts with changes in its parent session.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "public "
+                    + modelType
+                    + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
+            );
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Creates a patch describing the pending changes.</summary>"
@@ -255,7 +320,7 @@ internal static class SparseRelocatedEditSessionCore
         code.AppendLineAt(2, "/// <returns>The pending patch.</returns>");
         code.AppendLineAt(
             2,
-            "public " + modelType + ".Patch CreatePatch() => _session.CreatePatch();"
+            "public " + modelType + ".Patch CreatePatch() => CreateChangeSet().ToPatch();"
         );
         code.AppendLineAt(2, "/// <summary>Enumerates the changed member paths.</summary>");
         code.AppendLineAt(2, "/// <returns>The changed paths in generated member order.</returns>");
@@ -263,7 +328,7 @@ internal static class SparseRelocatedEditSessionCore
             2,
             "public global::System.Collections.Generic.IReadOnlyList<"
                 + SparseFragmentPatchEmitter.GetPathType(patchDialect)
-                + "> EnumerateChangedPaths() => _session.EnumerateChangedPaths();"
+                + "> EnumerateChangedPaths() => CreateChangeSet().EnumerateChangedPaths();"
         );
         // Path-first semantic state inspection (issue #250); shared with the
         // model-nested session placement so both surfaces stay identical.
@@ -313,14 +378,12 @@ internal static class SparseRelocatedEditSessionCore
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        SparseEditSessionEmitter.AppendScopeMembers(
+        SparseEditSessionEmitter.AppendChildSessionApiMembers(
             code,
             modelType,
-            sessionSimple,
-            sessionInterfaceMetadataName,
-            openDraftStateInterfaceMetadataName,
             patchDialect,
-            config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null
+            config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
+            config
         );
         SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType, sessionSimple);
         code.AppendLineAt(
@@ -342,6 +405,14 @@ internal static class SparseRelocatedEditSessionCore
                 + " current, global::System.Action? onChanged) { _session = "
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
+        );
+        SparseEditSessionEmitter.AppendChildDraftMembers(
+            code,
+            modelType,
+            sessionSimple,
+            patchDialect,
+            config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
+            config
         );
         code.AppendLineAt(
             2,
@@ -387,15 +458,6 @@ internal static class SparseRelocatedEditSessionCore
                 "private " + descriptorsDialect.DescriptorSetInterface + "? __descriptors;"
             );
         }
-        code.AppendLineAt(2, "private int __sparse_open_draft_count;");
-        code.AppendLineAt(
-            2,
-            "private void __SparseRegisterOpenDraft() => __sparse_open_draft_count++;"
-        );
-        code.AppendLineAt(
-            2,
-            "private void __SparseUnregisterOpenDraft() => __sparse_open_draft_count--;"
-        );
         code.AppendLineAt(1, "}");
     }
 }

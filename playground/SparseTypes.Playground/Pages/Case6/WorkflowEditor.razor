@@ -1,13 +1,13 @@
+@using SparseTypes
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
-@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
 @implements IDisposable
 
 <FluentCard Class="pg-fluent-card">
     <div class="pg-card-head">
         <h3>Workflow and work-step order</h3>
-        <span class="pg-has-changes-badge @(_scope.HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(_scope.HasChanges ? "Edited" : "Current")
+        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
         </span>
     </div>
     <div class="pg-catalog-workflow-layout">
@@ -17,11 +17,11 @@
                 <span class="pg-hint">Drag the handle to reorder. Drop a template here to add it.</span>
             </div>
             <div class="pg-catalog-workflow-dropzone">
-                <FluentSortableList @key="_sortableListsVersion" TItem="CatalogWorkStep" Id="case6-workflow" Group="case6-work-steps"
-                    Items="_scope.Observable.Steps" Handle="true" Class="pg-roster-list"
+                <FluentSortableList @key="_sortableListsVersion" TItem="CatalogWorkStep.Observable" Id="case6-workflow" Group="case6-work-steps"
+                    Items="_draftSession.Observable.Steps" Handle="true" Class="pg-roster-list"
                     OnUpdate="OnSortableUpdate" OnAdd="OnTemplateAdded">
                     <ItemTemplate Context="step">
-                        <div class="@CatalogRowState.ClassFor(_displayBaseline.Steps, _scope.Observable.Steps, step, static item => item.Id, detectReorder: true)">
+                        <div class="@GetStepClass(step)">
                             <div class="pg-case6-step-line">
                                 <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
                                 <div class="pg-roster-field">
@@ -40,7 +40,7 @@
                                     <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
                                         Disabled="@(IndexOf(step.Id) == 0)" @onclick="() => MoveStep(step.Id, -1)">↑</FluentButton>
                                     <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                                        Disabled="@(IndexOf(step.Id) == _scope.Observable.Steps.Count - 1)"
+                                        Disabled="@(IndexOf(step.Id) == _draftSession.Observable.Steps.Count - 1)"
                                         @onclick="() => MoveStep(step.Id, 1)">↓</FluentButton>
                                     <FluentButton Appearance="ButtonAppearance.Default" Title="Remove step"
                                         @onclick="() => RemoveStep(step.Id)">✕</FluentButton>
@@ -49,7 +49,7 @@
                         </div>
                     </ItemTemplate>
                 </FluentSortableList>
-                @if (_scope.Observable.Steps.Count == 0)
+                @if (_draftSession.Observable.Steps.Count == 0)
                 {
                     <p class="pg-hint">Drop a prepared step here or add one from the list.</p>
                 }
@@ -84,9 +84,9 @@
         <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
     }
     <div class="pg-workflow-scope-actions">
-        <ScopeActions @ref="_scopeActions" TModel="CatalogWorkflow" Scope="_scope" HistoryProvider="GetHistory"
-            BeforeCommit="PrepareCommit" BeforeCommitFailureMessage="Resolve work-master drafts before saving the workflow."
-            OnCommitAttemptFinished="ReopenWorkMasterScopes" OnFinished="ReopenScope" OnChanged="OnHistoryChanged" />
+        <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
+            Accept="TryAcceptChildSession" Discard="DiscardChildSession"
+            OnFinished="RefreshBaseline" OnChanged="OnHistoryChanged" />
     </div>
 </FluentCard>
 
@@ -118,10 +118,7 @@
     private const string TemplateListId = "case6-work-step-templates";
 
     [Parameter, EditorRequired]
-    public CatalogSession Session { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public CatalogScopeCoordinator Scopes { get; set; } = null!;
+    public CatalogChildSessionHandle<CatalogWorkflow.EditSession> ChildSession { get; set; } = null!;
 
     [Parameter]
     public int BaselineVersion { get; set; }
@@ -132,39 +129,54 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private CatalogSession.Scope<CatalogWorkflow> _scope = null!;
+    private CatalogChildSessionHandle<CatalogWorkflow.EditSession>? _activeChildSession;
     private CatalogWorkflow.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
-    private ScopeActions<CatalogWorkflow>? _scopeActions;
+    private ChildSessionActions? _childSessionActions;
     private CatalogWorkflow _displayBaseline = null!;
     private int _seenBaselineVersion;
     private int _sortableListsVersion;
     private readonly Dictionary<string, string> _templateIdByStepId = new(StringComparer.Ordinal);
-    private IDisposable? _registration;
     private string? _error;
     private CatalogWorkStep[] AvailableTemplates =>
         Templates.Where(IsTemplateAvailable).ToArray();
 
-    public CatalogWorkflow? CurrentWorkflow => _scope?.Observable;
-    public bool HasChanges => _scope?.HasChanges == true;
+    public CatalogWorkflow? CurrentWorkflow => _draftSession?.GetModelForFrameworkAccess();
+    public bool HasChanges => ChildSession?.HasChanges == true;
+
+    public async Task<bool> AcceptChildSessionAsync()
+    {
+        if (_childSessionActions is not null)
+        {
+            return await _childSessionActions.AcceptChildSessionAsync();
+        }
+
+        var result = TryAcceptChildSession();
+        if (result.Accepted)
+        {
+            await RefreshBaseline();
+        }
+
+        return result.Accepted;
+    }
 
     protected override void OnInitialized()
     {
-        OpenScope();
+        SetActiveChildSession();
         _displayBaseline = SavedWorkflow.DeepClone();
         _seenBaselineVersion = BaselineVersion;
-        _registration = Scopes.Register(
-            CatalogScopeCoordinator.WorkflowId,
-            () => _scope?.HasChanges == true,
-            CommitCurrentScope,
-            CancelScope,
-            ReopenScopeSilently
-        );
     }
 
     protected override void OnParametersSet()
     {
-        if (_seenBaselineVersion == BaselineVersion || _scope is null)
+        if (!ReferenceEquals(_activeChildSession, ChildSession))
+        {
+            SetActiveChildSession();
+            _displayBaseline = SavedWorkflow.DeepClone();
+            _seenBaselineVersion = BaselineVersion;
+        }
+
+        if (_seenBaselineVersion == BaselineVersion || _activeChildSession is null)
         {
             return;
         }
@@ -181,66 +193,70 @@
 
     public void Dispose()
     {
-        _registration?.Dispose();
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
     }
 
-    private void OpenScope()
+    private void SetActiveChildSession()
     {
         _draftSession?.DisableHistory();
-        _scope?.Dispose();
-        _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Workflow);
-        _draftSession = _scope.Observable.CreateEditSession();
+        _activeChildSession = ChildSession;
+        _draftSession = ChildSession.Session;
         _history = _draftSession.EnableHistory();
         _sortableListsVersion++;
     }
 
-    private Task ReopenScope()
+    private Task RefreshBaseline()
     {
-        OpenScope();
-        _displayBaseline = _scope.Observable.DeepClone();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        _displayBaseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        _sortableListsVersion++;
         return OnChanged.InvokeAsync();
     }
 
-    private Task ReopenScopeSilently()
+    private bool GetHasChanges() => HasChanges;
+
+    private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
-        OpenScope();
-        _displayBaseline = _scope.Observable.DeepClone();
-        return Task.CompletedTask;
+        var accepted = ChildSession.TryAcceptChanges(out var conflicts);
+        return (accepted, conflicts);
     }
 
-    private void CancelScope()
+    private void DiscardChildSession()
     {
-        _draftSession?.DisableHistory();
-        _scope?.Cancel();
-        _scope = null!;
+        ChildSession.DiscardChanges();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        _displayBaseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
-
-    private Task<bool> CommitCurrentScope() =>
-        _scopeActions?.CommitScopeAsync() ?? Task.FromResult(true);
-
-    private async Task<bool> PrepareCommit()
-    {
-        if (!await Scopes.CommitWorkMastersAsync())
-        {
-            return false;
-        }
-
-        Scopes.CancelWorkMasters();
-        return true;
-    }
-
-    private Task ReopenWorkMasterScopes() => Scopes.ReopenWorkMastersAsync();
 
     private ISparseEditHistory GetHistory() => _history;
 
     private bool IsTemplateAvailable(CatalogWorkStep template) =>
         !_templateIdByStepId.Any(mapping =>
-            mapping.Value == template.Id && _scope.Observable.Steps.Any(step => step.Id == mapping.Key)
+            mapping.Value == template.Id && _draftSession.Observable.Steps.Any(step => step.Id == mapping.Key)
         );
 
-    private int IndexOf(string id) => _scope.Observable.Steps.FindIndex(step => step.Id == id);
+    private string GetStepClass(CatalogWorkStep.Observable step) =>
+        CatalogRowState.ClassFor<CatalogWorkStep, CatalogWorkStep.Observable>(
+            _displayBaseline.Steps,
+            _draftSession.Observable.Steps,
+            step,
+            static item => item.Id,
+            static item => item.Id,
+            detectReorder: true
+        );
+
+    private int IndexOf(string id)
+    {
+        for (var index = 0; index < _draftSession.Observable.Steps.Count; index++)
+        {
+            if (_draftSession.Observable.Steps[index].Id == id)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
 
     private static CatalogWorkStep CreateTemplate(
         string id,
@@ -276,7 +292,7 @@
         await AddStepAt(availableTemplates[args.OldIndex], args.NewIndex);
     }
 
-    private Task AddStep(CatalogWorkStep template) => AddStepAt(template, _scope.Observable.Steps.Count);
+    private Task AddStep(CatalogWorkStep template) => AddStepAt(template, _draftSession.Observable.Steps.Count);
 
     private async Task AddStepAt(CatalogWorkStep template, int insertAt)
     {
@@ -298,7 +314,7 @@
 
         var steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
         var targetIndex = Math.Clamp(insertAt, 0, steps.Count);
-        if (!steps.TryInsert(steps.Count, step, out var error))
+        if (!steps.TryInsert(targetIndex, step, out var error))
         {
             _error = $"Could not add the step ({error}).";
             return;
@@ -306,35 +322,7 @@
 
         _templateIdByStepId.Add(step.Id, template.Id);
         _error = null;
-        if (_scopeActions is null)
-        {
-            _error = "The workflow section draft is not ready to save.";
-            await NotifyWorkflowChanged();
-            return;
-        }
-
-        if (!await _scopeActions.CommitScopeAsync())
-        {
-            return;
-        }
-
-        var currentIndex = IndexOf(step.Id);
-        if (targetIndex >= currentIndex)
-        {
-            return;
-        }
-
-        steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
-        if (!steps.TryMove(currentIndex, targetIndex, out error))
-        {
-            _error = $"The step was added, but could not be moved to its drop position ({error}).";
-            await NotifyWorkflowChanged();
-            return;
-        }
-
-        _error = null;
         await NotifyWorkflowChanged();
-        await _scopeActions.CommitScopeAsync();
     }
 
     private async Task RemoveStep(string id)

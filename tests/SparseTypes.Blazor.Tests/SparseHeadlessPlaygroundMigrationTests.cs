@@ -39,8 +39,7 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
         ISparseEditSession<TModel, TChangeSet> session,
         Func<TChangeSet> createChangeSet,
         Func<TChangeSet, bool> isEmpty,
-        Func<TChangeSet, IReadOnlyList<SparsePath>> enumerateChangedPaths,
-        Func<bool> hasOpenDrafts
+        Func<TChangeSet, IReadOnlyList<SparsePath>> enumerateChangedPaths
     )
         where TModel : class
         where TChangeSet : class =>
@@ -50,7 +49,6 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
             CreateChangeSet = createChangeSet,
             IsEmpty = isEmpty,
             EnumerateChangedPaths = enumerateChangedPaths,
-            HasOpenDrafts = hasOpenDrafts,
         };
 
     [Test]
@@ -245,7 +243,7 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
     }
 
     [Test]
-    public void GroupPrepareCapturesImmutablyRejectsDraftsAndAcksPerSection()
+    public void GroupPrepareCapturesChildSessionsImmutablyAndAcksPerSection()
     {
         var profile = Order();
         var profileSession = profile.CreateEditSession();
@@ -258,8 +256,7 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
                 profileSession,
                 profileSession.CreateChangeSet,
                 static changes => changes.IsEmpty,
-                static changes => changes.EnumerateChangedPaths(),
-                () => profileSession.HasOpenDrafts
+                static changes => changes.EnumerateChangedPaths()
             )
         );
         var connectionHandle = group.Register(
@@ -268,24 +265,21 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
                 connectionSession,
                 connectionSession.CreateChangeSet,
                 static changes => changes.IsEmpty,
-                static changes => changes.EnumerateChangedPaths(),
-                () => connectionSession.HasOpenDrafts
+                static changes => changes.EnumerateChangedPaths()
             )
         );
 
         profileSession.Observable.Number = "ORD-2";
         connectionSession.Observable.Name = "Board v2";
-
-        // An open draft rejects preparation without capturing anything.
-        var draft = profileSession.OpenScope(OrderDto.SparsePath.Customer);
-        var rejected = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
-        rejected.Issues.ShouldContain(issue => issue.SectionId == "profile");
-        draft.Cancel();
+        var customer = profileSession.OpenChildSession(OrderDto.SparsePath.Customer);
+        customer.Session.Observable.Name = "Grace";
 
         var submission = group.Prepare();
         submission.Sections.Count.ShouldBe(2);
         var captured = submission.Get(profileHandle);
         captured.Changes.Number.After.Value.ShouldBe("ORD-2");
+        captured.Changes.Customer.Name.After.Value.ShouldBe("Grace");
+        customer.HasChanges.ShouldBeFalse();
 
         // Post-capture edits never rewrite the captured submission.
         profileSession.Observable.Number = "ORD-3";

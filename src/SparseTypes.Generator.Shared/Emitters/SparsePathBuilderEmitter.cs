@@ -18,11 +18,13 @@ internal static class SparsePathBuilderEmitter
         SharedIndentedBuilder code,
         string modelType,
         ImmutableArray<SparseMemberModel> members,
-        SparseFragmentPatchEmitter.SparsePatchDialect dialect
+        SparseFragmentPatchEmitter.SparsePatchDialect dialect,
+        SparseModelInfo? model = null,
+        SparseGeneratorConfig? config = null
     )
     {
         AppendEntryPoint(code, modelType, dialect);
-        AppendPathsClass(code, modelType, members, dialect);
+        AppendPathsClass(code, modelType, members, dialect, model: model, config: config);
     }
 
     /// <summary>Emits the model-facing entry point forwarding to the paths class.</summary>
@@ -72,18 +74,62 @@ internal static class SparsePathBuilderEmitter
         string modelType,
         ImmutableArray<SparseMemberModel> members,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
-        System.Func<string, string>? qualifyChildPaths = null
+        System.Func<string, string>? qualifyChildPaths = null,
+        SparseModelInfo? model = null,
+        SparseGeneratorConfig? config = null
     )
     {
         var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
+        string? childPathsType = null;
+        string? childPathInterface = null;
+        string? childSessionType = null;
+        if (
+            model is { } modelInfo
+            && config is { } generatorConfig
+            && !modelInfo.IsStruct
+            && generatorConfig.EditChildPathInterfaceMetadataName is { Length: > 0 } childInterface
+            && generatorConfig.EditSessionWithPathsInterfaceMetadataName is { Length: > 0 }
+            && generatorConfig.EditSessionInterfaceMetadataName is { Length: > 0 }
+            && SparseEditSessionEmitter.HasChildSessionSurface(generatorConfig, dialect)
+        )
+        {
+            childPathsType = SparseEditSessionPathsEmitter.GetPathsType(
+                modelInfo,
+                generatorConfig,
+                code.CancellationToken
+            );
+            childSessionType =
+                modelType
+                + "."
+                + SparseGeneratedPlacement.ResolveUiTypeName(
+                    "EditSession",
+                    members.Select(static member => member.Property.Name)
+                );
+            childPathInterface =
+                "global::"
+                + childInterface
+                + "<TRoot, "
+                + modelType
+                + ", "
+                + childPathsType
+                + ", "
+                + childSessionType
+                + ">";
+        }
         code.AppendLineAt(1, "/// <summary>Root path builder for typed navigation.</summary>");
         code.AppendLineAt(
             1,
             "/// <typeparam name=\"TRoot\">The root model the path navigates from.</typeparam>"
         );
-        var pathInterface = dialect.TypedPathInterfaceType is { Length: > 0 } typedPathInterface
-            ? " : " + typedPathInterface + "<TRoot, " + modelType + ">"
-            : string.Empty;
+        var pathInterface = string.Empty;
+        if (childPathInterface is not null)
+        {
+            pathInterface = " : " + childPathInterface;
+        }
+        else if (dialect.TypedPathInterfaceType is { Length: > 0 } typedPathInterface)
+        {
+            pathInterface = " : " + typedPathInterface + "<TRoot, " + modelType + ">";
+        }
         code.AppendLineAt(
             1,
             (dialect.PathIsValueType ? "public readonly struct " : "public sealed class ")
@@ -157,9 +203,74 @@ internal static class SparsePathBuilderEmitter
         }
 
         code.Append(navigations.ToString());
+        if (
+            childPathInterface is not null
+            && childPathsType is not null
+            && childSessionType is not null
+            && model is not null
+        )
+        {
+            AppendChildEditSessionFactory(
+                code,
+                modelType,
+                childPathsType,
+                childPathInterface,
+                childSessionType,
+                pathType
+            );
+        }
+
         code.AppendLineAt(2, "internal SparsePaths(" + pathType + " path) => _storedPath = path;");
         AppendPathStorage(code, pathType, "", dialect.PathIsValueType, 2);
         code.AppendLineAt(1, "}");
+    }
+
+    private static void AppendChildEditSessionFactory(
+        SharedIndentedBuilder code,
+        string modelType,
+        string childPathsType,
+        string childPathInterface,
+        string childSessionType,
+        string pathType
+    )
+    {
+        code.AppendLineAt(
+            2,
+            childPathsType
+                + " "
+                + childPathInterface
+                + ".CreateRootPaths() => new "
+                + childPathsType
+                + "("
+                + pathType
+                + ".Root(typeof("
+                + modelType
+                + ")));"
+        );
+        code.AppendLineAt(
+            2,
+            modelType
+                + " "
+                + childPathInterface
+                + ".Clone("
+                + modelType
+                + " model) => "
+                + modelType
+                + ".Fragment.From(model).ToModel();"
+        );
+        code.AppendLineAt(
+            2,
+            childSessionType
+                + " "
+                + childPathInterface
+                + ".CreateEditSession("
+                + modelType
+                + " baseline, "
+                + modelType
+                + " current, global::System.Action? onChanged) => new "
+                + childSessionType
+                + "(baseline, current, onChanged);"
+        );
     }
 
     private static void AppendMemberNavigation(

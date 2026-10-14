@@ -1,12 +1,12 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Each tab owns a scoped draft and its own Undo/Redo history. Commit moves a scope into the catalog session; tab navigation asks how to resolve an uncommitted draft.</p>
+    <p class="pg-hint">Each tab edits a child model through its own typed EditSession and Undo/Redo history. Saving a section accepts that child session into its parent; work-master sessions are nested under the workflow session.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Shapes" Id="code-6-shapes">
             <MonacoView Content="@ShapesCode" Language="csharp" Height="390px" />
         </FluentTab>
-        <FluentTab Header="Section scopes" Id="code-6-scopes">
+        <FluentTab Header="Child sessions" Id="code-6-scopes">
             <MonacoView Content="@ScopesCode" Language="csharp" Height="330px" />
         </FluentTab>
         <FluentTab Header="Workflow and keyed scopes" Id="code-6-workflow">
@@ -61,43 +61,43 @@
     private const string ScopesCode = """
         var session = catalog.CreateEditSession();
 
-        using var overview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
-        overview.Observable.Name = "Modular Drive Unit";
-        if (!overview.TryCommit(out var conflicts))
+        using var overview = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview);
+        overview.Session.Observable.Name = "Modular Drive Unit";
+        if (!overview.TryAcceptChanges(out var conflicts))
         {
             ShowConflicts(conflicts);
         }
 
-        using var commercial = session.OpenScope(EnterpriseCatalogItem.SparsePath.Commercial);
-        commercial.Observable.UnitPrice = 2480m;
-        commercial.TryCommit(out _);
+        using var commercial = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Commercial);
+        commercial.Session.Observable.UnitPrice = 2480m;
+        commercial.TryAcceptChanges(out _);
 
         var changes = session.CreateChangeSet();
-        // Each scope commits one nested draft into the same typed session.
+        // Each child session contributes changes to the same typed session.
         """;
 
     private const string WorkflowCode = """
-        var workflow = session.OpenScope(EnterpriseCatalogItem.SparsePath.Workflow);
-        workflow.Observable.Steps.Add(new CatalogWorkStep
+        var workflow = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Workflow);
+        var steps = workflow.Session.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
+        steps.TryInsert(steps.Count, new CatalogWorkStep
         {
             Id = "new-step",
             Name = "Calibration",
             Master = new CatalogWorkMaster(),
-        });
-        workflow.TryCommit(out _);
+        }, out _);
 
-        var stepMaster = session.OpenScope(
-            EnterpriseCatalogItem.SparsePath.Workflow.Steps.Key("new-step").Master);
-        stepMaster.Observable.WorkCenter = "WC-17";
-        stepMaster.TryCommit(out _);
+        using var stepMaster = workflow.Session.OpenChildSession(
+            CatalogWorkflow.SparsePath.Steps.Key("new-step").Master);
+        stepMaster.Session.Observable.WorkCenter = "WC-17";
+        stepMaster.TryAcceptChanges(out _);
+        workflow.TryAcceptChanges(out _);
         """;
 
     private const string HistoryCode = """
         var session = catalog.CreateEditSession();
-        var overview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
-        var draft = overview.Observable.CreateEditSession();
-        var history = draft.EnableHistory();
-        draft.Observable.Active = false;
+        var overview = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview);
+        var history = overview.Session.EnableHistory();
+        overview.Session.Observable.Active = false;
 
         if (history.CanUndo)
         {
@@ -105,13 +105,8 @@
         }
 
         history.Redo();
-        draft.DisableHistory();
-        overview.TryCommit(out _);
-
-        // Reopen the scope and create a new history after commit.
-        var nextOverview = session.OpenScope(EnterpriseCatalogItem.SparsePath.Overview);
-        var nextDraft = nextOverview.Observable.CreateEditSession();
-        var nextHistory = nextDraft.EnableHistory();
+        overview.TryAcceptChanges(out _);
+        // Accepting the child session resets its history baseline.
 
         var changes = session.CreateChangeSet();
         if (changes.IsChanged)
@@ -121,7 +116,5 @@
             PresentDiff(beforeJson, afterJson);
             session.AcceptChanges();
         }
-
-        nextDraft.DisableHistory();
         """;
 }

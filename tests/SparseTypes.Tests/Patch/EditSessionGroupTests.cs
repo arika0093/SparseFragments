@@ -311,42 +311,17 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
-    public void PrepareRejectsOpenDraftsAndUnreadySections()
+    public void PrepareChecksReadinessWithoutRequiringDraftTracking()
     {
         var model = new NeutralSessionModel { Name = "before" };
         var session = model.CreateEditSession();
-        var hasDrafts = true;
         var isReady = false;
         var group = new EditSessionGroup();
-        var untrackedSession = new UntrackedSession<
-            NeutralSessionModel,
-            NeutralSessionModel.ChangeSet
-        >(session);
-        Should.Throw<ArgumentException>(() =>
-            group.Register(
-                "untracked",
-                new EditSessionGroupRegistration<NeutralSessionModel, NeutralSessionModel.ChangeSet>
-                {
-                    Session = untrackedSession,
-                    CreateChangeSet = session.CreateChangeSet,
-                    IsEmpty = static changes => changes.IsEmpty,
-                    EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
-                }
-            )
-        );
         group.Register(
             "profile",
-            Registration(
-                session,
-                hasOpenDrafts: () => hasDrafts,
-                validate: () => isReady ? null : "The section is not ready."
-            )
+            Registration(session, validate: () => isReady ? null : "The section is not ready.")
         );
 
-        var draftFailure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
-        draftFailure.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
-
-        hasDrafts = false;
         var readinessFailure = Should.Throw<EditSessionGroupValidationException>(() =>
             group.Prepare()
         );
@@ -359,31 +334,24 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
-    public void PrepareAutomaticallyRejectsGeneratedSessionScopes()
+    public void PrepareCapturesPendingChildSessions()
     {
-        var model = new KeyedServerHolder
+        var model = new ObservableHolder
         {
-            Items = [new KeyedServer { Id = "server", Name = "before" }],
+            Child = new ObservableChild { Name = "before", Count = 1 },
         };
         var session = model.CreateEditSession();
         var group = new EditSessionGroup();
-        group.Register(
-            "servers",
-            new EditSessionGroupRegistration<KeyedServerHolder, KeyedServerHolder.ChangeSet>
-            {
-                Session = session,
-                CreateChangeSet = session.CreateChangeSet,
-                IsEmpty = static changes => changes.IsEmpty,
-                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
-            }
-        );
-        using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
+        var handle = group.Register("child", Registration(session));
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "updated";
 
-        var failure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+        var submission = group.Prepare();
 
-        failure.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
-        scope.Cancel();
-        group.Prepare().Sections.ShouldBeEmpty();
+        submission.Get(handle).Changes.Child.IsChanged.ShouldBeTrue();
+        submission.Get(handle).Changes.Child.Name.After.Value.ShouldBe("updated");
+        child.HasChanges.ShouldBeFalse();
+        session.HasChanges.ShouldBeTrue();
     }
 
     [Test]
@@ -572,58 +540,11 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
-    public async Task PrepareAsyncRejectsDraftsOpenedWhileAwaiting()
+    public async Task PrepareAsyncKeepsChildEditsAfterCapturePending()
     {
-        var model = new NeutralSessionModel { Name = "before" };
-        var session = model.CreateEditSession();
-        var group = new EditSessionGroup();
-        var hasDrafts = false;
-        var validationStarted = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        var releaseValidation = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        group.Register(
-            "profile",
-            Registration(
-                session,
-                hasOpenDrafts: () => hasDrafts,
-                validateAsync: async (_, cancellationToken) =>
-                {
-                    validationStarted.TrySetResult(true);
-                    await releaseValidation.Task.WaitAsync(cancellationToken);
-                    return null;
-                }
-            )
-        );
-        session.Observable.Name = "submitted";
-
-        var prepareTask = group.PrepareAsync(CancellationToken.None);
-        await validationStarted.Task;
-        hasDrafts = true;
-        releaseValidation.TrySetResult(true);
-
-        EditSessionGroupValidationException? draftFailure = null;
-        try
+        var model = new ObservableHolder
         {
-            await prepareTask;
-        }
-        catch (EditSessionGroupValidationException exception)
-        {
-            draftFailure = exception;
-        }
-
-        draftFailure.ShouldNotBeNull();
-        draftFailure!.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
-    }
-
-    [Test]
-    public async Task PrepareAsyncRejectsNestedScopeOpenedWhileAwaiting()
-    {
-        var model = new KeyedServerHolder
-        {
-            Items = [new KeyedServer { Id = "server", Name = "before" }],
+            Child = new ObservableChild { Name = "before", Count = 1 },
         };
         var session = model.CreateEditSession();
         var group = new EditSessionGroup();
@@ -633,41 +554,31 @@ public sealed class EditSessionGroupTests
         var releaseValidation = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        group.Register(
-            "servers",
-            new EditSessionGroupRegistration<KeyedServerHolder, KeyedServerHolder.ChangeSet>
-            {
-                Session = session,
-                CreateChangeSet = session.CreateChangeSet,
-                IsEmpty = static changes => changes.IsEmpty,
-                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
-                ValidateAsync = async (_, cancellationToken) =>
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateAsync: async (_, cancellationToken) =>
                 {
                     validationStarted.TrySetResult(true);
                     await releaseValidation.Task.WaitAsync(cancellationToken);
                     return null;
-                },
-            }
+                }
+            )
         );
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "submitted";
 
         var prepareTask = group.PrepareAsync(CancellationToken.None);
         await validationStarted.Task;
-        using var scope = session.OpenScope(KeyedServerHolder.SparsePath.Items.Key("server"));
+        child.Session.Observable.Count = 2;
         releaseValidation.TrySetResult(true);
 
-        EditSessionGroupValidationException? scopeFailure = null;
-        try
-        {
-            await prepareTask;
-        }
-        catch (EditSessionGroupValidationException exception)
-        {
-            scopeFailure = exception;
-        }
-
-        scopeFailure.ShouldNotBeNull();
-        scopeFailure!.Issues.ShouldHaveSingleItem().Message.ShouldContain("open edit draft");
-        scope.Cancel();
+        var submission = await prepareTask;
+        var captured = submission.Get(handle);
+        captured.Changes.Child.Name.After.Value.ShouldBe("submitted");
+        captured.Changes.Child.Count.IsChanged.ShouldBeFalse();
+        child.HasChanges.ShouldBeTrue();
     }
 
     [Test]
@@ -892,7 +803,6 @@ public sealed class EditSessionGroupTests
         NeutralSessionModel.ChangeSet
     > Registration(
         NeutralSessionModel.EditSession session,
-        Func<bool>? hasOpenDrafts = null,
         Func<string?>? validate = null,
         Func<NeutralSessionModel.ChangeSet, CancellationToken, Task<string?>>? validateAsync = null,
         bool reconcile = false,
@@ -905,7 +815,6 @@ public sealed class EditSessionGroupTests
             CreateChangeSet = createChangeSet ?? session.CreateChangeSet,
             IsEmpty = static changes => changes.IsEmpty,
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
-            HasOpenDrafts = hasOpenDrafts ?? (() => false),
             Validate = validate,
             ValidateChanges = validateChanges,
             ValidateAsync = validateAsync,
@@ -921,28 +830,16 @@ public sealed class EditSessionGroupTests
     private static EditSessionGroupRegistration<
         ObservableHolder,
         ObservableHolder.ChangeSet
-    > Registration(ObservableHolder.EditSession session) =>
+    > Registration(
+        ObservableHolder.EditSession session,
+        Func<ObservableHolder.ChangeSet, CancellationToken, Task<string?>>? validateAsync = null
+    ) =>
         new()
         {
             Session = session,
             CreateChangeSet = session.CreateChangeSet,
             IsEmpty = static changes => changes.IsEmpty,
             EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
-            HasOpenDrafts = static () => false,
+            ValidateAsync = validateAsync,
         };
-
-    private sealed class UntrackedSession<TModel, TChangeSet>(
-        ISparseEditSession<TModel, TChangeSet> inner
-    ) : ISparseEditSession<TModel, TChangeSet>
-        where TModel : class
-        where TChangeSet : class
-    {
-        public TModel Model => inner.Model;
-
-        public bool HasChanges => inner.HasChanges;
-
-        public void AcceptChanges() => inner.AcceptChanges();
-
-        public void AcceptChanges(TChangeSet changes) => inner.AcceptChanges(changes);
-    }
 }

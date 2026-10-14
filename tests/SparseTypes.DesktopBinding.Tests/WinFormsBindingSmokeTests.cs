@@ -151,7 +151,7 @@ public sealed class WinFormsBindingSmokeTests
     }
 
     [Test]
-    public void ScopeLifecycleStaysExplicit()
+    public void ChildSessionAcceptanceStaysExplicit()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -162,14 +162,14 @@ public sealed class WinFormsBindingSmokeTests
         {
             var model = Order();
             var session = model.CreateEditSession();
-            using var scope = session.OpenScope(DesktopOrder.SparsePath.Lines.Key("b"));
+            using var child = session.OpenChildSession(DesktopOrder.SparsePath.Lines.Key("b"));
 
-            scope.Observable.Name = "draft";
+            child.Session.Observable.Name = "draft";
 
             model.Lines.First(line => line.Id == "b").Name.ShouldBe("second");
-            session.HasChanges.ShouldBeFalse();
+            session.HasChanges.ShouldBeTrue();
 
-            scope.TryCommit(out var conflicts).ShouldBeTrue();
+            child.TryAcceptChanges(out var conflicts).ShouldBeTrue();
 
             conflicts.ShouldBeNull();
             model.Lines.First(line => line.Id == "b").Name.ShouldBe("draft");
@@ -178,7 +178,7 @@ public sealed class WinFormsBindingSmokeTests
     }
 
     [Test]
-    public void ScopeExposesNoEditableObjectContract()
+    public void ChildSessionExposesNoEditableObjectContract()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -188,9 +188,10 @@ public sealed class WinFormsBindingSmokeTests
         StaHelper.Run(() =>
         {
             var session = Order().CreateEditSession();
-            using var scope = session.OpenScope(DesktopOrder.SparsePath.Lines.Key("a"));
+            using var child = session.OpenChildSession(DesktopOrder.SparsePath.Lines.Key("a"));
 
-            scope.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+            child.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
+            child.Session.GetType().GetInterfaces().ShouldNotContain(typeof(IEditableObject));
             session.Observable.Lines.ShouldNotBeAssignableTo<IBindingList>();
         });
     }

@@ -200,8 +200,7 @@ internal static class ProbeSurface
             ),
             HintNameSuffix: ".Probe.g.cs",
             PromotedHintNameSuffix: ".ProbePromoted.g.cs",
-            StructuralHostPrefix: "__ProbeHost_",
-            OpenDraftStateInterfaceMetadataName: "PackageShared.ISessionOpenDraftState"
+            StructuralHostPrefix: "__ProbeHost_"
         );
         var descriptorErrors = SparseDescriptorCapabilities.ValidatePrerequisites(
             downstreamConfig,
@@ -278,8 +277,6 @@ internal static class ProbeSurface
                 + descriptorCapability
                 + " descriptor-errors="
                 + descriptorErrors.Length
-                + " open-draft-state="
-                + downstreamConfig.OpenDraftStateInterfaceMetadataName
                 + " kernels="
                 + kernelKinds
                 + " kernel-bytes="

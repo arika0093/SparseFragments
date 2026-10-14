@@ -29,12 +29,11 @@ submission and must not inspect the live session. `ValidateAsync` is the
 asynchronous submission validator. It receives the captured change set and a
 cancellation token, paired with `ValidateChanges` for synchronous coverage.
 
-`Prepare` checks every registered section, including unchanged sections. It
-rejects open drafts and readiness failures before returning a submission. A
-generated session reports root and nested scopes through
-`ISparseEditSessionOpenDraftState`. Custom sessions with open drafts must
-provide `HasOpenDrafts` or implement that interface. Registration fails when
-neither source can report draft state.
+`Prepare` checks every registered section, including unchanged sections, and
+evaluates readiness before returning a submission. A generated session's
+`CreateChangeSet` accepts pending child sessions and descendants before
+capturing the root change set. A child-session conflict makes capture fail;
+the group reports the exception message as a validation issue.
 
 ## Preparing and acknowledging changes
 
@@ -48,20 +47,20 @@ not change the submission. Post-capture edits remain pending on the live
 session.
 
 Preparation follows capture, readiness, and submission validation in that
-order. Capture produces immutable snapshots. Readiness evaluates open drafts
-and the live `Validate` hook. Submission validation runs `ValidateChanges`
-and `ValidateAsync` against the captured change sets. A synchronous validator
+order. Capture produces immutable snapshots and accepts pending child
+sessions. Readiness evaluates the live `Validate` hook. Submission validation
+runs `ValidateChanges` and `ValidateAsync` against the captured change sets. A synchronous validator
 that throws (other than cancellation) produces a validation issue with the
 exception message. An asynchronous validator that throws produces a
 validation issue the same way, while cancellation propagates as
 `OperationCanceledException`.
 
-`PrepareAsync` re-evaluates a limited set after its awaits. It checks the
-open-draft policy again, so drafts opened while awaiting fail validation. It
-checks whether a section was unregistered or replaced during validation. It
-checks whether a section baseline revision advanced during validation, for
-example through `AcceptChanges` of an earlier submission. Any of these
-changes fail the in-flight preparation with
+`PrepareAsync` re-evaluates a limited set after its awaits. Child edits made
+after capture remain pending on the live session and do not change the
+submission. It checks whether a section was unregistered or replaced during
+validation. It checks whether a section baseline revision advanced during
+validation, for example through `AcceptChanges` of an earlier submission.
+Any of these changes fail the in-flight preparation with
 `EditSessionGroupValidationException`. Ordinary local edits do not invalidate
 the captured submission. The live readiness hook runs before awaits and is
 not evaluated again after awaits.
@@ -117,9 +116,10 @@ same rule needs synchronous coverage in `Prepare`.
 
 `Unregister` and `Replace` require an explicit
 `EditSessionGroupRemovalPolicy`. `RequireClean` rejects a section with pending
-changes or open drafts. `DetachWithPendingChanges` allows removal or
-replacement while leaving the old session and any drafts untouched. Replacement
-returns a new handle and invalidates the previous handle and its submissions.
+changes, including changes in child sessions. `DetachWithPendingChanges`
+allows removal or replacement while leaving the old session and its child
+sessions untouched. Replacement returns a new handle and invalidates the
+previous handle and its submissions.
 
 The group serializes its own registration and acknowledgement bookkeeping. It
 cannot make concurrently edited sessions into one atomic snapshot; callers

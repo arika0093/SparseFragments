@@ -8,10 +8,10 @@ namespace SparseTypes;
 /// <summary>Controls what unregistering or replacing a changed session does.</summary>
 public enum EditSessionGroupRemovalPolicy
 {
-    /// <summary>Reject removal while the session has changes or open drafts.</summary>
+    /// <summary>Reject removal while the session has changes.</summary>
     RequireClean,
 
-    /// <summary>Remove the registration while leaving its session and drafts untouched.</summary>
+    /// <summary>Remove the registration while leaving its session untouched.</summary>
     DetachWithPendingChanges,
 }
 
@@ -38,8 +38,8 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     /// Gets a live-session readiness error, or <see langword="null"/> when the section may be submitted.
     /// </summary>
     /// <remarks>
-    /// This readiness hook may inspect the current mutable session, open drafts, UI state,
-    /// or permission to submit. It does not receive the captured submission and must not
+    /// This readiness hook may inspect the current mutable session, UI state, or permission
+    /// to submit. It does not receive the captured submission and must not
     /// be used as validation of an earlier immutable change set. Use
     /// <see cref="ValidateChanges"/> or <see cref="ValidateAsync"/> to validate the captured data.
     /// </remarks>
@@ -63,12 +63,6 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     /// submission. Edits made while validation awaits do not change the value observed here.
     /// </remarks>
     public Func<TChangeSet, CancellationToken, Task<string?>>? ValidateAsync { get; init; }
-
-    /// <summary>
-    /// Reports open drafts. If omitted, the session must implement
-    /// <see cref="ISparseEditSessionOpenDraftState"/>.
-    /// </summary>
-    public Func<bool>? HasOpenDrafts { get; init; }
 
     /// <summary>
     /// Reconciles an acknowledged change set with an authoritative persisted model.
