@@ -737,15 +737,18 @@ public sealed class SparseSessionScopeTests
         var live = Order();
         using var harness = await ScopeHarness.CreateAsync(live.CreateEditSession());
         var parent = (OrderDto.EditSession)harness.Scope.Session!;
-        var child = harness.Consumer.ScopeContext!.OpenChildSession(
+        var typedChild = harness.Consumer.ScopeContext!.OpenChildSession(
             parent,
             OrderDto.SparsePath.Customer
         );
+        ISparseChildEditContext<OrderCustomer, SparseConflict> child = typedChild;
+        var childSession = typedChild.Session;
+        ReferenceEquals(child.Session, childSession).ShouldBeTrue();
 
-        child.Session.Observable.Name = "child";
+        childSession.Observable.Name = "child";
         child.CanUndo.ShouldBeTrue();
         child.Undo();
-        child.Session.Observable.Name.ShouldBe("Ada");
+        childSession.Observable.Name.ShouldBe("Ada");
         child.Redo();
 
         parent.Observable.Customer!.Name = "parent";
@@ -756,9 +759,9 @@ public sealed class SparseSessionScopeTests
 
         child.DiscardChanges();
         child.HasChanges.ShouldBeFalse();
-        child.Session.Observable.Name.ShouldBe("Ada");
+        childSession.Observable.Name.ShouldBe("Ada");
 
-        child.Session.Observable.Email = "child@example.com";
+        childSession.Observable.Email = "child@example.com";
         child.TryAcceptChanges(out conflicts).ShouldBeTrue();
         conflicts.ShouldBeNull();
         live.Customer.Email.ShouldBe("child@example.com");

@@ -139,6 +139,7 @@ public sealed class SparseSessionScopeContext<TModel>
 /// <typeparam name="TConflict">The generated structured conflict type.</typeparam>
 /// <typeparam name="TSession">The generated child-model edit-session type.</typeparam>
 public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
+    : ISparseChildEditContext<TModel, TConflict>
     where TModel : class
     where TPaths : ISparseTypedPath<TModel, TModel>
     where TConflict : class
@@ -160,6 +161,8 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
     /// <summary>Gets the generated edit session for the child model.</summary>
     public TSession Session => _child.Session;
+
+    ISparseEditSession<TModel> ISparseChildEditContext<TModel, TConflict>.Session => Session;
 
     /// <summary>Gets the generated paths rooted at the child model.</summary>
     public TPaths Path => Session.Paths;

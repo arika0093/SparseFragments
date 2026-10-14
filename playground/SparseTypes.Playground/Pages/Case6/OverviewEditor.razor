@@ -1,86 +1,100 @@
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
-@implements IDisposable
 
-<FluentCard Class="pg-fluent-card">
-    <div class="pg-card-head">
-        <h3>Overview</h3>
-        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
-        </span>
-    </div>
-    <div class="pg-stack pg-edit-fields">
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.ItemCode, Draft.ItemCode) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">ItemCode <small>string</small></span>
-            <FluentTextInput Value="@Draft.ItemCode"
-                ValueChanged="@(value => Update(() => Draft.ItemCode = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Name, Draft.Name) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Name <small>string</small></span>
-            <FluentTextInput Value="@Draft.Name"
-                ValueChanged="@(value => Update(() => Draft.Name = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Category, Draft.Category) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Category <small>string</small></span>
-            <FluentTextInput Value="@Draft.Category"
-                ValueChanged="@(value => Update(() => Draft.Category = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Owner, Draft.Owner) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Owner <small>string</small></span>
-            <FluentTextInput Value="@Draft.Owner"
-                ValueChanged="@(value => Update(() => Draft.Owner = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(_baseline.Active != Draft.Active ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Active <small>bool</small></span>
-            <FluentCheckbox Value="@Draft.Active"
-                ValueChanged="@(value => Update(() => Draft.Active = value))" />
-        </div>
-    </div>
-
-    <div class="pg-catalog-list-section">
-        <div class="pg-card-head">
-            <h4>Alternate codes</h4>
-            <div class="pg-actions">
-                <FluentTextInput Placeholder="New code" Value="@_newAlias"
-                    ValueChanged="@(value => _newAlias = value ?? string.Empty)" />
-                <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddAlias">Add</FluentButton>
+@if (_childSession is not null)
+{
+    <SparseEdit Session="_draftSession" Context="edit">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head">
+                <h3>Overview</h3>
+                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                </span>
             </div>
-        </div>
-        <div class="pg-roster-list">
-            @foreach (var alias in Draft.AlternateCodes)
-            {
-                <div class="@CatalogRowState.ClassFor(_baseline.AlternateCodes, Draft.AlternateCodes, alias, static value => value)">
-                    <div class="pg-catalog-inline-row">
-                        <span>@alias</span>
-                        <FluentButton Appearance="ButtonAppearance.Default" Title="Remove code"
-                            @onclick="() => RemoveAlias(alias)">✕</FluentButton>
+            <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+            <div class="pg-stack pg-edit-fields">
+                <SparseField Path="edit.Path.ItemCode" Context="itemCode">
+                    <div class="pg-row pg-session-field @(itemCode.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">ItemCode <small>string</small></span>
+                        <FluentTextInput Value="@itemCode.Value" ValueChanged="itemCode.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Name" Context="name">
+                    <div class="pg-row pg-session-field @(name.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Name <small>string</small></span>
+                        <FluentTextInput Value="@name.Value" ValueChanged="name.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Category" Context="category">
+                    <div class="pg-row pg-session-field @(category.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Category <small>string</small></span>
+                        <FluentTextInput Value="@category.Value" ValueChanged="category.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Owner" Context="owner">
+                    <div class="pg-row pg-session-field @(owner.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Owner <small>string</small></span>
+                        <FluentTextInput Value="@owner.Value" ValueChanged="owner.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Active" Context="active">
+                    <div class="pg-row pg-session-field @(active.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Active <small>bool</small></span>
+                        <FluentCheckbox Value="@active.Value" ValueChanged="active.ValueChanged" />
+                    </div>
+                </SparseField>
+            </div>
+
+            <div class="pg-catalog-list-section">
+                <div class="pg-card-head">
+                    <h4>Alternate codes</h4>
+                    <div class="pg-actions">
+                        <FluentTextInput Placeholder="New code" @bind-Value="_newAlias" />
+                        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddAlias">Add</FluentButton>
                     </div>
                 </div>
-            }
-            @foreach (var removed in _baseline.AlternateCodes.Where(alias =>
-                !Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase)))
-            {
-                <div class="pg-roster-row pg-removed">
-                    <div class="pg-catalog-inline-row">
-                        <span>@removed</span>
-                        <span class="pg-change-remove">Removed</span>
-                    </div>
+                <div class="pg-roster-list">
+                    @foreach (var alias in Draft.AlternateCodes)
+                    {
+                        <div class="@(_baseline.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase) ? "pg-roster-row" : "pg-roster-row pg-added")">
+                            <div class="pg-catalog-inline-row">
+                                <span>@alias</span>
+                                <FluentButton Appearance="ButtonAppearance.Default" Title="Remove code"
+                                    @onclick="() => RemoveAlias(alias)">✕</FluentButton>
+                            </div>
+                        </div>
+                    }
+                    @foreach (var removed in _baseline.AlternateCodes.Where(alias =>
+                        !Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase)))
+                    {
+                        <div class="pg-roster-row pg-removed">
+                            <div class="pg-catalog-inline-row">
+                                <span>@removed</span>
+                                <span class="pg-change-remove">Removed</span>
+                            </div>
+                        </div>
+                    }
                 </div>
-            }
-        </div>
-    </div>
-    <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
-        <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
-        <span class="pg-lg"><span class="pg-dot"></span>edited</span>
-    </div>
-    <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
-        Accept="TryAcceptChildSession" Discard="DiscardChildSession" OnFinished="RefreshBaseline" OnChanged="OnChanged" />
-</FluentCard>
+            </div>
+            <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+                <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+                <span class="pg-lg"><span class="pg-dot"></span>edited</span>
+            </div>
+            <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
+                OnFinished="RefreshBaseline" />
+        </FluentCard>
+    </SparseEdit>
+}
 
 @code {
-    [Parameter, EditorRequired]
-    public CatalogSession Session { get; set; } = null!;
+    [CascadingParameter]
+    public ISparseEditSession<EnterpriseCatalogItem>? ParentSession { get; set; }
+
+    [CascadingParameter]
+    public SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
@@ -89,53 +103,38 @@
     public EventCallback OnChanged { get; set; }
 
     private CatalogSession? _parentSession;
-    private CatalogChildSessionHandle<CatalogOverview.EditSession> _childSession = null!;
+    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
+    private ISparseChildEditContext<CatalogOverview, SparseConflict>? _childSession;
     private CatalogOverview.EditSession _draftSession = null!;
-    private ISparseEditHistory _history = null!;
-    private ChildSessionActions? _childSessionActions;
     private CatalogOverview _baseline = null!;
-    private IDisposable? _registration;
     private string _newAlias = string.Empty;
-    public bool HasChanges => _childSession?.HasChanges == true;
     private CatalogOverview.Observable Draft => _draftSession.Observable;
-
-    protected override void OnInitialized()
-    {
-        OpenChildSession();
-        _registration = ChildSessions.Register(
-            CatalogChildSessionCoordinator.OverviewId,
-            GetHasChanges,
-            AcceptCurrentChildSession,
-            DiscardChildSession
-        );
-    }
+    private bool HasChanges => _childSession?.HasChanges == true;
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_parentSession, Session))
+        if (ReferenceEquals(_parentSession, ParentSession) && ReferenceEquals(_scopeContext, ScopeContext))
         {
-            OpenChildSession();
+            return;
         }
-    }
 
-    public void Dispose()
-    {
-        _registration?.Dispose();
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-    }
-
-    private void OpenChildSession()
-    {
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-        _parentSession = Session;
-        _childSession = CatalogChildSessionHandle.From(
-            Session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview)
+        _parentSession = ParentSession as CatalogSession
+            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
+        _scopeContext = ScopeContext
+            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
+        var childSession = _scopeContext.OpenChildSession(
+            _parentSession,
+            EnterpriseCatalogItem.SparsePath.Overview
         );
-        _draftSession = _childSession.Session;
-        _history = _draftSession.EnableHistory();
+        _childSession = childSession;
+        _draftSession = childSession.Session;
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+    }
+
+    private Task ReportStatus(bool hasChanges)
+    {
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.OverviewId, hasChanges);
+        return OnChanged.InvokeAsync();
     }
 
     private Task RefreshBaseline()
@@ -144,50 +143,40 @@
         return OnChanged.InvokeAsync();
     }
 
-    private Task<bool> AcceptCurrentChildSession() =>
-        _childSessionActions?.AcceptChildSessionAsync() ?? Task.FromResult(true);
-
-    private bool GetHasChanges() => HasChanges;
+    private bool GetHasChanges() => _childSession?.HasChanges == true;
+    private bool GetCanUndo() => _childSession?.CanUndo == true;
+    private bool GetCanRedo() => _childSession?.CanRedo == true;
+    private void Undo() => _childSession?.Undo();
+    private void Redo() => _childSession?.Redo();
 
     private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
-        var accepted = _childSession.TryAcceptChanges(out var conflicts);
+        var accepted = _childSession!.TryAcceptChanges(out var conflicts);
         return (accepted, conflicts);
     }
 
     private void DiscardChildSession()
     {
-        _childSession.DiscardChanges();
+        _childSession!.DiscardChanges();
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private ISparseEditHistory GetHistory() => _history;
-
-    private Task Update(Action update)
-    {
-        update();
-        return OnChanged.InvokeAsync();
-    }
-
-    private async Task AddAlias()
+    private Task AddAlias()
     {
         var alias = _newAlias.Trim();
         if (alias.Length == 0 || Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase))
         {
-            return;
+            return Task.CompletedTask;
         }
 
         Draft.AlternateCodes.Add(alias);
         _newAlias = string.Empty;
-        await OnChanged.InvokeAsync();
+        return Task.CompletedTask;
     }
 
     private Task RemoveAlias(string alias)
     {
         Draft.AlternateCodes.Remove(alias);
-        return OnChanged.InvokeAsync();
+        return Task.CompletedTask;
     }
-
-    private static bool IsChanged<TValue>(TValue before, TValue after) =>
-        !EqualityComparer<TValue>.Default.Equals(before, after);
 }

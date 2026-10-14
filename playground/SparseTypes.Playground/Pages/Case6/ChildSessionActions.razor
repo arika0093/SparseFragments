@@ -3,11 +3,11 @@
 
 <div class="pg-stack">
     <div class="pg-actions">
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CurrentHistory.CanUndo)" @onclick="Undo">
-            Undo (@CurrentHistory.UndoCount)
+        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo())" @onclick="UndoDraft">
+            Undo
         </FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CurrentHistory.CanRedo)" @onclick="Redo">
-            Redo (@CurrentHistory.RedoCount)
+        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo())" @onclick="RedoDraft">
+            Redo
         </FluentButton>
         <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
             Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
@@ -44,7 +44,16 @@
     public Func<bool> HasChanges { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public Func<ISparseEditHistory> HistoryProvider { get; set; } = null!;
+    public Func<bool> CanUndo { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<bool> CanRedo { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action Undo { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action Redo { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public Func<(bool Accepted, IReadOnlyList<SparseConflict>? Conflicts)> Accept { get; set; } = null!;
@@ -60,7 +69,6 @@
 
     private IReadOnlyList<SparseConflict> _conflicts = [];
     private string? _message;
-    private ISparseEditHistory CurrentHistory => HistoryProvider();
 
     public async Task<bool> AcceptChildSessionAsync()
     {
@@ -91,11 +99,11 @@
         await OnFinished.InvokeAsync();
     }
 
-    private async Task Undo()
+    private async Task UndoDraft()
     {
         try
         {
-            CurrentHistory.Undo();
+            Undo();
             _message = null;
             await OnChanged.InvokeAsync();
         }
@@ -105,11 +113,11 @@
         }
     }
 
-    private async Task Redo()
+    private async Task RedoDraft()
     {
         try
         {
-            CurrentHistory.Redo();
+            Redo();
             _message = null;
             await OnChanged.InvokeAsync();
         }

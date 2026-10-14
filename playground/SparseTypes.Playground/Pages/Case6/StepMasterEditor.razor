@@ -1,54 +1,66 @@
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
-@implements IDisposable
 
-@if (Step is not null && _childSession is not null && _draftSession is not null)
+@if (Step is not null && _childSession is not null)
 {
-<FluentCard Class="pg-fluent-card">
-    <div class="pg-card-head">
-        <div>
-            <h3>@Step.Name master</h3>
-            <p class="pg-hint">Step key: <code>@Step.Id</code>, team: @Step.ResponsibleTeam</p>
-        </div>
-        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
-        </span>
-    </div>
-    <div class="pg-stack pg-edit-fields">
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.WorkCenter, Draft.WorkCenter) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">WorkCenter <small>string</small></span>
-            <FluentTextInput Value="@Draft.WorkCenter"
-                ValueChanged="@(value => Update(() => Draft.WorkCenter = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Equipment, Draft.Equipment) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Equipment <small>string</small></span>
-            <FluentTextInput Value="@Draft.Equipment"
-                ValueChanged="@(value => Update(() => Draft.Equipment = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(_baseline.SetupMinutes != Draft.SetupMinutes ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">SetupMinutes <small>decimal</small></span>
-            <FluentNumberInput TValue="decimal" Value="@Draft.SetupMinutes"
-                ValueChanged="@(value => Update(() => Draft.SetupMinutes = value))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Instruction, Draft.Instruction) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Instruction <small>string</small></span>
-            <FluentTextInput Value="@Draft.Instruction"
-                ValueChanged="@(value => Update(() => Draft.Instruction = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(_baseline.SupervisorApproval != Draft.SupervisorApproval ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">SupervisorApproval <small>bool</small></span>
-            <FluentCheckbox Value="@Draft.SupervisorApproval"
-                ValueChanged="@(value => Update(() => Draft.SupervisorApproval = value))" />
-        </div>
-    </div>
-    <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
-        Accept="TryAcceptChildSession" Discard="DiscardChildSession" OnFinished="RefreshBaseline" OnChanged="OnChanged" />
-</FluentCard>
+    <SparseEdit Session="_draftSession" Context="edit">
+        <FluentCard Class="pg-fluent-card">
+            <div class="pg-card-head">
+                <div>
+                    <h3>@Step.Name master</h3>
+                    <p class="pg-hint">Step key: <code>@Step.Id</code>, team: @Step.ResponsibleTeam</p>
+                </div>
+                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                </span>
+            </div>
+            <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+            <div class="pg-stack pg-edit-fields">
+                <SparseField Path="edit.Path.WorkCenter" Context="workCenter">
+                    <div class="pg-row pg-session-field @(workCenter.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">WorkCenter <small>string</small></span>
+                        <FluentTextInput Value="@workCenter.Value" ValueChanged="workCenter.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Equipment" Context="equipment">
+                    <div class="pg-row pg-session-field @(equipment.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Equipment <small>string</small></span>
+                        <FluentTextInput Value="@equipment.Value" ValueChanged="equipment.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.SetupMinutes" Context="setupMinutes">
+                    <div class="pg-row pg-session-field @(setupMinutes.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">SetupMinutes <small>decimal</small></span>
+                        <FluentNumberInput TValue="decimal" Value="@setupMinutes.Value" ValueChanged="setupMinutes.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.Instruction" Context="instruction">
+                    <div class="pg-row pg-session-field @(instruction.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">Instruction <small>string</small></span>
+                        <FluentTextInput Value="@instruction.Value" ValueChanged="instruction.ValueChanged" />
+                    </div>
+                </SparseField>
+                <SparseField Path="edit.Path.SupervisorApproval" Context="supervisorApproval">
+                    <div class="pg-row pg-session-field @(supervisorApproval.IsChanged ? "pg-changed" : "")">
+                        <span class="pg-name notranslate" translate="no">SupervisorApproval <small>bool</small></span>
+                        <FluentCheckbox Value="@supervisorApproval.Value" ValueChanged="supervisorApproval.ValueChanged" />
+                    </div>
+                </SparseField>
+            </div>
+            <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
+                OnFinished="NotifyChanged" />
+        </FluentCard>
+    </SparseEdit>
 }
 
 @code {
-    [Parameter, EditorRequired]
-    public EnterpriseCatalogItem.EditSession Session { get; set; } = null!;
+    [CascadingParameter]
+    public ISparseEditSession<EnterpriseCatalogItem>? ParentSession { get; set; }
+
+    [CascadingParameter]
+    public SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
 
     [Parameter, EditorRequired]
     public CatalogWorkStep Step { get; set; } = null!;
@@ -60,89 +72,54 @@
     public EventCallback OnChanged { get; set; }
 
     private EnterpriseCatalogItem.EditSession? _parentSession;
-    private CatalogChildSessionHandle<CatalogWorkMaster.EditSession> _childSession = null!;
+    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
+    private ISparseChildEditContext<CatalogWorkMaster, SparseConflict>? _childSession;
     private CatalogWorkMaster.EditSession _draftSession = null!;
-    private ISparseEditHistory _history = null!;
-    private ChildSessionActions? _childSessionActions;
-    private CatalogWorkMaster _baseline = null!;
-    private IDisposable? _registration;
-    public bool HasChanges => _childSession?.HasChanges == true;
-    private CatalogWorkMaster.Observable Draft => _draftSession.Observable;
-
-    protected override void OnInitialized()
-    {
-        OpenChildSession();
-        _registration = ChildSessions.Register(
-            CatalogChildSessionCoordinator.WorkMasterId(Step.Id),
-            GetHasChanges,
-            AcceptCurrentChildSession,
-            DiscardChildSession
-        );
-    }
+    private string? _stepId;
+    private bool HasChanges => _childSession?.HasChanges == true;
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_parentSession, Session))
+        if (
+            ReferenceEquals(_parentSession, ParentSession)
+            && ReferenceEquals(_scopeContext, ScopeContext)
+            && _stepId == Step.Id
+        )
         {
-            OpenChildSession();
+            return;
         }
-        else if (_childSession is not null && !_childSession.HasChanges)
-        {
-            _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-        }
-    }
 
-    public void Dispose()
-    {
-        _registration?.Dispose();
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-    }
-
-    private void OpenChildSession()
-    {
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-        _parentSession = Session;
-        _childSession = CatalogChildSessionHandle.From(
-            Session.OpenChildSession(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id))
+        _parentSession = ParentSession as EnterpriseCatalogItem.EditSession
+            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
+        _scopeContext = ScopeContext
+            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
+        _stepId = Step.Id;
+        var childSession = _scopeContext.OpenChildSession(
+            _parentSession,
+            EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id)
         );
-        _draftSession = _childSession.Session;
-        _history = _draftSession.EnableHistory();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        _childSession = childSession;
+        _draftSession = childSession.Session;
     }
 
-    private Task RefreshBaseline()
+    private Task ReportStatus(bool hasChanges)
     {
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), hasChanges);
         return OnChanged.InvokeAsync();
     }
 
-    private Task<bool> AcceptCurrentChildSession() =>
-        _childSessionActions?.AcceptChildSessionAsync() ?? Task.FromResult(true);
-
-    private bool GetHasChanges() => HasChanges;
+    private Task NotifyChanged() => OnChanged.InvokeAsync();
+    private bool GetHasChanges() => _childSession?.HasChanges == true;
+    private bool GetCanUndo() => _childSession?.CanUndo == true;
+    private bool GetCanRedo() => _childSession?.CanRedo == true;
+    private void Undo() => _childSession?.Undo();
+    private void Redo() => _childSession?.Redo();
 
     private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
-        var accepted = _childSession.TryAcceptChanges(out var conflicts);
+        var accepted = _childSession!.TryAcceptChanges(out var conflicts);
         return (accepted, conflicts);
     }
 
-    private void DiscardChildSession()
-    {
-        _childSession.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-    }
-
-    private ISparseEditHistory GetHistory() => _history;
-
-    private Task Update(Action update)
-    {
-        update();
-        return OnChanged.InvokeAsync();
-    }
-
-    private static bool IsChanged<TValue>(TValue before, TValue after) =>
-        !EqualityComparer<TValue>.Default.Equals(before, after);
+    private void DiscardChildSession() => _childSession!.DiscardChanges();
 }

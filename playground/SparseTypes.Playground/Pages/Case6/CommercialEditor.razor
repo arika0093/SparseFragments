@@ -1,166 +1,107 @@
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
-@implements IDisposable
 
-<FluentCard Class="pg-fluent-card">
-    <div class="pg-card-head">
-        <h3>Commercial details</h3>
-        <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-            <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
-        </span>
-    </div>
-    <div class="pg-stack pg-edit-fields">
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Customer, Draft.Customer) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Customer <small>string</small></span>
-            <FluentTextInput Value="@Draft.Customer"
-                ValueChanged="@(value => Update(() => Draft.Customer = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Region, Draft.Region) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Region <small>string</small></span>
-            <FluentTextInput Value="@Draft.Region"
-                ValueChanged="@(value => Update(() => Draft.Region = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.ContractCode, Draft.ContractCode) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">ContractCode <small>string</small></span>
-            <FluentTextInput Value="@Draft.ContractCode"
-                ValueChanged="@(value => Update(() => Draft.ContractCode = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(IsChanged(_baseline.Currency, Draft.Currency) ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">Currency <small>string</small></span>
-            <FluentTextInput Value="@Draft.Currency"
-                ValueChanged="@(value => Update(() => Draft.Currency = value ?? string.Empty))" />
-        </div>
-        <div class="pg-row pg-session-field @(_baseline.UnitPrice != Draft.UnitPrice ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
-            <FluentNumberInput TValue="decimal" Value="@Draft.UnitPrice"
-                ValueChanged="@(value => Update(() => Draft.UnitPrice = value))" />
-        </div>
-        <div class="pg-row pg-session-field @(_baseline.AnnualVolume != Draft.AnnualVolume ? "pg-changed" : "")">
-            <span class="pg-name notranslate" translate="no">AnnualVolume <small>int</small></span>
-            <FluentNumberInput TValue="int" Value="@Draft.AnnualVolume"
-                ValueChanged="@(value => Update(() => Draft.AnnualVolume = value))" />
-        </div>
-    </div>
-
-    <div class="pg-catalog-list-section">
-        <div class="pg-card-head">
-            <h4>Price tiers</h4>
-            <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTier">Add price tier</FluentButton>
-        </div>
-        <div class="pg-roster-list">
-            @foreach (var tier in Draft.PriceTiers)
-            {
-                <div class="@CatalogRowState.ClassFor(_baseline.PriceTiers, Draft.PriceTiers, tier, static item => item.Code, static item => item.Code, hasChanged: HasTierChanged)">
-                    <div class="pg-catalog-inline-row">
-                        <div class="pg-catalog-tier-summary">
-                            <strong>@tier.Label</strong>
-                            <span>From @tier.MinimumQuantity units</span>
-                            <span>@tier.UnitPrice.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</span>
-                            <span>@tier.Discounts.Count discount bands</span>
-                        </div>
-                        <div class="pg-actions">
-                            <FluentButton Appearance="ButtonAppearance.Default" @onclick="() => OpenTier(tier)">Edit details</FluentButton>
-                            <FluentButton Appearance="ButtonAppearance.Default" Title="Remove tier"
-                                @onclick="() => RemoveTier(tier.Code)">✕</FluentButton>
-                        </div>
-                    </div>
-                </div>
-            }
-            @foreach (var removed in _baseline.PriceTiers.Where(tier =>
-                !Draft.PriceTiers.Any(current => current.Code == tier.Code)))
-            {
-                <div class="pg-roster-row pg-removed">
-                    <div class="pg-catalog-inline-row">
-                        <span>@removed.Label</span>
-                        <span class="pg-change-remove">Removed</span>
-                    </div>
-                </div>
-            }
-        </div>
-    </div>
-    <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
-        <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
-        <span class="pg-dot"></span>edited
-    </div>
-    <ChildSessionActions @ref="_childSessionActions" HasChanges="GetHasChanges" HistoryProvider="GetHistory"
-        Accept="TryAcceptChildSession" Discard="DiscardChildSession" OnFinished="RefreshBaseline" OnChanged="OnChanged" />
-</FluentCard>
-
-<FluentDialog @ref="_tierDialog" Hidden="@_tierDialogHidden" Modal="true" TrapFocus="true"
-    Class="pg-catalog-dialog" AriaLabel="Edit price tier">
-    <div class="pg-dialog-heading">
-        <h3>@(_selectedTier?.Label ?? "Price tier")</h3>
-    </div>
-    <div class="pg-dialog-body">
-        @if (_selectedTier is not null)
-        {
-            <div class="pg-stack pg-edit-fields">
-                <div class="pg-row pg-session-field @(IsChanged(_baselineTierLabel, _selectedTier.Label) ? "pg-changed" : "")">
-                    <span class="pg-name notranslate" translate="no">Label <small>string</small></span>
-                    <FluentTextInput Value="@_selectedTier.Label"
-                        ValueChanged="@(value => Update(() => _selectedTier.Label = value ?? string.Empty))" />
-                </div>
-                <div class="pg-row pg-session-field">
-                    <span class="pg-name notranslate" translate="no">MinimumQuantity <small>int</small></span>
-                    <FluentNumberInput TValue="int" Value="@_selectedTier.MinimumQuantity"
-                        ValueChanged="@(value => Update(() => _selectedTier.MinimumQuantity = value))" />
-                </div>
-                <div class="pg-row pg-session-field">
-                    <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
-                    <FluentNumberInput TValue="decimal" Value="@_selectedTier.UnitPrice"
-                        ValueChanged="@(value => Update(() => _selectedTier.UnitPrice = value))" />
-                </div>
-            </div>
-            <div class="pg-catalog-list-section">
+@if (_childSession is not null)
+{
+        <SparseEdit Session="_draftSession" Context="edit">
+            <FluentCard Class="pg-fluent-card">
                 <div class="pg-card-head">
-                    <h4>Discount bands</h4>
-                    <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddDiscountBand">Add band</FluentButton>
+                    <h3>Commercial details</h3>
+                    <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                        <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                    </span>
                 </div>
-                <div class="pg-roster-list">
-                    @foreach (var band in _selectedTier.Discounts)
-                    {
-                        <div class="@DiscountBandClass(band)">
-                            <div class="pg-catalog-discount-row">
-                                <FluentNumberInput TValue="int" Value="@band.MinimumQuantity"
-                                    ValueChanged="@(value => Update(() => band.MinimumQuantity = value))"
-                                    aria-label="Discount minimum quantity" />
-                                <FluentNumberInput TValue="decimal" Value="@band.DiscountPercent"
-                                    ValueChanged="@(value => Update(() => band.DiscountPercent = value))"
-                                    aria-label="Discount percent" />
-                                <FluentTextInput Value="@band.ApprovalRole"
-                                    ValueChanged="@(value => Update(() => band.ApprovalRole = value ?? string.Empty))"
-                                    aria-label="Approval role" />
-                                <FluentButton Appearance="ButtonAppearance.Default" Title="Remove discount band"
-                                    @onclick="() => RemoveDiscountBand(band.Code)">✕</FluentButton>
-                            </div>
+                <CatalogDraftStatus HasChanges="edit.HasChanges" OnChanged="ReportStatus" />
+                <div class="pg-stack pg-edit-fields">
+                    <SparseField Path="edit.Path.Customer" Context="customer">
+                        <div class="pg-row pg-session-field @(customer.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Customer <small>string</small></span>
+                            <FluentTextInput Value="@customer.Value" ValueChanged="customer.ValueChanged" />
                         </div>
-                    }
-                    @foreach (var removed in RemovedDiscountBands())
-                    {
-                        <div class="pg-roster-row pg-removed">
-                            <div class="pg-catalog-inline-row">
-                                <span>@removed.MinimumQuantity+ units · @removed.DiscountPercent% · @removed.ApprovalRole</span>
-                                <span class="pg-change-remove">Removed</span>
-                            </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.Region" Context="region">
+                        <div class="pg-row pg-session-field @(region.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Region <small>string</small></span>
+                            <FluentTextInput Value="@region.Value" ValueChanged="region.ValueChanged" />
                         </div>
-                    }
-                    @if (_selectedTier.Discounts.Count == 0)
-                    {
-                        <p class="pg-hint">No discount bands. Add a quantity break to this tier.</p>
-                    }
+                    </SparseField>
+                    <SparseField Path="edit.Path.ContractCode" Context="contractCode">
+                        <div class="pg-row pg-session-field @(contractCode.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">ContractCode <small>string</small></span>
+                            <FluentTextInput Value="@contractCode.Value" ValueChanged="contractCode.ValueChanged" />
+                        </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.Currency" Context="currency">
+                        <div class="pg-row pg-session-field @(currency.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">Currency <small>string</small></span>
+                            <FluentTextInput Value="@currency.Value" ValueChanged="currency.ValueChanged" />
+                        </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.UnitPrice" Context="unitPrice">
+                        <div class="pg-row pg-session-field @(unitPrice.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
+                            <FluentNumberInput TValue="decimal" Value="@unitPrice.Value" ValueChanged="unitPrice.ValueChanged" />
+                        </div>
+                    </SparseField>
+                    <SparseField Path="edit.Path.AnnualVolume" Context="annualVolume">
+                        <div class="pg-row pg-session-field @(annualVolume.IsChanged ? "pg-changed" : "")">
+                            <span class="pg-name notranslate" translate="no">AnnualVolume <small>int</small></span>
+                            <FluentNumberInput TValue="int" Value="@annualVolume.Value" ValueChanged="annualVolume.ValueChanged" />
+                        </div>
+                    </SparseField>
                 </div>
-            </div>
-        }
-    </div>
-    <div class="pg-dialog-footer">
-        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CloseTierDialog">Done</FluentButton>
-    </div>
-</FluentDialog>
+
+                <div class="pg-catalog-list-section">
+                    <div class="pg-card-head">
+                        <h4>Price tiers</h4>
+                        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTier">Add price tier</FluentButton>
+                    </div>
+                    <SparseField Path="edit.Path.PriceTiers" Context="tiers">
+                        @{ var roster = tiers.TryGetCollectionState(out var state) ? state : null; }
+                        <div class="pg-roster-list">
+                            @foreach (var tier in Draft.PriceTiers)
+                            {
+                                <SparseSessionScope @key="tier.Code" Session="_draftSession">
+                                    <CatalogPriceTierEditor Code="tier.Code"
+                                        State="@(roster?.GetItemState(tier.Code) ?? default)"
+                                        OpenOnLoad="@(_tierToOpen == tier.Code)"
+                                        OnOpened="ClearTierToOpen" OnRemove="RemoveTier"
+                                        OnChanged="ReportNestedStatus" />
+                                </SparseSessionScope>
+                            }
+                            @foreach (var removed in _baseline.PriceTiers.Where(tier =>
+                                !Draft.PriceTiers.Any(current => current.Code == tier.Code)))
+                            {
+                                <div class="pg-roster-row pg-removed">
+                                    <div class="pg-catalog-inline-row">
+                                        <span>@removed.Label</span>
+                                        <span class="pg-change-remove">Removed</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </SparseField>
+                </div>
+                <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
+                    <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
+                    <span class="pg-dot"></span>edited
+                </div>
+                <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                    Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
+                    OnFinished="RefreshBaseline" />
+            </FluentCard>
+        </SparseEdit>
+
+}
 
 @code {
-    [Parameter, EditorRequired]
-    public CatalogSession Session { get; set; } = null!;
+    [CascadingParameter]
+    public ISparseEditSession<EnterpriseCatalogItem>? ParentSession { get; set; }
+
+    [CascadingParameter]
+    public SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
@@ -169,56 +110,44 @@
     public EventCallback OnChanged { get; set; }
 
     private CatalogSession? _parentSession;
-    private CatalogChildSessionHandle<CatalogCommercialDetails.EditSession> _childSession = null!;
+    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
+    private ISparseChildEditContext<CatalogCommercialDetails, SparseConflict>? _childSession;
     private CatalogCommercialDetails.EditSession _draftSession = null!;
-    private ISparseEditHistory _history = null!;
-    private ChildSessionActions? _childSessionActions;
     private CatalogCommercialDetails _baseline = null!;
-    private CatalogPriceTier.Observable? _selectedTier;
-    private FluentDialog? _tierDialog;
-    private bool _tierDialogHidden = true;
-    private IDisposable? _registration;
-    public bool HasChanges => _childSession?.HasChanges == true;
+    private string? _tierToOpen;
     private CatalogCommercialDetails.Observable Draft => _draftSession.Observable;
-    private string _baselineTierLabel = string.Empty;
-
-    protected override void OnInitialized()
-    {
-        OpenChildSession();
-        _registration = ChildSessions.Register(
-            CatalogChildSessionCoordinator.CommercialId,
-            GetHasChanges,
-            AcceptCurrentChildSession,
-            DiscardChildSession
-        );
-    }
+    private bool HasChanges => _childSession?.HasChanges == true;
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_parentSession, Session))
+        if (ReferenceEquals(_parentSession, ParentSession) && ReferenceEquals(_scopeContext, ScopeContext))
         {
-            OpenChildSession();
+            return;
         }
-    }
 
-    public void Dispose()
-    {
-        _registration?.Dispose();
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-    }
-
-    private void OpenChildSession()
-    {
-        _draftSession?.DisableHistory();
-        _childSession?.Dispose();
-        _parentSession = Session;
-        _childSession = CatalogChildSessionHandle.From(
-            Session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Commercial)
+        _parentSession = ParentSession as CatalogSession
+            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
+        _scopeContext = ScopeContext
+            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
+        var childSession = _scopeContext.OpenChildSession(
+            _parentSession,
+            EnterpriseCatalogItem.SparsePath.Commercial
         );
-        _draftSession = _childSession.Session;
-        _history = _draftSession.EnableHistory();
+        _childSession = childSession;
+        _draftSession = childSession.Session;
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+    }
+
+    private Task ReportStatus(bool hasChanges)
+    {
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges || hasChanges);
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task ReportNestedStatus(bool hasChanges)
+    {
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges || hasChanges);
+        return OnChanged.InvokeAsync();
     }
 
     private Task RefreshBaseline()
@@ -227,167 +156,63 @@
         return OnChanged.InvokeAsync();
     }
 
-    private Task<bool> AcceptCurrentChildSession() =>
-        _childSessionActions?.AcceptChildSessionAsync() ?? Task.FromResult(true);
-
-    private bool GetHasChanges() => HasChanges;
+    private bool GetHasChanges() => _childSession?.HasChanges == true;
+    private bool GetCanUndo() => _childSession?.CanUndo == true;
+    private bool GetCanRedo() => _childSession?.CanRedo == true;
+    private void Undo() => _childSession?.Undo();
+    private void Redo() => _childSession?.Redo();
 
     private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
-        var accepted = _childSession.TryAcceptChanges(out var conflicts);
+        var accepted = _childSession!.TryAcceptChanges(out var conflicts);
         return (accepted, conflicts);
     }
 
     private void DiscardChildSession()
     {
-        _childSession.DiscardChanges();
+        _childSession!.DiscardChanges();
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private ISparseEditHistory GetHistory() => _history;
-
-    private Task Update(Action update)
+    private Task AddTier()
     {
-        update();
-        return OnChanged.InvokeAsync();
-    }
-
-    private async Task AddTier()
-    {
-        var tier = new CatalogPriceTier
+        var tiers = _draftSession.EditCollection<CatalogPriceTier, string>(
+            CatalogCommercialDetails.SparsePath.PriceTiers
+        );
+        if (!tiers.TryAdd(
+            new CatalogPriceTier
+            {
+                Code = $"tier-{Guid.NewGuid():N}",
+                Label = "New tier",
+                MinimumQuantity = 1,
+                UnitPrice = Draft.UnitPrice,
+            },
+            out var error
+        ))
         {
-            Code = $"tier-{Guid.NewGuid():N}",
-            Label = "New tier",
-            MinimumQuantity = 1,
-            UnitPrice = Draft.UnitPrice,
-        };
-        Draft.PriceTiers.AddModel(tier);
-        var addedTier = Draft.PriceTiers[^1];
-        await OnChanged.InvokeAsync();
-        await OpenTier(addedTier);
-    }
-
-    private async Task OpenTier(CatalogPriceTier.Observable tier)
-    {
-        _selectedTier = tier;
-        _baselineTierLabel = _baseline.PriceTiers.FirstOrDefault(item => item.Code == tier.Code)?.Label ?? tier.Label;
-        _tierDialogHidden = false;
-        if (_tierDialog is null)
-        {
-            throw new InvalidOperationException("The price tier dialog is not initialized.");
+            throw new InvalidOperationException($"Could not add the price tier ({error}).");
         }
 
-        await _tierDialog.ShowAsync();
+        _tierToOpen = Draft.PriceTiers[^1].Code;
+        return Task.CompletedTask;
     }
 
-    private async Task CloseTierDialog()
+    private Task ClearTierToOpen()
     {
-        _tierDialogHidden = true;
-        if (_tierDialog is null)
-        {
-            throw new InvalidOperationException("The price tier dialog is not initialized.");
-        }
-
-        await _tierDialog.HideAsync();
-        _selectedTier = null;
+        _tierToOpen = null;
+        return Task.CompletedTask;
     }
 
-    private async Task RemoveTier(string code)
+    private Task RemoveTier(string code)
     {
-        var tier = Draft.PriceTiers.FirstOrDefault(item => item.Code == code);
-        if (tier is null)
+        var tiers = _draftSession.EditCollection<CatalogPriceTier, string>(
+            CatalogCommercialDetails.SparsePath.PriceTiers
+        );
+        if (!tiers.TryRemoveByKey(code, out var error))
         {
-            return;
+            throw new InvalidOperationException($"Could not remove the price tier ({error}).");
         }
 
-        if (_selectedTier?.Code == code)
-        {
-            await CloseTierDialog();
-        }
-
-        Draft.PriceTiers.Remove(tier);
-        await OnChanged.InvokeAsync();
+        return Task.CompletedTask;
     }
-
-    private async Task AddDiscountBand()
-    {
-        if (_selectedTier is null)
-        {
-            return;
-        }
-
-        _selectedTier.Discounts.AddModel(new CatalogDiscountBand
-        {
-            Code = $"discount-{Guid.NewGuid():N}",
-            MinimumQuantity = 100,
-            DiscountPercent = 2,
-            ApprovalRole = "Sales manager",
-        });
-        await OnChanged.InvokeAsync();
-    }
-
-    private async Task RemoveDiscountBand(string code)
-    {
-        if (_selectedTier is null)
-        {
-            return;
-        }
-
-        var band = _selectedTier.Discounts.FirstOrDefault(item => item.Code == code);
-        if (band is not null)
-        {
-            _selectedTier.Discounts.Remove(band);
-            await OnChanged.InvokeAsync();
-        }
-    }
-
-    private string DiscountBandClass(CatalogDiscountBand.Observable band)
-    {
-        var baselineTier = _baseline.PriceTiers.FirstOrDefault(tier => tier.Code == _selectedTier?.Code);
-        var baselineBand = baselineTier?.Discounts.FirstOrDefault(candidate => candidate.Code == band.Code);
-        if (baselineBand is null)
-        {
-            return "pg-roster-row pg-added";
-        }
-
-        return baselineBand.MinimumQuantity != band.MinimumQuantity
-            || baselineBand.DiscountPercent != band.DiscountPercent
-            || baselineBand.ApprovalRole != band.ApprovalRole
-            ? "pg-roster-row pg-changed"
-            : "pg-roster-row";
-    }
-
-    private IEnumerable<CatalogDiscountBand> RemovedDiscountBands()
-    {
-        var baselineTier = _baseline.PriceTiers.FirstOrDefault(tier => tier.Code == _selectedTier?.Code);
-        return baselineTier?.Discounts.Where(band =>
-            _selectedTier!.Discounts.All(current => current.Code != band.Code)
-        ) ?? [];
-    }
-
-    private bool HasTierChanged(CatalogPriceTier.Observable tier)
-    {
-        var baselineTier = _baseline.PriceTiers.FirstOrDefault(candidate => candidate.Code == tier.Code);
-        if (baselineTier is null)
-        {
-            return false;
-        }
-
-        return baselineTier.Label != tier.Label
-            || baselineTier.MinimumQuantity != tier.MinimumQuantity
-            || baselineTier.UnitPrice != tier.UnitPrice
-            || baselineTier.Discounts.Count != tier.Discounts.Count
-            || baselineTier.Discounts.Any(baselineBand =>
-                tier.Discounts.All(current => current.Code != baselineBand.Code)
-                || tier.Discounts.Any(current =>
-                    current.Code == baselineBand.Code
-                    && (current.MinimumQuantity != baselineBand.MinimumQuantity
-                        || current.DiscountPercent != baselineBand.DiscountPercent
-                        || current.ApprovalRole != baselineBand.ApprovalRole)
-                )
-            );
-    }
-
-    private static bool IsChanged<TValue>(TValue before, TValue after) =>
-        !EqualityComparer<TValue>.Default.Equals(before, after);
 }

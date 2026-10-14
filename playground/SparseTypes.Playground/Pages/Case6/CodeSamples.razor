@@ -1,19 +1,19 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Each tab edits a child model through its own typed EditSession and Undo/Redo history. Workflow steps and work masters use separate keyed collections, so saving one section does not change the other section's draft.</p>
+    <p class="pg-hint">A shared session scope retains typed child drafts. Each section accepts its own draft explicitly, and the catalog save reviews only accepted changes.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Shapes" Id="code-6-shapes">
-            <MonacoView Content="@ShapesCode" Language="csharp" Height="390px" />
+            <MonacoView Content="@ShapesCode" Language="csharp" Height="470px" />
         </FluentTab>
-        <FluentTab Header="Child sessions" Id="code-6-scopes">
-            <MonacoView Content="@ScopesCode" Language="csharp" Height="330px" />
+        <FluentTab Header="Scope and fields" Id="code-6-scopes">
+            <MonacoView Content="@ScopesCode" Language="csharp" Height="450px" />
         </FluentTab>
         <FluentTab Header="Workflow and keyed scopes" Id="code-6-workflow">
-            <MonacoView Content="@WorkflowCode" Language="csharp" Height="360px" />
+            <MonacoView Content="@WorkflowCode" Language="csharp" Height="390px" />
         </FluentTab>
         <FluentTab Header="History and save" Id="code-6-history">
-            <MonacoView Content="@HistoryCode" Language="csharp" Height="330px" />
+            <MonacoView Content="@HistoryCode" Language="csharp" Height="360px" />
         </FluentTab>
     </FluentTabs>
 </div>
@@ -31,9 +31,38 @@
         }
 
         [SparseModel]
+        public partial class CatalogOverview
+        {
+            public string ItemCode { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public string Category { get; set; } = string.Empty;
+            public string Owner { get; set; } = string.Empty;
+            public bool Active { get; set; } = true;
+            public List<string> AlternateCodes { get; set; } = [];
+        }
+
+        [SparseModel]
         public partial class CatalogCommercialDetails
         {
+            public string Customer { get; set; } = string.Empty;
+            public string Region { get; set; } = string.Empty;
+            public string ContractCode { get; set; } = string.Empty;
+            public string Currency { get; set; } = "USD";
+            public decimal UnitPrice { get; set; }
+            public int AnnualVolume { get; set; }
             public List<CatalogPriceTier> PriceTiers { get; set; } = [];
+        }
+
+        [SparseModel]
+        public partial class CatalogOperationsDetails
+        {
+            public string Facility { get; set; } = string.Empty;
+            public string Warehouse { get; set; } = string.Empty;
+            public int LeadTimeDays { get; set; }
+            public string QualityStandard { get; set; } = string.Empty;
+            public bool InspectionRequired { get; set; }
+            public string PackagingInstruction { get; set; } = string.Empty;
+            public List<CatalogOperationDocument> Documents { get; set; } = [];
         }
 
         [SparseModel]
@@ -41,7 +70,30 @@
         {
             [SparseKey]
             public string Code { get; set; } = string.Empty;
+            public string Label { get; set; } = string.Empty;
+            public int MinimumQuantity { get; set; }
+            public decimal UnitPrice { get; set; }
             public List<CatalogDiscountBand> Discounts { get; set; } = [];
+        }
+
+        [SparseModel]
+        public partial class CatalogDiscountBand
+        {
+            [SparseKey]
+            public string Code { get; set; } = string.Empty;
+            public int MinimumQuantity { get; set; }
+            public decimal DiscountPercent { get; set; }
+            public string ApprovalRole { get; set; } = string.Empty;
+        }
+
+        [SparseModel]
+        public partial class CatalogOperationDocument
+        {
+            [SparseKey]
+            public string Code { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string Owner { get; set; } = string.Empty;
+            public bool Required { get; set; }
         }
 
         [SparseModel]
@@ -50,11 +102,14 @@
             public List<CatalogWorkStep> Steps { get; set; } = [];
         }
 
-        public sealed class CatalogWorkStep
+        [SparseModel]
+        public partial class CatalogWorkStep
         {
             [SparseKey]
             public string Id { get; set; } = string.Empty;
             public string Name { get; set; } = string.Empty;
+            public string ResponsibleTeam { get; set; } = string.Empty;
+            public decimal StandardHours { get; set; }
         }
 
         [SparseModel]
@@ -63,69 +118,108 @@
             [SparseKey]
             public string StepId { get; set; } = string.Empty;
             public string WorkCenter { get; set; } = string.Empty;
+            public string Equipment { get; set; } = string.Empty;
+            public decimal SetupMinutes { get; set; }
+            public string Instruction { get; set; } = string.Empty;
+            public bool SupervisorApproval { get; set; }
         }
         """;
 
     private const string ScopesCode = """
-        var session = catalog.CreateEditSession();
+        using SparseTypes;
+        using SparseTypes.Blazor;
+        using SparseTypes.Playground.Models;
 
-        using var overview = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview);
-        overview.Session.Observable.Name = "Modular Drive Unit";
-        if (!overview.TryAcceptChanges(out var conflicts))
+        <SparseSessionScope Session="_session">
+            <OverviewEditor />
+        </SparseSessionScope>
+
+        [CascadingParameter]
+        ISparseEditSession<EnterpriseCatalogItem>? ParentSession { get; set; }
+
+        [CascadingParameter]
+        SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
+
+        private ISparseChildEditContext<CatalogOverview, SparseConflict> _overview = null!;
+        private CatalogOverview.EditSession _draft = null!;
+
+        protected override void OnParametersSet()
+        {
+            var parent = ParentSession as EnterpriseCatalogItem.EditSession
+                ?? throw new InvalidOperationException("The catalog session is unavailable.");
+            var child = ScopeContext!.OpenChildSession(parent, EnterpriseCatalogItem.SparsePath.Overview);
+            _overview = child;
+            _draft = child.Session;
+        }
+
+        <SparseEdit Session="_draft" Context="edit">
+            <SparseField Path="edit.Path.Name" Context="name">
+                <FluentTextInput Value="@name.Value" ValueChanged="name.ValueChanged" />
+            </SparseField>
+        </SparseEdit>
+
+        if (!_overview.TryAcceptChanges(out var conflicts))
+        {
+            ShowConflicts(conflicts);
+        }
+        """;
+
+    private const string WorkflowCode = """
+        var workflow = scope.OpenChildSession(
+            session,
+            EnterpriseCatalogItem.SparsePath.Workflow);
+
+        var steps = workflow.Session.EditCollection<CatalogWorkStep, string>(
+            CatalogWorkflow.SparsePath.Steps);
+        if (!steps.TryInsert(steps.Count, new CatalogWorkStep
+        {
+            Id = "new-step",
+            Name = "Calibration",
+            ResponsibleTeam = "Engineering",
+            StandardHours = 0.8m,
+        }, out var error))
+        {
+            ShowEditError(error);
+        }
+
+        if (!workflow.TryAcceptChanges(out var conflicts))
         {
             ShowConflicts(conflicts);
         }
 
-        using var commercial = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Commercial);
-        commercial.Session.Observable.UnitPrice = 2480m;
-        commercial.TryAcceptChanges(out _);
-
-        var changes = session.CreateChangeSet();
-        // Each child session contributes changes to the same typed session.
-        """;
-
-    private const string WorkflowCode = """
-        var workflow = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Workflow);
-        var steps = workflow.Session.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
-        steps.TryInsert(steps.Count, new CatalogWorkStep
-        {
-            Id = "new-step",
-            Name = "Calibration",
-        }, out _);
-
-        workflow.TryAcceptChanges(out _);
-
-        var workMasters = session.EditCollection<CatalogWorkMaster, string>(
-            EnterpriseCatalogItem.SparsePath.WorkMasters);
-        workMasters.TryInsert(workMasters.Count, new CatalogWorkMaster { StepId = "new-step" }, out _);
-
-        using var stepMaster = session.OpenChildSession(
+        // Work-master tabs use steps accepted into the catalog session.
+        var workMaster = scope.OpenChildSession(
+            session,
             EnterpriseCatalogItem.SparsePath.WorkMasters.Key("new-step"));
-        stepMaster.Session.Observable.WorkCenter = "WC-17";
-        stepMaster.TryAcceptChanges(out _);
         """;
 
     private const string HistoryCode = """
-        var session = catalog.CreateEditSession();
-        var overview = session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Overview);
-        var history = overview.Session.EnableHistory();
+        var overview = scope.OpenChildSession(
+            session,
+            EnterpriseCatalogItem.SparsePath.Overview);
         overview.Session.Observable.Active = false;
 
-        if (history.CanUndo)
+        if (overview.CanUndo)
         {
-            history.Undo();
+            overview.Undo();
         }
 
-        history.Redo();
-        overview.TryAcceptChanges(out _);
-        // Accepting the child session resets its history baseline.
-
-        var changes = session.CreateChangeSet();
-        if (changes.IsChanged)
+        if (overview.CanRedo)
         {
-            var beforeJson = JsonSerializer.Serialize(savedCatalog, PlaygroundJsonContext.Default.EnterpriseCatalogItem);
-            var afterJson = JsonSerializer.Serialize(catalog, PlaygroundJsonContext.Default.EnterpriseCatalogItem);
-            PresentDiff(beforeJson, afterJson);
+            overview.Redo();
+        }
+
+        overview.TryAcceptChanges(out _); // Explicitly save the section draft.
+
+        if (session.HasPendingChildSessions)
+        {
+            AskToSaveOrDiscardSections();
+            return;
+        }
+
+        if (session.TryCreateChangeSet(out var changes, out var conflicts))
+        {
+            Review(changes);
             session.AcceptChanges();
         }
         """;

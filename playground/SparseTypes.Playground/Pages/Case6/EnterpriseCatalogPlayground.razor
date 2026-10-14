@@ -1,9 +1,10 @@
 @using SparseTypes
+@using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
-@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
 @implements IDisposable
 
+<SparseSessionScope Session="_session">
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
         <div class="pg-catalog-header-main">
@@ -41,7 +42,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <OverviewEditor ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -55,7 +56,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <CommercialEditor ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -69,7 +70,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor Session="_session" ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <OperationsEditor ChildSessions="_childSessions" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -83,7 +84,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <WorkflowEditor @ref="_workflowEditor" ChildSession="_workflowChildSession"
+                    <WorkflowEditor @ref="_workflowEditor" ChildSessions="_childSessions"
                         SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
                         BaselineVersion="_baselineVersion" OnChanged="Refresh" />
                 </div>
@@ -119,8 +120,10 @@
                                         }
                                     </HeaderTemplate>
                                     <ChildContent>
-                                        <StepMasterEditor @key="step.Id" Session="_session" Step="step"
-                                            ChildSessions="_childSessions" OnChanged="Refresh" />
+                                        <SparseSessionScope Session="_session">
+                                            <StepMasterEditor @key="step.Id" Step="step"
+                                                ChildSessions="_childSessions" OnChanged="Refresh" />
+                                        </SparseSessionScope>
                                     </ChildContent>
                                 </FluentTab>
                             }
@@ -131,6 +134,7 @@
         </FluentTab>
     </FluentTabs>
 </div>
+</SparseSessionScope>
 
 <FluentDialog @ref="_saveDialog" Hidden="@_saveDialogHidden" Modal="true" TrapFocus="true"
     Size="@DialogSize.Full" Class="pg-catalog-review-dialog" AriaLabel="Review catalog changes">
@@ -161,8 +165,6 @@
     private EnterpriseCatalogItem _savedModel = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
     private readonly CatalogChildSessionCoordinator _childSessions = new();
-    private CatalogChildSessionHandle<CatalogWorkflow.EditSession> _workflowChildSession = null!;
-    private IDisposable? _workflowRegistration;
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
     private bool _saveDialogHidden = true;
@@ -186,19 +188,17 @@
 
     protected override void OnInitialized()
     {
+        _childSessions.Changed += Refresh;
         _model = CreateSample();
         _savedModel = _model.DeepClone();
         _session = _model.CreateEditSession();
-        OpenWorkflowChildSession();
         _savedWorkflow = _model.Workflow.DeepClone();
         _acceptedWorkflow = _model.Workflow.DeepClone();
     }
 
     public void Dispose()
     {
-        _childSessions.DiscardAll();
-        _workflowRegistration?.Dispose();
-        _workflowChildSession?.Dispose();
+        _childSessions.Changed -= Refresh;
     }
 
     private static EnterpriseCatalogItem CreateSample() =>
@@ -344,7 +344,7 @@
 
     private async Task OpenSavePreview()
     {
-        if (_childSessions.HasPendingChanges)
+        if (_session.HasPendingChildSessions)
         {
             _error = "Save or discard each edited section draft before saving the catalog.";
             return;
@@ -403,9 +403,9 @@
     private async Task ConfirmSave()
     {
         await CloseSavePreview();
-        _childSessions.DiscardAll();
         try
         {
+            _session.DiscardChildSessions();
             _session.AcceptChanges();
             _savedModel = _model.DeepClone();
             _hasChanges = false;
@@ -413,48 +413,13 @@
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             _session = _model.CreateEditSession();
-            OpenWorkflowChildSession();
+            _childSessions.Clear();
             _error = null;
         }
         catch (InvalidOperationException exception)
         {
             _error = exception.Message;
         }
-    }
-
-    private void OpenWorkflowChildSession()
-    {
-        _workflowRegistration?.Dispose();
-        _workflowChildSession?.Dispose();
-        _workflowChildSession = CatalogChildSessionHandle.From(
-            _session.OpenChildSession(EnterpriseCatalogItem.SparsePath.Workflow)
-        );
-        _workflowRegistration = _childSessions.Register(
-            CatalogChildSessionCoordinator.WorkflowId,
-            () => _workflowChildSession.HasChanges,
-            AcceptWorkflowChildSessionAsync,
-            () => _workflowChildSession.DiscardChanges()
-        );
-    }
-
-    private Task<bool> AcceptWorkflowChildSessionAsync() =>
-        _workflowEditor?.AcceptChildSessionAsync() ?? AcceptWorkflowChildSessionDirectlyAsync();
-
-    private Task<bool> AcceptWorkflowChildSessionDirectlyAsync()
-    {
-        var accepted = _workflowChildSession.TryAcceptChanges(out var conflicts);
-        if (!accepted)
-        {
-            _error = conflicts is null
-                ? "A workflow child-session target is no longer available."
-                : "Resolve the workflow child-session conflict before saving.";
-        }
-        else
-        {
-            EnsureAcceptedWorkMasters();
-        }
-
-        return Task.FromResult(accepted);
     }
 
     private void EnsureAcceptedWorkMasters()
@@ -520,9 +485,9 @@
 
     private Task Reset()
     {
-        _childSessions.DiscardAll();
         try
         {
+            _session.DiscardChildSessions();
             _session.RevertChanges();
             _savedModel = _model.DeepClone();
             _hasChanges = false;
@@ -530,7 +495,7 @@
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             _session = _model.CreateEditSession();
-            OpenWorkflowChildSession();
+            _childSessions.Clear();
             _error = null;
         }
         catch (InvalidOperationException exception)

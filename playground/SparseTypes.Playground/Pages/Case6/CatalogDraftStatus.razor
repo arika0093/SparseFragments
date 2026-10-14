@@ -1,0 +1,20 @@
+@code {
+    [Parameter]
+    public bool HasChanges { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnChanged { get; set; }
+
+    private bool? _reported;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_reported == HasChanges)
+        {
+            return;
+        }
+
+        _reported = HasChanges;
+        await OnChanged.InvokeAsync(HasChanges);
+    }
+}
