@@ -155,6 +155,7 @@ a, .btn-link {
 }
 
 .pg-title h1 {
+    font-family: 'Michroma', sans-serif;
     font-weight: 700;
     font-size: 2rem;
     min-width: 0;
