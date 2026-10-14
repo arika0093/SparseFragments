@@ -22,7 +22,7 @@ Add `[SparseModel]` to a standard `partial` class. The Roslyn source generator e
 
 * **One model produces the entire stack**: Annotate a standard C# model once. The generator emits partial fragments, patch commands, diff transitions, JSON payloads, and reactive edit sessions without manual DTO variants.
 * **100% type-safe and refactoring-friendly**: Normal C# property assignment replaces error-prone string paths and runtime reflection.
-* **Zero reflection and Native AOT ready**: All companion code is emitted at compile time. It allocates minimally, trims cleanly, and runs on Native AOT.
+* **Zero reflection in core operations**: All core algebra, diff, patch, rebase, and descriptor inspection code is emitted at compile time, trims cleanly, and runs under Native AOT.
 * **Identity-based collection tracking**: Marking collection items with `[SparseKey]` tracks additions, removals, edits, and reorders by ID rather than fragile array positions.
 * **Git-style three-way rebase**: Resolves concurrent changes cleanly instead of discarding work with blunt last-write-wins or total concurrency errors.
 
@@ -157,19 +157,18 @@ Missing means unassigned (falling through during merge), present `null` explicit
 
 ## Documentation
 
-Browse the documentation organized by the [Diátaxis](https://diataxis.fr/) framework:
-
-### Tutorials (Learning by doing)
+### Tutorials
 * [First sparse edit](docs/tutorial/first-sparse-edit.md): Build a working edit pipeline end to end.
 
-### How-to Guides (Goal-oriented recipes)
+### How-to Guides
 * [Layered settings](docs/how-to/layered-settings.md): Compose multi-tier configuration and remove overrides.
 * [Partial updates](docs/how-to/partial-updates.md): Accept patch commands or baseline-aware changes in Web APIs.
 * [Blazor edit form](docs/how-to/blazor-edit-form.md): Save form edits without losing draft state.
 * [Blazor headless components](docs/how-to/blazor-headless-components.md): Build custom UI inputs over session paths.
+* [Coordinate multi-session submissions](docs/how-to/edit-session-groups.md): Coordinate multiple edit sessions into one submission.
 * [EF Core mapping](docs/how-to/efcore-mapping.md): Persist ChangeSets to databases with Entity Framework Core.
 
-### Explanation (Concepts and design)
+### Explanation
 * [Fragments and patches](docs/explanation/fragments-and-patches.md): Four core sparse states, algebraic operations, and lifecycle.
 * [ChangeSet rebase](docs/explanation/rebase.md): Three-way reconciliation, conflict detection, and server save flows.
 * [Keyed collections](docs/explanation/keyed-collections.md): Identity-based list operations vs. index-based mutation.
@@ -178,9 +177,10 @@ Browse the documentation organized by the [Diátaxis](https://diataxis.fr/) fram
 * [UI frameworks & Edit sessions](docs/explanation/ui-frameworks.md): Framework-neutral editing model for Blazor, WPF, WinForms, MAUI, and Avalonia.
 * [Edit-session groups](docs/explanation/edit-session-groups.md): Coordinating multiple edit sessions across distinct models.
 
-### Reference (Technical facts and APIs)
+### Reference
 * [ChangePayload wire format](docs/reference/change-payload.md): JSON schema and serialization specification.
 * [Descriptors reference](docs/reference/descriptors.md): Reflection-free runtime metadata and dynamic accessors.
+* [Edit session state & observers](docs/reference/edit-session-state.md): Point-in-time state queries and reactive field observers.
 * [Model shapes](docs/reference/model-shapes.md): Supported C# shapes, modifiers, and constructor requirements.
 * [Diagnostics](docs/reference/analyzer.md): Roslyn analyzer rules (`SPF001`-`SPF035`).
 
@@ -188,16 +188,20 @@ Browse the documentation organized by the [Diátaxis](https://diataxis.fr/) fram
 
 ### SparseTypes
 * Core runtime and source generator: targets `netstandard2.0` (compatible with .NET 6+, .NET 8+, .NET 10+, and modern .NET runtimes).
+* Core operations (fragments, patches, changesets, rebasing, descriptors) are reflection-free and Native AOT verified.
+* JSON serialization (`ChangePayload`) uses `System.Text.Json`; for Native AOT and trimmed apps, see [AOT configuration guidelines](docs/reference/change-payload.md#optional-json-support).
 * Requires Roslyn 4.3.1 or later (Visual Studio 2022 17.3+, JetBrains Rider 2023.1+, .NET SDK 6.0+).
 * Generated code requires C# 9.0 or later.
 
 ### SparseTypes.Blazor
-* Reactive edit sessions and field components for Blazor applications.
+* Reactive edit sessions and headless field components for Blazor applications.
 * Targets `net8.0` and `net10.0`.
+* Note: Field-path binding resolution in UI components relies on reflection.
 
 ### SparseTypes.EntityFrameworkCore
 * ChangeSet mapping and change tracking integration for Entity Framework Core.
 * Targets `net10.0`.
+* Concurrency and navigation mapping follow EF Core requirements.
 
 ## License
 

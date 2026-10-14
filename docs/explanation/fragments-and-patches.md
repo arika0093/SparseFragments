@@ -378,7 +378,7 @@ ChangeSet -> Patch
     -> explicit ToPatch()
 ```
 
-`Compose` requires contiguous transitions: the first ChangeSet's after-state must equal the second's before-state, otherwise it throws `InvalidOperationException`. Static `Compose(first, second)` overloads mirror the instance methods on both types. `Invert()` swaps direction using only the stored before/after pair, so it needs no baseline; inverting twice returns the original transition.
+`Compose` checks contiguity along overlapping paths: when both change sets touch the same member path, the first change set's after-state must match the second change set's before-state, throwing `InvalidOperationException` if they diverge. Disjoint member paths compose cleanly across different snapshots without requiring full-state equality. When whole-root transitions are involved, root presence contiguity is validated as well. Static `Compose(first, second)` overloads mirror the instance methods on both types. `Invert()` swaps direction using only the stored before/after pair, so it needs no external baseline; inverting twice returns the original transition.
 
 ## Serialize Patches and ChangeSets
 

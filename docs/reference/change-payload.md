@@ -346,12 +346,12 @@ var complete = WireSettings.ChangeSet.FromPayload(envelope);
 | `ChangePayload.FromPatch(patch)` | Envelope | Desired operations only; before-states redacted by construction. |
 | `payload.ToChangeSet()` | ChangeSet | Complete history. Rejects redacted or incomplete envelopes. |
 | `ChangeSet.FromPayload(payload)` | ChangeSet | Same acceptance as `ToChangeSet()`, as a static entry point. |
-| `payload.ToPatch()` | Patch | Desired operations for any envelope. Always succeeds and discards baseline information. |
+| `payload.ToPatch()` | Patch | Desired operations from a valid payload. Discards baseline information; validates version and envelope structure (see below). |
 | `ChangeSet.FromPatch(baseline, patch)` | ChangeSet | Attaches a known baseline to an existing patch. |
 | `payload.TryApplyMixedTo(model, out updated, out outcome)` | Model plus outcome | Rebases ordinary members, passes write-only members through, applies nothing on conflict. |
 | `payload.InvertReversibleChanges(out skipped)` | ChangeSet plus skipped paths | Inverts reversible transitions; write-only paths stay out and appear in `skipped`. |
 
-`ToPatch()` always succeeds and discards baseline information. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing. A merged operation regains complete history only when one side supplied a real baseline; history is never inferred from a redacted endpoint.
+`payload.ToPatch()` projects a well-formed payload into a baseline-free `Patch`, even when before-states are redacted. Unlike `ChangeSet.ToPatch()` on an in-memory transition, it validates the envelope structure and wire version, throwing `ArgumentException` on malformed payloads, version mismatches, or unsupported operations such as blind whole-collection removal. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing. A merged operation regains complete history only when one side supplied a real baseline; history is never inferred from a redacted endpoint.
 
 ## Mixed requests
 
@@ -452,6 +452,10 @@ catch (ArgumentException)
 Only `"0.1"` is accepted, compared ordinally. A missing, null, non-string, or different version fails: envelopes that deserialize still fail validation before producing a `ChangeSet`.
 
 Payload DTOs reject unknown JSON members instead of ignoring them. Depending on where the envelope fails, deserialization throws `JsonException` or `ToChangeSet` throws `ArgumentException`. The following are all malformed: unknown member names (including inside nested payloads), null items, members without endpoints, duplicate changes for one member, duplicate keyed changes for one key, keyed additions without an after-endpoint, keyed removals without a before-endpoint, unknown item kinds, redacted after-states, redacted before-states without an after-state, value-carrying missing, null, or redacted endpoints, and per-item redacted endpoints in keyed and dictionary members. Diagnostics carry member paths and reasons only, never secret before, current, or after values. Duplicate JSON properties are the one lenient case: `System.Text.Json` object deserialization is last-wins, so the envelope stays valid when the winning values are well-formed.
+
+### Payload export and JsonIgnore members
+
+Attempting to export a `ChangeSet` or `Patch` containing changes to a `[JsonIgnore]` member via `ToPayload()` or `ChangePayload.FromPatch(patch)` throws `InvalidOperationException`. This guard prevents silently dropping modified data on the wire when serializing transitions across process boundaries. If normal and ignored members are modified in the same change set, the entire export fails atomically. To exclude a property from sparse tracking and wire payloads entirely, mark it with `[SparseIgnore]`.
 
 ## Optional JSON support
 

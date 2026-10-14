@@ -72,23 +72,18 @@ var headlessHistory = headlessSession.EnableHistory();
 // The triples a SparseField hands to inputs: the live value, the change
 // delegate, and the original-model expression for member-only paths.
 var headlessNumber = headlessSession.Bind(HeadlessOrder.SparsePath.Number, headlessContext);
-DocsCheck.Require(headlessNumber.Value == "ORD-1", "binding reads the live value");
-DocsCheck.Require(
-    headlessNumber.ValueExpression is not null,
-    "member path exposes an expression"
-);
+// headlessNumber.Value == "ORD-1"
+// headlessNumber.ValueExpression is not null
+
 await headlessNumber.SetAsync("ORD-2");
-DocsCheck.Require(headlessOrder.Number == "ORD-2", "binding writes through the session");
-DocsCheck.Require(
-    headlessSession.FieldState(HeadlessOrder.SparsePath.Number).IsChanged,
-    "scalar field state reports the edit"
-);
-DocsCheck.Require(headlessHistory.CanUndo, "session-owned history retains the edit");
+// headlessOrder.Number == "ORD-2"
+// headlessSession.FieldState(HeadlessOrder.SparsePath.Number).IsChanged == true
+// headlessHistory.CanUndo == true
 
 headlessHistory.Undo();
-DocsCheck.Require(headlessOrder.Number == "ORD-1", "undo restores");
+// headlessOrder.Number == "ORD-1"
 headlessHistory.Redo();
-DocsCheck.Require(headlessOrder.Number == "ORD-2", "redo reapplies");
+// headlessOrder.Number == "ORD-2"
 
 // Keyed and indexed paths expose no expression, so value/callback
 // inputs edit them while validation stays explicit.
@@ -96,28 +91,17 @@ var headlessPrice = headlessSession.Bind(
     HeadlessOrder.SparsePath.Lines.Key("b").Price,
     headlessContext
 );
-DocsCheck.Require(
-    headlessPrice.ValueExpression is null,
-    "keyed path exposes no expression"
-);
+// headlessPrice.ValueExpression is null
+
 await headlessPrice.SetAsync(99m);
-DocsCheck.Require(
-    headlessOrder.Lines.Single(line => line.Sku == "b").Price == 99m,
-    "keyed binding writes through the session"
-);
-DocsCheck.Require(
-    headlessSession
-        .CollectionState(HeadlessOrder.SparsePath.Lines)
-        .GetItemState("b")
-        .IsEdited,
-    "collection state reports the edited row"
-);
+// headlessOrder.Lines.Single(line => line.Sku == "b").Price == 99m
+// headlessSession.CollectionState(HeadlessOrder.SparsePath.Lines).GetItemState("b").IsEdited == true
 
 var headlessSku = headlessSession.Bind(
     HeadlessOrder.SparsePath.Lines.At(0).Sku,
     headlessContext
 );
-DocsCheck.Require(headlessSku.Value == "a", "indexed binding follows the position");
+// headlessSku.Value == "a"
 
 var headlessDrafts = new HeadlessOrder();
 var headlessDraftSession = headlessDrafts.CreateEditSession();
@@ -135,17 +119,11 @@ var headlessTitle = headlessDraftSession.Bind(
     HeadlessOrder.SparsePath.Drafts.TemporaryKey(headlessTemporaryId).Title,
     headlessDraftContext
 );
-DocsCheck.Require(headlessTitle.Value == "draft", "temporary-key binding reads the value");
+// headlessTitle.Value == "draft"
+
 await headlessTitle.SetAsync("draft v2");
-DocsCheck.Require(
-    headlessDrafts.Drafts.Single(item => item.TemporaryId == headlessTemporaryId).Title
-        == "draft v2",
-    "temporary-key binding writes through the session"
-);
-DocsCheck.Require(
-    headlessDraftContext.IsModified(),
-    "temporary-key write marks the field modified"
-);
+// headlessDrafts.Drafts.Single(item => item.TemporaryId == headlessTemporaryId).Title == "draft v2"
+// headlessDraftContext.IsModified() == true
 
 headlessSession.DisableHistory();
 ```

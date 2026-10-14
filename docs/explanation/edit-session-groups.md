@@ -5,6 +5,8 @@ submission. It captures change sets and changed paths, then lets callers
 acknowledge or reconcile each section independently. It does not provide
 transport, persistence, cross-session transactions, or a global edit lock.
 
+For a runnable workflow covering registration, submission, and independent acknowledgement, see [Coordinate multi-session submissions](../how-to/edit-session-groups.md).
+
 ## Registration
 
 Register each section with a stable, non-empty identifier. Identifiers use

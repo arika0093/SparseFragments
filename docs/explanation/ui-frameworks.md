@@ -507,6 +507,25 @@ historySession.DisableHistory();
 ```
 <!-- /sample -->
 
+### Edit history lifecycle and grouping
+
+`EnableHistory` turns on session-owned undo/redo. Without it, the session retains no history entries. `DisableHistory` discards retained entries and releases the history manager.
+
+| Member | Purpose |
+| --- | --- |
+| `CanUndo` / `CanRedo` | Reports whether an entry exists on the respective stack |
+| `UndoCount` / `RedoCount` | Current entry counts |
+| `Undo()` / `Redo()` | Replays the transition, throwing `InvalidOperationException` on an empty stack or conflict |
+| `TryUndo(out conflicts)` / `TryRedo(out conflicts)` | Attempts replay, returning `false` with structured conflicts on conflict |
+| `BeginGroup()` / `Group(Action)` | Bundles multiple edits into a single undo/redo entry |
+| `Clear()` | Clears both undo and redo stacks |
+
+Grouping distinguishes history boundaries from notification boundaries: `BeginGroup()` or `Group()` collapses successive field edits (such as continuous slider dragging or multi-field operations) into one undo step, whereas `BatchEdit` only groups change notifications. Regular property assignments are not coalesced automatically.
+
+`EditHistoryOptions.MaxEntries` defaults to 50 (minimum 1). When the count exceeds `MaxEntries`, the oldest undo entry is evicted. `MaxEntries` bounds the number of transitions, not heap byte size.
+
+Successful baseline mutations—`AcceptChanges()`, `RevertChanges()`, `Reload()`, and `TryReconcile()`—automatically clear the undo and redo stacks because the baseline advances or resets. If an operation fails (for instance, `Reload` or `TryReconcile` encounters unresolved conflicts), the history stacks remain untouched.
+
 Create an `EditContext` with the Blazor extensions and pass it to the form:
 
 <!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
@@ -548,6 +567,9 @@ Blazor extension methods:
 | `session.Field(path)` | Resolves a `FieldIdentifier` from a canonical `SparsePath` or typed path |
 | `session.AddValidationError(store, field, message)` | Surfaces a message through the `ValidationMessageStore` |
 | `session.AddValidationError(store, fieldPath, message)` | Resolves `fieldPath` with `session.Field` and surfaces a message |
+| `session.AddConflicts(conflictStore, editContext, conflicts, options)` | Surfaces structured conflicts as validation errors; resolves unresolvable paths via fallback (`NearestParent` or `Model`) |
+| `session.ClearConflicts(conflictStore, editContext)` | Clears the dedicated conflict message store without touching DataAnnotations stores |
+| `freshSession.ReplaceEditContext(staleContext)` | Creates a new `EditContext` bound to a fresh authoritative model after detaching old handlers |
 
 Dictionary members resolve through bracketed keys such as `Contacts["billing"].Name`. The canonical spelling quotes the key; an unquoted key is accepted when it needs no escaping. Non-string keys (numeric, enum, `Guid`) parse from the same spelling with invariant culture, and keys that do not parse fail as invalid paths. Resolution works for mutable dictionaries and for read-only `IReadOnlyDictionary<TKey, TValue>` models alike, including implementations that do not expose the legacy non-generic `IDictionary`.
 
@@ -562,7 +584,7 @@ Edit-then-restore yields no semantic change even though fields were touched:
 <!-- illustrative: excerpt; continues the ui-session flow in prose and does not compile as written -->
 ```csharp
 uiSession.Observable.Number = "changed";
-uiSession.Observable.Number = "ORD-1";   // restored
+uiSession.Observable.Number = "ORD-2";   // restored to the current baseline (ORD-2)
 
 // uiSession.HasChanges == false
 // uiSession.CreateChangeSet().IsEmpty == true

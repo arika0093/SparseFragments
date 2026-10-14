@@ -376,6 +376,25 @@ retry with a notice; overlapping field conflicts keep the session, surface
 field errors, and offer a visible **Use server value** button that discards
 the local edit by adopting the authoritative row as a fresh session.
 
+### Managing conflicts with dedicated validation stores
+
+In larger forms with deleted keyed items or removed child members, exact member paths may no longer resolve in the client model graph. Use `session.AddConflicts()` with a dedicated conflict `ValidationMessageStore` to handle path fallbacks cleanly:
+
+<!-- illustrative: conflict projection helper usage -->
+```csharp
+var conflictStore = conflictSession.CreateValidationStore(conflictContext);
+var options = new SparseConflictValidationOptions
+{
+    Fallback = SparseConflictFallbackMode.NearestParent,
+    ClearStoreFirst = true,
+};
+conflictSession.AddConflicts(conflictStore, conflictContext, surfacingConflicts, options);
+```
+
+* **Store isolation**: Keeping a dedicated `conflictStore` ensures that `conflictSession.ClearConflicts(conflictStore, conflictContext)` clears conflict messages without wiping DataAnnotations validation errors managed by a separate store.
+* **Fallback targets**: `SparseConflictFallbackMode.NearestParent` resolves unresolvable paths (such as removed keyed elements) to the nearest surviving parent member, whereas `SparseConflictFallbackMode.Model` targets the root model. Foreign roots always fall back to model-level errors.
+* **Context replacement**: When adopting a fresh authoritative model after conflict resolution, detach handlers from the stale context, create a fresh session, and call `freshSession.ReplaceEditContext(staleContext)`. Key the containing `<EditForm>` (e.g. `@key="generation"`) so Blazor tears down input components bound to the stale context.
+
 ## Retry transport failure without data loss
 
 A throw before persistence never ran acknowledgement, so the baseline is

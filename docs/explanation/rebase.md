@@ -190,6 +190,10 @@ Conflict kinds:
 | `CollectionAppend` | An append-merged collection was changed concurrently |
 | `CollectionSetUnion` | A set-union member was changed concurrently |
 | `CustomStrategy` | A custom merge strategy reported a conflict |
+| `RedactedBefore` | A write-only member arrived with redacted before-state under strict validation |
+| `InPlaceWriteUnavailable` | A changed member cannot be written in place because the target model shape is immutable |
+
+`RedactedBefore` occurs when an application explicitly opts into strict rejection of write-only members; diagnostics carry member paths only, never secret values (see [Mixed requests](../reference/change-payload.md#mixed-requests)). `InPlaceWriteUnavailable` distinguishes target-shape write constraints from concurrent value divergence: in-place mutations (`ApplyInPlaceTo`) fail on init-only or constructor-only properties, whereas functional application (`ApplyTo`) constructs a new immutable instance cleanly.
 
 Nested conflicts expose the full member path: a local `Nested.Host = "b"` against a concurrent `Nested.Host = "c"` (from base `"a"`) reports `PathText == "Nested.Host"` with the three values attached, so UI code can offer per-field resolution.
 
@@ -422,7 +426,7 @@ Disjoint paths merge without checks. A merged operation regains complete history
 
 Rollback inverts transitions and skips write-only operations, which have no prior value to restore. A non-empty skipped list means the result is not a complete inverse. `ChangeSet.Invert()` on a complete change set stays a true inversion.
 
-`ToPatch()` always succeeds and discards baseline information. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing.
+`ChangeSet.ToPatch()` discards baseline information into a `Patch`, while `ChangePayload.ToPatch()` validates wire version and envelope structure before projecting. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing.
 
 Diagnostics carry member paths and reasons only, never secret before, current, or after values. Per-item redacted endpoints in keyed and dictionary members are rejected with a typed error; send a whole-member blind set for those members. Blind whole-collection removal has no patch projection. Whole-root redacted operations are reported under the `$root` path.
 

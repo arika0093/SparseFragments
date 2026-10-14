@@ -579,12 +579,17 @@ public static class UiDocSamples
         // The triples a SparseField hands to inputs: the live value, the change
         // delegate, and the original-model expression for member-only paths.
         var headlessNumber = headlessSession.Bind(HeadlessOrder.SparsePath.Number, headlessContext);
+        // headlessNumber.Value == "ORD-1"
+        // headlessNumber.ValueExpression is not null
         DocsCheck.Require(headlessNumber.Value == "ORD-1", "binding reads the live value");
         DocsCheck.Require(
             headlessNumber.ValueExpression is not null,
             "member path exposes an expression"
         );
         await headlessNumber.SetAsync("ORD-2");
+        // headlessOrder.Number == "ORD-2"
+        // headlessSession.FieldState(HeadlessOrder.SparsePath.Number).IsChanged == true
+        // headlessHistory.CanUndo == true
         DocsCheck.Require(headlessOrder.Number == "ORD-2", "binding writes through the session");
         DocsCheck.Require(
             headlessSession.FieldState(HeadlessOrder.SparsePath.Number).IsChanged,
@@ -593,8 +598,10 @@ public static class UiDocSamples
         DocsCheck.Require(headlessHistory.CanUndo, "session-owned history retains the edit");
 
         headlessHistory.Undo();
+        // headlessOrder.Number == "ORD-1"
         DocsCheck.Require(headlessOrder.Number == "ORD-1", "undo restores");
         headlessHistory.Redo();
+        // headlessOrder.Number == "ORD-2"
         DocsCheck.Require(headlessOrder.Number == "ORD-2", "redo reapplies");
 
         // Keyed and indexed paths expose no expression, so value/callback
@@ -603,11 +610,14 @@ public static class UiDocSamples
             HeadlessOrder.SparsePath.Lines.Key("b").Price,
             headlessContext
         );
+        // headlessPrice.ValueExpression is null
         DocsCheck.Require(
             headlessPrice.ValueExpression is null,
             "keyed path exposes no expression"
         );
         await headlessPrice.SetAsync(99m);
+        // headlessOrder.Lines.Single(line => line.Sku == "b").Price == 99m
+        // headlessSession.CollectionState(HeadlessOrder.SparsePath.Lines).GetItemState("b").IsEdited == true
         DocsCheck.Require(
             headlessOrder.Lines.Single(line => line.Sku == "b").Price == 99m,
             "keyed binding writes through the session"
@@ -624,6 +634,7 @@ public static class UiDocSamples
             HeadlessOrder.SparsePath.Lines.At(0).Sku,
             headlessContext
         );
+        // headlessSku.Value == "a"
         DocsCheck.Require(headlessSku.Value == "a", "indexed binding follows the position");
 
         var headlessDrafts = new HeadlessOrder();
@@ -642,8 +653,11 @@ public static class UiDocSamples
             HeadlessOrder.SparsePath.Drafts.TemporaryKey(headlessTemporaryId).Title,
             headlessDraftContext
         );
+        // headlessTitle.Value == "draft"
         DocsCheck.Require(headlessTitle.Value == "draft", "temporary-key binding reads the value");
         await headlessTitle.SetAsync("draft v2");
+        // headlessDrafts.Drafts.Single(item => item.TemporaryId == headlessTemporaryId).Title == "draft v2"
+        // headlessDraftContext.IsModified() == true
         DocsCheck.Require(
             headlessDrafts.Drafts.Single(item => item.TemporaryId == headlessTemporaryId).Title
                 == "draft v2",

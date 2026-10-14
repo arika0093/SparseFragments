@@ -116,3 +116,8 @@ docs/how-to/blazor-edit-form.md	blazor-form-save	tests/fixtures/consumers/packag
 docs/how-to/blazor-edit-form.md	blazor-form-conflict	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/how-to/blazor-edit-form.md	blazor-form-transport	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/how-to/blazor-headless-components.md	blazor-headless	tests/fixtures/consumers/package-sparse-blazor/Program.cs
+docs/how-to/edit-session-groups.md	edit-session-group-models	tests/fixtures/consumers/package-sparse-docs/EditSessionGroupsDocs.cs
+docs/how-to/edit-session-groups.md	edit-session-group-flow	tests/fixtures/consumers/package-sparse-docs/EditSessionGroupsDocs.cs
+docs/reference/edit-session-state.md	edit-session-field-state	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs
+docs/reference/edit-session-state.md	edit-session-collection-state	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs
+docs/reference/edit-session-state.md	edit-session-observe-field	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs

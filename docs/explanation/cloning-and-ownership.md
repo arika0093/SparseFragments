@@ -21,15 +21,15 @@ Do not mutate a shared object after assigning it if the Fragment or Patch must r
 
 | Operation | Shares or snapshots? |
 | --- | --- |
-| `Fragment.From(model)` | Snapshots: the fragment graph is an isolated copy |
+| `Fragment.From(model)` | Snapshots: isolated copy, except members marked `[SparseCloneReferenceSafe]`, which keep their references |
 | Sparse construction (`new X.Fragment { ... }`) | Shares: assigned values are held by reference |
 | `Merge`, especially `Replace` | Shares: the winning layer's reference is kept |
 | Typed patch assignment (`new X.Patch { … }`) | Shares: nothing is cloned on assignment or on `Apply` |
 | `Patch.Apply` | Shares: the result aliases the patch's assigned values |
 | `ApplyChanges` | Shares (same rule as `Merge`/`Apply`) |
-| `ToModel` | Shares: the model aliases fragment member references |
+| `ToModel` | Shares: creates a new root model, but aliases fragment member references |
 | `DeepClone` | Snapshots, except members marked `[SparseCloneReferenceSafe]`, which stay shared |
-| Whole-contribution `Set(model)` | Snapshots (goes through `From`) |
+| Whole-contribution `Set(model)` | Snapshots (goes through `From`, preserving `[SparseCloneReferenceSafe]` references) |
 | ChangeSet payload deserialization | Snapshots (freshly deserialized values) |
 | Granular keyed-collection edits | New container, shared element references |
 
@@ -66,10 +66,13 @@ clone.Child!.Count = 42;                     // the original is untouched
 [SparseModel]
 public partial class Settings
 {
+    [SparseMerge(MergeMode.Replace)]
     [SparseCloneReferenceSafe]
     public SharedService Service { get; set; } = null!;
 }
 ```
+
+`[SparseCloneReferenceSafe]` controls cloning policy and does not substitute for an explicit atomic merge mode (`[SparseMerge(MergeMode.Replace)]`) on non-partial custom reference types.
 
 * Members with reference shapes that cannot be cloned safely (unsupported types, constructor-bound cycles) are generator errors ([`SPF008`](../reference/analyzer.md#spf008-unsupported-deep-clone-member)); either switch to a supported structural type/collection or mark the property `[SparseCloneReferenceSafe]`.
 

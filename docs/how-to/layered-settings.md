@@ -111,10 +111,12 @@ var nestedRevealed = library.Merge(applicationWithoutPanel).Merge(userWithoutThe
 
 ## Edit the materialised model without touching the layers
 
-`ToModel()` renders the merged contribution as an ordinary model. Editing
-that model changes only the rendering; the fragment layers keep their
-presence state. Keep the two apart: change a contribution by patching its
-layer, and edit the rendering for local display or handoff.
+`ToModel()` renders the merged contribution as an ordinary model root. Reassigning
+properties on that model changes only the materialised instance; the fragment
+layers keep their presence state. Note that reference-type members (such as lists)
+are aliased from the fragment; use `DeepClone()` when independent mutable copies
+of child objects are required. Keep the two apart: change a contribution by
+patching its layer, and edit the rendering for local display or handoff.
 
 <!-- sample: layered-materialize -->
 ```csharp
