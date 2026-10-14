@@ -48,7 +48,7 @@
 
 @code {
     [Parameter, EditorRequired]
-    public CatalogWorkflow.EditSession Session { get; set; } = null!;
+    public EnterpriseCatalogItem.EditSession Session { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public CatalogWorkStep Step { get; set; } = null!;
@@ -59,7 +59,7 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private CatalogWorkflow.EditSession? _parentSession;
+    private EnterpriseCatalogItem.EditSession? _parentSession;
     private CatalogChildSessionHandle<CatalogWorkMaster.EditSession> _childSession = null!;
     private CatalogWorkMaster.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
@@ -105,7 +105,7 @@
         _childSession?.Dispose();
         _parentSession = Session;
         _childSession = CatalogChildSessionHandle.From(
-            Session.OpenChildSession(CatalogWorkflow.SparsePath.Steps.Key(Step.Id).Master)
+            Session.OpenChildSession(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id))
         );
         _draftSession = _childSession.Session;
         _history = _draftSession.EnableHistory();

@@ -1,7 +1,7 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Each tab edits a child model through its own typed EditSession and Undo/Redo history. Saving a section accepts that child session into its parent; work-master sessions are nested under the workflow session.</p>
+    <p class="pg-hint">Each tab edits a child model through its own typed EditSession and Undo/Redo history. Workflow steps and work masters use separate keyed collections, so saving one section does not change the other section's draft.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Shapes" Id="code-6-shapes">
             <MonacoView Content="@ShapesCode" Language="csharp" Height="390px" />
@@ -27,6 +27,7 @@
             public CatalogCommercialDetails Commercial { get; set; } = new();
             public CatalogOperationsDetails Operations { get; set; } = new();
             public CatalogWorkflow Workflow { get; set; } = new();
+            public List<CatalogWorkMaster> WorkMasters { get; set; } = [];
         }
 
         [SparseModel]
@@ -54,7 +55,14 @@
             [SparseKey]
             public string Id { get; set; } = string.Empty;
             public string Name { get; set; } = string.Empty;
-            public CatalogWorkMaster Master { get; set; } = new();
+        }
+
+        [SparseModel]
+        public partial class CatalogWorkMaster
+        {
+            [SparseKey]
+            public string StepId { get; set; } = string.Empty;
+            public string WorkCenter { get; set; } = string.Empty;
         }
         """;
 
@@ -83,14 +91,18 @@
         {
             Id = "new-step",
             Name = "Calibration",
-            Master = new CatalogWorkMaster(),
         }, out _);
 
-        using var stepMaster = workflow.Session.OpenChildSession(
-            CatalogWorkflow.SparsePath.Steps.Key("new-step").Master);
+        workflow.TryAcceptChanges(out _);
+
+        var workMasters = session.EditCollection<CatalogWorkMaster, string>(
+            EnterpriseCatalogItem.SparsePath.WorkMasters);
+        workMasters.TryInsert(workMasters.Count, new CatalogWorkMaster { StepId = "new-step" }, out _);
+
+        using var stepMaster = session.OpenChildSession(
+            EnterpriseCatalogItem.SparsePath.WorkMasters.Key("new-step"));
         stepMaster.Session.Observable.WorkCenter = "WC-17";
         stepMaster.TryAcceptChanges(out _);
-        workflow.TryAcceptChanges(out _);
         """;
 
     private const string HistoryCode = """

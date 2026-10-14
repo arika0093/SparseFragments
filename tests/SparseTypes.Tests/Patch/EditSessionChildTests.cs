@@ -80,6 +80,37 @@ public sealed class EditSessionChildTests
     }
 
     [Test]
+    public void ChildAcceptMergesKeyedInsertionAtMiddleOfCollection()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers =
+                    [
+                        new KeyedServer { Id = "first", Name = "first" },
+                        new KeyedServer { Id = "second", Name = "second" },
+                    ],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var group = session.OpenChildSession(ClusterHolder.SparsePath.Groups.Key("group"));
+        var servers = group.Session.EditCollection<KeyedServer, string>(ServerGroup.SparsePath.Servers);
+
+        servers.TryInsert(1, new KeyedServer { Id = "inserted", Name = "inserted" }, out var error).ShouldBeTrue();
+
+        group.TryAcceptChanges(out var conflicts).ShouldBeTrue();
+
+        error.ShouldBe(SparseCollectionEditError.None);
+        conflicts.ShouldBeNull();
+        model.Groups[0].Servers.Select(static server => server.Id).ShouldBe(["first", "inserted", "second"]);
+    }
+
+    [Test]
     public void RootChangeSetAcceptsGrandchildSessionsBeforeCapture()
     {
         var model = new ClusterHolder

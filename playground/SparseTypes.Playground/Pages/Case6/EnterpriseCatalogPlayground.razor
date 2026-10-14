@@ -84,7 +84,7 @@
             <ChildContent>
                 <div class="pg-section-content">
                     <WorkflowEditor @ref="_workflowEditor" ChildSession="_workflowChildSession"
-                        SavedWorkflow="_savedWorkflow"
+                        SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
                         BaselineVersion="_baselineVersion" OnChanged="Refresh" />
                 </div>
             </ChildContent>
@@ -92,7 +92,7 @@
         <FluentTab Id="case-6-work-masters">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">5. Work masters</span>
-                @if (CurrentWorkflow.Steps.Any(step =>
+                @if (AcceptedWorkflow.Steps.Any(step =>
                     _childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkMasterId(step.Id))))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
@@ -100,15 +100,15 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    @if (CurrentWorkflow.Steps.Count == 0)
+                    @if (AcceptedWorkflow.Steps.Count == 0)
                     {
-                        <p class="pg-hint">Add workflow steps to create their work-master tabs. The tabs follow the current workflow draft.</p>
+                        <p class="pg-hint">Save the workflow section draft to update the work-master tabs.</p>
                     }
                     else
                     {
                         <FluentTabs ActiveTabId="@ActiveMasterTabId" ActiveTabIdChanged="OnMasterTabChanged"
                             Orientation="Orientation.Vertical">
-                            @foreach (var step in CurrentWorkflow.Steps)
+                            @foreach (var step in AcceptedWorkflow.Steps)
                             {
                                 <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
                                     <HeaderTemplate>
@@ -119,7 +119,7 @@
                                         }
                                     </HeaderTemplate>
                                     <ChildContent>
-                                        <StepMasterEditor @key="step.Id" Session="_workflowChildSession.Session" Step="step"
+                                        <StepMasterEditor @key="step.Id" Session="_session" Step="step"
                                             ChildSessions="_childSessions" OnChanged="Refresh" />
                                     </ChildContent>
                                 </FluentTab>
@@ -158,6 +158,7 @@
     private const string MasterTabPrefix = "case-6-master-";
 
     private EnterpriseCatalogItem _model = null!;
+    private EnterpriseCatalogItem _savedModel = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
     private readonly CatalogChildSessionCoordinator _childSessions = new();
     private CatalogChildSessionHandle<CatalogWorkflow.EditSession> _workflowChildSession = null!;
@@ -165,29 +166,32 @@
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
     private bool _saveDialogHidden = true;
+    private bool _hasChanges;
     private IReadOnlyList<ChangePreviewRow> _changeRows = [];
     private string? _error;
     private int _baselineVersion;
     private CatalogWorkflow _savedWorkflow = null!;
+    private CatalogWorkflow _acceptedWorkflow = null!;
     private string _activeSectionTab = "case-6-overview";
     private string _activeMasterTab = string.Empty;
 
-    private bool HasChanges => _session.HasChanges;
-    private CatalogWorkflow CurrentWorkflow =>
-        _workflowChildSession?.Session.GetModelForFrameworkAccess() ?? _model.Workflow;
+    private bool HasChanges => _hasChanges;
+    private CatalogWorkflow AcceptedWorkflow => _acceptedWorkflow;
     private string ActiveMasterTabId =>
-        CurrentWorkflow.Steps.Count == 0
+        AcceptedWorkflow.Steps.Count == 0
             ? string.Empty
-            : CurrentWorkflow.Steps.Any(step => MasterTabId(step.Id) == _activeMasterTab)
+            : AcceptedWorkflow.Steps.Any(step => MasterTabId(step.Id) == _activeMasterTab)
                 ? _activeMasterTab
-                : MasterTabId(CurrentWorkflow.Steps[0].Id);
+                : MasterTabId(AcceptedWorkflow.Steps[0].Id);
 
     protected override void OnInitialized()
     {
         _model = CreateSample();
+        _savedModel = _model.DeepClone();
         _session = _model.CreateEditSession();
         OpenWorkflowChildSession();
         _savedWorkflow = _model.Workflow.DeepClone();
+        _acceptedWorkflow = _model.Workflow.DeepClone();
     }
 
     public void Dispose()
@@ -291,13 +295,6 @@
                         Name = "Cutting",
                         ResponsibleTeam = "Machining",
                         StandardHours = 1.5m,
-                        Master = new CatalogWorkMaster
-                        {
-                            WorkCenter = "WC-12",
-                            Equipment = "CNC Lathe 04",
-                            SetupMinutes = 20,
-                            Instruction = "Verify stock diameter before the first cut.",
-                        },
                     },
                     new CatalogWorkStep
                     {
@@ -305,14 +302,6 @@
                         Name = "Assembly",
                         ResponsibleTeam = "Assembly",
                         StandardHours = 2.25m,
-                        Master = new CatalogWorkMaster
-                        {
-                            WorkCenter = "WC-31",
-                            Equipment = "Press Station 02",
-                            SetupMinutes = 15,
-                            Instruction = "Apply the specified torque sequence.",
-                            SupervisorApproval = true,
-                        },
                     },
                     new CatalogWorkStep
                     {
@@ -320,27 +309,48 @@
                         Name = "Final inspection",
                         ResponsibleTeam = "Quality",
                         StandardHours = 0.75m,
-                        Master = new CatalogWorkMaster
-                        {
-                            WorkCenter = "QC-08",
-                            Equipment = "CMM 01",
-                            SetupMinutes = 10,
-                            Instruction = "Record dimensional results against the drawing.",
-                        },
                     },
                 ],
             },
+            WorkMasters =
+            [
+                new CatalogWorkMaster
+                {
+                    StepId = "cut",
+                    WorkCenter = "WC-12",
+                    Equipment = "CNC Lathe 04",
+                    SetupMinutes = 20,
+                    Instruction = "Verify stock diameter before the first cut.",
+                },
+                new CatalogWorkMaster
+                {
+                    StepId = "assemble",
+                    WorkCenter = "WC-31",
+                    Equipment = "Press Station 02",
+                    SetupMinutes = 15,
+                    Instruction = "Apply the specified torque sequence.",
+                    SupervisorApproval = true,
+                },
+                new CatalogWorkMaster
+                {
+                    StepId = "inspect",
+                    WorkCenter = "QC-08",
+                    Equipment = "CMM 01",
+                    SetupMinutes = 10,
+                    Instruction = "Record dimensional results against the drawing.",
+                },
+            ],
         };
 
     private async Task OpenSavePreview()
     {
-        if (!await _childSessions.AcceptAllAsync())
+        if (_childSessions.HasPendingChanges)
         {
-            _error = "Resolve the child-session conflict before saving.";
+            _error = "Save or discard each edited section draft before saving the catalog.";
             return;
         }
 
-        if (!_session.HasChanges)
+        if (!HasChanges)
         {
             return;
         }
@@ -397,7 +407,10 @@
         try
         {
             _session.AcceptChanges();
+            _savedModel = _model.DeepClone();
+            _hasChanges = false;
             _savedWorkflow = _model.Workflow.DeepClone();
+            _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             _session = _model.CreateEditSession();
             OpenWorkflowChildSession();
@@ -436,8 +449,51 @@
                 ? "A workflow child-session target is no longer available."
                 : "Resolve the workflow child-session conflict before saving.";
         }
+        else
+        {
+            EnsureAcceptedWorkMasters();
+        }
 
         return Task.FromResult(accepted);
+    }
+
+    private void EnsureAcceptedWorkMasters()
+    {
+        _acceptedWorkflow = _model.Workflow.DeepClone();
+        var activeStepIds = AcceptedWorkflow.Steps.Select(static step => step.Id).ToHashSet(StringComparer.Ordinal);
+        var workMasters = _session.EditCollection<CatalogWorkMaster, string>(
+            EnterpriseCatalogItem.SparsePath.WorkMasters
+        );
+
+        foreach (var step in AcceptedWorkflow.Steps)
+        {
+            if (_model.WorkMasters.Any(master => master.StepId == step.Id))
+            {
+                continue;
+            }
+
+            var master = _workflowEditor?.GetMasterDefaults(step.Id);
+            if (master is null)
+            {
+                throw new InvalidOperationException($"Work-master defaults for step '{step.Id}' are unavailable.");
+            }
+
+            master.StepId = step.Id;
+            if (!workMasters.TryInsert(workMasters.Count, master, out var error))
+            {
+                _error = $"Could not create the work master for '{step.Name}' ({error}).";
+                return;
+            }
+        }
+
+        foreach (var master in _model.WorkMasters.Where(master => !activeStepIds.Contains(master.StepId)).ToArray())
+        {
+            if (!workMasters.TryRemoveByKey(master.StepId, out var error))
+            {
+                _error = $"Could not remove the work master for '{master.StepId}' ({error}).";
+                return;
+            }
+        }
     }
 
     private static string MasterTabId(string stepId) => $"{MasterTabPrefix}{stepId}";
@@ -468,7 +524,10 @@
         try
         {
             _session.RevertChanges();
+            _savedModel = _model.DeepClone();
+            _hasChanges = false;
             _savedWorkflow = _model.Workflow.DeepClone();
+            _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             _session = _model.CreateEditSession();
             OpenWorkflowChildSession();
@@ -482,6 +541,10 @@
         return Task.CompletedTask;
     }
 
-    private void Refresh() => StateHasChanged();
+    private void Refresh()
+    {
+        _hasChanges = !EnterpriseCatalogItem.ChangeSet.Between(_savedModel, _model).IsEmpty;
+        StateHasChanged();
+    }
 
 }

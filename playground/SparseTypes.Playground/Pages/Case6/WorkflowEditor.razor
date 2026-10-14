@@ -17,8 +17,8 @@
                 <span class="pg-hint">Drag the handle to reorder. Drop a template here to add it.</span>
             </div>
             <div class="pg-catalog-workflow-dropzone">
-                <FluentSortableList @key="_sortableListsVersion" TItem="CatalogWorkStep.Observable" Id="case6-workflow" Group="case6-work-steps"
-                    Items="_draftSession.Observable.Steps" Handle="true" Class="pg-roster-list"
+                <FluentSortableList @key="_sortableListsVersion" TItem="CatalogWorkStep" Id="case6-workflow" Group="case6-work-steps"
+                    Items="CurrentWorkflow!.Steps" Handle="true" Class="pg-roster-list"
                     OnUpdate="OnSortableUpdate" OnAdd="OnTemplateAdded">
                     <ItemTemplate Context="step">
                         <div class="@GetStepClass(step)">
@@ -70,7 +70,7 @@
                         <span class="pg-drag sortable-grab" aria-hidden="true">⠿</span>
                         <div>
                             <strong>@template.Name</strong>
-                            <small>@template.ResponsibleTeam · @template.Master.WorkCenter</small>
+                            <small>@template.ResponsibleTeam · @GetTemplateMaster(template.Id).WorkCenter</small>
                         </div>
                         <FluentButton Appearance="ButtonAppearance.Default" Title="Add step"
                             @onclick="() => AddStep(template)">+</FluentButton>
@@ -91,7 +91,7 @@
 </FluentCard>
 
 @code {
-    private static readonly CatalogWorkStep[] Templates =
+    private static readonly WorkflowStepTemplate[] Templates =
     [
         CreateTemplate("turn", "Turning", "Machining", 1.5m, "WC-12", "CNC Lathe"),
         CreateTemplate("bore", "Boring", "Machining", 1.1m, "WC-14", "Horizontal Borer"),
@@ -129,6 +129,9 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    [Parameter]
+    public Action? OnAccepted { get; set; }
+
     private CatalogChildSessionHandle<CatalogWorkflow.EditSession>? _activeChildSession;
     private CatalogWorkflow.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
@@ -139,10 +142,19 @@
     private readonly Dictionary<string, string> _templateIdByStepId = new(StringComparer.Ordinal);
     private string? _error;
     private CatalogWorkStep[] AvailableTemplates =>
-        Templates.Where(IsTemplateAvailable).ToArray();
+        Templates.Select(static template => template.Step).Where(IsTemplateAvailable).ToArray();
 
     public CatalogWorkflow? CurrentWorkflow => _draftSession?.GetModelForFrameworkAccess();
     public bool HasChanges => ChildSession?.HasChanges == true;
+    public CatalogWorkMaster? GetMasterDefaults(string stepId)
+    {
+        if (!_templateIdByStepId.TryGetValue(stepId, out var templateId))
+        {
+            return null;
+        }
+
+        return Templates.FirstOrDefault(template => template.Step.Id == templateId)?.Master.DeepClone();
+    }
 
     public async Task<bool> AcceptChildSessionAsync()
     {
@@ -217,6 +229,11 @@
     private (bool Accepted, IReadOnlyList<SparseConflict>? Conflicts) TryAcceptChildSession()
     {
         var accepted = ChildSession.TryAcceptChanges(out var conflicts);
+        if (accepted)
+        {
+            OnAccepted?.Invoke();
+        }
+
         return (accepted, conflicts);
     }
 
@@ -233,12 +250,11 @@
             mapping.Value == template.Id && _draftSession.Observable.Steps.Any(step => step.Id == mapping.Key)
         );
 
-    private string GetStepClass(CatalogWorkStep.Observable step) =>
-        CatalogRowState.ClassFor<CatalogWorkStep, CatalogWorkStep.Observable>(
+    private string GetStepClass(CatalogWorkStep step) =>
+        CatalogRowState.ClassFor(
             _displayBaseline.Steps,
-            _draftSession.Observable.Steps,
+            CurrentWorkflow!.Steps,
             step,
-            static item => item.Id,
             static item => item.Id,
             detectReorder: true
         );
@@ -256,7 +272,7 @@
         return -1;
     }
 
-    private static CatalogWorkStep CreateTemplate(
+    private static WorkflowStepTemplate CreateTemplate(
         string id,
         string name,
         string team,
@@ -264,12 +280,15 @@
         string workCenter,
         string equipment
     ) =>
-        new()
+        new WorkflowStepTemplate
         {
-            Id = $"template-{id}",
-            Name = name,
-            ResponsibleTeam = team,
-            StandardHours = hours,
+            Step = new CatalogWorkStep
+            {
+                Id = $"template-{id}",
+                Name = name,
+                ResponsibleTeam = team,
+                StandardHours = hours,
+            },
             Master = new CatalogWorkMaster
             {
                 WorkCenter = workCenter,
@@ -278,6 +297,9 @@
                 Instruction = $"Follow the standard {name.ToLowerInvariant()} procedure.",
             },
         };
+
+    private static CatalogWorkMaster GetTemplateMaster(string templateId) =>
+        Templates.First(template => template.Step.Id == templateId).Master;
 
     private async Task OnTemplateAdded(FluentSortableListEventArgs args)
     {
@@ -307,7 +329,6 @@
             Name = template.Name,
             ResponsibleTeam = template.ResponsibleTeam,
             StandardHours = template.StandardHours,
-            Master = template.Master.DeepClone(),
         };
 
         var steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
@@ -389,5 +410,11 @@
     {
         _sortableListsVersion++;
         return OnChanged.InvokeAsync();
+    }
+
+    private sealed class WorkflowStepTemplate
+    {
+        public CatalogWorkStep Step { get; init; } = null!;
+        public CatalogWorkMaster Master { get; init; } = null!;
     }
 }

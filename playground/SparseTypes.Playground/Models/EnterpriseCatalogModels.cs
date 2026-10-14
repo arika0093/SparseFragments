@@ -9,6 +9,7 @@ public partial class EnterpriseCatalogItem
     public CatalogCommercialDetails Commercial { get; set; } = new();
     public CatalogOperationsDetails Operations { get; set; } = new();
     public CatalogWorkflow Workflow { get; set; } = new();
+    public List<CatalogWorkMaster> WorkMasters { get; set; } = [];
 }
 
 [SparseModel]
@@ -95,12 +96,14 @@ public partial class CatalogWorkStep
     public string Name { get; set; } = string.Empty;
     public string ResponsibleTeam { get; set; } = string.Empty;
     public decimal StandardHours { get; set; }
-    public CatalogWorkMaster Master { get; set; } = new();
 }
 
 [SparseModel]
 public partial class CatalogWorkMaster
 {
+    [SparseKey]
+    public string StepId { get; set; } = string.Empty;
+
     public string WorkCenter { get; set; } = string.Empty;
     public string Equipment { get; set; } = string.Empty;
     public decimal SetupMinutes { get; set; }

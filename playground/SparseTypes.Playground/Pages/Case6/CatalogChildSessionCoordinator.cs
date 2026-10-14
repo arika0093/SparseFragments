@@ -27,18 +27,7 @@ public sealed class CatalogChildSessionCoordinator
     public bool HasChangesFor(string id) =>
         _participants.Any(participant => participant.Id == id && participant.HasChanges());
 
-    public async Task<bool> AcceptAllAsync()
-    {
-        foreach (var participant in _participants.ToArray())
-        {
-            if (participant.HasChanges() && !await participant.Accept())
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    public bool HasPendingChanges => _participants.Any(static participant => participant.HasChanges());
 
     public void DiscardAll()
     {

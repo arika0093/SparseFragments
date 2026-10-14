@@ -217,6 +217,16 @@ internal static class SparseChangeSetKeyedRebaseEmitter
             );
         code.AppendLineAt(
             5,
+            "var __rebaseCurrentOrder"
+                + id
+                + " = new global::System.Collections.Generic.List<"
+                + keyType
+                + ">(__corder"
+                + id
+                + ");"
+        );
+        code.AppendLineAt(
+            5,
             "var __rlist"
                 + id
                 + " = new global::System.Collections.Generic.List<"
@@ -687,13 +697,13 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + keyType
                 + ">("
                 + KeyedBeforeOrder(member)
-                + ", __corder"
+                + ", __rebaseCurrentOrder"
                 + id
                 + ")) { __nbO"
                 + id
                 + " = new global::System.Collections.Generic.List<"
                 + keyType
-                + ">(__corder"
+                + ">(__rebaseCurrentOrder"
                 + id
                 + "); __naO"
                 + id
@@ -711,7 +721,7 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + keyType
                 + ">("
                 + KeyedAfterOrder(member)
-                + ", __corder"
+                + ", __rebaseCurrentOrder"
                 + id
                 + ")) { __conflicts.Add(new "
                 + conflict
@@ -729,7 +739,7 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + KeyedAfterOrder(member)
                 + "), "
                 + runtime
-                + "Optional<object?>.Present((object?)__corder"
+                + "Optional<object?>.Present((object?)__rebaseCurrentOrder"
                 + id
                 + "), \"The collection order conflicts with a concurrent change.\")); }"
         );
