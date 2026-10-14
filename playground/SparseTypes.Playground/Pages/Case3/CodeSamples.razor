@@ -24,6 +24,8 @@
         var after = new PlaygroundRoster { Quests = [ /* after quests */ ] };
 
         var changes = before.CreateChangeSet(after);
+        // Ordinary application code can use changes.ToPatch() to generate the patch.
+        var patch = changes.ToPatch();
         var quests = changes.Quests;
         // Contains keyed adds, removes, field edits, and the final order.
         """;

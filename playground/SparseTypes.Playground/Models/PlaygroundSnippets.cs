@@ -268,6 +268,9 @@ public static class PlaygroundSnippets
     )
     {
         var sb = new StringBuilder();
+        sb.AppendLine(
+            "// Ordinary application code can use changes.ToPatch() to generate the patch."
+        );
         sb.AppendLine($"var {variableName} = new PlaygroundRoster.Patch();");
         var quests = changes.Quests;
         if (quests.IsEmpty)
