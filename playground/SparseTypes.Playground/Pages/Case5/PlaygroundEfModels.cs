@@ -151,14 +151,16 @@ public sealed partial class PlaygroundOrderMapper
     {
         Map.Member(dto => dto.Customer, entity => entity.CustomerName);
         Map.Member(dto => dto.Notes, entity => entity.Note!.Text);
+        Map.Read(dto => dto.Notes, entity => entity.Note == null ? string.Empty : entity.Note.Text);
         Map.Collection(
             dto => dto.Lines,
             entity => entity.Lines,
             lines =>
             {
                 // Same-name Product/Qty resolve via generated defaults.
+                lines.Element(element => element.Read(dto => dto.Id, entity => (int?)entity.Id));
                 lines.Delete();
-                lines.Order((entity, index) => entity.SortOrder = index);
+                lines.Order(entity => entity.SortOrder);
             }
         );
     }

@@ -1,3 +1,5 @@
+@using SparseTypes
+
 <FluentDialog @ref="_dialog" Hidden="@(!Visible)" Modal="true" TrapFocus="true"
     Class="pg-conflict-dialog" AriaLabel="Concurrent save conflict">
     <div class="pg-dialog-heading">
@@ -10,17 +12,33 @@
             <div class="pg-change-table-wrap">
                 <table class="pg-change-table" aria-label="Concurrent save details">
                     <thead>
-                        <tr><th>Path</th><th>Base</th><th>Local value</th><th>Current value</th><th>Conflict</th></tr>
+                        <tr><th>Path</th><th>Base</th><th>@SubmittedHeader</th><th>Current persisted value</th><th>Conflict / resolution</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var row in Conflicts)
                         {
                             <tr>
-                                <td><span class="pg-change-value">@row.Path</span></td>
+                                <td><span class="pg-change-value">@row.PathText</span></td>
                                 <td><span class="pg-change-value">@row.Baseline</span></td>
-                                <td><span class="pg-change-value">@row.Local</span></td>
+                                <td><span class="pg-change-value">@row.Submitted</span></td>
                                 <td><span class="pg-change-value">@row.Current</span></td>
-                                <td><span class="pg-change-value">@row.Kind</span></td>
+                                <td>
+                                    <span class="pg-change-value">@row.Kind</span>
+                                    @if (row.CanResolve)
+                                    {
+                                        <div class="pg-actions">
+                                            <FluentButton Appearance="ButtonAppearance.Default"
+                                                Disabled="@IsApplying"
+                                                @onclick="() => OnUseSubmitted.InvokeAsync(row.PathText)">Use captured value</FluentButton>
+                                            <FluentButton Appearance="ButtonAppearance.Default"
+                                                Disabled="@IsApplying"
+                                                @onclick="() => OnUseCurrent.InvokeAsync(row.PathText)">Use current value</FluentButton>
+                                        </div>
+                                        <span class="pg-change-value">
+                                            @(row.UseSubmitted switch { true => "Using captured value", false => "Using current value", _ => "Choose a value" })
+                                        </span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -29,7 +47,12 @@
         }
     </div>
     <div class="pg-dialog-footer">
-        <FluentButton Appearance="ButtonAppearance.Primary" @onclick="OnClose">Continue editing</FluentButton>
+        @if (Conflicts.Any(static row => row.CanResolve))
+        {
+            <FluentButton Appearance="ButtonAppearance.Primary" Disabled="@(!CanApplyResolution)"
+                @onclick="OnResolve">Apply resolutions</FluentButton>
+        }
+        <FluentButton Appearance="ButtonAppearance.Primary" Disabled="@IsApplying" @onclick="OnClose">Continue editing</FluentButton>
     </div>
 </FluentDialog>
 
@@ -44,10 +67,37 @@
     public string Summary { get; set; } = string.Empty;
 
     [Parameter]
-    public IReadOnlyList<(string Path, string Baseline, string Local, string Current, string Kind)> Conflicts { get; set; } = [];
+    public string SubmittedHeader { get; set; } = "Captured submitted value";
+
+    [Parameter]
+    public IReadOnlyList<(
+        SparsePath? Path,
+        string PathText,
+        string Baseline,
+        string Submitted,
+        string Current,
+        string Kind,
+        bool CanResolve,
+        bool? UseSubmitted
+    )> Conflicts { get; set; } = [];
+
+    [Parameter]
+    public bool CanApplyResolution { get; set; }
+
+    [Parameter]
+    public bool IsApplying { get; set; }
 
     [Parameter, EditorRequired]
     public EventCallback OnClose { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnUseSubmitted { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnUseCurrent { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnResolve { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

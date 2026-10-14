@@ -1,7 +1,7 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">The submit action captures an immutable ChangeSet; the session baseline advances when the save is acknowledged. A progress bar tracks the 10-second delay; concurrent edits are rebased and shown in a conflict dialog.</p>
+    <p class="pg-hint">The submit action captures an immutable ChangeSet; the session baseline advances when the save is acknowledged. A progress bar tracks the 10-second delay. A separate 10-second simulation updates persisted data without changing the draft, and submitted conflicts can be resolved per path.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Mapper" Id="code-5-mapper">
             <MonacoView Content="@EfMapperCode" Language="csharp" Height="330px" />
@@ -10,7 +10,7 @@
             <MonacoView Content="@EfShapesCode" Language="csharp" Height="360px" />
         </FluentTab>
         <FluentTab Header="Apply flow" Id="code-5-flow">
-            <MonacoView Content="@EfFlowCode" Language="csharp" Height="330px" />
+            <MonacoView Content="@EfFlowCode" Language="csharp" Height="450px" />
         </FluentTab>
         <FluentTab Header="Inspect changes" Id="code-5-inspect">
             <MonacoView Content="@EfInspectCode" Language="csharp" Height="330px" />
@@ -28,16 +28,19 @@
             {
                 Map.Member(dto => dto.Customer, entity => entity.CustomerName); // Map the renamed customer property.
                 Map.Member(dto => dto.Notes, entity => entity.Note!.Text);      // Flatten Notes onto the related note.
+                Map.Read(dto => dto.Notes, entity => entity.Note == null ? string.Empty : entity.Note.Text);
                 Map.Collection(
                     dto => dto.Lines,       // Read changes from the DTO collection.
                     entity => entity.Lines, // Apply them to the tracked EF collection.
                     lines =>
                     {
+                        lines.Element(element =>
+                            element.Read(dto => dto.Id, entity => (int?)entity.Id));
                         // Same-name Product/Qty resolve via generated defaults.
                         // Mark removed line entities for deletion by EF.
                         lines.Delete();
                         // Persist the collection order.
-                        lines.Order((entity, index) => entity.SortOrder = index);
+                        lines.Order(entity => entity.SortOrder);
                     });
             }
         }
@@ -54,6 +57,13 @@
         // Keep editing draft while the save is in flight.
 
         var mapper = PlaygroundOrderMapper.Create(db.Model);
+        var lines = session.EditCollection<PlaygroundOrderLineDto, int>(
+            PlaygroundOrderDto.SparsePath.Lines);
+        lines.TryAdd(newLine, out var addError);
+        lines.TryMoveByKey(assignedId, 0, out var moveError);
+        lines.TryReplaceByKey(assignedId, replacement, out var replaceError);
+        lines.TryRemoveByTemporaryKey(temporaryId, out var removeError);
+        // Add/remove/reorder/replace keep assigned and temporary identities stable.
         // Apply now, or when the 10-second snackbar expires.
         // ApplyWithResult correlates created lines by temporary identity.
         var result = mapper.ApplyWithResult(db, tracked, submitted); // No query, no SaveChanges.
@@ -67,7 +77,7 @@
             PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, tracked.Revision);
             tracked.Revision++;
             await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
-            var persisted = Project(await ReloadOrderAsync(tracked.Id));
+            var persisted = mapper.ToDto(await ReloadOrderAsync(tracked.Id));
             // Generated keys land on the authoritative projection; acknowledgement routes
             // by what the server returned, never by list position.
             mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
@@ -80,7 +90,8 @@
         catch (DbUpdateConcurrencyException)
         {
             db.ChangeTracker.Clear();
-            var current = Project(await ReloadOrderAsync(tracked.Id));
+            var currentEntity = await ReloadOrderAsync(tracked.Id);
+            var current = mapper.ToDto(currentEntity);
             if (selectedMode == ConflictHandlingMode.Strict)
             {
                 session = current.CreateEditSession(draft); // Reject the save; the live draft stays pending.
@@ -89,20 +100,47 @@
             }
 
             var rebase = submitted.RebaseOnto(current);
-            var retry = mapper.ApplyWithResult(db, currentEntity, rebase.Rebased);
+            var changesToApply = rebase.Rebased;
+            if (rebase.HasConflicts)
+            {
+                var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(rebase, current);
+                // The UI records UseIncoming(path) or UseCurrent(path) for each conflict.
+                if (!resolution.TryBuild(out var resolved, out var failure))
+                    throw new InvalidOperationException(failure?.Reason);
+                changesToApply = resolved!;
+            }
+            // Recheck the persisted revision immediately before applying user choices.
+            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, currentEntity.Revision);
+            var retry = mapper.ApplyWithResult(db, currentEntity, changesToApply);
             if (db.ChangeTracker.HasChanges())
             {
                 currentEntity.Revision++;
                 await db.SaveChangesAsync();
             }
 
-            var merged = Project(await ReloadOrderAsync(tracked.Id));
+            var merged = mapper.ToDto(await ReloadOrderAsync(tracked.Id));
             mapper.AssignTemporaryKeys(db, retry, submittedDraft, merged);
             var postSubmit = submittedDraft.CreateChangeSet(draft);
             var postRebase = postSubmit.RebaseOnto(merged);
             if (!session.TryReconcile(submitted, merged, out var reconcileError))
                 throw new InvalidOperationException(reconcileError); // The retry persisted; reseed to recover.
             if (rebase.HasConflicts || postRebase.HasConflicts) ShowConflictDialog(rebase, postRebase);
+        }
+
+        // The optional periodic simulation uses a separate DbContext and never
+        // writes the session draft. Save and simulation share a gate.
+        if (await timer.WaitForNextTickAsync(cancellationToken))
+        {
+            await storeGate.WaitAsync(cancellationToken);
+            try
+            {
+                var update = PlaygroundConcurrency.SimulatePeriodicUpdate(SharedOptions, orderId);
+                ReportPersistedRevision(update.Revision, update.Property, update.Before, update.After);
+            }
+            finally
+            {
+                storeGate.Release();
+            }
         }
         """;
 

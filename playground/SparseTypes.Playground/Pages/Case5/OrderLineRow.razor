@@ -67,10 +67,11 @@
     [Parameter]
     public SparseCollectionState? Roster { get; set; }
 
-    // Structural edits (remove/move) still mutate the draft list directly;
-    // the parent owns the save-pipeline bookkeeping for them.
     [Parameter, EditorRequired]
-    public EventCallback<Action<PlaygroundOrderDto>> OnEditDraft { get; set; }
+    public PlaygroundOrderDto.EditSession Session { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnEditError { get; set; }
 
     // Field writes go through the SparseField bindings above; the parent
     // refreshes its retained ChangeSet when this fires.
@@ -125,23 +126,43 @@
         await OnEdited.InvokeAsync();
     }
 
-    private Task EditDraft(Action<PlaygroundOrderDto> edit) => OnEditDraft.InvokeAsync(edit);
-
-    private Task RemoveAsync()
+    private async Task RemoveAsync()
     {
-        var index = Index;
-        return index < 0 ? Task.CompletedTask : EditDraft(draft => draft.Lines.RemoveAt(index));
+        var editor = Session.EditCollection<PlaygroundOrderLineDto, int>(
+            PlaygroundOrderDto.SparsePath.Lines
+        );
+        var removed = Line.Id is int id
+            ? editor.TryRemoveByKey(id, out var error)
+            : editor.TryRemoveByTemporaryKey(Line.TemporaryId ?? Guid.Empty, out error);
+        if (!removed)
+        {
+            await OnEditError.InvokeAsync($"Could not remove line: {error}.");
+            return;
+        }
+
+        await OnEdited.InvokeAsync();
     }
 
-    private Task MoveAsync(int direction)
+    private async Task MoveAsync(int direction)
     {
-        var index = Index;
+        var editor = Session.EditCollection<PlaygroundOrderLineDto, int>(
+            PlaygroundOrderDto.SparsePath.Lines
+        );
+        var index = Line.Id is int id
+            ? editor.IndexOfKey(id)
+            : editor.IndexOfTemporaryKey(Line.TemporaryId ?? Guid.Empty);
         var target = index + direction;
         if (index < 0 || target < 0 || target >= Draft.Lines.Count)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return EditDraft(draft => (draft.Lines[index], draft.Lines[target]) = (draft.Lines[target], draft.Lines[index]));
+        if (!editor.TryMove(index, target, out var error))
+        {
+            await OnEditError.InvokeAsync($"Could not move line: {error}.");
+            return;
+        }
+
+        await OnEdited.InvokeAsync();
     }
 }

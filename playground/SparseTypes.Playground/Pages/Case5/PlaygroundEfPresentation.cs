@@ -77,9 +77,6 @@ internal static class PlaygroundEfPresentation
     // entries, not change records, so they keep their own mapping.
     // FormatChangeValue stays too: rebase conflict endpoints are SparseConflict
     // values, a different record type the row projection does not cover.
-    // Project stays here as well: the Case 5 page maps the tracked entity to its
-    // DTO in several lifecycle steps (seed, save acknowledgement, conflict
-    // recovery), and the projection is presentation, not mapping.
     internal static string FormatChangeValue(Optional<object?> value) =>
         value.IsPresent ? PlaygroundOrderJson.FormatValue(value.Value) : "—";
 
@@ -90,26 +87,6 @@ internal static class PlaygroundEfPresentation
             "Deleted" => "Remove",
             "Modified" => "Edit",
             _ => state,
-        };
-
-    /// <summary>Projects the tracked order entity to its DTO in store order.</summary>
-    /// <param name="order">The tracked entity, with lines loaded.</param>
-    /// <returns>The DTO the edit session owns and diffs.</returns>
-    internal static PlaygroundOrderDto Project(PlaygroundOrderEntity order) =>
-        new()
-        {
-            Customer = order.CustomerName,
-            Notes = order.Note?.Text ?? string.Empty,
-            Total = order.Total,
-            Lines = order
-                .Lines.OrderBy(static line => line.SortOrder)
-                .Select(static line => new PlaygroundOrderLineDto
-                {
-                    Id = line.Id,
-                    Product = line.Product,
-                    Qty = line.Qty,
-                })
-                .ToList(),
         };
 
     internal static string Try(Func<string> render)

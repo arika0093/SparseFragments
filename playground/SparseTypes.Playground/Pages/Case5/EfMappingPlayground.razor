@@ -4,7 +4,7 @@
 @using SparseTypes.EntityFrameworkCore
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
-@implements IDisposable
+@implements IAsyncDisposable
 
 <div class="pg-stack">
     <div class="pg-grid pg-grid-duo">
@@ -27,9 +27,9 @@
             <div class="pg-card-head">
                 <h3>3. Edit draft</h3>
                 <div class="pg-actions">
-                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="ResetDraft">Reset draft</FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" Disabled="@_saveApplying" @onclick="ResetDraft">Reset draft</FluentButton>
                     <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                        Disabled="@(_savePending || _changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
+                        Disabled="@(_savePending || _saveApplying || _changes?.IsChanged != true)" @onclick="OpenSaveDialog">Save</FluentButton>
                 </div>
             </div>
             <SparseEdit Session="_session" Context="edit">
@@ -73,7 +73,8 @@
                 <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                     OnUpdate="OnLinesReordered" Context="line">
                     <SortableItemTemplate>
-                        <OrderLineRow @key="LineKey(line)" Line="line" Draft="_draft" Lines="lines" Roster="roster" OnEditDraft="EditDraft" OnEdited="OnDraftEdited" />
+                        <OrderLineRow @key="LineKey(line)" Line="line" Draft="_draft" Lines="lines" Roster="roster"
+                            Session="_session" OnEditError="ShowCollectionEditError" OnEdited="OnDraftEdited" />
                     </SortableItemTemplate>
                 </SortableList>
             </SparseField>
@@ -93,6 +94,10 @@
                     ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
                     Simulate another user editing before save
                 </FluentCheckbox>
+                <FluentCheckbox Value="@_periodicSimulationEnabled"
+                    ValueChanged="OnPeriodicSimulationChanged">
+                    Simulate third-party updates every 10 seconds
+                </FluentCheckbox>
                 <div class="pg-case5-rebase-select">
                     <span class="pg-name">Conflict handling</span>
                     <FluentSelect TOption="string" TValue="string"
@@ -105,6 +110,14 @@
                         aria-label="Conflict handling" />
                 </div>
                 <p class="pg-hint">Standard uses per-field three-way rebase: overlapping edits are reported, and unrelated edits are saved. Strict rejects the whole save when the revision changes.</p>
+                @if (_persistedUpdateNotice is not null)
+                {
+                    <FluentMessageBar Intent="MessageBarIntent.Info">@_persistedUpdateNotice</FluentMessageBar>
+                }
+                @if (_simulationError is not null)
+                {
+                    <FluentMessageBar Intent="MessageBarIntent.Error">@_simulationError</FluentMessageBar>
+                }
             </div>
         </FluentCard>
         <FluentCard Class="pg-fluent-card">
@@ -204,7 +217,10 @@
 </FluentDialog>
 
 <ConflictDialog Visible="_conflictVisible" Summary="@_conflictSummary"
-    Conflicts="_conflictRows" OnClose="CloseConflictDialog" />
+    Conflicts="_conflictRows" CanApplyResolution="@CanApplyResolution" IsApplying="@_resolutionApplying"
+    SubmittedHeader="@_conflictSubmittedHeader"
+    OnUseSubmitted="UseSubmittedConflictValue" OnUseCurrent="UseCurrentConflictValue"
+    OnResolve="ApplyConflictResolution" OnClose="CloseConflictDialog" />
 
 @code {
     private enum ConflictHandlingMode
@@ -217,6 +233,7 @@
         new DbContextOptionsBuilder<PlaygroundEfContext>()
             .UseInMemoryDatabase("pg-ef-demo")
             .Options;
+    private readonly SemaphoreSlim _storeGate = new(1, 1);
 
     private PlaygroundEfContext? _db;
     private PlaygroundOrderEntity? _tracked;
@@ -234,8 +251,14 @@
     private string? _saveError;
     private bool _applied;
     private bool _savePending;
+    private bool _saveApplying;
     private bool _simulateConflict;
+    private bool _periodicSimulationEnabled;
     private bool _waitBeforeApply;
+    private string? _persistedUpdateNotice;
+    private string? _simulationError;
+    private CancellationTokenSource? _simulationCancellation;
+    private Task? _simulationTask;
     private string _entityJsonBeforeApply = string.Empty;
     private FluentDialog? _saveDialog;
     private bool _saveDialogHidden = true;
@@ -246,11 +269,34 @@
     private PlaygroundOrderDto.ChangeSet? _pendingSubmitted;
     private PlaygroundOrderDto? _pendingDraft;
     private bool _pendingSimulateConflict;
-    private List<(string Path, string Baseline, string Local, string Current, string Kind)> _conflictRows = [];
+    private List<(
+        SparsePath? Path,
+        string PathText,
+        string Baseline,
+        string Submitted,
+        string Current,
+        string Kind,
+        bool CanResolve,
+        bool? UseSubmitted
+    )> _conflictRows = [];
+    private PlaygroundOrderDto.ChangeSet.Resolution? _conflictResolution;
+    private PlaygroundOrderDto.ChangeSet? _resolutionSubmitted;
+    private PlaygroundOrderDto? _resolutionSubmittedDraft;
+    private int _resolutionExpectedRevision;
+    private int _resolutionOrderId;
+    private bool _resolutionStale;
+    private bool _resolutionApplying;
+    private string _conflictSubmittedHeader = "Captured submitted value";
     private ConflictHandlingMode _conflictHandlingMode = ConflictHandlingMode.Standard;
     private ConflictHandlingMode? _pendingConflictHandlingMode;
 
     private static readonly string[] ConflictHandlingOptions = ["Standard", "Strict"];
+    private bool CanApplyResolution =>
+        _conflictResolution is not null
+        && !_resolutionStale
+        && !_resolutionApplying
+        && _conflictRows.Any(static row => row.CanResolve)
+        && _conflictRows.Where(static row => row.CanResolve).All(static row => row.UseSubmitted.HasValue);
 
     private string EntityJson => PlaygroundEfPresentation.Try(() => _tracked is null ? "{}" : PlaygroundOrderJson.WriteEntity(_tracked));
     private string BaselineJson => PlaygroundEfPresentation.Try(() => PlaygroundOrderJson.WriteDto(_baselineView));
@@ -260,19 +306,139 @@
     private PlaygroundOrderDto _draft => _liveDraft;
 
     /// <summary>Reseeds the store and resets the whole pipeline. Called by the page too.</summary>
-    public void Reset()
+    public async Task Reset()
     {
-        _saveDialogHidden = true;
-        Seed();
+        await StopPeriodicSimulationAsync();
+        await _storeGate.WaitAsync();
+        try
+        {
+            _saveDialogHidden = true;
+            Seed();
+        }
+        finally
+        {
+            _storeGate.Release();
+        }
     }
 
     protected override void OnInitialized() => Seed();
 
-    public void Dispose() => _db?.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        await StopPeriodicSimulationAsync();
+        await _storeGate.WaitAsync();
+        try
+        {
+            _db?.Dispose();
+            _db = null;
+        }
+        finally
+        {
+            _storeGate.Release();
+            _storeGate.Dispose();
+        }
+    }
+
+    private async Task OnPeriodicSimulationChanged(bool enabled)
+    {
+        _periodicSimulationEnabled = enabled;
+        _simulationError = null;
+        if (enabled)
+        {
+            StartPeriodicSimulation();
+        }
+        else
+        {
+            await StopPeriodicSimulationAsync();
+        }
+    }
+
+    private void StartPeriodicSimulation()
+    {
+        if (_simulationTask is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _simulationCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _simulationCancellation = cancellation;
+        _simulationTask = RunPeriodicSimulationAsync(cancellation.Token);
+    }
+
+    private async Task StopPeriodicSimulationAsync()
+    {
+        var cancellation = _simulationCancellation;
+        var task = _simulationTask;
+        _simulationCancellation = null;
+        _simulationTask = null;
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        if (task is not null)
+        {
+            await task;
+        }
+
+        cancellation.Dispose();
+    }
+
+    private async Task RunPeriodicSimulationAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                await _storeGate.WaitAsync(cancellationToken);
+                ConcurrentUpdate update;
+                try
+                {
+                    if (_tracked is null || _db is null)
+                    {
+                        throw new InvalidOperationException("The EF Core demo store is not initialized.");
+                    }
+
+                    var orderId = _tracked.Id;
+                    update = PlaygroundConcurrency.SimulatePeriodicUpdate(SharedOptions, orderId);
+                    _db.ChangeTracker.Clear();
+                    _tracked = _db.Orders
+                        .Include(static order => order.Note)
+                        .Include(static order => order.Lines)
+                        .Single(order => order.Id == orderId);
+                }
+                finally
+                {
+                    _storeGate.Release();
+                }
+
+                await InvokeAsync(() =>
+                {
+                    _persistedUpdateNotice =
+                        $"Third-party update persisted at revision {update.Revision}: {update.Property} changed from {PlaygroundOrderJson.FormatValue(update.Before)} to {PlaygroundOrderJson.FormatValue(update.After)}. The draft was not changed.";
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            await InvokeAsync(() =>
+            {
+                _simulationError = $"Periodic update failed: {ex.GetType().Name}: {ex.Message}";
+                _periodicSimulationEnabled = false;
+                StateHasChanged();
+            });
+        }
+    }
 
     private void Seed()
     {
         _savePending = false;
+        _saveApplying = false;
         _pendingSubmitted = null;
         _pendingDraft = null;
         _pendingConflictHandlingMode = null;
@@ -308,24 +474,33 @@
         _db.Entry(seeded).Collection(static order => order.Lines).Load();
         _tracked = seeded;
         _mapper = PlaygroundOrderMapper.Create(_db.Model);
-        var initial = PlaygroundEfPresentation.Project(_tracked);
+        var initial = _mapper.ToDto(_tracked);
         _liveDraft = initial;
         _session = initial.CreateEditSession();
         _baselineView = initial.DeepClone();
         _applied = false;
         _applyResult = null;
         _simulateConflict = false;
+        _periodicSimulationEnabled = false;
         _waitBeforeApply = false;
+        _persistedUpdateNotice = null;
+        _simulationError = null;
         _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
         _saveDialogHidden = true;
         _conflictVisible = false;
         _conflictRows = [];
+        ClearConflictResolution();
         RefreshChanges();
     }
 
     private void ResetDraft()
     {
+        if (_saveApplying)
+        {
+            return;
+        }
+
         // A pending submission references the retained baseline, so cancel it first:
         // reverting would otherwise orphan the in-flight snapshot.
         _savePending = false;
@@ -350,12 +525,6 @@
         RefreshChanges();
     }
 
-    private void EditDraft(Action<PlaygroundOrderDto> edit)
-    {
-        edit(_liveDraft);
-        OnDraftEdited();
-    }
-
     // Field writes arrive through SparseField bindings (which own the session
     // write and refresh); this only runs the draft bookkeeping the headless
     // components do not supply: clearing the last save outcome and refreshing
@@ -369,8 +538,7 @@
     }
 
     // Scalar writes through one shared adapter: the field owns the session
-    // write, and the draft bookkeeping above follows it. Structural edits
-    // (add/remove/move) keep using EditDraft directly.
+    // write, and the draft bookkeeping above follows it.
     private async Task EditFieldAsync<TValue>(SparseFieldContext<PlaygroundOrderDto, TValue> field, TValue? value)
     {
         await field.SetAsync(value);
@@ -385,13 +553,28 @@
 
     private void AddLine()
     {
-        EditDraft(draft => draft.Lines.Add(
-            new PlaygroundOrderLineDto
-            {
-                Product = NewLineProducts[NewLineRandom.Next(NewLineProducts.Length)],
-                Qty = NewLineRandom.Next(1, 6),
-                TemporaryId = Guid.NewGuid(),
-            }));
+        var editor = _session.EditCollection<PlaygroundOrderLineDto, int>(
+            PlaygroundOrderDto.SparsePath.Lines
+        );
+        var line = new PlaygroundOrderLineDto
+        {
+            Product = NewLineProducts[NewLineRandom.Next(NewLineProducts.Length)],
+            Qty = NewLineRandom.Next(1, 6),
+            TemporaryId = Guid.NewGuid(),
+        };
+        if (!editor.TryAdd(line, out var error))
+        {
+            _applyError = $"Could not add line: {error}.";
+            return;
+        }
+
+        OnDraftEdited();
+    }
+
+    private Task ShowCollectionEditError(string message)
+    {
+        _applyError = message;
+        return Task.CompletedTask;
     }
 
     private static string LineKey(PlaygroundOrderLineDto line) =>
@@ -406,12 +589,17 @@
             return Task.CompletedTask;
         }
 
-        EditDraft(draft =>
+        var editor = _session.EditCollection<PlaygroundOrderLineDto, int>(
+            PlaygroundOrderDto.SparsePath.Lines
+        );
+        var target = Math.Min(newIndex, lines.Count - 1);
+        if (!editor.TryMove(oldIndex, target, out var error))
         {
-            var line = draft.Lines[oldIndex];
-            draft.Lines.RemoveAt(oldIndex);
-            draft.Lines.Insert(Math.Min(newIndex, draft.Lines.Count), line);
-        });
+            _applyError = $"Could not reorder lines: {error}.";
+            return Task.CompletedTask;
+        }
+
+        OnDraftEdited();
         return Task.CompletedTask;
     }
 
@@ -483,7 +671,7 @@
 
     private async Task OpenSaveDialog()
     {
-        if (_savePending)
+        if (_savePending || _saveApplying)
         {
             return;
         }
@@ -510,6 +698,11 @@
 
     private async Task ConfirmSave()
     {
+        if (_savePending || _saveApplying)
+        {
+            return;
+        }
+
         // Capture the exact immutable submission before the awaited save. The retained
         // baseline stays put so the submission remains verifiable at acknowledgement;
         // edits made meanwhile stay pending against it.
@@ -548,23 +741,33 @@
         var submittedDraft = _pendingDraft;
         var conflictHandlingMode = _pendingConflictHandlingMode.Value;
         var simulateConflict = _pendingSimulateConflict;
-        _savePending = false;
+        _saveApplying = true;
         _pendingSubmitted = null;
         _pendingDraft = null;
         _pendingConflictHandlingMode = null;
         _pendingSimulateConflict = false;
-        ApplyChanges(submitted);
-        if (_applied)
+        await _storeGate.WaitAsync();
+        try
         {
-            await SaveEntity(submitted, submittedDraft, simulateConflict, conflictHandlingMode);
+            ApplyChanges(submitted);
+            if (_applied)
+            {
+                await SaveEntity(submitted, submittedDraft, simulateConflict, conflictHandlingMode);
+            }
+            else
+            {
+                // Acknowledgement never ran, so the retained baseline is untouched and the
+                // submission simply stays pending for a retry.
+                var applyError = _applyError;
+                RefreshChanges();
+                _applyError = applyError;
+            }
         }
-        else
+        finally
         {
-            // Acknowledgement never ran, so the retained baseline is untouched and the
-            // submission simply stays pending for a retry.
-            var applyError = _applyError;
-            RefreshChanges();
-            _applyError = applyError;
+            _storeGate.Release();
+            _saveApplying = false;
+            _savePending = false;
         }
     }
 
@@ -630,7 +833,6 @@
                 .Include(static order => order.Note)
                 .Include(static order => order.Lines)
                 .Single(order => order.Id == orderId);
-            var persisted = PlaygroundEfPresentation.Project(_tracked);
             if (_mapper is null || _applyResult is null)
             {
                 throw new InvalidOperationException("The EF Core mapper result is not available.");
@@ -638,6 +840,7 @@
 
             // Correlate created rows by temporary identity onto the authoritative
             // projection, then acknowledge through the session contract.
+            var persisted = _mapper.ToDto(_tracked);
             _mapper.AssignTemporaryKeys(_db, _applyResult, submittedDraft, persisted);
             AcknowledgeSave(submitted, submittedDraft, persisted);
             _applyResult = null;
@@ -645,11 +848,22 @@
         }
         catch (DbUpdateConcurrencyException)
         {
-            await RecoverFromConflict(
-                submitted,
-                submittedDraft,
-                expectedRevision,
-                conflictHandlingMode);
+            try
+            {
+                await RecoverFromConflict(
+                    submitted,
+                    submittedDraft,
+                    expectedRevision,
+                    conflictHandlingMode);
+            }
+            catch (Exception ex)
+            {
+                _applied = false;
+                _applyResult = null;
+                _modifiedRows = [];
+                RefreshChanges();
+                _saveError = $"Conflict recovery failed: {ex.GetType().Name}: {ex.Message}. The submitted snapshot may have persisted; review the entity or reseed to recover.";
+            }
         }
         catch (Exception ex)
         {
@@ -707,7 +921,12 @@
             .Include(static order => order.Note)
             .Include(static order => order.Lines)
             .Single(order => order.Id == orderId);
-        var current = PlaygroundEfPresentation.Project(_tracked);
+        if (_mapper is null)
+        {
+            throw new InvalidOperationException("The EF Core mapper is not initialized.");
+        }
+
+        var current = _mapper.ToDto(_tracked);
         if (conflictHandlingMode == ConflictHandlingMode.Strict)
         {
             // Reject the whole submission: adopt the current state as the new baseline while
@@ -716,14 +935,19 @@
             // rebase (and possibly drop) overlapping local edits instead of preserving them.
             _session = current.CreateEditSession(_liveDraft);
             _baselineView = current;
+            ClearConflictResolution();
+            _conflictSubmittedHeader = "Submitted changes";
             _conflictRows =
             [
                 (
-                    "Revision",
-                    expectedRevision.ToString(),
-                    "Submitted changes",
-                    _tracked.Revision.ToString(),
-                    "Strict rejection"
+                    Path: (SparsePath?)null,
+                    PathText: "Revision",
+                    Baseline: expectedRevision.ToString(),
+                    Submitted: "Submitted changes",
+                    Current: _tracked.Revision.ToString(),
+                    Kind: "Strict rejection",
+                    CanResolve: false,
+                    UseSubmitted: (bool?)null
                 ),
             ];
             _conflictSummary = "Strict handling rejected the submitted changes because the order revision changed. The draft remains available for another save.";
@@ -736,9 +960,36 @@
         }
 
         var submittedRebase = submitted.RebaseOnto(current);
-        if (_mapper is null)
+        if (submittedRebase.HasConflicts)
         {
-            throw new InvalidOperationException("The EF Core mapper is not initialized.");
+            _conflictResolution = PlaygroundOrderDto.ChangeSet.BeginResolution(
+                submittedRebase,
+                current
+            );
+            _resolutionSubmitted = submitted;
+            _resolutionSubmittedDraft = submittedDraft;
+            _resolutionExpectedRevision = _tracked.Revision;
+            _resolutionOrderId = orderId;
+            _resolutionStale = false;
+            _conflictSubmittedHeader = "Captured submitted value";
+            _conflictRows = submittedRebase.Conflicts
+                .Select(static conflict => (
+                    Path: (SparsePath?)conflict.Path,
+                    PathText: conflict.PathText,
+                    Baseline: PlaygroundEfPresentation.FormatChangeValue(conflict.BaseValue),
+                    Submitted: PlaygroundEfPresentation.FormatChangeValue(conflict.LocalValue),
+                    Current: PlaygroundEfPresentation.FormatChangeValue(conflict.CurrentValue),
+                    Kind: conflict.Kind.ToString(),
+                    CanResolve: true,
+                    UseSubmitted: (bool?)null))
+                .ToList();
+            _conflictSummary = "Another user changed fields in the submitted snapshot. Choose the captured value or the current persisted value for each conflict before applying the non-conflicting changes.";
+            _applied = false;
+            _applyResult = null;
+            _modifiedRows = [];
+            RefreshChanges();
+            _conflictVisible = true;
+            return;
         }
 
         _entityJsonBeforeApply = EntityJson;
@@ -757,14 +1008,25 @@
             .Include(static order => order.Note)
             .Include(static order => order.Lines)
             .Single(order => order.Id == orderId);
-        var merged = PlaygroundEfPresentation.Project(_tracked);
+        var merged = _mapper.ToDto(_tracked);
         _mapper.AssignTemporaryKeys(_db, retry, submittedDraft, merged);
         _applyResult = null;
 
-        // Conflicting post-submit edits are reported but keep their local values: the
-        // reconciliation replays them onto the merged state by temporary identity.
-        var postSubmit = submittedDraft.CreateChangeSet(_liveDraft);
-        var postSubmitRebase = postSubmit.RebaseOnto(merged);
+        // Rebase later edits onto the authoritative state before reconciliation so
+        // remote field values and local post-submit edits both survive.
+        try
+        {
+            _conflictRows = PreparePostSubmitDraft(submittedDraft, merged);
+        }
+        catch (Exception ex)
+        {
+            _applied = false;
+            _modifiedRows = [];
+            RefreshChanges();
+            _saveError = $"The retry may have persisted, but later draft edits could not be merged: {ex.GetType().Name}: {ex.Message}. Reseed to recover.";
+            return;
+        }
+
         if (!_session.TryReconcile(submitted, merged, out var reconcileError))
         {
             _applied = false;
@@ -775,24 +1037,253 @@
         }
 
         _baselineView = merged;
-        _conflictRows = submittedRebase.Conflicts
-            .Concat(postSubmitRebase.Conflicts)
-            .Select(static conflict => (
-                Path: conflict.PathText,
-                Baseline: PlaygroundEfPresentation.FormatChangeValue(conflict.BaseValue),
-                Local: PlaygroundEfPresentation.FormatChangeValue(conflict.LocalValue),
-                Current: PlaygroundEfPresentation.FormatChangeValue(conflict.CurrentValue),
-                Kind: conflict.Kind.ToString()))
-            .ToList();
-        var hasFieldConflicts = submittedRebase.HasConflicts || postSubmitRebase.HasConflicts;
+        ClearConflictResolution();
+        _conflictSubmittedHeader = "Later local draft";
+        var hasFieldConflicts = _conflictRows.Count > 0;
         _conflictSummary = hasFieldConflicts
-            ? "Another user updated this order while the save was pending. Conflicting fields use the selected policy; non-conflicting submitted changes were saved."
+            ? "The submitted changes were saved. Later local edits that conflict with the persisted order remain in the draft and were not overwritten."
             : "Another user updated this order while the save was pending. The submitted changes were saved on top of the latest entity.";
         _applied = true;
         RefreshChanges();
         _conflictVisible = hasFieldConflicts;
     }
 
-    private void CloseConflictDialog() => _conflictVisible = false;
+    private void UseSubmittedConflictValue(string pathText) => SetConflictChoice(pathText, true);
+
+    private void UseCurrentConflictValue(string pathText) => SetConflictChoice(pathText, false);
+
+    private void SetConflictChoice(string pathText, bool useSubmitted)
+    {
+        var index = _conflictRows.FindIndex(row => row.CanResolve && row.PathText == pathText);
+        if (index < 0 || _conflictResolution is null)
+        {
+            throw new InvalidOperationException($"No resolvable conflict exists at '{pathText}'.");
+        }
+
+        var row = _conflictRows[index];
+        if (row.Path is not SparsePath path)
+        {
+            throw new InvalidOperationException($"The conflict at '{pathText}' has no typed path.");
+        }
+
+        if (useSubmitted)
+        {
+            _conflictResolution.UseIncoming(path);
+        }
+        else
+        {
+            _conflictResolution.UseCurrent(path);
+        }
+
+        _conflictRows[index] = (
+            row.Path,
+            row.PathText,
+            row.Baseline,
+            row.Submitted,
+            row.Current,
+            row.Kind,
+            row.CanResolve,
+            useSubmitted
+        );
+    }
+
+    private async Task ApplyConflictResolution()
+    {
+        if (
+            !CanApplyResolution
+            || _conflictResolution is null
+            || _resolutionSubmitted is null
+            || _resolutionSubmittedDraft is null
+        )
+        {
+            return;
+        }
+
+        if (!_conflictResolution.TryBuild(out var resolved, out var failure) || resolved is null)
+        {
+            _conflictSummary = failure?.Reason ?? "The selected conflict resolutions could not be built.";
+            return;
+        }
+
+        var submitted = _resolutionSubmitted;
+        var submittedDraft = _resolutionSubmittedDraft;
+        var orderId = _resolutionOrderId;
+        var expectedRevision = _resolutionExpectedRevision;
+        _resolutionApplying = true;
+        _saveError = null;
+        var resolutionPersisted = false;
+        var resolutionWriteAttempted = false;
+        await _storeGate.WaitAsync();
+        try
+        {
+            if (_db is null || _tracked is null || _mapper is null)
+            {
+                throw new InvalidOperationException("The EF Core demo store is not initialized.");
+            }
+
+            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, orderId, expectedRevision);
+            if (_tracked.Id != orderId || _tracked.Revision != expectedRevision)
+            {
+                throw new DbUpdateConcurrencyException(
+                    $"Order {orderId} is no longer at revision {expectedRevision}."
+                );
+            }
+
+            _entityJsonBeforeApply = EntityJson;
+            resolutionWriteAttempted = true;
+            var result = _mapper.ApplyWithResult(_db, _tracked, resolved);
+            _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
+            if (_db.ChangeTracker.HasChanges())
+            {
+                _tracked.Revision++;
+                _db.SaveChanges();
+            }
+
+            resolutionPersisted = true;
+            _db.ChangeTracker.Clear();
+            _tracked = _db.Orders
+                .Include(static order => order.Note)
+                .Include(static order => order.Lines)
+                .Single(order => order.Id == orderId);
+            var persisted = _mapper.ToDto(_tracked);
+            _mapper.AssignTemporaryKeys(_db, result, submittedDraft, persisted);
+            _conflictRows = PreparePostSubmitDraft(submittedDraft, persisted);
+            if (!_session.TryReconcile(submitted, persisted, out var reconcileError))
+            {
+                throw new InvalidOperationException(
+                    reconcileError ?? "The resolved save could not be reconciled with the draft."
+                );
+            }
+
+            _baselineView = persisted;
+            _conflictSubmittedHeader = "Later local draft";
+            _conflictSummary = _conflictRows.Count > 0
+                ? "The selected values were applied. Later local edits that conflict with the persisted order remain in the draft and were not overwritten."
+                : "The selected conflict values and non-conflicting submitted changes were applied.";
+            _conflictVisible = _conflictRows.Count > 0;
+            _applied = true;
+            _applyResult = null;
+            ClearConflictResolution();
+            RefreshChanges();
+        }
+        catch (Exception ex)
+        {
+            if (_db is not null)
+            {
+                _db.ChangeTracker.Clear();
+                _tracked = _db.Orders
+                    .Include(static order => order.Note)
+                    .Include(static order => order.Lines)
+                    .Single(order => order.Id == orderId);
+                _resolutionStale = _tracked.Revision != expectedRevision;
+            }
+
+            _applied = false;
+            _applyResult = null;
+            _modifiedRows = [];
+            _conflictVisible = true;
+            _conflictSummary = resolutionPersisted
+                ? "The chosen values were persisted, but the local draft could not be reconciled. The revision is newer; continue editing and save again to review the current state."
+                : _resolutionStale
+                    ? resolutionWriteAttempted
+                        ? "The revision changed during the save attempt, so the resolution could not be confirmed. Review the error and current entity before retrying."
+                        : "The persisted revision changed while the dialog was open. The selected values were not applied; continue editing and save again to review the newer state."
+                    : "The selected values were not confirmed as saved. Review the error before retrying.";
+            RefreshChanges();
+            _saveError = $"{ex.GetType().Name}: {ex.Message}";
+        }
+        finally
+        {
+            _storeGate.Release();
+            _resolutionApplying = false;
+        }
+    }
+
+    private List<(
+        SparsePath? Path,
+        string PathText,
+        string Baseline,
+        string Submitted,
+        string Current,
+        string Kind,
+        bool CanResolve,
+        bool? UseSubmitted
+    )> PreparePostSubmitDraft(PlaygroundOrderDto submittedDraft, PlaygroundOrderDto persisted)
+    {
+        var postSubmit = submittedDraft.CreateChangeSet(_liveDraft);
+        var postSubmitRebase = postSubmit.RebaseOnto(persisted);
+        var pending = postSubmitRebase.Rebased;
+        if (postSubmitRebase.HasConflicts)
+        {
+            var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(
+                postSubmitRebase,
+                persisted
+            );
+            foreach (var conflict in resolution.EnumerateUnresolvedConflicts())
+            {
+                resolution.UseIncoming(conflict.Path);
+            }
+
+            if (!resolution.TryBuild(out var resolved, out var failure) || resolved is null)
+            {
+                throw new InvalidOperationException(
+                    failure?.Reason ?? "The later draft edits could not be rebased."
+                );
+            }
+
+            pending = resolved;
+        }
+
+        var targetDraft = pending.ToPatch()
+            .Apply(
+                Optional<PlaygroundOrderDto.Fragment?>.Present(
+                    PlaygroundOrderDto.Fragment.From(persisted)
+                )
+            )
+            .Value!
+            .ToModel();
+        var syncDraft = PlaygroundOrderDto.ChangeSet.Between(_liveDraft, targetDraft);
+        if (
+            !syncDraft.IsEmpty
+            && !_session.TryApplyInPlace(syncDraft, out var syncConflicts)
+        )
+        {
+            var paths = syncConflicts is null
+                ? "unknown paths"
+                : string.Join(", ", syncConflicts.Select(static conflict => conflict.PathText));
+            throw new InvalidOperationException(
+                $"The authoritative values could not be merged into the live draft: {paths}."
+            );
+        }
+
+        return postSubmitRebase.Conflicts
+            .Select(static conflict => (
+                Path: (SparsePath?)conflict.Path,
+                PathText: conflict.PathText,
+                Baseline: PlaygroundEfPresentation.FormatChangeValue(conflict.BaseValue),
+                Submitted: PlaygroundEfPresentation.FormatChangeValue(conflict.LocalValue),
+                Current: PlaygroundEfPresentation.FormatChangeValue(conflict.CurrentValue),
+                Kind: conflict.Kind.ToString(),
+                CanResolve: false,
+                UseSubmitted: (bool?)null))
+            .ToList();
+    }
+
+    private void ClearConflictResolution()
+    {
+        _conflictResolution = null;
+        _resolutionSubmitted = null;
+        _resolutionSubmittedDraft = null;
+        _resolutionExpectedRevision = 0;
+        _resolutionOrderId = 0;
+        _resolutionStale = false;
+        _resolutionApplying = false;
+    }
+
+    private void CloseConflictDialog()
+    {
+        _conflictVisible = false;
+        ClearConflictResolution();
+    }
 
 }
