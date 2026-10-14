@@ -166,6 +166,35 @@ public sealed class SparseHeadlessLifecycleTests
     }
 
     [Test]
+    public async Task RenderingFieldAndCollectionStateKeepsChildDraftPending()
+    {
+        var live = Order();
+        var session = live.CreateEditSession();
+        var child = session.OpenChildSession(OrderDto.SparsePath.Customer);
+        child.Session.Observable.Name = "Grace";
+        SparseFieldContext<OrderDto, List<OrderLine>>? field = null;
+
+        using var tree = await Headless.Tree.CreateAsync(
+            Headless.Edit(
+                session,
+                _ => { },
+                edit =>
+                    builder =>
+                        builder.AddContent(
+                            0,
+                            Headless.Field(edit.Path.Lines, captured => field = captured)
+                        )
+            )
+        );
+
+        field.ShouldNotBeNull();
+        field!.TryGetCollectionState(out var collection).ShouldBeTrue();
+        collection!.Value.GetItemState("a").IsEmpty.ShouldBeTrue();
+        child.HasChanges.ShouldBeTrue();
+        live.Customer.Name.ShouldBe("Ada");
+    }
+
+    [Test]
     public async Task HistoryAvailabilityRewiresWithoutLeaking()
     {
         var live = Order();

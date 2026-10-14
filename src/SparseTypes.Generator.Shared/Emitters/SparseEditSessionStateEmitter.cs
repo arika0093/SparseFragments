@@ -90,7 +90,7 @@ internal static class SparseEditSessionStateEmitter
                 + states.StateQueryType
                 + ".FieldState<"
                 + modelType
-                + ", TValue>(CreateChangeSet(), path);"
+                + ", TValue>(_session.CreateChangeSet(), path);"
         );
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
@@ -118,7 +118,7 @@ internal static class SparseEditSessionStateEmitter
 
         code.AppendLineAt(
             3,
-            "return " + states.StateQueryType + ".FieldState(CreateChangeSet(), path);"
+            "return " + states.StateQueryType + ".FieldState(_session.CreateChangeSet(), path);"
         );
         code.AppendLineAt(2, "}");
     }
@@ -307,7 +307,7 @@ internal static class SparseEditSessionStateEmitter
                     + states.StateQueryType
                     + "."
                     + factory
-                    + "(CreateChangeSet()."
+                    + "(_session.CreateChangeSet()."
                     + property
                     + ", collectionPath);"
             );

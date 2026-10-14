@@ -26,6 +26,44 @@ internal static class SparseSessionInterop
         MethodInfo?
     > FieldStateMethods = new();
     private static readonly ConcurrentDictionary<Type, MethodInfo?> CollectionStateMethods = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo?> EnableHistoryMethods = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo?> DisableHistoryMethods = new();
+
+    /// <summary>Enables the session-owned history used by a scope-owned child session.</summary>
+    internal static void EnableHistory(object session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        var method = EnableHistoryMethods.GetOrAdd(
+            session.GetType(),
+            static type =>
+                type.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                    .FirstOrDefault(candidate =>
+                    {
+                        var parameters = candidate.GetParameters();
+                        return candidate.Name == "EnableHistory"
+                            && candidate.ReturnType == typeof(ISparseEditHistory)
+                            && parameters.Length == 1
+                            && parameters[0].IsOptional;
+                    })
+        );
+        InvokeHistoryMethod(session, method, [null], "EnableHistory");
+    }
+
+    /// <summary>Releases session-owned history enabled for a scope-owned child session.</summary>
+    internal static void DisableHistory(object session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        var method = DisableHistoryMethods.GetOrAdd(
+            session.GetType(),
+            static type =>
+                type.GetMethod(
+                    "DisableHistory",
+                    BindingFlags.Instance | BindingFlags.Public,
+                    Type.EmptyTypes
+                )
+        );
+        InvokeHistoryMethod(session, method, null, "DisableHistory");
+    }
 
     /// <summary>Reads the session-owned history, or null when absent or not enabled.</summary>
     internal static ISparseEditHistory? TryGetHistory(object session)
@@ -249,6 +287,33 @@ internal static class SparseSessionInterop
         }
 
         return null;
+    }
+
+    private static void InvokeHistoryMethod(
+        object session,
+        MethodInfo? method,
+        object?[]? arguments,
+        string methodName
+    )
+    {
+        if (method is null)
+        {
+            throw new InvalidOperationException(
+                $"The session type '{session.GetType()}' does not provide {methodName}."
+            );
+        }
+
+        try
+        {
+            method.Invoke(session, arguments);
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            System
+                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
+                .Throw();
+            throw;
+        }
     }
 
     private static bool IsTypedPathParameter(Type parameter) =>

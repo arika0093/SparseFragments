@@ -7,6 +7,24 @@ namespace SparseTypes.Blazor
         Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
         SparseTypes.ISparseEditSession<TModel> Session { get; }
     }
+    public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
+        where TModel :  class
+        where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
+        where TConflict :  class
+        where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
+    {
+        public bool CanRedo { get; }
+        public bool CanUndo { get; }
+        public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
+        public bool HasChanges { get; }
+        public TPaths Path { get; }
+        public TSession Session { get; }
+        public void AcceptChanges() { }
+        public void DiscardChanges() { }
+        public void Redo() { }
+        public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
+        public void Undo() { }
+    }
     public enum SparseConflictFallbackMode
     {
         NearestParent = 0,
@@ -154,6 +172,15 @@ namespace SparseTypes.Blazor
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
         public void Dispose() { }
         protected override void OnParametersSet() { }
+    }
+    public sealed class SparseSessionScopeContext<TModel>
+        where TModel :  class
+    {
+        public SparseTypes.Blazor.SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession> OpenChildSession<TChild, TChildPaths, TConflict, TChildSession>(SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict> parentSession, SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
+            where TChild :  class
+            where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+            where TConflict :  class
+            where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
     }
     public sealed class SparseSessionScope<TModel> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
         where TModel :  class

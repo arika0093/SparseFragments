@@ -312,6 +312,11 @@ records with missing versus present-null endpoints preserved. Leave
 `StateContracts` null to disable the surface: products without the runtime
 state types keep byte-identical output. Shared never names a `SparseTypes`
 runtime type; every state name arrives through the record.
+Session field and collection queries inspect that session's own model and
+baseline without invoking the child-session acceptance path. An unaccepted
+child draft therefore remains separate from changes already accepted into its
+parent; explicit change-set capture retains its existing child-coordination
+behavior.
 
 `SparseEditSessionDialect` optionally binds an opt-in history surface through
 `HistoryType`, `HistoryOptionsType`, and `HistoryHooksType`. When all three

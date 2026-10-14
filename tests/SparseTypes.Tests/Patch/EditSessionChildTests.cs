@@ -99,15 +99,22 @@ public sealed class EditSessionChildTests
         };
         var session = model.CreateEditSession();
         var group = session.OpenChildSession(ClusterHolder.SparsePath.Groups.Key("group"));
-        var servers = group.Session.EditCollection<KeyedServer, string>(ServerGroup.SparsePath.Servers);
+        var servers = group.Session.EditCollection<KeyedServer, string>(
+            ServerGroup.SparsePath.Servers
+        );
 
-        servers.TryInsert(1, new KeyedServer { Id = "inserted", Name = "inserted" }, out var error).ShouldBeTrue();
+        servers
+            .TryInsert(1, new KeyedServer { Id = "inserted", Name = "inserted" }, out var error)
+            .ShouldBeTrue();
 
         group.TryAcceptChanges(out var conflicts).ShouldBeTrue();
 
         error.ShouldBe(SparseCollectionEditError.None);
         conflicts.ShouldBeNull();
-        model.Groups[0].Servers.Select(static server => server.Id).ShouldBe(["first", "inserted", "second"]);
+        model
+            .Groups[0]
+            .Servers.Select(static server => server.Id)
+            .ShouldBe(["first", "inserted", "second"]);
     }
 
     [Test]
@@ -161,6 +168,26 @@ public sealed class EditSessionChildTests
         conflicts!.ShouldContain(conflict => conflict.PathText == "Child.Name");
         model.Child.Name.ShouldBe("parent edit");
         child.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public void StateQueriesDoNotAcceptPendingChildDrafts()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = [new KeyedServer { Id = "server", Name = "before" }],
+        };
+        var session = model.CreateEditSession();
+        var child = session.OpenChildSession(KeyedServerHolder.SparsePath.Items.Key("server"));
+        child.Session.Observable.Name = "child edit";
+
+        var field = session.FieldState(KeyedServerHolder.SparsePath.Items.Key("server").Name);
+        var collection = session.CollectionState(KeyedServerHolder.SparsePath.Items);
+
+        field.IsChanged.ShouldBeFalse();
+        collection.GetItemState("server").IsEmpty.ShouldBeTrue();
+        child.HasChanges.ShouldBeTrue();
+        model.Items[0].Name.ShouldBe("before");
     }
 
     [Test]

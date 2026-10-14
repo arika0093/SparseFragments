@@ -51,6 +51,9 @@ public sealed class SparseSessionScopeTests
         [CascadingParameter]
         public ISparseEditSession<OrderDto>? Session { get; set; }
 
+        [CascadingParameter]
+        public SparseSessionScopeContext<OrderDto>? ScopeContext { get; set; }
+
         public int RenderCount { get; private set; }
 
         public int RenderThreadId { get; private set; }
@@ -599,7 +602,9 @@ public sealed class SparseSessionScopeTests
         consumer.ShownHasChanges.ShouldBeFalse();
 
         session.Observable.Number = "ORD-3";
+        await harness.FlushAsync();
         session.AcceptChanges();
+        session.HasChanges.ShouldBeFalse();
         await harness.FlushAsync();
         consumer.ShownText.ShouldBe("ORD-3|Ada|a,b");
         consumer.ShownHasChanges.ShouldBeFalse();
@@ -659,6 +664,11 @@ public sealed class SparseSessionScopeTests
     {
         var session = Order().CreateEditSession();
         using var harness = await ScopeHarness.CreateAsync(session);
+        var child = harness.Consumer.ScopeContext!.OpenChildSession(
+            session,
+            OrderDto.SparsePath.Customer
+        );
+        child.Session.Observable.Name = "draft";
         var consumer = harness.Consumer;
         var renders = consumer.RenderCount;
 
@@ -668,6 +678,9 @@ public sealed class SparseSessionScopeTests
         await harness.FlushAsync();
 
         consumer.RenderCount.ShouldBe(renders);
+        session.HasPendingChildSessions.ShouldBeFalse();
+        child.Session.History.ShouldBeNull();
+        Should.Throw<ObjectDisposedException>(() => child.DiscardChanges());
     }
 
     [Test]
@@ -716,6 +729,63 @@ public sealed class SparseSessionScopeTests
         consumer.ShownText.ShouldBe("ORD-9|Ada|a,b");
         consumer.ShownHasChanges.ShouldBeTrue();
         consumer.RenderThreadId.ShouldBe(harness.DispatcherThreadId);
+    }
+
+    [Test]
+    public async Task ScopeOwnedChildContextKeepsLocalHistoryAndReportsConflicts()
+    {
+        var live = Order();
+        using var harness = await ScopeHarness.CreateAsync(live.CreateEditSession());
+        var parent = (OrderDto.EditSession)harness.Scope.Session!;
+        var child = harness.Consumer.ScopeContext!.OpenChildSession(
+            parent,
+            OrderDto.SparsePath.Customer
+        );
+
+        child.Session.Observable.Name = "child";
+        child.CanUndo.ShouldBeTrue();
+        child.Undo();
+        child.Session.Observable.Name.ShouldBe("Ada");
+        child.Redo();
+
+        parent.Observable.Customer!.Name = "parent";
+        child.TryAcceptChanges(out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
+        child.HasChanges.ShouldBeTrue();
+        live.Customer.Name.ShouldBe("parent");
+
+        child.DiscardChanges();
+        child.HasChanges.ShouldBeFalse();
+        child.Session.Observable.Name.ShouldBe("Ada");
+
+        child.Session.Observable.Email = "child@example.com";
+        child.TryAcceptChanges(out conflicts).ShouldBeTrue();
+        conflicts.ShouldBeNull();
+        live.Customer.Email.ShouldBe("child@example.com");
+        child.CanUndo.ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task SessionReplacementReleasesScopeOwnedChildAndHistory()
+    {
+        using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
+        var first = (OrderDto.EditSession)harness.Scope.Session!;
+        var child = harness.Consumer.ScopeContext!.OpenChildSession(
+            first,
+            OrderDto.SparsePath.Customer
+        );
+        child.Session.Observable.Name = "draft";
+
+        var second = Order().CreateEditSession();
+        await harness.SwapSessionAsync(second);
+
+        first.HasPendingChildSessions.ShouldBeFalse();
+        first.History.ShouldBeNull();
+        harness.Consumer.ScopeContext.ShouldNotBeNull();
+        harness
+            .Consumer.ScopeContext.OpenChildSession(second, OrderDto.SparsePath.Customer)
+            .Session.Observable.Name.ShouldBe("Ada");
+        Should.Throw<ObjectDisposedException>(() => child.DiscardChanges());
     }
 
     [Test]

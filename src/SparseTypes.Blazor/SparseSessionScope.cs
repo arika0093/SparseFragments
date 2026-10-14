@@ -11,7 +11,9 @@ namespace SparseTypes.Blazor;
 /// The scope renders no markup of its own: it wraps <see cref="ChildContent"/> in a cascading
 /// value holding <see cref="Session"/> so descendants can declare a
 /// <c>CascadingParameter</c> for <c>ISparseEditSession&lt;TModel&gt;</c> instead of receiving
-/// the session through every intermediate component. Refresh is session-level: the scope
+/// the session through every intermediate component. It also cascades a
+/// <see cref="SparseSessionScopeContext{TModel}"/> that owns typed child sessions opened by
+/// descendants. Refresh is session-level: the scope
 /// subscribes to <see cref="INotifyPropertyChanged.PropertyChanged"/> on the session and
 /// re-renders through <c>InvokeAsync</c>, so callbacks always run on the Blazor
 /// synchronization context. It never reads the live model, which keeps the session's
@@ -25,6 +27,7 @@ public sealed class SparseSessionScope<TModel> : ComponentBase, IDisposable
 {
     private INotifyPropertyChanged? _subscribedNotifier;
     private ISparseEditSession<TModel>? _subscribedSession;
+    private SparseSessionScopeContext<TModel>? _scopeContext;
     private bool _disposed;
 
     /// <summary>Gets or sets the active edit session cascaded to descendants.</summary>
@@ -47,6 +50,8 @@ public sealed class SparseSessionScope<TModel> : ComponentBase, IDisposable
         if (!ReferenceEquals(_subscribedSession, Session))
         {
             Unsubscribe();
+            _scopeContext?.DisposeChildren();
+            _scopeContext = Session is null ? null : new SparseSessionScopeContext<TModel>(Session);
             _subscribedSession = Session;
             if (Session is INotifyPropertyChanged notifier)
             {
@@ -64,7 +69,25 @@ public sealed class SparseSessionScope<TModel> : ComponentBase, IDisposable
         builder.AddAttribute(
             2,
             nameof(CascadingValue<ISparseEditSession<TModel>>.ChildContent),
-            ChildContent
+            (RenderFragment)(
+                sessionBuilder =>
+                {
+                    sessionBuilder.OpenComponent<
+                        CascadingValue<SparseSessionScopeContext<TModel>?>
+                    >(0);
+                    sessionBuilder.AddAttribute(
+                        1,
+                        nameof(CascadingValue<SparseSessionScopeContext<TModel>>.Value),
+                        _scopeContext
+                    );
+                    sessionBuilder.AddAttribute(
+                        2,
+                        nameof(CascadingValue<SparseSessionScopeContext<TModel>>.ChildContent),
+                        ChildContent
+                    );
+                    sessionBuilder.CloseComponent();
+                }
+            )
         );
         builder.CloseComponent();
     }
@@ -79,6 +102,8 @@ public sealed class SparseSessionScope<TModel> : ComponentBase, IDisposable
 
         _disposed = true;
         Unsubscribe();
+        _scopeContext?.DisposeChildren();
+        _scopeContext = null;
     }
 
     private void Unsubscribe()

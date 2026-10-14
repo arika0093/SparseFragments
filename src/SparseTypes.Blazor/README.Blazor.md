@@ -50,6 +50,34 @@ When the server assigns IDs or normalizes the data, replace the model with the
 authoritative state and create a fresh session and `EditContext` instead of
 acknowledging the unassigned transition.
 
+Typed child sessions
+
+`SparseSessionScope` also cascades a `SparseSessionScopeContext<TModel>`.
+Open a child with its generated parent path; the scope retains it across
+renders and disposes its history and child handle when the parent session is
+replaced or the scope is disposed.
+
+<!-- illustrative: the parent and child model types are defined by the application -->
+```csharp
+var customer = scope.OpenChildSession(session, OrderDto.SparsePath.Customer);
+customer.Path.Name; // Typed paths rooted at the child model.
+customer.TryAcceptChanges(out var conflicts); // Merge only when the section is saved.
+customer.DiscardChanges();
+customer.Undo();
+customer.Redo();
+```
+
+The child context provides generated paths, a child-bound `EditContext`,
+change state, acceptance conflicts, and child-local history actions. The scope
+enables history; accepting or discarding resets its baseline while the child
+remains connected. Calling `child.Session.AcceptChanges()` alone does not
+merge the draft into its parent.
+
+Field and collection state reads inspect the session they are bound to. A
+pending child draft stays separate from changes already accepted into the
+parent, and rendering `SparseField` does not accept or discard it. Explicit
+change-set capture keeps its child-coordination behavior.
+
 Session scope and refresh
 
 Wrap the form subtree in `SparseSessionScope` to keep it in sync with the
