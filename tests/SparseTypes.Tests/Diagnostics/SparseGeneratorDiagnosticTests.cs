@@ -59,7 +59,7 @@ public sealed class SparseGeneratorDiagnosticTests
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
         diagnostic.GetMessage().ShouldContain(expectedArg);
         diagnostic.Descriptor.HelpLinkUri.ShouldBe(
-            "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md"
+            "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md"
                 + expectedHelpAnchor
         );
         if (expectInSource)
@@ -768,13 +768,13 @@ public sealed class SparseGeneratorDiagnosticTests
         // SPF010's incompatible-content path is defensive: promotion is a pure
         // function of the shared type, so the same fully-qualified name always
         // yields identical semantics. Cover the diagnostic definition itself
-        // (ID, severity, message, help link) so docs/analyzer.md drift fails loudly.
+        // (ID, severity, message, help link) so docs/reference/analyzer.md drift fails loudly.
         var descriptor = GetDescriptorById("SPF010");
         descriptor.DefaultSeverity.ShouldBe(DiagnosticSeverity.Error);
         descriptor.MessageFormat.ToString().ShouldContain("{0}");
         descriptor.MessageFormat.ToString().ShouldContain("incompatible");
         descriptor.HelpLinkUri.ShouldBe(
-            "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf010-incompatible-promoted-fragment-model"
+            "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf010-incompatible-promoted-fragment-model"
         );
     }
 
@@ -831,7 +831,7 @@ public sealed class SparseGeneratorDiagnosticTests
             );
             descriptor.Category.ShouldBe("SparseTypes");
             descriptor.HelpLinkUri.ShouldBe(
-                "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md" + anchor
+                "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md" + anchor
             );
             descriptor.MessageFormat.ToString().ShouldContain("{0}");
         }

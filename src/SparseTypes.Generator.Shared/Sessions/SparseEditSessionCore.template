@@ -853,9 +853,8 @@ namespace __SESSION_NAMESPACE__
         /// edits made after the change set was captured stay pending against the new baseline.
         /// The candidate baseline is fully computed before commit, so a rejected transition
         /// leaves the retained baseline unchanged. A transition that would promote unassigned
-        /// keyed sentinels into the baseline is rejected atomically; for server-assigned IDs,
-        /// reload the authoritative model and create a fresh session instead of acknowledging
-        /// the unassigned Add.
+        /// keyed sentinels without a temporary key into the baseline is rejected atomically; for
+        /// server-assigned IDs, use reconciliation or reload the authoritative model.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
         /// <exception cref="InvalidOperationException">

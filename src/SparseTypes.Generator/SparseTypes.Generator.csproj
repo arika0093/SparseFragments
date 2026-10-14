@@ -11,7 +11,7 @@
     <PackageDescription>Standalone source generator for SparseTypes models.</PackageDescription>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <!-- Analyzer release tracking (AnalyzerReleases.Shipped/Unshipped.md) is not used.
-      Diagnostics are documented in docs/analyzer.md and linked via HelpLinkUri. -->
+      Diagnostics are documented in docs/reference/analyzer.md and linked via HelpLinkUri. -->
     <NoWarn>$(NoWarn);RS2008</NoWarn>
   </PropertyGroup>
   <ItemGroup>

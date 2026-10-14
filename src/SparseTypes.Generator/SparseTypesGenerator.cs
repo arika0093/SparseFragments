@@ -236,7 +236,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf001-sparse-model-must-be-partial"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf001-sparse-model-must-be-partial"
     );
     private static readonly DiagnosticDescriptor UnsupportedModel = new(
         SparseTypesDiagnosticIds.UnsupportedModel,
@@ -245,7 +245,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf002-unsupported-sparse-model"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf002-unsupported-sparse-model"
     );
     private static readonly DiagnosticDescriptor MissingConstructor = new(
         SparseTypesDiagnosticIds.MissingConstructor,
@@ -254,7 +254,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf003-model-needs-a-supported-constructor"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf003-model-needs-a-supported-constructor"
     );
     private static readonly DiagnosticDescriptor InvalidMergeStrategy = new(
         SparseTypesDiagnosticIds.InvalidMergeStrategy,
@@ -263,7 +263,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf004-invalid-custom-merge-strategy"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf004-invalid-custom-merge-strategy"
     );
     private static readonly DiagnosticDescriptor InvalidRebasePolicy = new(
         SparseTypesDiagnosticIds.InvalidRebasePolicy,
@@ -272,7 +272,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf027-invalid-custom-rebase-policy"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf027-invalid-custom-rebase-policy"
     );
     private static readonly DiagnosticDescriptor InvalidComparisonStrategy = new(
         SparseTypesDiagnosticIds.InvalidComparisonStrategy,
@@ -281,7 +281,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf030-invalid-comparison-strategy"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf030-invalid-comparison-strategy"
     );
     private static readonly DiagnosticDescriptor UnsupportedMerge = new(
         SparseTypesDiagnosticIds.UnsupportedMerge,
@@ -290,7 +290,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf005-unsupported-merge-mode"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf005-unsupported-merge-mode"
     );
     private static readonly DiagnosticDescriptor UnsupportedStructural = new(
         SparseTypesDiagnosticIds.UnsupportedStructural,
@@ -299,7 +299,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf007-unsupported-structural-member-construction"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf007-unsupported-structural-member-construction"
     );
     private static readonly DiagnosticDescriptor UnsupportedClone = new(
         SparseTypesDiagnosticIds.UnsupportedClone,
@@ -308,7 +308,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf008-unsupported-deep-clone-member"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf008-unsupported-deep-clone-member"
     );
 
     private static readonly DiagnosticDescriptor GeneratedNameCollision = new(
@@ -318,7 +318,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf009-member-conflicts-with-generated-api"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf009-member-conflicts-with-generated-api"
     );
 
     private static readonly DiagnosticDescriptor UnsupportedRequired = new(
@@ -328,7 +328,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf006-required-member-cannot-be-constructed"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf006-required-member-cannot-be-constructed"
     );
 
     private static readonly DiagnosticDescriptor IncompatiblePromotedModel = new(
@@ -338,7 +338,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf010-incompatible-promoted-fragment-model"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf010-incompatible-promoted-fragment-model"
     );
 
     private static readonly DiagnosticDescriptor IncompatibleEntityDefaultMapping = new(
@@ -348,7 +348,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf033-incompatible-entity-default-mapping"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf033-incompatible-entity-default-mapping"
     );
 
     private static readonly DiagnosticDescriptor InvalidEntityMapperDeclaration = new(
@@ -358,7 +358,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf034-invalid-entity-mapper-declaration"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf034-invalid-entity-mapper-declaration"
     );
 
     private static readonly DiagnosticDescriptor UnsupportedEntityMemberShape = new(
@@ -368,7 +368,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf035-unsupported-entity-member-shape"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf035-unsupported-entity-member-shape"
     );
 
     private static readonly DiagnosticDescriptor UnkeyedStructuralSequence = new(
@@ -378,7 +378,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf011-structural-sequence-without-usable-key"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf011-structural-sequence-without-usable-key"
     );
 
     private static readonly DiagnosticDescriptor MultiplePropertyKeys = new(
@@ -388,7 +388,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf013-multiple-sparsekey-properties"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf013-multiple-sparsekey-properties"
     );
 
     private static readonly DiagnosticDescriptor InvalidKeyAttributeShape = new(
@@ -398,7 +398,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf014-invalid-sparsekey-declaration"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf014-invalid-sparsekey-declaration"
     );
 
     private static readonly DiagnosticDescriptor InaccessibleKeyProperty = new(
@@ -408,7 +408,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf017-inaccessible-sparsekey-property"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf017-inaccessible-sparsekey-property"
     );
 
     private static readonly DiagnosticDescriptor UnsupportedKeyShape = new(
@@ -418,7 +418,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf019-unsupported-sparsekey-shape"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf019-unsupported-sparsekey-shape"
     );
 
     private static readonly DiagnosticDescriptor DuplicateJsonPropertyName = new(
@@ -428,7 +428,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf021-duplicate-json-property-name"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf021-duplicate-json-property-name"
     );
     private static readonly DiagnosticDescriptor SparseIgnoreOnKey = new(
         SparseTypesDiagnosticIds.SparseIgnoreOnKey,
@@ -437,7 +437,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf022-sparseignore-on-key"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf022-sparseignore-on-key"
     );
     private static readonly DiagnosticDescriptor SparseIgnoreUnsupportedProperty = new(
         SparseTypesDiagnosticIds.SparseIgnoreUnsupportedProperty,
@@ -446,7 +446,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf023-sparseignore-on-unsupported-property"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf023-sparseignore-on-unsupported-property"
     );
     private static readonly DiagnosticDescriptor InvalidUnassignedKey = new(
         SparseTypesDiagnosticIds.InvalidUnassignedKey,
@@ -455,7 +455,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf024-invalid-unassigned-key-sentinel"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf024-invalid-unassigned-key-sentinel"
     );
     private static readonly DiagnosticDescriptor InvalidTemporaryKeyShape = new(
         SparseTypesDiagnosticIds.InvalidTemporaryKeyShape,
@@ -464,7 +464,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf031-invalid-sparsetemporarykey-declaration"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf031-invalid-sparsetemporarykey-declaration"
     );
     private static readonly DiagnosticDescriptor TemporaryKeyInitializer = new(
         SparseTypesDiagnosticIds.TemporaryKeyInitializer,
@@ -473,7 +473,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Warning,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf032-temporary-key-property-initializer"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf032-temporary-key-property-initializer"
     );
     private static readonly DiagnosticDescriptor InPlaceWriteUnavailable = new(
         SparseTypesDiagnosticIds.InPlaceWriteUnavailable,
@@ -482,7 +482,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Info,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf026-in-place-submit-is-unavailable"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf026-in-place-submit-is-unavailable"
     );
     private static readonly DiagnosticDescriptor InvalidEmissionPlan = new(
         SparseTypesDiagnosticIds.InvalidEmissionPlan,
@@ -491,7 +491,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf028-invalid-downstream-emission-plan"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf028-invalid-downstream-emission-plan"
     );
     private static readonly DiagnosticDescriptor UnknownProductMember = new(
         SparseTypesDiagnosticIds.UnknownProductMember,
@@ -500,7 +500,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
         "SparseTypes",
         DiagnosticSeverity.Error,
         true,
-        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf029-unknown-product-member"
+        helpLinkUri: "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf029-unknown-product-member"
     );
 
     /// <inheritdoc />

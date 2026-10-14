@@ -80,7 +80,7 @@ check_sample() {
     done
 }
 
-check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir}/KeyedCollections.cs" \
+check_sample "keyed-collections" "docs/explanation/keyed-collections.md" "${docs_fixture_dir}/KeyedCollections.cs" \
     '[SparseKey]' \
     'Key => ' \
     'CreateChangeSet' \
@@ -96,7 +96,7 @@ check_sample "keyed-collections" "docs/keyed-collections.md" "${docs_fixture_dir
     'GetChange' \
     'IsEdited'
 
-check_sample "rebase" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
+check_sample "rebase" "docs/explanation/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     'RebaseOnto' \
     'RebaseResult' \
     'HasConflicts' \
@@ -104,25 +104,25 @@ check_sample "rebase" "docs/rebase.md" "${docs_fixture_dir}/RebaseSamples.cs" \
     'conflicts.Single()' \
     'conflict.Path'
 
-check_sample "merge-strategies" "docs/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
+check_sample "merge-strategies" "docs/explanation/merge-strategies.md" "${docs_fixture_dir}/MergeStrategies.cs" \
     '[SparseMerge(MergeMode.Append)]' \
     '[SparseMerge(MergeMode.SetUnion)]' \
     'FragmentMergeStrategy' \
     'AreEqual'
 
-check_sample "cloning-and-ownership" "docs/cloning-and-ownership.md" "${docs_fixture_dir}/CloningAndOwnership.cs" \
+check_sample "cloning-and-ownership" "docs/explanation/cloning-and-ownership.md" "${docs_fixture_dir}/CloningAndOwnership.cs" \
     'DeepClone' \
     'SparseCloneReferenceSafe' \
     'Fragment.From' \
     '.Apply(patch)'
 
-check_sample "model-shapes" "docs/model-shapes.md" "${docs_fixture_dir}/ModelShapes.cs" \
+check_sample "model-shapes" "docs/reference/model-shapes.md" "${docs_fixture_dir}/ModelShapes.cs" \
     '[SparseModel]' \
     'public partial class' \
     'IReadOnlyList<string> Plugins' \
     'Diff'
 
-check_sample "ui-frameworks" "docs/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
+check_sample "ui-frameworks" "docs/explanation/ui-frameworks.md" "${docs_fixture_dir}/UiFrameworks.cs" \
     'CreateEditSession' \
     'session.Observable' \
     'PropertyChanged' \
@@ -140,7 +140,7 @@ if ! python3 "$(dirname "$0")/check-docs-samples.py" --registry "$(dirname "$0")
     exit 1
 fi
 
-check_sample "blazor" "docs/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
+check_sample "blazor" "docs/explanation/ui-frameworks.md" "${blazor_fixture_dir}/Program.cs" \
     'CreateEditSession' \
     'HasChanges' \
     'CreateChangeSet' \

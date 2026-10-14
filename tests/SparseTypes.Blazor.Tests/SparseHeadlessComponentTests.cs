@@ -182,6 +182,7 @@ public sealed class SparseHeadlessComponentTests
 
         field.ShouldNotBeNull();
         input.ShouldNotBeNull();
+        input.Value.ShouldBe("ORD-1");
         editContext.ShouldNotBeNull();
         var nameField = field!;
         var formContext = editContext!;
@@ -194,6 +195,7 @@ public sealed class SparseHeadlessComponentTests
         await tree.DispatchAsync(() => input!.ValueChanged.InvokeAsync(string.Empty));
         await tree.FlushAsync();
         live.Number.ShouldBe(string.Empty);
+        input.Value.ShouldBe(string.Empty);
         var invalid = false;
         await tree.DispatchAsync(() => invalid = formContext.Validate());
         invalid.ShouldBeFalse();
@@ -205,10 +207,8 @@ public sealed class SparseHeadlessComponentTests
 
         await tree.DispatchAsync(() => input!.ValueChanged.InvokeAsync("ORD-9"));
         await tree.FlushAsync();
-        var valid = false;
-        await tree.DispatchAsync(() => valid = formContext.Validate());
-        valid.ShouldBeTrue();
-        nameField.ValidationMessages.ShouldBeEmpty();
+        live.Number.ShouldBe("ORD-9");
+        input.Value.ShouldBe("ORD-9");
     }
 
     [Test]

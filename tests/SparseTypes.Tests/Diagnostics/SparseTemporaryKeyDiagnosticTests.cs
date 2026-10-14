@@ -66,7 +66,7 @@ public sealed class SparseTemporaryKeyDiagnosticTests
         {
             diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
             diagnostic.Descriptor.HelpLinkUri.ShouldStartWith(
-                "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf"
+                "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf"
             );
         }
     }
@@ -318,7 +318,7 @@ public sealed class SparseTemporaryKeyDiagnosticTests
         warning.Severity.ShouldBe(DiagnosticSeverity.Warning);
         warning.GetMessage().ShouldContain("TempKeyed.TemporaryId");
         warning.Descriptor.HelpLinkUri.ShouldBe(
-            "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf032-temporary-key-property-initializer"
+            "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf032-temporary-key-property-initializer"
         );
         diagnostics
             .Where(d => d.Id.StartsWith("SPF", StringComparison.Ordinal) && d.Id != "SPF032")

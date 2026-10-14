@@ -55,9 +55,11 @@ public static class TutorialFirstEditSamples
         var tutorialBefore = Optional<TutorialSiteSettings.Fragment?>.Present(effective);
         var tutorialAfter = Optional<TutorialSiteSettings.Fragment?>.Present(updated);
         var changes = TutorialSiteSettings.ChangeSet.Between(tutorialBefore, tutorialAfter);
-        // changes.Theme.IsChanged == true
-        // changes.Theme.Before.Value == "light"
-        // changes.Theme.After.Value == "dark"
+
+        if (changes.Theme.IsChanged)
+        {
+            Console.WriteLine($"Theme changed: {changes.Theme.Before} -> {changes.Theme.After}");
+        }
         // changes.RefreshSeconds.IsChanged == false
         // /sample
         DocsCheck.Require(changes.Theme.IsChanged, "Theme transition observed");

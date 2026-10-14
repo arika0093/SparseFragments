@@ -170,7 +170,7 @@ model.
 <!-- illustrative: razor markup shape; the compilable component is SparseHeadless.razor in the Blazor consumer fixture -->
 ```razor
 <SparseField Path="edit.Path.Number" Context="number">
-    <InputText Value="number.Value"
+    <InputText Value="@number.Value"
                ValueChanged="number.ValueChanged"
                ValueExpression="number.ValueExpression" />
 </SparseField>

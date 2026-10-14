@@ -65,7 +65,7 @@ public sealed class SparseKeyDiagnosticTests
         {
             diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
             diagnostic.Descriptor.HelpLinkUri.ShouldStartWith(
-                "https://github.com/arika0093/SparseTypes/blob/main/docs/analyzer.md#spf"
+                "https://github.com/arika0093/SparseTypes/blob/main/docs/reference/analyzer.md#spf"
             );
         }
     }

@@ -16,7 +16,7 @@
         <DataAnnotationsValidator />
         <SparseField Path="edit.Path.Number" Context="number">
             <VendorInput @bind-Value="number.Value" />
-            <InputText Value="number.Value"
+            <InputText Value="@number.Value"
                        ValueChanged="number.ValueChanged"
                        ValueExpression="number.ValueExpression" />
             <ValidationMessage For="number.ValueExpression" />
@@ -35,7 +35,7 @@
                 <VendorInput @bind-Value="email.Value" />
             </SparseField>
             <SparseField Path="edit.Path.Customer.Name" Context="name">
-                <InputText Value="name.Value"
+                <InputText Value="@name.Value"
                            ValueChanged="name.ValueChanged"
                            ValueExpression="name.ValueExpression" />
             </SparseField>
