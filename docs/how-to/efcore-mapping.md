@@ -5,8 +5,8 @@ directly onto a tracked EF Core entity. The change set is both the strict write
 mask and the value source: only members it marks changed execute their
 setters, new values come from the typed transitions (`IsChanged`,
 `After.IsPresent`, `After.Value`), and untouched EF properties stay
-unmodified. There is no desired or root DTO argument. This page describes the
-mapping delivered for issue #228: the API, the execution lifecycle, and the
+unmodified. There is no desired or root DTO argument. This guide describes the
+mapping: the API, the execution lifecycle, and the
 supported/unsupported matrix.
 
 ## Lifecycle

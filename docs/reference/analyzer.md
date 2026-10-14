@@ -3,7 +3,7 @@
 Diagnostics reported by the source generator `SparseTypes.Generator`.
 Each diagnostic's `HelpLinkUri` points to the corresponding heading in this file.
 IDs `SPF012`, `SPF015`, `SPF016`, `SPF018`, `SPF020`, and `SPF025` were retired
-when keys became property-only (#206) and are not reused.
+when keys became property-only and are not reused.
 
 | ID | Title | Severity |
 | --- | --- | --- |
