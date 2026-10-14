@@ -1,8 +1,15 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">Origins explain which layer supplied each effective value. They do not change merge results or fragment JSON.</p>
-    <MonacoView Content="@MergeCode" Language="csharp" Height="500px" />
+    <p class="pg-hint">Origins show which layer supplied each effective value without changing the fragment data.</p>
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Merge and inspect a value" Id="code-1-merge">
+            <MonacoView Content="@MergeCode" Language="csharp" Height="450px" />
+        </FluentTab>
+        <FluentTab Header="Enumerate origins" Id="code-1-origins">
+            <MonacoView Content="@OriginsCode" Language="csharp" Height="350px" />
+        </FluentTab>
+    </FluentTabs>
 </div>
 
 @code {
@@ -31,11 +38,10 @@
 
         var merged = lower.Merge(higher);
         var model = merged.ToModel();
-        var origins = merged.EnumerateOrigins();
         var pluginSource = merged.GetOrigin(
             SparsePath.Root<PlaygroundSettings>().Member("Plugins").At(1));
         // Plugin origin is "higher"; the overlapping "shared" tag remains "lower".
-        // RetryCount and Nested.Host come from lower; Label and Nested.Port come from higher.
+        // Enabled, RetryCount and Nested.Host come from lower; Label and Nested.Port come from higher.
 
         [SparseModel]
         partial class PlaygroundSettings
@@ -45,6 +51,15 @@
 
             [SparseMerge(MergeMode.SetUnion)]
             public HashSet<string> Tags { get; set; } = new(StringComparer.Ordinal);
+        }
+        """;
+
+    private const string OriginsCode = """
+        using System;
+
+        foreach (var entry in merged.EnumerateOrigins())
+        {
+            Console.WriteLine($"{entry.Path}: {entry.Origin ?? "Unknown"}");
         }
         """;
 }

@@ -66,6 +66,8 @@
                                 <SparseSessionScope @key="tier.Code" Session="_draftSession">
                                     <CatalogPriceTierEditor Code="tier.Code"
                                         State="@(roster?.GetItemState(tier.Code) ?? default)"
+                                        ChildSessions="ChildSessions"
+                                        SectionDraftsEnabled="SectionDraftsEnabled"
                                         OpenOnLoad="@(_tierToOpen == tier.Code)"
                                         OnOpened="ClearTierToOpen" OnRemove="RemoveTier"
                                         OnChanged="ReportNestedStatus" />
@@ -89,6 +91,7 @@
                     <span class="pg-dot"></span>edited
                 </div>
                 <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                    SectionDraftsEnabled="SectionDraftsEnabled"
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                     OnFinished="RefreshBaseline" />
             </FluentCard>
@@ -105,6 +108,9 @@
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
+
+    [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -140,14 +146,24 @@
 
     private Task ReportStatus(bool hasChanges)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges || hasChanges);
+        AcceptImmediatelyIfNeeded();
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 
     private Task ReportNestedStatus(bool hasChanges)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges || hasChanges);
+        AcceptImmediatelyIfNeeded();
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
+    }
+
+    private void AcceptImmediatelyIfNeeded()
+    {
+        if (!SectionDraftsEnabled && _childSession!.HasChanges)
+        {
+            ChildSessions.TryAcceptImmediately(_childSession);
+        }
     }
 
     private Task RefreshBaseline()

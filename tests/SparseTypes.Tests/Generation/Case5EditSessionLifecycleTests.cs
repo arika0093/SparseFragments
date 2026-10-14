@@ -171,6 +171,43 @@ public sealed class Case5EditSessionLifecycleTests
     }
 
     [Test]
+    public void ReconcileAdoptsRemoteScalarValuesAndKeepsPostSubmitEdits()
+    {
+        var live = Draft(Existing(1));
+        var session = live.CreateEditSession();
+        live.Total = 20m;
+        var submitted = session.CreateChangeSet();
+        var submittedDraft = live.DeepClone();
+        live.Total = 21m;
+
+        var persisted = Draft(Existing(1));
+        persisted.Customer = "Remote customer";
+        persisted.Notes = "Remote note";
+        persisted.Total = 20m;
+
+        var postSubmit = submittedDraft.CreateChangeSet(live);
+        var postSubmitRebase = postSubmit.RebaseOnto(persisted);
+        var targetDraft = postSubmitRebase
+            .Rebased.ToPatch()
+            .Apply(
+                Optional<PlaygroundOrderDto.Fragment?>.Present(
+                    PlaygroundOrderDto.Fragment.From(persisted)
+                )
+            )
+            .Value!.ToModel();
+        var syncDraft = PlaygroundOrderDto.ChangeSet.Between(live, targetDraft);
+        session.TryApplyInPlace(syncDraft, out var conflicts).ShouldBeTrue();
+        conflicts.ShouldBeNull();
+
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+        live.Customer.ShouldBe("Remote customer");
+        live.Notes.ShouldBe("Remote note");
+        live.Total.ShouldBe(21m);
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
     public void ReconcileFailsClosedWhenServerFiltersARow()
     {
         var live = Draft(Existing(1));

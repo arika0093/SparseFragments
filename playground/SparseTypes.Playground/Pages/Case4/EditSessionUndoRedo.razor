@@ -15,14 +15,14 @@
                 Apply preset
             </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Undo"
-                    Disabled="@(!edit.CanUndo)" @onclick="() => Undo(edit)">
+                    Disabled="@(!_history.CanUndo)" @onclick="Undo">
                     <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c-2.65 0-5.05 1.03-6.8 2.7L2 7v9h9l-3.65-3.65c1.32-1.25 3.12-2.02 5.15-2.02 3.23 0 5.96 2.07 6.94 4.95l2.4-.8C20.5 10.6 16.82 8 12.5 8Z" /></svg>
-                    Undo (@(edit.History?.UndoCount ?? 0))
+                    Undo (@_history.UndoCount)
             </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Default" Class="pg-history-button" Title="Redo"
-                    Disabled="@(!edit.CanRedo)" @onclick="() => Redo(edit)">
+                    Disabled="@(!_history.CanRedo)" @onclick="Redo">
                     <svg class="pg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 8c2.65 0 5.05 1.03 6.8 2.7L23 7v9h-9l3.65-3.65c-1.32-1.25-3.12-2.02-5.15-2.02-3.23 0-5.96 2.07-6.94 4.95l-2.4-.8C4.5 10.6 8.18 8 12.5 8Z" /></svg>
-                    Redo (@(edit.History?.RedoCount ?? 0))
+                    Redo (@_history.RedoCount)
             </FluentButton>
             </div>
         </div>
@@ -171,7 +171,6 @@
         Enabled = true,
         RetryCount = 3,
         Label = "Draft",
-        Password = "sample-before-password",
         Nested = new PlaygroundNested { Host = "localhost", Port = 5432 },
         Plugins = ["base-plugin"],
         Tasks =
@@ -184,6 +183,7 @@
     };
 
     private SettingsSession _session = null!;
+    private SparseEditHistory<PlaygroundSettings.ChangeSet> _history = null!;
     private PlaygroundSettings _baselineModel = null!;
     private string _baselineJson = string.Empty;
     private string _activeTab = "diff";
@@ -204,16 +204,15 @@
     protected override void OnInitialized()
     {
         _session = _model.CreateEditSession();
-        // Opt-in history: the session retains no history until this call. The
-        // session owns the history and clears it on successful accept/revert,
-        // so no manual stacks, replay guards, or disposal remain here. The
-        // SparseEdit root above only reads and observes the owned history.
-        _session.EnableHistory();
+        _history = PlaygroundPasswordHistory.Create(_session, _model);
+        _history.StateChanged += OnHistoryStateChanged;
         // The subscription below only appends changelog entries. Refresh is
         // owned by the edit root, which re-renders on session notifications.
         _session.TransitionObserved += OnTransitionObserved;
         CaptureBaseline();
     }
+
+    private void OnHistoryStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnTransitionObserved(PlaygroundSettings.ChangeSet transition) => AppendChanges(transition);
 
@@ -436,8 +435,11 @@
         await ShowCompletion("Changes reset", "All unsubmitted changes were reverted to the current baseline.");
     }
 
-    // Accept/revert already clear the opt-in history; only the demo log remains.
-    private void ClearHistory() => _log.Clear();
+    private void ClearHistory()
+    {
+        _history.Clear();
+        _log.Clear();
+    }
 
     private void ApplyPreset()
     {
@@ -446,18 +448,14 @@
             _session.Observable.Enabled = false;
             _session.Observable.RetryCount = 8;
             _session.Observable.Label = "Batch preset";
-            _session.Observable.Password = "sample-after-password";
         });
     }
 
-    // History availability and stacks are read from the edit root above, so
-    // these adapters only surface replay conflicts as edit errors.
-    private void Undo<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
-        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
+    private void Undo()
     {
         try
         {
-            edit.Undo();
+            _history.Undo();
             _editError = null;
         }
         catch (InvalidOperationException exception)
@@ -466,12 +464,11 @@
         }
     }
 
-    private void Redo<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
-        where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
+    private void Redo()
     {
         try
         {
-            edit.Redo();
+            _history.Redo();
             _editError = null;
         }
         catch (InvalidOperationException exception)
@@ -517,7 +514,12 @@
         if (_session is not null)
         {
             _session.TransitionObserved -= OnTransitionObserved;
-            _session.DisableHistory();
+        }
+
+        if (_history is not null)
+        {
+            _history.StateChanged -= OnHistoryStateChanged;
+            _history.Dispose();
         }
     }
 

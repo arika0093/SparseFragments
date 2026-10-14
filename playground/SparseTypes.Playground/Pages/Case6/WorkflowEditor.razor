@@ -23,12 +23,12 @@
                     <div class="pg-catalog-workflow-dropzone">
                         <SparseField Path="edit.Path.Steps" Context="steps">
                             @{ var roster = steps.TryGetCollectionState(out var state) ? state : null; }
-                            <FluentSortableList @key="_sortableListsVersion" TItem="CatalogWorkStep"
+                            <FluentSortableList @key="(CurrentWorkflow!.Steps.Count, _sortableListsVersion)" TItem="CatalogWorkStep"
                                 Id="case6-workflow" Group="case6-work-steps" Items="CurrentWorkflow!.Steps"
                                 Handle="true" Class="pg-roster-list" OnUpdate="OnSortableUpdate"
                                 OnAdd="OnTemplateAdded">
                                 <ItemTemplate Context="step">
-                                    <div class="@CatalogCollectionRowState.ClassFor(roster?.GetItemState(step.Id) ?? default, detectReorder: true)">
+                                    <div @key="step.Id" class="@CatalogCollectionRowState.ClassFor(roster?.GetItemState(step.Id) ?? default, detectReorder: true)">
                                         <div class="pg-case6-step-line">
                                             <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
                                             <div class="pg-roster-field">
@@ -93,6 +93,7 @@
             }
             <div class="pg-workflow-scope-actions">
                 <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                    SectionDraftsEnabled="SectionDraftsEnabled"
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                     OnFinished="RefreshBaseline" OnChanged="OnHistoryChanged" />
             </div>
@@ -135,6 +136,9 @@
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
+
+    [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public int BaselineVersion { get; set; }
@@ -203,9 +207,15 @@
         _seenBaselineVersion = BaselineVersion;
     }
 
-    private Task ReportStatus(bool hasChanges)
+    private Task ReportStatus(bool _)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, hasChanges);
+        if (!SectionDraftsEnabled && _childSession!.HasChanges
+            && ChildSessions.TryAcceptImmediately(_childSession))
+        {
+            OnAccepted?.Invoke();
+        }
+
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 

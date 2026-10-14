@@ -2,7 +2,14 @@
 
 <div class="pg-code-samples">
     <p class="pg-hint">A regular ChangePayload can reconstruct this ChangeSet. The before-redaction case is covered in Section 4.</p>
-    <MonacoView Content="@PatchCode" Language="csharp" Height="500px" />
+    <FluentTabs Orientation="Orientation.Vertical">
+        <FluentTab Header="Build a patch" Id="code-2-patch">
+            <MonacoView Content="@PatchCode" Language="csharp" Height="360px" />
+        </FluentTab>
+        <FluentTab Header="Create and apply a ChangeSet" Id="code-2-changeset">
+            <MonacoView Content="@ChangeSetCode" Language="csharp" Height="380px" />
+        </FluentTab>
+    </FluentTabs>
 </div>
 
 @code {
@@ -22,7 +29,13 @@
         patch.Nested.Host.Remove();
         patch.Nested.Port.Set(9000);
         patch.Plugins.Keep();
+        """;
 
+    private const string ChangeSetCode = """
+        using System.Text.Json;
+        using SparseTypes;
+
+        // Continue with the fragment and patch from the previous tab.
         var baseline = Optional<PlaygroundSettings.Fragment?>.Present(fragment);
         var changes = PlaygroundSettings.ChangeSet.FromPatch(baseline, patch);
         var options = PlaygroundJson.ChangeSetOptions();

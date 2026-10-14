@@ -125,6 +125,9 @@
     public SparseCollectionItemState State { get; set; }
 
     [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
+
+    [Parameter]
     public bool OpenOnLoad { get; set; }
 
     [Parameter]
@@ -132,6 +135,9 @@
 
     [Parameter, EditorRequired]
     public EventCallback<string> OnRemove { get; set; }
+
+    [Parameter, EditorRequired]
+    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
 
     [Parameter]
     public EventCallback<bool> OnChanged { get; set; }
@@ -182,14 +188,19 @@
         await OnOpened.InvokeAsync();
     }
 
-    private Task ReportStatus(bool hasChanges)
+    private Task ReportStatus(bool _)
     {
-        if (!hasChanges)
+        if (!SectionDraftsEnabled && HasChanges)
+        {
+            ChildSessions.TryAcceptImmediately(_childSession!);
+        }
+
+        if (!HasChanges)
         {
             _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         }
 
-        return OnChanged.InvokeAsync(hasChanges);
+        return OnChanged.InvokeAsync(HasChanges);
     }
 
     private async Task OpenTier()

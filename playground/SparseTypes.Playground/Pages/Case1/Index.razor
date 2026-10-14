@@ -11,7 +11,7 @@
         <h2>Layers: merge Lower + Higher</h2>
         <GitHubLink Href="https://github.com/arika0093/SparseTypes/tree/main/playground/SparseTypes.Playground/Pages/Case1" Label="Case 1 source on GitHub" />
     </div>
-    <FluentTabs Orientation="Orientation.Horizontal" Overflow>
+    <FluentTabs Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline" Overflow>
         <FluentTab Header="Playground" Id="section-1-playground">
             <div class="pg-section-content">
                 <p class="pg-hint">Only present members of the higher layer override. Untick a member to leave it <em>missing</em> so the lower layer's value survives. Plugins appends; Tags keeps distinct entries.</p>
@@ -54,12 +54,6 @@
                             <FluentTab Header="Fragment (JSON)" Id="merged-fragment-json">
                                 <MonacoView Content="@MergedFragmentJson" Language="json" Height="270px" />
                             </FluentTab>
-                            <FluentTab Header="Model (C#)" Id="merged-model-csharp">
-                                <MonacoView Content="@MergedModelCSharp" Language="csharp" Height="270px" />
-                            </FluentTab>
-                            <FluentTab Header="Model (JSON)" Id="merged-model-json">
-                                <MonacoView Content="@MergedModelJson" Language="json" Height="270px" />
-                            </FluentTab>
                             <FluentTab Header="Diff (JSON)" Id="merged-diff-json">
                                 <MonacoView Content="@MergeDiffJson" Language="json" Height="270px" />
                             </FluentTab>
@@ -95,8 +89,6 @@
     private string LowerFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(LowerFragment));
     private string HigherFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(HigherFragment));
     private string MergedFragmentJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(MergedFragment));
-    private string MergedModelJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteModel(MergedFragment.ToModel()));
-    private string MergedModelCSharp => PlaygroundPageHelper.Try(() => PlaygroundSnippets.ModelCSharp("model", MergedFragment.ToModel()));
     private string MergeDiffJson => PlaygroundPageHelper.Try(() => PlaygroundJson.WriteFragment(
         PlaygroundSettings.Fragment.Diff(LowerFragment.ToModel(), MergedFragment.ToModel())));
     private string MergedOrigins => PlaygroundPageHelper.Try(() =>

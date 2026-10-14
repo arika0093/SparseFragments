@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SparseTypes.Playground.Models;
+using SparseTypes.Playground.Pages.Case4;
 
 namespace SparseTypes.Tests.Patch;
 
@@ -76,6 +77,31 @@ public sealed class PlaygroundCase4Tests
         model.RetryCount.ShouldBe(8);
         model.Label.ShouldBe("Batch preset");
         model.Password.ShouldBe("synthetic-after-password");
+    }
+
+    [Test]
+    public void PasswordChangesAreExcludedFromPlaygroundUndoAndRedo()
+    {
+        var model = new PlaygroundSettings { Label = "Draft" };
+        var session = model.CreateEditSession();
+        using var history = PlaygroundPasswordHistory.Create(session, model);
+
+        session.Observable.Password = "first-secret";
+        history.CanUndo.ShouldBeFalse();
+
+        session.BatchEdit(() =>
+        {
+            session.Observable.Label = "Updated";
+            session.Observable.Password = "second-secret";
+        });
+
+        history.Undo();
+        model.Label.ShouldBe("Draft");
+        model.Password.ShouldBe("second-secret");
+
+        history.Redo();
+        model.Label.ShouldBe("Updated");
+        model.Password.ShouldBe("second-secret");
     }
 
     [Test]

@@ -9,10 +9,13 @@
         <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo())" @onclick="RedoDraft">
             Redo
         </FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-            Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges())"
-            @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
+        @if (SectionDraftsEnabled)
+        {
+            <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges())"
+                @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
+        }
     </div>
     @if (_message is not null)
     {
@@ -42,6 +45,9 @@
 @code {
     [Parameter, EditorRequired]
     public Func<bool> HasChanges { get; set; } = null!;
+
+    [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter, EditorRequired]
     public Func<bool> CanUndo { get; set; } = null!;

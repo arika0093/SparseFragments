@@ -6,10 +6,11 @@ The Apply preset action changes several fields in one `BatchEdit`, so one
 Undo reverses the whole preset. The baseline snapshot uses generated
 `DeepClone()` to keep its nested and collection values independent.
 
-The password field uses a synthetic value and a masked input. Model summaries,
-history rows, and the submit preview replace it with `[masked]`; the
-ChangePayload view is the deliberate transport example, where the before-value
-is redacted and the after-value remains present.
+The password field starts empty and uses a masked input. Model summaries,
+history rows, and the submit preview replace a supplied value with `[masked]`.
+This playground's Undo/Redo history omits password-only edits and filters the
+password path from mixed edits. ChangePayload still carries the after-value
+while redacting the before-value.
 
 ## Collection editing through the typed facade
 

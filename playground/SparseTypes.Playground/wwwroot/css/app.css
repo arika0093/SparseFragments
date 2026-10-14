@@ -738,6 +738,33 @@ a, .btn-link {
     margin-top: 0.75rem;
 }
 
+.pg-case5-field-control {
+    display: flex;
+    flex: 1 1 12rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.pg-case5-field-control fluent-text-input {
+    width: 100%;
+}
+
+.pg-case5-update-notice {
+    color: #FF6000;
+    background: #FF800020;
+    margin-top: -5px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding-left: 2ex;
+}
+
+.pg-catalog-draft-mode {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0 1rem 1rem;
+}
+
 .pg-case5-rebase-select {
     display: flex;
     align-items: center;

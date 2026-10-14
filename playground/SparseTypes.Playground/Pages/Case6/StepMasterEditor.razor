@@ -49,6 +49,7 @@
                 </SparseField>
             </div>
             <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                SectionDraftsEnabled="SectionDraftsEnabled"
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                 OnFinished="NotifyChanged" />
         </FluentCard>
@@ -67,6 +68,9 @@
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
+
+    [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -102,9 +106,14 @@
         _draftSession = childSession.Session;
     }
 
-    private Task ReportStatus(bool hasChanges)
+    private Task ReportStatus(bool _)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), hasChanges);
+        if (!SectionDraftsEnabled && _childSession!.HasChanges)
+        {
+            ChildSessions.TryAcceptImmediately(_childSession);
+        }
+
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), HasChanges);
         return OnChanged.InvokeAsync();
     }
 

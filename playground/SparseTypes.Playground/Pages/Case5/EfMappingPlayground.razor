@@ -37,17 +37,31 @@
                 <SparseField Path="edit.Path.Customer" Context="customer">
                     <div class="pg-row pg-session-field @(customer.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">@ChangedDot(customer.IsChanged)Customer <small>string</small></span>
-                        <FluentTextInput Style="flex: 1 1 12rem;"
-                            Value="@customer.Value"
-                            ValueChanged="@(v => EditFieldAsync(customer, v))" />
+                        <div class="pg-case5-field-control">
+                            <FluentTextInput Value="@customer.Value"
+                                ValueChanged="@(v => EditFieldAsync(customer, v))" />
+                            @if (_latestCustomerUpdate is { } customerUpdate)
+                            {
+                                <small class="pg-case5-update-notice" aria-live="polite">
+                                    Updated to @PlaygroundOrderJson.FormatValue(customerUpdate.After)
+                                </small>
+                            }
+                        </div>
                     </div>
                 </SparseField>
                 <SparseField Path="edit.Path.Notes" Context="notes">
                     <div class="pg-row pg-session-field @(notes.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">@ChangedDot(notes.IsChanged)Notes <small>string</small></span>
-                        <FluentTextInput Style="flex: 1 1 12rem;"
-                            Value="@notes.Value"
-                            ValueChanged="@(v => EditFieldAsync(notes, v))" />
+                        <div class="pg-case5-field-control">
+                            <FluentTextInput Value="@notes.Value"
+                                ValueChanged="@(v => EditFieldAsync(notes, v))" />
+                            @if (_latestNotesUpdate is { } notesUpdate)
+                            {
+                                <small class="pg-case5-update-notice" aria-live="polite">
+                                    Updated to @PlaygroundOrderJson.FormatValue(notesUpdate.After)
+                                </small>
+                            }
+                        </div>
                     </div>
                 </SparseField>
                 <SparseField Path="edit.Path.Total" Context="total">
@@ -70,7 +84,7 @@
                 the snapshot here diffs once, and row lookups below only probe
                 it. The save pipeline below keeps its own retained ChangeSet. *@
                 @{ var roster = lines.TryGetCollectionState(out var view) ? view : null; }
-                <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
+                <SortableList @key="_draft.Lines.Count" Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                     OnUpdate="OnLinesReordered" Context="line">
                     <SortableItemTemplate>
                         <OrderLineRow @key="LineKey(line)" Line="line" Draft="_draft" Lines="lines" Roster="roster"
@@ -96,7 +110,7 @@
                 </FluentCheckbox>
                 <FluentCheckbox Value="@_periodicSimulationEnabled"
                     ValueChanged="OnPeriodicSimulationChanged">
-                    Simulate third-party updates every 10 seconds
+                    Simulate real-time edits every 10 seconds
                 </FluentCheckbox>
                 <div class="pg-case5-rebase-select">
                     <span class="pg-name">Conflict handling</span>
@@ -110,10 +124,6 @@
                         aria-label="Conflict handling" />
                 </div>
                 <p class="pg-hint">Standard uses per-field three-way rebase: overlapping edits are reported, and unrelated edits are saved. Strict rejects the whole save when the revision changes.</p>
-                @if (_persistedUpdateNotice is not null)
-                {
-                    <FluentMessageBar Intent="MessageBarIntent.Info">@_persistedUpdateNotice</FluentMessageBar>
-                }
                 @if (_simulationError is not null)
                 {
                     <FluentMessageBar Intent="MessageBarIntent.Error">@_simulationError</FluentMessageBar>
@@ -255,7 +265,8 @@
     private bool _simulateConflict;
     private bool _periodicSimulationEnabled;
     private bool _waitBeforeApply;
-    private string? _persistedUpdateNotice;
+    private ConcurrentUpdate? _latestCustomerUpdate;
+    private ConcurrentUpdate? _latestNotesUpdate;
     private string? _simulationError;
     private CancellationTokenSource? _simulationCancellation;
     private Task? _simulationTask;
@@ -417,8 +428,14 @@
 
                 await InvokeAsync(() =>
                 {
-                    _persistedUpdateNotice =
-                        $"Third-party update persisted at revision {update.Revision}: {update.Property} changed from {PlaygroundOrderJson.FormatValue(update.Before)} to {PlaygroundOrderJson.FormatValue(update.After)}. The draft was not changed.";
+                    if (update.Property == "Customer")
+                    {
+                        _latestCustomerUpdate = update;
+                    }
+                    else if (update.Property == "Notes")
+                    {
+                        _latestNotesUpdate = update;
+                    }
                     StateHasChanged();
                 });
             }
@@ -483,7 +500,8 @@
         _simulateConflict = false;
         _periodicSimulationEnabled = false;
         _waitBeforeApply = false;
-        _persistedUpdateNotice = null;
+        _latestCustomerUpdate = null;
+        _latestNotesUpdate = null;
         _simulationError = null;
         _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
@@ -875,24 +893,13 @@
         }
     }
 
-    // Routes the acknowledgement: AcceptChanges(submitted) only when the server made no
-    // authoritative key/value changes (no added rows to assign); otherwise TryReconcile
-    // writes the assigned keys into the live draft by temporary identity and adopts the
-    // persisted baseline with post-submit edits preserved. A mismatch fails without
-    // mutating the session, so the caller reports it without partial key writeback.
     private void AcknowledgeSave(
         PlaygroundOrderDto.ChangeSet submitted,
         PlaygroundOrderDto submittedDraft,
         PlaygroundOrderDto persisted
     )
     {
-        if (submitted.Lines.Added.Count == 0)
-        {
-            _session.AcceptChanges(submitted);
-            _baselineView = submittedDraft;
-            return;
-        }
-
+        var postSubmitConflicts = PreparePostSubmitDraft(submittedDraft, persisted);
         if (!_session.TryReconcile(submitted, persisted, out var error))
         {
             throw new InvalidOperationException(
@@ -901,6 +908,12 @@
         }
 
         _baselineView = persisted;
+        _conflictRows = postSubmitConflicts;
+        _conflictSubmittedHeader = "Later local draft";
+        _conflictSummary = postSubmitConflicts.Count > 0
+            ? "The submitted changes were saved. Later local edits that conflict with persisted values remain in the draft."
+            : string.Empty;
+        _conflictVisible = postSubmitConflicts.Count > 0;
     }
 
     private async Task RecoverFromConflict(

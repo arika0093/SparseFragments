@@ -13,10 +13,10 @@
     snapshot here diffs once, and row lookups below only probe it. Unknown
     keys report the empty state, so stale rows render clean. *@
     @{ var roster = tasks.TryGetCollectionState(out var view) ? view : null; }
-    <SortableList Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
+    <SortableList @key="Session.Observable.Tasks.Count" Items="Session.Observable.Tasks" Handle=".pg-drag" Class="pg-roster-list"
         OnUpdate="OnSortableUpdate" Context="task">
         <SortableItemTemplate>
-            <TaskRow Task="task" Session="Session" RowState="roster?.GetItemState(task.Id) ?? default" OnError="SetTaskError" />
+            <TaskRow @key="task.Id" Task="task" Session="Session" RowState="roster?.GetItemState(task.Id) ?? default" OnError="SetTaskError" />
         </SortableItemTemplate>
     </SortableList>
 </SparseField>

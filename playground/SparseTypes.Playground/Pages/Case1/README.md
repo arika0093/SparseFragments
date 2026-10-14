@@ -2,7 +2,6 @@
 
 This folder contains the layer-merge page, fragment editor, and sample code.
 
-Layer fragments carry `lower` and `higher` origin labels. The Origins tab
-projects attribution from the merged fragment for nested fields, appended
-Plugins, and set-union Tags. Origin metadata is explanatory; it does not alter
-the merged model or fragment JSON.
+The merged result shows the present-members fragment as JSON and lists each
+effective value's source layer in a separate Origins tab. The code samples
+show both `GetOrigin` for a selected path and a loop over `EnumerateOrigins()`.

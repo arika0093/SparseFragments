@@ -81,11 +81,29 @@
             // Generated keys land on the authoritative projection; acknowledgement routes
             // by what the server returned, never by list position.
             mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
-            if (submitted.Lines.Added.Count == 0)
-                session.AcceptChanges(submitted); // No key changes: advance the baseline, live untouched.
-            else if (!session.TryReconcile(submitted, persisted, out var error))
-                throw new InvalidOperationException(error); // No partial key writeback; retry or reseed.
-            // Post-submit edits stay pending against the persisted baseline.
+            var postSubmit = submittedDraft.CreateChangeSet(draft);
+            var postSubmitRebase = postSubmit.RebaseOnto(persisted);
+            var pending = postSubmitRebase.Rebased;
+            if (postSubmitRebase.HasConflicts)
+            {
+                var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(
+                    postSubmitRebase,
+                    persisted);
+                foreach (var conflict in resolution.EnumerateUnresolvedConflicts())
+                    resolution.UseIncoming(conflict.Path);
+                if (!resolution.TryBuild(out var resolved, out var failure) || resolved is null)
+                    throw new InvalidOperationException(failure?.Reason);
+                pending = resolved;
+            }
+            var targetDraft = pending.ToPatch().Apply(
+                Optional<PlaygroundOrderDto.Fragment?>.Present(
+                    PlaygroundOrderDto.Fragment.From(persisted))).Value!.ToModel();
+            var syncDraft = PlaygroundOrderDto.ChangeSet.Between(draft, targetDraft);
+            if (!syncDraft.IsEmpty && !session.TryApplyInPlace(syncDraft, out var syncConflicts))
+                throw new InvalidOperationException($"Could not merge persisted values: {syncConflicts?.Count ?? 0} conflicts.");
+            if (!session.TryReconcile(submitted, persisted, out var error))
+                throw new InvalidOperationException(error); // No partial writeback; retry or reseed.
+            // Untouched fields adopt authoritative values; post-submit edits stay pending.
         }
         catch (DbUpdateConcurrencyException)
         {

@@ -28,6 +28,10 @@
         {
             <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
         }
+        @if (_childSessions.Error is not null)
+        {
+            <FluentMessageBar Intent="MessageBarIntent.Error">@_childSessions.Error</FluentMessageBar>
+        }
     </FluentCard>
 
     <FluentTabs ActiveTabId="@_activeSectionTab" ActiveTabIdChanged="OnSectionTabChanged"
@@ -42,7 +46,8 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <OverviewEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
+                        OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -56,7 +61,8 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <CommercialEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
+                        OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -70,7 +76,8 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor ChildSessions="_childSessions" OnChanged="Refresh" />
+                    <OperationsEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
+                        OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -85,6 +92,7 @@
             <ChildContent>
                 <div class="pg-section-content">
                     <WorkflowEditor @ref="_workflowEditor" ChildSessions="_childSessions"
+                        SectionDraftsEnabled="_sectionDraftsEnabled"
                         SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
                         BaselineVersion="_baselineVersion" OnChanged="Refresh" />
                 </div>
@@ -122,7 +130,8 @@
                                     <ChildContent>
                                         <SparseSessionScope Session="_session">
                                             <StepMasterEditor @key="step.Id" Step="step"
-                                                ChildSessions="_childSessions" OnChanged="Refresh" />
+                                                ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
+                                                OnChanged="Refresh" />
                                         </SparseSessionScope>
                                     </ChildContent>
                                 </FluentTab>
@@ -133,6 +142,17 @@
             </ChildContent>
         </FluentTab>
     </FluentTabs>
+    <div class="pg-catalog-draft-mode">
+        <FluentCheckbox Value="@_sectionDraftsEnabled" ValueChanged="OnSectionDraftsEnabledChanged"
+            Disabled="@_session.HasPendingChildSessions">
+            Enable section drafts
+        </FluentCheckbox>
+        <p class="pg-hint">When enabled, section edits stay in drafts until saved. Turn it off to apply each edit to the catalog immediately.</p>
+        @if (_session.HasPendingChildSessions)
+        {
+            <p class="pg-hint">Save or discard every section draft before changing this setting.</p>
+        }
+    </div>
 </div>
 </SparseSessionScope>
 
@@ -169,6 +189,7 @@
     private WorkflowEditor? _workflowEditor;
     private bool _saveDialogHidden = true;
     private bool _hasChanges;
+    private bool _sectionDraftsEnabled = true;
     private IReadOnlyList<ChangePreviewRow> _changeRows = [];
     private string? _error;
     private int _baselineVersion;
@@ -480,6 +501,17 @@
             _activeMasterTab = tabId;
         }
 
+        return Task.CompletedTask;
+    }
+
+    private Task OnSectionDraftsEnabledChanged(bool enabled)
+    {
+        if (_session.HasPendingChildSessions)
+        {
+            return Task.CompletedTask;
+        }
+
+        _sectionDraftsEnabled = enabled;
         return Task.CompletedTask;
     }
 

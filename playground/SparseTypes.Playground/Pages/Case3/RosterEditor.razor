@@ -4,10 +4,10 @@
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
     @if (AllowReorder)
     {
-        <SortableList Items="Model.Quests" Handle=".pg-drag" Class="pg-roster-list"
+        <SortableList @key="Model.Quests.Count" Items="Model.Quests" Handle=".pg-drag" Class="pg-roster-list"
             OnUpdate="OnSortableUpdate" Context="quest">
             <SortableItemTemplate>
-                <QuestRow Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+                <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
             </SortableItemTemplate>
         </SortableList>
     }
@@ -16,7 +16,7 @@
         <div class="pg-roster-list">
         @foreach (var quest in Model.Quests)
         {
-            <QuestRow Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+            <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
         }
         </div>
     }

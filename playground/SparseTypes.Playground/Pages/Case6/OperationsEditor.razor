@@ -101,6 +101,7 @@
                 <span class="pg-dot"></span>edited
             </div>
             <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
+                SectionDraftsEnabled="SectionDraftsEnabled"
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                 OnFinished="RefreshBaseline" />
         </FluentCard>
@@ -116,6 +117,9 @@
 
     [Parameter, EditorRequired]
     public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
+
+    [Parameter]
+    public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -151,7 +155,12 @@
 
     private Task ReportStatus(bool hasChanges)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.OperationsId, hasChanges);
+        if (!SectionDraftsEnabled && hasChanges && _childSession!.HasChanges)
+        {
+            ChildSessions.TryAcceptImmediately(_childSession);
+        }
+
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.OperationsId, _childSession!.HasChanges);
         return OnChanged.InvokeAsync();
     }
 
