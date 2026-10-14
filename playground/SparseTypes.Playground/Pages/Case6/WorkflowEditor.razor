@@ -207,7 +207,6 @@
 
     private Task RefreshBaseline()
     {
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         _displayBaseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         _sortableListsVersion++;
         return OnChanged.InvokeAsync();
@@ -224,7 +223,6 @@
     private void DiscardChildSession()
     {
         ChildSession.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         _displayBaseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
