@@ -27,9 +27,7 @@
     </div>
     @Body
 </div>
-<FluentToastProvider />
-<FluentDialogProvider />
-<FluentTooltipProvider />
+<FluentProviders />
 
 @code {
     private static readonly List<string> ThemeNames = Enum.GetNames<PlaygroundThemeMode>().ToList();

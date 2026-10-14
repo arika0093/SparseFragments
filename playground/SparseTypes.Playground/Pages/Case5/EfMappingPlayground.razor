@@ -73,7 +73,7 @@
                 <SortableList Items="_draft.Lines" Handle=".pg-drag" Class="pg-roster-list"
                     OnUpdate="OnLinesReordered" Context="line">
                     <SortableItemTemplate>
-                        <OrderLineRow Line="line" Draft="_draft" Lines="lines" Roster="roster" OnEditDraft="EditDraft" OnEdited="OnDraftEdited" />
+                        <OrderLineRow @key="LineKey(line)" Line="line" Draft="_draft" Lines="lines" Roster="roster" OnEditDraft="EditDraft" OnEdited="OnDraftEdited" />
                     </SortableItemTemplate>
                 </SortableList>
             </SparseField>
@@ -393,6 +393,9 @@
                 TemporaryId = Guid.NewGuid(),
             }));
     }
+
+    private static string LineKey(PlaygroundOrderLineDto line) =>
+        line.Id is int id ? $"id:{id}" : $"temporary:{line.TemporaryId}";
 
     private Task OnLinesReordered((int oldIndex, int newIndex) indices)
     {

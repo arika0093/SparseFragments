@@ -2,49 +2,52 @@
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 
-<div class="@RowClass pg-task-row">
-    <div class="pg-task-line-ef">
-        <div class="pg-roster-field">
-            <span class="pg-mini notranslate" translate="no">Id <small>@(Line.Id.HasValue ? "int" : "new")</small></span>
-            <FluentTextInput Value="@(Line.Id.HasValue ? $"#{Line.Id.Value}" : "#new")" ReadOnly="true" />
-        </div>
-        <SparseField Path="ProductPath" Context="product">
-            <div class="pg-roster-field @(product.IsChanged ? "pg-changed" : "")">
-                <span class="pg-mini notranslate" translate="no">
-                    @if (product.IsChanged)
-                    {
-                        <span class="pg-dot" title="edited"></span>
-                    }
-                    Product
-                </span>
-                <FluentTextInput Value="@product.Value"
-                    ValueChanged="@(value => UpdateLineAsync(product, value))" />
+@if (Index >= 0)
+{
+    <div class="@RowClass pg-task-row">
+        <div class="pg-task-line-ef">
+            <div class="pg-roster-field">
+                <span class="pg-mini notranslate" translate="no">Id <small>@(Line.Id.HasValue ? "int" : "new")</small></span>
+                <FluentTextInput Value="@(Line.Id.HasValue ? $"#{Line.Id.Value}" : "#new")" ReadOnly="true" />
             </div>
-        </SparseField>
-        <SparseField Path="QtyPath" Context="qty">
-            <div class="pg-roster-field @(qty.IsChanged ? "pg-changed" : "")">
-                <span class="pg-mini notranslate" translate="no">
-                    @if (qty.IsChanged)
-                    {
-                        <span class="pg-dot" title="edited"></span>
-                    }
-                    Qty
-                </span>
-                <FluentNumberInput TValue="int" Value="@qty.Value"
-                    ValueChanged="@(value => UpdateLineAsync(qty, value))" />
+            <SparseField Path="ProductPath" Context="product">
+                <div class="pg-roster-field @(product.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">
+                        @if (product.IsChanged)
+                        {
+                            <span class="pg-dot" title="edited"></span>
+                        }
+                        Product
+                    </span>
+                    <FluentTextInput Value="@product.Value"
+                        ValueChanged="@(value => UpdateLineAsync(product, value))" />
+                </div>
+            </SparseField>
+            <SparseField Path="QtyPath" Context="qty">
+                <div class="pg-roster-field @(qty.IsChanged ? "pg-changed" : "")">
+                    <span class="pg-mini notranslate" translate="no">
+                        @if (qty.IsChanged)
+                        {
+                            <span class="pg-dot" title="edited"></span>
+                        }
+                        Qty
+                    </span>
+                    <FluentNumberInput TValue="int" Value="@qty.Value"
+                        ValueChanged="@(value => UpdateLineAsync(qty, value))" />
+                </div>
+            </SparseField>
+            <div class="pg-roster-actions pg-task-actions">
+                <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+                <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
+                    Disabled="@(Index == 0)" @onclick="() => MoveAsync(-1)">↑</FluentButton>
+                <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
+                    Disabled="@(Index == Draft.Lines.Count - 1)" @onclick="() => MoveAsync(1)">↓</FluentButton>
+                <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
+                    @onclick="RemoveAsync">✕</FluentButton>
             </div>
-        </SparseField>
-        <div class="pg-roster-actions pg-task-actions">
-            <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
-            <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
-                Disabled="@(Index == 0)" @onclick="() => MoveAsync(-1)">↑</FluentButton>
-            <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                Disabled="@(Index == Draft.Lines.Count - 1)" @onclick="() => MoveAsync(1)">↓</FluentButton>
-            <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
-                @onclick="RemoveAsync">✕</FluentButton>
         </div>
     </div>
-</div>
+}
 
 @code {
     [Parameter, EditorRequired]

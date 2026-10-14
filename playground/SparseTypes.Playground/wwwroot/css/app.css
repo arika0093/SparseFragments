@@ -1135,6 +1135,7 @@ fluent-dialog::part(dialog) {
 
 .pg-catalog-review-dialog::part(dialog),
 .pg-submit-preview-dialog::part(dialog) {
+    box-sizing: border-box;
     max-width: calc(100vw - 3rem) !important;
     width: 100% !important;
 }

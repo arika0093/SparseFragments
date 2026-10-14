@@ -4,11 +4,32 @@
 
 [![NuGet Version](https://img.shields.io/nuget/v/SparseTypes?style=flat-square&logo=NuGet&color=0080CC)](https://www.nuget.org/packages/SparseTypes/) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/arika0093/SparseTypes/test.yaml?branch=main&label=Test&style=flat-square) [![DeepWiki](https://img.shields.io/badge/DeepWiki-SparseTypes-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/arika0093/SparseTypes)
 
-*End-to-end change management for .NET.*
+*A unified change model for .NET.*
 
 From live UI drafts and Undo/Redo to wire transport, concurrent rebase, and database persistence, all generated from your existing C# models.
 
-Add `[SparseModel]` to a standard `partial` class. The Roslyn source generator equips it with companion types for partial state, patch commands, diff transitions, JSON payloads, and reactive edit sessions automatically.
+## Overview
+
+Add `[SparseModel]` to a standard `partial` class.
+The Roslyn source generator equips it with companion types for partial state, patch commands,
+diff transitions, JSON payloads, and reactive edit sessions automatically.
+
+```csharp
+[SparseModel]                 // add this attribute
+public partial class Settings // mark the class as partial
+{
+    public string? Theme { get; set; }
+    public List<NestedClass> Items { get; set; } = [];
+}
+
+// Nested class should also be marked as partial.
+public partial class NestedClass
+{
+    public string? Name { get; set; }
+}
+```
+
+That's all you need to do!
 
 ### Where it helps in real systems
 
@@ -20,13 +41,13 @@ Add `[SparseModel]` to a standard `partial` class. The Roslyn source generator e
 
 ### Why SparseTypes?
 
-* **One model produces the entire stack**: Annotate a standard C# model once. The generator emits partial fragments, patch commands, diff transitions, JSON payloads, and reactive edit sessions without manual DTO variants.
-* **100% type-safe and refactoring-friendly**: Normal C# property assignment replaces error-prone string paths and runtime reflection.
-* **Zero reflection in core operations**: All core algebra, diff, patch, rebase, and descriptor inspection code is emitted at compile time, trims cleanly, and runs under Native AOT.
-* **Identity-based collection tracking**: Marking collection items with `[SparseKey]` tracks additions, removals, edits, and reorders by ID rather than fragile array positions.
+* **One model produces everything**: Annotate a standard C# model once. The generator emits partial fragments, patch commands, diff transitions, JSON payloads, and reactive edit sessions without manual DTO variants.
+* **100% type-safe**: Normal C# property assignment replaces error-prone string paths and runtime reflection.
+* **Zero reflection**: All core algebra, diff, patch, rebase, and descriptor inspection code is emitted at compile time, trims cleanly, and runs under Native AOT.
+* **Collection tracking**: Marking collection items with `[SparseKey]` tracks additions, removals, edits, and reorders by ID rather than fragile array positions.
 * **Git-style three-way rebase**: Resolves concurrent changes cleanly instead of discarding work with blunt last-write-wins or total concurrency errors.
 
-### Try it live: SparseTypes Playground
+### Try it live
 
 Experience full change workflows in the browser: [**SparseTypes Playground**](https://arika0093.github.io/SparseTypes/)
 
@@ -38,7 +59,7 @@ Experience full change workflows in the browser: [**SparseTypes Playground**](ht
   * [Case 4: Edit session and Undo/Redo](https://arika0093.github.io/SparseTypes/case-4): Reactive UI editing, dirty state tracking, and history management.
 * **Persistence and Concurrency**:
   * [Case 5: EF Core mapping and Rebase](https://arika0093.github.io/SparseTypes/case-5): Save ChangeSets to tracked entities and rebase concurrent edits during simulated network delay.
-  * [Case 6: Heterogeneous sessions](https://arika0093.github.io/SparseTypes/case-6): Coordinate multiple edit sessions across distinct model types.
+  * [Case 6: Enterprise master editing](https://arika0093.github.io/SparseTypes/case-6): Edit a multi-section catalog record with independent scopes, sortable work steps, and per-step master tabs.
 
 ## Install
 
@@ -125,8 +146,12 @@ var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChang
 // 3. Rebase incoming changes onto latest server state
 var rebased = incoming.RebaseOnto(updated);
 ```
+
 `RebaseOnto` compares the client's original baseline against the latest server state.
 Independent properties merge automatically without overwriting concurrent edits, while collisions on the same property surface as structured conflicts.
+
+> [!TIP]
+> You can also configure it to reject any incoming changes if there are concurrent edits, instead of automatically merging.
 
 ## Architecture: The Generated Core
 
@@ -140,20 +165,9 @@ The source generator emits companion types designed to work together across the 
 | `ChangePayload` | Wire envelope | Versioned JSON transport across process boundaries |
 | `EditSession` | Reactive UI draft | Dirty tracking, Undo/Redo, batch editing in Blazor/Desktop |
 
-### Presence tracking with Optional<T>
+Additionally, helper types like `DeepClone()` and `Descriptors` are generated for convenience.
 
-A `Fragment` represents your model where every member is wrapped in `Optional<T>`.
-This enables three distinct states that standard C# properties cannot distinguish at once:
-
-<!-- sample: readme-optional-states -->
-```csharp
-Optional<string?> missing = Optional<string?>.Missing;
-Optional<string?> value = "hello";
-Optional<string?> explicitNull = Optional<string?>.Present(null);
-```
-<!-- /sample -->
-
-Missing means unassigned (falling through during merge), present `null` explicitly clears a value, and present value updates it.
+Do you want to know more? See the [Documentation](#documentation) section below.
 
 ## Documentation
 
@@ -189,7 +203,7 @@ Missing means unassigned (falling through during merge), present `null` explicit
 ### SparseTypes
 * Core runtime and source generator: targets `netstandard2.0` (compatible with .NET 6+, .NET 8+, .NET 10+, and modern .NET runtimes).
 * Core operations (fragments, patches, changesets, rebasing, descriptors) are reflection-free and Native AOT verified.
-* JSON serialization (`ChangePayload`) uses `System.Text.Json`; for Native AOT and trimmed apps, see [AOT configuration guidelines](docs/reference/change-payload.md#optional-json-support).
+* JSON serialization feature uses `System.Text.Json`. If unavailable, the generator will skip emitting the serialization code.
 * Requires Roslyn 4.3.1 or later (Visual Studio 2022 17.3+, JetBrains Rider 2023.1+, .NET SDK 6.0+).
 * Generated code requires C# 9.0 or later.
 

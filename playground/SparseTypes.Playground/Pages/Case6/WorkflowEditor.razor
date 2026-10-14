@@ -54,19 +54,6 @@
                     <p class="pg-hint">Drop a prepared step here or add one from the list.</p>
                 }
             </div>
-            @foreach (var removed in _displayBaseline.Steps.Where(step =>
-                !_scope.Observable.Steps.Any(current => current.Id == step.Id)))
-            {
-                <div class="pg-roster-row pg-removed">
-                    <div class="pg-case6-step-line">
-                        <span aria-hidden="true"></span>
-                        <span>@removed.Name</span>
-                        <span>@removed.ResponsibleTeam</span>
-                        <span class="pg-change-remove">Removed</span>
-                        <FluentButton Appearance="ButtonAppearance.Default" @onclick="() => RestoreStep(removed.Id)">Restore</FluentButton>
-                    </div>
-                </div>
-            }
         </div>
 
         <div class="pg-stack">
@@ -149,7 +136,6 @@
     private CatalogWorkflow.EditSession _draftSession = null!;
     private ISparseEditHistory _history = null!;
     private ScopeActions<CatalogWorkflow>? _scopeActions;
-    private CatalogWorkflow _baseline = null!;
     private CatalogWorkflow _displayBaseline = null!;
     private int _seenBaselineVersion;
     private int _sortableListsVersion;
@@ -207,7 +193,6 @@
         _scope = Session.OpenScope(EnterpriseCatalogItem.SparsePath.Workflow);
         _draftSession = _scope.Observable.CreateEditSession();
         _history = _draftSession.EnableHistory();
-        _baseline = _scope.Observable.DeepClone();
         _sortableListsVersion++;
     }
 
@@ -364,26 +349,6 @@
         {
             _error = $"Could not remove the step ({error}).";
         }
-    }
-
-    private async Task RestoreStep(string id)
-    {
-        var step = _baseline.Steps.FirstOrDefault(item => item.Id == id);
-        if (step is null || _scope.Observable.Steps.Any(item => item.Id == id))
-        {
-            return;
-        }
-
-        var steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
-        var index = _baseline.Steps.FindIndex(item => item.Id == id);
-        if (!steps.TryInsert(Math.Clamp(index, 0, steps.Count), step.DeepClone(), out var error))
-        {
-            _error = $"Could not restore the step ({error}).";
-            return;
-        }
-
-        _error = null;
-        await NotifyWorkflowChanged();
     }
 
     private async Task MoveStep(string id, int delta)

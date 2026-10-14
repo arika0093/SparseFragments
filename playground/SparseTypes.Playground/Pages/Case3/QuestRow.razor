@@ -97,11 +97,11 @@
     private PlaygroundRoster.ChangeSet.QuestsTransition.Item TypedItem =>
         Changes.GetChange(Quest.Id);
 
-    private bool TitleChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Title.IsChanged;
+    private bool TitleChanged => !RemovedOnly && !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Title.IsChanged;
 
-    private bool PointsChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Points.IsChanged;
+    private bool PointsChanged => !RemovedOnly && !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Points.IsChanged;
 
-    private bool ScoresChanged => !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Scores.IsChanged;
+    private bool ScoresChanged => !RemovedOnly && !TypedItem.IsEmpty && TypedItem.IsEdited && TypedItem.Edit.Scores.IsChanged;
 
     private SparseCollectionItemState? GetRowChange()
     {
