@@ -36,20 +36,15 @@ fi
 # Advanced APIs are covered by the docs sample consumers.
 required_tokens=(
     '[SparseModel]'
-    'Optional<string?>.Missing'
-    'Optional<string?>.Present'
-    'new Settings.Fragment'
-    'new DatabaseSettings.Fragment'
-    '.Merge('
-    'new Settings.Patch'
-    '.Apply('
-    'ChangeSet.Between'
-    'IsChanged'
-    '.Before'
-    '.After'
+    'CreateEditSession'
+    'session.Observable'
+    'session.HasChanges'
+    'CreateChangeSet'
+    'changes.Label.IsChanged'
+    'session.RevertChanges'
     'JsonSerializer.Serialize'
     'JsonSerializer.Deserialize'
-    '.RebaseOnto'
+    'RebaseOnto'
 )
 for token in "${required_tokens[@]}"; do
     if ! grep -F -q "${token}" "${readme_path}"; then

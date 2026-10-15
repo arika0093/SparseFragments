@@ -84,12 +84,11 @@ docs/reference/descriptors.md	ui-descriptor-models	tests/fixtures/consumers/pack
 docs/reference/descriptors.md	ui-descriptor-first	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/reference/descriptors.md	ui-descriptor-changes	tests/fixtures/consumers/package-sparse-docs/UiFrameworks.cs
 docs/tutorial/first-sparse-edit.md	tutorial-models	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
-docs/tutorial/first-sparse-edit.md	tutorial-baseline	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
-docs/tutorial/first-sparse-edit.md	tutorial-override	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
-docs/tutorial/first-sparse-edit.md	tutorial-merge	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
-docs/tutorial/first-sparse-edit.md	tutorial-patch	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-editsession	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/tutorial/first-sparse-edit.md	tutorial-changeset	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
-docs/tutorial/first-sparse-edit.md	tutorial-invert	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-payload	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-rebase	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-fragment-patch	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/how-to/layered-settings.md	layered-models	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
 docs/how-to/layered-settings.md	layered-precedence	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
 docs/how-to/layered-settings.md	layered-remove	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs

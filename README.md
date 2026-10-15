@@ -164,33 +164,31 @@ Independent properties merge automatically without overwriting concurrent edits,
 > [!TIP]
 > You can also configure it to reject any incoming changes if there are concurrent edits, instead of automatically merging.
 
-## Architecture: The Generated Core
+## Next Steps: Follow the Tutorial
 
-The source generator emits companion types designed to work together across the change lifecycle:
+Ready to build your first change pipeline? Follow the hands-on tutorial:
+
+[**Tutorial: End-to-End Change Workflow**](docs/tutorial/first-sparse-edit.md)
+Walks step-by-step through reactive editing (`EditSession`), change inspection (`ChangeSet`), JSON wire transport (`ChangePayload`), concurrent reconciliation (`Rebase`), database persistence (`EF Core`), and low-level composition (`Fragment` and `Patch`).
+
+## How It Works: The Five Companion Types
+
+The source generator equips your model with companion types spanning the full change lifecycle:
 
 | Generated Type | Role | Typical Use |
 | --- | --- | --- |
-| `Fragment` | Sparse state snapshot | Default layers, overrides, partially supplied values |
-| `Patch` | Requested operations | Baseline-free commands, targeted API requests |
+| `EditSession` | Reactive UI draft | Dirty tracking, Undo/Redo, batch editing in Blazor/Desktop |
 | `ChangeSet` | Before-to-after transition | Audit logs, undo/redo, conflict-aware rebase |
 | `ChangePayload` | Wire envelope | Versioned JSON transport across process boundaries |
-| `EditSession` | Reactive UI draft | Dirty tracking, Undo/Redo, batch editing in Blazor/Desktop |
+| `Fragment` | Sparse state snapshot | Default layers, overrides, partially supplied values |
+| `Patch` | Requested operations | Baseline-free commands, targeted API requests |
 
-### Presence tracking with Optional<T>
-
-A `Fragment` represents your model where every member is wrapped in `Optional<T>`.
-This enables three distinct states: unassigned (missing, which falls through during `Merge`),
-explicit `null` (present `null`, which overrides a value), and present values.
-See [Fragments and patches](docs/explanation/fragments-and-patches.md) for details.
-
-Additionally, helper types like `DeepClone()` and `Descriptors` are generated for convenience.
-
-Do you want to know more? See the [Documentation](#documentation) section below.
+Under the hood, `Fragment` and `Patch` use `Optional<T>` to distinguish unassigned (missing) fields from explicit `null` values. For details on presence semantics and algebraic operations, see [Fragments and patches](docs/explanation/fragments-and-patches.md). Helper methods such as `DeepClone()` and reflection-free `Descriptors` are also generated automatically.
 
 ## Documentation
 
 ### Tutorials
-* [First sparse edit](docs/tutorial/first-sparse-edit.md): Build a working edit pipeline end to end.
+* [End-to-end change workflow](docs/tutorial/first-sparse-edit.md): Build a complete change pipeline from reactive UI draft to database persistence.
 
 ### How-to Guides
 * [Layered settings](docs/how-to/layered-settings.md): Compose multi-tier configuration and remove overrides.

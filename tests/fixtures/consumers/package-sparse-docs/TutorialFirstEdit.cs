@@ -1,89 +1,112 @@
+using System.Text.Json;
 using SparseTypes;
 
-// Compile-checked tutorial sample for baseline, merge, patch, and inversion.
-// Run() verifies the documented transition values.
+// Compile-checked tutorial sample for the end-to-end change workflow:
+// EditSession -> ChangeSet -> ChangePayload -> Rebase -> Fragment/Patch.
+// Run() verifies each documented transition value.
 public static class TutorialFirstEditSamples
 {
     public static void Run()
     {
-        FirstSparseEdit();
+        FirstChangeWorkflow();
     }
 
-    private static void FirstSparseEdit()
+    private static void FirstChangeWorkflow()
     {
-        // sample: tutorial-baseline
-        var baselineSettings = new TutorialSiteSettings { Theme = "light", RefreshSeconds = 30 };
-        var baseline = TutorialSiteSettings.Fragment.From(baselineSettings);
-        // baseline.Theme.Value == "light"
-        // baseline.RefreshSeconds.Value == 30
-        // /sample
-        DocsCheck.Require(baseline.Theme.Value == "light", "baseline snapshots Theme");
-        DocsCheck.Require(baseline.RefreshSeconds.Value == 30, "baseline snapshots RefreshSeconds");
+        // sample: tutorial-editsession
+        var settings = new UserSettings
+        {
+            DisplayName = "Alice",
+            Theme = "light",
+            RefreshInterval = 60,
+        };
 
-        // sample: tutorial-override
-        var environmentOverride = new TutorialSiteSettings.Fragment { RefreshSeconds = 60 };
-        // environmentOverride.Theme.IsPresent == false
-        // environmentOverride.RefreshSeconds.Value == 60
-        // /sample
-        DocsCheck.Require(!environmentOverride.Theme.IsPresent, "unassigned member stays missing");
-        DocsCheck.Require(
-            environmentOverride.RefreshSeconds.Value == 60,
-            "override carries RefreshSeconds"
-        );
+        // 1. Manage draft state with an edit session
+        var session = settings.CreateEditSession();
 
-        // sample: tutorial-merge
-        var effective = baseline.Merge(environmentOverride);
-        // effective.Theme.Value == "light"
-        // effective.RefreshSeconds.Value == 60
+        session.Observable.Theme = "dark";
+        // session.HasChanges == true
         // /sample
-        DocsCheck.Require(effective.Theme.Value == "light", "missing member falls through");
-        DocsCheck.Require(effective.RefreshSeconds.Value == 60, "present member wins");
-
-        // sample: tutorial-patch
-        var command = new TutorialSiteSettings.Patch { Theme = "dark" };
-        var updated = effective.Apply(command);
-        // updated.Theme.Value == "dark"
-        // updated.RefreshSeconds.Value == 60
-        // /sample
-        DocsCheck.Require(updated.Theme.Value == "dark", "patch sets Theme");
-        DocsCheck.Require(updated.RefreshSeconds.Value == 60, "patch keeps RefreshSeconds");
+        DocsCheck.Require(session.HasChanges, "session tracks changes");
+        DocsCheck.Require(session.Observable.Theme == "dark", "observable reflects edit");
 
         // sample: tutorial-changeset
-        var tutorialBefore = Optional<TutorialSiteSettings.Fragment?>.Present(effective);
-        var tutorialAfter = Optional<TutorialSiteSettings.Fragment?>.Present(updated);
-        var changes = TutorialSiteSettings.ChangeSet.Between(tutorialBefore, tutorialAfter);
+        // 2. Inspect what changed
+        var changes = session.CreateChangeSet();
 
-        if (changes.Theme.IsChanged)
-        {
-            Console.WriteLine($"Theme changed: {changes.Theme.Before} -> {changes.Theme.After}");
-        }
-        // changes.RefreshSeconds.IsChanged == false
+        // changes.Theme.IsChanged == true
+        // changes.Theme.Before.Value == "light"
+        // changes.Theme.After.Value == "dark"
+        // changes.RefreshInterval.IsChanged == false
         // /sample
-        DocsCheck.Require(changes.Theme.IsChanged, "Theme transition observed");
-        DocsCheck.Require(changes.Theme.Before.Value == "light", "Before preserves the old value");
-        DocsCheck.Require(changes.Theme.After.Value == "dark", "After preserves the new value");
-        DocsCheck.Require(!changes.RefreshSeconds.IsChanged, "untouched member stays unchanged");
+        DocsCheck.Require(changes.Theme.IsChanged, "Theme changed");
+        DocsCheck.Require(changes.Theme.Before.Value == "light", "Before preserves old value");
+        DocsCheck.Require(changes.Theme.After.Value == "dark", "After preserves new value");
+        DocsCheck.Require(!changes.RefreshInterval.IsChanged, "RefreshInterval untouched");
 
-        // sample: tutorial-invert
-        var undone = changes.Invert();
-        // undone.ToPatch().Apply(tutorialAfter) replays tutorialBefore
+        // sample: tutorial-payload
+        // 3. Serialize to wire transport payload
+        var payload = changes.ToPayload();
+        var json = JsonSerializer.Serialize(payload);
+
+        // Deserialize on the server into a typed ChangeSet
+        var receivedPayload = JsonSerializer.Deserialize<UserSettings.ChangePayload>(json)!;
+        var incomingChanges = receivedPayload.ToChangeSet();
         // /sample
+        DocsCheck.Require(incomingChanges.Theme.IsChanged, "incoming changes preserve Theme edit");
         DocsCheck.Require(
-            TutorialSiteSettings
-                .Patch.Between(undone.ToPatch().Apply(tutorialAfter), tutorialBefore)
-                .IsEmpty,
-            "inverted transition walks back"
+            incomingChanges.Theme.After.Value == "dark",
+            "incoming changes preserve Theme value"
         );
+
+        // sample: tutorial-rebase
+        // 4. Reconcile concurrent changes
+        // Suppose another user updated DisplayName on the server in the meantime
+        var serverCurrent = new UserSettings
+        {
+            DisplayName = "Alice Cooper",
+            Theme = "light",
+            RefreshInterval = 60,
+        };
+
+        var rebaseResult = incomingChanges.RebaseOnto(serverCurrent);
+        // rebaseResult.HasConflicts == false
+        // rebaseResult.Rebased.Theme.After.Value == "dark"
+        // /sample
+        DocsCheck.Require(!rebaseResult.HasConflicts, "rebase has no conflicts");
+        DocsCheck.Require(
+            rebaseResult.Rebased.Theme.After.Value == "dark",
+            "rebased keeps client edit"
+        );
+
+        // sample: tutorial-fragment-patch
+        // 5. Low-level building blocks: Fragment layering and Patch commands
+        var defaultLayer = new UserSettings.Fragment { Theme = "light", RefreshInterval = 30 };
+        var userOverride = new UserSettings.Fragment { Theme = "dark" };
+
+        var effective = defaultLayer.Merge(userOverride);
+        // effective.Theme.Value == "dark"
+        // effective.RefreshInterval.Value == 30
+
+        var patch = new UserSettings.Patch { RefreshInterval = 120 };
+        var updated = effective.Apply(patch);
+        // updated.RefreshInterval.Value == 120
+        // /sample
+        DocsCheck.Require(effective.Theme.Value == "dark", "override wins");
+        DocsCheck.Require(effective.RefreshInterval.Value == 30, "missing falls through");
+        DocsCheck.Require(updated.RefreshInterval.Value == 120, "patch updates RefreshInterval");
     }
 }
 
 // sample: tutorial-models
 [SparseModel]
-public partial class TutorialSiteSettings
+public partial class UserSettings
 {
+    public string? DisplayName { get; set; }
+
     public string? Theme { get; set; }
 
-    public int RefreshSeconds { get; set; }
+    public int RefreshInterval { get; set; }
 }
 
 // /sample
