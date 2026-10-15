@@ -206,3 +206,32 @@ test("case 6 accepts a section draft and saves the catalog", async ({ page }) =>
   await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
   await expect(itemCode).toHaveValue("e2e-item-code");
 });
+
+test("case 6 keeps a post-save edit as a new pending draft", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();
+  const reviewDialog = page.locator(".pg-catalog-review-dialog");
+
+  await enterText(itemCode, "e2e-item-code");
+  await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
+  await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
+  await fluentButton(page, "Save").first().click();
+  await expect(reviewDialog.locator("dialog[open]")).toBeVisible();
+  await fluentButton(reviewDialog, "Save").click();
+  await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
+  await expect(itemCode).toHaveValue("e2e-item-code");
+
+  // Repeating the flow with a new value proves the acknowledged baseline
+  // moved on: the second save persists the new draft, never the first. The
+  // first save leaves the Work masters tab active, so navigate back first.
+  await page.getByText("1. Overview", { exact: true }).click();
+  await expect(itemCode).toBeVisible();
+  await enterText(itemCode, "e2e-item-code-v2");
+  await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
+  await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
+  await fluentButton(page, "Save").first().click();
+  await expect(reviewDialog.locator("dialog[open]")).toBeVisible();
+  await fluentButton(reviewDialog, "Save").click();
+  await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
+  await expect(itemCode).toHaveValue("e2e-item-code-v2");
+});
