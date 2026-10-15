@@ -60,6 +60,16 @@ public readonly struct SparsePathSegment : IEquatable<SparsePathSegment>
     public static SparsePathSegment KeyOf<TKey>(TKey key) =>
         new(SparsePathSegmentKind.Key, string.Empty, key, typeof(TKey), -1);
 
+    /// <summary>Creates a key segment when the key type is only known at runtime.</summary>
+    /// <remarks>Framework hosts use this overload to preserve key typing without generic method lookup.</remarks>
+    /// <param name="key">The entry key.</param>
+    /// <param name="keyType">The declared key type.</param>
+    public static SparsePathSegment KeyOf(object? key, Type keyType)
+    {
+        ArgumentNullException.ThrowIfNull(keyType);
+        return new(SparsePathSegmentKind.Key, string.Empty, key, keyType, -1);
+    }
+
     /// <summary>Creates a temporary-identity segment for an unassigned keyed entry.</summary>
     /// <param name="temporaryKey">The stable temporary identity.</param>
     public static SparsePathSegment TemporaryKeyOf(Guid temporaryKey) =>

@@ -149,6 +149,13 @@ internal static class SparseRelocatedEditSessionCore
             patchDialect,
             code.CancellationToken
         );
+        sessionBases = SparseEditSessionEmitter.AppendSessionCapabilityBases(
+            sessionBases,
+            modelType,
+            config,
+            patchDialect,
+            historyBinding?.HasOwnedHistory == true
+        );
         // Sessions already raise PropertyChanged with the standard signature.
         sessionBases += ", global::System.ComponentModel.INotifyPropertyChanged";
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);

@@ -353,6 +353,19 @@ first. `Fork` and new sessions start without history. Leave
 `HistoryContractType` null to keep the legacy factory only, so existing
 consumers stay byte-identical.
 
+`SessionCapabilityContracts` optionally names caller-owned session capability
+contracts implemented by each generated `EditSession`: the history contract,
+the generic field-state contract over one model type, the collection-state
+contract, the batch-edit contract, and the descriptor-session contract.
+Shared appends a contract to the session bases only when its members are
+emitted (owned history, the state surface, descriptors with the observable
+family; batch edit is always emitted), so per-model relocation keeps both
+placements identical and products without the contracts keep byte-identical
+output. Hosts probe these contracts instead of reflecting over session
+members, and a missing capability surfaces as a typed contract failure.
+Shared never names a `SparseTypes` runtime type here either; every contract
+name arrives through the record.
+
 Outside `BatchEdit`, observable edits validate and publish their transitions
 immediately; a batch publishes its net transition at exit. The baseline
 comparison for `HasChanges` is deferred until its first read after an edit,

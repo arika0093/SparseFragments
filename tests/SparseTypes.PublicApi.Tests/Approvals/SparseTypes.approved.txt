@@ -279,6 +279,10 @@ namespace SparseTypes
     {
         TModel GetModelForFrameworkAccess();
     }
+    public interface ISparseEditSessionWithBatchEdit
+    {
+        void BatchEdit(System.Action edit);
+    }
     public interface ISparseEditSessionWithChangeSet<TModel, TChangeSet> : SparseTypes.ISparseEditSession<TModel>, SparseTypes.ISparseEditSession<TModel, TChangeSet>
         where TModel :  class
         where TChangeSet :  class
@@ -311,6 +315,27 @@ namespace SparseTypes
             where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
             where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>;
         bool TryAcceptChildSessions(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
+    }
+    public interface ISparseEditSessionWithCollectionState
+    {
+        SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath);
+    }
+    public interface ISparseEditSessionWithDescriptors
+    {
+        SparseTypes.Generated.IDescriptorSet Descriptors { get; }
+    }
+    public interface ISparseEditSessionWithFieldState<TModel>
+        where TModel :  class
+    {
+        SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path);
+        SparseTypes.SparseFieldState<TValue> FieldState<TValue>(SparseTypes.SparsePath<TModel, TValue> path);
+    }
+    public interface ISparseEditSessionWithHistory
+    {
+        SparseTypes.ISparseEditHistory? History { get; }
+        event System.Action? HistoryChanged;
+        void DisableHistory();
+        SparseTypes.ISparseEditHistory EnableHistory(SparseTypes.EditHistoryOptions? options = null);
     }
     public interface ISparseEditSessionWithPaths<out TModel, out TPaths> : SparseTypes.ISparseEditSession<TModel>
         where out TModel :  class
@@ -893,6 +918,7 @@ namespace SparseTypes
         public override int GetHashCode() { }
         public override string ToString() { }
         public static SparseTypes.SparsePathSegment At(int index) { }
+        public static SparseTypes.SparsePathSegment KeyOf(object? key, System.Type keyType) { }
         public static SparseTypes.SparsePathSegment KeyOf<TKey>(TKey key) { }
         public static SparseTypes.SparsePathSegment Member(string name) { }
         public static SparseTypes.SparsePathSegment TemporaryKeyOf(System.Guid temporaryKey) { }

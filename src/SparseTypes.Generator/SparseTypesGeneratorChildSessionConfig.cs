@@ -17,6 +17,13 @@ internal static class SparseTypesGeneratorChildSessionConfig
                 "SparseTypes.ISparseEditSessionWithChildStatus",
             EditSessionWithChangeSetInterfaceMetadataName =
                 "SparseTypes.ISparseEditSessionWithChangeSet",
+            SessionCapabilityContracts = new SparseSessionCapabilityContracts(
+                HistoryInterface: "SparseTypes.ISparseEditSessionWithHistory",
+                FieldStateInterface: "SparseTypes.ISparseEditSessionWithFieldState",
+                CollectionStateInterface: "SparseTypes.ISparseEditSessionWithCollectionState",
+                BatchEditInterface: "SparseTypes.ISparseEditSessionWithBatchEdit",
+                DescriptorSessionInterface: "SparseTypes.ISparseEditSessionWithDescriptors"
+            ),
             PatchDialect = config.PatchDialect is { } patchDialect
                 ? patchDialect with
                 {

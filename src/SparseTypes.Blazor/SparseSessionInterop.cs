@@ -1,93 +1,53 @@
-using System.Collections.Concurrent;
-using System.ComponentModel;
-using System.Reflection;
 using SparseTypes.Generated;
 
 namespace SparseTypes.Blazor;
 
-/// <summary>Reflection bridge to the generated session members that stay outside the minimal session contract.</summary>
-/// <remarks>Reflects over optional generated session members.</remarks>
+/// <summary>Typed capability bridge to generated session members.</summary>
+/// <remarks>Hosts probe small framework-neutral capability interfaces instead of reflecting over session members, so missing capabilities fail through explicit typed contracts.</remarks>
 internal static class SparseSessionInterop
 {
-    private static readonly ConcurrentDictionary<Type, PropertyInfo?> HistoryProperties = new();
-    private static readonly ConcurrentDictionary<Type, EventInfo?> HistoryChangedEvents = new();
-    private static readonly ConcurrentDictionary<
-        (Type Session, Type Value),
-        MethodInfo?
-    > FieldStateMethods = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo?> CollectionStateMethods = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo> KeySegmentMethods = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo?> EnableHistoryMethods = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo?> DisableHistoryMethods = new();
-
     /// <summary>Enables the session-owned history used by a scope-owned child session.</summary>
     internal static void EnableHistory(object session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        var method = EnableHistoryMethods.GetOrAdd(
-            session.GetType(),
-            static type =>
-                type.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                    .FirstOrDefault(candidate =>
-                    {
-                        var parameters = candidate.GetParameters();
-                        return candidate.Name == "EnableHistory"
-                            && candidate.ReturnType == typeof(ISparseEditHistory)
-                            && parameters.Length == 1
-                            && parameters[0].IsOptional;
-                    })
-        );
-        InvokeHistoryMethod(session, method, [null], "EnableHistory");
+        if (session is not ISparseEditSessionWithHistory owner)
+        {
+            throw new InvalidOperationException(
+                $"The session type '{session.GetType()}' does not provide EnableHistory."
+            );
+        }
+
+        owner.EnableHistory(null);
     }
 
     /// <summary>Releases session-owned history enabled for a scope-owned child session.</summary>
     internal static void DisableHistory(object session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        var method = DisableHistoryMethods.GetOrAdd(
-            session.GetType(),
-            static type =>
-                type.GetMethod(
-                    "DisableHistory",
-                    BindingFlags.Instance | BindingFlags.Public,
-                    Type.EmptyTypes
-                )
-        );
-        InvokeHistoryMethod(session, method, null, "DisableHistory");
+        if (session is not ISparseEditSessionWithHistory owner)
+        {
+            throw new InvalidOperationException(
+                $"The session type '{session.GetType()}' does not provide DisableHistory."
+            );
+        }
+
+        owner.DisableHistory();
     }
 
     /// <summary>Reads the session-owned history, or null when absent or not enabled.</summary>
     internal static ISparseEditHistory? TryGetHistory(object session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        var property = HistoryProperties.GetOrAdd(
-            session.GetType(),
-            static type =>
-            {
-                var candidate = type.GetProperty(
-                    "History",
-                    BindingFlags.Instance | BindingFlags.Public
-                );
-                return
-                    candidate is not null
-                    && candidate.CanRead
-                    && candidate.GetIndexParameters().Length == 0
-                    && typeof(ISparseEditHistory).IsAssignableFrom(candidate.PropertyType)
-                    ? candidate
-                    : null;
-            }
-        );
-        if (property is null)
+        if (session is not ISparseEditSessionWithHistory owner)
         {
             return null;
         }
 
         try
         {
-            return property.GetValue(session) as ISparseEditHistory;
+            return owner.History;
         }
-        catch (Exception exception)
-            when (exception is TargetInvocationException or InvalidOperationException)
+        catch (InvalidOperationException)
         {
             return null;
         }
@@ -101,54 +61,13 @@ internal static class SparseSessionInterop
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(handler);
-        var sessionEvent = HistoryChangedEvents.GetOrAdd(
-            session.GetType(),
-            static type =>
-            {
-                var candidate = type.GetEvent(
-                    "HistoryChanged",
-                    BindingFlags.Instance | BindingFlags.Public
-                );
-                return candidate is not null && candidate.EventHandlerType == typeof(Action)
-                    ? candidate
-                    : null;
-            }
-        );
-        if (sessionEvent is null)
+        if (session is not ISparseEditSessionWithHistory owner)
         {
             return null;
         }
 
-        try
-        {
-            sessionEvent.AddEventHandler(session, handler);
-        }
-        catch (Exception exception)
-            when (exception
-                    is ArgumentException
-                        or TargetInvocationException
-                        or InvalidOperationException
-            )
-        {
-            return null;
-        }
-
-        return () =>
-        {
-            try
-            {
-                sessionEvent.RemoveEventHandler(session, handler);
-            }
-            catch (Exception exception)
-                when (exception
-                        is ArgumentException
-                            or TargetInvocationException
-                            or InvalidOperationException
-                )
-            {
-                // Best-effort detach during teardown.
-            }
-        };
+        owner.HistoryChanged += handler;
+        return () => owner.HistoryChanged -= handler;
     }
 
     /// <summary>Queries the live semantic field state and preserves query failures for the UI.</summary>
@@ -161,11 +80,7 @@ internal static class SparseSessionInterop
         where TModel : class
     {
         ArgumentNullException.ThrowIfNull(session);
-        var method = FieldStateMethods.GetOrAdd(
-            (session.GetType(), typeof(TValue)),
-            static key => FindFieldStateMethod(key.Session, key.Value)
-        );
-        if (method is null)
+        if (session is not ISparseEditSessionWithFieldState<TModel> provider)
         {
             state = default;
             error = $"The session type '{session.GetType()}' does not provide FieldState.";
@@ -174,16 +89,14 @@ internal static class SparseSessionInterop
 
         try
         {
-            state = (SparseFieldState<TValue>)method.Invoke(session, [path])!;
+            state = provider.FieldState(path);
             error = null;
             return true;
         }
         catch (Exception exception)
         {
             state = default;
-            error = exception is TargetInvocationException { InnerException: { } inner }
-                ? inner.Message
-                : exception.Message;
+            error = exception.Message;
             return false;
         }
     }
@@ -197,34 +110,7 @@ internal static class SparseSessionInterop
     )
     {
         ArgumentNullException.ThrowIfNull(session);
-        var method = CollectionStateMethods.GetOrAdd(
-            session.GetType(),
-            static type =>
-            {
-                foreach (
-                    var candidate in type.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                )
-                {
-                    if (
-                        candidate.Name != "CollectionState"
-                        || candidate.IsGenericMethod
-                        || candidate.ReturnType != typeof(SparseCollectionState)
-                    )
-                    {
-                        continue;
-                    }
-
-                    var parameters = candidate.GetParameters();
-                    if (parameters.Length == 1 && parameters[0].ParameterType == typeof(SparsePath))
-                    {
-                        return candidate;
-                    }
-                }
-
-                return null;
-            }
-        );
-        if (method is null)
+        if (session is not ISparseEditSessionWithCollectionState provider)
         {
             state = null;
             return false;
@@ -232,23 +118,15 @@ internal static class SparseSessionInterop
 
         try
         {
-            state = (SparseCollectionState)method.Invoke(session, [path])!;
+            state = provider.CollectionState(path);
             return true;
         }
-        catch (TargetInvocationException exception)
-            when (exception.InnerException is ArgumentException)
+        catch (ArgumentException)
         {
             // Not a root keyed or dictionary collection path; the caller
             // reports absence.
             state = null;
             return false;
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            System
-                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
-                .Throw();
-            throw;
         }
     }
 
@@ -258,13 +136,9 @@ internal static class SparseSessionInterop
     )
     {
         ArgumentNullException.ThrowIfNull(session);
-        var descriptorsProperty = session
-            .GetType()
-            .GetProperty("Descriptors", BindingFlags.Instance | BindingFlags.Public);
         if (
-            descriptorsProperty?.CanRead != true
-            || descriptorsProperty.GetValue(session)
-                is not SparseTypes.Generated.IDescriptorSet descriptors
+            session is not ISparseEditSessionWithDescriptors descriptorSession
+            || descriptorSession.Descriptors is not IDescriptorSet descriptors
         )
         {
             throw new InvalidOperationException(
@@ -272,36 +146,14 @@ internal static class SparseSessionInterop
             );
         }
 
-        var batchMethod = session
-            .GetType()
-            .GetMethod("BatchEdit", BindingFlags.Instance | BindingFlags.Public, [typeof(Action)]);
-        if (batchMethod?.ReturnType != typeof(void))
+        if (session is not ISparseEditSessionWithBatchEdit batch)
         {
             throw new InvalidOperationException(
                 $"The session type '{session.GetType()}' does not provide BatchEdit(Action)."
             );
         }
 
-        return descriptors.EditCollection<TElement>(
-            path,
-            mutation =>
-            {
-                try
-                {
-                    batchMethod.Invoke(session, [mutation]);
-                }
-                catch (TargetInvocationException exception)
-                    when (exception.InnerException is not null)
-                {
-                    System
-                        .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(
-                            exception.InnerException
-                        )
-                        .Throw();
-                    throw;
-                }
-            }
-        );
+        return descriptors.EditCollection<TElement>(path, mutation => batch.BatchEdit(mutation));
     }
 
     internal static bool TryGetCollectionRowIdentity(
@@ -321,12 +173,9 @@ internal static class SparseSessionInterop
         temporaryKey = null;
         isKeyed = false;
 
-        var descriptorsProperty = session
-            .GetType()
-            .GetProperty("Descriptors", BindingFlags.Instance | BindingFlags.Public);
         if (
-            descriptorsProperty?.CanRead != true
-            || descriptorsProperty.GetValue(session) is not IDescriptorSet descriptors
+            session is not ISparseEditSessionWithDescriptors descriptorSession
+            || descriptorSession.Descriptors is not IDescriptorSet descriptors
         )
         {
             error =
@@ -389,7 +238,7 @@ internal static class SparseSessionInterop
                 return false;
             }
 
-            identity = CreateKeySegment(keyType, key);
+            identity = SparsePathSegment.KeyOf(key, keyType);
             error = null;
             return true;
         }
@@ -405,97 +254,4 @@ internal static class SparseSessionInterop
             $"The keyed collection row at index {index} has neither an assigned key nor a declared temporary identity.";
         return false;
     }
-
-    private static SparsePathSegment CreateKeySegment(Type keyType, object? key)
-    {
-        var factory = KeySegmentMethods.GetOrAdd(
-            keyType,
-            static type =>
-                typeof(SparseSessionInterop)
-                    .GetMethod(
-                        nameof(CreateKeySegmentCore),
-                        BindingFlags.Static | BindingFlags.Public
-                    )!
-                    .MakeGenericMethod(type)
-        );
-        try
-        {
-            return (SparsePathSegment)factory.Invoke(null, [key])!;
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            System
-                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
-                .Throw();
-            throw;
-        }
-    }
-
-    public static SparsePathSegment CreateKeySegmentCore<TKey>(object? key) =>
-        SparsePathSegment.KeyOf((TKey)key!);
-
-    private static MethodInfo? FindFieldStateMethod(Type sessionType, Type valueType)
-    {
-        foreach (
-            var candidate in sessionType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-        )
-        {
-            if (
-                candidate.Name != "FieldState"
-                || !candidate.IsGenericMethodDefinition
-                || candidate.GetGenericArguments().Length != 1
-            )
-            {
-                continue;
-            }
-
-            var parameters = candidate.GetParameters();
-            if (parameters.Length != 1 || !IsTypedPathParameter(parameters[0].ParameterType))
-            {
-                continue;
-            }
-
-            try
-            {
-                return candidate.MakeGenericMethod(valueType);
-            }
-            catch (Exception exception)
-                when (exception is ArgumentException or InvalidOperationException)
-            {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    private static void InvokeHistoryMethod(
-        object session,
-        MethodInfo? method,
-        object?[]? arguments,
-        string methodName
-    )
-    {
-        if (method is null)
-        {
-            throw new InvalidOperationException(
-                $"The session type '{session.GetType()}' does not provide {methodName}."
-            );
-        }
-
-        try
-        {
-            method.Invoke(session, arguments);
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            System
-                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
-                .Throw();
-            throw;
-        }
-    }
-
-    private static bool IsTypedPathParameter(Type parameter) =>
-        parameter.IsGenericType && parameter.GetGenericTypeDefinition() == typeof(SparsePath<,>);
 }

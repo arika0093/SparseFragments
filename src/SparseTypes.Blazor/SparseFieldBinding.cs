@@ -29,7 +29,7 @@ public sealed class SparseFieldBinding<TModel, TValue>
     private readonly SparsePath<TModel, TValue> _typedPath;
     private readonly SparsePath _path;
     private readonly IDescriptorSet? _descriptors;
-    private readonly MethodInfo? _batchMethod;
+    private readonly ISparseEditSessionWithBatchEdit? _batch;
 
     internal SparseFieldBinding(
         ISparseEditSession<TModel> session,
@@ -44,7 +44,7 @@ public sealed class SparseFieldBinding<TModel, TValue>
         _path = typedPath.Path;
         Disabled = options?.Disabled == true;
         _descriptors = TryGetDescriptors(session);
-        _batchMethod = options?.UseBatchEdit == true ? FindBatchMethod(session) : null;
+        _batch = options?.UseBatchEdit == true ? session as ISparseEditSessionWithBatchEdit : null;
     }
 
     internal SparseFieldBinding(
@@ -60,7 +60,7 @@ public sealed class SparseFieldBinding<TModel, TValue>
         _path = path;
         Disabled = options?.Disabled == true;
         _descriptors = TryGetDescriptors(session);
-        _batchMethod = options?.UseBatchEdit == true ? FindBatchMethod(session) : null;
+        _batch = options?.UseBatchEdit == true ? session as ISparseEditSessionWithBatchEdit : null;
     }
 
     /// <summary>Gets the typed path when bound through one; otherwise the default root path.</summary>
@@ -238,9 +238,7 @@ public sealed class SparseFieldBinding<TModel, TValue>
             bool written;
             try
             {
-                written = _batchMethod is not null
-                    ? InvokeBatched(leaf, value)
-                    : leaf.TrySetValue(value);
+                written = _batch is not null ? InvokeBatched(leaf, value) : leaf.TrySetValue(value);
             }
             catch (Exception exception)
                 when (exception
@@ -331,24 +329,21 @@ public sealed class SparseFieldBinding<TModel, TValue>
 
         try
         {
-            if (_batchMethod is not null)
+            if (_batch is not null)
             {
                 Exception? captured = null;
-                _batchMethod.Invoke(
-                    _session,
-                    [
-                        new Action(() =>
+                _batch.BatchEdit(
+                    new Action(() =>
+                    {
+                        try
                         {
-                            try
-                            {
-                                property.SetValue(fieldId.Model, value);
-                            }
-                            catch (Exception exception)
-                            {
-                                captured = exception;
-                            }
-                        }),
-                    ]
+                            property.SetValue(fieldId.Model, value);
+                        }
+                        catch (Exception exception)
+                        {
+                            captured = exception;
+                        }
+                    })
                 );
                 if (captured is not null)
                 {
@@ -559,29 +554,26 @@ public sealed class SparseFieldBinding<TModel, TValue>
 
     private bool InvokeBatched(IDescriptor leaf, TValue? value)
     {
-        var method = _batchMethod;
-        if (method is null)
+        var batch = _batch;
+        if (batch is null)
         {
             return leaf.TrySetValue(value);
         }
 
         var written = false;
         Exception? captured = null;
-        method.Invoke(
-            _session,
-            [
-                new Action(() =>
+        batch.BatchEdit(
+            new Action(() =>
+            {
+                try
                 {
-                    try
-                    {
-                        written = leaf.TrySetValue(value);
-                    }
-                    catch (Exception exception)
-                    {
-                        captured = exception;
-                    }
-                }),
-            ]
+                    written = leaf.TrySetValue(value);
+                }
+                catch (Exception exception)
+                {
+                    captured = exception;
+                }
+            })
         );
         if (captured is not null)
         {
@@ -596,52 +588,8 @@ public sealed class SparseFieldBinding<TModel, TValue>
             ? accessor.GetModelForFrameworkAccess()
             : session.Model;
 
-    private static IDescriptorSet? TryGetDescriptors(ISparseEditSession<TModel> session)
-    {
-        var property = session
-            .GetType()
-            .GetProperty("Descriptors", BindingFlags.Instance | BindingFlags.Public);
-        if (property is null || !property.CanRead)
-        {
-            return null;
-        }
-
-        if (!typeof(IDescriptorSet).IsAssignableFrom(property.PropertyType))
-        {
-            return null;
-        }
-
-        try
-        {
-            return property.GetValue(session) as IDescriptorSet;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    private static MethodInfo? FindBatchMethod(ISparseEditSession<TModel> session)
-    {
-        try
-        {
-            var method = session
-                .GetType()
-                .GetMethod(
-                    "BatchEdit",
-                    BindingFlags.Instance | BindingFlags.Public,
-                    [typeof(Action)]
-                );
-            if (method is null || method.ReturnType != typeof(void))
-            {
-                return null;
-            }
-
-            return method;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
+    private static IDescriptorSet? TryGetDescriptors(ISparseEditSession<TModel> session) =>
+        // Typed capability probe: sessions without generated descriptors stay
+        // on the model-property fallback instead of failing.
+        (session as ISparseEditSessionWithDescriptors)?.Descriptors;
 }

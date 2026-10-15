@@ -259,6 +259,13 @@ internal static class SparseEditSessionEmitter
             patchDialect,
             code.CancellationToken
         );
+        sessionBases = AppendSessionCapabilityBases(
+            sessionBases,
+            modelType,
+            config,
+            patchDialect,
+            historyBinding?.HasOwnedHistory == true
+        );
         // Sessions already raise PropertyChanged with the standard signature.
         sessionBases += ", global::System.ComponentModel.INotifyPropertyChanged";
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
@@ -532,6 +539,62 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(1, "}");
         code.AppendLineAt(0, "}");
         code.AppendLine();
+    }
+
+    /// <summary>Appends product-owned session capability interfaces shared by both session placements.</summary>
+    /// <remarks>Each capability is appended only when the contract is bound and the matching members are emitted, so per-model relocation and disabled features stay identical.</remarks>
+    /// <param name="sessionBases">Accumulated base interfaces.</param>
+    /// <param name="modelType">Owning model type name.</param>
+    /// <param name="config">Owning generator configuration.</param>
+    /// <param name="patchDialect">Product patch dialect.</param>
+    /// <param name="hasOwnedHistory">Whether owned-history members are emitted.</param>
+    internal static string AppendSessionCapabilityBases(
+        string sessionBases,
+        string modelType,
+        SparseGeneratorConfig config,
+        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
+        bool hasOwnedHistory
+    )
+    {
+        var capabilities = config.SessionCapabilityContracts;
+        if (capabilities is null || !capabilities.HasAny)
+        {
+            return sessionBases;
+        }
+
+        if (capabilities.HistoryInterface is { Length: > 0 } history && hasOwnedHistory)
+        {
+            sessionBases += ", global::" + history;
+        }
+
+        if (SparseEditSessionStateEmitter.HasStateSurface(patchDialect))
+        {
+            if (capabilities.FieldStateInterface is { Length: > 0 } fieldState)
+            {
+                sessionBases += ", global::" + fieldState + "<" + modelType + ">";
+            }
+
+            if (capabilities.CollectionStateInterface is { Length: > 0 } collectionState)
+            {
+                sessionBases += ", global::" + collectionState;
+            }
+        }
+
+        if (capabilities.BatchEditInterface is { Length: > 0 } batchEdit)
+        {
+            sessionBases += ", global::" + batchEdit;
+        }
+
+        if (
+            capabilities.DescriptorSessionInterface is { Length: > 0 } descriptors
+            && config.DescriptorDialect is not null
+            && config.EffectiveEmissionFeatures.EmitObservable
+        )
+        {
+            sessionBases += ", global::" + descriptors;
+        }
+
+        return sessionBases;
     }
 
     /// <summary>Appends the fork/merge facade members shared by both session placements.</summary>

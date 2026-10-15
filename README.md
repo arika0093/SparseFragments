@@ -227,7 +227,7 @@ Under the hood, `Fragment` and `Patch` use `Optional<T>` to distinguish unassign
 ### SparseTypes.Blazor
 * Reactive edit sessions and headless field components for Blazor applications.
 * Targets `net8.0` and `net10.0`.
-* Note: Field-path binding resolution in UI components relies on reflection.
+* Note: Session history, field and collection state, batch edits, and descriptors resolve through generated capability interfaces without member lookup. Field-path resolution against the live model graph and the descriptor-unavailable binding fallback still use reflection.
 
 ### SparseTypes.EntityFrameworkCore
 * ChangeSet mapping and change tracking integration for Entity Framework Core.

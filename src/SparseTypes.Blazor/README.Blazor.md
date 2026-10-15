@@ -155,3 +155,20 @@ the field context. Keyed, temporary-key, and indexed paths expose a null
 `ValueExpression`, and `InputBase` rejects a null expression, so those
 paths edit through value and callback inputs with errors surfaced
 explicitly. Full guidance: [Blazor headless components](https://github.com/arika0093/SparseTypes/blob/main/docs/how-to/blazor-headless-components.md).
+
+Session capabilities and remaining reflection
+
+Generated sessions implement small capability interfaces for history control,
+field and collection state, batch edits, and descriptors. Blazor probes these
+interfaces directly, so ordinary `SparseEdit`, `SparseField`,
+`SparseCollection`, and child and session scope workflows run without
+reflective member lookup, and a missing capability reports a typed
+unsupported-capability error instead of a `TargetInvocationException`. The
+typed `SparsePath<TModel, TValue>` overloads keep compile-time path typing.
+
+Reflection remains for live-model graph walks: member, collection, key, and
+temporary-key resolution in `SparseFieldPathResolver`, bind-path validation,
+the descriptor-unavailable binding fallback, and value-expression
+construction in `SparseFieldBinding`. These paths operate on arbitrary user
+model graphs with no generated contract, so generated descriptors stay the
+first choice and the model walk covers the rest.

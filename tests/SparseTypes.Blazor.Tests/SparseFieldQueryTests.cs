@@ -6,7 +6,9 @@ namespace SparseTypes.Blazor.Tests;
 
 public sealed class SparseFieldQueryTests
 {
-    private sealed class QuerySession : ISparseEditSession<BlazorCounterForm>
+    private sealed class QuerySession
+        : ISparseEditSession<BlazorCounterForm>,
+            ISparseEditSessionWithFieldState<BlazorCounterForm>
     {
         private readonly BlazorCounterForm.EditSession _inner;
 
@@ -34,6 +36,8 @@ public sealed class SparseFieldQueryTests
 
             return _inner.FieldState(path);
         }
+
+        public SparseFieldState<object?> FieldState(SparsePath path) => _inner.FieldState(path);
     }
 
     private sealed class QueryScope(QuerySession session) : ISparseEditScope<BlazorCounterForm>

@@ -43,7 +43,8 @@ internal sealed record SparseGeneratorConfig
         string? EditSessionWithChildrenInterfaceMetadataName = null,
         string? EditChildSessionStatusType = null,
         string? EditSessionWithChildStatusInterfaceMetadataName = null,
-        string? EditSessionWithChangeSetInterfaceMetadataName = null
+        string? EditSessionWithChangeSetInterfaceMetadataName = null,
+        SparseSessionCapabilityContracts? SessionCapabilityContracts = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -89,6 +90,7 @@ internal sealed record SparseGeneratorConfig
             EditSessionWithChildStatusInterfaceMetadataName;
         this.EditSessionWithChangeSetInterfaceMetadataName =
             EditSessionWithChangeSetInterfaceMetadataName;
+        this.SessionCapabilityContracts = SessionCapabilityContracts;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -171,6 +173,10 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Optional generic session-and-change-set adapter interface, or null when disabled.</summary>
     public string? EditSessionWithChangeSetInterfaceMetadataName { get; init; }
+
+    /// <summary>Product-owned session capability contracts implemented by generated sessions, or null when disabled.</summary>
+    /// <remarks>Null keeps output byte-identical for downstream products without these contracts.</remarks>
+    public SparseSessionCapabilityContracts? SessionCapabilityContracts { get; init; }
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }
