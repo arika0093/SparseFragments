@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Components.Forms;
 using SparseTypes;
@@ -11,6 +9,13 @@ namespace SparseTypes.Blazor;
 /// <summary>Resolves typed paths against a session model instance.</summary>
 internal static class SparseFieldPathResolver
 {
+    // Carries the failure spelling without formatting it: wire text renders
+    // only when a lookup actually fails.
+    private readonly struct ErrorName(SparsePath path, string? text)
+    {
+        public string GetText() => text ?? path.ToString();
+    }
+
     /// <summary>Resolves a wire-compatible field path.</summary>
     /// <remarks>String paths parse to <see cref="SparsePath"/> once, then resolve through the typed walk.</remarks>
     internal static FieldIdentifier Resolve(object model, string fieldName)
@@ -22,21 +27,21 @@ internal static class SparseFieldPathResolver
             throw InvalidFieldPath(fieldName);
         }
 
-        return Resolve(model, path, fieldName);
+        return Resolve(model, path, new ErrorName(path, fieldName));
     }
 
     /// <summary>Resolves a canonical typed path.</summary>
     internal static FieldIdentifier Resolve(object model, SparsePath path)
     {
         ArgumentNullException.ThrowIfNull(model);
-        return Resolve(model, path, path.ToString());
+        return Resolve(model, path, new ErrorName(path, null));
     }
 
-    private static FieldIdentifier Resolve(object model, SparsePath path, string errorPath)
+    private static FieldIdentifier Resolve(object model, SparsePath path, ErrorName error)
     {
         if (path.IsRoot)
         {
-            throw InvalidFieldPath(errorPath);
+            throw InvalidFieldPath(error);
         }
 
         object? current = model;
@@ -49,17 +54,22 @@ internal static class SparseFieldPathResolver
                 case SparsePathSegmentKind.Member:
                     if (current is null)
                     {
-                        throw InvalidFieldPath(errorPath);
+                        throw InvalidFieldPath(error);
                     }
 
                     fieldNamePart = segment.Name;
                     fieldOwner = current;
-                    var property = current
-                        .GetType()
-                        .GetProperty(fieldNamePart, BindingFlags.Instance | BindingFlags.Public);
-                    if (property is null || property.GetIndexParameters().Length > 0)
+                    if (
+                        !SparseTypeMetadataCache.TryGetProperty(
+                            current.GetType(),
+                            fieldNamePart,
+                            out var property
+                        )
+                        || property is null
+                        || !property.CanRead
+                    )
                     {
-                        throw InvalidFieldPath(errorPath);
+                        throw InvalidFieldPath(error);
                     }
 
                     current = property.GetValue(current);
@@ -67,133 +77,157 @@ internal static class SparseFieldPathResolver
                 case SparsePathSegmentKind.Key:
                     if (current is null)
                     {
-                        throw InvalidFieldPath(errorPath);
+                        throw InvalidFieldPath(error);
                     }
 
                     // Trailing entry segments validate resolvability while the
                     // reported field stays the owning member.
-                    current = ResolveKeyedValue(current, segment.Key, errorPath);
+                    current = ResolveKeyedValue(current, segment.Key, error);
                     break;
                 case SparsePathSegmentKind.TemporaryKey:
                     if (current is null)
                     {
-                        throw InvalidFieldPath(errorPath);
+                        throw InvalidFieldPath(error);
                     }
 
-                    current = ResolveTemporaryValue(current, segment.TemporaryKey, errorPath);
+                    current = ResolveTemporaryValue(current, segment.TemporaryKey, error);
                     break;
                 default:
                     if (current is null)
                     {
-                        throw InvalidFieldPath(errorPath);
+                        throw InvalidFieldPath(error);
                     }
 
-                    current = ResolvePositionalValue(current, segment.Index, errorPath);
+                    current = ResolvePositionalValue(current, segment.Index, error);
                     break;
             }
         }
 
         if (fieldOwner is null || fieldNamePart is null)
         {
-            throw InvalidFieldPath(errorPath);
+            throw InvalidFieldPath(error);
         }
 
         return new FieldIdentifier(fieldOwner, fieldNamePart);
     }
 
-    private static object? ResolveKeyedValue(object collection, object? key, string path)
+    private static object? ResolveKeyedValue(object collection, object? key, ErrorName error)
     {
         if (collection is string || key is null)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         // Key segments name stable entry identity (the EnumerateChanges
         // spelling), never positions.
         if (collection is IList list)
         {
-            return ResolveKeyedElement(list, GetSequenceElementType(collection), key, path);
+            return ResolveKeyedElement(
+                list,
+                SparseTypeMetadataCache.GetSequenceElementType(collection.GetType()),
+                key,
+                error
+            );
         }
 
         if (collection is IDictionary dictionary)
         {
             var dictionaryKey = key is string text
-                ? ConvertDictionaryKey(collection, text, path)
+                ? ConvertDictionaryKey(collection, text, error)
                 : key;
             if (!dictionary.Contains(dictionaryKey))
             {
-                throw InvalidFieldPath(path);
+                throw InvalidFieldPath(error);
             }
 
             return dictionary[dictionaryKey];
         }
 
-        if (TryGetReadOnlyDictionaryInterface(collection, out var dictionaryInterface))
+        var collectionType = collection.GetType();
+        if (
+            SparseTypeMetadataCache.TryGetReadOnlyDictionary(
+                collectionType,
+                out var dictionaryInterface,
+                out var containsKey,
+                out var indexer
+            )
+        )
         {
             var keyType = dictionaryInterface.GetGenericArguments()[0];
             var dictionaryKey = key is string text
-                ? ConvertKeyTextOrInvalidPath(keyType, text, path)
+                ? ConvertKeyTextOrInvalidPath(keyType, text, error)
                 : key;
-            var containsKey = dictionaryInterface.GetMethod("ContainsKey");
-            var indexer = dictionaryInterface.GetProperty("Item");
             if (
                 containsKey is null
                 || indexer is null
                 || containsKey.Invoke(collection, [dictionaryKey]) is not true
             )
             {
-                throw InvalidFieldPath(path);
+                throw InvalidFieldPath(error);
             }
 
             return indexer.GetValue(collection, [dictionaryKey]);
         }
 
-        if (TryGetReadOnlyListInterface(collection, out var listInterface))
+        if (
+            SparseTypeMetadataCache.TryGetReadOnlyList(collectionType, out var listInterface, out _)
+        )
         {
             return ResolveKeyedElement(
                 (IEnumerable)collection,
                 listInterface.GetGenericArguments()[0],
                 key,
-                path
+                error
             );
         }
 
-        throw InvalidFieldPath(path);
+        throw InvalidFieldPath(error);
     }
 
-    private static object? ResolvePositionalValue(object collection, int index, string path)
+    private static object? ResolvePositionalValue(object collection, int index, ErrorName error)
     {
         if (collection is string || index < 0)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         if (collection is IList list)
         {
             if ((uint)index >= (uint)list.Count)
             {
-                throw InvalidFieldPath(path);
+                throw InvalidFieldPath(error);
             }
 
             return list[index];
         }
 
-        if (TryGetReadOnlyListInterface(collection, out var listInterface))
+        var collectionType = collection.GetType();
+        if (
+            SparseTypeMetadataCache.TryGetReadOnlyList(
+                collectionType,
+                out var listInterface,
+                out var indexer
+            )
+        )
         {
             // Index lookup, not linear enumeration.
             var elementType = listInterface.GetGenericArguments()[0];
-            var indexer = listInterface.GetProperty("Item");
             if (
                 indexer is null
-                || !TryGetReadOnlyCollectionCount(collection, elementType, out var count)
+                || !SparseTypeMetadataCache.TryGetReadOnlyCollectionCount(
+                    collectionType,
+                    elementType,
+                    collection,
+                    out var count
+                )
             )
             {
-                throw InvalidFieldPath(path);
+                throw InvalidFieldPath(error);
             }
 
             if ((uint)index >= (uint)count)
             {
-                throw InvalidFieldPath(path);
+                throw InvalidFieldPath(error);
             }
 
             return indexer.GetValue(collection, [index]);
@@ -206,54 +240,43 @@ internal static class SparseFieldPathResolver
             return ResolveKeyedValue(
                 collection,
                 index.ToString(CultureInfo.InvariantCulture),
-                path
+                error
             );
         }
 
-        throw InvalidFieldPath(path);
+        throw InvalidFieldPath(error);
     }
 
-    private static object ConvertDictionaryKey(object collection, string key, string path)
+    private static object ConvertDictionaryKey(object collection, string key, ErrorName error)
     {
         if (collection is not IDictionary)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
-        var keyType = collection
-            .GetType()
-            .GetInterfaces()
-            .Where(static type =>
-                type.IsGenericType
-                && (
-                    type.GetGenericTypeDefinition() == typeof(IDictionary<,>)
-                    || type.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
-                )
-            )
-            .Select(static type => type.GetGenericArguments()[0])
-            .FirstOrDefault();
+        var keyType = SparseTypeMetadataCache.GetDictionaryKeyType(collection.GetType());
         if (keyType is null || keyType == typeof(string))
         {
             return key;
         }
 
-        return ConvertKeyTextOrInvalidPath(keyType, key, path);
+        return ConvertKeyTextOrInvalidPath(keyType, key, error);
     }
 
-    private static object ConvertKeyTextOrInvalidPath(Type keyType, string key, string path)
+    private static object ConvertKeyTextOrInvalidPath(Type keyType, string key, ErrorName error)
     {
         try
         {
-            return ConvertKeyText(keyType, key, path);
+            return ConvertKeyText(keyType, key, error);
         }
         catch (Exception exception)
             when (exception is ArgumentException or FormatException or InvalidCastException)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
     }
 
-    private static object ConvertKeyText(Type keyType, string key, string path)
+    private static object ConvertKeyText(Type keyType, string key, ErrorName error)
     {
         // Guid is not IConvertible, so Convert.ChangeType cannot parse it.
         // Guid.TryParse is culture-independent.
@@ -265,7 +288,7 @@ internal static class SparseFieldPathResolver
                 return guid;
             }
 
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         return keyType.IsEnum
@@ -273,31 +296,34 @@ internal static class SparseFieldPathResolver
             : Convert.ChangeType(key, keyType, CultureInfo.InvariantCulture);
     }
 
-    private sealed record KeyReader
-    {
-        public required Func<object, object?> GetKey { get; init; }
-
-        public required Type KeyType { get; init; }
-    }
-
-    private static object ResolveTemporaryValue(object collection, Guid? temporaryKey, string path)
+    private static object ResolveTemporaryValue(
+        object collection,
+        Guid? temporaryKey,
+        ErrorName error
+    )
     {
         // The element is located through its SparseTemporaryKey member, so the
         // lookup follows row replacement exactly like the keyed lookup does.
         if (collection is string || temporaryKey is null)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         if (collection is not IEnumerable elements)
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
-        var elementType = GetSequenceElementType(collection) ?? FirstElementType(elements);
-        if (elementType is null || !TryGetTemporaryReader(elementType, out var reader))
+        var elementType =
+            SparseTypeMetadataCache.GetSequenceElementType(collection.GetType())
+            ?? FirstElementType(elements);
+        if (
+            elementType is null
+            || !SparseTypeMetadataCache.TryGetTemporaryReader(elementType, out var reader)
+            || reader is null
+        )
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         foreach (var element in elements)
@@ -309,28 +335,32 @@ internal static class SparseFieldPathResolver
         }
 
         // Removed or assigned entries no longer resolve against the live model.
-        throw InvalidFieldPath(path);
+        throw InvalidFieldPath(error);
     }
 
     private static object ResolveKeyedElement(
         IEnumerable elements,
         Type? elementType,
         object? key,
-        string path
+        ErrorName error
     )
     {
         // Key segments name stable keys (the EnumerateChanges spelling),
         // never positions: even a numeric string key looks up key identity.
         elementType ??= FirstElementType(elements);
-        if (elementType is null || !TryGetKeyReader(elementType, out var reader))
+        if (
+            elementType is null
+            || !SparseTypeMetadataCache.TryGetKeyReader(elementType, out var reader)
+            || reader is null
+        )
         {
-            throw InvalidFieldPath(path);
+            throw InvalidFieldPath(error);
         }
 
         // Parsed string keys convert to the key type; typed path keys compare
         // directly so equal display text never merges distinct keys.
         var convertedKey = key is string text
-            ? ConvertKeyTextOrInvalidPath(reader.KeyType, text, path)
+            ? ConvertKeyTextOrInvalidPath(reader.KeyType, text, error)
             : key;
         foreach (var element in elements)
         {
@@ -341,23 +371,7 @@ internal static class SparseFieldPathResolver
         }
 
         // Removed keys no longer resolve against the live model.
-        throw InvalidFieldPath(path);
-    }
-
-    private static Type? GetSequenceElementType(object collection)
-    {
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>)
-            )
-            {
-                return candidate.GetGenericArguments()[0];
-            }
-        }
-
-        return null;
+        throw InvalidFieldPath(error);
     }
 
     private static Type? FirstElementType(IEnumerable elements)
@@ -373,117 +387,30 @@ internal static class SparseFieldPathResolver
         return null;
     }
 
-    private static bool TryGetKeyReader(Type elementType, out KeyReader reader)
-    {
-        foreach (
-            var property in elementType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
-        )
-        {
-            if (
-                property.CanRead
-                && property.GetIndexParameters().Length == 0
-                && property.GetCustomAttribute<SparseKeyAttribute>(inherit: true) is not null
-            )
-            {
-                reader = new KeyReader
-                {
-                    GetKey = property.GetValue,
-                    KeyType = property.PropertyType,
-                };
-                return true;
-            }
-        }
-
-        reader = null!;
-        return false;
-    }
-
-    private static bool TryGetTemporaryReader(Type elementType, out Func<object, object?> reader)
-    {
-        foreach (
-            var property in elementType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
-        )
-        {
-            if (
-                property.CanRead
-                && property.GetIndexParameters().Length == 0
-                && property.GetCustomAttribute<SparseTemporaryKeyAttribute>(inherit: true)
-                    is not null
-            )
-            {
-                reader = property.GetValue;
-                return true;
-            }
-        }
-
-        reader = null!;
-        return false;
-    }
-
     internal static bool TryGetReadOnlyDictionaryInterface(
         object collection,
         out Type interfaceType
     )
     {
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
+        ArgumentNullException.ThrowIfNull(collection);
+        if (
+            SparseTypeMetadataCache.TryGetReadOnlyDictionary(
+                collection.GetType(),
+                out interfaceType,
+                out _,
+                out _
             )
-            {
-                interfaceType = candidate;
-                return true;
-            }
+        )
+        {
+            return true;
         }
 
         interfaceType = null!;
         return false;
     }
 
-    private static bool TryGetReadOnlyListInterface(object collection, out Type interfaceType)
-    {
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)
-            )
-            {
-                interfaceType = candidate;
-                return true;
-            }
-        }
-
-        interfaceType = null!;
-        return false;
-    }
-
-    private static bool TryGetReadOnlyCollectionCount(
-        object collection,
-        Type elementType,
-        out int count
-    )
-    {
-        // Count is declared on IReadOnlyCollection<T>, which interface
-        // reflection does not flatten onto IReadOnlyList<T>.
-        foreach (var candidate in collection.GetType().GetInterfaces())
-        {
-            if (
-                candidate.IsGenericType
-                && candidate.GetGenericTypeDefinition() == typeof(IReadOnlyCollection<>)
-                && candidate.GetGenericArguments()[0] == elementType
-                && candidate.GetProperty("Count")?.GetValue(collection) is int value
-            )
-            {
-                count = value;
-                return true;
-            }
-        }
-
-        count = 0;
-        return false;
-    }
+    private static ArgumentException InvalidFieldPath(ErrorName error) =>
+        InvalidFieldPath(error.GetText());
 
     private static ArgumentException InvalidFieldPath(string path) =>
         new($"The field path '{path}' does not resolve to a public model member.", nameof(path));

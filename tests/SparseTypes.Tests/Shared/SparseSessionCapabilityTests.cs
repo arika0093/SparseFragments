@@ -74,8 +74,22 @@ public sealed class SparseSessionCapabilityTests
             FieldStateInterface: "Downstream.ISessionWithFieldState",
             CollectionStateInterface: "Downstream.ISessionWithCollectionState",
             BatchEditInterface: "Downstream.ISessionWithBatchEdit",
-            DescriptorSessionInterface: "Downstream.ISessionWithDescriptors"
+            DescriptorSessionInterface: "Downstream.ISessionWithDescriptors",
+            StateSnapshotInterface: "Downstream.ISessionWithStateSnapshot"
         );
+
+    private static SparseFragmentPatchEmitter.SparsePatchDialect SnapshotDialect() =>
+        StateDialect() with
+        {
+            StateContracts = new SparseStateContracts(
+                "global::Downstream.FieldState",
+                "global::Downstream.CollectionState",
+                "global::Downstream.StateQueries"
+            )
+            {
+                QueryViewType = "global::Downstream.QueryView",
+            },
+        };
 
     private static SparseGeneratorConfig ConfigFor(
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
@@ -167,9 +181,76 @@ public sealed class SparseSessionCapabilityTests
     }
 
     [Test]
-    public void UnavailableCapabilitiesAreOmitted()
+    public void SnapshotCapabilityAppendedOnlyWhenViewTypeIsBound()
     {
-        // No state surface, no owned history, and no descriptors: only the
+        // Bound view type: the snapshot contract joins the bases.
+        var bound = SparseEditSessionCapabilityEmitter.AppendSessionCapabilityBases(
+            string.Empty,
+            "global::Downstream.Order",
+            ConfigFor(SnapshotDialect(), AllCapabilities(), withDescriptors: true),
+            SnapshotDialect(),
+            hasOwnedHistory: true
+        );
+        bound.ShouldContain(", global::Downstream.ISessionWithStateSnapshot");
+        bound.ShouldNotContain("SparseTypes.");
+
+        // Capability bound but no view type: the base stays off so products
+        // without the view keep byte-identical output.
+        var unbound = SparseEditSessionCapabilityEmitter.AppendSessionCapabilityBases(
+            string.Empty,
+            "global::Downstream.Order",
+            ConfigFor(StateDialect(), AllCapabilities(), withDescriptors: true),
+            StateDialect(),
+            hasOwnedHistory: true
+        );
+        unbound.ShouldNotContain("StateSnapshot");
+    }
+
+    [Test]
+    public void ModelSessionEmitsSnapshotMemberOnlyWhenViewTypeIsBound()
+    {
+        var model = new SparseModelInfo(
+            "Order",
+            "global::Downstream.Order",
+            "Downstream",
+            IsGlobalNamespace: false,
+            IsStruct: false,
+            IsRecord: false,
+            HintName: "Order.g.cs",
+            Constructor: null
+        );
+
+        using var bound = new SharedIndentedBuilder(CancellationToken.None);
+        SparseEditSessionEmitter.AppendModelEditSession(
+            bound,
+            model,
+            model.ModelTypeName,
+            "public",
+            "Observable",
+            "ReadOnlyView",
+            ImmutableArray<SparseMemberModel>.Empty,
+            ConfigFor(SnapshotDialect(), AllCapabilities(), withDescriptors: true)
+        );
+        bound.ToString().ShouldContain("CaptureStateSnapshot");
+
+        using var unbound = new SharedIndentedBuilder(CancellationToken.None);
+        SparseEditSessionEmitter.AppendModelEditSession(
+            unbound,
+            model,
+            model.ModelTypeName,
+            "public",
+            "Observable",
+            "ReadOnlyView",
+            ImmutableArray<SparseMemberModel>.Empty,
+            ConfigFor(StateDialect(), AllCapabilities(), withDescriptors: true)
+        );
+        unbound.ToString().ShouldNotContain("CaptureStateSnapshot");
+        unbound.ToString().ShouldNotContain("StateSnapshot");
+    }
+
+    [Test]
+    public void UnavailableCapabilitiesAreOmitted()
+    { // No state surface, no owned history, and no descriptors: only the
         // always-emitted batch capability applies.
         var config = ConfigFor(PlainDialect(), AllCapabilities(), withDescriptors: false);
 

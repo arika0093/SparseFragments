@@ -110,6 +110,16 @@ keeps the draft available for conflict handling. There is no per-path refresh;
 narrowing would have to stay correct for ancestor, descendant, collection
 reorder, and replacement notifications first.
 
+Field state reads share one snapshot per refresh generation: the first field
+captures a single change set and later fields query its indexed view instead
+of deriving a root diff each. The generation ends on session notifications
+(edits, batches, baseline changes, reload, reconcile, undo/redo), model or
+session replacement, or an explicit `InvalidateStateSnapshot` on the edit
+context. Raw model edits that raise no session notification need that
+explicit invalidation; a plain parameter refresh reuses the generation only
+while the session reports no intervening change. Sessions without the
+snapshot capability keep the live per-field query path.
+
 Replacing the `Session` parameter unsubscribes the old session before
 subscribing the new one, and disposing the scope unsubscribes entirely. After
 the server returns authoritative state, adopt a fresh session from the
@@ -176,4 +186,10 @@ temporary-key resolution in `SparseFieldPathResolver`, bind-path validation,
 the descriptor-unavailable binding fallback, and value-expression
 construction in `SparseFieldBinding`. These paths operate on arbitrary user
 model graphs with no generated contract, so generated descriptors stay the
-first choice and the model walk covers the rest.
+first choice and the model walk covers the rest. Repeated walks reuse cached
+immutable type metadata (member properties, collection interfaces, and key
+readers, including misses, keyed weakly so collectible assemblies stay
+collectible) while resolving intermediate objects against the live root on
+every read; diagnostic path text renders only on failure. Member-only value
+expressions are likewise reused while the session root identity holds and
+rebuilt when it changes, so nested replacement stays live.

@@ -62,25 +62,63 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
             Rebind(scope, session, editContext, path, untyped);
         }
 
-        // Read one session snapshot per field render; BatchEdit coalesces
-        // updates.
-        if (
-            SparseSessionInterop.TryFieldState(
-                session,
-                _binding!.TypedPath,
-                out var state,
-                out var error
-            )
-        )
-        {
-            _field!.State = state;
-            _field.StateQueryError = null;
-        }
-        else
+        // One shared snapshot per refresh generation: the first field captures
+        // one root diff and later fields reuse its indexed view. Sessions
+        // without the snapshot capability keep the live per-field query path.
+        if (!TrySharedFieldState(scope, session, out var state, out var error))
         {
             _field!.State = default;
             _field.StateQueryError = error;
         }
+        else
+        {
+            _field!.State = state;
+            _field.StateQueryError = null;
+        }
+    }
+
+    private bool TrySharedFieldState(
+        ISparseEditScope<TModel> scope,
+        ISparseEditSession<TModel> session,
+        out SparseFieldState<TValue> state,
+        out string? error
+    )
+    {
+        if (
+            scope is ISparseStateSnapshotScope snapshotScope
+            && SparseSessionInterop.HasStateSnapshot(session)
+        )
+        {
+            if (
+                !snapshotScope.TryGetStateSnapshot(out var snapshot, out var snapshotError)
+                || snapshot is null
+            )
+            {
+                state = default;
+                error = snapshotError;
+                return false;
+            }
+
+            try
+            {
+                state = snapshot.FieldState(_binding!.TypedPath);
+                error = null;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                state = default;
+                error = exception.Message;
+                return false;
+            }
+        }
+
+        return SparseSessionInterop.TryFieldState(
+            session,
+            _binding!.TypedPath,
+            out state,
+            out error
+        );
     }
 
     /// <inheritdoc />

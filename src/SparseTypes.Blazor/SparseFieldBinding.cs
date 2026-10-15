@@ -30,6 +30,8 @@ public sealed class SparseFieldBinding<TModel, TValue>
     private readonly SparsePath _path;
     private readonly IDescriptorSet? _descriptors;
     private readonly ISparseEditSessionWithBatchEdit? _batch;
+    private object? _expressionRoot;
+    private Expression<Func<TValue>>? _cachedExpression;
 
     internal SparseFieldBinding(
         ISparseEditSession<TModel> session,
@@ -302,10 +304,15 @@ public sealed class SparseFieldBinding<TModel, TValue>
             return false;
         }
 
-        var property = fieldId
-            .Model.GetType()
-            .GetProperty(fieldId.FieldName, BindingFlags.Instance | BindingFlags.Public);
-        if (property is null || property.GetIndexParameters().Length > 0 || !property.CanWrite)
+        if (
+            !SparseTypeMetadataCache.TryGetProperty(
+                fieldId.Model.GetType(),
+                fieldId.FieldName,
+                out var property
+            )
+            || property is null
+            || !property.CanWrite
+        )
         {
             error = $"The field '{_path}' is read-only.";
             return false;
@@ -379,10 +386,15 @@ public sealed class SparseFieldBinding<TModel, TValue>
             return false;
         }
 
-        var property = fallbackId
-            .Model.GetType()
-            .GetProperty(fallbackId.FieldName, BindingFlags.Instance | BindingFlags.Public);
-        if (property is null || !property.CanRead || property.GetIndexParameters().Length > 0)
+        if (
+            !SparseTypeMetadataCache.TryGetProperty(
+                fallbackId.Model.GetType(),
+                fallbackId.FieldName,
+                out var property
+            )
+            || property is null
+            || !property.CanRead
+        )
         {
             error = $"The field '{_path}' no longer resolves to a live model member.";
             raw = null;
@@ -512,15 +524,23 @@ public sealed class SparseFieldBinding<TModel, TValue>
             return null;
         }
 
+        // Member-only trees stay valid across nested replacement: intermediate
+        // accesses re-evaluate from the root on each read. Reuse the tree while
+        // the root identity holds; rebuild when the root changes.
+        if (_cachedExpression is not null && ReferenceEquals(live, _expressionRoot))
+        {
+            return _cachedExpression;
+        }
+
         Expression current = Expression.Constant(live, typeof(TModel));
         var currentType = typeof(TModel);
         foreach (var segment in _path.Segments)
         {
-            var property = currentType.GetProperty(
-                segment.Name,
-                BindingFlags.Instance | BindingFlags.Public
-            );
-            if (property is null || !property.CanRead || property.GetIndexParameters().Length > 0)
+            if (
+                !SparseTypeMetadataCache.TryGetProperty(currentType, segment.Name, out var property)
+                || property is null
+                || !property.CanRead
+            )
             {
                 return null;
             }
@@ -544,7 +564,10 @@ public sealed class SparseFieldBinding<TModel, TValue>
 
         try
         {
-            return Expression.Lambda<Func<TValue>>(current);
+            var built = Expression.Lambda<Func<TValue>>(current);
+            _expressionRoot = live;
+            _cachedExpression = built;
+            return built;
         }
         catch (ArgumentException)
         {

@@ -33,6 +33,10 @@ public partial class ScopeBenchRoot
 [MemoryDiagnoser]
 public class EditSessionChildCloneBenchmarks
 {
+    // Raw live-model access hides behind ISparseEditSession<TModel>.
+    private static T Raw<T>(SparseTypes.ISparseEditSession<T> session)
+        where T : class => session.Model;
+
     [Params(0, 1024, 8192)]
     public int SiblingCount { get; set; }
 
@@ -75,16 +79,16 @@ public class EditSessionChildCloneBenchmarks
         var session = check.CreateEditSession();
         using (var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target))
         {
-            if (child.Session.Model.Name != "target" || child.Session.Model.Servers.Count != 4)
+            if (Raw(child.Session).Name != "target" || Raw(child.Session).Servers.Count != 4)
                 throw new InvalidOperationException(
                     "Child-session harness must resolve the small child subtree."
                 );
-            child.Session.Model.Name = "edited";
+            Raw(child.Session).Name = "edited";
         }
 
         using (var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target))
         {
-            child.Session.Model.Name = "edited";
+            Raw(child.Session).Name = "edited";
             if (!child.TryAcceptChanges(out var conflicts) || conflicts is not null)
                 throw new InvalidOperationException("Child-session harness must accept cleanly.");
         }
@@ -110,8 +114,8 @@ public class EditSessionChildCloneBenchmarks
     {
         var session = _prototype.CreateEditSession();
         using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
-        child.Session.Model.Servers[0].Count++;
-        return child.Session.Model.Name.Length + child.Session.Model.Servers.Count;
+        Raw(child.Session).Servers[0].Count++;
+        return Raw(child.Session).Name.Length + Raw(child.Session).Servers.Count;
     }
 
     [Benchmark]
@@ -121,12 +125,12 @@ public class EditSessionChildCloneBenchmarks
         if (SiblingCount == 0)
         {
             using var target = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
-            return target.Session.Model.Name.Length;
+            return Raw(target.Session).Name.Length;
         }
 
         var key = "sibling-" + (SiblingCount / 2);
         using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Siblings.Key(key));
-        return child.Session.Model.Name.Length + child.Session.Model.Count;
+        return Raw(child.Session).Name.Length + Raw(child.Session).Count;
     }
 
     [Benchmark]
@@ -137,8 +141,8 @@ public class EditSessionChildCloneBenchmarks
         using var server = group.Session.OpenChildSession(
             ScopeBenchGroup.SparsePath.Servers.Key("target-1")
         );
-        server.Session.Model.Count++;
-        return server.Session.Model.Name.Length + group.Session.Model.Servers.Count;
+        Raw(server.Session).Count++;
+        return Raw(server.Session).Name.Length + Raw(group.Session).Servers.Count;
     }
 
     [Benchmark]
@@ -151,13 +155,13 @@ public class EditSessionChildCloneBenchmarks
             if (SiblingCount == 0)
             {
                 using var target = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target);
-                checksum += target.Session.Model.Name.Length;
+                checksum += Raw(target.Session).Name.Length;
                 continue;
             }
 
             var key = "sibling-" + ((index * 131) % SiblingCount);
             using var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Siblings.Key(key));
-            checksum += child.Session.Model.Name.Length + child.Session.Model.Count;
+            checksum += Raw(child.Session).Name.Length + Raw(child.Session).Count;
         }
 
         return checksum;

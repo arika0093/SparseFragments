@@ -368,6 +368,10 @@ namespace SparseTypes
     {
         TPaths Paths { get; }
     }
+    public interface ISparseEditSessionWithStateSnapshot
+    {
+        SparseTypes.SparseChangeSetQueryView CaptureStateSnapshot();
+    }
     public interface ISparseEditSession<out TModel>
         where out TModel :  class
     {
@@ -567,6 +571,19 @@ namespace SparseTypes
     {
         public static System.Collections.Generic.IReadOnlyList<SparseTypes.SparseChangeRow> Project(SparseTypes.ISparseChangeSet changes, SparseTypes.SparseChangeRowOptions? options = null) { }
         public static System.Collections.Generic.IReadOnlyList<SparseTypes.SparseChangeRow> Project(System.Collections.Generic.IReadOnlyList<SparseTypes.Generated.SparseChangeRecord> records, SparseTypes.SparseChangeRowOptions? options = null) { }
+    }
+    public sealed class SparseChangeSetQueryView
+    {
+        public SparseChangeSetQueryView(SparseTypes.ISparseChangeSet changes) { }
+        public SparseTypes.ISparseChangeSet Changes { get; }
+        public int ProjectionCount { get; }
+        public System.Collections.Generic.IReadOnlyList<SparseTypes.Generated.SparseChangeRecord> Records { get; }
+        public void EnsureIndexed() { }
+        public SparseTypes.SparseFieldState<object?> FieldState(SparseTypes.SparsePath path) { }
+        public SparseTypes.SparseFieldState<TValue> FieldState<TModel, TValue>(SparseTypes.SparsePath<TModel, TValue> path) { }
+        public static SparseTypes.SparseChangeSetQueryView Capture(SparseTypes.ISparseChangeSet changes) { }
+        public static SparseTypes.SparseCollectionState DictionaryState<TKey, TValue, TEdited>(SparseTypes.ISparseDictionaryChange<TKey, TValue, TEdited> change, SparseTypes.SparsePath path) { }
+        public static SparseTypes.SparseCollectionState KeyedState<TKey, TElement, TElementChange>(SparseTypes.ISparseKeyedChange<TKey, TElement, TElementChange> change, SparseTypes.SparsePath path) { }
     }
     public enum SparseChildSessionStatus
     {
@@ -1047,6 +1064,7 @@ namespace SparseTypes
     }
     public static class SparseStateQueries
     {
+        public static SparseTypes.SparseChangeSetQueryView CaptureQueryView(this SparseTypes.ISparseChangeSet changes) { }
         public static SparseTypes.SparseCollectionState DictionaryState<TKey, TValue, TEdited>(this SparseTypes.ISparseDictionaryChange<TKey, TValue, TEdited> change, SparseTypes.SparsePath path) { }
         public static SparseTypes.SparseFieldState<object?> FieldState(this SparseTypes.ISparseChangeSet changes, SparseTypes.SparsePath path) { }
         public static SparseTypes.SparseFieldState<TValue> FieldState<TModel, TValue>(this SparseTypes.ISparseChangeSet changes, SparseTypes.SparsePath<TModel, TValue> path) { }

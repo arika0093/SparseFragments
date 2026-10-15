@@ -101,6 +101,47 @@ internal static class SparseSessionInterop
         }
     }
 
+    /// <summary>Reports whether a session captures reusable state-query snapshots.</summary>
+    internal static bool HasStateSnapshot(object session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return session is ISparseEditSessionWithStateSnapshot;
+    }
+
+    /// <summary>Captures one reusable state-query snapshot and preserves failures for the UI.</summary>
+    /// <remarks>
+    /// Hosts probe the snapshot capability instead of reflecting over session
+    /// members, so sessions without the surface fail through an explicit typed
+    /// contract and callers keep the live per-field query path.
+    /// </remarks>
+    internal static bool TryCaptureStateSnapshot(
+        object session,
+        out SparseChangeSetQueryView? snapshot,
+        out string? error
+    )
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (session is not ISparseEditSessionWithStateSnapshot provider)
+        {
+            snapshot = null;
+            error = $"The session type '{session.GetType()}' does not provide state snapshots.";
+            return false;
+        }
+
+        try
+        {
+            snapshot = provider.CaptureStateSnapshot();
+            error = null;
+            return snapshot is not null;
+        }
+        catch (Exception exception)
+        {
+            snapshot = null;
+            error = exception.Message;
+            return false;
+        }
+    }
+
     /// <summary>Queries the live collection state for a root collection path.</summary>
     /// <returns>True with the view on success; false with a null view when unavailable.</returns>
     internal static bool TryCollectionState(

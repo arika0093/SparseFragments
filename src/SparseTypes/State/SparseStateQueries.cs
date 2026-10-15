@@ -115,6 +115,25 @@ public static class SparseStateQueries
         );
     }
 
+    /// <summary>
+    /// Captures a reusable query view over one change set.
+    /// </summary>
+    /// <param name="changes">The change set to inspect.</param>
+    /// <returns>A view serving repeated field queries over the captured set.</returns>
+    /// <remarks>
+    /// The single snapshot API shared by Blazor refresh generations and repeated
+    /// point-in-time lookups: the view flattens once and answers each query from a
+    /// segment index instead of re-projecting and scanning per field.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="changes"/> is null.
+    /// </exception>
+    public static SparseChangeSetQueryView CaptureQueryView(this ISparseChangeSet changes)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        return SparseChangeSetQueryView.Capture(changes);
+    }
+
     private static SparseFieldState<T> FieldStateCore<T>(ISparseChangeSet changes, SparsePath query)
     {
         var exact = false;
@@ -146,15 +165,46 @@ public static class SparseStateQueries
             }
         }
 
+        return Assemble<T>(query, exact ? (kind, before, after) : null, ancestor, descendant);
+    }
+
+    /// <summary>
+    /// Assembles a field state from one exact record plus ancestor/descendant flags.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the one-off scan and the indexed query view so both spellings keep
+    /// first-record-wins, endpoint, and conversion-error behavior.
+    /// </remarks>
+    internal static SparseFieldState<T> Assemble<T>(
+        SparsePath query,
+        SparseChangeRecord? exact,
+        bool ancestor,
+        bool descendant
+    ) =>
+        Assemble<T>(
+            query,
+            exact is null ? null : (MapKind(exact.Kind), exact.Before, exact.After),
+            ancestor,
+            descendant
+        );
+
+    private static SparseFieldState<T> Assemble<T>(
+        SparsePath query,
+        (SparseFieldChangeKind Kind, Optional<object?> Before, Optional<object?> After)? exact,
+        bool ancestor,
+        bool descendant
+    )
+    {
+        var isChanged = exact is not null;
         return new SparseFieldState<T>
         {
             Path = query,
-            IsChanged = exact,
-            Kind = kind,
+            IsChanged = isChanged,
+            Kind = exact?.Kind ?? SparseFieldChangeKind.Unchanged,
             HasAncestorChange = ancestor,
             HasDescendantChange = descendant,
-            Before = exact ? Unbox<T>(before, query) : Optional<T>.Missing,
-            After = exact ? Unbox<T>(after, query) : Optional<T>.Missing,
+            Before = isChanged ? Unbox<T>(exact!.Value.Before, query) : Optional<T>.Missing,
+            After = isChanged ? Unbox<T>(exact!.Value.After, query) : Optional<T>.Missing,
         };
     }
 

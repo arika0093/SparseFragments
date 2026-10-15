@@ -36,6 +36,7 @@ public sealed class SparseEdit<TModel, TPaths> : ComponentBase, IDisposable
         if (!ReferenceEquals(_session, Session))
         {
             Unsubscribe();
+            _context?.Dispose();
             _session = Session;
             if (Session is not null)
             {
@@ -87,6 +88,8 @@ public sealed class SparseEdit<TModel, TPaths> : ComponentBase, IDisposable
 
         _disposed = true;
         Unsubscribe();
+        _context?.Dispose();
+        _context = null;
     }
 
     private void Subscribe(ISparseEditSessionWithPaths<TModel, TPaths> session)

@@ -328,7 +328,12 @@ opt-in `ObserveField`/`WatchField` factories returning a disposable
 `INotifyPropertyChanged` watcher per path; the watcher refreshes on the
 session's `PropertyChanged` notification, which covers baseline-only accepts
 that never publish a transition, and notifies only on effective state changes.
-Queries derive from the session's retained baseline or change set on each call and keep
+Setting the optional `QueryViewType` entry adds a `CaptureStateSnapshot`
+factory returning a reusable query view over one captured change set: one root
+snapshot/diff plus one flattened projection serves any number of field queries
+from a segment index, while live `FieldState` queries keep re-diffing the
+unnotified live model. Queries derive from the session's retained baseline or
+change set on each call and keep
 no per-field caches or subscriptions; change-set queries are point-in-time
 while session queries re-diff the live model. Row states reuse the typed
 keyed/dictionary transitions, and field states project the flattened change
@@ -373,10 +378,11 @@ consumers stay byte-identical.
 `SessionCapabilityContracts` optionally names caller-owned session capability
 contracts implemented by each generated `EditSession`: the history contract,
 the generic field-state contract over one model type, the collection-state
-contract, the batch-edit contract, and the descriptor-session contract.
-Shared appends a contract to the session bases only when its members are
+contract, the batch-edit contract, the descriptor-session contract, and the
+state-snapshot contract. Shared appends a contract to the session bases only when its members are
 emitted (owned history, the state surface, descriptors with the observable
-family; batch edit is always emitted), so per-model relocation keeps both
+family; batch edit is always emitted; the snapshot contract additionally
+requires the bound `QueryViewType`), so per-model relocation keeps both
 placements identical and products without the contracts keep byte-identical
 output. Hosts probe these contracts instead of reflecting over session
 members, and a missing capability surfaces as a typed contract failure.

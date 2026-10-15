@@ -26,8 +26,40 @@ internal static class SparseEditSessionStateEmitter
         var states = dialect.StateContracts!;
         var pathType = SparseFragmentPatchEmitter.GetPathType(dialect);
         AppendFieldState(code, modelType, pathType, states, dialect);
+        AppendStateSnapshot(code, states);
         AppendCollectionState(code, modelType, members, pathType, states);
         AppendObserveMembers(code, modelType, pathType, states, dialect);
+    }
+
+    private static void AppendStateSnapshot(SharedIndentedBuilder code, SparseStateContracts states)
+    {
+        if (!states.HasQueryView)
+        {
+            return;
+        }
+
+        // One capture per refresh generation: the view retains the change set
+        // so F field queries share one root snapshot/diff and one projection.
+        code.AppendLineAt(
+            2,
+            "/// <summary>Captures one reusable state-query snapshot over the pending changes.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Snapshot: derives one change set from the retained baseline and retains it for repeated point-in-time lookups. Live <c>FieldState</c> queries stay unnotified-mutation accurate; share the snapshot only for an explicitly captured generation.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>A view serving repeated field queries without re-deriving the diff.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public "
+                + states.QueryViewType
+                + " CaptureStateSnapshot() => new "
+                + states.QueryViewType
+                + "(CreateChangeSet());"
+        );
     }
 
     private static void AppendFieldState(

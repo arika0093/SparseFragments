@@ -30,4 +30,14 @@ internal sealed record SparseStateContracts(
     /// <summary>Whether the observe surface is bound.</summary>
     public bool HasObservedField =>
         ObservedFieldType.Length != 0 && ObservedFieldHooksType.Length != 0;
+
+    /// <summary>Reusable state-query snapshot type over one captured change set.</summary>
+    /// <remarks>
+    /// Empty disables the snapshot surface while keeping field queries byte-identical
+    /// for products without the view type.
+    /// </remarks>
+    public string QueryViewType { get; init; } = string.Empty;
+
+    /// <summary>Whether the snapshot surface is bound.</summary>
+    public bool HasQueryView => QueryViewType.Length != 0;
 }

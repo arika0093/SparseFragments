@@ -124,7 +124,7 @@ namespace SparseTypes.Blazor
         public System.Func<SparseTypes.SparseConflict, string>? MessageFactory { get; init; }
         public string GetMessage(SparseTypes.SparseConflict conflict) { }
     }
-    public sealed class SparseEditContext<TModel, TPaths> : SparseTypes.Blazor.ISparseEditScope<TModel>
+    public sealed class SparseEditContext<TModel, TPaths> : SparseTypes.Blazor.ISparseEditScope<TModel>, System.IDisposable
         where TModel :  class
         where TPaths : SparseTypes.ISparseTypedPath<TModel, TModel>
     {
@@ -135,7 +135,10 @@ namespace SparseTypes.Blazor
         public SparseTypes.ISparseEditHistory? History { get; }
         public TPaths Path { get; }
         public SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths> Session { get; }
+        public void Dispose() { }
+        public void InvalidateStateSnapshot() { }
         public void Redo() { }
+        public bool TryGetStateSnapshot(out SparseTypes.SparseChangeSetQueryView? snapshot, out string? error) { }
         public bool TryRedo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
         public bool TryUndo(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
         public void Undo() { }

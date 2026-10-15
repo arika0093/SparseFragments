@@ -7,7 +7,8 @@ internal sealed record SparseSessionCapabilityContracts(
     string? FieldStateInterface = null,
     string? CollectionStateInterface = null,
     string? BatchEditInterface = null,
-    string? DescriptorSessionInterface = null
+    string? DescriptorSessionInterface = null,
+    string? StateSnapshotInterface = null
 )
 {
     /// <summary>Session-owned history contract, or null when history capabilities are disabled.</summary>
@@ -25,11 +26,15 @@ internal sealed record SparseSessionCapabilityContracts(
     /// <summary>Descriptor-session contract, or null when disabled.</summary>
     public string? DescriptorSessionInterface { get; init; } = DescriptorSessionInterface;
 
+    /// <summary>State-snapshot contract, or null when disabled.</summary>
+    public string? StateSnapshotInterface { get; init; } = StateSnapshotInterface;
+
     /// <summary>Whether any session capability contract is bound.</summary>
     public bool HasAny =>
         HistoryInterface is { Length: > 0 }
         || FieldStateInterface is { Length: > 0 }
         || CollectionStateInterface is { Length: > 0 }
         || BatchEditInterface is { Length: > 0 }
-        || DescriptorSessionInterface is { Length: > 0 };
+        || DescriptorSessionInterface is { Length: > 0 }
+        || StateSnapshotInterface is { Length: > 0 };
 }

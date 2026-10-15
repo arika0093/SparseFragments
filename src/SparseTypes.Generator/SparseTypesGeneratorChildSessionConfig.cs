@@ -22,7 +22,8 @@ internal static class SparseTypesGeneratorChildSessionConfig
                 FieldStateInterface: "SparseTypes.ISparseEditSessionWithFieldState",
                 CollectionStateInterface: "SparseTypes.ISparseEditSessionWithCollectionState",
                 BatchEditInterface: "SparseTypes.ISparseEditSessionWithBatchEdit",
-                DescriptorSessionInterface: "SparseTypes.ISparseEditSessionWithDescriptors"
+                DescriptorSessionInterface: "SparseTypes.ISparseEditSessionWithDescriptors",
+                StateSnapshotInterface: "SparseTypes.ISparseEditSessionWithStateSnapshot"
             ),
             PatchDialect = config.PatchDialect is { } patchDialect
                 ? patchDialect with
