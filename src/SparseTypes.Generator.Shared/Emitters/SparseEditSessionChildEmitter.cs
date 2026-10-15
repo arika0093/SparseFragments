@@ -34,6 +34,58 @@ internal static class SparseEditSessionChildEmitter
         code.AppendLineAt(4, "return false;");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
+        code.AppendLineAt(
+            2,
+            "/// <summary>Applies this session and its pending child sessions to a separate model candidate.</summary>"
+        );
+        code.AppendLineAt(2, "/// <param name=\"current\">The model state to rebase onto.</param>");
+        code.AppendLineAt(2, "/// <param name=\"updated\">The candidate model on success.</param>");
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">Structured conflicts when application fails.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>True when all pending changes were applied; otherwise false.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryApplyPendingState("
+                + modelType
+                + " current, [global::System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out "
+                + modelType
+                + "? updated, out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "if (current is null) throw new global::System.ArgumentNullException(nameof(current));"
+        );
+        code.AppendLineAt(3, "var candidate = current;");
+        code.AppendLineAt(3, "var ownChanges = PreviewChangeSet();");
+        code.AppendLineAt(
+            3,
+            "if (!ownChanges.IsEmpty && !ownChanges.TryApplyTo(current, out candidate, out conflicts)) { updated = null; return false; }"
+        );
+        code.AppendLineAt(3, "if (__sparse_child_sessions is not null)");
+        code.AppendLineAt(3, "{");
+        code.AppendLineAt(4, "foreach (var child in __sparse_child_sessions)");
+        code.AppendLineAt(4, "{");
+        code.AppendLineAt(5, "if (!child.HasChanges()) continue;");
+        code.AppendLineAt(5, "var result = child.TryApply(candidate);");
+        code.AppendLineAt(
+            5,
+            "if (!result.Accepted) { updated = null; conflicts = result.Conflicts; return false; }"
+        );
+        code.AppendLineAt(5, "candidate = result.Updated!;");
+        code.AppendLineAt(4, "}");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "updated = candidate;");
+        code.AppendLineAt(3, "conflicts = null;");
+        code.AppendLineAt(3, "return true;");
+        code.AppendLineAt(2, "}");
         var statusType = config.EditChildSessionStatusType!;
         code.AppendLineAt(
             2,
@@ -136,15 +188,18 @@ internal static class SparseEditSessionChildEmitter
             code.AppendLineAt(4, "}");
             code.AppendLineAt(3, "}");
         }
+        code.AppendLineAt(3, "var candidate = _session.GetModelForFrameworkAccess();");
         code.AppendLineAt(3, "if (__sparse_child_sessions is not null)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "foreach (var child in __sparse_child_sessions)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(5, "if (!child.HasChanges()) continue;");
+        code.AppendLineAt(5, "var result = child.TryApply(candidate);");
         code.AppendLineAt(
             5,
-            "var result = child.TryPreflight(); if (!result.Accepted) { conflicts = result.Conflicts; return false; }"
+            "if (!result.Accepted) { if (result.Conflicts is null) child.TryPreflight(); conflicts = result.Conflicts; return false; }"
         );
+        code.AppendLineAt(5, "candidate = result.Updated!;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
         code.AppendLineAt(3, "conflicts = null;");
@@ -200,6 +255,7 @@ internal static class SparseEditSessionChildEmitter
 
     internal static void AppendCoordinatorStorage(
         SharedIndentedBuilder code,
+        string modelType,
         string conflictType,
         string pathType,
         SparseGeneratorConfig config,
@@ -222,13 +278,20 @@ internal static class SparseEditSessionChildEmitter
                 + conflictType
                 + ">? Conflicts)> TryPreflight, global::System.Func<(bool Accepted, global::System.Collections.Generic.IReadOnlyList<"
                 + conflictType
-                + ">? Conflicts)> TryAccept, global::System.Action Discard)>? __sparse_child_sessions;"
+                + ">? Conflicts)> TryAccept, global::System.Func<"
+                + modelType
+                + ", (bool Accepted, "
+                + modelType
+                + "? Updated, global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? Conflicts)> TryApply, global::System.Action Discard)>? __sparse_child_sessions;"
         );
     }
 
     internal static void AppendOpenMethod(
         SharedIndentedBuilder code,
         string modelType,
+        string sessionSimple,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
         SparseGeneratorConfig config
     )
@@ -312,7 +375,25 @@ internal static class SparseEditSessionChildEmitter
                 + patchDialect.ConflictType
                 + ">? Conflicts)>)(() => { var accepted = connected.TryPreflightAcceptChanges(out var conflicts); return (accepted, conflicts); }), TryAccept: (global::System.Func<(bool Accepted, global::System.Collections.Generic.IReadOnlyList<"
                 + patchDialect.ConflictType
-                + ">? Conflicts)>)(() => { var accepted = connected.TryAcceptChanges(out var conflicts); return (accepted, conflicts); }), Discard: (global::System.Action)(connected.DiscardChanges));"
+                + ">? Conflicts)>)(() => { var accepted = connected.TryAcceptChanges(out var conflicts); return (accepted, conflicts); }), TryApply: (global::System.Func<"
+                + modelType
+                + ", (bool Accepted, "
+                + modelType
+                + "? Updated, global::System.Collections.Generic.IReadOnlyList<"
+                + patchDialect.ConflictType
+                + ">? Conflicts)>)(current => { var candidate = "
+                + modelType
+                + ".Fragment.From(current).ToModel(); var candidateSession = new "
+                + sessionSimple
+                + "(candidate, candidate, null); if (candidateSession.Descriptors.ResolveModel(path.UntypedPath) is not TChild target) return (false, ("
+                + modelType
+                + "?)null, null); if (!connected.TryApplyPendingState(target, out var updatedChild, out var childConflicts)) { if (childConflicts is not null) { var prefixed = new global::System.Collections.Generic.List<"
+                + patchDialect.ConflictType
+                + ">(childConflicts.Count); foreach (var conflict in childConflicts) prefixed.Add("
+                + patchDialect.ChildConflictPathPrefixExpression!("conflict", "path.UntypedPath")
+                + "); childConflicts = prefixed; } return (false, ("
+                + modelType
+                + "?)null, childConflicts); } path.WriteModelValueInPlace(target, updatedChild!); return (true, candidate, null); }), Discard: (global::System.Action)(connected.DiscardChanges));"
         );
         code.AppendLineAt(3, "detach = () => __sparse_child_sessions?.Remove(registration);");
         code.AppendLineAt(
@@ -323,7 +404,13 @@ internal static class SparseEditSessionChildEmitter
                 + patchDialect.ConflictType
                 + ">? Conflicts)> TryPreflight, global::System.Func<(bool Accepted, global::System.Collections.Generic.IReadOnlyList<"
                 + patchDialect.ConflictType
-                + ">? Conflicts)> TryAccept, global::System.Action Discard)>();"
+                + ">? Conflicts)> TryAccept, global::System.Func<"
+                + modelType
+                + ", (bool Accepted, "
+                + modelType
+                + "? Updated, global::System.Collections.Generic.IReadOnlyList<"
+                + patchDialect.ConflictType
+                + ">? Conflicts)> TryApply, global::System.Action Discard)>();"
         );
         code.AppendLineAt(3, "__sparse_child_sessions.Add(registration);");
         code.AppendLineAt(3, "return connected;");

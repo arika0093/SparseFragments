@@ -254,6 +254,10 @@ internal static class SparseFragmentPatchEmitter
         /// <remarks>The arguments are source expressions for two registered paths.</remarks>
         public Func<string, string, string>? ChildPathOverlapExpression { get; init; }
 
+        /// <summary>Creates a conflict with a child-session path prepended.</summary>
+        /// <remarks>The arguments are source expressions for a conflict and its path prefix.</remarks>
+        public Func<string, string, string>? ChildConflictPathPrefixExpression { get; init; }
+
         /// <summary>Probed System.Text.Json surface, or null for the historical full surface.</summary>
         /// <remarks>Null keeps unconditional JSON emission so products that never probe the compilation keep byte-identical output.</remarks>
         // NOTE: positional record property; declared implicitly by the ctor

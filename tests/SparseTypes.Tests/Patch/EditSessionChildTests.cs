@@ -293,6 +293,56 @@ public sealed class EditSessionChildTests
     }
 
     [Test]
+    public void GrandchildConflictPreflightPreservesEverySessionAndHistory()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "server before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var parentHistory = session.EnableHistory();
+        var group = session.OpenChildSession(ClusterHolder.SparsePath.Groups.Key("group"));
+        var groupHistory = group.Session.EnableHistory();
+        var server = group.Session.OpenChildSession(ServerGroup.SparsePath.Servers.Key("server"));
+        var serverHistory = server.Session.EnableHistory();
+
+        group.Session.Observable.Name = "group draft";
+        server.Session.Observable.Name = "server draft";
+        session.Observable.Groups[0].Servers[0].Name = "parent draft";
+
+        session.TryPreflightChildSessions(out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
+        conflicts!
+            .Select(static conflict => conflict.PathText)
+            .ShouldContain("Groups[\"group\"].Servers[\"server\"].Name");
+        session.TryPrepareChangeSet(out var changes, out var prepareConflicts).ShouldBeFalse();
+
+        changes.ShouldBeNull();
+        prepareConflicts.ShouldNotBeNull();
+        session.Observable.Groups[0].Name.ShouldBe("group");
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("parent draft");
+        group.Session.Observable.Name.ShouldBe("group draft");
+        group.Session.Observable.Servers[0].Name.ShouldBe("server before");
+        server.Session.Observable.Name.ShouldBe("server draft");
+        parentHistory.CanUndo.ShouldBeTrue();
+        groupHistory.CanUndo.ShouldBeTrue();
+        serverHistory.CanUndo.ShouldBeTrue();
+
+        serverHistory.Undo();
+        server.Session.Observable.Name.ShouldBe("server before");
+        serverHistory.CanRedo.ShouldBeTrue();
+        serverHistory.Redo();
+        server.Session.Observable.Name.ShouldBe("server draft");
+    }
+
+    [Test]
     public void RootChangeSetReturnsConflictFromPendingChild()
     {
         var model = new ObservableHolder

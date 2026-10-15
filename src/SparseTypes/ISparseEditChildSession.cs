@@ -25,6 +25,17 @@ public interface ISparseEditChildSession<TModel, TPaths, TConflict, TSession> : 
     /// <returns>True when the child state was merged; otherwise false.</returns>
     bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
 
+    /// <summary>Applies this child session and its descendants to a separate model candidate.</summary>
+    /// <param name="current">The model state to rebase the pending changes onto.</param>
+    /// <param name="updated">The candidate model on success; otherwise null.</param>
+    /// <param name="conflicts">Structured conflicts when the pending changes cannot be applied.</param>
+    /// <returns>True when the candidate includes the child and descendant changes; otherwise false.</returns>
+    bool TryApplyPendingState(
+        TModel current,
+        out TModel? updated,
+        out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts
+    );
+
     /// <summary>Merges the child session into its parent, throwing when the merge conflicts.</summary>
     void AcceptChanges();
 

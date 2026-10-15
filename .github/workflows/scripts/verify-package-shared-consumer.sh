@@ -77,6 +77,7 @@ required_probe_tokens=(
     'SparseObservableEmitter'
     'SparseEditSessionEmitter'
     'SparseEditSessionDialect'
+    'ChildConflictPathPrefixExpression'
     'RenderCoreSources'
 )
 for token in "${required_probe_tokens[@]}"; do

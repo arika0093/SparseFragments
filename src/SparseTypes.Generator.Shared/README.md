@@ -94,6 +94,14 @@ emitters require an explicit patch dialect; Shared provides no implicit
 SparseTypes runtime fallback. The product generator owns and supplies its
 runtime defaults.
 
+Child-session emission is also opt-in. A consumer must provide its descriptor
+dialect, typed-path type, child-path and child-session contracts, child-session
+implementation and status type, parent child-session contracts, and
+`SparsePatchDialect.ChildConflictPathPrefixExpression`. The prefix callback is
+required so a conflict discovered in a nested candidate keeps its full path
+when returned through each parent coordinator. Shared does not supply
+SparseTypes child-session defaults.
+
 Structural collection values and keyed sequence elements must expose
 `ChangeSet.Between(TModel before, TModel after)`. Shared emits this overload
 when the model type is supplied. Collection comparisons call it directly so

@@ -39,6 +39,8 @@ internal static class SparseTypesGeneratorChildSessionConfig
                         + ".IsAncestorOf("
                         + left
                         + ")",
+                    ChildConflictPathPrefixExpression = static (conflict, prefix) =>
+                        conflict + ".WithPathPrefix(" + prefix + ")",
                 }
                 : null,
         };

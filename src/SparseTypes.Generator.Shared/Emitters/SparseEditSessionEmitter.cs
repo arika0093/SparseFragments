@@ -29,7 +29,8 @@ internal static class SparseEditSessionEmitter
         && config.EditChildSessionInterfaceMetadataName is { Length: > 0 }
         && config.EditChildSessionImplementationType is { Length: > 0 }
         && config.EditChildSessionStatusType is { Length: > 0 }
-        && config.EditSessionWithChildStatusInterfaceMetadataName is { Length: > 0 };
+        && config.EditSessionWithChildStatusInterfaceMetadataName is { Length: > 0 }
+        && patchDialect.ChildConflictPathPrefixExpression is not null;
 
     /// <summary>Emits the compilation-scoped reusable session cores once.</summary>
     /// <remarks>Generated-Once seam: capabilities are de-duplicated per compilation and prerequisites are validated before emission.</remarks>
@@ -432,6 +433,7 @@ internal static class SparseEditSessionEmitter
         AppendChildSessionApiMembers(
             code,
             modelType,
+            sessionSimple,
             patchDialect,
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config
@@ -606,6 +608,7 @@ internal static class SparseEditSessionEmitter
     internal static void AppendChildSessionApiMembers(
         SharedIndentedBuilder code,
         string modelType,
+        string sessionSimple,
         SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
         SparseDescriptorDialect? descriptorDialect,
         SparseGeneratorConfig config
@@ -623,7 +626,13 @@ internal static class SparseEditSessionEmitter
             config,
             patchDialect
         );
-        SparseEditSessionChildEmitter.AppendOpenMethod(code, modelType, patchDialect, config);
+        SparseEditSessionChildEmitter.AppendOpenMethod(
+            code,
+            modelType,
+            sessionSimple,
+            patchDialect,
+            config
+        );
     }
 
     /// <summary>Appends the private path-addressed draft used by child sessions.</summary>
@@ -647,6 +656,7 @@ internal static class SparseEditSessionEmitter
             patchDialect.TypedPathInterfaceType + "<" + modelType + ", TChild>";
         SparseEditSessionChildEmitter.AppendCoordinatorStorage(
             code,
+            modelType,
             conflictType,
             pathType,
             config,

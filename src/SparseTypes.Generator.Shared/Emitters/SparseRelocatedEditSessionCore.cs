@@ -322,6 +322,7 @@ internal static class SparseRelocatedEditSessionCore
         SparseEditSessionEmitter.AppendChildSessionApiMembers(
             code,
             modelType,
+            sessionSimple,
             patchDialect,
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config

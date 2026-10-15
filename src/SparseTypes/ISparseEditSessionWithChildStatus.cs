@@ -29,7 +29,24 @@ public interface ISparseEditSessionWithChildStatus<TModel, TConflict>
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths>;
 
     /// <summary>Checks every pending child and descendant merge without changing session state.</summary>
+    /// <remarks>
+    /// Generated implementations validate a candidate containing all pending descendants before
+    /// returning. A conflict leaves parent, child, and descendant values, baselines, and histories
+    /// unchanged. This guarantee does not make the later commit transactional when arbitrary
+    /// setters, notifications, or callbacks throw.
+    /// </remarks>
     /// <param name="conflicts">Structured conflicts when a child merge cannot be prepared.</param>
     /// <returns>True when all pending merges are conflict-free; otherwise false.</returns>
     bool TryPreflightChildSessions(out IReadOnlyList<TConflict>? conflicts);
+
+    /// <summary>Applies this session and its pending child sessions to a separate model candidate.</summary>
+    /// <param name="current">The model state to rebase the pending changes onto.</param>
+    /// <param name="updated">The candidate model on success; otherwise null.</param>
+    /// <param name="conflicts">Structured conflicts when the pending changes cannot be applied.</param>
+    /// <returns>True when the candidate includes all pending changes; otherwise false.</returns>
+    bool TryApplyPendingState(
+        TModel current,
+        out TModel? updated,
+        out IReadOnlyList<TConflict>? conflicts
+    );
 }

@@ -138,7 +138,11 @@ internal static class ProbeSurface
             static _ => "global::PackageShared.Patch",
             static _ => "global::PackageShared.ChangeSet",
             PayloadImplementationContainerPrefix: "PackageSharedInternal"
-        );
+        )
+        {
+            ChildConflictPathPrefixExpression = static (conflict, prefix) =>
+                conflict + ".WithPathPrefix(" + prefix + ")",
+        };
         var sessionSources = SparseEditSessionEmitter.RenderCoreSources(
             sessionDialect,
             sessionRuntime,
@@ -269,6 +273,12 @@ internal static class ProbeSurface
                 + kernelSource.Length
                 + " extracted="
                 + SparsePatchKernelInventory.Extracted.Length
+                + " child-prefix="
+                + (
+                    sessionPatch.ChildConflictPathPrefixExpression is null
+                        ? "missing"
+                        : "configured"
+                )
         );
         code.AppendLineAt(
             0,
