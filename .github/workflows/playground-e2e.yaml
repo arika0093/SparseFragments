@@ -1,0 +1,74 @@
+name: Playground E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - playground/**
+      - src/**
+      - assets/**
+      - tests/e2e/playground/**
+      - global.json
+      - '**/*.props'
+      - '**/*.targets'
+      - .github/workflows/playground-e2e.yaml
+      - .github/workflows/playground.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playground-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tests/e2e/playground/package-lock.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-playground-e2e-nuget-${{ hashFiles('playground/**/*.csproj', 'src/**/*.csproj', '**/*.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playground-e2e-nuget-
+
+      - name: Install Playwright dependencies
+        working-directory: tests/e2e/playground
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: tests/e2e/playground
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        working-directory: tests/e2e/playground
+        run: npm test
+
+      - name: Upload Playwright results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playground-e2e-results
+          path: |
+            tests/e2e/playground/playwright-report/
+            tests/e2e/playground/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,11 @@
+{
+  "name": "sparsetypes-playground-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "serve": "dotnet publish ../../../playground/SparseTypes.Playground/SparseTypes.Playground.csproj --configuration Release --output artifacts && node ./scripts/prepare-site.mjs && node ./scripts/serve-site.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

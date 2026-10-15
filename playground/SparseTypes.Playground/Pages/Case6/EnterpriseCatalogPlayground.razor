@@ -4,7 +4,7 @@
 @using SparseTypes.Playground.Components
 @implements IDisposable
 
-<SparseSessionScope Session="_session">
+<SparseSessionScope @key="_session" Session="_session">
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
         <div class="pg-catalog-header-main">
