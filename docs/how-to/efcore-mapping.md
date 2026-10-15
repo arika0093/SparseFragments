@@ -134,4 +134,27 @@ mapper.AssignTemporaryKeys(db, result, current, authoritative);
 
 The returned stage distinguishes preparation failure, a concurrency conflict, an unknown save outcome, a failed authoritative readback, and a failed client synchronization after persistence. Treat the last three as requiring recovery rather than resubmitting the same change set: the write may already exist, and newly generated keys may already have been assigned. The pipeline reports callback exceptions but does not undo arbitrary EF writes or client-side setter effects; define transaction and recovery policy in the application.
 
+### Recover from cancellation without losing the persistence status
+
+`ExecuteAsync` reports cancellation instead of throwing it. When a callback honors the token and raises `OperationCanceledException`, the result keeps that exception in `Error` and the stage keeps what is known about persistence:
+
+- Preparation cancellation returns `PreparationFailed`. The save callback never ran, so nothing was persisted and the same change set can be retried with a fresh token.
+- Save cancellation returns `SaveOutcomeUnknown`. The write may have committed before cancellation surfaced, so query persisted state first instead of resubmitting. This also covers a callback that saves successfully and observes cancellation afterwards.
+- Readback cancellation returns `ReadBackFailed`. Persistence completed, so re-read the authoritative state and continue without resubmitting.
+- Synchronization cancellation returns `ClientSynchronizationFailed`. Persistence and readback completed, so finish client synchronization (for example `TryReconcileAndApply`) without resubmitting.
+
+The pipeline performs no cancellation check between stages and never retries a stage. A callback that ignores the token runs to completion, and an already-canceled token surfaces at the first callback that honors it, normally as `PreparationFailed`. Detect cancellation by testing `Error is OperationCanceledException`:
+
+<!-- illustrative: cancellation handling excerpt; pipeline and DTO names are defined elsewhere -->
+```csharp
+var outcome = await SparseEntitySavePipeline.ExecuteAsync(
+    prepare, save, readBack, synchronize, cancellationToken);
+if (outcome.Error is OperationCanceledException)
+{
+    // The stage tells whether persistence was not attempted
+    // (PreparationFailed), is unknown (SaveOutcomeUnknown), or completed
+    // (ReadBackFailed, ClientSynchronizationFailed).
+}
+```
+
 For full mapper configuration options, custom write handlers, and metadata constraints, see [EF Core mapping reference](../reference/efcore-mapping.md).

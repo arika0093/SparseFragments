@@ -59,6 +59,16 @@ public sealed class SparseEntitySaveResult<TPreparation, TReadBack>
 /// <remarks>
 /// The pipeline does not query, persist, retry, or roll back on its own. Consumers provide every step;
 /// a save-stage exception is classified as an unknown outcome unless it is a concurrency conflict.
+/// Cancellation is reported rather than thrown: an <see cref="OperationCanceledException"/>
+/// from one callback is returned as that stage's result, with the exception in
+/// <see cref="SparseEntitySaveResult{TPreparation, TReadBack}.Error"/>, so the caller keeps what
+/// the pipeline knows about persistence. Preparation cancellation means the save callback never
+/// ran, so the submission can be retried with a fresh token. Save cancellation leaves the outcome
+/// unknown, so the caller must query persisted state instead of resubmitting. Readback and
+/// synchronization cancellation mean persistence completed, so the caller recovers by re-reading
+/// authoritative state or by completing client synchronization without resubmitting. The pipeline
+/// performs no cancellation check between stages: a callback that ignores the token runs to
+/// completion, and a check after save would discard the knowledge that persistence completed.
 /// </remarks>
 public static class SparseEntitySavePipeline
 {
@@ -70,7 +80,15 @@ public static class SparseEntitySavePipeline
     /// <param name="readBack">Reads persisted state and performs any key correlation required by the consumer.</param>
     /// <param name="synchronize">Reconciles the live client state with the readback.</param>
     /// <param name="cancellationToken">Cancels the current callback when supported by the consumer.</param>
-    /// <returns>The stage reached and any prepared or authoritative values.</returns>
+    /// <returns>
+    /// The stage reached and any prepared or authoritative values. Cancellation is never thrown:
+    /// when <see cref="SparseEntitySaveResult{TPreparation, TReadBack}.Error"/> is an
+    /// <see cref="OperationCanceledException"/>, the stage tells whether persistence was not
+    /// attempted (<see cref="SparseEntitySaveStage.PreparationFailed"/>), is unknown
+    /// (<see cref="SparseEntitySaveStage.SaveOutcomeUnknown"/>), or completed
+    /// (<see cref="SparseEntitySaveStage.ReadBackFailed"/> and
+    /// <see cref="SparseEntitySaveStage.ClientSynchronizationFailed"/>).
+    /// </returns>
     public static async Task<SparseEntitySaveResult<TPreparation, TReadBack>> ExecuteAsync<
         TPreparation,
         TReadBack
@@ -96,6 +114,11 @@ public static class SparseEntitySavePipeline
         {
             return new(SparseEntitySaveStage.ConcurrencyConflict, default, default, exception);
         }
+        catch (OperationCanceledException exception)
+        {
+            // The save callback never ran, so nothing was persisted.
+            return new(SparseEntitySaveStage.PreparationFailed, default, default, exception);
+        }
         catch (Exception exception)
         {
             return new(SparseEntitySaveStage.PreparationFailed, default, default, exception);
@@ -109,6 +132,11 @@ public static class SparseEntitySavePipeline
         {
             return new(SparseEntitySaveStage.ConcurrencyConflict, prepared, default, exception);
         }
+        catch (OperationCanceledException exception)
+        {
+            // The write may have committed before cancellation surfaced; never retry it.
+            return new(SparseEntitySaveStage.SaveOutcomeUnknown, prepared, default, exception);
+        }
         catch (Exception exception)
         {
             return new(SparseEntitySaveStage.SaveOutcomeUnknown, prepared, default, exception);
@@ -119,6 +147,11 @@ public static class SparseEntitySavePipeline
         {
             persisted = await readBack(prepared, cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException exception)
+        {
+            // Persistence completed; only the authoritative read is missing.
+            return new(SparseEntitySaveStage.ReadBackFailed, prepared, default, exception);
+        }
         catch (Exception exception)
         {
             return new(SparseEntitySaveStage.ReadBackFailed, prepared, default, exception);
@@ -127,6 +160,16 @@ public static class SparseEntitySavePipeline
         try
         {
             await synchronize(prepared, persisted, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            // Persistence and readback completed; only client state is unsynchronized.
+            return new(
+                SparseEntitySaveStage.ClientSynchronizationFailed,
+                prepared,
+                persisted,
+                exception
+            );
         }
         catch (Exception exception)
         {

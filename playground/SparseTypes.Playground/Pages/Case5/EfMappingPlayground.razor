@@ -968,22 +968,30 @@
                     : string.Empty;
                 return;
             case SparseEntitySaveStage.PreparationFailed:
-                _saveError = $"Save failed before SaveChanges: {FormatException(outcome.Error)}";
+                _saveError = outcome.Error is OperationCanceledException
+                    ? $"The save was canceled before SaveChanges: {FormatException(outcome.Error)} Nothing was persisted, so the pending draft can be saved again."
+                    : $"Save failed before SaveChanges: {FormatException(outcome.Error)}";
                 return;
             case SparseEntitySaveStage.ConcurrencyConflict:
                 _saveError = $"The save conflicted with a newer persisted revision: {FormatException(outcome.Error)}";
                 return;
             case SparseEntitySaveStage.SaveOutcomeUnknown:
                 _saveBlocked = true;
-                _saveError = $"SaveChanges did not confirm whether the write completed. Do not resubmit this draft; reseed and review the persisted order. {FormatException(outcome.Error)}";
+                _saveError = outcome.Error is OperationCanceledException
+                    ? $"SaveChanges was canceled without confirming whether the write completed. Do not resubmit this draft; reseed and review the persisted order. {FormatException(outcome.Error)}"
+                    : $"SaveChanges did not confirm whether the write completed. Do not resubmit this draft; reseed and review the persisted order. {FormatException(outcome.Error)}";
                 return;
             case SparseEntitySaveStage.ReadBackFailed:
                 _saveBlocked = true;
-                _saveError = $"The changes were persisted, but the authoritative readback failed. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}";
+                _saveError = outcome.Error is OperationCanceledException
+                    ? $"The changes were persisted, but the authoritative readback was canceled. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}"
+                    : $"The changes were persisted, but the authoritative readback failed. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}";
                 return;
             case SparseEntitySaveStage.ClientSynchronizationFailed:
                 _saveBlocked = true;
-                _saveError = $"The changes were persisted, but the draft could not be synchronized. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}";
+                _saveError = outcome.Error is OperationCanceledException
+                    ? $"The changes were persisted, but client synchronization was canceled. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}"
+                    : $"The changes were persisted, but the draft could not be synchronized. Do not resubmit; reseed and review the persisted order. {FormatException(outcome.Error)}";
                 return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(outcome));
