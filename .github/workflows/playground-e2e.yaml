@@ -26,6 +26,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # Nerdbank.GitVersioning walks commit history to compute the version
+          # height during `dotnet publish`; a shallow clone fails with
+          # "MSB4018: Shallow clone lacks the objects required to calculate
+          # version height". Every other dotnet-building job uses a full clone.
+          fetch-depth: 0
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
