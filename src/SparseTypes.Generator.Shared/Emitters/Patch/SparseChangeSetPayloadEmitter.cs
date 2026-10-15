@@ -99,6 +99,9 @@ internal static class SparseChangeSetPayloadEmitter
         );
         code.AppendLineAt(1, "{");
         code.IndentOffset++;
+        // Payload DTOs stay permissive toward additive extensions: unknown
+        // JSON properties are ignored, while unknown operations (member
+        // discriminators, item kinds, endpoint states) still fail.
         code.AppendLineAt(
             1,
             "/// <summary>Transport core carrying the validated member changes.</summary>"
@@ -107,11 +110,6 @@ internal static class SparseChangeSetPayloadEmitter
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]"
         );
-        if (dialect.EmitJson)
-            code.AppendLineAt(
-                1,
-                "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
-            );
         code.AppendLineAt(1, "public class " + payloadCore);
         code.AppendLineAt(1, "{");
         // XML docs precede serialization attributes so the compiler associates
@@ -136,6 +134,7 @@ internal static class SparseChangeSetPayloadEmitter
             modelType,
             ignoredSettablePropertyNames
         );
+        SparseChangeSetPayloadValidateEmitter.AppendCoreValidate(code, members, dialect, modelType);
         if (modelType is not null)
             code.AppendLineAt(
                 2,
@@ -193,11 +192,6 @@ internal static class SparseChangeSetPayloadEmitter
             1,
             "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]"
         );
-        if (dialect.EmitJson)
-            code.AppendLineAt(
-                1,
-                "[global::System.Text.Json.Serialization.JsonUnmappedMemberHandling(global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]"
-            );
         code.AppendLineAt(
             1,
             "public sealed class ChangePayload : " + PayloadTypeName(dialect, modelType, "Core")
@@ -250,6 +244,7 @@ internal static class SparseChangeSetPayloadEmitter
             // Every public interpretation path validates it before reaching the
             // versionless core seam.
             SparseChangeSetMixedEmitter.AppendEnvelopeVersionOverrides(code, dialect, modelType);
+            SparseChangeSetPayloadValidateEmitter.AppendEnvelopeValidate(code, dialect, modelType);
             code.AppendLineAt(
                 2,
                 "/// <summary>Builds a baseline-free command envelope from a patch.</summary>"

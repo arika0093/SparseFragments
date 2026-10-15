@@ -36,6 +36,28 @@ namespace SparseTypes
         Value = 2,
         Redacted = 3,
     }
+    public sealed class ChangePayloadValidationError : System.IEquatable<SparseTypes.ChangePayloadValidationError>
+    {
+        public ChangePayloadValidationError() { }
+        public SparseTypes.ChangePayloadValidationKind Kind { get; init; }
+        public string Message { get; init; }
+        public string Path { get; init; }
+    }
+    public enum ChangePayloadValidationKind
+    {
+        Version = 0,
+        Changes = 1,
+        Duplicate = 2,
+        Endpoint = 3,
+        Item = 4,
+        Order = 5,
+    }
+    public sealed class ChangePayloadValidationResult
+    {
+        public ChangePayloadValidationResult(System.Collections.Generic.IReadOnlyList<SparseTypes.ChangePayloadValidationError> errors) { }
+        public System.Collections.Generic.IReadOnlyList<SparseTypes.ChangePayloadValidationError> Errors { get; }
+        public bool IsValid { get; }
+    }
     public static class ChangePayloadWire
     {
         public const string AddKind = "add";

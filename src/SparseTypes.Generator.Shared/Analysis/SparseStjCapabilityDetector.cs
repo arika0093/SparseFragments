@@ -185,34 +185,20 @@ internal static class SparseStjCapabilityDetector
 
     private static bool HasUnmappedMemberHandling(Compilation compilation)
     {
-        // Strict payloads reject unknown members via Disallow.
-        var attribute = SafeGet(
-            compilation,
-            "System.Text.Json.Serialization.JsonUnmappedMemberHandlingAttribute"
-        );
+        // Generated fragment converters honor options.UnmappedMemberHandling;
+        // only the enum member is required. Payload DTOs stay permissive and
+        // ignore unknown JSON properties instead of using Disallow.
         var handling = SafeGet(
             compilation,
             "System.Text.Json.Serialization.JsonUnmappedMemberHandling"
         );
-        if (attribute is null || handling is null)
+        if (handling is null)
             return false;
-        if (!IsAccessible(attribute) || !IsAccessible(handling))
+        if (!IsAccessible(handling))
             return false;
         if (!HasEnumMember(handling, "Disallow"))
             return false;
-        foreach (var ctor in attribute.Constructors)
-        {
-            if (!ctor.IsAccessibleTo(compilation))
-                continue;
-            var parameters = ctor.Parameters;
-            if (
-                parameters.Length == 1
-                && SymbolEqualityComparer.Default.Equals(parameters[0].Type, handling)
-            )
-                return true;
-        }
-
-        return false;
+        return true;
     }
 
     private static bool HasReadWriteOverrides(INamedTypeSymbol converter)

@@ -218,15 +218,22 @@ internal static class SparseChangeSetMixedKeyedEmitter
             );
             code.AppendLineAt(9, "if (!__editBlind" + id + ".__SparseIsEmpty())");
             code.AppendLineAt(9, "{");
+            // Only the blind portion passes through unchecked; the reversible
+            // portion keeps its baseline checks and joins the payload items
+            // below instead of collapsing into the blind patch.
             if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
             {
                 code.AppendLineAt(
                     10,
                     "if (changeItem.TemporaryKey.HasValue) __blindColl"
                         + id
-                        + ".__SparseSetEditedByTemporaryKey(changeItem.TemporaryKey.Value, changeItem.Edit.ToPatchCore()); else __blindColl"
+                        + ".__SparseSetEditedByTemporaryKey(changeItem.TemporaryKey.Value, __editBlind"
                         + id
-                        + ".__SparseSetEdited(changeItem.Key!, changeItem.Edit.ToPatchCore());"
+                        + "); else __blindColl"
+                        + id
+                        + ".__SparseSetEdited(changeItem.Key!, __editBlind"
+                        + id
+                        + ");"
                 );
             }
             else
@@ -235,12 +242,21 @@ internal static class SparseChangeSetMixedKeyedEmitter
                     10,
                     "__blindColl"
                         + id
-                        + ".__SparseSetEdited(changeItem.Key!, changeItem.Edit.ToPatchCore());"
+                        + ".__SparseSetEdited(changeItem.Key!, __editBlind"
+                        + id
+                        + ");"
                 );
             }
             code.AppendLineAt(10, "blindPaths.AddRange(__editPaths" + id + ");");
             code.AppendLineAt(10, "__hasBlindColl" + id + " = true;");
-            code.AppendLineAt(10, "continue;");
+            code.AppendLineAt(
+                10,
+                "if (__restoredEdit"
+                    + id
+                    + " is null || __restoredEdit"
+                    + id
+                    + ".IsEmpty) continue;"
+            );
             code.AppendLineAt(9, "}");
             code.AppendLineAt(8, "}");
         }

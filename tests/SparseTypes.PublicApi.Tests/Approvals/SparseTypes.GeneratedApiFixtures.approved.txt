@@ -305,7 +305,6 @@ namespace SparseTypes.Generated
         {
             protected Change_14E9C38F() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_14E9C38F
         {
             public Core_14E9C38F() { }
@@ -315,6 +314,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseTypes.Generated.@__Internal_14E9C38F.Core_14E9C38F.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -443,7 +443,6 @@ namespace SparseTypes.Generated
         {
             protected Change_1D892D2C() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_1D892D2C
         {
             public Core_1D892D2C() { }
@@ -453,6 +452,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseTypes.Generated.@__Internal_1D892D2C.Core_1D892D2C.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -647,7 +647,6 @@ namespace SparseTypes.Generated
         {
             protected Change_2459EB7C() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_2459EB7C
         {
             public Core_2459EB7C() { }
@@ -657,6 +656,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogNested? updated, out SparseTypes.Generated.@__Internal_2459EB7C.Core_2459EB7C.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -768,7 +768,6 @@ namespace SparseTypes.Generated
         {
             protected Change_3E1875D0() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_3E1875D0
         {
             public Core_3E1875D0() { }
@@ -778,6 +777,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseTypes.Generated.@__Internal_3E1875D0.Core_3E1875D0.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -909,7 +909,6 @@ namespace SparseTypes.Generated
         {
             protected Change_C060E532() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_C060E532
         {
             public Core_C060E532() { }
@@ -919,6 +918,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration? updated, out SparseTypes.Generated.@__Internal_C060E532.Core_C060E532.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -1030,7 +1030,6 @@ namespace SparseTypes.Generated
         {
             protected Change_F16D2821() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_F16D2821
         {
             public Core_F16D2821() { }
@@ -1040,6 +1039,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogImmutable? updated, out SparseTypes.Generated.@__Internal_F16D2821.Core_F16D2821.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -1191,7 +1191,6 @@ namespace SparseTypes.Generated
         {
             protected Change_FC484E03() { }
         }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public class Core_FC484E03
         {
             public Core_FC484E03() { }
@@ -1201,6 +1200,7 @@ namespace SparseTypes.Generated
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet InvertReversibleChanges(out System.Collections.Generic.IReadOnlyList<string> skippedPaths) { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
             public bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogScalar? updated, out SparseTypes.Generated.@__Internal_FC484E03.Core_FC484E03.MixedApplyResult result) { }
+            public SparseTypes.ChangePayloadValidationResult Validate() { }
             public sealed class MixedApplyResult
             {
                 public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict> Conflicts { get; }
@@ -1243,7 +1243,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public System.Collections.Generic.Dictionary<string, int> Scores { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogDictionaries_7372D290.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogDictionaries> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogDictionaries DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_14E9C38F.Core_14E9C38F
         {
             public ChangePayload() { }
@@ -1254,6 +1253,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogDictionaries current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogDictionaries? updated, out SparseTypes.Generated.@__Internal_14E9C38F.Core_14E9C38F.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogDictionaries>
@@ -1537,7 +1537,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public int[]? Tags { get; init; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogImmutable_4D88D0CC.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogImmutable> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogImmutable DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_F16D2821.Core_F16D2821
         {
             public ChangePayload() { }
@@ -1548,6 +1547,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogImmutable.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogImmutable current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogImmutable? updated, out SparseTypes.Generated.@__Internal_F16D2821.Core_F16D2821.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogImmutable.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogImmutable>
@@ -1770,7 +1770,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public string Title { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedItem_66C0C1FD.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_3E1875D0.Core_3E1875D0
         {
             public ChangePayload() { }
@@ -1781,6 +1780,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogKeyedItem? updated, out SparseTypes.Generated.@__Internal_3E1875D0.Core_3E1875D0.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem>
@@ -2001,7 +2001,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem> Items { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogKeyedRoster_A157F841.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_1D892D2C.Core_1D892D2C
         {
             public ChangePayload() { }
@@ -2012,6 +2011,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster? updated, out SparseTypes.Generated.@__Internal_1D892D2C.Core_1D892D2C.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster>
@@ -2262,7 +2262,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public System.Collections.Generic.List<SparseTypes.GeneratedApiFixtures.CatalogPoco?> MetadataItems { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogNested_D948A6CB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogNested> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogNested DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_2459EB7C.Core_2459EB7C
         {
             public ChangePayload() { }
@@ -2273,6 +2272,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogNested.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogNested current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogNested? updated, out SparseTypes.Generated.@__Internal_2459EB7C.Core_2459EB7C.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogNested.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogNested.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogNested>
@@ -2534,7 +2534,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public string EnumerateChanges { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogReservedEnumeration_292919EB.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_C060E532.Core_C060E532
         {
             public ChangePayload() { }
@@ -2545,6 +2544,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration? updated, out SparseTypes.Generated.@__Internal_C060E532.Core_C060E532.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration>
@@ -2781,7 +2781,6 @@ namespace SparseTypes.GeneratedApiFixtures
         public int? Retry { get; set; }
         public static SparseTypes.Generated.SparseTypes_GeneratedApiFixtures_CatalogScalar_3CC48A0C.SparsePaths<SparseTypes.GeneratedApiFixtures.CatalogScalar> SparsePath { get; }
         public SparseTypes.GeneratedApiFixtures.CatalogScalar DeepClone() { }
-        [System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
         public sealed class ChangePayload : SparseTypes.Generated.@__Internal_FC484E03.Core_FC484E03
         {
             public ChangePayload() { }
@@ -2792,6 +2791,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet ToChangeSet() { }
             public new SparseTypes.GeneratedApiFixtures.CatalogScalar.Patch ToPatch() { }
             public new bool TryApplyMixedTo(SparseTypes.GeneratedApiFixtures.CatalogScalar current, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SparseTypes.GeneratedApiFixtures.CatalogScalar? updated, out SparseTypes.Generated.@__Internal_FC484E03.Core_FC484E03.MixedApplyResult result) { }
+            public new SparseTypes.ChangePayloadValidationResult Validate() { }
             public static SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangePayload FromPatch(SparseTypes.GeneratedApiFixtures.CatalogScalar.Patch patch) { }
         }
         public sealed class ChangeSet : SparseTypes.ISparseChangeSet, SparseTypes.ISparseChangeSet<SparseTypes.GeneratedApiFixtures.CatalogScalar>

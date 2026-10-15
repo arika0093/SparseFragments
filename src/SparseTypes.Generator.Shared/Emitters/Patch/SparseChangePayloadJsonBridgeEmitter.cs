@@ -61,6 +61,7 @@ internal static class SparseChangePayloadJsonBridgeEmitter
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) throw new global::System.Text.Json.JsonException(\"An endpoint must be an object.\");"
         );
         code.AppendLineAt(3, "var state = default(" + runtime + "ChangePayloadState);");
+        code.AppendLineAt(3, "var hasState = false;");
         code.AppendLineAt(3, "TValue? value = default;");
         code.AppendLineAt(3, "while (reader.Read())");
         code.AppendLineAt(3, "{");
@@ -89,6 +90,7 @@ internal static class SparseChangePayloadJsonBridgeEmitter
                 + wire
                 + ".TryParseState(token, out state)) throw new global::System.Text.Json.JsonException(\"Unknown endpoint state.\");"
         );
+        code.AppendLineAt(5, "hasState = true;");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else if (name == " + wire + ".ValueProperty)");
         code.AppendLineAt(4, "{");
@@ -101,13 +103,18 @@ internal static class SparseChangePayloadJsonBridgeEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
-        // The endpoint itself stays permissive (DTO-level Disallow guards
-        // members); only state/value presence and token validity are strict.
+        // Unknown supplemental properties are additive extensions: skip
+        // them without changing the interpreted endpoints. Unknown
+        // operations (member discriminators, kinds, states) still fail.
         code.AppendLineAt(5, "reader.Skip();");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
-        // Absent members retain Missing/default values; unknown tokens fail
-        // here.
+        // State is required: an omitted state is not an explicit missing
+        // endpoint. Unknown tokens already failed above.
+        code.AppendLineAt(
+            3,
+            "if (!hasState) throw new global::System.Text.Json.JsonException(\"An endpoint must contain a state.\");"
+        );
         code.AppendLineAt(
             3,
             "return new " + endpoint + "<TValue> { State = state, Value = value };"

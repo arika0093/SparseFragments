@@ -21,6 +21,7 @@ public static class ChangePayloadDocsSamples
         Mixed();
         Invert();
         VersionGuard();
+        Validate();
     }
 
     private static void ScalarSet()
@@ -537,6 +538,56 @@ public static class ChangePayloadDocsSamples
         // versionRejected == 2
         // /sample
         DocsCheck.Require(versionRejected == 2, "unknown version rejected on every path");
+    }
+
+    private static void Validate()
+    {
+        // sample: payload-validate
+        var validateBefore = Optional<WireSettings.Fragment?>.Present(
+            WireSettings.Fragment.From(new WireSettings { Label = "before", RetryCount = 1 })
+        );
+        var validateAfter = Optional<WireSettings.Fragment?>.Present(
+            WireSettings.Fragment.From(new WireSettings { Label = "after", RetryCount = 1 })
+        );
+
+        var validateEnvelope = WireSettings.ChangeSet.Between(validateBefore, validateAfter).ToPayload();
+        var validation = validateEnvelope.Validate();
+        // validation.IsValid is true
+        // validation.Errors is empty
+
+        // Write-only envelopes validate too: validity is not convertibility.
+        var writeOnlyEnvelope = WireSecret.ChangePayload.FromPatch(
+            new WireSecret.Patch { Password = "rotated-value" }
+        );
+        var writeOnlyValidation = writeOnlyEnvelope.Validate();
+        // writeOnlyValidation.IsValid is true
+        // writeOnlyEnvelope.ToChangeSet() still throws
+
+        validateEnvelope.Version = "0.2";
+        var versionValidation = validateEnvelope.Validate();
+        // versionValidation.IsValid is false
+        // versionValidation.Errors carries one Version error with an empty path
+        // /sample
+        DocsCheck.Require(validation.IsValid, "ordinary envelope validates");
+        DocsCheck.Require(validation.Errors.Count == 0, "ordinary envelope has no errors");
+        DocsCheck.Require(writeOnlyValidation.IsValid, "write-only envelope validates");
+        var writeOnlyConvertible = true;
+        try
+        {
+            writeOnlyEnvelope.ToChangeSet();
+        }
+        catch (ArgumentException)
+        {
+            writeOnlyConvertible = false;
+        }
+        DocsCheck.Require(!writeOnlyConvertible, "valid write-only envelope stays unconvertible");
+        DocsCheck.Require(!versionValidation.IsValid, "unknown version fails validation");
+        DocsCheck.Require(
+            versionValidation.Errors.Count == 1
+                && versionValidation.Errors[0].Kind == ChangePayloadValidationKind.Version
+                && versionValidation.Errors[0].Path == string.Empty,
+            "version failure carries one Version error with an empty path"
+        );
     }
 }
 

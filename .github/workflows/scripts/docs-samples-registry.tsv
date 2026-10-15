@@ -59,6 +59,7 @@ docs/reference/change-payload.md	payload-conversions	tests/fixtures/consumers/pa
 docs/reference/change-payload.md	payload-mixed	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/reference/change-payload.md	payload-invert	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/reference/change-payload.md	payload-version	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
+docs/reference/change-payload.md	payload-validate	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/reference/change-payload.md	payload-context	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs
 docs/reference/change-payload.md	payload-envelope	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen
 docs/reference/change-payload.md	payload-scalar-add	tests/fixtures/consumers/package-sparse-docs/ChangePayloadDocs.cs	json-specimen

@@ -177,7 +177,7 @@ public sealed class ChangePayloadWireTests
     }
 
     [Test]
-    public void BridgeDefaultsMissingEndpointMembers()
+    public void BridgeRequiresExplicitEndpointState()
     {
         var container = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
         var converterType = container
@@ -187,9 +187,95 @@ public sealed class ChangePayloadWireTests
         var options = new JsonSerializerOptions();
         options.Converters.Add((JsonConverter)Activator.CreateInstance(converterType)!);
 
-        var empty = JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>("{}", options)!;
-        empty.State.ShouldBe(ChangePayloadState.Missing);
-        empty.Value.ShouldBeNull();
+        // An explicit missing state stays valid.
+        var missing = JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>(
+            """{"state":"missing","value":null}""",
+            options
+        )!;
+        missing.State.ShouldBe(ChangePayloadState.Missing);
+
+        // An omitted state is not an explicit missing endpoint, even when
+        // only additive extension properties are present.
+        foreach (var json in new[] { "{}", """{"value":"kept"}""", """{"extension":123}""" })
+        {
+            Should.Throw<JsonException>(() =>
+                JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>(json, options)
+            );
+        }
+
+        // Null and unknown states still fail.
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>(
+                """{"state":null,"value":null}""",
+                options
+            )
+        );
+    }
+
+    [Test]
+    public void BridgeIgnoresUnknownExtensionProperties()
+    {
+        var container = typeof(Settings.ChangePayload).BaseType!.DeclaringType!;
+        var converterType = container
+            .GetNestedTypes()
+            .Single(static type => type.Name == "ChangePayloadEndpointJsonConverter`1")
+            .MakeGenericType(typeof(string));
+        var options = new JsonSerializerOptions();
+        options.Converters.Add((JsonConverter)Activator.CreateInstance(converterType)!);
+
+        // Extra fields ride along without changing the interpreted endpoint;
+        // later duplicates still win.
+        var endpoint = JsonSerializer.Deserialize<ChangePayloadEndpoint<string>>(
+            """{"state":"value","value":"kept","extension":123}""",
+            options
+        )!;
+        endpoint.State.ShouldBe(ChangePayloadState.Value);
+        endpoint.Value.ShouldBe("kept");
+    }
+
+    [Test]
+    public void PayloadIgnoresExtensionPropertiesAtEveryLevel()
+    {
+        var json =
+            """{"version":"0.1","changes":[{"member":"Label","before":{"state":"value","value":"before"},"after":{"state":"value","value":"after"},"extension":{"nested":true}}],"extension":123}""";
+        var restored = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!;
+
+        restored.ToChangeSet().Label.After.Value.ShouldBe("after");
+
+        var nestedJson =
+            """{"version":"0.1","changes":[{"member":"Nested","nested":{"changes":[{"member":"Host","before":{"state":"value","value":"a"},"after":{"state":"value","value":"b"}}]},"extension":1}]}""";
+        var nested = JsonSerializer.Deserialize<Settings.ChangePayload>(nestedJson)!;
+        nested.ToChangeSet().Nested.Host.After.Value.ShouldBe("b");
+
+        var keyedJson =
+            """{"version":"0.1","changes":[{"member":"Items","items":[{"key":"a","kind":"add","beforeIndex":-1,"afterIndex":0,"after":{"state":"value","value":{"Id":"a","Name":"A","Count":0}},"extension":"x"}],"beforeOrder":[],"afterOrder":["a"]}]}""";
+        var keyed = JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(keyedJson)!;
+        keyed.ToChangeSet().Items.GetChange("a").IsAdded.ShouldBeTrue();
+    }
+
+    [Test]
+    public void PayloadStillRejectsUnknownOperations()
+    {
+        // Unknown member discriminators never drop an operation silently.
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<Settings.ChangePayload>(
+                """{"version":"0.1","changes":[{"member":"Nope","before":{"state":"value","value":"a"},"after":{"state":"value","value":"b"}}]}"""
+            )
+        );
+
+        // Unknown item kinds never drop an operation silently.
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<KeyedServerHolder.ChangePayload>(
+                """{"version":"0.1","changes":[{"member":"Items","items":[{"key":"a","kind":"bogus","beforeIndex":-1,"afterIndex":0,"after":{"state":"value","value":{"Id":"a","Name":"A","Count":0}}}],"beforeOrder":[],"afterOrder":["a"]}]}"""
+            )
+        );
+
+        // Unknown endpoint states never decode silently.
+        Should.Throw<JsonException>(() =>
+            JsonSerializer.Deserialize<Settings.ChangePayload>(
+                """{"version":"0.1","changes":[{"member":"Label","before":{"state":"nope"},"after":{"state":"value","value":"b"}}]}"""
+            )
+        );
     }
 
     [Test]

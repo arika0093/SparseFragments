@@ -44,6 +44,9 @@ public static class NoJsonConsumerCheck
         // CLR-only payload round-trip: no serializer involved.
         var payload = changes.ToPayload();
         Require(payload.Version == "0.1", "payload carries the v1 version token");
+        var validation = payload.Validate();
+        Require(validation.IsValid, "ordinary envelope validates without JSON");
+        Require(validation.Errors.Count == 0, "ordinary envelope has no errors");
         var restored = payload.ToChangeSet();
         var applied = restored.ToPatch().Apply(Optional<NoJsonSettings.Fragment?>.Present(before));
         Require(applied.Value!.Label.Value == "after", "patch replays the transition");

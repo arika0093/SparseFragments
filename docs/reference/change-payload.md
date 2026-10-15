@@ -2,7 +2,7 @@
 
 A `ChangePayload` is the versioned JSON envelope that carries a `ChangeSet` transition, a `Patch` command, or a mix of both across a process boundary. It names members and carries typed values, so each side converts the envelope into its own `Patch` or `ChangeSet`. The library performs no domain-specific model mapping, and the client and server models may differ.
 
-The current format token is `"version": "0.1"`. Treat it as the documented current format, not a promise of indefinite backwards compatibility. For the in-memory transition and command types, see [Fragments and patches](../explanation/fragments-and-patches.md). For reconciling a received transition with current state, see [ChangeSet rebase](../explanation/rebase.md).
+The current format token is `"version": "0.1"`. Treat it as the documented current format, not a promise of indefinite backwards compatibility. The token gates the transport grammar only: envelope, endpoint, kind, and discriminator representation. It says nothing about the sender and receiver model schemas, the library package version, or concurrency revisions. Those stay the application responsibility, as the [version section](#version-and-malformed-payloads) explains. For the in-memory transition and command types, see [Fragments and patches](../explanation/fragments-and-patches.md). For reconciling a received transition with current state, see [ChangeSet rebase](../explanation/rebase.md).
 
 <!-- sample: payload-models -->
 ```csharp
@@ -350,6 +350,7 @@ var complete = WireSettings.ChangeSet.FromPayload(envelope);
 | `ChangeSet.FromPatch(baseline, patch)` | ChangeSet | Attaches a known baseline to an existing patch. |
 | `payload.TryApplyMixedTo(model, out updated, out outcome)` | Model plus outcome | Rebases ordinary members, passes write-only members through, applies nothing on conflict. |
 | `payload.InvertReversibleChanges(out skipped)` | ChangeSet plus skipped paths | Inverts reversible transitions; write-only paths stay out and appear in `skipped`. |
+| `payload.Validate()` | Validation result | Nothing converted; structural errors in payload order. |
 
 `payload.ToPatch()` projects a well-formed payload into a baseline-free `Patch`, even when before-states are redacted. Unlike `ChangeSet.ToPatch()` on an in-memory transition, it validates the envelope structure and wire version, throwing `ArgumentException` on malformed payloads, version mismatches, or unsupported operations such as blind whole-collection removal. `FromPayload` and `ToChangeSet` fail on any redacted before-state. After-states must stay concrete (a value, an explicit null where valid, or a missing endpoint for removal); a redacted after-state is malformed. `Redacted` does not mean `Missing`: a redacted before-state paired with a missing after-state is a blind remove that validates against nothing. A merged operation regains complete history only when one side supplied a real baseline; history is never inferred from a redacted endpoint.
 
@@ -409,9 +410,44 @@ var partial = writeOnly.InvertReversibleChanges(out var skippedWriteOnly);
 ```
 <!-- /sample -->
 
+## Validation
+
+`payload.Validate()` checks the envelope structure without converting it, applying it, or reading model state. It needs no JSON serializer. The result carries one entry per problem, each with a `Kind`, a `Path`, and a safe `Message`, in payload order. A redacted or otherwise baseline-free envelope validates cleanly. Validity never implies that `ToChangeSet()` can rebuild the history.
+
+<!-- sample: payload-validate -->
+```csharp
+var validateBefore = Optional<WireSettings.Fragment?>.Present(
+    WireSettings.Fragment.From(new WireSettings { Label = "before", RetryCount = 1 })
+);
+var validateAfter = Optional<WireSettings.Fragment?>.Present(
+    WireSettings.Fragment.From(new WireSettings { Label = "after", RetryCount = 1 })
+);
+
+var validateEnvelope = WireSettings.ChangeSet.Between(validateBefore, validateAfter).ToPayload();
+var validation = validateEnvelope.Validate();
+// validation.IsValid is true
+// validation.Errors is empty
+
+// Write-only envelopes validate too: validity is not convertibility.
+var writeOnlyEnvelope = WireSecret.ChangePayload.FromPatch(
+    new WireSecret.Patch { Password = "rotated-value" }
+);
+var writeOnlyValidation = writeOnlyEnvelope.Validate();
+// writeOnlyValidation.IsValid is true
+// writeOnlyEnvelope.ToChangeSet() still throws
+
+validateEnvelope.Version = "0.2";
+var versionValidation = validateEnvelope.Validate();
+// versionValidation.IsValid is false
+// versionValidation.Errors carries one Version error with an empty path
+```
+<!-- /sample -->
+
+`Validate()` mirrors what the mixed interpretation paths (`ToPatch`, `InvertReversibleChanges`, `TryApplyMixedTo`) accept. `ToChangeSet()` and `ChangeSet.FromPayload` reject any redacted before-state even when validation passes, because they need complete history. `TryApplyMixedTo` returns `false` for rebase conflicts on a valid envelope. That answer reports concurrent state; the envelope itself is still well-formed.
+
 ## Version and malformed payloads
 
-Every interpretation path (`ToChangeSet`, `ToPatch`, `InvertReversibleChanges`, `TryApplyMixedTo`) validates the envelope wire version before interpreting anything, and rejection never mutates a supplied model.
+Every interpretation path (`ToChangeSet`, `ToPatch`, `InvertReversibleChanges`, `TryApplyMixedTo`) validates the envelope wire version before interpreting anything, and rejection never mutates a supplied model. The version token is not a concurrency revision: `TryApplyMixedTo` rebases ordinary members and reports conflicts, but revision checks such as ETag or rowversion comparisons stay with the application.
 
 <!-- sample: payload-version -->
 ```csharp
@@ -451,7 +487,9 @@ catch (ArgumentException)
 
 Only `"0.1"` is accepted, compared ordinally. A missing, null, non-string, or different version fails: envelopes that deserialize still fail validation before producing a `ChangeSet`.
 
-Payload DTOs reject unknown JSON members instead of ignoring them. Depending on where the envelope fails, deserialization throws `JsonException` or `ToChangeSet` throws `ArgumentException`. The following are all malformed: unknown member names (including inside nested payloads), null items, members without endpoints, duplicate changes for one member, duplicate keyed changes for one key, keyed additions without an after-endpoint, keyed removals without a before-endpoint, unknown item kinds, redacted after-states, redacted before-states without an after-state, value-carrying missing, null, or redacted endpoints, and per-item redacted endpoints in keyed and dictionary members. Diagnostics carry member paths and reasons only, never secret before, current, or after values. Duplicate JSON properties are the one lenient case: `System.Text.Json` object deserialization is last-wins, so the envelope stays valid when the winning values are well-formed.
+The `"0.1"` token covers the wire grammar only, not the model schemas on either side. The `member` discriminator names a generated model contract, so identical wire versions do not imply matching model definitions. When a sender adds a member the receiver model lacks, the receiver rejects the unknown `member` discriminator instead of guessing. Model evolution across deployment boundaries stays the application responsibility: coordinate field changes, add adapters, or agree on a separate schema handshake. The wire version never carries that information.
+
+Payload DTOs ignore unknown JSON properties at the envelope, member, and item levels, so additive extensions do not break older readers. Only supplemental properties are lenient: unknown `member` discriminators, unknown item `kind` tokens, unknown endpoint `state` tokens, and a missing required `state` still fail. Every endpoint object must carry an explicit `state`; `{}` or `{"value":"x"}` is not an explicit `"state":"missing"`. Depending on where the envelope fails, deserialization throws `JsonException` or conversion throws `ArgumentException`. The following are all malformed: unknown member names (including inside nested payloads), null items, members without endpoints, duplicate changes for one member, duplicate keyed changes for one key, keyed additions without an after-endpoint, keyed removals without a before-endpoint, unknown item kinds, redacted after-states, redacted before-states without an after-state, value-carrying missing, null, or redacted endpoints, and per-item redacted endpoints in keyed and dictionary members. Diagnostics carry member paths and reasons only, never secret before, current, or after values. Duplicate JSON properties are the other lenient case: `System.Text.Json` object deserialization is last-wins, so the envelope stays valid when the winning values are well-formed.
 
 ### Payload export and JsonIgnore members
 
@@ -461,7 +499,7 @@ Attempting to export a `ChangeSet` or `Patch` containing changes to a `[JsonIgno
 
 The base package does not depend on `System.Text.Json`. JSON attributes, converters, and the endpoint bridge are generated only when the consuming compilation references a compatible API set. `Fragment`, `Patch`, `ChangeSet`, and the `ChangePayload` CLR projections (`ToPayload`, `FromPatch`, `ToPatch`, `ToChangeSet`) work without it. A compilation with a partial API set gets the same omission plus a diagnostic that names the missing members.
 
-The v1 contract needs named and ordered properties, null and default omission, polymorphic discriminators, strict unknown-member rejection, endpoint and kind converters, and the UTF-8 reader and writer with options and type metadata. The generator probes for `JsonSerializer` and `JsonConverter<T>` with overridable `Read` and `Write`, the `JsonPropertyName`, `JsonPropertyOrder`, `JsonIgnore`, `JsonPolymorphic`, `JsonDerivedType`, `JsonUnmappedMemberHandling`, and `JsonConverter` attributes, `JsonIgnoreCondition`, `JsonUnmappedMemberHandling.Disallow`, `Utf8JsonReader`, `Utf8JsonWriter`, `JsonTokenType`, `JsonSerializerOptions.GetTypeInfo`, `JsonTypeInfo`, and `JsonException`. A reference that lacks any of these, such as an older `System.Text.Json` version, omits the JSON artifacts and reports [SPF028](analyzer.md#spf028-invalid-downstream-emission-plan) with the missing names; a compilation with no reference at all stays silent and builds the serializer-independent core.
+The 0.1 wire contract needs named and ordered properties, null and default omission, polymorphic discriminators, endpoint and kind converters, and the UTF-8 reader and writer with options and type metadata. The generator probes for `JsonSerializer` and `JsonConverter<T>` with overridable `Read` and `Write`, the `JsonPropertyName`, `JsonPropertyOrder`, `JsonIgnore`, `JsonPolymorphic`, `JsonDerivedType`, and `JsonConverter` attributes, `JsonIgnoreCondition`, `JsonUnmappedMemberHandling.Disallow`, `Utf8JsonReader`, `Utf8JsonWriter`, `JsonTokenType`, `JsonSerializerOptions.GetTypeInfo`, `JsonTypeInfo`, and `JsonException`. A reference that lacks any of these, such as an older `System.Text.Json` version, omits the JSON artifacts and reports [SPF028](analyzer.md#spf028-invalid-downstream-emission-plan) with the missing names; a compilation with no reference at all stays silent and builds the serializer-independent core. Payload DTOs ignore unknown properties once emitted; generated fragment converters still honor `JsonSerializerOptions.UnmappedMemberHandling`.
 
 The scalar-set payload from the earlier section serializes through resolver options like this:
 
@@ -488,4 +526,4 @@ The endpoint and item-kind mapping lives in generated per-model converters. They
 
 ## Choosing a conversion
 
-Use `ToChangeSet()` when the receiver must validate history, rebase, or report conflicts. Use `ToPatch()` when the destination only needs the desired operations without validation. Use `TryApplyMixedTo` for envelopes that mix ordinary transitions with write-only operations. Use `InvertReversibleChanges` when rolling back a possibly mixed envelope. When a baseline-free operation is needed instead of a transition, cross the explicit boundary with `ToPatch()`; there is no silent mixed composition back into a `ChangeSet`.
+Use `Validate()` first when an envelope arrives from an untrusted sender and only structural feedback is needed. Use `ToChangeSet()` when the receiver must validate history, rebase, or report conflicts. Use `ToPatch()` when the destination only needs the desired operations without validation. Use `TryApplyMixedTo` for envelopes that mix ordinary transitions with write-only operations. Use `InvertReversibleChanges` when rolling back a possibly mixed envelope. When a baseline-free operation is needed instead of a transition, cross the explicit boundary with `ToPatch()`; there is no silent mixed composition back into a `ChangeSet`.

@@ -611,10 +611,13 @@ Payload endpoints use the `ChangePayloadState.Redacted` token
 (`"redacted"`) for before-states the sender could not disclose. A redacted
 before-state paired with a concrete after-state is an explicit write-only
 operation: generated payload readers route it to a baseline-free blind patch
-instead of a baseline-aware transition. `FromPayload` and `ToChangeSet` fail
-with a typed error naming the redacted paths, while `ToPatch()`,
-`InvertReversibleChanges()`, and `TryApplyMixedTo()` handle the mixed
-request. After-states must stay concrete; a redacted after-state is malformed.
+instead of a baseline-aware transition. Keyed and dictionary model items
+partition per child, so an ordinary child transition keeps its baseline
+checks while a redacted sibling passes through; a conflict on the ordinary
+part fails the whole request without a partial apply. `FromPayload` and
+`ToChangeSet` fail with a typed error naming the redacted paths, while
+`ToPatch()`, `InvertReversibleChanges()`, and `TryApplyMixedTo()` handle the
+mixed request. After-states must stay concrete; a redacted after-state is malformed.
 The wire version stays `"0.1"`. No configuration is needed: the mixed surface
 uses only sibling generated names, the configured runtime namespace, and the
 configured conflict types.
@@ -679,8 +682,12 @@ display text stay distinct without disambiguation suffixes.
 
 `ChangePayload` transport is lossless and version-gated: the `"0.1"`
 envelope version is validated on `ToChangeSet`, `ToPatch`,
-`InvertReversibleChanges`, and `TryApplyMixedTo` before any model work.
-`ToPayloadCore` and patch-side cores throw naming the omitted paths when a
+`InvertReversibleChanges`, `TryApplyMixedTo`, and `Validate` before any model
+work. `ToPayloadCore` and patch-side cores throw naming the omitted paths when a
 `JsonIgnore` member changed instead of exporting an empty change list.
 Redacted endpoints must be value-free; an endpoint carrying a value is
-rejected on every interpretation path.
+rejected on every interpretation path. Payload DTOs ignore unknown JSON
+properties; every endpoint object still requires an explicit `state`.
+`Validate()` reports the same structural contract as typed data without
+converting, applying, or touching `System.Text.Json`, so untrusted envelopes
+can be screened before interpretation.

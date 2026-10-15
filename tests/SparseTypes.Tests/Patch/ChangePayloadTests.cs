@@ -551,7 +551,6 @@ public sealed class ChangePayloadTests
     [Arguments("""{"version":"0.1","changes":null}""")]
     [Arguments("""{"version":"0.1","changes":{}}""")]
     [Arguments("""{"versoin":"0.1","changes":[]}""")]
-    [Arguments("""{"version":"0.1","changes":[],"unknown":1}""")]
     public void Payload_RejectsMalformedEnvelopes(string json)
     {
         Settings.ChangePayload? payload = null;

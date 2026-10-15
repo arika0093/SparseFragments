@@ -264,7 +264,9 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.Delta_2");
         // Provisional wire version comes from the dialect, defaulting to 0.1.
         text.ShouldContain("\"0.1\"");
-        text.ShouldContain("JsonUnmappedMemberHandling.Disallow");
+        // Payload DTOs stay permissive toward additive extensions instead of
+        // rejecting unknown JSON members.
+        text.ShouldNotContain("JsonUnmappedMemberHandling.Disallow");
         text.ShouldContain("FromPayloadCore");
         text.ShouldContain("ToChangeSetCore");
         // The unified transport carries transitions and commands together.
