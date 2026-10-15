@@ -113,6 +113,23 @@ public sealed class SparseTypesApiAudienceTests
         assembly.GetType("SparseTypes.SparseEditSessionConfiguration`6").ShouldBeNull();
     }
 
+    [Test]
+    public void SessionCapabilityInterfacesStayAdvanced()
+    {
+        // Capability interfaces implemented by generated sessions stay out of
+        // first-class IntelliSense. Pin each generic definition explicitly so a
+        // new capability surface without classification fails here, not in CI.
+        var capabilityTypes = new[]
+        {
+            "SparseTypes.ISparseEditSessionWithChildren`2",
+            "SparseTypes.ISparseEditSessionWithChangeSet`2",
+            "SparseTypes.ISparseEditSessionWithChildStatus`2",
+            "SparseTypes.SparseChildSessionStatus",
+        };
+        var offenders = capabilityTypes.Where(static name => !IsAdvanced(name)).ToArray();
+        offenders.ShouldBeEmpty();
+    }
+
     private static bool IsAdvanced(string fullName) => HasAdvancedHiding(Resolve(fullName));
 
     private static Type Resolve(string fullName) =>

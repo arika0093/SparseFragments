@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SparseTypes;
 
 /// <summary>A typed edit session with the generic operations required by edit-session groups.</summary>
 /// <typeparam name="TModel">The editable model type.</typeparam>
 /// <typeparam name="TChangeSet">The generated immutable change-set type.</typeparam>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseEditSessionWithChangeSet<TModel, TChangeSet>
     : ISparseEditSession<TModel, TChangeSet>
     where TModel : class

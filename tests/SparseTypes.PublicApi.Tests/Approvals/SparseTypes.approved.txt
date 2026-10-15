@@ -75,6 +75,9 @@ namespace SparseTypes
         public SparseTypes.EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(string sectionId, SparseTypes.EditSessionGroupRegistration<TModel, TChangeSet> registration)
             where TModel :  class
             where TChangeSet :  class { }
+        public SparseTypes.EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(string sectionId, SparseTypes.ISparseEditSessionWithChangeSet<TModel, TChangeSet> session)
+            where TModel :  class
+            where TChangeSet :  class { }
         public SparseTypes.EditSessionSectionHandle<TModel, TChangeSet> Replace<TModel, TChangeSet>(SparseTypes.EditSessionSectionHandle<TModel, TChangeSet> handle, SparseTypes.EditSessionGroupRegistration<TModel, TChangeSet> registration, SparseTypes.EditSessionGroupRemovalPolicy policy)
             where TModel :  class
             where TChangeSet :  class { }
@@ -96,6 +99,7 @@ namespace SparseTypes
         where TChangeSet :  class
     {
         public EditSessionGroupRegistration() { }
+        public EditSessionGroupRegistration(SparseTypes.ISparseEditSessionWithChangeSet<TModel, TChangeSet> session) { }
         public System.Func<TChangeSet> CreateChangeSet { get; init; }
         public System.Func<TChangeSet, System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath>> EnumerateChangedPaths { get; init; }
         public System.Func<TChangeSet, bool> IsEmpty { get; init; }
@@ -252,6 +256,7 @@ namespace SparseTypes
         void AcceptChanges();
         void DiscardChanges();
         bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
+        bool TryApplyPendingState(TModel current, out TModel? updated, out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
     }
     public interface ISparseEditHistory
     {
@@ -273,6 +278,27 @@ namespace SparseTypes
         where out TModel :  class
     {
         TModel GetModelForFrameworkAccess();
+    }
+    public interface ISparseEditSessionWithChangeSet<TModel, TChangeSet> : SparseTypes.ISparseEditSession<TModel>, SparseTypes.ISparseEditSession<TModel, TChangeSet>
+        where TModel :  class
+        where TChangeSet :  class
+    {
+        System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths(TChangeSet changes);
+        bool IsEmpty(TChangeSet changes);
+        TChangeSet PrepareChangeSet();
+    }
+    public interface ISparseEditSessionWithChildStatus<TModel, TConflict> : SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict>
+        where TModel :  class
+        where TConflict :  class
+    {
+        bool HasOwnChanges { get; }
+        SparseTypes.SparseChildSessionStatus GetChildSessionStatus<TChild, TChildPaths, TChildSession>(SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
+            where TChild :  class
+            where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+            where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>;
+        object? ResolveChildModel(SparseTypes.SparsePath path);
+        bool TryApplyPendingState(TModel current, out TModel? updated, out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
+        bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts);
     }
     public interface ISparseEditSessionWithChildren<TModel, TConflict>
         where TModel :  class
@@ -492,6 +518,12 @@ namespace SparseTypes
         public static System.Collections.Generic.IReadOnlyList<SparseTypes.SparseChangeRow> Project(SparseTypes.ISparseChangeSet changes, SparseTypes.SparseChangeRowOptions? options = null) { }
         public static System.Collections.Generic.IReadOnlyList<SparseTypes.SparseChangeRow> Project(System.Collections.Generic.IReadOnlyList<SparseTypes.Generated.SparseChangeRecord> records, SparseTypes.SparseChangeRowOptions? options = null) { }
     }
+    public enum SparseChildSessionStatus
+    {
+        NotOpen = 0,
+        OpenUnchanged = 1,
+        OpenChanged = 2,
+    }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
     {
@@ -556,6 +588,7 @@ namespace SparseTypes
     }
     public readonly struct SparseCollectionState : System.IEquatable<SparseTypes.SparseCollectionState>
     {
+        public System.Collections.Generic.IReadOnlyList<SparseTypes.SparseCollectionItemState> ChangedItems { get; }
         public bool IsChanged { get; }
         public bool IsEmpty { get; }
         public bool OrderChanged { get; }
@@ -595,6 +628,7 @@ namespace SparseTypes
         CustomStrategy = 5,
         RedactedBefore = 6,
         InPlaceWriteUnavailable = 7,
+        Reconciliation = 8,
     }
     public enum SparseConflictState
     {
@@ -613,13 +647,17 @@ namespace SparseTypes
         public SparseEditChildSession(TSession session, TPaths rootPath, TModel baseline, System.Func<TModel, TModel> clone, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Accepted",
                 "Current",
-                "Conflicts"})] System.Func<TModel, System.ValueTuple<bool, TModel?, System.Collections.Generic.IReadOnlyList<TConflict>?>> tryAccept, System.Action onDiscarded, System.Action detach) { }
+                "Conflicts"})] System.Func<TModel, System.ValueTuple<bool, TModel?, System.Collections.Generic.IReadOnlyList<TConflict>?>> tryAccept, System.Action onDiscarded, System.Action detach, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Accepted",
+                "Conflicts"})] System.Func<System.ValueTuple<bool, System.Collections.Generic.IReadOnlyList<TConflict>?>>? preflight = null) { }
         public bool HasChanges { get; }
         public TSession Session { get; }
         public void AcceptChanges() { }
         public void DiscardChanges() { }
         public void Dispose() { }
         public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
+        public bool TryApplyPendingState(TModel current, out TModel? updated, out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
+        public bool TryPreflightAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
     }
     public sealed class SparseEditHistoryHooks<TChangeSet>
         where TChangeSet :  class

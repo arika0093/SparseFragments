@@ -181,6 +181,26 @@ namespace SparseTypes.EntityFrameworkCore
         SoftDelete = 2,
         Custom = 3,
     }
+    public static class SparseEntitySavePipeline
+    {
+        public static System.Threading.Tasks.Task<SparseTypes.EntityFrameworkCore.SparseEntitySaveResult<TPreparation, TReadBack>> ExecuteAsync<TPreparation, TReadBack>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TPreparation>> prepare, System.Func<TPreparation, System.Threading.CancellationToken, System.Threading.Tasks.Task> save, System.Func<TPreparation, System.Threading.CancellationToken, System.Threading.Tasks.Task<TReadBack>> readBack, System.Func<TPreparation, TReadBack, System.Threading.CancellationToken, System.Threading.Tasks.Task> synchronize, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SparseEntitySaveResult<TPreparation, TReadBack>
+    {
+        public System.Exception? Error { get; }
+        public TPreparation Preparation { get; }
+        public TReadBack ReadBack { get; }
+        public SparseTypes.EntityFrameworkCore.SparseEntitySaveStage Stage { get; }
+    }
+    public enum SparseEntitySaveStage
+    {
+        Saved = 0,
+        PreparationFailed = 1,
+        ConcurrencyConflict = 2,
+        SaveOutcomeUnknown = 3,
+        ReadBackFailed = 4,
+        ClientSynchronizationFailed = 5,
+    }
     [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=false)]
     public sealed class SparseFragmentMapperAttribute<TEntity, TDto> : System.Attribute
         where TEntity :  class

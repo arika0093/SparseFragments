@@ -5,10 +5,12 @@ namespace SparseTypes.Blazor
         where TModel :  class
         where TConflict :  class
     {
+        System.Collections.Generic.IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
         bool CanRedo { get; }
         bool CanUndo { get; }
         bool HasChanges { get; }
         SparseTypes.ISparseEditSession<TModel> Session { get; }
+        event System.Action? AutoAccepted;
         void AcceptChanges();
         void DiscardChanges();
         void Redo();
@@ -27,17 +29,78 @@ namespace SparseTypes.Blazor
         where TConflict :  class
         where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
     {
+        public System.Collections.Generic.IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
         public bool CanRedo { get; }
         public bool CanUndo { get; }
         public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
         public bool HasChanges { get; }
         public TPaths Path { get; }
         public TSession Session { get; }
+        public event System.Action? AutoAccepted;
         public void AcceptChanges() { }
         public void DiscardChanges() { }
         public void Redo() { }
         public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
         public void Undo() { }
+    }
+    public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TChildSession> : Microsoft.AspNetCore.Components.ComponentBase
+        where TParent :  class
+        where TChild :  class
+        where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+        where TConflict :  class
+        where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>
+    {
+        public SparseChildEdit() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment<SparseTypes.Blazor.SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession>>? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.ISparseEditSession<TParent>? ParentSession { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.ISparseChildEditPath<TParent, TChild, TChildPaths, TChildSession>? Path { get; set; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.Blazor.SparseSessionScopeContext<TParent>? ScopeContext { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        protected override void OnParametersSet() { }
+    }
+    public sealed class SparseCollectionRow<TModel, TElement>
+        where TModel :  class
+        where TElement :  class
+    {
+        public int Index { get; }
+        public TElement Item { get; }
+        public SparseTypes.SparseCollectionItemState? ItemState { get; }
+        public SparseTypes.SparsePath<TModel, TElement> Path { get; }
+        public string? StateQueryError { get; }
+        public System.Guid UiKey { get; }
+        public SparseTypes.SparseCollectionItemState RequireItemState() { }
+        public SparseTypes.SparsePath<TModel, TValue> Select<TValue>(System.Linq.Expressions.Expression<System.Func<TElement, TValue>> selector) { }
+        public bool TryMoveTo(int newIndex, out SparseTypes.SparseCollectionEditError error) { }
+        public bool TryRemove(out SparseTypes.SparseCollectionEditError error) { }
+    }
+    public sealed class SparseCollection<TModel, TElement> : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+        where TModel :  class
+        where TElement :  class
+    {
+        public SparseCollection() { }
+        public SparseTypes.SparseCollectionState? CollectionState { get; }
+        public SparseTypes.SparseCollectionEditor<TElement> Editor { get; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment? EmptyContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment<string>? ErrorContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.SparsePath Path { get; set; }
+        public string? QueryError { get; }
+        public System.Collections.Generic.IReadOnlyList<TElement> RemovedItems { get; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Microsoft.AspNetCore.Components.RenderFragment<SparseTypes.Blazor.SparseCollectionRow<TModel, TElement>>? RowTemplate { get; set; }
+        public System.Collections.Generic.IReadOnlyList<SparseTypes.Blazor.SparseCollectionRow<TModel, TElement>> Rows { get; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.Blazor.ISparseEditScope<TModel>? Scope { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
+        public void Dispose() { }
+        protected override void OnParametersSet() { }
+        public bool TryAdd(TElement item, out SparseTypes.SparseCollectionEditError error) { }
     }
     public enum SparseConflictFallbackMode
     {
@@ -154,12 +217,14 @@ namespace SparseTypes.Blazor
         public SparseTypes.Optional<TValue> Before { get; }
         public SparseTypes.Blazor.SparseFieldBinding<TModel, TValue> Binding { get; }
         public Microsoft.AspNetCore.Components.Forms.FieldIdentifier Field { get; }
+        public bool HasStateQueryError { get; }
         public bool IsChanged { get; }
         public bool IsModified { get; }
         public bool IsReadOnly { get; }
         public bool IsStale { get; }
         public SparseTypes.ISparseTypedPath<TModel, TValue> Path { get; }
         public SparseTypes.SparseFieldState<TValue> State { get; }
+        public string? StateQueryError { get; }
         public System.Collections.Generic.IEnumerable<string> ValidationMessages { get; }
         public TValue Value { get; set; }
         public Microsoft.AspNetCore.Components.EventCallback<TValue> ValueChanged { get; }
@@ -190,6 +255,13 @@ namespace SparseTypes.Blazor
     public sealed class SparseSessionScopeContext<TModel>
         where TModel :  class
     {
+        public bool AutoAccept { get; }
+        public bool HasChanges { get; }
+        public event System.Action? Changed;
+        public bool HasChangesFor<TChild, TChildPaths, TChildSession>(SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
+            where TChild :  class
+            where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+            where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
         public SparseTypes.Blazor.SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession> OpenChildSession<TChild, TChildPaths, TConflict, TChildSession>(SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict> parentSession, SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
             where TChild :  class
             where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
@@ -200,6 +272,8 @@ namespace SparseTypes.Blazor
         where TModel :  class
     {
         public SparseSessionScope() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public bool? AutoAccept { get; set; }
         [Microsoft.AspNetCore.Components.Parameter]
         public Microsoft.AspNetCore.Components.RenderFragment? ChildContent { get; set; }
         [Microsoft.AspNetCore.Components.Parameter]

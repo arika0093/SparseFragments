@@ -140,6 +140,52 @@ public sealed class GeneratedApiApprovalTests
     }
 
     [Test]
+    public void GeneratedEditSessionsExposeClassifiedSessionContracts()
+    {
+        // Generated sessions implement the runtime capability contracts. Pin the
+        // generic surfaces here so the generator cannot emit a session contract
+        // that the audience classification does not cover.
+        foreach (var model in FixtureModels)
+        {
+            var changeSet = AssertNested(model, "ChangeSet");
+            var session = AssertNested(model, "EditSession");
+            var withChangeSet =
+                typeof(SparseTypes.ISparseEditSessionWithChangeSet<,>).MakeGenericType(
+                    model,
+                    changeSet
+                );
+            session
+                .GetInterfaces()
+                .ShouldContain(
+                    withChangeSet,
+                    $"{model.Name}.EditSession must expose {withChangeSet}."
+                );
+            var withChildStatus =
+                typeof(SparseTypes.ISparseEditSessionWithChildStatus<,>).MakeGenericType(
+                    model,
+                    typeof(SparseTypes.SparseConflict)
+                );
+            session
+                .GetInterfaces()
+                .ShouldContain(
+                    withChildStatus,
+                    $"{model.Name}.EditSession must expose {withChildStatus}."
+                );
+        }
+
+        foreach (
+            var definition in new[]
+            {
+                typeof(SparseTypes.ISparseEditSessionWithChangeSet<,>),
+                typeof(SparseTypes.ISparseEditSessionWithChildStatus<,>),
+            }
+        )
+            definition
+                .GetCustomAttribute<EditorBrowsableAttribute>()
+                ?.State.ShouldBe(EditorBrowsableState.Advanced);
+    }
+
+    [Test]
     public void CreateEditSessionReturnsTheModelSpecificSubclass()
     {
         var session = new CatalogScalar().CreateEditSession();
