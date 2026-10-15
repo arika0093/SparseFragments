@@ -801,6 +801,8 @@ a, .btn-link {
     border: 1px solid var(--colorNeutralStroke1, #dee2e6);
     border-radius: 0.375rem;
     user-select: none;
+    justify-content: center;
+    align-items: center;
 }
 
 .pg-roster-list.fluent-sortable-list .sortable-grab {
