@@ -53,7 +53,7 @@ public sealed class EfApplyLineEntity
 {
     public int Id { get; set; }
 
-    public int OrderId { get; set; }
+    public int? OrderId { get; set; }
 
     public string Sku { get; set; } = string.Empty;
 
@@ -140,6 +140,36 @@ public sealed partial class EfApplyOrderMapper
     }
 }
 
+[SparseFragmentMapper<EfApplyOrderEntity, EfApplyOrderDto>]
+public sealed partial class EfApplyDetachOrderMapper
+{
+    private void Configure()
+    {
+        Map.Collection(
+            dto => dto.Lines,
+            entity => entity.Lines,
+            lines =>
+            {
+                lines.Element(child =>
+                {
+                    child.Ignore(dto => dto.Id);
+                    child.Ignore(dto => dto.TemporaryId);
+                    child.Member(dto => dto.Sku, entity => entity.Sku);
+                    child.Member(dto => dto.Quantity, entity => entity.Quantity);
+                });
+                lines.Key(dto => dto.Key, entity => entity.Id);
+                lines.Create(dto => new EfApplyLineEntity
+                {
+                    Sku = dto.Sku,
+                    Quantity = dto.Quantity,
+                });
+                lines.Detach();
+                lines.Order((entity, index) => entity.SortOrder = index);
+            }
+        );
+    }
+}
+
 internal sealed class EfCoreApplyBenchmarkFixture : IDisposable
 {
     private readonly SqliteConnection _connection;
@@ -157,11 +187,20 @@ internal sealed class EfCoreApplyBenchmarkFixture : IDisposable
             new EfApplyOrderMapper(),
             _modelContext.Model
         );
+        DetachMapper = SparseEntityMapper<EfApplyOrderEntity, EfApplyOrderDto>.Create(
+            new EfApplyDetachOrderMapper(),
+            _modelContext.Model
+        );
     }
 
     public SparseEntityMapper<EfApplyOrderEntity, EfApplyOrderDto> Mapper { get; }
 
-    public (EfApplyDbContext Context, EfApplyOrderEntity Entity) CreateTrackedOrder(int lineCount)
+    public SparseEntityMapper<EfApplyOrderEntity, EfApplyOrderDto> DetachMapper { get; }
+
+    public (EfApplyDbContext Context, EfApplyOrderEntity Entity) CreateTrackedOrder(
+        int lineCount,
+        bool reverseLines = false
+    )
     {
         var entity = new EfApplyOrderEntity
         {
@@ -186,6 +225,15 @@ internal sealed class EfCoreApplyBenchmarkFixture : IDisposable
                 })
                 .ToList(),
         };
+        if (reverseLines)
+        {
+            entity.Lines.Reverse();
+            for (var index = 0; index < entity.Lines.Count; index++)
+            {
+                entity.Lines[index].SortOrder = index;
+            }
+        }
+
         var context = new EfApplyDbContext(_options);
         context.Attach(entity);
         context.Entry(entity).Collection(order => order.Lines).IsLoaded = true;
@@ -372,4 +420,64 @@ public class EfCoreKeyedCollectionApplyBenchmarks
     [Benchmark]
     public SparseEntityApplyResult ApplyKeyedCollectionChangesWithResult() =>
         _fixture.Mapper.ApplyWithResult(_context, _entity, _changes);
+}
+
+[MemoryDiagnoser]
+public class EfCoreDetachBulkRemovalBenchmarks
+{
+    private EfCoreApplyBenchmarkFixture _fixture = null!;
+    private EfApplyDbContext _context = null!;
+    private EfApplyOrderEntity _entity = null!;
+    private EfApplyOrderDto.ChangeSet _changes = null!;
+
+    [Params(100, 1_000, 10_000)]
+    public int CollectionSize { get; set; }
+
+    [Params(0.01, 0.5, 1.0)]
+    public double RemovalRatio { get; set; }
+
+    [Params(false, true)]
+    public bool ReverseRemovalOrder { get; set; }
+
+    [Params(false, true)]
+    public bool AddAndReorder { get; set; }
+
+    [GlobalSetup]
+    public void Setup() => _fixture = new EfCoreApplyBenchmarkFixture();
+
+    [GlobalCleanup]
+    public void Cleanup() => _fixture.Dispose();
+
+    [IterationSetup]
+    public void SetupInvocation()
+    {
+        (_context, _entity) = _fixture.CreateTrackedOrder(CollectionSize, ReverseRemovalOrder);
+        _context.ChangeTracker.AutoDetectChangesEnabled = false;
+
+        var before = EfCoreApplyBenchmarkFixture.ToDto(_entity);
+        var after = EfCoreApplyBenchmarkFixture.ToDto(_entity);
+        var removalCount = Math.Max(1, (int)Math.Ceiling(CollectionSize * RemovalRatio));
+        after.Lines.RemoveRange(0, removalCount);
+        if (AddAndReorder)
+        {
+            after.Lines.Add(
+                new EfApplyLineDto
+                {
+                    Sku = "SKU-NEW",
+                    Quantity = CollectionSize + 1,
+                    TemporaryId = Guid.NewGuid(),
+                }
+            );
+            after.Lines.Reverse();
+        }
+
+        _changes = before.CreateChangeSet(after);
+    }
+
+    [IterationCleanup]
+    public void CleanupInvocation() => _context.Dispose();
+
+    [Benchmark]
+    public void ApplyBulkDetachAndCompact() =>
+        _fixture.DetachMapper.Apply(_context, _entity, _changes);
 }

@@ -132,9 +132,22 @@ internal static class CollectionExecution
             list.Add(addition.Entity);
         }
 
+        var compactedDetachList =
+            plan.Removed.Count > 0
+            && runtime.RemoveKind == SparseEntityRemoveKind.Detach
+            && list.GetType() == typeof(List<TEntityChild>);
+        if (compactedDetachList)
+        {
+            CompactDetachedList((List<TEntityChild>)list, plan.FinalOrder, plan.Removed, path);
+        }
+
         foreach (var removal in plan.Removed)
         {
-            ApplyRemoval(runtime, context, list, removal);
+            if (!compactedDetachList)
+            {
+                ApplyRemoval(runtime, context, list, removal);
+            }
+
             if (appliedPaths is not null)
             {
                 appliedPaths.Add(
@@ -151,7 +164,7 @@ internal static class CollectionExecution
 
         // Edits-only plans keep the tracked order: FinalOrder stays empty and
         // no reorder runs. Membership and order plans always carry coverage.
-        if (plan.FinalOrder.Count > 0)
+        if (!compactedDetachList && plan.FinalOrder.Count > 0)
         {
             ReorderList(list, plan.FinalOrder, path);
         }
@@ -173,6 +186,73 @@ internal static class CollectionExecution
                 )
             );
         }
+    }
+
+    private static void CompactDetachedList<TEntityChild>(
+        List<TEntityChild> list,
+        List<TEntityChild> finalOrder,
+        List<PlannedRemoval<TEntityChild>> removals,
+        string path
+    )
+        where TEntityChild : class
+    {
+        var expectedCount = finalOrder.Count + removals.Count;
+        if (list.Count != expectedCount)
+        {
+            ThrowChangedCollection(path);
+        }
+
+        var expectedMembership = new Dictionary<TEntityChild, int>(
+            ReferenceEqualityComparer.Instance
+        );
+        foreach (var entity in finalOrder)
+        {
+            AddExpectedEntity(expectedMembership, entity);
+        }
+
+        foreach (var removal in removals)
+        {
+            AddExpectedEntity(expectedMembership, removal.Entity);
+        }
+
+        foreach (var entity in list)
+        {
+            if (!expectedMembership.TryGetValue(entity, out var remaining) || remaining == 0)
+            {
+                ThrowChangedCollection(path);
+            }
+
+            expectedMembership[entity] = remaining - 1;
+        }
+
+        for (var index = 0; index < finalOrder.Count; index++)
+        {
+            if (!ReferenceEquals(list[index], finalOrder[index]))
+            {
+                list[index] = finalOrder[index];
+            }
+        }
+
+        list.RemoveRange(finalOrder.Count, removals.Count);
+    }
+
+    private static void AddExpectedEntity<TEntityChild>(
+        Dictionary<TEntityChild, int> expectedMembership,
+        TEntityChild entity
+    )
+        where TEntityChild : class
+    {
+        expectedMembership.TryGetValue(entity, out var count);
+        expectedMembership[entity] = count + 1;
+    }
+
+    private static void ThrowChangedCollection(string path)
+    {
+        throw new SparseEntityMappingException(
+            SparseEntityMappingFailure.MetadataMismatch,
+            path,
+            "The planned collection order does not cover the tracked list. The navigation changed during Apply."
+        );
     }
 
     private static void RecordCollectionScope(
@@ -245,11 +325,7 @@ internal static class CollectionExecution
     {
         if (finalOrder.Count != list.Count)
         {
-            throw new SparseEntityMappingException(
-                SparseEntityMappingFailure.MetadataMismatch,
-                path,
-                "The planned collection order does not cover the tracked list. The navigation changed during Apply."
-            );
+            ThrowChangedCollection(path);
         }
 
         for (var index = 0; index < finalOrder.Count; index++)

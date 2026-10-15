@@ -151,6 +151,8 @@ public sealed partial class KeyedCollectionPolicyTests
         await context.SaveChangesAsync();
         await context.Entry(entity).Collection(static owner => owner.Archived).LoadAsync();
         var detachedId = entity.Archived.Single(static line => line.Qty == 2).Id;
+        var list = entity.Archived;
+        var survivor = list.Single(static line => line.Qty == 1);
         counter.Reset();
 
         DuoDto Read(DuoEntity owner) =>
@@ -170,7 +172,9 @@ public sealed partial class KeyedCollectionPolicyTests
             .Create(new DuoDetachMapper(), context.Model)
             .Apply(context, entity, accepted);
 
+        entity.Archived.ShouldBeSameAs(list);
         entity.Archived.Count.ShouldBe(1);
+        entity.Archived[0].ShouldBeSameAs(survivor);
         counter.Commands.ShouldBe(0);
 
         await context.SaveChangesAsync();
@@ -184,6 +188,56 @@ public sealed partial class KeyedCollectionPolicyTests
         survivors.Count.ShouldBe(2);
         var unlinked = survivors.Single(line => line.Id == detachedId);
         unlinked.ArchivedOwnerId.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task DetachRemovesAllFromOrdinaryListInPlace()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var context = TestDatabases.CreateKeyed(connection, new QueryCounter());
+        var entity = context
+            .Duos.Add(
+                new DuoEntity
+                {
+                    Archived = [new DuoLineEntity { Qty = 1 }, new DuoLineEntity { Qty = 2 }],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static owner => owner.Archived).LoadAsync();
+
+        var list = entity.Archived;
+        var removed = list.ToArray();
+        var current = new DuoDto
+        {
+            Archived = list.OrderBy(static line => line.Id)
+                .Select(static line => new DuoLineDto { Id = line.Id, Qty = line.Qty })
+                .ToList(),
+        };
+        var incoming = new DuoDto();
+        var accepted = current.CreateChangeSet(incoming);
+
+        var result = SparseEntityMapper<DuoEntity, DuoDto>
+            .Create(new DuoDetachMapper(), context.Model)
+            .ApplyWithResult(context, entity, accepted);
+
+        entity.Archived.ShouldBeSameAs(list);
+        entity.Archived.ShouldBeEmpty();
+        result
+            .AppliedPaths.Count(path =>
+                path.DtoPath == "Archived"
+                && path.Operation == SparseEntityApplyOperationKind.Removed
+                && path.RemoveKind == SparseEntityRemoveKind.Detach
+            )
+            .ShouldBe(removed.Length);
+
+        await context.SaveChangesAsync();
+        using var verify = new KeyedMappingContext(
+            new DbContextOptionsBuilder<KeyedMappingContext>().UseSqlite(connection).Options
+        );
+        var survivors = verify.Set<DuoLineEntity>().OrderBy(static line => line.Id).ToList();
+        survivors.Count.ShouldBe(removed.Length);
+        survivors.All(static line => line.ArchivedOwnerId == null).ShouldBeTrue();
     }
 
     [Test]
