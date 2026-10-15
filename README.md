@@ -30,7 +30,7 @@ public partial class NestedClass
 }
 ```
 
-That's all you need to do! Start editing reactively with dirty tracking and Undo/Redo:
+That's all you need to do! Start editing reactively with dirty tracking (Undo/Redo history is opt-in via `EnableHistory()`; see [UI frameworks](docs/explanation/ui-frameworks.md#edit-history-lifecycle-and-grouping)):
 
 <!-- illustrative: edit session usage -->
 ```csharp

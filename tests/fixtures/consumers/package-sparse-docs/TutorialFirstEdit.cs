@@ -9,6 +9,7 @@ public static class TutorialFirstEditSamples
     public static void Run()
     {
         FirstChangeWorkflow();
+        HistoryFlow();
     }
 
     private static void FirstChangeWorkflow()
@@ -95,6 +96,37 @@ public static class TutorialFirstEditSamples
         DocsCheck.Require(effective.Theme.Value == "dark", "override wins");
         DocsCheck.Require(effective.RefreshInterval.Value == 30, "missing falls through");
         DocsCheck.Require(updated.RefreshInterval.Value == 120, "patch updates RefreshInterval");
+    }
+
+    private static void HistoryFlow()
+    {
+        var probe = new UserSettings { Theme = "light" }.CreateEditSession();
+        DocsCheck.Require(probe.History is null, "history off by default");
+
+        // sample: tutorial-history
+        var draft = new UserSettings
+        {
+            DisplayName = "Alice",
+            Theme = "light",
+            RefreshInterval = 60,
+        };
+        var draftSession = draft.CreateEditSession();
+
+        // History is off by default: draftSession.History == null.
+        var history = draftSession.EnableHistory();
+
+        draftSession.Observable.Theme = "dark";
+        // history.CanUndo == true
+        DocsCheck.Require(history.CanUndo, "edit retained in history");
+        history.Undo();
+        // draft.Theme == "light"
+        DocsCheck.Require(draft.Theme == "light", "undo restores value");
+        history.Redo();
+        // draft.Theme == "dark"
+        // /sample
+        DocsCheck.Require(draft.Theme == "dark", "redo reapplies edit");
+        draftSession.DisableHistory();
+        DocsCheck.Require(draftSession.History is null, "disable releases history");
     }
 }
 

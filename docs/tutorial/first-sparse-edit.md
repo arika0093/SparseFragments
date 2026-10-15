@@ -38,7 +38,7 @@ The generator emits nested companion types (`EditSession`, `ChangeSet`, `ChangeP
 
 ## Step 1: Manage draft state with EditSession
 
-Start an edit session from an existing model instance. An `EditSession` wraps your data in an observable proxy that tracks dirty properties, raises change notifications, and maintains an undo/redo history.
+Start an edit session from an existing model instance. An `EditSession` wraps your data in an observable proxy that tracks dirty properties and raises change notifications. Undo/redo history is opt-in: the session retains nothing until you call `EnableHistory()` (see [Undo and redo](#undo-and-redo-with-session-history)).
 
 Add this at the top of `Program.cs`:
 
@@ -59,7 +59,37 @@ session.Observable.Theme = "dark";
 ```
 <!-- /sample -->
 
-Editing through `session.Observable` updates the draft and flags `session.HasChanges`. You can call `session.Undo()` to revert the last edit or `session.AcceptChanges()` to commit the draft as the new baseline.
+Editing through `session.Observable` updates the draft and flags `session.HasChanges`. You can call `session.AcceptChanges()` to commit the draft as the new baseline.
+
+### Undo and redo with session history
+
+To step backward and forward through edits, enable the session-owned history first:
+
+<!-- sample: tutorial-history -->
+```csharp
+var draft = new UserSettings
+{
+    DisplayName = "Alice",
+    Theme = "light",
+    RefreshInterval = 60,
+};
+var draftSession = draft.CreateEditSession();
+
+// History is off by default: draftSession.History == null.
+var history = draftSession.EnableHistory();
+
+draftSession.Observable.Theme = "dark";
+// history.CanUndo == true
+
+history.Undo();
+// draft.Theme == "light"
+
+history.Redo();
+// draft.Theme == "dark"
+```
+<!-- /sample -->
+
+`EnableHistory()` returns the session-owned history control and sets `session.History`. `history.Undo()` replays the last transition backward, `history.Redo()` reapplies it, and `session.DisableHistory()` discards retained entries (`History` returns to `null`). Without `EnableHistory`, the session keeps no entries, so there is nothing to undo. Grouped undo steps and history limits are covered in [UI frameworks](../explanation/ui-frameworks.md#edit-history-lifecycle-and-grouping).
 
 ## Step 2: Inspect what changed with ChangeSet
 
@@ -221,6 +251,13 @@ var settings = new UserSettings
 };
 var session = settings.CreateEditSession();
 session.Observable.Theme = "dark";
+
+// Opt-in undo/redo history on a separate draft (see Step 1).
+var draftSession = new UserSettings { Theme = "light" }.CreateEditSession();
+var history = draftSession.EnableHistory();
+draftSession.Observable.Theme = "dark";
+history.Undo();
+history.Redo();
 
 // 2. Inspect what changed
 var changes = session.CreateChangeSet();

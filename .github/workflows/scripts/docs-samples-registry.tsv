@@ -89,6 +89,7 @@ docs/tutorial/first-sparse-edit.md	tutorial-changeset	tests/fixtures/consumers/p
 docs/tutorial/first-sparse-edit.md	tutorial-payload	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/tutorial/first-sparse-edit.md	tutorial-rebase	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/tutorial/first-sparse-edit.md	tutorial-fragment-patch	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
+docs/tutorial/first-sparse-edit.md	tutorial-history	tests/fixtures/consumers/package-sparse-docs/TutorialFirstEdit.cs
 docs/how-to/layered-settings.md	layered-models	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
 docs/how-to/layered-settings.md	layered-precedence	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
 docs/how-to/layered-settings.md	layered-remove	tests/fixtures/consumers/package-sparse-docs/LayeredSettings.cs
