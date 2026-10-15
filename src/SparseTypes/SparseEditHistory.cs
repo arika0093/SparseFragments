@@ -49,6 +49,9 @@ public sealed class SparseEditHistoryHooks<TChangeSet>
 public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposable
     where TChangeSet : class
 {
+    // Retain only small reference arrays; larger groups should not pin their peak capacity.
+    private const int MaxReusableGroupBufferCapacity = 32;
+
     private readonly Func<TChangeSet, bool> _isEmpty;
     private readonly Func<TChangeSet, TChangeSet> _invert;
     private readonly Func<TChangeSet, TChangeSet, TChangeSet> _compose;
@@ -386,7 +389,14 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
         _redo.Clear();
         if (_groupBuffer != null)
         {
-            _groupBuffer.Clear();
+            if (_groupBuffer.Capacity > MaxReusableGroupBufferCapacity)
+            {
+                _groupBuffer = _groupDepth == 0 ? null : new List<TChangeSet>();
+            }
+            else
+            {
+                _groupBuffer.Clear();
+            }
         }
 
         if (retained)
@@ -412,6 +422,7 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
             _groupBuffer.Clear();
         }
 
+        _groupBuffer = null;
         _groupDepth = 0;
         Action? raised = Disposed;
         if (raised != null)
@@ -442,54 +453,75 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
             return;
         }
 
-        List<TChangeSet> buffer = _groupBuffer!;
-        if (buffer.Count == 0)
+        List<TChangeSet> entries = _groupBuffer!;
+        _groupBuffer = null;
+        if (entries.Count == 0)
         {
+            RecycleGroupBuffer(entries);
             return;
         }
 
-        List<TChangeSet> entries = new List<TChangeSet>(buffer);
-        buffer.Clear();
-        TChangeSet composed = entries[0];
-        bool splintered = false;
-        for (int index = 1; index < entries.Count; index++)
+        try
         {
-            try
+            TChangeSet composed = entries[0];
+            bool splintered = false;
+            for (int index = 1; index < entries.Count; index++)
             {
-                composed = _compose(composed, entries[index]);
+                try
+                {
+                    composed = _compose(composed, entries[index]);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Contiguous observed transitions compose.
+                    PushUndo(composed);
+                    composed = entries[index];
+                    splintered = true;
+                }
             }
-            catch (InvalidOperationException)
-            {
-                // Contiguous observed transitions compose.
-                PushUndo(composed);
-                composed = entries[index];
-                splintered = true;
-            }
-        }
 
-        if (splintered)
-        {
+            if (splintered)
+            {
+                PushUndo(composed);
+                _redo.Clear();
+                RaiseStateChanged();
+                return;
+            }
+
+            if (_isEmpty(composed))
+            {
+                bool redoRetained = _redo.Count != 0;
+                _redo.Clear();
+                if (redoRetained)
+                {
+                    RaiseStateChanged();
+                }
+
+                return;
+            }
+
             PushUndo(composed);
             _redo.Clear();
             RaiseStateChanged();
-            return;
         }
-
-        if (_isEmpty(composed))
+        finally
         {
-            bool redoRetained = _redo.Count != 0;
-            _redo.Clear();
-            if (redoRetained)
-            {
-                RaiseStateChanged();
-            }
-
-            return;
+            RecycleGroupBuffer(entries);
         }
+    }
 
-        PushUndo(composed);
-        _redo.Clear();
-        RaiseStateChanged();
+    private void RecycleGroupBuffer(List<TChangeSet> entries)
+    {
+        entries.Clear();
+        if (
+            entries.Capacity <= MaxReusableGroupBufferCapacity
+            && _groupBuffer == null
+            && _groupDepth == 0
+            && !_disposed
+        )
+        {
+            _groupBuffer = entries;
+        }
     }
 
     private void RaiseStateChanged()

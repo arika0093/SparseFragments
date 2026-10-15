@@ -4,6 +4,174 @@ namespace SparseTypes.Tests;
 public sealed class EditHistoryLifecycleTests
 {
     [Test]
+    public void CompletedLargeGroupReleasesItsBuffer()
+    {
+        string? applied = null;
+        using var history = CreateHistory(apply: changes => applied = changes);
+
+        using (history.BeginGroup())
+        {
+            for (var index = 0; index < 1_000; index++)
+            {
+                history.OnTransition($"transition-{index}");
+            }
+        }
+
+        history.UndoCount.ShouldBe(1);
+        GetGroupBuffer(history).ShouldBeNull();
+        history.Undo();
+        applied.ShouldBe("transition-999");
+    }
+
+    [Test]
+    public void ClearDuringLargeGroupReplacesBufferAndKeepsRecording()
+    {
+        string? applied = null;
+        using var history = CreateHistory(apply: changes => applied = changes);
+        using var group = history.BeginGroup();
+
+        for (var index = 0; index < 1_000; index++)
+        {
+            history.OnTransition($"transition-{index}");
+        }
+
+        history.Clear();
+
+        List<string>? buffer = GetGroupBuffer(history);
+        buffer.ShouldNotBeNull();
+        buffer!.Count.ShouldBe(0);
+        buffer.Capacity.ShouldBeLessThanOrEqualTo(32);
+
+        history.OnTransition("after-clear");
+        group.Dispose();
+
+        history.UndoCount.ShouldBe(1);
+        history.Undo();
+        applied.ShouldBe("after-clear");
+    }
+
+    [Test]
+    public void ReentrantGroupKeepsItsOwnBufferDuringOuterComposition()
+    {
+        SparseEditHistory<string>? history = null;
+        IDisposable? nestedGroup = null;
+        var nestedGroupStarted = false;
+        string? applied = null;
+        var hooks = CreateHooks(
+            compose: (first, second) =>
+            {
+                if (!nestedGroupStarted)
+                {
+                    nestedGroupStarted = true;
+                    nestedGroup = history!.BeginGroup();
+                    history.OnTransition("nested");
+                }
+
+                return second;
+            },
+            apply: changes => applied = changes
+        );
+        history = new SparseEditHistory<string>(new EditHistoryOptions { MaxEntries = 4 }, hooks);
+
+        using (history)
+        {
+            using (history.BeginGroup())
+            {
+                history.OnTransition("outer-first");
+                history.OnTransition("outer-last");
+            }
+
+            nestedGroup.ShouldNotBeNull();
+            nestedGroup!.Dispose();
+
+            history.UndoCount.ShouldBe(2);
+            history.Undo();
+            applied.ShouldBe("nested");
+            history.Undo();
+            applied.ShouldBe("outer-last");
+        }
+    }
+
+    [Test]
+    public void NonSplinterCompositionExceptionReleasesBufferAndPropagates()
+    {
+        string? applied = null;
+        var hooks = CreateHooks(
+            compose: static (first, second) => throw new ApplicationException("compose failed"),
+            apply: changes => applied = changes
+        );
+        using var history = new SparseEditHistory<string>(
+            new EditHistoryOptions { MaxEntries = 4 },
+            hooks
+        );
+
+        Should.Throw<ApplicationException>(() =>
+        {
+            using var group = history.BeginGroup();
+            history.OnTransition("first");
+            history.OnTransition("second");
+        });
+
+        List<string>? buffer = GetGroupBuffer(history);
+        buffer.ShouldNotBeNull();
+        buffer!.Count.ShouldBe(0);
+
+        using (history.BeginGroup())
+        {
+            history.OnTransition("later");
+        }
+
+        history.UndoCount.ShouldBe(1);
+        history.Undo();
+        applied.ShouldBe("later");
+    }
+
+    [Test]
+    public void SplinteringCompositionKeepsBothEntriesAndRaisesOneNotification()
+    {
+        string? applied = null;
+        var hooks = CreateHooks(
+            compose: static (first, second) => throw new InvalidOperationException("splinter"),
+            apply: changes => applied = changes
+        );
+        using var history = new SparseEditHistory<string>(
+            new EditHistoryOptions { MaxEntries = 4 },
+            hooks
+        );
+        var notifications = 0;
+        history.StateChanged += () => notifications++;
+
+        using (history.BeginGroup())
+        {
+            history.OnTransition("first");
+            history.OnTransition("second");
+        }
+
+        history.UndoCount.ShouldBe(2);
+        notifications.ShouldBe(1);
+        history.Undo();
+        applied.ShouldBe("second");
+        history.Undo();
+        applied.ShouldBe("first");
+    }
+
+    [Test]
+    public void DisposeBeforeGroupScopeDisposalReleasesBuffer()
+    {
+        var history = CreateHistory();
+        IDisposable group = history.BeginGroup();
+        for (var index = 0; index < 1_000; index++)
+        {
+            history.OnTransition($"transition-{index}");
+        }
+
+        history.Dispose();
+        GetGroupBuffer(history).ShouldBeNull();
+        group.Dispose();
+        Should.Throw<ObjectDisposedException>(() => history.UndoCount);
+    }
+
+    [Test]
     public void AcceptChangesClearsHistoryOnSuccess()
     {
         var model = new HistoryScalarModel { Name = "base" };
@@ -292,5 +460,46 @@ public sealed class EditHistoryLifecycleTests
         history.Undo();
         model.Name.ShouldBe("base");
         model.Count.ShouldBe(1);
+    }
+
+    private static SparseEditHistory<string> CreateHistory(Action<string>? apply = null)
+    {
+        return new SparseEditHistory<string>(
+            new EditHistoryOptions { MaxEntries = 4 },
+            CreateHooks(apply: apply)
+        );
+    }
+
+    private static SparseEditHistoryHooks<string> CreateHooks(
+        Func<string, string, string>? compose = null,
+        Action<string>? apply = null
+    )
+    {
+        return new SparseEditHistoryHooks<string>
+        {
+            IsEmpty = static changes => changes.Length == 0,
+            Invert = static changes => changes,
+            Compose = compose ?? (static (first, second) => second),
+            TryApply = (string changes, out IReadOnlyList<SparseConflict>? conflicts) =>
+            {
+                conflicts = null;
+                apply?.Invoke(changes);
+                return true;
+            },
+            Subscribe = static handler => { },
+            Unsubscribe = static handler => { },
+        };
+    }
+
+    private static List<string>? GetGroupBuffer(SparseEditHistory<string> history)
+    {
+        return (List<string>?)
+            typeof(SparseEditHistory<string>)
+                .GetField(
+                    "_groupBuffer",
+                    System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.NonPublic
+                )
+                ?.GetValue(history);
     }
 }
